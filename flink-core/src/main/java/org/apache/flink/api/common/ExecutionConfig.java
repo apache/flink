@@ -159,8 +159,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/** Determines if a task fails or not if there is an error in writing its checkpoint data. Default: true */
 	private boolean failTaskOnCheckpointError = true;
 
-	/** The input dependency constraint to schedule tasks. */
-	private InputDependencyConstraint inputDependencyConstraint = InputDependencyConstraint.ANY;
+	/** The default input dependency constraint to schedule tasks. */
+	private InputDependencyConstraint defaultInputDependencyConstraint = InputDependencyConstraint.ANY;
 
 	// ------------------------------- User code values --------------------------------------------
 
@@ -522,27 +522,27 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
-	 * Sets the input dependency constraint for vertex scheduling. It indicates when a task
+	 * Sets the default input dependency constraint for vertex scheduling. It indicates when a task
 	 * should be scheduled considering its inputs status.
 	 *
 	 * The default constraint is {@link InputDependencyConstraint#ANY}.
 	 *
 	 * @param inputDependencyConstraint The input dependency constraint.
 	 */
-	public void setInputDependencyConstraint(InputDependencyConstraint inputDependencyConstraint) {
-		this.inputDependencyConstraint = inputDependencyConstraint;
+	public void setDefaultInputDependencyConstraint(InputDependencyConstraint inputDependencyConstraint) {
+		this.defaultInputDependencyConstraint = inputDependencyConstraint;
 	}
 
 	/**
-	 * Gets the input dependency constraint for vertex scheduling. It indicates when a task
+	 * Gets the default input dependency constraint for vertex scheduling. It indicates when a task
 	 * should be scheduled considering its inputs status.
 	 *
 	 * The default constraint is {@link InputDependencyConstraint#ANY}.
 	 *
 	 * @return The input dependency constraint of this job.
 	 */
-	public InputDependencyConstraint getInputDependencyConstraint() {
-		return inputDependencyConstraint;
+	public InputDependencyConstraint getDefaultInputDependencyConstraint() {
+		return defaultInputDependencyConstraint;
 	}
 
 	/**
@@ -945,7 +945,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				registeredKryoTypes.equals(other.registeredKryoTypes) &&
 				registeredPojoTypes.equals(other.registeredPojoTypes) &&
 				taskCancellationIntervalMillis == other.taskCancellationIntervalMillis &&
-				useSnapshotCompression == other.useSnapshotCompression;
+				useSnapshotCompression == other.useSnapshotCompression &&
+				defaultInputDependencyConstraint == other.defaultInputDependencyConstraint;
 
 		} else {
 			return false;
@@ -973,7 +974,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			registeredKryoTypes,
 			registeredPojoTypes,
 			taskCancellationIntervalMillis,
-			useSnapshotCompression);
+			useSnapshotCompression,
+			defaultInputDependencyConstraint);
 	}
 
 	public boolean canEqual(Object obj) {

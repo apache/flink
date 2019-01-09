@@ -246,6 +246,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 
 		// add vertices to the graph
 		for (JobVertex vertex : this.vertices.values()) {
+			vertex.setInputDependencyConstraint(program.getOriginalPlan().getExecutionConfig().getDefaultInputDependencyConstraint());
 			graph.addVertex(vertex);
 		}
 

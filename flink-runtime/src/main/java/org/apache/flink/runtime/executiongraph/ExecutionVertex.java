@@ -343,6 +343,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return resultPartitions;
 	}
 
+	public InputDependencyConstraint getInputDependencyConstraint() {
+		return getJobVertex().getInputDependencyConstraint();
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Graph building
 	// --------------------------------------------------------------------------------------------
@@ -689,7 +693,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 		if (partition.getIntermediateResult().getResultType().isPipelined()) {
 			// Schedule or update receivers of this partition
-			partition.markSomePipelinedDataProduced();
+			partition.markDataProduced();
 			execution.scheduleOrUpdateConsumers(partition.getConsumers());
 		}
 		else {
@@ -736,7 +740,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * @return whether the input constraint is satisfied
 	 */
 	public boolean checkInputDependencyConstraints() {
-		if (getExecutionGraph().getInputDependencyConstraint() == InputDependencyConstraint.ANY) {
+		if (getInputDependencyConstraint() == InputDependencyConstraint.ANY) {
 			// InputDependencyConstraint == ANY
 			return IntStream.range(0, inputEdges.length).anyMatch(this::isInputConsumable);
 		} else {
@@ -746,23 +750,16 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	}
 
 	/**
-	 * An input is consumable when
-	 * 1. the source result is PIPELINED and one of the result partition has produced data.
-	 * 2. the source result is BLOCKING and is FINISHED(all partitions are FINISHED).
+	 * Get whether an input of the vertex is consumable.
+	 * An input is consumable when when any partition in it is consumable.
+	 *
+	 * Note that a BLOCKING result partition is only consumable when all partitions in the result are FINISHED.
 	 *
 	 * @return whether the input is consumable
 	 */
 	public boolean isInputConsumable(int inputNumber) {
-		IntermediateResult result = jobVertex.getInputs().get(inputNumber);
-
-		if (result.getResultType().isPipelined()) {
-			// For PIPELINED result, the input is consumable if any result partition has produced records or is finished
-			return Arrays.stream(inputEdges[inputNumber]).map(ExecutionEdge::getSource).anyMatch(
-					IntermediateResultPartition::isSomePipelinedDataProduced);
-		} else {
-			// For BLOCKING result, the input is consumable if all the partitions in the result are finished
-			return result.areAllPartitionsFinished();
-		}
+		return Arrays.stream(inputEdges[inputNumber]).map(ExecutionEdge::getSource).anyMatch(
+				IntermediateResultPartition::isConsumable);
 	}
 
 	// --------------------------------------------------------------------------------------------

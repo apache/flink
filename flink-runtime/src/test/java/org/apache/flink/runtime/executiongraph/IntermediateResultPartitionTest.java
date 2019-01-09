@@ -46,7 +46,7 @@ public class IntermediateResultPartitionTest extends TestLogger {
 		assertFalse(partition2.isConsumable());
 
 		// Partition 1 consumable after data are produced
-		partition1.markSomePipelinedDataProduced();
+		partition1.markDataProduced();
 		assertTrue(partition1.isConsumable());
 		assertFalse(partition2.isConsumable());
 

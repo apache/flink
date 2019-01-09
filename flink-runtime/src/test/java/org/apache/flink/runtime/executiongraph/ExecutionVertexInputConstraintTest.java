@@ -177,6 +177,10 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 		final String jobName = "Test Job Sample Name";
 		final SlotProvider slotProvider = new SimpleSlotProvider(jobId, 20);
 
+		for (JobVertex vertex : orderedVertices) {
+			vertex.setInputDependencyConstraint(inputDependencyConstraint);
+		}
+
 		ExecutionGraph eg = new ExecutionGraph(
 			new DummyJobInformation(
 				jobId,
@@ -188,7 +192,6 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 			new RestartAllStrategy.Factory(),
 			slotProvider);
 		eg.attachJobGraph(orderedVertices);
-		eg.setInputDependencyConstraint(inputDependencyConstraint);
 
 		return eg;
 	}

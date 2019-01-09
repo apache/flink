@@ -21,7 +21,6 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -256,9 +255,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * from results than need to be materialized. */
 	private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
 
-	/** The input dependency constraint to schedule tasks. */
-	private InputDependencyConstraint inputDependencyConstraint = InputDependencyConstraint.ANY;
-
 	// ------ Execution status and progress. These values are volatile, and accessed under the lock -------
 
 	private final AtomicInteger verticesFinished;
@@ -458,14 +454,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	public ScheduleMode getScheduleMode() {
 		return scheduleMode;
-	}
-
-	public void setInputDependencyConstraint(InputDependencyConstraint inputDependencyConstraint) {
-		this.inputDependencyConstraint = inputDependencyConstraint;
-	}
-
-	public InputDependencyConstraint getInputDependencyConstraint() {
-		return inputDependencyConstraint;
 	}
 
 	public Time getAllocationTimeout() {
