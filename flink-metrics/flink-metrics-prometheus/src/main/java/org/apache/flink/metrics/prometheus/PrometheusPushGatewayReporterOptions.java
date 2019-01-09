@@ -50,4 +50,11 @@ public class PrometheusPushGatewayReporterOptions {
 		.key("deleteOnShutdown")
 		.defaultValue(true)
 		.withDescription("Specifies whether to delete metrics from the PushGateway on shutdown.");
+
+	public static final ConfigOption<Boolean> FILTER_LABEL_VALUE_CHARACTER = ConfigOptions
+		.key("filterLabelValueCharacters")
+		.defaultValue(true)
+		.withDescription("Specifies whether to filter label value characters."
+			+ " It's default to true, so only [a-zA-Z0-9:_] are valid."
+			+ " If set to false, label values can contain any Unicode characters.");
 }

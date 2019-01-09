@@ -47,7 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import static org.apache.flink.metrics.prometheus.PrometheusReporterOptions.FILTER_LABEL_VALUE_CHARACTER;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.FILTER_LABEL_VALUE_CHARACTER;
 
 /**
  * base prometheus reporter for prometheus metrics.
