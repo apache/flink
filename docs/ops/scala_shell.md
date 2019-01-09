@@ -88,7 +88,7 @@ The Flink Shell comes with command history and auto-completion.
 
 ### Table API
 
-The example below is a streaming wordcount program using Table API:
+The example below is a wordcount program using Table API:
 <div class="codetabs" markdown="1">
 <div data-lang="stream" markdown="1">
 {% highlight scala %}
@@ -135,11 +135,11 @@ Scala-Flink> textSource.join(split('text) as 'word).
 </div>
 </div>
 
-Note that the $ prefix of the TableFunction classname is a walkaround of a scala issue about incorrectly generated inner class name. 
+Note, that the $ prefix of the TableFunction classname is a walkaround of a scala issue about incorrectly generated inner class name. 
 
 ### SQL
 
-The following example is a streaming wordcount program written in SQL:
+The following example is a wordcount program written in SQL:
 <div class="codetabs" markdown="1">
 <div data-lang="stream" markdown="1">
 {% highlight scala %}
