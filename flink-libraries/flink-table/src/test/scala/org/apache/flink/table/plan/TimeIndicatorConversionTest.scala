@@ -23,8 +23,8 @@ import java.sql.Timestamp
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.{TimeIntervalUnit, WindowReference}
-import org.apache.flink.table.functions.TableFunction
-import org.apache.flink.table.plan.TimeIndicatorConversionTest.TableFunc
+import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
+import org.apache.flink.table.plan.TimeIndicatorConversionTest.{ScalarFunc, TableFunc}
 import org.apache.flink.table.plan.logical.TumblingGroupWindow
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
@@ -504,6 +504,112 @@ class TimeIndicatorConversionTest extends TableTestBase {
 
     util.verifyTable(result, expected)
   }
+
+  @Test
+  def testMatchRecognizeRowtimeMaterialization(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Long, Long, Int)](
+      "RowtimeTicker",
+      'rowtime.rowtime,
+      'symbol,
+      'price)
+    util.addFunction("func", new ScalarFunc)
+
+    val query =
+      s"""
+         |SELECT
+         |  *
+         |FROM RowtimeTicker
+         |MATCH_RECOGNIZE (
+         |  PARTITION BY symbol
+         |  ORDER BY rowtime
+         |  MEASURES
+         |    MATCH_ROWTIME() as matchRowtime,
+         |    func(MATCH_ROWTIME()) as funcRowtime,
+         |    A.rowtime as noLongerRowtime
+         |  ONE ROW PER MATCH
+         |  PATTERN (A)
+         |  DEFINE
+         |    A AS A.price > 0
+         |)
+         |""".stripMargin
+
+    val expected = unaryNode(
+      "DataStreamMatch",
+      streamTableNode(0),
+      term("partitionBy", "symbol"),
+      term("orderBy", "rowtime ASC"),
+      term("measures",
+        "FINAL(MATCH_ROWTIME()) AS matchRowtime",
+        "FINAL(func(CAST(MATCH_ROWTIME()))) AS funcRowtime",
+        "FINAL(CAST(A.rowtime)) AS noLongerRowtime"
+      ),
+      term("rowsPerMatch", "ONE ROW PER MATCH"),
+      term("after", "SKIP TO NEXT ROW"),
+      term("pattern", "'A'"),
+      term("define", "{A=>(PREV(A.$2, 0), 0)}")
+    )
+
+    util.verifySql(query, expected)
+  }
+
+  @Test
+  def testMatchRecognizeProctimeMaterialization(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Long, Long, Int)](
+      "ProctimeTicker",
+      'rowtime.rowtime,
+      'symbol,
+      'price,
+      'proctime.proctime)
+    util.addFunction("func", new ScalarFunc)
+
+    val query =
+      s"""
+         |SELECT
+         |  *
+         |FROM ProctimeTicker
+         |MATCH_RECOGNIZE (
+         |  PARTITION BY symbol
+         |  ORDER BY rowtime
+         |  MEASURES
+         |    MATCH_PROCTIME() as matchProctime,
+         |    func(MATCH_PROCTIME()) as funcProctime,
+         |    A.proctime as noLongerProctime
+         |  ONE ROW PER MATCH
+         |  PATTERN (A)
+         |  DEFINE
+         |    A AS A.price > 0
+         |)
+         |""".stripMargin
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamMatch",
+        streamTableNode(0),
+        term("partitionBy", "symbol"),
+        term("orderBy", "rowtime ASC"),
+        term("measures",
+          "FINAL(MATCH_PROCTIME()) AS matchProctime",
+          "FINAL(func(PROCTIME(MATCH_PROCTIME()))) AS funcProctime",
+          "FINAL(PROCTIME(A.proctime)) AS noLongerProctime"
+        ),
+        term("rowsPerMatch", "ONE ROW PER MATCH"),
+        term("after", "SKIP TO NEXT ROW"),
+        term("pattern", "'A'"),
+        term("define", "{A=>(PREV(A.$2, 0), 0)}")
+      ),
+      term("select",
+        "symbol",
+        "PROCTIME(matchProctime) AS matchProctime",
+        "funcProctime",
+        "noLongerProctime"
+      )
+    )
+
+    util.verifySql(query, expected)
+  }
 }
 
 object TimeIndicatorConversionTest {
@@ -512,6 +618,13 @@ object TimeIndicatorConversionTest {
     val t = new Timestamp(0L)
     def eval(time1: Long, time2: Timestamp, string: String): Unit = {
       collect(time1.toString + time2.after(t) + string)
+    }
+  }
+
+  class ScalarFunc extends ScalarFunction {
+    val t = new Timestamp(0L)
+    def eval(time: Timestamp): String = {
+      time.toString
     }
   }
 }
