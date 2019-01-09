@@ -44,6 +44,13 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   // ------------------------------------------------------------------------
 
   /**
+    * Gets the key selector that can get the key by which the stream
+    * if partitioned from the elements.
+    */
+  @Internal
+  def getKeySelector = javaStream.getKeySelector()
+
+  /**
    * Gets the type of the key by which this stream is keyed.
    */
   @Internal
