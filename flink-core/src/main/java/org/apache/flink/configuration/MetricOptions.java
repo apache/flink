@@ -150,7 +150,7 @@ public class MetricOptions {
 		key("metrics.system-resource-probing-interval")
 			.defaultValue(5000L)
 			.withDescription("Interval between probing of system resource metrics specified in milliseconds. Has an effect" +
-				" only when SYSTEM_RESOURCE_METRICS is enabled");
+				" only when '" + SYSTEM_RESOURCE_METRICS.key() + "' is enabled.");
 
 	/**
 	 * The default network port range for Flink's internal metric query service. The {@code "0"} means that
