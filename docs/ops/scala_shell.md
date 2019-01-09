@@ -36,9 +36,10 @@ cluster, please see the Setup section below.
 
 ## Usage
 
-The shell supports Batch and Streaming.
-Two different ExecutionEnvironments are automatically prebound after startup.
-Use "benv" and "senv" to access the Batch and Streaming environment respectively.
+The shell supports Batch, Streaming, Table API and SQL. 
+Four different Environments are automatically prebound after startup. 
+Use “benv” and “senv” to access the Batch and Streaming ExecutionEnvironment respectively. 
+Use "btenv" and “stenv” to access BatchTableEnvironment and StreamTableEnvironment respectively.
 
 ### DataSet API
 
@@ -85,6 +86,57 @@ Note, that in the Streaming case, the print operation does not trigger execution
 
 The Flink Shell comes with command history and auto-completion.
 
+### Table API
+
+The example below is a streaming wordcount program using Table API:
+
+{% highlight scala %}
+Scala-Flink> val textSource = stenv.fromDataStream(
+  senv.fromElements(
+    "To be, or not to be,--that is the question:--",
+    "Whether 'tis nobler in the mind to suffer",
+    "The slings and arrows of outrageous fortune",
+    "Or to take arms against a sea of troubles,"), 
+  'text)
+Scala-Flink> import org.apache.flink.table.functions.TableFunction
+Scala-Flink> class $Split extends TableFunction[String] {
+    def eval(s: String): Unit = {
+      s.toLowerCase.split("\\W+").foreach(collect)
+    }
+  }
+Scala-Flink> val split = new $Split
+Scala-Flink> textSource.join(split('text) as 'word)
+    .groupBy('word).select('word, 'word.count as 'count)
+    .toRetractStream[(String, Long)].print
+Scala-Flink> senv.execute("Table Wordcount")
+{% endhighlight %}
+
+Note that the $ prefix of the TableFunction classname is a walkaround of a scala issue about incorrectly generated inner class name. 
+
+### SQL
+
+The following example is a streaming wordcount program written in SQL:
+
+{% highlight scala %}
+Scala-Flink> val textSource = stenv.fromDataStream(
+  senv.fromElements(
+    "To be, or not to be,--that is the question:--",
+    "Whether 'tis nobler in the mind to suffer",
+    "The slings and arrows of outrageous fortune",
+    "Or to take arms against a sea of troubles,"), 
+  'text)
+Scala-Flink> stenv.registerTable("text_source", textSource)
+Scala-Flink> import org.apache.flink.table.functions.TableFunction
+Scala-Flink> class $Split extends TableFunction[String] {
+    def eval(s: String): Unit = {
+      s.toLowerCase.split("\\W+").foreach(collect)
+    }
+  }
+Scala-Flink> stenv.registerFunction("split", new $Split)
+Scala-Flink> val result = stenv.sqlQuery("SELECT T.word, count(T.word) AS `count` FROM text_source JOIN LATERAL table(split(text)) AS T(word) ON TRUE GROUP BY T.word")
+Scala-Flink> result.toRetractStream[(String, Long)].print
+Scala-Flink> senv.execute("SQL Wordcount")
+{% endhighlight %}
 
 ## Adding external dependencies
 
