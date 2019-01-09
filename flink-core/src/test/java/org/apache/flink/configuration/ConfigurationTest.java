@@ -306,6 +306,39 @@ public class ConfigurationTest extends TestLogger {
 	}
 
 	@Test
+	public void testFallbackKeys() {
+		Configuration cfg = new Configuration();
+		cfg.setInteger("the-key", 11);
+		cfg.setInteger("old-key", 12);
+		cfg.setInteger("older-key", 13);
+
+		ConfigOption<Integer> matchesFirst = ConfigOptions
+			.key("the-key")
+			.defaultValue(-1)
+			.withFallbackKeys("old-key", "older-key");
+
+		ConfigOption<Integer> matchesSecond = ConfigOptions
+			.key("does-not-exist")
+			.defaultValue(-1)
+			.withFallbackKeys("old-key", "older-key");
+
+		ConfigOption<Integer> matchesThird = ConfigOptions
+			.key("does-not-exist")
+			.defaultValue(-1)
+			.withFallbackKeys("foo", "older-key");
+
+		ConfigOption<Integer> notContained = ConfigOptions
+			.key("does-not-exist")
+			.defaultValue(-1)
+			.withFallbackKeys("not-there", "also-not-there");
+
+		assertEquals(11, cfg.getInteger(matchesFirst));
+		assertEquals(12, cfg.getInteger(matchesSecond));
+		assertEquals(13, cfg.getInteger(matchesThird));
+		assertEquals(-1, cfg.getInteger(notContained));
+	}
+
+	@Test
 	public void testRemove(){
 		Configuration cfg = new Configuration();
 		cfg.setInteger("a", 1);
