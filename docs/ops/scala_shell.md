@@ -38,8 +38,8 @@ cluster, please see the Setup section below.
 
 The shell supports Batch, Streaming, Table API and SQL. 
 Four different Environments are automatically prebound after startup. 
-Use “benv” and “senv” to access the Batch and Streaming ExecutionEnvironment respectively. 
-Use "btenv" and “stenv” to access BatchTableEnvironment and StreamTableEnvironment respectively.
+Use "benv" and "senv" to access the Batch and Streaming ExecutionEnvironment respectively. 
+Use "btenv" and "stenv" to access BatchTableEnvironment and StreamTableEnvironment respectively.
 
 ### DataSet API
 
@@ -135,7 +135,7 @@ Scala-Flink> textSource.join(split('text) as 'word).
 </div>
 </div>
 
-Note, that the $ prefix of the TableFunction classname is a walkaround of a scala issue about incorrectly generated inner class name. 
+Note, that the $ prefix of the TableFunction class name is a workaround of a scala issue about incorrectly generated inner class name. 
 
 ### SQL
 
