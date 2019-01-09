@@ -59,7 +59,6 @@ import org.apache.flink.table.runtime.{RowKeySelector, RowtimeProcessFunction}
 import org.apache.flink.types.Row
 import org.apache.flink.util.MathUtils
 
-
 /**
   * Flink RelNode which matches along with LogicalMatch.
   */
@@ -188,7 +187,7 @@ class DataStreamMatch(
           schema,
           partitionKeys,
           measures)
-      patternStream.flatSelect[CRow](patternSelectFunction, outTypeInfo)
+      patternStream.process[CRow](patternSelectFunction, outTypeInfo)
     }
   }
 
