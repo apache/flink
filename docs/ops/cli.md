@@ -127,6 +127,7 @@ The command line can be used to
         ./bin/flink stop <jobID>
         
 -   Modify a running job (streaming jobs only):
+
         ./bin/flink modify <jobID> -p <newParallelism>
 
 
