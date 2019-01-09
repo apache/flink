@@ -60,8 +60,8 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 		this(
 			stateType,
 			name,
-			StateSerializerProvider.fromNewState(namespaceSerializer),
-			StateSerializerProvider.fromNewState(stateSerializer),
+			StateSerializerProvider.fromNewRegisteredSerializer(namespaceSerializer),
+			StateSerializerProvider.fromNewRegisteredSerializer(stateSerializer),
 			null);
 	}
 
@@ -75,8 +75,8 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 		this(
 			stateType,
 			name,
-			StateSerializerProvider.fromNewState(namespaceSerializer),
-			StateSerializerProvider.fromNewState(stateSerializer),
+			StateSerializerProvider.fromNewRegisteredSerializer(namespaceSerializer),
+			StateSerializerProvider.fromNewRegisteredSerializer(stateSerializer),
 			snapshotTransformer);
 	}
 
@@ -85,10 +85,10 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 		this(
 			StateDescriptor.Type.valueOf(snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE)),
 			snapshot.getName(),
-			StateSerializerProvider.fromRestoredState(
+			StateSerializerProvider.fromPreviousSerializerSnapshot(
 				(TypeSerializerSnapshot<N>) Preconditions.checkNotNull(
 					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER))),
-			StateSerializerProvider.fromRestoredState(
+			StateSerializerProvider.fromPreviousSerializerSnapshot(
 				(TypeSerializerSnapshot<S>) Preconditions.checkNotNull(
 					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER))),
 			null);

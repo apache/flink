@@ -42,14 +42,14 @@ public class RegisteredPriorityQueueStateBackendMetaInfo<T> extends RegisteredSt
 		@Nonnull String name,
 		@Nonnull TypeSerializer<T> elementSerializer) {
 
-		this(name, StateSerializerProvider.fromNewState(elementSerializer));
+		this(name, StateSerializerProvider.fromNewRegisteredSerializer(elementSerializer));
 	}
 
 	@SuppressWarnings("unchecked")
 	public RegisteredPriorityQueueStateBackendMetaInfo(StateMetaInfoSnapshot snapshot) {
 		this(
 			snapshot.getName(),
-			StateSerializerProvider.fromRestoredState(
+			StateSerializerProvider.fromPreviousSerializerSnapshot(
 				(TypeSerializerSnapshot<T>) Preconditions.checkNotNull(
 					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER))));
 

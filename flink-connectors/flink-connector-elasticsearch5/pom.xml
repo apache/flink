@@ -232,6 +232,13 @@ under the License.
 							</relocations>
 							<filters>
 								<filter>
+									<!-- some dependencies bring their own LICENSE.txt which we don't need -->
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/LICENSE.txt</exclude>
+									</excludes>
+								</filter>
+								<filter>
 									<artifact>*</artifact>
 									<excludes>
 										<exclude>log4j.properties</exclude>
@@ -261,6 +268,17 @@ under the License.
 									<artifact>org.apache.logging.log4j:log4j-to-slf4j</artifact>
 									<excludes>
 										<exclude>META-INF/log4j-provider.properties</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>io.netty:netty</artifact>
+									<excludes>
+										<!-- Only some of these licenses actually apply to the JAR and have been manually
+										 	placed in this module's resources directory. -->
+										<exclude>META-INF/license</exclude>
+										<!-- Only parts of NOTICE file actually apply to the netty JAR and have been manually
+										 	copied into this modules's NOTICE file. -->
+										<exclude>META-INF/NOTICE.txt</exclude>
 									</excludes>
 								</filter>
 							</filters>

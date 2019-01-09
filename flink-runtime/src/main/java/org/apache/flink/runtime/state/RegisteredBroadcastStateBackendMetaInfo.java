@@ -55,8 +55,8 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 		this(
 			name,
 			assignmentMode,
-			StateSerializerProvider.fromNewState(keySerializer),
-			StateSerializerProvider.fromNewState(valueSerializer));
+			StateSerializerProvider.fromNewRegisteredSerializer(keySerializer),
+			StateSerializerProvider.fromNewRegisteredSerializer(valueSerializer));
 	}
 
 	public RegisteredBroadcastStateBackendMetaInfo(@Nonnull RegisteredBroadcastStateBackendMetaInfo<K, V> copy) {
@@ -73,10 +73,10 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 			snapshot.getName(),
 			OperatorStateHandle.Mode.valueOf(
 				snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE)),
-			StateSerializerProvider.fromRestoredState(
+			StateSerializerProvider.fromPreviousSerializerSnapshot(
 				(TypeSerializerSnapshot<K>) Preconditions.checkNotNull(
 					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER))),
-			StateSerializerProvider.fromRestoredState(
+			StateSerializerProvider.fromPreviousSerializerSnapshot(
 				(TypeSerializerSnapshot<V>) Preconditions.checkNotNull(
 					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER))));
 

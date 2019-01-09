@@ -113,6 +113,7 @@ public abstract class TtlStateTestBase {
 		this.ttlConfig = ttlConfig;
 		sbetc.createAndRestoreKeyedStateBackend();
 		sbetc.restoreSnapshot(null);
+		sbetc.setCurrentKey("defaultKey");
 		createState();
 		ctx().initTestValues();
 	}
@@ -129,6 +130,7 @@ public abstract class TtlStateTestBase {
 		KeyedStateHandle snapshot = sbetc.takeSnapshot();
 		sbetc.createAndRestoreKeyedStateBackend();
 		sbetc.restoreSnapshot(snapshot);
+		sbetc.setCurrentKey("defaultKey");
 		createState();
 	}
 
@@ -397,6 +399,7 @@ public abstract class TtlStateTestBase {
 		sbetc.createAndRestoreKeyedStateBackend();
 
 		sbetc.restoreSnapshot(snapshot);
+		sbetc.setCurrentKey("defaultKey");
 		sbetc.createState(ctx().createStateDescriptor(), "");
 	}
 

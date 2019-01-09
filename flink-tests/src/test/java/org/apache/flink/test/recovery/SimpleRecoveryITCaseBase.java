@@ -110,6 +110,8 @@ public abstract class SimpleRecoveryITCaseBase {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		} finally {
+			FailingMapper1.failuresBeforeSuccess = 1;
 		}
 	}
 
@@ -158,6 +160,8 @@ public abstract class SimpleRecoveryITCaseBase {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		} finally {
+			FailingMapper2.failuresBeforeSuccess = 1;
 		}
 	}
 
@@ -194,6 +198,8 @@ public abstract class SimpleRecoveryITCaseBase {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		} finally {
+			FailingMapper3.failuresBeforeSuccess = 3;
 		}
 	}
 

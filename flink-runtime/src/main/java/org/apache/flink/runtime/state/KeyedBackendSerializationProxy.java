@@ -64,7 +64,7 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
 	// TODO the keySerializer field should be removed, once all serializers have the restoreSerializer() method implemented
 	private TypeSerializer<K> keySerializer;
-	private TypeSerializerSnapshot<K> keySerializerConfigSnapshot;
+	private TypeSerializerSnapshot<K> keySerializerSnapshot;
 
 	private List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
 
@@ -82,7 +82,7 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 		this.usingKeyGroupCompression = compression;
 
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
-		this.keySerializerConfigSnapshot = Preconditions.checkNotNull(keySerializer.snapshotConfiguration());
+		this.keySerializerSnapshot = Preconditions.checkNotNull(keySerializer.snapshotConfiguration());
 
 		Preconditions.checkNotNull(stateMetaInfoSnapshots);
 		Preconditions.checkArgument(stateMetaInfoSnapshots.size() <= Short.MAX_VALUE);
@@ -93,8 +93,8 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 		return stateMetaInfoSnapshots;
 	}
 
-	public TypeSerializerSnapshot<K> getKeySerializerConfigSnapshot() {
-		return keySerializerConfigSnapshot;
+	public TypeSerializerSnapshot<K> getKeySerializerSnapshot() {
+		return keySerializerSnapshot;
 	}
 
 	public boolean isUsingKeyGroupCompression() {
@@ -118,7 +118,7 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 		// write the compression format used to write each key-group
 		out.writeBoolean(usingKeyGroupCompression);
 
-		TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(out, keySerializerConfigSnapshot, keySerializer);
+		TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(out, keySerializerSnapshot, keySerializer);
 
 		// write individual registered keyed state metainfos
 		out.writeShort(stateMetaInfoSnapshots.size());
@@ -142,14 +142,14 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
 		// only starting from version 3, we have the key serializer and its config snapshot written
 		if (readVersion >= 6) {
-			this.keySerializerConfigSnapshot = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+			this.keySerializerSnapshot = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
 				in, userCodeClassLoader, null);
 		} else if (readVersion >= 3) {
 			Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> keySerializerAndConfig =
 					TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader).get(0);
-			this.keySerializerConfigSnapshot = (TypeSerializerSnapshot<K>) keySerializerAndConfig.f1;
+			this.keySerializerSnapshot = (TypeSerializerSnapshot<K>) keySerializerAndConfig.f1;
 		} else {
-			this.keySerializerConfigSnapshot = new BackwardsCompatibleSerializerSnapshot<>(
+			this.keySerializerSnapshot = new BackwardsCompatibleSerializerSnapshot<>(
 				TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader, true));
 		}
 		this.keySerializer = null;

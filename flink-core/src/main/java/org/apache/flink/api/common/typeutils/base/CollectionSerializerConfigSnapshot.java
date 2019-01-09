@@ -49,10 +49,13 @@ public final class CollectionSerializerConfigSnapshot<C extends Collection<T>, T
 	@Override
 	public TypeSerializerSchemaCompatibility<C> resolveSchemaCompatibility(TypeSerializer<C> newSerializer) {
 		if (newSerializer instanceof ListSerializer) {
-			ListSerializerSnapshot<T> listSerializerSnapshot =
-				new ListSerializerSnapshot<>(((ListSerializer<T>) newSerializer).getElementSerializer());
+			ListSerializer<T> newListSerializer = (ListSerializer<T>) newSerializer;
+			ListSerializerSnapshot<T> listSerializerSnapshot = new ListSerializerSnapshot<>(newListSerializer);
 
-			return listSerializerSnapshot.resolveSchemaCompatibility((ListSerializer) newSerializer);
+			@SuppressWarnings("unchecked")
+			TypeSerializerSchemaCompatibility<C> result = (TypeSerializerSchemaCompatibility<C>)
+				listSerializerSnapshot.resolveSchemaCompatibility(newListSerializer);
+			return result;
 		} else {
 			return super.resolveSchemaCompatibility(newSerializer);
 		}

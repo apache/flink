@@ -40,8 +40,17 @@ public class V2TestTypeSerializerSnapshot implements TypeSerializerSnapshot<Test
 	public TypeSerializerSchemaCompatibility<TestType> resolveSchemaCompatibility(TypeSerializer<TestType> newSerializer) {
 		if (newSerializer instanceof TestType.V2TestTypeSerializer) {
 			return TypeSerializerSchemaCompatibility.compatibleAsIs();
-		} else {
+		} else if (newSerializer instanceof TestType.ReconfigurationRequiringTestTypeSerializer) {
+			// we mimic the reconfiguration by just re-instantiating the correct serializer
+			return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(new TestType.V2TestTypeSerializer());
+		} else if (
+			// migrating from V2 -> V1 is not supported
+			newSerializer instanceof TestType.V1TestTypeSerializer
+				|| newSerializer instanceof TestType.IncompatibleTestTypeSerializer) {
+
 			return TypeSerializerSchemaCompatibility.incompatible();
+		} else {
+			throw new IllegalStateException("Unknown serializer class for TestType.");
 		}
 	}
 

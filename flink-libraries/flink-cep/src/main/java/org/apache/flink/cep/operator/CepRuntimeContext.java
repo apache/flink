@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep;
+package org.apache.flink.cep.operator;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
@@ -45,17 +46,23 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * A wrapper class for pattern select function and iterative condition function's {@link RuntimeContext}.
- * The runtime context only supports basic operations. Consequently, state access, accumulators,
- * broadcast variables and the distributed cache are disabled.
+ * A wrapper class for the {@link RuntimeContext}.
+ *
+ * <p>This context only exposes the functionality needed by the
+ * pattern process function and iterative condition function.
+ * Consequently, state access, accumulators, broadcast variables
+ * and the distributed cache are disabled.
  */
-public class CepRuntimeContext implements RuntimeContext {
+@Internal
+class CepRuntimeContext implements RuntimeContext {
 
 	private final RuntimeContext runtimeContext;
 
-	public CepRuntimeContext(RuntimeContext runtimeContext) {
-		this.runtimeContext = runtimeContext;
+	CepRuntimeContext(final RuntimeContext runtimeContext) {
+		this.runtimeContext = checkNotNull(runtimeContext);
 	}
 
 	@Override
@@ -114,12 +121,13 @@ public class CepRuntimeContext implements RuntimeContext {
 
 	@Override
 	public <V, A extends Serializable> void addAccumulator(
-		String name, Accumulator<V, A> accumulator) {
+			final String name,
+			final Accumulator<V, A> accumulator) {
 		throw new UnsupportedOperationException("Accumulators are not supported.");
 	}
 
 	@Override
-	public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
+	public <V, A extends Serializable> Accumulator<V, A> getAccumulator(final String name) {
 		throw new UnsupportedOperationException("Accumulators are not supported.");
 	}
 
@@ -129,68 +137,70 @@ public class CepRuntimeContext implements RuntimeContext {
 	}
 
 	@Override
-	public IntCounter getIntCounter(String name) {
+	public IntCounter getIntCounter(final String name) {
 		throw new UnsupportedOperationException("Int counters are not supported.");
 	}
 
 	@Override
-	public LongCounter getLongCounter(String name) {
+	public LongCounter getLongCounter(final String name) {
 		throw new UnsupportedOperationException("Long counters are not supported.");
 	}
 
 	@Override
-	public DoubleCounter getDoubleCounter(String name) {
+	public DoubleCounter getDoubleCounter(final String name) {
 		throw new UnsupportedOperationException("Double counters are not supported.");
 	}
 
 	@Override
-	public Histogram getHistogram(String name) {
+	public Histogram getHistogram(final String name) {
 		throw new UnsupportedOperationException("Histograms are not supported.");
 	}
 
 	@Override
-	public boolean hasBroadcastVariable(String name) {
+	public boolean hasBroadcastVariable(final String name) {
 		throw new UnsupportedOperationException("Broadcast variables are not supported.");
 	}
 
 	@Override
-	public <RT> List<RT> getBroadcastVariable(String name) {
+	public <RT> List<RT> getBroadcastVariable(final String name) {
 		throw new UnsupportedOperationException("Broadcast variables are not supported.");
 	}
 
 	@Override
 	public <T, C> C getBroadcastVariableWithInitializer(
-		String name, BroadcastVariableInitializer<T, C> initializer) {
+			final String name,
+			final BroadcastVariableInitializer<T, C> initializer) {
 		throw new UnsupportedOperationException("Broadcast variables are not supported.");
 	}
 
 	@Override
-	public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
+	public <T> ValueState<T> getState(final ValueStateDescriptor<T> stateProperties) {
 		throw new UnsupportedOperationException("State is not supported.");
 	}
 
 	@Override
-	public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
+	public <T> ListState<T> getListState(final ListStateDescriptor<T> stateProperties) {
 		throw new UnsupportedOperationException("State is not supported.");
 	}
 
 	@Override
-	public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
+	public <T> ReducingState<T> getReducingState(final ReducingStateDescriptor<T> stateProperties) {
 		throw new UnsupportedOperationException("State is not supported.");
 	}
 
 	@Override
-	public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
+	public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(
+			final AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
 		throw new UnsupportedOperationException("State is not supported.");
 	}
 
 	@Override
-	public <T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties) {
+	public <T, ACC> FoldingState<T, ACC> getFoldingState(final FoldingStateDescriptor<T, ACC> stateProperties) {
 		throw new UnsupportedOperationException("State is not supported.");
 	}
 
 	@Override
-	public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
+	public <UK, UV> MapState<UK, UV> getMapState(final MapStateDescriptor<UK, UV> stateProperties) {
 		throw new UnsupportedOperationException("State is not supported.");
 	}
 }
