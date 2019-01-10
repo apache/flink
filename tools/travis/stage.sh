@@ -39,8 +39,6 @@ flink-streaming-java,\
 flink-streaming-scala"
 
 MODULES_LIBRARIES="\
-flink-contrib/flink-storm,\
-flink-contrib/flink-storm-examples,\
 flink-libraries/flink-cep,\
 flink-libraries/flink-cep-scala,\
 flink-libraries/flink-gelly,\
