@@ -50,12 +50,12 @@
         <tr>
             <td><h5>metrics.reporters</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td></td>
+            <td>An optional list of reporter names. If configured, only reporters whose name matches any of the names in the list will be started. Otherwise, all reporters that could be found in the configuration will be started.</td>
         </tr>
         <tr>
             <td><h5>metrics.scope.delimiter</h5></td>
             <td style="word-wrap: break-word;">"."</td>
-            <td></td>
+            <td>Delimiter used to assemble the metric identifier.</td>
         </tr>
         <tr>
             <td><h5>metrics.scope.jm</h5></td>
@@ -90,12 +90,12 @@
         <tr>
             <td><h5>metrics.system-resource</h5></td>
             <td style="word-wrap: break-word;">false</td>
-            <td></td>
+            <td>Flag indicating whether Flink should report system resource metrics such as machine's CPU, memory or network usage.</td>
         </tr>
         <tr>
             <td><h5>metrics.system-resource-probing-interval</h5></td>
             <td style="word-wrap: break-word;">5000</td>
-            <td></td>
+            <td>Interval between probing of system resource metrics specified in milliseconds. Has an effect only when 'metrics.system-resource' is enabled.</td>
         </tr>
     </tbody>
 </table>

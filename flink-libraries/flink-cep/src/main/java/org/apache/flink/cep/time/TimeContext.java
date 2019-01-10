@@ -16,26 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.storm.wordcount;
+package org.apache.flink.cep.time;
 
-import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.AbstractTestBase;
-
-import org.junit.Test;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.cep.functions.PatternProcessFunction;
 
 /**
- * Test for the WordCountLocal example.
+ * Enables access to time related characteristics such as current processing time or timestamp of currently processed
+ * element. Used in {@link PatternProcessFunction} and
+ * {@link org.apache.flink.cep.pattern.conditions.IterativeCondition}
  */
-public class WordCountLocalITCase extends AbstractTestBase {
+@PublicEvolving
+public interface TimeContext {
 
-	@Test
-	public void testProgram() throws Exception {
-		String textPath = createTempFile("text.txt", WordCountData.TEXT);
-		String resultPath = getTempDirPath("result");
+	/**
+	 * Timestamp of the element currently being processed.
+	 *
+	 * <p>In case of {@link org.apache.flink.streaming.api.TimeCharacteristic#ProcessingTime} this means the
+	 * time when the event entered the cep operator.
+	 */
+	long timestamp();
 
-		WordCountLocal.main(new String[]{textPath, resultPath});
-
-		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
-	}
+	/** Returns the current processing time. */
+	long currentProcessingTime();
 
 }

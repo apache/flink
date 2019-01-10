@@ -16,28 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.context;
+package org.apache.flink.cep.utils;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.cep.functions.PatternProcessFunction;
+import org.apache.flink.cep.time.TimerService;
 
 /**
- * Enables access to time related characteristics such as current processing time or timestamp of currently processed
- * element. Used in {@link PatternProcessFunction} and
- * {@link org.apache.flink.cep.pattern.conditions.IterativeCondition}
+ * Test implementation of {@link TimerService}. Provides setters for encapsulated properties.
  */
-@PublicEvolving
-public interface TimerContext {
+public class TestTimerService implements TimerService {
 
-	/**
-	 * Timestamp of the element currently being processed.
-	 *
-	 * <p>This might be {@code null}, for example if the time characteristic of your program
-	 * is set to {@link org.apache.flink.streaming.api.TimeCharacteristic#ProcessingTime}.
-	 */
-	Long timestamp();
+	public static final long UNDEFINED_TIME = Long.MIN_VALUE;
 
-	/** Returns the current processing time. */
-	long currentProcessingTime();
+	private Long processingTime = UNDEFINED_TIME;
+
+	@Override
+	public long currentProcessingTime() {
+		return processingTime;
+	}
+
+	public void setCurrentProcessingTime(long processingTime) {
+		this.processingTime = processingTime;
+	}
 
 }

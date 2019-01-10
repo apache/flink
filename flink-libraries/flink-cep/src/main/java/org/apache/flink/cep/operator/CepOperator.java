@@ -40,6 +40,7 @@ import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
+import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -130,6 +131,9 @@ public class CepOperator<IN, KEY, OUT>
 	/** Wrapped RuntimeContext that limits the underlying context features. */
 	private transient CepRuntimeContext cepRuntimeContext;
 
+	/** Thin context passed to NFA that gives access to time related characteristics. */
+	private transient TimerService cepTimerService;
+
 	public CepOperator(
 			final TypeSerializer<IN> inputSerializer,
 			final boolean isProcessingTime,
@@ -216,6 +220,7 @@ public class CepOperator<IN, KEY, OUT>
 
 		context = new ContextFunctionImpl();
 		collector = new TimestampedCollector<>(output);
+		cepTimerService = new TimerServiceImpl();
 	}
 
 	@Override
@@ -415,7 +420,7 @@ public class CepOperator<IN, KEY, OUT>
 	private void processEvent(NFAState nfaState, IN event, long timestamp) throws Exception {
 		try (SharedBufferAccessor<IN> sharedBufferAccessor = partialMatches.getAccessor()) {
 			Collection<Map<String, List<IN>>> patterns =
-				nfa.process(sharedBufferAccessor, nfaState, event, timestamp, afterMatchSkipStrategy);
+				nfa.process(sharedBufferAccessor, nfaState, event, timestamp, afterMatchSkipStrategy, cepTimerService);
 			processMatchedSequences(patterns, timestamp);
 		}
 	}
@@ -459,8 +464,22 @@ public class CepOperator<IN, KEY, OUT>
 	private void setTimestamp(long timestamp) {
 		if (!isProcessingTime) {
 			collector.setAbsoluteTimestamp(timestamp);
-			context.setTimestamp(timestamp);
 		}
+
+		context.setTimestamp(timestamp);
+	}
+
+	/**
+	 * Gives {@link NFA} access to {@link InternalTimerService} and tells if {@link CepOperator} works in
+	 * processing time. Should be instantiated once per operator.
+	 */
+	private class TimerServiceImpl implements TimerService {
+
+		@Override
+		public long currentProcessingTime() {
+			return timerService.currentProcessingTime();
+		}
+
 	}
 
 	/**
@@ -493,12 +512,8 @@ public class CepOperator<IN, KEY, OUT>
 		}
 
 		@Override
-		public Long timestamp() {
-			if (isProcessingTime) {
-				return null;
-			} else {
-				return timestamp;
-			}
+		public long timestamp() {
+			return timestamp;
 		}
 
 		@Override

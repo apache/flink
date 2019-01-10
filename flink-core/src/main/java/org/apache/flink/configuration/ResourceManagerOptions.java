@@ -35,10 +35,19 @@ public class ResourceManagerOptions {
 		.defaultValue("5 minutes")
 		.withDescription("Timeout for jobs which don't have a job manager as leader assigned.");
 
+	/**
+	 * The number of resource managers start.
+	 */
 	public static final ConfigOption<Integer> LOCAL_NUMBER_RESOURCE_MANAGER = ConfigOptions
 		.key("local.number-resourcemanager")
-		.defaultValue(1);
+		.defaultValue(1)
+		.withDescription("The number of resource managers start.");
 
+	/**
+	 * Defines the network port to connect to for communication with the resource manager.
+	 * By default, the port of the JobManager, because the same ActorSystem is used. Its not
+	 * possible to use this configuration key to define port ranges.
+	 */
 	public static final ConfigOption<Integer> IPC_PORT = ConfigOptions
 		.key("resourcemanager.rpc.port")
 		.defaultValue(0)

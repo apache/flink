@@ -27,16 +27,21 @@ import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.RetrievableStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
+import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -59,9 +64,9 @@ import static org.mockito.Mockito.verify;
  */
 public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 
-	private final static ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
+	private static final ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
 
-	private final static RetrievableStateStorageHelper<SubmittedJobGraph> localStateStorage = new RetrievableStateStorageHelper<SubmittedJobGraph>() {
+	private static final RetrievableStateStorageHelper<SubmittedJobGraph> localStateStorage = new RetrievableStateStorageHelper<SubmittedJobGraph>() {
 		@Override
 		public RetrievableStateHandle<SubmittedJobGraph> store(SubmittedJobGraph state) throws IOException {
 			ByteStreamStateHandle byteStreamStateHandle = new ByteStreamStateHandle(
@@ -70,7 +75,6 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 			return new RetrievableStreamStateHandle<>(byteStreamStateHandle);
 		}
 	};
-
 
 	@AfterClass
 	public static void tearDown() throws Exception {
@@ -86,10 +90,7 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 
 	@Test
 	public void testPutAndRemoveJobGraph() throws Exception {
-		ZooKeeperSubmittedJobGraphStore jobGraphs = new ZooKeeperSubmittedJobGraphStore(
-			ZooKeeper.createClient(),
-			"/testPutAndRemoveJobGraph",
-			localStateStorage);
+		ZooKeeperSubmittedJobGraphStore jobGraphs = createZooKeeperSubmittedJobGraphStore("/testPutAndRemoveJobGraph");
 
 		try {
 			SubmittedJobGraphListener listener = mock(SubmittedJobGraphListener.class);
@@ -142,10 +143,25 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 		}
 	}
 
+	@Nonnull
+	private ZooKeeperSubmittedJobGraphStore createZooKeeperSubmittedJobGraphStore(String fullPath) throws Exception {
+		final CuratorFramework client = ZooKeeper.getClient();
+		// Ensure that the job graphs path exists
+		client.newNamespaceAwareEnsurePath(fullPath).ensure(client.getZookeeperClient());
+
+		// All operations will have the path as root
+		CuratorFramework facade = client.usingNamespace(client.getNamespace() + fullPath);
+		return new ZooKeeperSubmittedJobGraphStore(
+			fullPath,
+			new ZooKeeperStateHandleStore<>(
+				facade,
+				localStateStorage),
+			new PathChildrenCache(facade, "/", false));
+	}
+
 	@Test
 	public void testRecoverJobGraphs() throws Exception {
-		ZooKeeperSubmittedJobGraphStore jobGraphs = new ZooKeeperSubmittedJobGraphStore(
-				ZooKeeper.createClient(), "/testRecoverJobGraphs", localStateStorage);
+		ZooKeeperSubmittedJobGraphStore jobGraphs = createZooKeeperSubmittedJobGraphStore("/testRecoverJobGraphs");
 
 		try {
 			SubmittedJobGraphListener listener = mock(SubmittedJobGraphListener.class);
@@ -195,12 +211,9 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 		ZooKeeperSubmittedJobGraphStore otherJobGraphs = null;
 
 		try {
-			jobGraphs = new ZooKeeperSubmittedJobGraphStore(
-					ZooKeeper.createClient(), "/testConcurrentAddJobGraph", localStateStorage);
+			jobGraphs = createZooKeeperSubmittedJobGraphStore("/testConcurrentAddJobGraph");
 
-			otherJobGraphs = new ZooKeeperSubmittedJobGraphStore(
-					ZooKeeper.createClient(), "/testConcurrentAddJobGraph", localStateStorage);
-
+			otherJobGraphs = createZooKeeperSubmittedJobGraphStore("/testConcurrentAddJobGraph");
 
 			SubmittedJobGraph jobGraph = createSubmittedJobGraph(new JobID(), 0);
 			SubmittedJobGraph otherJobGraph = createSubmittedJobGraph(new JobID(), 0);
@@ -254,11 +267,9 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 
 	@Test(expected = IllegalStateException.class)
 	public void testUpdateJobGraphYouDidNotGetOrAdd() throws Exception {
-		ZooKeeperSubmittedJobGraphStore jobGraphs = new ZooKeeperSubmittedJobGraphStore(
-				ZooKeeper.createClient(), "/testUpdateJobGraphYouDidNotGetOrAdd", localStateStorage);
+		ZooKeeperSubmittedJobGraphStore jobGraphs = createZooKeeperSubmittedJobGraphStore("/testUpdateJobGraphYouDidNotGetOrAdd");
 
-		ZooKeeperSubmittedJobGraphStore otherJobGraphs = new ZooKeeperSubmittedJobGraphStore(
-				ZooKeeper.createClient(), "/testUpdateJobGraphYouDidNotGetOrAdd", localStateStorage);
+		ZooKeeperSubmittedJobGraphStore otherJobGraphs = createZooKeeperSubmittedJobGraphStore("/testUpdateJobGraphYouDidNotGetOrAdd");
 
 		jobGraphs.start(null);
 		otherJobGraphs.start(null);

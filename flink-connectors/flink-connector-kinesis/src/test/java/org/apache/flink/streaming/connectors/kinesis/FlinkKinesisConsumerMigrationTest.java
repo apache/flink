@@ -76,6 +76,7 @@ public class FlinkKinesisConsumerMigrationTest {
 	/**
 	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
 	 * TODO and remove all @Ignore annotations on the writeSnapshot() method to generate savepoints
+	 * TODO Note: You should generate the savepoint based on the release branch instead of the master.
 	 */
 	private final MigrationVersion flinkGenerateSavepointVersion = null;
 

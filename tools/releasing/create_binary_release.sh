@@ -95,27 +95,15 @@ make_binary_release() {
   cd ${FLINK_DIR}
 }
 
-HADOOP_CLASSIFIERS=("24" "26" "27" "28")
-HADOOP_VERSIONS=("2.4.1" "2.6.5" "2.7.5" "2.8.3")
-
 if [ "$SCALA_VERSION" == "none" ] && [ "$HADOOP_VERSION" == "none" ]; then
   make_binary_release "" "-DwithoutHadoop" "2.12"
-  for i in "${!HADOOP_CLASSIFIERS[@]}"; do
-    make_binary_release "hadoop${HADOOP_CLASSIFIERS[$i]}" "-Dhadoop.version=${HADOOP_VERSIONS[$i]}" "2.12"
-  done
   make_binary_release "" "-DwithoutHadoop" "2.11"
-  for i in "${!HADOOP_CLASSIFIERS[@]}"; do
-    make_binary_release "hadoop${HADOOP_CLASSIFIERS[$i]}" "-Dhadoop.version=${HADOOP_VERSIONS[$i]}" "2.11"
-  done
 elif [ "$SCALA_VERSION" == none ] && [ "$HADOOP_VERSION" != "none" ]
 then
   make_binary_release "hadoop2" "-Dhadoop.version=$HADOOP_VERSION" "2.11"
 elif [ "$SCALA_VERSION" != none ] && [ "$HADOOP_VERSION" == "none" ]
 then
   make_binary_release "" "-DwithoutHadoop" "$SCALA_VERSION"
-  for i in "${!HADOOP_CLASSIFIERS[@]}"; do
-    make_binary_release "hadoop${HADOOP_CLASSIFIERS[$i]}" "-Dhadoop.version=${HADOOP_VERSIONS[$i]}" "$SCALA_VERSION"
-  done
 else
   make_binary_release "hadoop2x" "-Dhadoop.version=$HADOOP_VERSION" "$SCALA_VERSION"
 fi

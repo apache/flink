@@ -16,26 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.storm.wordcount;
+package org.apache.flink.cep.time;
 
-import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.AbstractTestBase;
-
-import org.junit.Test;
+import org.apache.flink.annotation.Internal;
 
 /**
- * Test for the WordCountLocalByName example.
+ * Enables to provide time characteristic to {@link org.apache.flink.cep.nfa.NFA} for use in
+ * {@link org.apache.flink.cep.pattern.conditions.IterativeCondition}.
  */
-public class WordCountLocalNamedITCase extends AbstractTestBase {
+@Internal
+public interface TimerService {
 
-	@Test
-	public void testProgram() throws Exception {
-		String textPath = createTempFile("text.txt", WordCountData.TEXT);
-		String resultPath = getTempDirPath("result");
-
-		WordCountLocalByName.main(new String[]{textPath, resultPath});
-
-		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
-	}
+	/**
+	 * Current processing time as returned from {@link org.apache.flink.streaming.api.TimerService}.
+	 */
+	long currentProcessingTime();
 
 }

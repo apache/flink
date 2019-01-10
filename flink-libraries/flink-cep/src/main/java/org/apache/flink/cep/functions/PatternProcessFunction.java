@@ -20,7 +20,7 @@ package org.apache.flink.cep.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.cep.context.TimerContext;
+import org.apache.flink.cep.time.TimeContext;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
@@ -64,7 +64,7 @@ public abstract class PatternProcessFunction<IN, OUT> extends AbstractRichFuncti
 	/**
 	 * Gives access to time related characteristics as well as enables emitting elements to side outputs.
 	 */
-	public interface Context extends TimerContext {
+	public interface Context extends TimeContext {
 		/**
 		 * Emits a record to the side output identified by the {@link OutputTag}.
 		 *
