@@ -36,7 +36,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.resourcemanager.exceptions.MaximumFailedContainersException;
+import org.apache.flink.runtime.resourcemanager.exceptions.MaximumFailedTaskManagerExceedingException;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -179,7 +179,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 		final int numInitialTM = Integer.parseInt(env.getOrDefault(
 			YarnConfigKeys.ENV_TM_COUNT, DEFAULT_INITIAL_NUM_TASK_MANAGER));
-		this.maxFailedContainers = flinkConfig.getInteger(YarnConfigOptions.MAX_FAILED_CONTAINERS.key(), numInitialTM);
+		this.maximumAllowedTaskManagerFailureCount =
+			flinkConfig.getInteger(YarnConfigOptions.MAX_FAILED_CONTAINERS.key(), numInitialTM);
 
 		yarnHeartbeatIntervalMillis = yarnHeartbeatIntervalMS;
 		numPendingContainerRequests = 0;
@@ -409,12 +410,13 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 						// release the failed container
 						workerNodeMap.remove(resourceId);
 						resourceManagerClient.releaseAssignedContainer(container.getId());
-						if (failedContainerSoFar.intValue() < maxFailedContainers) {
+
+						if (failedContainerSoFar.intValue() < maximumAllowedTaskManagerFailureCount) {
 							// and ask for a new one
 							requestYarnContainerIfRequired();
 						} else {
 							log.error("Could not start TaskManager in container {}.", container.getId(), t);
-							rejectAllPendingSlotRequests(new MaximumFailedContainersException(
+							rejectAllPendingSlotRequests(new MaximumFailedTaskManagerExceedingException(
 								String.format("Maximum number of failed container %d "
 										+ "is detected in Resource Manager", failedContainerSoFar.intValue())));
 						}

@@ -45,7 +45,7 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
-import org.apache.flink.runtime.resourcemanager.exceptions.MaximumFailedContainersException;
+import org.apache.flink.runtime.resourcemanager.exceptions.MaximumFailedTaskManagerExceedingException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -575,7 +575,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				when(mockNMClient.startContainer(eq(failedContainer), any())).thenThrow(new YarnException("Failed"));
 				resourceManager.onContainersAllocated(ImmutableList.of(failedContainer));
 				verify(rmServices.slotManager, times(1))
-					.rejectAllPendingSlotRequests(any(MaximumFailedContainersException.class));
+					.rejectAllPendingSlotRequests(any(MaximumFailedTaskManagerExceedingException.class));
 			});
 		}};
 	}

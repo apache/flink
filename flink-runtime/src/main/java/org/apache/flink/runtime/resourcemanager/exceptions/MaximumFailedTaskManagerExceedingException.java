@@ -23,13 +23,13 @@ import org.apache.flink.runtime.resourcemanager.ResourceManager;
 /**
  * Exception for {@link ResourceManager} when it identified that the maximum number of failed containers is hit.
  */
-public class MaximumFailedContainersException extends ResourceManagerException {
+public class MaximumFailedTaskManagerExceedingException extends ResourceManagerException {
 	private static final long serialVersionUID = -2333228226519195160L;
 
 
-	public MaximumFailedContainersException(String message) { super(message); }
+	public MaximumFailedTaskManagerExceedingException(String message) { super(message); }
 
-	public MaximumFailedContainersException(String message, Throwable cause) { super(message, cause); }
+	public MaximumFailedTaskManagerExceedingException(String message, Throwable cause) { super(message, cause); }
 
-	public MaximumFailedContainersException(Throwable cause) { super(cause); }
+	public MaximumFailedTaskManagerExceedingException(Throwable cause) { super(cause); }
 }
