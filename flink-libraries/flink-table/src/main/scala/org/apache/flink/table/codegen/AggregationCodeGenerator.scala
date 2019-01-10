@@ -144,17 +144,31 @@ class AggregationCodeGenerator(
       fields.mkString(", ")
     }
 
-    val parametersCodeForDistinctMerge = aggFields.map { inFields =>
-      val fields = inFields.filter(_ > -1).zipWithIndex.map { case (f, i) =>
-        // index to constant
-        if (f >= physicalInputTypes.length) {
-          constantFields(f - physicalInputTypes.length)
-        }
+    // get parameter lists for distinct acc, constant fields are not necessary
+    val parametersCodeForDistinctAcc = aggFields.map { inFields =>
+      val fields = inFields.filter(i => i > -1 && i < physicalInputTypes.length).map { f =>
         // index to input field
-        else {
-          s"(${CodeGenUtils.boxedTypeTermForTypeInfo(physicalInputTypes(f))}) k.getField($i)"
-        }
+        s"(${CodeGenUtils.boxedTypeTermForTypeInfo(physicalInputTypes(f))}) input.getField($f)"
       }
+
+      fields.mkString(", ")
+    }
+
+    val parametersCodeForDistinctMerge = aggFields.map { inFields =>
+      // transform inFields to pairs of (inField, index in acc) firstly,
+      // e.g. (4, 2, 3, 2) will be transformed to ((4,2), (2,0), (3,1), (2,0))
+      val fields = inFields.filter(_ > -1).groupBy(identity).toSeq.sortBy(_._1).zipWithIndex
+        .flatMap { case (a, i) => a._2.map((_, i)) }
+        .map { case (f, i) =>
+          // index to constant
+          if (f >= physicalInputTypes.length) {
+            constantFields(f - physicalInputTypes.length)
+          }
+          // index to input field
+          else {
+            s"(${CodeGenUtils.boxedTypeTermForTypeInfo(physicalInputTypes(f))}) k.getField($i)"
+          }
+        }
 
       fields.mkString(", ")
     }
@@ -469,7 +483,7 @@ class AggregationCodeGenerator(
                |    $distinctAccType distinctAcc$i = ($distinctAccType) accs.getField($i);
                |    ${genAccDataViewFieldSetter(s"distinctAcc$i", i)}
                |    if (distinctAcc$i.add(${classOf[Row].getCanonicalName}.of(
-               |        ${parametersCode(aggIndexes.get(0))}))) {
+               |        ${parametersCodeForDistinctAcc(aggIndexes.get(0))}))) {
                |      ${accumulateAcc(aggIndexes)}
                |    }
                """.stripMargin
@@ -512,7 +526,7 @@ class AggregationCodeGenerator(
                |    $distinctAccType distinctAcc$i = ($distinctAccType) accs.getField($i);
                |    ${genAccDataViewFieldSetter(s"distinctAcc$i", i)}
                |    if (distinctAcc$i.remove(${classOf[Row].getCanonicalName}.of(
-               |        ${parametersCode(aggIndexes.get(0))}))) {
+               |        ${parametersCodeForDistinctAcc(aggIndexes.get(0))}))) {
                |      ${retractAcc(aggIndexes)}
                |    }
                """.stripMargin

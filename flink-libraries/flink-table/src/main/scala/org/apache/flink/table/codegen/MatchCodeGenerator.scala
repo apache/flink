@@ -771,7 +771,7 @@ class MatchCodeGenerator(
           callsWithIndices.map(_._2).toArray)
       })
 
-      val distinctAccMap: mutable.Map[util.List[Integer], Integer] = mutable.Map()
+      val distinctAccMap: mutable.Map[util.Set[Integer], Integer] = mutable.Map()
       val aggs = logicalAggregates.zipWithIndex.map {
         case (agg, index) =>
           val result = AggregateUtil.extractAggregateCallMetadata(
@@ -780,6 +780,7 @@ class MatchCodeGenerator(
             distinctAccMap,
             new util.ArrayList[Integer](), // TODO properly set once supported in Calcite
             aggregates.length,
+            input.getArity,
             agg.inputTypes,
             needRetraction = false,
             config,

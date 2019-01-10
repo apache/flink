@@ -89,6 +89,7 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
         namedAggregates.map(_.getKey),
         aggregateInputType,
+        inputFieldTypeInfo.length,
         needRetraction = false,
         tableConfig,
         isStateBackedDataViews = true)
@@ -173,6 +174,7 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
         namedAggregates.map(_.getKey),
         inputRowType,
+        inputFieldTypes.length,
         consumeRetraction,
         tableConfig,
         isStateBackedDataViews = true)
@@ -241,6 +243,7 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
         namedAggregates.map(_.getKey),
         aggregateInputType,
+        inputFieldTypeInfo.length,
         needRetract,
         tableConfig,
         isStateBackedDataViews = true)
@@ -347,6 +350,7 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       inputType,
+      inputFieldTypeInfo.length,
       needRetract,
       tableConfig)
 
@@ -457,6 +461,7 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
+      physicalInputTypes.length,
       needRetract,
       tableConfig)
 
@@ -576,6 +581,7 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
+      physicalInputTypes.length,
       needRetract,
       tableConfig)
 
@@ -733,6 +739,7 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
+      physicalInputTypes.length,
       needRetract,
       tableConfig)
 
@@ -810,6 +817,7 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
+      physicalInputTypes.length,
       needRetract,
       tableConfig)
 
@@ -880,6 +888,7 @@ object AggregateUtil {
     val aggregateMetadata = extractAggregateMetadata(
       namedAggregates.map(_.getKey),
       inputType,
+      inputFieldTypeInfo.length,
       needRetract,
       tableConfig)
 
@@ -1052,6 +1061,7 @@ object AggregateUtil {
       extractAggregateMetadata(
         namedAggregates.map(_.getKey),
         inputType,
+        inputFieldTypeInfo.length,
         needRetract,
         tableConfig)
 
@@ -1094,6 +1104,7 @@ object AggregateUtil {
     val aggregateList = extractAggregateMetadata(
       aggregateCalls,
       inputType,
+      inputType.getFieldCount,
       needRetraction = false,
       tableConfig).getAggregateFunctions
 
@@ -1240,6 +1251,11 @@ object AggregateUtil {
     *
     * @param aggregateFunction calcite's aggregate function
     * @param isDistinct true if should be distinct aggregation
+    * @param distinctAccMap mapping of the distinct aggregate input fields index
+    *                       to the corresponding acc index
+    * @param argList indexes of the input fields of given aggregates
+    * @param aggregateCount number of aggregates
+    * @param inputFieldsCount number of input fields
     * @param aggregateInputTypes input types of given aggregate
     * @param needRetraction if the [[TableAggregateFunction]] should produce retractions
     * @param tableConfig tableConfig, required for decimal precision
@@ -1254,9 +1270,10 @@ object AggregateUtil {
   private[flink] def extractAggregateCallMetadata(
       aggregateFunction: SqlAggFunction,
       isDistinct: Boolean,
-      distinctAccMap: mutable.Map[util.List[Integer], Integer],
+      distinctAccMap: mutable.Map[util.Set[Integer], Integer],
       argList: util.List[Integer],
       aggregateCount: Int,
+      inputFieldsCount: Int,
       aggregateInputTypes: Seq[RelDataType],
       needRetraction: Boolean,
       tableConfig: TableConfig,
@@ -1287,7 +1304,7 @@ object AggregateUtil {
 
     // create distinct accumulator filter argument
     val distinctAccIndex = if (isDistinct) {
-      getDistinctAccIndex(distinctAccMap, argList, aggregateCount)
+      getDistinctAccIndex(distinctAccMap, argList, aggregateCount, inputFieldsCount)
     } else {
       -1
     }
@@ -1296,14 +1313,16 @@ object AggregateUtil {
   }
 
   private def getDistinctAccIndex(
-      distinctAccMap: mutable.Map[util.List[Integer], Integer],
+      distinctAccMap: mutable.Map[util.Set[Integer], Integer],
       argList: util.List[Integer],
-      aggregateCount: Int): Int = {
+      aggregateCount: Int,
+      inputFieldsCount: Int): Int = {
 
-    distinctAccMap.get(argList) match {
+    val argListWithoutConstants = argList.toSet.filter(i => i > -1 && i < inputFieldsCount)
+    distinctAccMap.get(argListWithoutConstants) match {
       case None =>
         val index: Int = aggregateCount + distinctAccMap.size
-        distinctAccMap.put(argList, index)
+        distinctAccMap.put(argListWithoutConstants, index)
         index
 
       case Some(index) => index
@@ -1316,6 +1335,7 @@ object AggregateUtil {
     *
     * @param aggregateCalls calcite's aggregate function
     * @param aggregateInputType input type of given aggregates
+    * @param inputFieldsCount number of input fields,
     * @param needRetraction if the [[TableAggregateFunction]] should produce retractions
     * @param tableConfig tableConfig, required for decimal precision
     * @param isStateBackedDataViews if data should be backed by state backend
@@ -1328,12 +1348,13 @@ object AggregateUtil {
   private def extractAggregateMetadata(
       aggregateCalls: Seq[AggregateCall],
       aggregateInputType: RelDataType,
+      inputFieldsCount: Int,
       needRetraction: Boolean,
       tableConfig: TableConfig,
       isStateBackedDataViews: Boolean = false)
     : AggregateMetadata = {
 
-    val distinctAccMap = mutable.Map[util.List[Integer], Integer]()
+    val distinctAccMap = mutable.Map[util.Set[Integer], Integer]()
 
     val aggregatesWithIndices = aggregateCalls.zipWithIndex.map {
       case (aggregateCall, index) =>
@@ -1356,6 +1377,7 @@ object AggregateUtil {
           distinctAccMap,
           argList,
           aggregateCalls.length,
+          inputFieldsCount,
           inputTypes,
           needRetraction,
           tableConfig,

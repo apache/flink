@@ -120,6 +120,39 @@ class AggregateITCase extends StreamingWithStateTestBase {
   }
 
   @Test
+  def testDistinctAGGWithDifferentArgumentOrder(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[(Int, Int, String)]
+    data.+=((1, 1, "A"))
+    data.+=((2, 2, "B"))
+    data.+=((2, 2, "B"))
+    data.+=((4, 3, "C"))
+    data.+=((5, 3, "C"))
+    data.+=((4, 3, "C"))
+    data.+=((7, 3, "B"))
+    data.+=((1, 4, "A"))
+    data.+=((9, 4, "D"))
+    data.+=((4, 1, "A"))
+    data.+=((3, 2, "B"))
+
+    val testAgg = new WeightedAvg
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+      .groupBy('c)
+      .select('c, testAgg.distinct('a, 'b), testAgg.distinct('b, 'a), testAgg('a, 'b))
+
+    val results = t.toRetractStream[Row](queryConfig)
+    results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList("A,1,1,1", "B,4,2,3", "C,4,3,4", "D,9,4,9")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
   def testDistinct(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
