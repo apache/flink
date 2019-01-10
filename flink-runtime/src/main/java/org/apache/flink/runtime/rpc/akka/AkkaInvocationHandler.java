@@ -125,21 +125,6 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 				"retrieve a properly FencedRpcGateway.");
 		} else {
 			result = invokeRpc(method, args);
-			if (result instanceof CompletableFuture) {
-				result = ((CompletableFuture) result).thenApply((Object o) -> {
-					if (o instanceof SerializedValue) {
-						try {
-							return  ((SerializedValue) o).deserializeValue(getClass().getClassLoader());
-						} catch (IOException e) {
-							throw new CompletionException(e);
-						} catch (ClassNotFoundException e) {
-							throw new CompletionException(e);
-						}
-					} else {
-						return o;
-					}
-				});
-			}
 		}
 
 		return result;
@@ -222,12 +207,34 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 			result = null;
 		} else if (Objects.equals(returnType, CompletableFuture.class)) {
 			// execute an asynchronous call
-			result = ask(rpcInvocation, futureTimeout);
+			CompletableFuture resultFuture = ask(rpcInvocation, futureTimeout);
+
+			result = resultFuture.thenApply((Object o) -> {
+				if (o instanceof SerializedValue) {
+					try {
+						return  ((SerializedValue) o).deserializeValue(getClass().getClassLoader());
+					} catch (IOException | ClassNotFoundException e) {
+						throw new CompletionException(e);
+					}
+				} else {
+					return o;
+				}
+			});
 		} else {
 			// execute a synchronous call
-			CompletableFuture<?> futureResult = ask(rpcInvocation, futureTimeout);
+			CompletableFuture<?> resultFuture = ask(rpcInvocation, futureTimeout);
 
-			result = futureResult.get(futureTimeout.getSize(), futureTimeout.getUnit());
+			Object returnedResult = resultFuture.get(futureTimeout.getSize(), futureTimeout.getUnit());
+
+			if (returnedResult instanceof SerializedValue) {
+				try {
+					result = ((SerializedValue) returnedResult).deserializeValue(getClass().getClassLoader());
+				} catch (IOException | ClassNotFoundException e) {
+					throw new CompletionException(e);
+				}
+			} else {
+				result = returnedResult;
+			}
 		}
 
 		return result;

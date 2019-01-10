@@ -17,10 +17,7 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import scala.concurrent.duration.FiniteDuration;
@@ -29,12 +26,6 @@ import scala.concurrent.duration.FiniteDuration;
  * Configuration object for {@link AkkaRpcService}.
  */
 public class AkkaRpcServiceConfiguration {
-
-	private static final String SIMPLE_AKKA_CONFIG_TEMPLATE =
-		"akka {remote {netty.tcp {maximum-frame-size = %s}}}";
-
-	private static final String MAXIMUM_FRAME_SIZE_PATH =
-		"akka.remote.netty.tcp.maximum-frame-size";
 
 	private final Time timeout;
 	private final long maximumFramesize;
@@ -56,10 +47,7 @@ public class AkkaRpcServiceConfiguration {
 		FiniteDuration duration = AkkaUtils.getTimeout(configuration);
 		Time timeout = Time.of(duration.length(), duration.unit());
 
-		String maxFrameSizeStr = configuration.getString(AkkaOptions.FRAMESIZE);
-		String akkaConfigStr = String.format(SIMPLE_AKKA_CONFIG_TEMPLATE, maxFrameSizeStr);
-		Config akkaConfig = ConfigFactory.parseString(akkaConfigStr);
-		long maximumFramesize = akkaConfig.getBytes(MAXIMUM_FRAME_SIZE_PATH);
+		long maximumFramesize = AkkaRpcServiceUtils.extractMaximumFramesize(configuration);
 
 		return new AkkaRpcServiceConfiguration(timeout, maximumFramesize);
 	}

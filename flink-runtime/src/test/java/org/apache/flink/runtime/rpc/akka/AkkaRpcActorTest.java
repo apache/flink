@@ -27,7 +27,6 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.TestingRemoteAkkaRpcActor;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
@@ -41,6 +40,9 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -147,34 +149,48 @@ public class AkkaRpcActorTest extends TestLogger {
 		rpcEndpoint.shutDown();
 	}
 
-	@Test(expected = ExecutionException.class)
+	@Test
 	public void testOversizedResponseMsg() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setString(AkkaOptions.FRAMESIZE, "10 b");
-		AkkaRpcService rpcService = null;
 		OversizedResponseRpcEndpoint rpcEndpoint = null;
+
+		ActorSystem actorSystem1 = AkkaUtils.createDefaultActorSystem();
+		ActorSystem actorSystem2 = AkkaUtils.createDefaultActorSystem();
+		AkkaRpcServiceConfiguration akkaRpcServiceConfig = AkkaRpcServiceConfiguration.fromConfiguration(configuration);
+		AkkaRpcService rpcService1 = new AkkaRpcService(actorSystem1, akkaRpcServiceConfig);;
+		AkkaRpcService rpcService2 = new AkkaRpcService(actorSystem2, akkaRpcServiceConfig);;
+
 		try {
-			rpcService = new TestingRemoteRpcService(configuration);
-
-			rpcEndpoint = new OversizedResponseRpcEndpoint(rpcService);
-
-			OversizedResponseMsgRpcGateway rpcGateway = rpcEndpoint.getSelfGateway(OversizedResponseMsgRpcGateway.class);
+			rpcEndpoint = new OversizedResponseRpcEndpoint(rpcService1, "hello world");
 
 			rpcEndpoint.start();
 
-			CompletableFuture<Byte[]> result = rpcGateway.calculate();
+			CompletableFuture<OversizedResponseMsgRpcGateway> future = rpcService2.connect(
+				rpcEndpoint.getAddress(), OversizedResponseMsgRpcGateway.class);
+			OversizedResponseMsgRpcGateway rpcGateway = future.get(10000, TimeUnit.SECONDS);
+
+			CompletableFuture<String> result = rpcGateway.calculate();
 
 			result.get(timeout.getSize(), timeout.getUnit());
 
-			fail("Expected a ExecutionException about the oversize");
+			fail("Expected an AkkaRpcException.");
+		} catch (Exception e) {
+			assertTrue(e.getCause() instanceof IOException);
 		} finally {
 			if (rpcEndpoint != null) {
 				rpcEndpoint.shutDown();
 			}
 
-			if (rpcService != null) {
-				RpcUtils.terminateRpcService(rpcService, timeout);
-			}
+			final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(4);
+			terminationFutures.add(rpcService1.stopService());
+			terminationFutures.add(FutureUtils.toJava(actorSystem1.terminate()));
+			terminationFutures.add(rpcService2.stopService());
+			terminationFutures.add(FutureUtils.toJava(actorSystem2.terminate()));
+
+			FutureUtils
+				.waitForAll(terminationFutures)
+				.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 		}
 	}
 
@@ -182,30 +198,40 @@ public class AkkaRpcActorTest extends TestLogger {
 	public void testNonOversizedResponseMsg() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setString(AkkaOptions.FRAMESIZE, "1000 kB");
-		AkkaRpcService rpcService = null;
 		OversizedResponseRpcEndpoint rpcEndpoint = null;
+
+		ActorSystem actorSystem1 = AkkaUtils.createDefaultActorSystem();
+		ActorSystem actorSystem2 = AkkaUtils.createDefaultActorSystem();
+		AkkaRpcServiceConfiguration akkaRpcServiceConfig = AkkaRpcServiceConfiguration.fromConfiguration(configuration);
+		AkkaRpcService rpcService1 = new AkkaRpcService(actorSystem1, akkaRpcServiceConfig);
+		AkkaRpcService rpcService2 = new AkkaRpcService(actorSystem2, akkaRpcServiceConfig);
+
 		try {
-			rpcService = new TestingRemoteRpcService(configuration);
-
-			rpcEndpoint = new OversizedResponseRpcEndpoint(rpcService);
-
-			OversizedResponseMsgRpcGateway rpcGateway = rpcEndpoint.getSelfGateway(OversizedResponseMsgRpcGateway.class);
-
+			rpcEndpoint = new OversizedResponseRpcEndpoint(rpcService1, "hello world");
 			rpcEndpoint.start();
 
-			CompletableFuture<Byte[]> result = rpcGateway.calculate();
+			CompletableFuture<OversizedResponseMsgRpcGateway> future = rpcService2.connect(rpcEndpoint.getAddress(), OversizedResponseMsgRpcGateway.class);
+			OversizedResponseMsgRpcGateway rpcGateway = future.get(10000, TimeUnit.SECONDS);
 
-			Byte[] actualBytes = result.get(timeout.getSize(), timeout.getUnit());
+			CompletableFuture<String> result = rpcGateway.calculate();
 
-			assertEquals(rpcEndpoint.getBytes(), actualBytes);
+			String actualTxt = result.get(timeout.getSize(), timeout.getUnit());
+
+			assertEquals("hello world", actualTxt);
 		} finally {
 			if (rpcEndpoint != null) {
 				rpcEndpoint.shutDown();
 			}
 
-			if (rpcService != null) {
-				RpcUtils.terminateRpcService(rpcService, timeout);
-			}
+			final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(4);
+			terminationFutures.add(rpcService1.stopService());
+			terminationFutures.add(FutureUtils.toJava(actorSystem1.terminate()));
+			terminationFutures.add(rpcService2.stopService());
+			terminationFutures.add(FutureUtils.toJava(actorSystem2.terminate()));
+
+			FutureUtils
+				.waitForAll(terminationFutures)
+				.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 		}
 	}
 
@@ -499,40 +525,21 @@ public class AkkaRpcActorTest extends TestLogger {
 	// -------------------------------------------------------------------------
 
 	interface OversizedResponseMsgRpcGateway extends RpcGateway {
-		CompletableFuture<Byte[]> calculate();
+		CompletableFuture<String> calculate();
 	}
 
 	static class OversizedResponseRpcEndpoint extends TestRpcEndpoint implements OversizedResponseMsgRpcGateway {
 
-		private volatile Byte[] bytes = new Byte[1024 * 10];
+		private volatile String txt;
 
-		public OversizedResponseRpcEndpoint(RpcService rpcService) {
+		public OversizedResponseRpcEndpoint(RpcService rpcService, String txt) {
 			super(rpcService);
+			this.txt = txt;
 		}
 
 		@Override
-		public CompletableFuture<Byte[]> calculate() {
-			return CompletableFuture.completedFuture(bytes);
-		}
-
-		public Byte[] getBytes() {
-			return bytes;
-		}
-
-		public void setBytes(Byte[] bytes) {
-			this.bytes = bytes;
-		}
-	}
-
-	static class TestingRemoteRpcService extends TestingRpcService {
-
-		public TestingRemoteRpcService(Configuration configuration) {
-			super(configuration);
-		}
-
-		@Override
-		protected Class getAkkaRpcActorClass() {
-			return TestingRemoteAkkaRpcActor.class;
+		public CompletableFuture<String> calculate() {
+			return CompletableFuture.completedFuture(txt);
 		}
 
 	}

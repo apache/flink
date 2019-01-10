@@ -93,8 +93,9 @@ public class RpcSSLAuthITCase extends TestLogger {
 			// can only pass if the connection problem is not recognized merely via a timeout
 			Configuration configuration = new Configuration();
 			configuration.setString(AkkaOptions.ASK_TIMEOUT, "10000000 s");
-			rpcService1 = new AkkaRpcService(actorSystem1, AkkaRpcServiceConfiguration.fromConfiguration(configuration));
-			rpcService2 = new AkkaRpcService(actorSystem2, AkkaRpcServiceConfiguration.fromConfiguration(configuration));
+			AkkaRpcServiceConfiguration akkaRpcServiceConfig = AkkaRpcServiceConfiguration.fromConfiguration(configuration);
+			rpcService1 = new AkkaRpcService(actorSystem1, akkaRpcServiceConfig);
+			rpcService2 = new AkkaRpcService(actorSystem2, akkaRpcServiceConfig);
 
 			TestEndpoint endpoint = new TestEndpoint(rpcService1);
 			endpoint.start();

@@ -66,8 +66,9 @@ public class MessageSerializationTest extends TestLogger {
 		actorSystem1 = AkkaUtils.createDefaultActorSystem();
 		actorSystem2 = AkkaUtils.createDefaultActorSystem();
 
-		akkaRpcService1 = new AkkaRpcService(actorSystem1, AkkaRpcServiceConfiguration.fromConfiguration(configuration));
-		akkaRpcService2 = new AkkaRpcService(actorSystem2, AkkaRpcServiceConfiguration.fromConfiguration(configuration));
+		AkkaRpcServiceConfiguration akkaRpcServiceConfig = AkkaRpcServiceConfiguration.fromConfiguration(configuration);
+		akkaRpcService1 = new AkkaRpcService(actorSystem1, akkaRpcServiceConfig);
+		akkaRpcService2 = new AkkaRpcService(actorSystem2, akkaRpcServiceConfig);
 	}
 
 	@AfterClass

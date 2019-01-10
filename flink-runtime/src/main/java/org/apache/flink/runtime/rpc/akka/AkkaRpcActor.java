@@ -54,6 +54,7 @@ import java.util.concurrent.TimeUnit;
 import scala.concurrent.duration.FiniteDuration;
 import scala.concurrent.impl.Promise;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -73,7 +74,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> Type of the {@link RpcEndpoint}
  */
-public class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
+class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -92,11 +93,12 @@ public class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedAct
 	private State state;
 
 	public AkkaRpcActor(
-		final T rpcEndpoint,
-		final CompletableFuture<Boolean> terminationFuture,
-		final int version,
-		final long maximumFramesize) {
+			final T rpcEndpoint,
+			final CompletableFuture<Boolean> terminationFuture,
+			final int version,
+			final long maximumFramesize) {
 
+		checkArgument(maximumFramesize > 0, "Maximum framesize must be positive.");
 		this.rpcEndpoint = checkNotNull(rpcEndpoint, "rpc endpoint");
 		this.mainThreadValidator = new MainThreadValidatorUtil(rpcEndpoint);
 		this.terminationFuture = checkNotNull(terminationFuture);
@@ -265,7 +267,7 @@ public class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedAct
 					}
 
 					boolean remoteSender = isRemoteSender();
-					final Method method = rpcMethod;
+					final String methodName = rpcMethod.getName();
 
 					if (result instanceof CompletableFuture) {
 						final CompletableFuture<?> future = (CompletableFuture<?>) result;
@@ -280,11 +282,11 @@ public class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedAct
 										promise.success(value);
 									} else {
 										Either<SerializedValue, AkkaRpcException> serializedResult =
-											serializeRemoteResultAndVerifySize(value, method.getName());
+											serializeRemoteResultAndVerifySize(value, methodName);
 										if (serializedResult.isLeft()) {
 											promise.success(serializedResult.left());
 										} else {
-											promise.failure(new Throwable(serializedResult.right()));
+											promise.failure(serializedResult.right());
 										}
 									}
 								}
@@ -296,9 +298,9 @@ public class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedAct
 							getSender().tell(result, getSelf());
 						} else {
 							Either<SerializedValue, AkkaRpcException> serializedResult =
-								serializeRemoteResultAndVerifySize(result, method.getName());
+								serializeRemoteResultAndVerifySize(result, methodName);
 							if (serializedResult.isLeft()) {
-								getSender().tell(serializedResult.left(), getSelf());
+								getSender().tell(new Status.Success(serializedResult.left()), getSelf());
 							} else {
 								getSender().tell(new Status.Failure(serializedResult.right()), getSelf());
 							}
@@ -325,7 +327,8 @@ public class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedAct
 			long resultSize = serializedResult.getByteArray().length;
 			if (resultSize > maximumFramesize) {
 				return Either.Right(new AkkaRpcException(
-					"The result size " + resultSize + " exceeds the maximum " + "size " + maximumFramesize + " ."));
+					"The method " + methodName + "'s result size " + resultSize
+						+ " exceeds the maximum size " + maximumFramesize + " ."));
 			} else {
 				return Either.Left(serializedResult);
 			}

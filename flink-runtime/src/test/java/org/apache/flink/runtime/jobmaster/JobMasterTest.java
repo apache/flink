@@ -96,6 +96,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
@@ -265,8 +266,9 @@ public class JobMasterTest extends TestLogger {
 			final ActorSystem actorSystem1 = AkkaUtils.createDefaultActorSystem();
 			final ActorSystem actorSystem2 = AkkaUtils.createDefaultActorSystem();
 
-			rpcService1 = new AkkaRpcService(actorSystem1, testingTimeout);
-			rpcService2 = new AkkaRpcService(actorSystem2, testingTimeout);
+			AkkaRpcServiceConfiguration akkaRpcServiceConfig = AkkaRpcServiceConfiguration.fromConfiguration(configuration);
+			rpcService1 = new AkkaRpcService(actorSystem1, akkaRpcServiceConfig);
+			rpcService2 = new AkkaRpcService(actorSystem2, akkaRpcServiceConfig);
 
 			final CompletableFuture<Throwable> declineCheckpointMessageFuture = new CompletableFuture<>();
 
