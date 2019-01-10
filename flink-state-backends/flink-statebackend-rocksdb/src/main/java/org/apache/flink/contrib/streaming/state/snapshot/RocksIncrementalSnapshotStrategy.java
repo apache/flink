@@ -443,15 +443,12 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 				final StateHandleID stateHandleID = new StateHandleID(fileName);
 
 				if (fileName.endsWith(SST_FILE_SUFFIX)) {
-					final boolean existsAlready =
-						baseSstFiles != null && baseSstFiles.contains(stateHandleID);
+					final boolean existsAlready = baseSstFiles != null && baseSstFiles.contains(stateHandleID);
 
 					if (existsAlready) {
 						// we introduce a placeholder state handle, that is replaced with the
 						// original from the shared state registry (created from a previous checkpoint)
-						sstFiles.put(
-							stateHandleID,
-							new PlaceholderStreamStateHandle());
+						sstFiles.put(stateHandleID, new PlaceholderStreamStateHandle());
 					} else {
 						sstFilePaths.put(stateHandleID, filePath);
 					}

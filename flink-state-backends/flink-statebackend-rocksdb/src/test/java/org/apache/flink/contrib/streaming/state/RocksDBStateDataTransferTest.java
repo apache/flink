@@ -181,7 +181,6 @@ public class RocksDBStateDataTransferTest extends TestLogger {
 	 */
 	@Test
 	public void testMultiThreadUploadCorrectly() throws Exception {
-
 		File checkpointPrivateFolder = temporaryFolder.newFolder("private");
 		Path checkpointPrivateDirectory = new Path(checkpointPrivateFolder.getPath());
 
@@ -199,13 +198,11 @@ public class RocksDBStateDataTransferTest extends TestLogger {
 		int sstFileCount = 6;
 		Map<StateHandleID, Path> sstFilePaths = generateRandomSstFiles(localFolder, sstFileCount, fileStateSizeThreshold);
 
-		Map<StateHandleID, StreamStateHandle> sstFiles = new HashMap<>(sstFileCount);
-
-		sstFiles.putAll(RocksDbStateDataTransfer.uploadFilesToCheckpointFs(
+		Map<StateHandleID, StreamStateHandle> sstFiles = RocksDbStateDataTransfer.uploadFilesToCheckpointFs(
 			sstFilePaths,
 			5,
 			checkpointStreamFactory,
-			new CloseableRegistry()));
+			new CloseableRegistry());
 
 		for (Map.Entry<StateHandleID, Path> entry : sstFilePaths.entrySet()) {
 			assertStateContentEqual(entry.getValue(), sstFiles.get(entry.getKey()).openInputStream());
