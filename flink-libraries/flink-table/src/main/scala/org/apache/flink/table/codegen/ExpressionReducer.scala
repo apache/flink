@@ -127,7 +127,11 @@ class ExpressionReducer(config: TableConfig)
           val reducedValue = reduced.getField(reducedIdx)
           // RexBuilder handle double literal incorrectly, convert it into BigDecimal manually
           val value = if (unreduced.getType.getSqlTypeName == SqlTypeName.DOUBLE) {
-            new java.math.BigDecimal(reducedValue.asInstanceOf[Number].doubleValue())
+            if (reducedValue == null) {
+              reducedValue
+            } else {
+              new java.math.BigDecimal(reducedValue.asInstanceOf[Number].doubleValue())
+            }
           } else {
             reducedValue
           }

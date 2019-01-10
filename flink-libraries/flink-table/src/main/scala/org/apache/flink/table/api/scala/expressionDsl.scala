@@ -442,6 +442,20 @@ trait ImplicitExpressionOperations {
     */
   def hex() = Hex(expr)
 
+  /**
+    * Returns a number of truncated to n decimal places.
+    * If n is 0,the result has no decimal point or fractional part.
+    * n can be negative to cause n digits left of the decimal point of the value to become zero.
+    * E.g. truncate(42.345, 2) to 42.34.
+    */
+  def truncate(n: Expression) = Truncate(expr, n)
+
+  /**
+    * Returns a number of truncated to 0 decimal places.
+    * E.g. truncate(42.345) to 42.0.
+    */
+  def truncate() = Truncate(expr)
+
   // String operations
 
   /**

@@ -552,6 +552,54 @@ object FunctionGenerator {
     STRING_TYPE_INFO,
     BuiltInMethods.HEX_STRING)
 
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(LONG_TYPE_INFO),
+    LONG_TYPE_INFO,
+    BuiltInMethods.TRUNCATE_LONG_ONE)
+
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(INT_TYPE_INFO),
+    INT_TYPE_INFO,
+    BuiltInMethods.TRUNCATE_INT_ONE)
+
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(BIG_DEC_TYPE_INFO),
+    BIG_DEC_TYPE_INFO,
+    BuiltInMethods.TRUNCATE_DEC_ONE)
+
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.TRUNCATE_DOUBLE_ONE)
+
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(LONG_TYPE_INFO, INT_TYPE_INFO),
+    LONG_TYPE_INFO,
+    BuiltInMethods.TRUNCATE_LONG)
+
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(INT_TYPE_INFO, INT_TYPE_INFO),
+    INT_TYPE_INFO,
+    BuiltInMethods.TRUNCATE_INT)
+
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(BIG_DEC_TYPE_INFO, INT_TYPE_INFO),
+    BIG_DEC_TYPE_INFO,
+    BuiltInMethods.TRUNCATE_DEC)
+
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(DOUBLE_TYPE_INFO, INT_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.TRUNCATE_DOUBLE)
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------

@@ -493,3 +493,36 @@ case class UUID() extends LeafExpression {
     relBuilder.call(ScalarSqlFunctions.UUID)
   }
 }
+
+case class Truncate(base: Expression, num: Expression) extends Expression with InputTypeSpec {
+  def this(base: Expression) = this(base, null)
+
+  override private[flink] def resultType: TypeInformation[_] = base.resultType
+
+  override private[flink] def children: Seq[Expression] =
+    if (num == null) Seq(base) else Seq(base, num)
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    if (num == null) Seq(base.resultType) else Seq(base.resultType, INT_TYPE_INFO)
+
+  override def toString: String = s"truncate(${children.mkString(",")})"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.TRUNCATE, children.map(_.toRexNode))
+  }
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (num != null) {
+      if (!TypeCheckUtils.isInteger(num.resultType)) {
+        ValidationFailure(s"truncate num requires int, get " +
+          s"$num : ${num.resultType}")
+      }
+    }
+    TypeCheckUtils.assertNumericExpr(base.resultType, s"truncate base :$base")
+  }
+}
+
+object Truncate {
+  def apply(base: Expression): Truncate = Truncate(base, null)
+}
+

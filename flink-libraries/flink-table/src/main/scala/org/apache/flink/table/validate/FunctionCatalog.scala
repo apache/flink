@@ -253,6 +253,7 @@ object FunctionCatalog {
     "randInteger" -> classOf[RandInteger],
     "bin" -> classOf[Bin],
     "hex" -> classOf[Hex],
+    "truncate" -> classOf[Truncate],
 
     // temporal functions
     "extract" -> classOf[Extract],
@@ -478,6 +479,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.RTRIM,
     ScalarSqlFunctions.REPEAT,
     ScalarSqlFunctions.REGEXP_REPLACE,
+    SqlStdOperatorTable.TRUNCATE,
 
     // MATCH_RECOGNIZE
     SqlStdOperatorTable.FIRST,

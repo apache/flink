@@ -1973,6 +1973,94 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     )
   }
 
+  @Test
+  def testTruncate(): Unit = {
+    testAllApis(
+      'f29.truncate('f30),
+      "f29.truncate(f30)",
+      "truncate(f29, f30)",
+      "0.4")
+
+    testAllApis(
+      'f31.truncate('f7),
+      "f31.truncate(f7)",
+      "truncate(f31, f7)",
+      "-0.123")
+
+    testAllApis(
+      'f4.truncate('f32),
+      "f4.truncate(f32)",
+      "truncate(f4, f32)",
+      "40")
+
+    testAllApis(
+      'f28.cast(Types.DOUBLE).truncate(1),
+      "f28.cast(DOUBLE).truncate(1)",
+      "truncate(cast(f28 as DOUBLE), 1)",
+      "0.4")
+
+    testAllApis(
+      'f31.cast(Types.DECIMAL).truncate(2),
+      "f31.cast(DECIMAL).truncate(2)",
+      "truncate(cast(f31 as decimal), 2)",
+      "-0.12")
+
+    testAllApis(
+      'f36.cast(Types.DECIMAL).truncate(),
+      "f36.cast(DECIMAL).truncate()",
+      "truncate(42.324)",
+      "42")
+
+    testAllApis(
+      'f5.cast(Types.FLOAT).truncate(),
+      "f5.cast(FLOAT).truncate()",
+      "truncate(cast(f5 as float))",
+      "4.0")
+
+    testAllApis(
+      42.truncate(-1),
+      "42.truncate(-1)",
+      "truncate(42, -1)",
+      "40")
+
+    testAllApis(
+      42.truncate(-3),
+      "42.truncate(-3)",
+      "truncate(42, -3)",
+      "0")
+
+    //    The validation parameter is null
+    testAllApis(
+      'f33.cast(Types.INT).truncate(1),
+      "f33.cast(INT).truncate(1)",
+      "truncate(cast(null as integer), 1)",
+      "null")
+
+    testAllApis(
+      43.21.truncate('f33.cast(Types.INT)),
+      "43.21.truncate(f33.cast(INT))",
+      "truncate(43.21, cast(null as integer))",
+      "null")
+
+    testAllApis(
+      'f33.cast(Types.DOUBLE).truncate(1),
+      "f33.cast(DOUBLE).truncate(1)",
+      "truncate(cast(null as double), 1)",
+      "null")
+
+    testAllApis(
+      'f33.cast(Types.INT).truncate(1),
+      "f33.cast(INT).truncate(1)",
+      "truncate(cast(null as integer))",
+      "null")
+
+    testAllApis(
+      'f33.cast(Types.DOUBLE).truncate(),
+      "f33.cast(DOUBLE).truncate()",
+      "truncate(cast(null as double))",
+      "null")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------
