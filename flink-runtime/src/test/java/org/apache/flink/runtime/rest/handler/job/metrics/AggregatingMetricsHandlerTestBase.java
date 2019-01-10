@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.metrics.dump.MetricDump;
@@ -93,7 +94,8 @@ public abstract class AggregatingMetricsHandlerTestBase<
 			mock(GatewayRetriever.class),
 			mock(MetricQueryServiceRetriever.class),
 			Executors.directExecutor(),
-			TestingUtils.TIMEOUT());
+			TestingUtils.TIMEOUT(),
+			MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
 		store = fetcher.getMetricStore();
 
 		Collection<MetricDump> metricDumps = getMetricDumps();

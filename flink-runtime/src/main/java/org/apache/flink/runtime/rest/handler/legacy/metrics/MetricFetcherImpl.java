@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.legacy.metrics;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -63,6 +64,7 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
 
 	private final MetricStore metrics = new MetricStore();
 	private final MetricDumpDeserializer deserializer = new MetricDumpDeserializer();
+	private final long updateInterval;
 
 	private long lastUpdateTime;
 
@@ -70,11 +72,15 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
 			GatewayRetriever<T> retriever,
 			MetricQueryServiceRetriever queryServiceRetriever,
 			Executor executor,
-			Time timeout) {
+			Time timeout,
+			long updateInterval) {
 		this.retriever = Preconditions.checkNotNull(retriever);
 		this.queryServiceRetriever = Preconditions.checkNotNull(queryServiceRetriever);
 		this.executor = Preconditions.checkNotNull(executor);
 		this.timeout = Preconditions.checkNotNull(timeout);
+
+		Preconditions.checkArgument(updateInterval > 0, "The update interval must be larger than 0.");
+		this.updateInterval = updateInterval;
 	}
 
 	/**
@@ -94,7 +100,7 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
 	public void update() {
 		synchronized (this) {
 			long currentTime = System.currentTimeMillis();
-			if (currentTime - lastUpdateTime > 10000L) {
+			if (currentTime - lastUpdateTime > updateInterval) {
 				lastUpdateTime = currentTime;
 				fetchMetrics();
 			}
@@ -221,11 +227,13 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
 			final GatewayRetriever<T> dispatcherGatewayRetriever,
 			final ExecutorService executor) {
 		final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
+		final long updateInterval = configuration.getLong(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
 
 		return new MetricFetcherImpl<>(
 			dispatcherGatewayRetriever,
 			metricQueryServiceRetriever,
 			executor,
-			timeout);
+			timeout,
+			updateInterval);
 	}
 }

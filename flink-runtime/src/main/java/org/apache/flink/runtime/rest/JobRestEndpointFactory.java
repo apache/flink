@@ -30,7 +30,6 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 
 import java.util.concurrent.ExecutorService;
 
@@ -47,7 +46,7 @@ public enum JobRestEndpointFactory implements RestEndpointFactory<RestfulGateway
 			LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			TransientBlobService transientBlobService,
 			ExecutorService executor,
-			MetricQueryServiceRetriever metricQueryServiceRetriever,
+			MetricFetcher metricFetcher,
 			LeaderElectionService leaderElectionService,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
 		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(configuration);
@@ -60,7 +59,7 @@ public enum JobRestEndpointFactory implements RestEndpointFactory<RestfulGateway
 			resourceManagerGatewayRetriever,
 			transientBlobService,
 			executor,
-			metricQueryServiceRetriever,
+			metricFetcher,
 			leaderElectionService,
 			fatalErrorHandler);
 	}

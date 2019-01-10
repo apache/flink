@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
@@ -121,7 +122,8 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			() -> null,
 			path -> null,
 			TestingUtils.defaultExecutor(),
-			Time.milliseconds(1000L));
+			Time.milliseconds(1000L),
+			MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
 
 		// Instance the handler.
 		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(new Configuration());

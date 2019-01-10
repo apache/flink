@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
@@ -197,7 +198,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 			retriever,
 			queryServiceRetriever,
 			scheduledExecutor,
-			timeout);
+			timeout,
+			MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
 
 		Router router = new Router();
 

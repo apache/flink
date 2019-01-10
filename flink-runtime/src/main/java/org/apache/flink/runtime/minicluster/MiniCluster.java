@@ -65,6 +65,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRunner;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -361,9 +362,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					resourceManagerGatewayRetriever,
 					blobServer.getTransientBlobService(),
 					executor,
-					new AkkaQueryServiceRetriever(
-						metricQueryServiceActorSystem,
-						Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT))),
+					MetricFetcherImpl.fromConfiguration(
+						configuration,
+						new AkkaQueryServiceRetriever(
+							metricQueryServiceActorSystem,
+							Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT))),
+						dispatcherGatewayRetriever,
+						executor),
 					haServices.getWebMonitorLeaderElectionService(),
 					new ShutDownFatalErrorHandler());
 
