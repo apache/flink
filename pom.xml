@@ -1525,7 +1525,7 @@ under the License.
 									<include>org.apache.flink:force-shading</include>
 								</includes>
 							</artifactSet>
-							<transformers>
+							<transformers combine.children="append">
 								<!-- The service transformer is needed to merge META-INF/services files -->
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
 								<!-- The ApacheNoticeResourceTransformer collects and aggregates NOTICE files -->
