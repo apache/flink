@@ -50,10 +50,12 @@ public class SocketWindowWordCount {
 		// the host and the port to connect to
 		final String hostname;
 		final int port;
+		final boolean userClass;
 		try {
 			final ParameterTool params = ParameterTool.fromArgs(args);
 			hostname = params.has("hostname") ? params.get("hostname") : "localhost";
 			port = params.getInt("port");
+			userClass = params.getBoolean("userclass", false);
 		} catch (Exception e) {
 			System.err.println("No port specified. Please run 'SocketWindowWordCount " +
 				"--hostname <hostname> --port <port>', where hostname (localhost by default) " +
@@ -69,17 +71,28 @@ public class SocketWindowWordCount {
 		// get input data by connecting to the socket
 		DataStream<String> text = env.socketTextStream(hostname, port, "\n");
 
-		// parse the data, group it, window it, and aggregate the counts
-		DataStream<WordWithCount> windowCounts = text.flatMap(serializableProxy(
-			(Supplier<UserDefinedFlatMapFunction<String, WordWithCount>> & Serializable) () ->
-				new UserDefinedFlatMapFunction<String, WordWithCount>() {
-					@Override
-					public void flatMap(String value, Collector<WordWithCount> out) {
-						for (String word : value.split("\\s")) {
-							out.collect(new WordWithCount(word, 1L));
+		FlatMapFunction<String, WordWithCount> flatMapFunction = userClass ?
+			serializableProxy(
+				(Supplier<UserDefinedFlatMapFunction<String, WordWithCount>> & Serializable) () ->
+					new UserDefinedFlatMapFunction<String, WordWithCount>() {
+						@Override
+						public void flatMap(String value, Collector<WordWithCount> out) {
+							for (String word : value.split("\\s")) {
+								out.collect(new WordWithCount(word, 1L));
+							}
 						}
+					}, UserDefinedFlatMapFunction.class) :
+			new FlatMapFunction<String, WordWithCount>() {
+				@Override
+				public void flatMap(String value, Collector<WordWithCount> out) {
+					for (String word : value.split("\\s")) {
+						out.collect(new WordWithCount(word, 1L));
 					}
-				}, UserDefinedFlatMapFunction.class))
+				}
+		};
+
+		// parse the data, group it, window it, and aggregate the counts
+		DataStream<WordWithCount> windowCounts = text.flatMap(flatMapFunction)
 			.returns(WordWithCount.class)
 			.keyBy("word")
 			.timeWindow(Time.seconds(5))
