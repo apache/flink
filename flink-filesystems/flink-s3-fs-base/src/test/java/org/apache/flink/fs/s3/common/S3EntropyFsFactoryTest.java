@@ -52,6 +52,20 @@ public class S3EntropyFsFactoryTest extends TestLogger {
 		assertEquals(7, fs.generateEntropy().length());
 	}
 
+	@Test
+	public void testMultipleTempDirsConfig() throws Exception {
+		final Configuration conf = new Configuration();
+		String dir1 =  "/tmp/dir1";
+		String dir2 =  "/tmp/dir2";
+		conf.setString("io.tmp.dirs", dir1 + "," + dir2);
+
+		TestFsFactory factory = new TestFsFactory();
+		factory.configure(conf);
+
+		FlinkS3FileSystem fs = (FlinkS3FileSystem) factory.create(new URI("s3://test"));
+		assertEquals(fs.getLocalTmpDir(), dir1);
+	}
+
 	// ------------------------------------------------------------------------
 
 	private static final class TestFsFactory extends AbstractS3FileSystemFactory {
