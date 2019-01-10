@@ -515,7 +515,7 @@ public class FlinkKafkaConsumerBaseTest {
 			testHarnesses[i] = createTestHarness(consumers[i], initialParallelism, i);
 
 			// initializeState() is always called, null signals that we didn't restore
-			testHarnesses[i].initializeState(null);
+			testHarnesses[i].initializeEmptyState();
 			testHarnesses[i].open();
 		}
 

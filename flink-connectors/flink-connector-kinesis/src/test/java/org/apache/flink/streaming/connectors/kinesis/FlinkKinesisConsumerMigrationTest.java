@@ -38,7 +38,6 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.TestSourceContext
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
-import org.apache.flink.streaming.util.migration.MigrationTestUtil;
 import org.apache.flink.streaming.util.migration.MigrationVersion;
 
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
@@ -148,9 +147,9 @@ public class FlinkKinesisConsumerMigrationTest {
 			new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
 
 		testHarness.setup();
-		MigrationTestUtil.restoreFromSnapshot(
-			testHarness,
-			"src/test/resources/kinesis-consumer-migration-test-flink" + testMigrateVersion + "-empty-snapshot", testMigrateVersion);
+		testHarness.initializeState(
+			OperatorSnapshotUtil.getResourceFilename(
+				"kinesis-consumer-migration-test-flink" + testMigrateVersion + "-empty-snapshot"));
 		testHarness.open();
 
 		consumerFunction.run(new TestSourceContext<>());
@@ -204,9 +203,9 @@ public class FlinkKinesisConsumerMigrationTest {
 			new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
 
 		testHarness.setup();
-		MigrationTestUtil.restoreFromSnapshot(
-			testHarness,
-			"src/test/resources/kinesis-consumer-migration-test-flink" + testMigrateVersion + "-snapshot", testMigrateVersion);
+		testHarness.initializeState(
+			OperatorSnapshotUtil.getResourceFilename(
+				"kinesis-consumer-migration-test-flink" + testMigrateVersion + "-snapshot"));
 		testHarness.open();
 
 		consumerFunction.run(new TestSourceContext<>());
@@ -285,9 +284,9 @@ public class FlinkKinesisConsumerMigrationTest {
 			new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
 
 		testHarness.setup();
-		MigrationTestUtil.restoreFromSnapshot(
-			testHarness,
-			"src/test/resources/kinesis-consumer-migration-test-flink" + testMigrateVersion + "-snapshot", testMigrateVersion);
+		testHarness.initializeState(
+			OperatorSnapshotUtil.getResourceFilename(
+				"kinesis-consumer-migration-test-flink" + testMigrateVersion + "-snapshot"));
 		testHarness.open();
 
 		consumerFunction.run(new TestSourceContext<>());

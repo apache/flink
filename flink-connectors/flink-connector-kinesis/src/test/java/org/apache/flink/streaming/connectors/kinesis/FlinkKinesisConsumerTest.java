@@ -763,7 +763,7 @@ public class FlinkKinesisConsumerTest {
 		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		testHarness.getExecutionConfig().setAutoWatermarkInterval(autoWatermarkInterval);
 
-		testHarness.initializeState(null);
+		testHarness.initializeEmptyState();
 		testHarness.open();
 
 		ConcurrentLinkedQueue<Watermark> watermarks = new ConcurrentLinkedQueue<>();
