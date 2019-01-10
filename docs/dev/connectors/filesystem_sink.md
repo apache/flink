@@ -117,11 +117,12 @@ input.addSink(sink);
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val input: DataStream[(IntWritable, Text)] = ???
+import org.apache.flink.api.java.tuple.Tuple2
+val input: DataStream[Tuple2[A, B]] = ??? //we need to use java Tuple2 for the SequenceFileWriter
 
-val sink = new BucketingSink[(IntWritable, Text)]("/base/path")
+val sink = new BucketingSink[Tuple2[IntWritable, Text]]("/base/path")
 sink.setBucketer(new DateTimeBucketer("yyyy-MM-dd--HHmm", ZoneId.of("America/Los_Angeles")))
-sink.setWriter(new StringWriter[(IntWritable, Text)]())
+sink.setWriter(new SequenceFileWriter[IntWritable, Text])
 sink.setBatchSize(1024 * 1024 * 400) // this is 400 MB,
 sink.setBatchRolloverInterval(20 * 60 * 1000); // this is 20 mins
 
