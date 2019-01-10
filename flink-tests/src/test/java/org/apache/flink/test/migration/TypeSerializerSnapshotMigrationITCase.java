@@ -73,6 +73,7 @@ public class TypeSerializerSnapshotMigrationITCase extends SavepointMigrationTes
 	}
 
 	// TODO change this to PERFORM_SAVEPOINT to regenerate binary savepoints
+	// TODO Note: You should generate the savepoint based on the release branch instead of the master.
 	private final ExecutionMode executionMode = ExecutionMode.VERIFY_SAVEPOINT;
 
 	@Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")

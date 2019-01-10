@@ -188,7 +188,7 @@ public class BucketsTest {
 
 		// it takes the current processing time of the context for the creation time,
 		// and for the last modification time.
-		buckets.onElement("test", new TestUtils.MockSinkContext(1L, 2L , 3L));
+		buckets.onElement("test", new TestUtils.MockSinkContext(1L, 2L, 3L));
 
 		// now it should roll
 		buckets.onProcessingTime(7L);
@@ -214,13 +214,13 @@ public class BucketsTest {
 		final Path path = new Path(outDir.toURI());
 
 		final OnProcessingTimePolicy<String, String> rollOnProcessingTimeCountingPolicy =
-				new OnProcessingTimePolicy<>(2L);
+			new OnProcessingTimePolicy<>(2L);
 
 		final Buckets<String, String> buckets =
 				createBuckets(path, rollOnProcessingTimeCountingPolicy, 0);
 
 		// it takes the current processing time of the context for the creation time, and for the last modification time.
-		buckets.onElement("test", new TestUtils.MockSinkContext(1L, 2L , 3L));
+		buckets.onElement("test", new TestUtils.MockSinkContext(1L, 2L, 3L));
 
 		// now it should roll
 		buckets.onProcessingTime(7L);
@@ -244,7 +244,7 @@ public class BucketsTest {
 				createBuckets(path, rollOnProcessingTimeCountingPolicy, 0);
 
 		// it takes the current processing time of the context for the creation time, and for the last modification time.
-		buckets.onElement("test", new TestUtils.MockSinkContext(1L, 2L , 3L));
+		buckets.onElement("test", new TestUtils.MockSinkContext(1L, 2L, 3L));
 		Assert.assertEquals(1L, buckets.getActiveBuckets().get("test").getPartCounter());
 
 		// now it should roll
@@ -257,7 +257,7 @@ public class BucketsTest {
 
 		Assert.assertTrue(buckets.getActiveBuckets().isEmpty());
 
-		buckets.onElement("test", new TestUtils.MockSinkContext(2L, 3L , 4L));
+		buckets.onElement("test", new TestUtils.MockSinkContext(2L, 3L, 4L));
 		Assert.assertEquals(2L, buckets.getActiveBuckets().get("test").getPartCounter());
 	}
 

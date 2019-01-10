@@ -32,7 +32,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A serializer for {@link List Lists}. The serializer relies on an element serializer
- * for teh serialization of the list's elements.
+ * for the serialization of the list's elements.
  *
  * <p>The serialization format for the list is as follows: four bytes for the length of the lost,
  * followed by the serialized representation of each element.
@@ -175,6 +175,6 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 
 	@Override
 	public TypeSerializerSnapshot<List<T>> snapshotConfiguration() {
-		return new ListSerializerSnapshot<>(elementSerializer);
+		return new ListSerializerSnapshot<>(this);
 	}
 }

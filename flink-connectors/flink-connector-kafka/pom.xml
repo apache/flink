@@ -165,58 +165,6 @@ under the License.
 
 	</dependencies>
 
-	<profiles>
-		<!-- Create SQL Client uber jars by default -->
-		<profile>
-			<id>sql-jars</id>
-			<activation>
-				<property>
-					<name>!skipSqlJars</name>
-				</property>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-shade-plugin</artifactId>
-						<executions>
-							<execution>
-								<phase>package</phase>
-								<goals>
-									<goal>shade</goal>
-								</goals>
-								<configuration>
-									<shadedArtifactAttached>true</shadedArtifactAttached>
-									<shadedClassifierName>sql-jar</shadedClassifierName>
-									<artifactSet>
-										<includes combine.children="append">
-											<include>org.apache.kafka:*</include>
-											<include>org.apache.flink:flink-connector-kafka-base_${scala.binary.version}</include>
-										</includes>
-									</artifactSet>
-									<filters>
-										<filter>
-											<artifact>*:*</artifact>
-											<excludes>
-												<exclude>kafka/kafka-version.properties</exclude>
-											</excludes>
-										</filter>
-									</filters>
-									<relocations>
-										<relocation>
-											<pattern>org.apache.kafka</pattern>
-											<shadedPattern>org.apache.flink.kafka.shaded.org.apache.kafka</shadedPattern>
-										</relocation>
-									</relocations>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
-
 	<build>
 		<plugins>
 			<plugin>

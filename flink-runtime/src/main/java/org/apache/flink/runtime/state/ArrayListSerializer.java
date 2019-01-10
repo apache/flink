@@ -147,7 +147,7 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 
 	@Override
 	public TypeSerializerSnapshot<ArrayList<T>> snapshotConfiguration() {
-		return new ArrayListSerializerSnapshot<>(elementSerializer);
+		return new ArrayListSerializerSnapshot<>(this);
 	}
 
 	/**

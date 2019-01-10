@@ -26,8 +26,7 @@ import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.state.{VoidNamespace, VoidNamespaceSerializer}
-import org.apache.flink.streaming.api.SimpleTimerService
+import org.apache.flink.runtime.state.VoidNamespace
 import org.apache.flink.streaming.api.operators._
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.table.api.StreamQueryConfig
@@ -69,9 +68,7 @@ class TemporalRowtimeJoin(
     queryConfig: StreamQueryConfig,
     leftTimeAttribute: Int,
     rightTimeAttribute: Int)
-  extends AbstractStreamOperator[CRow]
-  with TwoInputStreamOperator[CRow, CRow, CRow]
-  with Triggerable[Any, VoidNamespace]
+  extends BaseTwoInputStreamOperatorWithStateRetention(queryConfig)
   with Compiler[FlatJoinFunction[Row, Row, Row]]
   with Logging {
 
@@ -112,7 +109,6 @@ class TemporalRowtimeJoin(
 
   private var cRowWrapper: CRowWrappingCollector = _
   private var collector: TimestampedCollector[CRow] = _
-  private var timerService: SimpleTimerService = _
 
   private var joinFunction: FlatJoinFunction[Row, Row, Row] = _
 
@@ -142,12 +138,7 @@ class TemporalRowtimeJoin(
     cRowWrapper.out = collector
     cRowWrapper.setChange(true)
 
-    val internalTimerService = getInternalTimerService(
-      TIMERS_STATE_NAME,
-      VoidNamespaceSerializer.INSTANCE,
-      this)
-
-    timerService = new SimpleTimerService(internalTimerService)
+    super.open()
   }
 
   override def processElement1(element: StreamRecord[CRow]): Unit = {
@@ -155,6 +146,8 @@ class TemporalRowtimeJoin(
 
     leftState.put(getNextLeftIndex, element.getValue.row)
     registerSmallestTimer(getLeftTime(element.getValue.row)) // Timer to emit and clean up the state
+
+    registerProcessingCleanUpTimer()
   }
 
   override def processElement2(element: StreamRecord[CRow]): Unit = {
@@ -163,10 +156,8 @@ class TemporalRowtimeJoin(
     val rowTime = getRightTime(element.getValue.row)
     rightState.put(rowTime, element.getValue.row)
     registerSmallestTimer(rowTime) // Timer to clean up the state
-  }
 
-  override def onProcessingTime(timer: InternalTimer[Any, VoidNamespace]): Unit = {
-    throw new IllegalStateException("This should never happen")
+    registerProcessingCleanUpTimer()
   }
 
   override def onEventTime(timer: InternalTimer[Any, VoidNamespace]): Unit = {
@@ -174,6 +165,15 @@ class TemporalRowtimeJoin(
     val lastUnprocessedTime = emitResultAndCleanUpState(timerService.currentWatermark())
     if (lastUnprocessedTime < Long.MaxValue) {
       registerTimer(lastUnprocessedTime)
+    }
+
+    // if we have more state at any side, then update the timer, else clean it up.
+    if (stateCleaningEnabled) {
+      if (lastUnprocessedTime < Long.MaxValue || rightState.iterator().hasNext) {
+        registerProcessingCleanUpTimer()
+      } else {
+        cleanUpLastTimer()
+      }
     }
   }
 
@@ -243,6 +243,16 @@ class TemporalRowtimeJoin(
       rightState.remove(rightTime)
       i += 1
     }
+  }
+
+  /**
+    * The method to be called when a cleanup timer fires.
+    *
+    * @param time The timestamp of the fired timer.
+    */
+  override def cleanUpState(time: Long): Unit = {
+    leftState.clear()
+    rightState.clear()
   }
 
   private def firstIndexToKeep(timerTimestamp: Long, rightRowsSorted: util.List[Row]): Int = {

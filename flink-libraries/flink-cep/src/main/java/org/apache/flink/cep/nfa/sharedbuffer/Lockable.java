@@ -187,7 +187,7 @@ public final class Lockable<T> {
 
 		@Override
 		public TypeSerializerSnapshot<Lockable<E>> snapshotConfiguration() {
-			return new LockableTypeSerializerSnapshot<>(elementSerializer);
+			return new LockableTypeSerializerSnapshot<>(this);
 		}
 
 		/**

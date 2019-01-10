@@ -69,23 +69,70 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 	private CheckpointStorageLocation checkpointStorageLocation;
 
 	// -------------------------------------------------------------------------------
-	//  Keyed state backend migration tests
+	//  Tests for keyed ValueState
 	// -------------------------------------------------------------------------------
 
 	@Test
 	public void testKeyedValueStateMigration() throws Exception {
+		final String stateName = "test-name";
+
+		testKeyedValueStateUpgrade(
+			new ValueStateDescriptor<>(
+				stateName,
+				new TestType.V1TestTypeSerializer()),
+			new ValueStateDescriptor<>(
+				stateName,
+				// restore with a V2 serializer that has a different schema
+				new TestType.V2TestTypeSerializer()));
+	}
+
+	@Test
+	public void testKeyedValueStateSerializerReconfiguration() throws Exception {
+		final String stateName = "test-name";
+
+		testKeyedValueStateUpgrade(
+			new ValueStateDescriptor<>(
+				stateName,
+				new TestType.V1TestTypeSerializer()),
+			new ValueStateDescriptor<>(
+				stateName,
+				// the test fails if this serializer is used instead of a reconfigured new serializer
+				new TestType.ReconfigurationRequiringTestTypeSerializer()));
+	}
+
+	@Test
+	public void testKeyedValueStateRegistrationFailsIfNewStateSerializerIsIncompatible() throws Exception {
+		final String stateName = "test-name";
+
+		try {
+			testKeyedValueStateUpgrade(
+				new ValueStateDescriptor<>(
+					stateName,
+					new TestType.V1TestTypeSerializer()),
+				new ValueStateDescriptor<>(
+					stateName,
+					new TestType.IncompatibleTestTypeSerializer()));
+
+			Assert.fail("should have failed");
+		} catch (Exception expected) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(expected, StateMigrationException.class).isPresent());
+		}
+	}
+
+	private void testKeyedValueStateUpgrade(
+			ValueStateDescriptor<TestType> initialAccessDescriptor,
+			ValueStateDescriptor<TestType> newAccessDescriptorAfterRestore) throws Exception {
+
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
-		final String stateName = "test-name";
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
 		try {
-			ValueStateDescriptor<TestType> kvId = new ValueStateDescriptor<>(
-				stateName,
-				new TestType.V1TestTypeSerializer());
-			ValueState<TestType> valueState = backend
-				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+			ValueState<TestType> valueState = backend.getPartitionedState(
+				VoidNamespace.INSTANCE,
+				CustomVoidNamespaceSerializer.INSTANCE,
+				initialAccessDescriptor);
 
 			backend.setCurrentKey(1);
 			valueState.update(new TestType("foo", 1456));
@@ -101,16 +148,13 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
 
-			// the new serializer is V2, and has a completely new serialization schema.
-			kvId = new ValueStateDescriptor<>(
-				stateName,
-				new TestType.V2TestTypeSerializer());
-			valueState = backend
-				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+			valueState = backend.getPartitionedState(
+				VoidNamespace.INSTANCE,
+				CustomVoidNamespaceSerializer.INSTANCE,
+				newAccessDescriptorAfterRestore);
 
 			snapshot.discardState();
 
-			// the state backend should have decided whether or not it needs to perform state migration;
 			// make sure that reading and writing each key state works with the new serializer
 			backend.setCurrentKey(1);
 			Assert.assertEquals(new TestType("foo", 1456), valueState.value());
@@ -128,20 +172,71 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		}
 	}
 
+	// -------------------------------------------------------------------------------
+	//  Tests for keyed ListState
+	// -------------------------------------------------------------------------------
+
 	@Test
 	public void testKeyedListStateMigration() throws Exception {
+		final String stateName = "test-name";
+
+		testKeyedListStateUpgrade(
+			new ListStateDescriptor<>(
+				stateName,
+				new TestType.V1TestTypeSerializer()),
+			new ListStateDescriptor<>(
+				stateName,
+				// restore with a V2 serializer that has a different schema
+				new TestType.V2TestTypeSerializer()));
+	}
+
+	@Test
+	public void testKeyedListStateSerializerReconfiguration() throws Exception {
+		final String stateName = "test-name";
+
+		testKeyedListStateUpgrade(
+			new ListStateDescriptor<>(
+				stateName,
+				new TestType.V1TestTypeSerializer()),
+			new ListStateDescriptor<>(
+				stateName,
+				// the test fails if this serializer is used instead of a reconfigured new serializer
+				new TestType.ReconfigurationRequiringTestTypeSerializer()));
+	}
+
+	@Test
+	public void testKeyedListStateRegistrationFailsIfNewStateSerializerIsIncompatible() throws Exception {
+		final String stateName = "test-name";
+
+		try {
+			testKeyedListStateUpgrade(
+				new ListStateDescriptor<>(
+					stateName,
+					new TestType.V1TestTypeSerializer()),
+				new ListStateDescriptor<>(
+					stateName,
+					new TestType.IncompatibleTestTypeSerializer()));
+
+			Assert.fail("should have failed");
+		} catch (Exception expected) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(expected, StateMigrationException.class).isPresent());
+		}
+	}
+
+	private void testKeyedListStateUpgrade(
+			ListStateDescriptor<TestType> initialAccessDescriptor,
+			ListStateDescriptor<TestType> newAccessDescriptorAfterRestore) throws Exception {
+
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
-		final String stateName = "test-name";
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
 		try {
-			ListStateDescriptor<TestType> kvId = new ListStateDescriptor<>(
-				stateName,
-				new TestType.V1TestTypeSerializer());
-			ListState<TestType> listState = backend
-				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+			ListState<TestType> listState = backend.getPartitionedState(
+				VoidNamespace.INSTANCE,
+				CustomVoidNamespaceSerializer.INSTANCE,
+				initialAccessDescriptor);
 
 			backend.setCurrentKey(1);
 			listState.add(new TestType("key-1", 1));
@@ -162,16 +257,13 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
 
-			// the new serializer is V2, and has a completely new serialization schema.
-			kvId = new ListStateDescriptor<>(
-				stateName,
-				new TestType.V2TestTypeSerializer());
-			listState = backend
-				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
+			listState = backend.getPartitionedState(
+				VoidNamespace.INSTANCE,
+				CustomVoidNamespaceSerializer.INSTANCE,
+				newAccessDescriptorAfterRestore);
 
 			snapshot.discardState();
 
-			// the state backend should have decided whether or not it needs to perform state migration;
 			// make sure that reading and writing each key state works with the new serializer
 			backend.setCurrentKey(1);
 			Iterator<TestType> iterable1 = listState.get().iterator();
@@ -198,98 +290,9 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		}
 	}
 
-	@Test
-	public void testKeyedValueStateRegistrationFailsIfNewStateSerializerIsIncompatible() throws Exception {
-		CheckpointStreamFactory streamFactory = createStreamFactory();
-		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-
-		final String stateName = "test-name";
-		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
-
-		try {
-			ValueStateDescriptor<TestType> kvId = new ValueStateDescriptor<>(
-				stateName,
-				new TestType.V1TestTypeSerializer());
-			ValueState<TestType> valueState = backend
-				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
-
-			backend.setCurrentKey(1);
-			valueState.update(new TestType("foo", 1456));
-			backend.setCurrentKey(2);
-			valueState.update(new TestType("bar", 478));
-			backend.setCurrentKey(3);
-			valueState.update(new TestType("hello", 189));
-
-			KeyedStateHandle snapshot = runSnapshot(
-				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
-				sharedStateRegistry);
-			backend.dispose();
-
-			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
-
-			kvId = new ValueStateDescriptor<>(
-				stateName,
-				new TestType.IncompatibleTestTypeSerializer());
-
-			// the new serializer is INCOMPATIBLE, so registering the state should fail
-			backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
-
-			Assert.fail("should have failed");
-		} catch (Exception e) {
-			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
-		}finally {
-			backend.dispose();
-		}
-	}
-
-	@Test
-	public void testKeyedListStateRegistrationFailsIfNewStateSerializerIsIncompatible() throws Exception {
-		CheckpointStreamFactory streamFactory = createStreamFactory();
-		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-
-		final String stateName = "test-name";
-		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
-
-		try {
-			ListStateDescriptor<TestType> kvId = new ListStateDescriptor<>(
-				stateName,
-				new TestType.V1TestTypeSerializer());
-			ListState<TestType> listState = backend
-				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
-
-			backend.setCurrentKey(1);
-			listState.add(new TestType("key-1", 1));
-			listState.add(new TestType("key-1", 2));
-			listState.add(new TestType("key-1", 3));
-
-			backend.setCurrentKey(2);
-			listState.add(new TestType("key-2", 1));
-
-			backend.setCurrentKey(3);
-			listState.add(new TestType("key-3", 1));
-			listState.add(new TestType("key-3", 2));
-
-			KeyedStateHandle snapshot = runSnapshot(
-				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
-				sharedStateRegistry);
-			backend.dispose();
-
-			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
-
-			kvId = new ListStateDescriptor<>(
-				stateName,
-				new TestType.IncompatibleTestTypeSerializer());
-
-			// the new serializer is INCOMPATIBLE, so registering the state should fail
-			backend.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
-
-			Assert.fail("should have failed");
-		} catch (Exception e) {
-			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
-		} finally {
-			backend.dispose();
-		}
-	}
+	// -------------------------------------------------------------------------------
+	//  Tests for keyed priority queue state
+	// -------------------------------------------------------------------------------
 
 	@Test
 	public void testPriorityQueueStateCreationFailsIfNewSerializerIsNotCompatible() throws Exception {
@@ -323,13 +326,53 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		}
 	}
 
+	// -------------------------------------------------------------------------------
+	//  Tests for key serializer in keyed state backends
+	// -------------------------------------------------------------------------------
+
 	@Test
-	public void testStateBackendCreationFailsIfNewKeySerializerIsNotCompatible() throws Exception {
+	public void testStateBackendRestoreFailsIfNewKeySerializerRequiresMigration() throws Exception {
+		try {
+			testKeySerializerUpgrade(
+				new TestType.V1TestTypeSerializer(),
+				new TestType.V2TestTypeSerializer());
+
+			Assert.fail("should have failed");
+		} catch (Exception expected) {
+			// the new key serializer requires migration; this should fail the restore
+			Assert.assertTrue(ExceptionUtils.findThrowable(expected, StateMigrationException.class).isPresent());
+		}
+	}
+
+	@Test
+	public void testStateBackendRestoreSucceedsIfNewKeySerializerRequiresReconfiguration() throws Exception {
+		testKeySerializerUpgrade(
+			new TestType.V1TestTypeSerializer(),
+			new TestType.ReconfigurationRequiringTestTypeSerializer());
+	}
+
+	@Test
+	public void testStateBackendRestoreFailsIfNewKeySerializerIsIncompatible() throws Exception {
+		try {
+			testKeySerializerUpgrade(
+				new TestType.V1TestTypeSerializer(),
+				new TestType.IncompatibleTestTypeSerializer());
+
+			Assert.fail("should have failed");
+		} catch (Exception expected) {
+			// the new key serializer is incompatible; this should fail the restore
+			Assert.assertTrue(ExceptionUtils.findThrowable(expected, StateMigrationException.class).isPresent());
+		}
+	}
+
+	private void testKeySerializerUpgrade(
+			TypeSerializer<TestType> initialKeySerializer,
+			TypeSerializer<TestType> newKeySerializer) throws Exception {
+
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
-		AbstractKeyedStateBackend<TestType> backend = createKeyedBackend(
-			new TestType.V1TestTypeSerializer());
+		AbstractKeyedStateBackend<TestType> backend = createKeyedBackend(initialKeySerializer);
 
 		final String stateName = "test-name";
 		try {
@@ -347,30 +390,66 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 				sharedStateRegistry);
 			backend.dispose();
 
-			try {
-				// the new key serializer is incompatible; this should fail the restore
-				restoreKeyedBackend(new TestType.IncompatibleTestTypeSerializer(), snapshot);
+			backend = restoreKeyedBackend(newKeySerializer, snapshot);
 
-				Assert.fail("should have failed");
-			} catch (Exception e) {
-				Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
-			}
+			valueState = backend
+				.getPartitionedState(VoidNamespace.INSTANCE, CustomVoidNamespaceSerializer.INSTANCE, kvId);
 
-			try {
-				// the new key serializer requires migration; this should fail the restore
-				restoreKeyedBackend(new TestType.V2TestTypeSerializer(), snapshot);
+			// access and check previous state
+			backend.setCurrentKey(new TestType("foo", 123));
+			Assert.assertEquals(1, valueState.value().intValue());
+			backend.setCurrentKey(new TestType("bar", 456));
+			Assert.assertEquals(5, valueState.value().intValue());
 
-				Assert.fail("should have failed");
-			} catch (Exception e) {
-				Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
-			}
+			snapshot.discardState();
 		} finally {
 			backend.dispose();
 		}
 	}
 
+	// -------------------------------------------------------------------------------
+	//  Tests for namespace serializer in keyed state backends
+	// -------------------------------------------------------------------------------
+
 	@Test
-	public void testKeyedStateRegistrationFailsIfNewNamespaceSerializerIsNotCompatible() throws Exception {
+	public void testKeyedStateRegistrationFailsIfNewNamespaceSerializerRequiresMigration() throws Exception {
+		try {
+			testNamespaceSerializerUpgrade(
+				new TestType.V1TestTypeSerializer(),
+				new TestType.V2TestTypeSerializer());
+
+			Assert.fail("should have failed");
+		} catch (Exception expected) {
+			// the new namespace serializer requires migration; this should fail the restore
+			Assert.assertTrue(ExceptionUtils.findThrowable(expected, StateMigrationException.class).isPresent());
+		}
+	}
+
+	@Test
+	public void testKeyedStateRegistrationSucceedsIfNewNamespaceSerializerRequiresReconfiguration() throws Exception {
+		testNamespaceSerializerUpgrade(
+			new TestType.V1TestTypeSerializer(),
+			new TestType.ReconfigurationRequiringTestTypeSerializer());
+	}
+
+	@Test
+	public void testKeyedStateRegistrationFailsIfNewNamespaceSerializerIsIncompatible() throws Exception {
+		try {
+			testNamespaceSerializerUpgrade(
+				new TestType.V1TestTypeSerializer(),
+				new TestType.IncompatibleTestTypeSerializer());
+
+			Assert.fail("should have failed");
+		} catch (Exception expected) {
+			// the new namespace serializer is incompatible; this should fail the restore
+			Assert.assertTrue(ExceptionUtils.findThrowable(expected, StateMigrationException.class).isPresent());
+		}
+	}
+
+	private void testNamespaceSerializerUpgrade(
+			TypeSerializer<TestType> initialNamespaceSerializer,
+			TypeSerializer<TestType> newNamespaceSerializerAfterRestore) throws Exception {
+
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
@@ -382,7 +461,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			ValueState<Integer> valueState = backend
 				.getPartitionedState(
 					new TestType("namespace", 123),
-					new TestType.V1TestTypeSerializer(),
+					initialNamespaceSerializer,
 					kvId);
 
 			backend.setCurrentKey(1);
@@ -397,92 +476,87 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			// test incompatible namespace serializer; start with a freshly restored backend
 			backend.dispose();
 			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
-			try {
-				// the new namespace serializer is incompatible; this should fail the restore
-				backend.getPartitionedState(
-					new TestType("namespace", 123),
-					new TestType.IncompatibleTestTypeSerializer(),
-					kvId);
 
-				Assert.fail("should have failed");
-			} catch (Exception e) {
-				Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
-			}
+			valueState = backend.getPartitionedState(
+				new TestType("namespace", 123),
+				newNamespaceSerializerAfterRestore,
+				kvId);
 
-			// test namespace serializer that requires migration; start with a freshly restored backend
-			backend.dispose();
-			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
-			try {
-				// the new namespace serializer requires migration; this should fail the restore
-				backend.getPartitionedState(
-					new TestType("namespace", 123),
-					new TestType.V2TestTypeSerializer(),
-					kvId);
+			// access and check previous state
+			backend.setCurrentKey(1);
+			Assert.assertEquals(10, valueState.value().intValue());
+			valueState.update(10);
+			backend.setCurrentKey(5);
+			Assert.assertEquals(50, valueState.value().intValue());
 
-				Assert.fail("should have failed");
-			} catch (Exception e) {
-				Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
-			}
+			snapshot.discardState();
 		} finally {
 			backend.dispose();
 		}
 	}
 
 	// -------------------------------------------------------------------------------
-	//  Operator state backend migration tests
+	//  Operator state backend partitionable list state tests
 	// -------------------------------------------------------------------------------
 
 	@Test
 	public void testOperatorParitionableListStateMigration() throws Exception {
-		CheckpointStreamFactory streamFactory = createStreamFactory();
-
-		OperatorStateBackend backend = createOperatorStateBackend();
-
 		final String stateName = "partitionable-list-state";
-		try {
-			ListStateDescriptor<TestType> descriptor = new ListStateDescriptor<>(
+
+		testOperatorPartitionableListStateUpgrade(
+			new ListStateDescriptor<>(
 				stateName,
-				new TestType.V1TestTypeSerializer());
-			ListState<TestType> state = backend.getListState(descriptor);
-
-			state.add(new TestType("foo", 13));
-			state.add(new TestType("bar", 278));
-
-			OperatorStateHandle snapshot = runSnapshot(
-				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
-			backend.dispose();
-
-			backend = restoreOperatorStateBackend(snapshot);
-
-			descriptor = new ListStateDescriptor<>(
+				new TestType.V1TestTypeSerializer()),
+			new ListStateDescriptor<>(
 				stateName,
-				new TestType.V2TestTypeSerializer());
-			state = backend.getListState(descriptor);
-
-			// the state backend should have decided whether or not it needs to perform state migration;
-			// make sure that reading and writing each state partition works with the new serializer
-			Iterator<TestType> iterator = state.get().iterator();
-			Assert.assertEquals(new TestType("foo", 13), iterator.next());
-			Assert.assertEquals(new TestType("bar", 278), iterator.next());
-			Assert.assertFalse(iterator.hasNext());
-			state.add(new TestType("new-entry", 777));
-		} finally {
-			backend.dispose();
-		}
+				// restore with a V2 serializer that has a different schema
+				new TestType.V2TestTypeSerializer()));
 	}
 
 	@Test
-	public void testUnionListStateMigration() throws Exception {
+	public void testOperatorParitionableListStateSerializerReconfiguration() throws Exception {
+		final String stateName = "partitionable-list-state";
+
+		testOperatorPartitionableListStateUpgrade(
+			new ListStateDescriptor<>(
+				stateName,
+				new TestType.V1TestTypeSerializer()),
+			new ListStateDescriptor<>(
+				stateName,
+				// restore with a new serializer that requires reconfiguration
+				new TestType.ReconfigurationRequiringTestTypeSerializer()));
+	}
+
+	@Test
+	public void testOperatorParitionableListStateRegistrationFailsIfNewSerializerIsIncompatible() throws Exception {
+		final String stateName = "partitionable-list-state";
+
+		try {
+			testOperatorPartitionableListStateUpgrade(
+				new ListStateDescriptor<>(
+					stateName,
+					new TestType.V1TestTypeSerializer()),
+				new ListStateDescriptor<>(
+					stateName,
+					// restore with a new incompatible serializer
+					new TestType.IncompatibleTestTypeSerializer()));
+
+			Assert.fail("should have failed.");
+		} catch (Exception e) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
+		}
+	}
+
+	private void testOperatorPartitionableListStateUpgrade(
+			ListStateDescriptor<TestType> initialAccessDescriptor,
+			ListStateDescriptor<TestType> newAccessDescriptorAfterRestore) throws Exception {
+
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 
 		OperatorStateBackend backend = createOperatorStateBackend();
 
-		final String stateName = "union-list-state";
 		try {
-			ListStateDescriptor<TestType> descriptor = new ListStateDescriptor<>(
-				stateName,
-				new TestType.V1TestTypeSerializer());
-			ListState<TestType> state = backend.getUnionListState(descriptor);
+			ListState<TestType> state = backend.getListState(initialAccessDescriptor);
 
 			state.add(new TestType("foo", 13));
 			state.add(new TestType("bar", 278));
@@ -493,10 +567,93 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			backend = restoreOperatorStateBackend(snapshot);
 
-			descriptor = new ListStateDescriptor<>(
+			state = backend.getListState(newAccessDescriptorAfterRestore);
+
+			// make sure that reading and writing each state partition works with the new serializer
+			Iterator<TestType> iterator = state.get().iterator();
+			Assert.assertEquals(new TestType("foo", 13), iterator.next());
+			Assert.assertEquals(new TestType("bar", 278), iterator.next());
+			Assert.assertFalse(iterator.hasNext());
+			state.add(new TestType("new-entry", 777));
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	// -------------------------------------------------------------------------------
+	//  Operator state backend union list state tests
+	// -------------------------------------------------------------------------------
+
+	@Test
+	public void testOperatorUnionListStateMigration() throws Exception {
+		final String stateName = "union-list-state";
+
+		testOperatorUnionListStateUpgrade(
+			new ListStateDescriptor<>(
 				stateName,
-				new TestType.V2TestTypeSerializer());
-			state = backend.getUnionListState(descriptor);
+				new TestType.V1TestTypeSerializer()),
+			new ListStateDescriptor<>(
+				stateName,
+				// restore with a V2 serializer that has a different schema
+				new TestType.V2TestTypeSerializer()));
+	}
+
+	@Test
+	public void testOperatorUnionListStateSerializerReconfiguration() throws Exception {
+		final String stateName = "union-list-state";
+
+		testOperatorUnionListStateUpgrade(
+			new ListStateDescriptor<>(
+				stateName,
+				new TestType.V1TestTypeSerializer()),
+			new ListStateDescriptor<>(
+				stateName,
+				// restore with a new serializer that requires reconfiguration
+				new TestType.ReconfigurationRequiringTestTypeSerializer()));
+	}
+
+
+	@Test
+	public void testOperatorUnionListStateRegistrationFailsIfNewSerializerIsIncompatible() throws Exception {
+		final String stateName = "union-list-state";
+
+		try {
+			testOperatorUnionListStateUpgrade(
+				new ListStateDescriptor<>(
+					stateName,
+					new TestType.V1TestTypeSerializer()),
+				new ListStateDescriptor<>(
+					stateName,
+					// restore with a new incompatible serializer
+					new TestType.IncompatibleTestTypeSerializer()));
+
+			Assert.fail("should have failed.");
+		} catch (Exception e) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
+		}
+	}
+
+	private void testOperatorUnionListStateUpgrade(
+			ListStateDescriptor<TestType> initialAccessDescriptor,
+			ListStateDescriptor<TestType> newAccessDescriptorAfterRestore) throws Exception {
+
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+
+		OperatorStateBackend backend = createOperatorStateBackend();
+
+		try {
+			ListState<TestType> state = backend.getUnionListState(initialAccessDescriptor);
+
+			state.add(new TestType("foo", 13));
+			state.add(new TestType("bar", 278));
+
+			OperatorStateHandle snapshot = runSnapshot(
+				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
+			backend.dispose();
+
+			backend = restoreOperatorStateBackend(snapshot);
+
+			state = backend.getUnionListState(newAccessDescriptorAfterRestore);
 
 			// the state backend should have decided whether or not it needs to perform state migration;
 			// make sure that reading and writing each state partition works with the new serializer
@@ -509,20 +666,129 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			backend.dispose();
 		}
 	}
+
+	// -------------------------------------------------------------------------------
+	//  Operator state backend broadcast state tests
+	// -------------------------------------------------------------------------------
 
 	@Test
 	public void testBroadcastStateValueMigration() throws Exception {
+		final String stateName = "broadcast-state";
+
+		testBroadcastStateValueUpgrade(
+			new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
+				new TestType.V1TestTypeSerializer()),
+			new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
+				// new value serializer is a V2 serializer with a different schema
+				new TestType.V2TestTypeSerializer()));
+	}
+
+
+	@Test
+	public void testBroadcastStateKeyMigration() throws Exception {
+		final String stateName = "broadcast-state";
+
+		testBroadcastStateKeyUpgrade(
+			new MapStateDescriptor<>(
+				stateName,
+				new TestType.V1TestTypeSerializer(),
+				IntSerializer.INSTANCE),
+			new MapStateDescriptor<>(
+				stateName,
+				// new key serializer is a V2 serializer with a different schema
+				new TestType.V2TestTypeSerializer(),
+				IntSerializer.INSTANCE));
+	}
+
+	@Test
+	public void testBroadcastStateValueSerializerReconfiguration() throws Exception {
+		final String stateName = "broadcast-state";
+
+		testBroadcastStateValueUpgrade(
+			new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
+				new TestType.V1TestTypeSerializer()),
+			new MapStateDescriptor<>(
+				stateName,
+				IntSerializer.INSTANCE,
+				// new value serializer is a new serializer that requires reconfiguration
+				new TestType.ReconfigurationRequiringTestTypeSerializer()));
+	}
+
+	@Test
+	public void testBroadcastStateKeySerializerReconfiguration() throws Exception {
+		final String stateName = "broadcast-state";
+
+		testBroadcastStateKeyUpgrade(
+			new MapStateDescriptor<>(
+				stateName,
+				new TestType.V1TestTypeSerializer(),
+				IntSerializer.INSTANCE),
+			new MapStateDescriptor<>(
+				stateName,
+				// new key serializer is a new serializer that requires reconfiguration
+				new TestType.ReconfigurationRequiringTestTypeSerializer(),
+				IntSerializer.INSTANCE));
+	}
+
+	@Test
+	public void testBroadcastStateRegistrationFailsIfNewValueSerializerIsIncompatible() throws Exception {
+		final String stateName = "broadcast-state";
+
+		try {
+			testBroadcastStateValueUpgrade(
+				new MapStateDescriptor<>(
+					stateName,
+					IntSerializer.INSTANCE,
+					new TestType.V1TestTypeSerializer()),
+				new MapStateDescriptor<>(
+					stateName,
+					IntSerializer.INSTANCE,
+					// new value serializer is incompatible
+					new TestType.IncompatibleTestTypeSerializer()));
+
+			Assert.fail("should have failed.");
+		} catch (Exception e) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
+		}
+	}
+
+	@Test
+	public void testBroadcastStateRegistrationFailsIfNewKeySerializerIsIncompatible() throws Exception {
+		final String stateName = "broadcast-state";
+
+		try {
+			testBroadcastStateKeyUpgrade(
+				new MapStateDescriptor<>(
+					stateName,
+					new TestType.V1TestTypeSerializer(),
+					IntSerializer.INSTANCE),
+				new MapStateDescriptor<>(
+					stateName,
+					// new key serializer is incompatible
+					new TestType.IncompatibleTestTypeSerializer(),
+					IntSerializer.INSTANCE));
+
+			Assert.fail("should have failed.");
+		} catch (Exception e) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
+		}
+	}
+
+	private void testBroadcastStateValueUpgrade(
+			MapStateDescriptor<Integer, TestType> initialAccessDescriptor,
+			MapStateDescriptor<Integer, TestType> newAccessDescriptorAfterRestore) throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 
 		OperatorStateBackend backend = createOperatorStateBackend();
 
-		final String stateName = "broadcast-state";
 		try {
-			MapStateDescriptor<Integer, TestType> descriptor = new MapStateDescriptor<>(
-				stateName,
-				IntSerializer.INSTANCE,
-				new TestType.V1TestTypeSerializer());
-			BroadcastState<Integer, TestType> state = backend.getBroadcastState(descriptor);
+			BroadcastState<Integer, TestType> state = backend.getBroadcastState(initialAccessDescriptor);
 
 			state.put(3, new TestType("foo", 13));
 			state.put(5, new TestType("bar", 278));
@@ -533,11 +799,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			backend = restoreOperatorStateBackend(snapshot);
 
-			descriptor = new MapStateDescriptor<>(
-				stateName,
-				IntSerializer.INSTANCE,
-				new TestType.V2TestTypeSerializer());
-			state = backend.getBroadcastState(descriptor);
+			state = backend.getBroadcastState(newAccessDescriptorAfterRestore);
 
 			// the state backend should have decided whether or not it needs to perform state migration;
 			// make sure that reading and writing each broadcast entry works with the new serializer
@@ -549,19 +811,16 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		}
 	}
 
-	@Test
-	public void testBroadcastStateKeyMigration() throws Exception {
+	private void testBroadcastStateKeyUpgrade(
+			MapStateDescriptor<TestType, Integer> initialAccessDescriptor,
+			MapStateDescriptor<TestType, Integer> newAccessDescriptorAfterRestore) throws Exception {
+
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 
 		OperatorStateBackend backend = createOperatorStateBackend();
 
-		final String stateName = "broadcast-state";
 		try {
-			MapStateDescriptor<TestType, Integer> descriptor = new MapStateDescriptor<>(
-				stateName,
-				new TestType.V1TestTypeSerializer(),
-				IntSerializer.INSTANCE);
-			BroadcastState<TestType, Integer> state = backend.getBroadcastState(descriptor);
+			BroadcastState<TestType, Integer> state = backend.getBroadcastState(initialAccessDescriptor);
 
 			state.put(new TestType("foo", 13), 3);
 			state.put(new TestType("bar", 278), 5);
@@ -572,169 +831,13 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
 			backend = restoreOperatorStateBackend(snapshot);
 
-			descriptor = new MapStateDescriptor<>(
-				stateName,
-				new TestType.V2TestTypeSerializer(),
-				IntSerializer.INSTANCE);
-			state = backend.getBroadcastState(descriptor);
+			state = backend.getBroadcastState(newAccessDescriptorAfterRestore);
 
 			// the state backend should have decided whether or not it needs to perform state migration;
 			// make sure that reading and writing each broadcast entry works with the new serializer
 			Assert.assertEquals((Integer) 3, state.get(new TestType("foo", 13)));
 			Assert.assertEquals((Integer) 5, state.get(new TestType("bar", 278)));
 			state.put(new TestType("new-entry", 777), 17);
-		} finally {
-			backend.dispose();
-		}
-	}
-
-	@Test
-	public void testOperatorParitionableListStateRegistrationFailsIfNewSerializerIsIncompatible() throws Exception {
-		CheckpointStreamFactory streamFactory = createStreamFactory();
-
-		OperatorStateBackend backend = createOperatorStateBackend();
-
-		final String stateName = "partitionable-list-state";
-		try {
-			ListStateDescriptor<TestType> descriptor = new ListStateDescriptor<>(
-				stateName,
-				new TestType.V1TestTypeSerializer());
-			ListState<TestType> state = backend.getListState(descriptor);
-
-			state.add(new TestType("foo", 13));
-			state.add(new TestType("bar", 278));
-
-			OperatorStateHandle snapshot = runSnapshot(
-				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
-			backend.dispose();
-
-			backend = restoreOperatorStateBackend(snapshot);
-
-			descriptor = new ListStateDescriptor<>(
-				stateName,
-				new TestType.IncompatibleTestTypeSerializer());
-
-			// the new serializer is INCOMPATIBLE, so registering the state should fail
-			backend.getListState(descriptor);
-
-			Assert.fail("should have failed.");
-		} catch (Exception e) {
-			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
-		} finally {
-			backend.dispose();
-		}
-	}
-
-	@Test
-	public void testUnionListStateRegistrationFailsIfNewSerializerIsIncompatible() throws Exception {
-		CheckpointStreamFactory streamFactory = createStreamFactory();
-
-		OperatorStateBackend backend = createOperatorStateBackend();
-
-		final String stateName = "union-list-state";
-		try {
-			ListStateDescriptor<TestType> descriptor = new ListStateDescriptor<>(
-				stateName,
-				new TestType.V1TestTypeSerializer());
-			ListState<TestType> state = backend.getUnionListState(descriptor);
-
-			state.add(new TestType("foo", 13));
-			state.add(new TestType("bar", 278));
-
-			OperatorStateHandle snapshot = runSnapshot(
-				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
-			backend.dispose();
-
-			backend = restoreOperatorStateBackend(snapshot);
-
-			descriptor = new ListStateDescriptor<>(
-				stateName,
-				new TestType.IncompatibleTestTypeSerializer());
-
-			// the new serializer is INCOMPATIBLE, so registering the state should fail
-			backend.getUnionListState(descriptor);
-
-			Assert.fail("should have failed.");
-		} catch (Exception e) {
-			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
-		} finally {
-			backend.dispose();
-		}
-	}
-
-	@Test
-	public void testBroadcastStateRegistrationFailsIfNewValueSerializerIsIncompatible() throws Exception {
-		CheckpointStreamFactory streamFactory = createStreamFactory();
-
-		OperatorStateBackend backend = createOperatorStateBackend();
-
-		final String stateName = "broadcast-state";
-		try {
-			MapStateDescriptor<Integer, TestType> descriptor = new MapStateDescriptor<>(
-				stateName,
-				IntSerializer.INSTANCE,
-				new TestType.V1TestTypeSerializer());
-			BroadcastState<Integer, TestType> state = backend.getBroadcastState(descriptor);
-
-			state.put(3, new TestType("foo", 13));
-			state.put(5, new TestType("bar", 278));
-
-			OperatorStateHandle snapshot = runSnapshot(
-				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
-			backend.dispose();
-
-			backend = restoreOperatorStateBackend(snapshot);
-
-			descriptor = new MapStateDescriptor<>(
-				stateName,
-				IntSerializer.INSTANCE,
-				new TestType.IncompatibleTestTypeSerializer());
-
-			// the new value serializer is INCOMPATIBLE, so registering the state should fail
-			backend.getBroadcastState(descriptor);
-
-			Assert.fail("should have failed.");
-		} catch (Exception e) {
-			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
-		} finally {
-			backend.dispose();
-		}
-	}
-
-	@Test
-	public void testBroadcastStateRegistrationFailsIfNewKeySerializerIsIncompatible() throws Exception {
-		CheckpointStreamFactory streamFactory = createStreamFactory();
-
-		OperatorStateBackend backend = createOperatorStateBackend();
-
-		final String stateName = "broadcast-state";
-		try {
-			MapStateDescriptor<TestType, Integer> descriptor = new MapStateDescriptor<>(
-				stateName,
-				new TestType.V1TestTypeSerializer(),
-				IntSerializer.INSTANCE);
-			BroadcastState<TestType, Integer> state = backend.getBroadcastState(descriptor);
-
-			state.put(new TestType("foo", 13), 3);
-			state.put(new TestType("bar", 278), 5);
-
-			OperatorStateHandle snapshot = runSnapshot(
-				backend.snapshot(1L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()));
-			backend.dispose();
-
-			backend = restoreOperatorStateBackend(snapshot);
-
-			descriptor = new MapStateDescriptor<>(
-				stateName,
-				new TestType.IncompatibleTestTypeSerializer(),
-				IntSerializer.INSTANCE);
-
-			// the new key serializer is INCOMPATIBLE, so registering the state should fail
-			backend.getBroadcastState(descriptor);
-
-			Assert.fail("should have failed.");
-		} catch (Exception e) {
-			Assert.assertTrue(ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 		} finally {
 			backend.dispose();
 		}

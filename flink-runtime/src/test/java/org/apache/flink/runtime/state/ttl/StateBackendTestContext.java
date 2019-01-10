@@ -76,9 +76,8 @@ public abstract class StateBackendTestContext {
 			keyedStateBackend = stateBackend.createKeyedStateBackend(
 				env, new JobID(), "test", StringSerializer.INSTANCE, 10,
 				new KeyGroupRange(0, 9), env.getTaskKvStateRegistry(), timeProvider);
-			keyedStateBackend.setCurrentKey("defaultKey");
 		} catch (Exception e) {
-			throw new RuntimeException("unexpected");
+			throw new RuntimeException("unexpected", e);
 		}
 	}
 

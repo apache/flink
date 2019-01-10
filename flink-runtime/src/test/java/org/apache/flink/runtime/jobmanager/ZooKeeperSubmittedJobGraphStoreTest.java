@@ -24,9 +24,11 @@ import org.apache.flink.runtime.checkpoint.TestingRetrievableStateStorageHelper;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
+import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -98,9 +100,9 @@ public class ZooKeeperSubmittedJobGraphStoreTest extends TestLogger {
 	@Nonnull
 	public ZooKeeperSubmittedJobGraphStore createSubmittedJobGraphStore(CuratorFramework client, TestingRetrievableStateStorageHelper<SubmittedJobGraph> stateStorage) throws Exception {
 		return new ZooKeeperSubmittedJobGraphStore(
-			client,
-			"/foobar",
-			stateStorage);
+			client.getNamespace(),
+			new ZooKeeperStateHandleStore<>(client, stateStorage),
+			new PathChildrenCache(client, "/", false));
 	}
 
 }

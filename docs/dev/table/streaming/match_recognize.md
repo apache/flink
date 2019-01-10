@@ -960,3 +960,5 @@ Unsupported features include:
 * `MATCH_RECOGNIZE` is supported only for SQL. There is no equivalent in the Table API.
 * Aggregations:
   * distinct aggregations are not supported.
+  
+{% top %}

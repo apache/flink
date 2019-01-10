@@ -56,6 +56,7 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 	private static final int NUM_SOURCE_ELEMENTS = 4;
 
 	// TODO change this to PERFORM_SAVEPOINT to regenerate binary savepoints
+	// TODO Note: You should generate the savepoint based on the release branch instead of the master.
 	private final StatefulJobSavepointMigrationITCase.ExecutionMode executionMode =
 			StatefulJobSavepointMigrationITCase.ExecutionMode.VERIFY_SAVEPOINT;
 
@@ -65,7 +66,9 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
 				Tuple2.of(MigrationVersion.v1_5, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
 				Tuple2.of(MigrationVersion.v1_5, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
 				Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-				Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
+				Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+				Tuple2.of(MigrationVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+				Tuple2.of(MigrationVersion.v1_7, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
 	}
 
 	private final MigrationVersion testMigrateVersion;

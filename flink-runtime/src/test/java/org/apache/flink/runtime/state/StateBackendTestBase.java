@@ -1951,7 +1951,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			// populate the different namespaces
 			//  - abc spreads the values over three namespaces
-			//  - def spreads teh values over two namespaces (one empty)
+			//  - def spreads the values over two namespaces (one empty)
 			//  - ghi is empty
 			//  - jkl has all elements already in the target namespace
 			//  - mno has all elements already in one source namespace
@@ -2223,7 +2223,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			// populate the different namespaces
 			//  - abc spreads the values over three namespaces
-			//  - def spreads teh values over two namespaces (one empty)
+			//  - def spreads the values over two namespaces (one empty)
 			//  - ghi is empty
 			//  - jkl has all elements already in the target namespace
 			//  - mno has all elements already in one source namespace
@@ -2396,7 +2396,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			// populate the different namespaces
 			//  - abc spreads the values over three namespaces
-			//  - def spreads teh values over two namespaces (one empty)
+			//  - def spreads the values over two namespaces (one empty)
 			//  - ghi is empty
 			//  - jkl has all elements already in the target namespace
 			//  - mno has all elements already in one source namespace
@@ -2569,7 +2569,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			// populate the different namespaces
 			//  - abc spreads the values over three namespaces
-			//  - def spreads teh values over two namespaces (one empty)
+			//  - def spreads the values over two namespaces (one empty)
 			//  - ghi is empty
 			//  - jkl has all elements already in the target namespace
 			//  - mno has all elements already in one source namespace

@@ -18,76 +18,50 @@
 
 package org.apache.flink.table.dataview;
 
-import org.apache.flink.api.common.typeutils.CompositeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.table.api.dataview.ListView;
-import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
 import java.util.List;
-
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@link TypeSerializerSnapshot} for the {@link ListViewSerializer}.
  *
  * @param <T> the type of the list elements.
  */
-public final class ListViewSerializerSnapshot<T> implements TypeSerializerSnapshot<ListView<T>> {
+public final class ListViewSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<ListView<T>, ListViewSerializer> {
 
 	private static final int CURRENT_VERSION = 1;
-
-	private CompositeSerializerSnapshot nestedListSerializerSnapshot;
 
 	/**
 	 * Constructor for read instantiation.
 	 */
-	public ListViewSerializerSnapshot() {}
+	public ListViewSerializerSnapshot() {
+		super(ListViewSerializer.class);
+	}
 
 	/**
 	 * Constructor to create the snapshot for writing.
 	 */
-	public ListViewSerializerSnapshot(TypeSerializer<List<T>> listSerializer) {
-		this.nestedListSerializerSnapshot = new CompositeSerializerSnapshot(Preconditions.checkNotNull(listSerializer));
+	public ListViewSerializerSnapshot(ListViewSerializer<T> listViewSerializer) {
+		super(listViewSerializer);
 	}
 
 	@Override
-	public int getCurrentVersion() {
+	public int getCurrentOuterSnapshotVersion() {
 		return CURRENT_VERSION;
 	}
 
 	@Override
-	public TypeSerializer<ListView<T>> restoreSerializer() {
-		return new ListViewSerializer<>(nestedListSerializerSnapshot.getRestoreSerializer(0));
+	protected ListViewSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+		@SuppressWarnings("unchecked")
+		TypeSerializer<List<T>> listSerializer = (TypeSerializer<List<T>>) nestedSerializers[0];
+		return new ListViewSerializer<>(listSerializer);
 	}
 
 	@Override
-	public TypeSerializerSchemaCompatibility<ListView<T>> resolveSchemaCompatibility(TypeSerializer<ListView<T>> newSerializer) {
-		checkState(nestedListSerializerSnapshot != null);
-
-		if (newSerializer instanceof ListViewSerializer) {
-			ListViewSerializer<T> serializer = (ListViewSerializer<T>) newSerializer;
-
-			return nestedListSerializerSnapshot.resolveCompatibilityWithNested(
-				TypeSerializerSchemaCompatibility.compatibleAsIs(),
-				serializer.getListSerializer());
-		}
-		else {
-			return TypeSerializerSchemaCompatibility.incompatible();
-		}
-	}
-
-	@Override
-	public void writeSnapshot(DataOutputView out) throws IOException {
-		nestedListSerializerSnapshot.writeCompositeSnapshot(out);
-	}
-
-	@Override
-	public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		this.nestedListSerializerSnapshot = CompositeSerializerSnapshot.readCompositeSnapshot(in, userCodeClassLoader);
+	protected TypeSerializer<?>[] getNestedSerializers(ListViewSerializer outerSerializer) {
+		return new TypeSerializer<?>[] { outerSerializer.getListSerializer() };
 	}
 }

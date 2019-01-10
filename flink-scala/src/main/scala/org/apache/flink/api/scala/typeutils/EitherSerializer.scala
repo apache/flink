@@ -125,7 +125,7 @@ class EitherSerializer[A, B](
   // --------------------------------------------------------------------------------------------
 
   override def snapshotConfiguration(): ScalaEitherSerializerSnapshot[A, B] = {
-    new ScalaEitherSerializerSnapshot[A, B](leftSerializer, rightSerializer)
+    new ScalaEitherSerializerSnapshot[A, B](this)
   }
 
   override def ensureCompatibility(

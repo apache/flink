@@ -1250,23 +1250,17 @@ object AggregateUtil {
       aggregateInputTypes,
       tableConfig)
 
-    val (accumulatorType, accSpecs) = aggregateFunction match {
-      case collect: SqlAggFunction if collect.getKind == SqlKind.COLLECT =>
-        removeStateViewFieldsFromAccTypeInfo(
-          uniqueIdWithinAggregate,
-          aggregate,
-          aggregate.getAccumulatorType,
-          isStateBackedDataViews)
+    val (accumulatorType, accSpecs) = {
+      val accType = aggregateFunction match {
+        case udagg: AggSqlFunction => udagg.accType
+        case _ => getAccumulatorTypeOfAggregateFunction(aggregate)
+      }
 
-      case udagg: AggSqlFunction =>
-        removeStateViewFieldsFromAccTypeInfo(
-          uniqueIdWithinAggregate,
-          aggregate,
-          udagg.accType,
-          isStateBackedDataViews)
-
-      case _ =>
-        (getAccumulatorTypeOfAggregateFunction(aggregate), None)
+      removeStateViewFieldsFromAccTypeInfo(
+        uniqueIdWithinAggregate,
+        aggregate,
+        accType,
+        isStateBackedDataViews)
     }
 
     // create distinct accumulator filter argument

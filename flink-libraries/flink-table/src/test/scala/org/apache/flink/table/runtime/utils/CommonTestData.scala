@@ -85,7 +85,9 @@ object CommonTestData {
       .withSchema(schemaDesc1)
 
     if (isStreaming) {
-      externalTableBuilder1.inAppendMode()
+      externalTableBuilder1.supportsStreaming().inAppendMode()
+    } else {
+      externalTableBuilder1.supportsBatch()
     }
 
     val csvRecord2 = Seq(
@@ -126,7 +128,9 @@ object CommonTestData {
       .withSchema(schemaDesc2)
 
     if (isStreaming) {
-      externalTableBuilder2.inAppendMode()
+      externalTableBuilder2.supportsStreaming().inAppendMode()
+    } else {
+      externalTableBuilder2.supportsBatch()
     }
 
     val tempFilePath3 = writeToTempFile("", "csv-test3", "tmp")
@@ -145,7 +149,9 @@ object CommonTestData {
       .withSchema(schemaDesc3)
 
     if (isStreaming) {
-      externalTableBuilder3.inAppendMode()
+      externalTableBuilder3.supportsStreaming().inAppendMode()
+    } else {
+      externalTableBuilder3.supportsBatch()
     }
 
     val catalog = new InMemoryExternalCatalog("test")
