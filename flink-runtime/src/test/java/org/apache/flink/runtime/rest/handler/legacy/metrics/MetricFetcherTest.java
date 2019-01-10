@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.legacy.metrics;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
@@ -35,6 +36,8 @@ import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
@@ -46,13 +49,18 @@ import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import javax.annotation.Nonnull;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -112,7 +120,8 @@ public class MetricFetcherTest extends TestLogger {
 			retriever,
 			queryServiceRetriever,
 			Executors.directExecutor(),
-			timeout);
+			timeout,
+			MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
 
 		// verify that update fetches metrics and updates the store
 		fetcher.update();
@@ -183,5 +192,61 @@ public class MetricFetcherTest extends TestLogger {
 		serializer.close();
 
 		return dump;
+	}
+
+	@Test
+	public void testLongUpdateInterval() {
+		final long updateInterval = 1000L;
+		final AtomicInteger requestMetricQueryServicePathsCounter = new AtomicInteger(0);
+		final RestfulGateway restfulGateway = createRestfulGateway(requestMetricQueryServicePathsCounter);
+
+		final MetricFetcher fetcher = createMetricFetcher(updateInterval, restfulGateway);
+
+		fetcher.update();
+		fetcher.update();
+
+		assertThat(requestMetricQueryServicePathsCounter.get(), is(1));
+	}
+
+	@Test
+	public void testShortUpdateInterval() throws InterruptedException {
+		final long updateInterval = 1L;
+		final AtomicInteger requestMetricQueryServicePathsCounter = new AtomicInteger(0);
+		final RestfulGateway restfulGateway = createRestfulGateway(requestMetricQueryServicePathsCounter);
+
+		final MetricFetcher fetcher = createMetricFetcher(updateInterval, restfulGateway);
+
+		fetcher.update();
+
+		final long start = System.currentTimeMillis();
+		long difference = 0L;
+
+		while (difference <= updateInterval) {
+			Thread.sleep(2L * updateInterval);
+			difference = System.currentTimeMillis() - start;
+		}
+
+		fetcher.update();
+
+		assertThat(requestMetricQueryServicePathsCounter.get(), is(2));
+	}
+
+	@Nonnull
+	private MetricFetcher createMetricFetcher(long updateInterval, RestfulGateway restfulGateway) {
+		return new MetricFetcherImpl<>(
+			() -> CompletableFuture.completedFuture(restfulGateway),
+			path -> new CompletableFuture<>(),
+			Executors.directExecutor(),
+			Time.seconds(10L),
+			updateInterval);
+	}
+
+	private RestfulGateway createRestfulGateway(AtomicInteger requestMetricQueryServicePathsCounter) {
+		return new TestingRestfulGateway.Builder()
+			.setRequestMetricQueryServicePathsSupplier(() -> {
+				requestMetricQueryServicePathsCounter.incrementAndGet();
+				return new CompletableFuture<>();
+			})
+			.build();
 	}
 }
