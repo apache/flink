@@ -28,7 +28,6 @@ import org.apache.flink.streaming.connectors.fs.StringWriter;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
-import org.apache.flink.streaming.util.migration.MigrationTestUtil;
 import org.apache.flink.streaming.util.migration.MigrationVersion;
 import org.apache.flink.util.OperatingSystem;
 
@@ -167,11 +166,9 @@ public class BucketingSinkMigrationTest {
 			new StreamSink<>(sink), 10, 1, 0);
 		testHarness.setup();
 
-		MigrationTestUtil.restoreFromSnapshot(
-			testHarness,
+		testHarness.initializeState(
 			OperatorSnapshotUtil.getResourceFilename(
-				"bucketing-sink-migration-test-flink" + testMigrateVersion + "-snapshot"),
-			testMigrateVersion);
+				"bucketing-sink-migration-test-flink" + testMigrateVersion + "-snapshot"));
 
 		testHarness.open();
 
