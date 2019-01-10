@@ -30,6 +30,9 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.XORShiftRandom;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.Optional;
 import java.util.Random;
@@ -53,6 +56,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class RecordWriter<T extends IOReadableWritable> {
 
+	private static final Logger LOG = LoggerFactory.getLogger(RecordWriter.class);
+
 	private final ResultPartitionWriter targetPartition;
 
 	private final ChannelSelector<T> channelSelector;
@@ -67,19 +72,19 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	private final Random rng = new XORShiftRandom();
 
-	private final boolean flushAlways;
-
 	private Counter numBytesOut = new SimpleCounter();
 
 	private Counter numBuffersOut = new SimpleCounter();
+
+	private final boolean flushAlways;
 
 	/** Default name for teh output flush thread, if no name with a task reference is given. */
 	private static final String DEFAULT_OUTPUT_FLUSH_THREAD_NAME = "OutputFlusher";
 
 	/** The thread that periodically flushes the output, to give an upper latency bound. */
-	private final OutputFlusher outputFlusher;
+	private final Optional<OutputFlusher> outputFlusher;
 
-	/** The exception encountered in the flushing thread. */
+	/** To avoid synchronization overhead on the critical path, best-effort error tracking is enough here.*/
 	private Throwable flusherException;
 
 	public RecordWriter(ResultPartitionWriter writer) {
@@ -110,17 +115,16 @@ public class RecordWriter<T extends IOReadableWritable> {
 		}
 
 		checkArgument(timeout >= -1);
-
 		this.flushAlways = (timeout == 0);
 		if (timeout == -1 || timeout == 0) {
-			outputFlusher = null;
+			outputFlusher = Optional.empty();
 		} else {
 			String threadName = taskName == null ?
 				DEFAULT_OUTPUT_FLUSH_THREAD_NAME :
 				DEFAULT_OUTPUT_FLUSH_THREAD_NAME + " for " + taskName;
 
-			outputFlusher = new OutputFlusher(threadName, timeout);
-			outputFlusher.start();
+			outputFlusher = Optional.of(new OutputFlusher(threadName, timeout));
+			outputFlusher.get().start();
 		}
 	}
 
@@ -281,10 +285,10 @@ public class RecordWriter<T extends IOReadableWritable> {
 	public void close() {
 		clearBuffers();
 		// make sure we terminate the thread in any case
-		if (outputFlusher != null) {
-			outputFlusher.terminate();
+		if (outputFlusher.isPresent()) {
+			outputFlusher.get().terminate();
 			try {
-				outputFlusher.join();
+				outputFlusher.get().join();
 			} catch (InterruptedException e) {
 				// ignore on close
 				// restore interrupt flag to fast exit further blocking calls
@@ -299,8 +303,9 @@ public class RecordWriter<T extends IOReadableWritable> {
 	 * @param t The exception to report.
 	 */
 	private void notifyFlusherException(Throwable t) {
-		if (this.flusherException == null) {
-			this.flusherException = t;
+		if (flusherException == null) {
+			LOG.error("An exception happened while flushing the outputs", t);
+			flusherException = t;
 		}
 	}
 
