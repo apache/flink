@@ -652,8 +652,10 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 						yarnApplicationId,
 						new ScheduledExecutorServiceAdapter(scheduledExecutorService));
 					Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
-						() -> shutdownCluster(yarnClusterDescriptor, clusterClient, scheduledExecutorService,
-							yarnApplicationStatusMonitor, yarnApplicationId),
+						() -> shutdownCluster(
+							clusterClient,
+							scheduledExecutorService,
+							yarnApplicationStatusMonitor),
 						getClass().getSimpleName(),
 						LOG);
 					try {
@@ -662,12 +664,19 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 							yarnApplicationStatusMonitor,
 							acceptInteractiveInput);
 					} finally {
-						shutdownCluster(yarnClusterDescriptor, clusterClient, scheduledExecutorService,
-							yarnApplicationStatusMonitor, yarnApplicationId);
+						shutdownCluster(
+							clusterClient,
+							scheduledExecutorService,
+							yarnApplicationStatusMonitor);
+
 						if (shutdownHook != null) {
 							// we do not need the hook anymore as we have just tried to shutdown the cluster.
 							ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
 						}
+
+						tryRetrieveAndLogApplicationReport(
+							yarnClusterDescriptor.getYarnClient(),
+							yarnApplicationId);
 					}
 				}
 			}
@@ -682,9 +691,10 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		return 0;
 	}
 
-	private void shutdownCluster(AbstractYarnClusterDescriptor yarnClusterDescriptor,
-		ClusterClient clusterClient, ScheduledExecutorService scheduledExecutorService,
-		YarnApplicationStatusMonitor yarnApplicationStatusMonitor, ApplicationId yarnApplicationId) {
+	private void shutdownCluster(
+			ClusterClient clusterClient,
+			ScheduledExecutorService scheduledExecutorService,
+			YarnApplicationStatusMonitor yarnApplicationStatusMonitor) {
 		try {
 			yarnApplicationStatusMonitor.close();
 		} catch (Exception e) {
@@ -706,24 +716,24 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 			scheduledExecutorService);
 
 		deleteYarnPropertiesFile();
+	}
 
+	private void tryRetrieveAndLogApplicationReport(YarnClient yarnClient, ApplicationId yarnApplicationId) {
 		ApplicationReport applicationReport;
 
 		try {
-			applicationReport = yarnClusterDescriptor
-				.getYarnClient()
-				.getApplicationReport(yarnApplicationId);
+			applicationReport = yarnClient.getApplicationReport(yarnApplicationId);
 		} catch (YarnException | IOException e) {
 			LOG.info("Could not log the final application report.", e);
 			applicationReport = null;
 		}
 
 		if (applicationReport != null) {
-			logFinalApplicationReport(applicationReport);
+			logApplicationReport(applicationReport);
 		}
 	}
 
-	private void logFinalApplicationReport(ApplicationReport appReport) {
+	private void logApplicationReport(ApplicationReport appReport) {
 		LOG.info("Application " + appReport.getApplicationId() + " finished with state " + appReport
 			.getYarnApplicationState() + " and final state " + appReport
 			.getFinalApplicationStatus() + " at " + appReport.getFinishTime());
