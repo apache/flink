@@ -39,7 +39,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
  * The {@link CheckpointedFunction#initializeState(FunctionInitializationContext)} is called when
  * the parallel instance of the transformation function is created during distributed execution.
  * The method gives access to the {@link FunctionInitializationContext} which in turn gives access
- * to the to the {@link OperatorStateStore} and {@link KeyedStateStore}.
+ * to the {@link OperatorStateStore} and {@link KeyedStateStore}.
  *
  * <p>The {@code OperatorStateStore} and {@code KeyedStateStore} give access to the data structures
  * in which state should be stored for Flink to transparently manage and checkpoint it, such as
@@ -80,7 +80,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
  *         countPerKey = context.getKeyedStateStore().getReducingState(
  *                 new ReducingStateDescriptor<>("perKeyCount", new AddFunction<>(), Long.class));
  *
- *         // get the state data structure for the per-key state
+ *         // get the state data structure for the per-parallel-partition state
  *         countPerPartition = context.getOperatorStateStore().getOperatorState(
  *                 new ListStateDescriptor<>("perPartitionCount", Long.class));
  *
