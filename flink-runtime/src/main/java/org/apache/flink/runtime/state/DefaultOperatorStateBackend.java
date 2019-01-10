@@ -401,7 +401,9 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshotRunner =
 			snapshotStrategy.snapshot(checkpointId, timestamp, streamFactory, checkpointOptions);
 
-		snapshotStrategy.logSyncCompleted(streamFactory, syncStartTime);
+		if(!asynchronousSnapshots){
+			snapshotStrategy.logSyncCompleted(streamFactory, syncStartTime);
+		}
 		return snapshotRunner;
 	}
 
