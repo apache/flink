@@ -294,7 +294,8 @@ Action "run" compiles and runs a program.
      -ys,--yarnslots <arg>                Number of slots per TaskManager
      -yst,--yarnstreaming                 Start Flink in streaming mode
      -yt,--yarnship <arg>                 Ship files in the specified directory
-                                          (t for transfer)
+                                          (t for transfer), multiple options are 
+                                          supported.
      -ytm,--yarntaskManagerMemory <arg>   Memory per TaskManager Container
                                           with optional unit (default: MB)
      -yz,--yarnzookeeperNamespace <arg>   Namespace to create the Zookeeper
