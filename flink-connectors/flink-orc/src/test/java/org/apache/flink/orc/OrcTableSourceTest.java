@@ -128,8 +128,8 @@ public class OrcTableSourceTest {
 
 		TableSchema schema = orc.getTableSchema();
 		assertNotNull(schema);
-		assertArrayEquals(getNestedFieldNames(), schema.getColumnNames());
-		assertArrayEquals(getNestedFieldTypes(), schema.getTypes());
+		assertArrayEquals(getNestedFieldNames(), schema.getFieldNames());
+		assertArrayEquals(getNestedFieldTypes(), schema.getFieldTypes());
 	}
 
 	@Test

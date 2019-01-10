@@ -21,10 +21,26 @@ package org.apache.flink.runtime.clusterframework;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.CheckedSupplier;
 
+import akka.actor.ActorSystem;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -33,7 +49,9 @@ import static org.junit.Assert.assertNull;
 /**
  * Tests for {@link BootstrapToolsTest}.
  */
-public class BootstrapToolsTest {
+public class BootstrapToolsTest extends TestLogger {
+
+	private static final Logger LOG = LoggerFactory.getLogger(BootstrapToolsTest.class);
 
 	@Test
 	public void testSubstituteConfigKey() {
@@ -304,5 +322,42 @@ public class BootstrapToolsTest {
 		Configuration config = new Configuration();
 		BootstrapTools.updateTmpDirectoriesInConfiguration(config, null);
 		assertEquals(config.getString(CoreOptions.TMP_DIRS), CoreOptions.TMP_DIRS.defaultValue());
+	}
+
+	/**
+	 * Tests that we can concurrently create two {@link ActorSystem} without port conflicts.
+	 * This effectively tests that we don't open a socket to check for a ports availability.
+	 * See FLINK-10580 for more details.
+	 */
+	@Test
+	public void testConcurrentActorSystemCreation() throws Exception {
+		final int concurrentCreations = 10;
+		final ExecutorService executorService = Executors.newFixedThreadPool(concurrentCreations);
+		final CyclicBarrier cyclicBarrier = new CyclicBarrier(concurrentCreations);
+
+		try {
+			final List<CompletableFuture<Void>> actorSystemFutures = IntStream.range(0, concurrentCreations)
+				.mapToObj(
+					ignored ->
+						CompletableFuture.supplyAsync(
+							CheckedSupplier.unchecked(() -> {
+								cyclicBarrier.await();
+
+								return BootstrapTools.startActorSystem(
+									new Configuration(),
+									"localhost",
+									"0",
+									LOG);
+							}), executorService))
+				.map(
+					// terminate ActorSystems
+					actorSystemFuture ->
+						actorSystemFuture.thenCompose(AkkaUtils::terminateActorSystem)
+				).collect(Collectors.toList());
+
+			FutureUtils.completeAll(actorSystemFutures).get();
+		} finally {
+			ExecutorUtils.gracefulShutdown(10000L, TimeUnit.MILLISECONDS, executorService);
+		}
 	}
 }

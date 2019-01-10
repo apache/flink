@@ -1412,8 +1412,8 @@ class TaskManager(
             accumulatorEvents.append(accumulators)
           } catch {
             case e: Exception =>
-              log.warn("Failed to take accumulator snapshot for task {}.",
-                execID, ExceptionUtils.getRootCause(e))
+              log.warn(s"Failed to take accumulator snapshot for task $execID.",
+                ExceptionUtils.getRootCause(e))
           }
       }
 
@@ -1735,8 +1735,7 @@ object TaskManager {
       highAvailabilityServices: HighAvailabilityServices)
     : (String, java.util.Iterator[Integer]) = {
 
-    var taskManagerHostname = configuration.getString(
-      ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, null)
+    var taskManagerHostname = configuration.getString(TaskManagerOptions.HOST)
 
     if (taskManagerHostname != null) {
       LOG.info("Using configured hostname/address for TaskManager: " + taskManagerHostname)
@@ -1831,7 +1830,7 @@ object TaskManager {
       taskManagerClass: Class[_ <: TaskManager])
     : Unit = {
 
-    LOG.info("Starting TaskManager")
+    LOG.info(s"Starting TaskManager with ResourceID: $resourceID")
 
     // Bring up the TaskManager actor system first, bind it to the given address.
 

@@ -21,6 +21,9 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.KinesisShardAssigner;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
@@ -40,9 +43,13 @@ import org.apache.flink.util.TestLogger;
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
+import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.apache.commons.lang3.mutable.MutableLong;
+import org.junit.Assert;
 import org.junit.Test;
 import org.powermock.reflect.Whitebox;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -708,6 +715,100 @@ public class KinesisDataFetcherTest extends TestLogger {
 		assertFalse(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(0, 2, 1));
 		assertTrue(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(1, 2, 1));
 		assertFalse(KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(2, 2, 1));
+	}
+
+	private static BoundedOutOfOrdernessTimestampExtractor<String> watermarkAssigner =
+		new BoundedOutOfOrdernessTimestampExtractor<String>(Time.milliseconds(0)) {
+			@Override
+			public long extractTimestamp(String element) {
+				return Long.parseLong(element);
+			}
+		};
+
+	@Test
+	public void testPeriodicWatermark() {
+		final MutableLong clock = new MutableLong();
+		final MutableBoolean isTemporaryIdle = new MutableBoolean();
+		final List<Watermark> watermarks = new ArrayList<>();
+
+		String fakeStream1 = "fakeStream1";
+		StreamShardHandle shardHandle =
+			new StreamShardHandle(
+				fakeStream1,
+				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(0)));
+
+		TestSourceContext<String> sourceContext =
+			new TestSourceContext<String>() {
+				@Override
+				public void emitWatermark(Watermark mark) {
+					watermarks.add(mark);
+				}
+
+				@Override
+				public void markAsTemporarilyIdle() {
+					isTemporaryIdle.setTrue();
+				}
+			};
+
+		HashMap<String, String> subscribedStreamsToLastSeenShardIdsUnderTest = new HashMap<>();
+
+		final KinesisDataFetcher<String> fetcher =
+			new TestableKinesisDataFetcher<String>(
+				Collections.singletonList(fakeStream1),
+				sourceContext,
+				new java.util.Properties(),
+				new KinesisDeserializationSchemaWrapper<>(new org.apache.flink.streaming.util.serialization.SimpleStringSchema()),
+				1,
+				1,
+				new AtomicReference<>(),
+				new LinkedList<>(),
+				subscribedStreamsToLastSeenShardIdsUnderTest,
+				FakeKinesisBehavioursFactory.nonReshardedStreamsBehaviour(new HashMap<>())) {
+
+				@Override
+				protected long getCurrentTimeMillis() {
+					return clock.getValue();
+				}
+			};
+		Whitebox.setInternalState(fetcher, "periodicWatermarkAssigner", watermarkAssigner);
+
+		SequenceNumber seq = new SequenceNumber("fakeSequenceNumber");
+		// register shards to subsequently emit records
+		int shardIndex =
+			fetcher.registerNewSubscribedShardState(
+				new KinesisStreamShardState(
+					KinesisDataFetcher.convertToStreamShardMetadata(shardHandle), shardHandle, seq));
+
+		StreamRecord<String> record1 =
+			new StreamRecord<>(String.valueOf(Long.MIN_VALUE), Long.MIN_VALUE);
+		fetcher.emitRecordAndUpdateState(record1.getValue(), record1.getTimestamp(), shardIndex, seq);
+		Assert.assertEquals(record1, sourceContext.getCollectedOutputs().poll());
+
+		fetcher.emitWatermark();
+		Assert.assertTrue("potential watermark equals previous watermark", watermarks.isEmpty());
+
+		StreamRecord<String> record2 = new StreamRecord<>(String.valueOf(1), 1);
+		fetcher.emitRecordAndUpdateState(record2.getValue(), record2.getTimestamp(), shardIndex, seq);
+		Assert.assertEquals(record2, sourceContext.getCollectedOutputs().poll());
+
+		fetcher.emitWatermark();
+		Assert.assertFalse("watermark advanced", watermarks.isEmpty());
+		Assert.assertEquals(new Watermark(record2.getTimestamp()), watermarks.remove(0));
+		Assert.assertFalse("not idle", isTemporaryIdle.booleanValue());
+
+		// test idle timeout
+		long idleTimeout = 10;
+		// advance clock idleTimeout
+		clock.add(idleTimeout + 1);
+		fetcher.emitWatermark();
+		Assert.assertFalse("not idle", isTemporaryIdle.booleanValue());
+		Assert.assertTrue("not idle, no new watermark", watermarks.isEmpty());
+
+		// activate idle timeout
+		Whitebox.setInternalState(fetcher, "shardIdleIntervalMillis", idleTimeout);
+		fetcher.emitWatermark();
+		Assert.assertTrue("idle", isTemporaryIdle.booleanValue());
+		Assert.assertTrue("idle, no watermark", watermarks.isEmpty());
 	}
 
 }

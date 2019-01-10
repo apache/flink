@@ -47,8 +47,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isNull;
 import static org.mockito.Mockito.mock;
@@ -315,7 +315,7 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 	private static ClusterClient<String> createClusterClient(String expectedResponse) throws Exception {
 		final ClusterClient<String> clusterClient = mock(ClusterClient.class);
 
-		when(clusterClient.triggerSavepoint(any(JobID.class), anyString()))
+		when(clusterClient.triggerSavepoint(any(JobID.class), nullable(String.class)))
 			.thenReturn(CompletableFuture.completedFuture(expectedResponse));
 
 		return clusterClient;
@@ -324,7 +324,7 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 	private static ClusterClient<String> createFailingClusterClient(Exception expectedException) throws Exception {
 		final ClusterClient<String> clusterClient = mock(ClusterClient.class);
 
-		when(clusterClient.triggerSavepoint(any(JobID.class), anyString()))
+		when(clusterClient.triggerSavepoint(any(JobID.class), nullable(String.class)))
 			.thenReturn(FutureUtils.completedExceptionally(expectedException));
 
 		return clusterClient;

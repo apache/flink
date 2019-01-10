@@ -80,12 +80,14 @@ public class ContinuousFileProcessingMigrationTest {
 			Tuple2.of(MigrationVersion.v1_3, 1496532000000L),
 			Tuple2.of(MigrationVersion.v1_4, 1516897628000L),
 			Tuple2.of(MigrationVersion.v1_5, 1533639934000L),
-			Tuple2.of(MigrationVersion.v1_6, 1534696817000L));
+			Tuple2.of(MigrationVersion.v1_6, 1534696817000L),
+			Tuple2.of(MigrationVersion.v1_7, 1544024599000L));
 	}
 
 	/**
 	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
 	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
+	 * TODO Note: You should generate the savepoint based on the release branch instead of the master.
 	 */
 	private final MigrationVersion flinkGenerateSavepointVersion = null;
 

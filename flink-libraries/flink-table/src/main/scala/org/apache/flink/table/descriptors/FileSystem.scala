@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.descriptors
 
+import java.util
+
 import org.apache.flink.table.descriptors.FileSystemValidator.{CONNECTOR_PATH, CONNECTOR_TYPE_VALUE}
 
 /**
   * Connector descriptor for a file system.
   */
-class FileSystem extends ConnectorDescriptor(
-    CONNECTOR_TYPE_VALUE, version = 1, formatNeeded = true) {
+class FileSystem extends ConnectorDescriptor(CONNECTOR_TYPE_VALUE, 1, true) {
 
   private var path: Option[String] = None
 
@@ -38,11 +39,12 @@ class FileSystem extends ConnectorDescriptor(
     this
   }
 
-  /**
-    * Internal method for properties conversion.
-    */
-  override protected def addConnectorProperties(properties: DescriptorProperties): Unit = {
+  override protected def toConnectorProperties: util.Map[String, String] = {
+    val properties = new DescriptorProperties()
+
     path.foreach(properties.putString(CONNECTOR_PATH, _))
+
+    properties.asMap()
   }
 }
 
@@ -53,7 +55,10 @@ object FileSystem {
 
   /**
     * Connector descriptor for a file system.
+    *
+    * @deprecated Use `new FileSystem()`.
     */
+  @deprecated
   def apply(): FileSystem = new FileSystem()
   
 }

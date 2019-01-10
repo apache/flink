@@ -30,8 +30,8 @@ class TableSchemaValidationTest extends TableTestBase {
     thrown.expectMessage(
       "Number of field names and field types must be equal.\n" +
         "Number of names is 3, number of types is 2.\n" +
-        "List of field names: [a, b, c].\n" +
-        "List of field types: [Integer, String].")
+        "List of field names: [a, b, c]\n" +
+        "List of field types: [Integer, String]")
 
     val fieldNames = Array("a", "b", "c")
     val typeInfos: Array[TypeInformation[_]] = Array(
@@ -45,8 +45,8 @@ class TableSchemaValidationTest extends TableTestBase {
     thrown.expect(classOf[TableException])
     thrown.expectMessage(
       "Field names must be unique.\n" +
-        "List of duplicate fields: [a].\n" +
-        "List of all fields: [a, a, c].")
+        "List of duplicate fields: [a]\n" +
+        "List of all fields: [a, a, c]")
 
     val fieldNames = Array("a", "a", "c")
     val typeInfos: Array[TypeInformation[_]] = Array(

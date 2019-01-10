@@ -48,17 +48,17 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * A result partition for data produced by a single task.
  *
- * <p> This class is the runtime part of a logical {@link IntermediateResultPartition}. Essentially,
+ * <p>This class is the runtime part of a logical {@link IntermediateResultPartition}. Essentially,
  * a result partition is a collection of {@link Buffer} instances. The buffers are organized in one
  * or more {@link ResultSubpartition} instances, which further partition the data depending on the
  * number of consuming tasks and the data {@link DistributionPattern}.
  *
- * <p> Tasks, which consume a result partition have to request one of its subpartitions. The request
+ * <p>Tasks, which consume a result partition have to request one of its subpartitions. The request
  * happens either remotely (see {@link RemoteInputChannel}) or locally (see {@link LocalInputChannel})
  *
  * <h2>Life-cycle</h2>
  *
- * The life-cycle of each result partition has three (possibly overlapping) phases:
+ * <p>The life-cycle of each result partition has three (possibly overlapping) phases:
  * <ol>
  * <li><strong>Produce</strong>: </li>
  * <li><strong>Consume</strong>: </li>
@@ -67,7 +67,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <h2>Lazy deployment and updates of consuming tasks</h2>
  *
- * Before a consuming task can request the result, it has to be deployed. The time of deployment
+ * <p>Before a consuming task can request the result, it has to be deployed. The time of deployment
  * depends on the PIPELINED vs. BLOCKING characteristic of the result partition. With pipelined
  * results, receivers are deployed as soon as the first buffer is added to the result partition.
  * With blocking results on the other hand, receivers are deployed after the partition is finished.
@@ -79,7 +79,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResultPartition.class);
-	
+
 	private final String owningTaskName;
 
 	private final TaskActions taskActions;
@@ -174,10 +174,10 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	/**
 	 * Registers a buffer pool with this result partition.
-	 * <p>
-	 * There is one pool for each result partition, which is shared by all its sub partitions.
-	 * <p>
-	 * The pool is registered with the partition *after* it as been constructed in order to conform
+	 *
+	 * <p>There is one pool for each result partition, which is shared by all its sub partitions.
+	 *
+	 * <p>The pool is registered with the partition *after* it as been constructed in order to conform
 	 * to the life-cycle of task registrations in the {@link TaskManager}.
 	 */
 	public void registerBufferPool(BufferPool bufferPool) {
@@ -187,16 +187,14 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		checkState(this.bufferPool == null, "Bug in result partition setup logic: Already registered buffer pool.");
 
 		this.bufferPool = checkNotNull(bufferPool);
-
-		// If the partition type is back pressure-free, we register with the buffer pool for
-		// callbacks to release memory.
-		if (!partitionType.hasBackPressure()) {
-			bufferPool.setBufferPoolOwner(this);
-		}
 	}
 
 	public JobID getJobId() {
 		return jobId;
+	}
+
+	public String getOwningTaskName() {
+		return owningTaskName;
 	}
 
 	public ResultPartitionID getPartitionId() {
@@ -272,9 +270,9 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	/**
 	 * Finishes the result partition.
 	 *
-	 * <p> After this operation, it is not possible to add further data to the result partition.
+	 * <p>After this operation, it is not possible to add further data to the result partition.
 	 *
-	 * <p> For BLOCKING results, this will trigger the deployment of consuming tasks.
+	 * <p>For BLOCKING results, this will trigger the deployment of consuming tasks.
 	 */
 	public void finish() throws IOException {
 		boolean success = false;
@@ -362,7 +360,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	/**
 	 * Releases buffers held by this result partition.
 	 *
-	 * <p> This is a callback from the buffer pool, which is registered for result partitions, which
+	 * <p>This is a callback from the buffer pool, which is registered for result partitions, which
 	 * are back pressure-free.
 	 */
 	@Override
@@ -391,7 +389,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	/**
 	 * Pins the result partition.
 	 *
-	 * <p> The partition can only be released after each subpartition has been consumed once per pin
+	 * <p>The partition can only be released after each subpartition has been consumed once per pin
 	 * operation.
 	 */
 	void pin() {

@@ -71,7 +71,7 @@ class ExternalCatalogSchemaTest extends TableTestBase {
         .filter(_.getType.equals(SqlMonikerType.SCHEMA))
         .map(_.getFullyQualifiedNames.asScala.toList).toSet
     assertTrue(Set(List(schemaName), List(schemaName, "db1"),
-      List(schemaName, "db2")) == subSchemas)
+      List(schemaName, "db2"), List(schemaName, "db3")) == subSchemas)
   }
 
   @Test

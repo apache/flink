@@ -1148,7 +1148,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		/**
 		 * Creates a new branching descriptor.
 		 *
-		 * @param branchingNode The node where the branch occurred (teh node with multiple outputs).
+		 * @param branchingNode The node where the branch occurred (the node with multiple outputs).
 		 * @param joinedPathsVector A bit vector describing which branches are tracked by this descriptor.
 		 *                          The bit vector is one, where the branch is tracked, zero otherwise.
 		 */

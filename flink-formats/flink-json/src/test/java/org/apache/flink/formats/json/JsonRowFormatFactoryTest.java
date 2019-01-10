@@ -119,7 +119,7 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 		final SerializationSchema<?> actual1 = TableFactoryService
 			.find(SerializationSchemaFactory.class, properties)
 			.createSerializationSchema(properties);
-		final SerializationSchema expected1 = new JsonRowSerializationSchema(SCHEMA);
+		final SerializationSchema<?> expected1 = new JsonRowSerializationSchema(SCHEMA);
 		assertEquals(expected1, actual1);
 	}
 
@@ -141,9 +141,9 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 	}
 
 	private static Map<String, String> toMap(Descriptor... desc) {
-		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
+		final DescriptorProperties descriptorProperties = new DescriptorProperties();
 		for (Descriptor d : desc) {
-			d.addProperties(descriptorProperties);
+			descriptorProperties.putProperties(d.toProperties());
 		}
 		return descriptorProperties.asMap();
 	}

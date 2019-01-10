@@ -174,9 +174,10 @@ case class RowtimeAttribute(expr: Expression) extends TimeAttribute(expr) {
         ValidationSuccess
       case WindowReference(_, _) =>
         ValidationFailure("Reference to a rowtime or proctime window required.")
-      case _ =>
+      case any =>
         ValidationFailure(
-          "The '.rowtime' expression can only be used for table definitions and windows.")
+          s"The '.rowtime' expression can only be used for table definitions and windows, " +
+            s"while [$any] was found.")
     }
   }
 
@@ -189,8 +190,7 @@ case class RowtimeAttribute(expr: Expression) extends TimeAttribute(expr) {
         // batch time window
         Types.SQL_TIMESTAMP
       case _ =>
-        throw TableException("WindowReference of RowtimeAttribute has invalid type. " +
-          "Please report this bug.")
+        throw new TableException("RowtimeAttribute has invalid type. Please report this bug.")
     }
   }
 
@@ -208,9 +208,10 @@ case class ProctimeAttribute(expr: Expression) extends TimeAttribute(expr) {
         ValidationSuccess
       case WindowReference(_, _) =>
         ValidationFailure("Reference to a rowtime or proctime window required.")
-      case _ =>
+      case any =>
         ValidationFailure(
-          "The '.proctime' expression can only be used for table definitions and windows.")
+          "The '.proctime' expression can only be used for table definitions and windows, " +
+            s"while [$any] was found.")
     }
   }
 

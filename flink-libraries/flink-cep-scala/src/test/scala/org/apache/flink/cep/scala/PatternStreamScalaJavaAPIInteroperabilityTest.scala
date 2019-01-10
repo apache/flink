@@ -17,31 +17,31 @@
  */
 package org.apache.flink.cep.scala
 
-import org.apache.flink.api.common.functions.util.ListCollector
+import java.lang
+
+import org.apache.flink.api.common.functions.RuntimeContext
+import org.apache.flink.api.common.functions.util.{FunctionUtils, ListCollector}
+import org.apache.flink.cep.functions.{PatternProcessFunction, TimedOutPartialMatchHandler}
+import org.apache.flink.cep.operator.CepOperator
 import org.apache.flink.cep.scala.pattern.Pattern
-import org.apache.flink.streaming.api.operators.{StreamFlatMap, StreamMap}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, TwoInputTransformation}
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
+import org.apache.flink.util
 import org.apache.flink.util.{Collector, TestLogger}
-import org.apache.flink.types.{Either => FEither}
-import org.apache.flink.api.java.tuple.{Tuple2 => FTuple2}
-import java.lang.{Long => JLong}
-import java.util.{Map => JMap}
-import java.util.{List => JList}
-
-import org.apache.flink.cep.operator.{FlatSelectCepOperator, FlatSelectTimeoutCepOperator, SelectCepOperator}
-import org.apache.flink.streaming.api.functions.co.CoMapFunction
-
-import scala.collection.JavaConverters._
-import scala.collection.Map
 import org.junit.Assert._
 import org.junit.Test
+import org.mockito.Mockito
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
+import scala.collection.{Map, mutable}
 
 class PatternStreamScalaJavaAPIInteroperabilityTest extends TestLogger {
 
   @Test
   @throws[Exception]
-  def testScalaJavaAPISelectFunForwarding {
+  def testScalaJavaAPISelectFunForwarding() {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
     val dummyDataStream: DataStream[(Int, Int)] = env.fromElements()
     val pattern: Pattern[(Int, Int), (Int, Int)] = Pattern.begin[(Int, Int)]("dummy")
@@ -51,17 +51,21 @@ class PatternStreamScalaJavaAPIInteroperabilityTest extends TestLogger {
       .select((pattern: Map[String, Iterable[(Int, Int)]]) => {
         //verifies input parameter forwarding
         assertEquals(param, pattern)
-        param.get("begin").get(0)
+        param("begin").head
       })
-    val out = extractUserFunction[SelectCepOperator[(Int, Int), Byte, (Int, Int)]](result)
-      .getUserFunction.select(param.mapValues(_.asJava).asJava)
+
+    val outList = new java.util.ArrayList[(Int, Int)]
+    val outParam = new ListCollector[(Int, Int)](outList)
+
+    val fun = extractFun[(Int, Int), (Int, Int)](result)
+    fun.processMatch(param.mapValues(_.asJava).asJava, new ListTestContext, outParam)
     //verifies output parameter forwarding
-    assertEquals(param.get("begin").get(0), out)
+    assertEquals(param("begin").head, outList.get(0))
   }
 
   @Test
   @throws[Exception]
-  def testScalaJavaAPIFlatSelectFunForwarding {
+  def testScalaJavaAPIFlatSelectFunForwarding() {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
     val dummyDataStream: DataStream[List[Int]] = env.fromElements()
     val pattern: Pattern[List[Int], List[Int]] = Pattern.begin[List[Int]]("dummy")
@@ -76,18 +80,18 @@ class PatternStreamScalaJavaAPIInteroperabilityTest extends TestLogger {
       .flatSelect((pattern: Map[String, Iterable[List[Int]]], out: Collector[List[Int]]) => {
         //verifies input parameter forwarding
         assertEquals(inParam, pattern)
-        out.collect(pattern.get("begin").get.head)
+        out.collect(pattern("begin").head)
       })
 
-    extractUserFunction[FlatSelectCepOperator[List[Int], Byte, List[Int]]](result).
-      getUserFunction.flatSelect(inParam.mapValues(_.asJava).asJava, outParam)
+    val fun = extractFun[List[Int], List[Int]](result)
+    fun.processMatch(inParam.mapValues(_.asJava).asJava, new ListTestContext, outParam)
     //verify output parameter forwarding and that flatMap function was actually called
     assertEquals(inList, outList.get(0))
   }
 
   @Test
   @throws[Exception]
-  def testTimeoutHandling: Unit = {
+  def testTimeoutHandling(): Unit = {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
     val dummyDataStream: DataStream[String] = env.fromElements()
     val pattern: Pattern[String, String] = Pattern.begin[String]("dummy")
@@ -95,8 +99,6 @@ class PatternStreamScalaJavaAPIInteroperabilityTest extends TestLogger {
     val inParam = Map("begin" -> List("barfoo"))
     val outList = new java.util.ArrayList[Either[String, String]]
     val output = new ListCollector[Either[String, String]](outList)
-    val expectedOutput = List(Right("match"), Right("barfoo"), Left("timeout"), Left("barfoo"))
-      .asJava
 
     val outputTag = OutputTag[Either[String, String]]("timeouted")
     val result: DataStream[Either[String, String]] = pStream.flatSelect(outputTag) {
@@ -112,22 +114,45 @@ class PatternStreamScalaJavaAPIInteroperabilityTest extends TestLogger {
           out.collect(Right(pattern("begin").head))
       }
 
-    val fun = extractUserFunction[FlatSelectTimeoutCepOperator[String, Either[String, String],
-      Either[String, String], Byte]](
-      result).getUserFunction
+    val fun = extractFun[String, Either[String, String]](result)
 
-    fun.getFlatSelectFunction.flatSelect(inParam.mapValues(_.asJava).asJava, output)
-    fun.getFlatTimeoutFunction.timeout(inParam.mapValues(_.asJava).asJava, 42L, output)
+    val ctx = new ListTestContext
+    fun.processMatch(inParam.mapValues(_.asJava).asJava, ctx, output)
+    fun.asInstanceOf[TimedOutPartialMatchHandler[String]]
+      .processTimedOutMatch(inParam.mapValues(_.asJava).asJava, ctx)
 
-    assertEquals(expectedOutput, outList)
+    assertEquals(List(Right("match"), Right("barfoo")).asJava, outList)
+    assertEquals(List(Left("timeout"), Left("barfoo")).asJava, ctx.getElements(outputTag).asJava)
   }
 
-  def extractUserFunction[T](dataStream: DataStream[_]) = {
-    dataStream.javaStream
+  def extractFun[IN, OUT](dataStream: DataStream[OUT]): PatternProcessFunction[IN, OUT] = {
+    val oper = dataStream.javaStream
       .getTransformation
       .asInstanceOf[OneInputTransformation[_, _]]
       .getOperator
-      .asInstanceOf[T]
+      .asInstanceOf[CepOperator[IN, Byte, OUT]]
+
+    val fun = oper.getUserFunction
+    FunctionUtils.setFunctionRuntimeContext(fun, Mockito.mock(classOf[RuntimeContext]))
+    FunctionUtils.openFunction(fun, new Configuration())
+    fun
+  }
+
+  class ListTestContext extends PatternProcessFunction.Context {
+
+    private val outputs = new mutable.HashMap[util.OutputTag[_], mutable.ListBuffer[Any]]()
+
+    def getElements(outputTag: OutputTag[_]): ListBuffer[Any] = {
+      outputs.getOrElse(outputTag, ListBuffer.empty)
+    }
+
+    override def output[X](outputTag: util.OutputTag[X], value: X): Unit = {
+      outputs.getOrElseUpdate(outputTag, ListBuffer.empty).append(value)
+    }
+
+    override def timestamp(): Long = 0
+
+    override def currentProcessingTime(): Long = System.currentTimeMillis()
   }
 
 }

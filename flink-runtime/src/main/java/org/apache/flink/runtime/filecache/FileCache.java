@@ -226,7 +226,6 @@ public class FileCache {
 			Set<ExecutionAttemptID> jobRefCounter = jobRefHolders.get(jobId);
 
 			if (jobRefCounter == null || jobRefCounter.isEmpty()) {
-				LOG.warn("improper use of releaseJob() without a matching number of createTmpFiles() calls for jobId " + jobId);
 				return;
 			}
 

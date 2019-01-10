@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest;
 
 import org.apache.flink.runtime.io.network.netty.NettyLeakDetectionResource;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -121,6 +122,20 @@ public class FileUploadHandlerTest extends TestLogger {
 		String jsonPayload = sw.toString();
 
 		return builder.addFormDataPart(attribute, jsonPayload);
+	}
+
+	@Test
+	public void testUploadDirectoryRegeneration() throws Exception {
+		OkHttpClient client = new OkHttpClient();
+
+		MultipartUploadResource.MultipartFileHandler fileHandler = MULTIPART_UPLOAD_RESOURCE.getFileHandler();
+
+		FileUtils.deleteDirectory(MULTIPART_UPLOAD_RESOURCE.getUploadDirectory().toFile());
+
+		Request fileRequest = buildFileRequest(fileHandler.getMessageHeaders().getTargetRestEndpointURL());
+		try (Response response = client.newCall(fileRequest).execute()) {
+			assertEquals(fileHandler.getMessageHeaders().getResponseStatusCode().code(), response.code());
+		}
 	}
 
 	@Test

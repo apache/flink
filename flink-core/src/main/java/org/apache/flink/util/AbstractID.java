@@ -47,7 +47,7 @@ public class AbstractID implements Comparable<AbstractID>, java.io.Serializable 
 	protected final long lowerPart;
 
 	/** The memoized value returned by toString(). */
-	private String toString;
+	private transient String toString;
 
 	// --------------------------------------------------------------------------------------------
 

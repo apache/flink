@@ -256,14 +256,15 @@ class CalcITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val sqlQuery = "SELECT * FROM MyTable WHERE a < 2 OR a > 20"
+    val sqlQuery = "SELECT * FROM MyTable WHERE a < 2 OR a > 20 OR a IN(3,4,5)"
 
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = "1,1,Hi\n" + "21,6,Comment#15\n"
+    val expected = "1,1,Hi\n" + "3,2,Hello world\n" + "4,3,Hello world, how are you?\n" +
+      "5,3,I am fine.\n" + "21,6,Comment#15\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -274,15 +275,14 @@ class CalcITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val sqlQuery = "SELECT * FROM MyTable WHERE MOD(a,2)<>0 AND MOD(b,2)=0"
+    val sqlQuery = "SELECT * FROM MyTable WHERE MOD(a,2)<>0 AND MOD(b,2)=0 AND b NOT IN(1,2,3)"
 
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = "3,2,Hello world\n" + "7,4,Comment#1\n" +
-      "9,4,Comment#3\n" + "17,6,Comment#11\n" +
+    val expected = "7,4,Comment#1\n" + "9,4,Comment#3\n" + "17,6,Comment#11\n" +
       "19,6,Comment#13\n" + "21,6,Comment#15\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
@@ -355,9 +355,9 @@ class CalcITCase(
   }
 
   @Test
-  def testUdfWithUnicodeParameter(): Unit = {
+  def testFunctionWithUnicodeParameters(): Unit = {
     val data = List(
-      ("a\u0001b", "c\"d", "e\\\"\u0004f"),
+      ("a\u0001b", "c\"d", "e\\\"\u0004f"), // uses Java/Scala escaping
       ("x\u0001y", "y\"z", "z\\\"\u0004z")
     )
 
@@ -371,20 +371,23 @@ class CalcITCase(
     tEnv.registerFunction("splitUDF0", splitUDF0)
     tEnv.registerFunction("splitUDF1", splitUDF1)
 
-    // user have to specify '\' with '\\' in SQL
-    val sqlQuery = "SELECT " +
-      "splitUDF0(a, '\u0001', 0) as a0, " +
-      "splitUDF1(a, '\u0001', 0) as a1, " +
-      "splitUDF0(b, '\"', 1) as b0, " +
-      "splitUDF1(b, '\"', 1) as b1, " +
-      "splitUDF0(c, '\\\\\"\u0004', 0) as c0, " +
-      "splitUDF1(c, '\\\\\"\u0004', 0) as c1 from T1"
+    // uses SQL escaping (be aware that even Scala multi-line strings parse backslash!)
+    val sqlQuery = s"""
+      |SELECT
+      |  splitUDF0(a, U&'${'\\'}0001', 0) AS a0,
+      |  splitUDF1(a, U&'${'\\'}0001', 0) AS a1,
+      |  splitUDF0(b, U&'"', 1) AS b0,
+      |  splitUDF1(b, U&'"', 1) AS b1,
+      |  splitUDF0(c, U&'${'\\'}${'\\'}"${'\\'}0004', 0) AS c0,
+      |  splitUDF1(c, U&'${'\\'}"#0004' UESCAPE '#', 0) AS c1
+      |FROM T1
+      |""".stripMargin
 
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
 
     tEnv.registerTable("T1", t1)
 
-    val results = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    val results = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
 
     val expected = List("a,a,d,d,e,e", "x,x,z,z,z,z").mkString("\n")
     TestBaseUtils.compareResultAsText(results.asJava, expected)

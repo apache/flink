@@ -82,7 +82,7 @@ public class FutureUtilsTest extends TestLogger {
 			TestingUtils.defaultExecutor());
 
 		assertTrue(retryFuture.get());
-		assertTrue(retries == atomicInteger.get());
+		assertEquals(retries, atomicInteger.get());
 	}
 
 	/**
@@ -274,7 +274,7 @@ public class FutureUtilsTest extends TestLogger {
 					throwable instanceof RuntimeException && throwable.getMessage().contains(retryableExceptionMessage),
 				new ScheduledExecutorServiceAdapter(retryExecutor)).get();
 		} catch (final ExecutionException e) {
-			assertThat(e.getMessage(), containsString("Could not complete the operation"));
+			assertThat(e.getMessage(), containsString("should propagate"));
 		} finally {
 			retryExecutor.shutdownNow();
 		}
@@ -535,7 +535,7 @@ public class FutureUtilsTest extends TestLogger {
 			final FlinkException suppressedException;
 
 			if (actual.equals(testException1)) {
-				 suppressedException = testException2;
+				suppressedException = testException2;
 			} else {
 				suppressedException = testException1;
 			}

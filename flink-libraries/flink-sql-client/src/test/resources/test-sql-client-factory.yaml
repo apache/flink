@@ -25,7 +25,7 @@
 
 tables:
   - name: TableNumber1
-    type: both
+    type: source-sink-table
     update-mode: append
     schema:
       - name: IntegerField1
@@ -41,8 +41,8 @@ tables:
           watermarks:
             type: from-source
     connector:
-      type: "$VAR_0"
-      $VAR_1: "$VAR_2"
+      type: "$VAR_CONNECTOR_TYPE"
+      $VAR_CONNECTOR_PROPERTY: "$VAR_CONNECTOR_PROPERTY_VALUE"
 
 execution:
   type: streaming

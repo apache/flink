@@ -45,4 +45,12 @@ public class RocksDBOptions {
 		.withDescription(String.format("This determines the factory for timer service state implementation. Options " +
 			"are either %s (heap-based, default) or %s for an implementation based on RocksDB .",
 			HEAP.name(), ROCKSDB.name()));
+
+	/**
+	 * The number of threads used to download files from DFS in RocksDBStateBackend.
+	 */
+	public static final ConfigOption<Integer> CHECKPOINT_RESTORE_THREAD_NUM = ConfigOptions
+		.key("state.backend.rocksdb.checkpoint.restore.thread.num")
+		.defaultValue(1)
+		.withDescription("The number of threads used to download files from DFS in RocksDBStateBackend.");
 }

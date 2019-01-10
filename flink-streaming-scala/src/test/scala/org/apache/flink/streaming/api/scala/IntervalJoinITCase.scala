@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
@@ -25,7 +26,8 @@ import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExt
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.util.Collector
-import org.junit.{Assert, Test}
+import org.junit.Assert.assertTrue
+import org.junit.Test
 
 import scala.collection.mutable.ListBuffer
 
@@ -47,22 +49,25 @@ class IntervalJoinITCase extends AbstractTestBase {
 
     val sink = new ResultSink()
 
-    dataStream1.intervalJoin(dataStream2)
+    val join = dataStream1.intervalJoin(dataStream2)
       .between(Time.milliseconds(0), Time.milliseconds(2))
-      .process(new CombineToStringJoinFunction())
-      .addSink(sink)
+      .process(new CombineJoinFunction())
+
+    assertTrue(join.dataType.isInstanceOf[CaseClassTypeInfo[_]])
+
+    join.addSink(sink)
 
     env.execute()
 
     sink.expectInAnyOrder(
-      "(key,0):(key,0)",
-      "(key,0):(key,1)",
-      "(key,0):(key,2)",
+      "(key:key,0)",
+      "(key:key,1)",
+      "(key:key,2)",
 
-      "(key,1):(key,1)",
-      "(key,1):(key,2)",
+      "(key:key,2)",
+      "(key:key,3)",
 
-      "(key,2):(key,2)"
+      "(key:key,4)"
     )
   }
 
@@ -82,18 +87,21 @@ class IntervalJoinITCase extends AbstractTestBase {
 
     val sink = new ResultSink()
 
-    dataStream1.intervalJoin(dataStream2)
+    val join = dataStream1.intervalJoin(dataStream2)
       .between(Time.milliseconds(0), Time.milliseconds(2))
       .lowerBoundExclusive()
       .upperBoundExclusive()
-      .process(new CombineToStringJoinFunction())
-      .addSink(sink)
+      .process(new CombineJoinFunction())
+
+    assertTrue(join.dataType.isInstanceOf[CaseClassTypeInfo[_]])
+
+    join.addSink(sink)
 
     env.execute()
 
     sink.expectInAnyOrder(
-      "(key,0):(key,1)",
-      "(key,1):(key,2)"
+      "(key:key,1)",
+      "(key:key,3)"
     )
   }
 }
@@ -102,14 +110,14 @@ object Companion {
   val results: ListBuffer[String] = new ListBuffer()
 }
 
-class ResultSink extends SinkFunction[String] {
+class ResultSink extends SinkFunction[(String, Long)] {
 
-  override def invoke(value: String, context: SinkFunction.Context[_]): Unit = {
-    Companion.results.append(value)
+  override def invoke(value: (String, Long), context: SinkFunction.Context[_]): Unit = {
+    Companion.results.append(value.toString())
   }
 
   def expectInAnyOrder(expected: String*): Unit = {
-    Assert.assertTrue(expected.toSet.equals(Companion.results.toSet))
+    assertTrue(expected.toSet.equals(Companion.results.toSet))
   }
 }
 
@@ -117,14 +125,14 @@ class TimestampExtractor extends AscendingTimestampExtractor[(String, Long)] {
   override def extractAscendingTimestamp(element: (String, Long)): Long = element._2
 }
 
-class CombineToStringJoinFunction
-  extends ProcessJoinFunction[(String, Long), (String, Long), String] {
+class CombineJoinFunction
+  extends ProcessJoinFunction[(String, Long), (String, Long), (String, Long)] {
 
   override def processElement(
-                        left: (String, Long),
-                        right: (String, Long),
-                        ctx: ProcessJoinFunction[(String, Long), (String, Long), String]#Context,
-                        out: Collector[String]): Unit = {
-    out.collect(left + ":" + right)
+      left: (String, Long),
+      right: (String, Long),
+      ctx: ProcessJoinFunction[(String, Long), (String, Long), (String, Long)]#Context,
+      out: Collector[(String, Long)]): Unit = {
+    out.collect((left._1 + ":" + right._1, left._2 + right._2))
   }
 }

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskmanager;
 
 import net.jcip.annotations.NotThreadSafe;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -65,7 +64,7 @@ public class TaskManagerConfigurationTest {
 		final String TEST_HOST_NAME = "testhostname";
 
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, TEST_HOST_NAME);
+		config.setString(TaskManagerOptions.HOST, TEST_HOST_NAME);
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
 		config.setInteger(JobManagerOptions.PORT, 7891);
 
@@ -89,7 +88,7 @@ public class TaskManagerConfigurationTest {
 	public void testActorSystemPortConfig() throws Exception {
 		// config with pre-configured hostname to speed up tests (no interface selection)
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "localhost");
+		config.setString(TaskManagerOptions.HOST, "localhost");
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
 		config.setInteger(JobManagerOptions.PORT, 7891);
 

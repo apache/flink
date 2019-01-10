@@ -40,14 +40,16 @@ import static org.mockito.Mockito.when;
  * {@link org.apache.flink.runtime.dispatcher.Dispatcher.JobManagerRunnerFactory} implementation for
  * testing purposes.
  */
-final class TestingJobManagerRunnerFactory implements Dispatcher.JobManagerRunnerFactory {
+class TestingJobManagerRunnerFactory implements Dispatcher.JobManagerRunnerFactory {
 
 	private final CompletableFuture<JobGraph> jobGraphFuture;
 	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
+	private final CompletableFuture<Void> terminationFuture;
 
-	TestingJobManagerRunnerFactory(CompletableFuture<JobGraph> jobGraphFuture, CompletableFuture<ArchivedExecutionGraph> resultFuture) {
+	TestingJobManagerRunnerFactory(CompletableFuture<JobGraph> jobGraphFuture, CompletableFuture<ArchivedExecutionGraph> resultFuture, CompletableFuture<Void> terminationFuture) {
 		this.jobGraphFuture = jobGraphFuture;
 		this.resultFuture = resultFuture;
+		this.terminationFuture = terminationFuture;
 	}
 
 	@Override
@@ -66,7 +68,8 @@ final class TestingJobManagerRunnerFactory implements Dispatcher.JobManagerRunne
 
 		final JobManagerRunner mock = mock(JobManagerRunner.class);
 		when(mock.getResultFuture()).thenReturn(resultFuture);
-		when(mock.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+		when(mock.closeAsync()).thenReturn(terminationFuture);
+		when(mock.getJobGraph()).thenReturn(jobGraph);
 
 		return mock;
 	}

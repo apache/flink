@@ -18,59 +18,30 @@
 
 package org.apache.flink.cep.nfa.aftermatch;
 
-import org.apache.flink.cep.nfa.sharedbuffer.EventId;
-
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
- * Discards every partial match that contains event of the match preceding the last of *PatternName*.
+ * Discards every partial match that started before the last event of emitted match mapped to *PatternName*.
  */
-public class SkipToLastStrategy extends AfterMatchSkipStrategy {
+public final class SkipToLastStrategy extends SkipToElementStrategy {
 	private static final long serialVersionUID = 7585116990619594531L;
-	private final String patternName;
 
-	SkipToLastStrategy(String patternName) {
-		this.patternName = checkNotNull(patternName);
+	SkipToLastStrategy(String patternName, boolean shouldThrowException) {
+		super(patternName, shouldThrowException);
 	}
 
 	@Override
-	public boolean isSkipStrategy() {
-		return true;
+	public SkipToElementStrategy throwExceptionOnMiss() {
+		return new SkipToLastStrategy(getPatternName().get(), true);
 	}
 
 	@Override
-	protected boolean shouldPrune(EventId startEventID, EventId pruningId) {
-		return startEventID != null && startEventID.compareTo(pruningId) < 0;
-	}
-
-	@Override
-	protected EventId getPruningId(Collection<Map<String, List<EventId>>> match) {
-		EventId pruningId = null;
-		for (Map<String, List<EventId>> resultMap : match) {
-			List<EventId> pruningPattern = resultMap.get(patternName);
-
-			if (pruningPattern != null && !pruningPattern.isEmpty()) {
-				pruningId = max(pruningId, pruningPattern.get(pruningPattern.size() - 1));
-			}
-		}
-
-		return pruningId;
-	}
-
-	@Override
-	public Optional<String> getPatternName() {
-		return Optional.of(patternName);
+	int getIndex(int size) {
+		return size - 1;
 	}
 
 	@Override
 	public String toString() {
 		return "SkipToLastStrategy{" +
-			"patternName='" + patternName + '\'' +
+			"patternName='" + getPatternName().get() + '\'' +
 			'}';
 	}
 }

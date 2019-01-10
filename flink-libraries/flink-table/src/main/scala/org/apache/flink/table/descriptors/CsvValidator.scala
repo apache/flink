@@ -28,14 +28,14 @@ class CsvValidator extends FormatDescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
     super.validate(properties)
-    properties.validateValue(FORMAT_TYPE, FORMAT_TYPE_VALUE, isOptional = false)
-    properties.validateString(FORMAT_FIELD_DELIMITER, isOptional = true, minLen = 1)
-    properties.validateString(FORMAT_LINE_DELIMITER, isOptional = true, minLen = 1)
-    properties.validateString(FORMAT_QUOTE_CHARACTER, isOptional = true, minLen = 1, maxLen = 1)
-    properties.validateString(FORMAT_COMMENT_PREFIX, isOptional = true, minLen = 1)
-    properties.validateBoolean(FORMAT_IGNORE_FIRST_LINE, isOptional = true)
-    properties.validateBoolean(FORMAT_IGNORE_PARSE_ERRORS, isOptional = true)
-    properties.validateTableSchema(FORMAT_FIELDS, isOptional = false)
+    properties.validateValue(FORMAT_TYPE, FORMAT_TYPE_VALUE, false)
+    properties.validateString(FORMAT_FIELD_DELIMITER, true, 1)
+    properties.validateString(FORMAT_LINE_DELIMITER, true, 1)
+    properties.validateString(FORMAT_QUOTE_CHARACTER, true, 1, 1)
+    properties.validateString(FORMAT_COMMENT_PREFIX, true, 1)
+    properties.validateBoolean(FORMAT_IGNORE_FIRST_LINE, true)
+    properties.validateBoolean(FORMAT_IGNORE_PARSE_ERRORS, true)
+    properties.validateTableSchema(FORMAT_FIELDS, false)
   }
 }
 

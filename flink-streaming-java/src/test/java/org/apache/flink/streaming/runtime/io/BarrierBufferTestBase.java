@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineSubsumedException;
+import org.apache.flink.runtime.checkpoint.decline.InputEndOfStreamException;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -48,13 +49,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 /**
  * Tests for the behavior of the {@link BarrierBuffer} with different {@link BufferBlocker} implements.
@@ -523,7 +525,7 @@ public abstract class BarrierBufferTestBase {
 		check(sequence[12], buffer.getNextNonBlocked(), PAGE_SIZE);
 		assertEquals(3L, buffer.getCurrentCheckpointId());
 		validateAlignmentTime(startTs, buffer.getAlignmentDurationNanos());
-		verify(toNotify).abortCheckpointOnBarrier(eq(2L), any(CheckpointDeclineSubsumedException.class));
+		verify(toNotify).abortCheckpointOnBarrier(eq(2L), isA(CheckpointDeclineSubsumedException.class));
 		check(sequence[16], buffer.getNextNonBlocked(), PAGE_SIZE);
 
 		// checkpoint 3 alignment in progress
@@ -531,7 +533,7 @@ public abstract class BarrierBufferTestBase {
 
 		// checkpoint 3 aborted (end of partition)
 		check(sequence[20], buffer.getNextNonBlocked(), PAGE_SIZE);
-		verify(toNotify).abortCheckpointOnBarrier(eq(3L), any(CheckpointDeclineSubsumedException.class));
+		verify(toNotify).abortCheckpointOnBarrier(eq(3L), isA(InputEndOfStreamException.class));
 
 		// replay buffered data from checkpoint 3
 		check(sequence[18], buffer.getNextNonBlocked(), PAGE_SIZE);

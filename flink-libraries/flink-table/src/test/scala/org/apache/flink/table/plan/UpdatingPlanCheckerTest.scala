@@ -312,7 +312,7 @@ class UpdatingPlanCheckerTest {
 class UpdatePlanCheckerUtil extends StreamTableTestUtil {
 
   def verifySqlUniqueKey(query: String, expected: Seq[String]): Unit = {
-    verifyTableUniqueKey(tableEnv.sql(query), expected)
+    verifyTableUniqueKey(tableEnv.sqlQuery(query), expected)
   }
 
   def getKeyGroups(resultTable: Table): Option[Seq[(String, String)]] = {

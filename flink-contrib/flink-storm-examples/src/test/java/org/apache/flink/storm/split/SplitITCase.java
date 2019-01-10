@@ -53,16 +53,4 @@ public class SplitITCase extends AbstractTestBase {
 		Assert.assertFalse(Enrich.errorOccured);
 	}
 
-	@Test
-	public void testSpoutSplitTopology() throws Exception {
-		SplitStreamSpoutLocal.main(new String[] { "0", output });
-		Assert.assertFalse(VerifyAndEnrichBolt.errorOccured);
-	}
-
-	@Test
-	public void testBoltSplitTopology() throws Exception {
-		SplitStreamBoltLocal.main(new String[] { "0", output });
-		Assert.assertFalse(VerifyAndEnrichBolt.errorOccured);
-	}
-
 }

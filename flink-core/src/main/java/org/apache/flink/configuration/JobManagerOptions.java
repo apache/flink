@@ -106,6 +106,7 @@ public class JobManagerOptions {
 	/**
 	 * This option specifies the failover strategy, i.e. how the job computation recovers from task failures.
 	 */
+	@Documentation.ExcludeFromDocumentation("The failover strategy feature is highly experimental.")
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
 		key("jobmanager.execution.failover-strategy")
 			.defaultValue("full")
@@ -135,7 +136,8 @@ public class JobManagerOptions {
 	 */
 	public static final ConfigOption<String> ARCHIVE_DIR =
 		key("jobmanager.archive.fs.dir")
-			.noDefaultValue();
+			.noDefaultValue()
+			.withDescription("Dictionary for JobManager to store the archives of completed jobs.");
 
 	/**
 	 * The job store cache size in bytes which is used to keep completed

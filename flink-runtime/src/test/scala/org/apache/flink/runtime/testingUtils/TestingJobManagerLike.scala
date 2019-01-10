@@ -24,9 +24,8 @@ import java.util.function.BiFunction
 import akka.actor.{ActorRef, Cancellable, Terminated}
 import akka.pattern.{ask, pipe}
 import org.apache.flink.api.common.JobID
-import org.apache.flink.core.fs.FSDataInputStream
+import org.apache.flink.api.common.accumulators.Accumulator
 import org.apache.flink.runtime.FlinkActor
-import org.apache.flink.runtime.checkpoint.savepoint.Savepoint
 import org.apache.flink.runtime.checkpoint._
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.JobStatus
@@ -39,10 +38,11 @@ import org.apache.flink.runtime.messages.Messages.Disconnect
 import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager
 import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
 import org.apache.flink.runtime.state.memory.MemoryStateBackend
-import org.apache.flink.runtime.state.{StateBackend, StateBackendLoader, StreamStateHandle}
+import org.apache.flink.runtime.state.StateBackendLoader
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages._
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.AccumulatorsChanged
+import org.apache.flink.util.OptionalFailure
 
 import scala.collection.mutable
 import scala.concurrent.Future
@@ -75,7 +75,7 @@ trait TestingJobManagerLike extends FlinkActor {
   val waitForNumRegisteredTaskManagers = mutable.PriorityQueue.newBuilder(
     new Ordering[(Int, ActorRef)] {
       override def compare(x: (Int, ActorRef), y: (Int, ActorRef)): Int = y._1 - x._1
-    })
+    }).result()
 
   val waitForClient = scala.collection.mutable.HashSet[ActorRef]()
 
@@ -241,7 +241,10 @@ trait TestingJobManagerLike extends FlinkActor {
         case (jobID, (updated, actors)) if updated =>
           currentJobs.get(jobID) match {
             case Some((graph, jobInfo)) =>
-              val userAccumulators = graph.aggregateUserAccumulators
+              val userAccumulators: java.util.Map[String, OptionalFailure[Accumulator[_, _]]] =
+                graph
+                  .aggregateUserAccumulators
+                  .asInstanceOf[java.util.Map[String, OptionalFailure[Accumulator[_, _]]]]
               actors foreach {
                  actor => actor ! UpdatedAccumulators(jobID, userAccumulators)
               }
@@ -454,6 +457,14 @@ trait TestingJobManagerLike extends FlinkActor {
         val receiver = waitForNumRegisteredTaskManagers.dequeue()._2
         receiver ! Acknowledge.get()
       }
+
+    case WaitForBackgroundTasksToFinish =>
+      val future = futuresToComplete match {
+        case Some(futures) => Future.sequence(futures)
+        case None => Future.successful(Seq())
+      }
+
+      future.pipeTo(sender())
   }
 
   def checkIfAllVerticesRunning(jobID: JobID): Boolean = {

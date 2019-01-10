@@ -75,5 +75,6 @@ trait UpsertStreamTableSink[T] extends StreamTableSink[JTuple2[JBool, T]] {
   /** Emits the DataStream. */
   def emitDataStream(dataStream: DataStream[JTuple2[JBool, T]]): Unit
 
-  override def getOutputType = new TupleTypeInfo(Types.BOOLEAN, getRecordType)
+  override def getOutputType: TypeInformation[JTuple2[JBool, T]] =
+    new TupleTypeInfo(Types.BOOLEAN, getRecordType)
 }

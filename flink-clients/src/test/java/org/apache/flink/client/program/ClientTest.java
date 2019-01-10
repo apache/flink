@@ -60,15 +60,15 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.UUID;
 
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
-import scala.concurrent.Await;
-import scala.concurrent.duration.Duration;
 
 /**
  * Simple and maybe stupid test to check the {@link ClusterClient} class.

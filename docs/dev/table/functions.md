@@ -285,7 +285,7 @@ EXISTS (sub-query)
       </td>
       <td>
         <p>Returns TRUE if <i>sub-query</i> returns at least one row. Only supported if the operation can be rewritten in a join and group operation.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -297,7 +297,7 @@ value IN (sub-query)
       </td>
       <td>
         <p>Returns TRUE if <i>value</i> is equal to a row returned by sub-query.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -309,7 +309,7 @@ value NOT IN (sub-query)
       </td>
       <td>
         <p>Returns TRUE if <i>value</i> is not equal to every row returned by <i>sub-query</i>.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
     </tbody>
@@ -459,7 +459,7 @@ ANY.in(TABLE)
       </td>
       <td>
         <p>Returns TRUE if <i>ANY</i> is equal to a row returned by sub-query <i>TABLE</i>.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -639,7 +639,7 @@ ANY.in(TABLE)
       </td>
       <td>
         <p>Returns TRUE if <i>ANY</i> is equal to a row returned by sub-query <i>TABLE</i>.</p>
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -1200,6 +1200,18 @@ SIN(numeric)
     <tr>
       <td>
         {% highlight text %}
+SINH(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic sine of <i>numeric</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 COS(numeric)
 {% endhighlight %}
       </td>
@@ -1216,6 +1228,18 @@ TAN(numeric)
       </td>
       <td>
         <p>Returns the tangent of <i>numeric</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+TANH(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic tangent of <i>numeric</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -1271,6 +1295,18 @@ ATAN2(numeric1, numeric2)
       </td>
       <td>
         <p>Returns the arc tangent of a coordinate <i>(numeric1, numeric2)</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+COSH(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic cosine of <i>NUMERIC</i>.</p> 
+        <p>Return value type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -1635,6 +1671,18 @@ NUMERIC.sin()
     <tr>
       <td>
         {% highlight java %}
+NUMERIC.sinh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic sine of <i>NUMERIC</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 NUMERIC.cos()
 {% endhighlight %}
       </td>
@@ -1651,6 +1699,18 @@ NUMERIC.tan()
       </td>
       <td>
         <p>Returns the tangent of <i>NUMERIC</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.tanh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic tangent of <i>NUMERIC</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -1706,6 +1766,18 @@ atan2(NUMERIC1, NUMERIC2)
       </td>
       <td>
         <p>Returns the arc tangent of a coordinate <i>(NUMERIC1, NUMERIC2)</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.cosh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic cosine of <i>NUMERIC</i>.</p> 
+        <p>Return value type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -2071,6 +2143,18 @@ NUMERIC.sin()
     <tr>
       <td>
         {% highlight scala %}
+NUMERIC.sinh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic sine of <i>NUMERIC</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
 NUMERIC.cos()
 {% endhighlight %}
       </td>
@@ -2087,6 +2171,18 @@ NUMERIC.tan()
       </td>
       <td>
         <p>Returns the tangent of <i>NUMERIC</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.tanh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic tangent of <i>NUMERIC</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -2142,6 +2238,18 @@ atan2(NUMERIC1, NUMERIC2)
       </td>
       <td>
         <p>Returns the arc tangent of a coordinate <i>(NUMERIC1, NUMERIC2)</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.cosh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic cosine of <i>NUMERIC</i>.</p> 
+        <p>Return value type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -2404,6 +2512,30 @@ RTRIM(string)
     <tr>
       <td>
         {% highlight text %}
+REPEAT(string, integer)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that repeats the base <i>string</i> <i>integer</i> times.</p> 
+        <p>E.g., <code>REPEAT('This is a test String.', 2)</code> returns "This is a test String.This is a test String.".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+REGEXP_REPLACE(string1, string2, string3)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string from <i>string1</i> with all the substrings that match a regular expression <i>string2</i> consecutively being replaced with <i>string3</i>.</p> 
+        <p>E.g., <code>REGEXP_REPLACE('foobar', 'oo|ar', '')</code> returns "fb".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 OVERLAY(string1 PLACING string2 FROM integer1 [ FOR integer2 ])
 {% endhighlight %}
       </td>
@@ -2421,6 +2553,31 @@ SUBSTRING(string FROM integer1 [ FOR integer2 ])
       </td>
       <td>
         <p>Returns a substring of <i>string</i> starting from position <i>integer1</i> with length <i>integer2</i> (to the end by default).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+REPLACE(string1, string2, string3)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a new string which replaces all the occurrences of <i>string2</i> with <i>string3</i> (non-overlapping) from <i>string1</i></p>
+        <p>E.g., <code>REPLACE("hello world", "world", "flink")</code> returns "hello flink"; <code>REPLACE("ababab", "abab", "z")</code> returns "zab".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+REGEXP_EXTRACT(string1, string2[, integer])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string from <i>string1</i> which extracted with a specified regular expression <i>string2</i> and a regex match group index <i>integer</i>.</p> 
+        <p><b>Note:</b> The regex match group index starts from 1 and 0 means matching the whole regex. In addition, the regex match group index should not exceed the number of the defined groups.</p> 
+        <p>E.g. <code>REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)"</code> returns "bar".</p>
       </td>
     </tr>
 
@@ -2614,6 +2771,30 @@ STRING.rtrim()
         <p>E.g., <code>'This is a test String. '.rtrim()</code> returns "This is a test String.".</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.repeat(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that repeats the base <i>STRING</i> <i>INT</i> times.</p> 
+        <p>E.g., <code>'This is a test String.'.repeat(2)</code> returns "This is a test String.This is a test String.".</p>
+      </td>
+    </tr>    
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING1.regexpReplace(STRING2, STRING3)
+{% endhighlight %}
+      </td>
+       <td>
+         <p>Returns a string from <i>STRING1</i> with all the substrings that match a regular expression <i>STRING2</i> consecutively being replaced with <i>STRING3</i>.</p> 
+         <p>E.g., <code>'foobar'.regexpReplace('oo|ar', '')</code> returns "fb".</p>
+      </td>
+    </tr>
     
     <tr>
       <td>
@@ -2637,6 +2818,31 @@ STRING.substring(INT1, INT2)
       </td>
       <td>
         <p>Returns a substring of <i>STRING</i> starting from position <i>INT1</i> with length <i>INT2</i> (to the end by default).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING1.replace(STRING2, STRING3)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a new string which replaces all the occurrences of <i>STRING2</i> with <i>STRING3</i> (non-overlapping) from <i>STRING1</i>.</p>
+        <p>E.g., <code>'hello world'.replace('world', 'flink')</code> returns 'hello flink'; <code>'ababab'.replace('abab', 'z')</code> returns 'zab'.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING1.regexpExtract(STRING2[, INTEGER1])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string from <i>STRING1</i> which extracted with a specified regular expression <i>STRING2</i> and a regex match group index <i>INTEGER1</i>.</p>
+        <p><b>Note:</b> The regex match group index starts from 1 and 0 means matching the whole regex. In addition, the regex match group index should not exceed the number of the defined groups.</p> 
+        <p>E.g. <code>'foothebar'.regexpExtract('foo(.*?)(bar)', 2)"</code> returns "bar".</p>
       </td>
     </tr>
 
@@ -2833,6 +3039,30 @@ STRING.rtrim()
     <tr>
       <td>
         {% highlight scala %}
+STRING.repeat(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that repeats the base <i>STRING</i> <i>INT</i> times.</p> 
+        <p>E.g., <code>"This is a test String.".repeat(2)</code> returns "This is a test String.This is a test String.".</p>
+      </td>
+    </tr> 
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING1.regexpReplace(STRING2, STRING3)
+{% endhighlight %}
+      </td>
+       <td>
+         <p>Returns a string from <i>STRING1</i> with all the substrings that match a regular expression <i>STRING2</i> consecutively being replaced with <i>STRING3</i>.</p> 
+         <p>E.g. <code>"foobar".regexpReplace("oo|ar", "")</code> returns "fb".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
 STRING1.overlay(STRING2, INT1)
 STRING1.overlay(STRING2, INT1, INT2)
 {% endhighlight %}
@@ -2852,6 +3082,31 @@ STRING.substring(INT1, INT2)
       </td>
       <td>
         <p>Returns a substring of <i>STRING</i> starting from position <i>INT1</i> with length <i>INT2</i> (to the end by default).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING1.replace(STRING2, STRING3)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a new string which replaces all the occurrences of <i>STRING2</i> with <i>STRING3</i> (non-overlapping) from <i>STRING1</i>.</p>
+        <p>E.g., <code>"hello world".replace("world", "flink")</code> returns "hello flink"; <code>"ababab".replace("abab", "z")</code> returns "zab".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING1.regexpExtract(STRING2[, INTEGER1])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string from <i>STRING1</i> which extracted with a specified regular expression <i>STRING2</i> and a regex match group index <i>INTEGER1</i>.</p>
+        <p><b>Note:</b> The regex match group index starts from 1 and 0 means matching the whole regex. In addition, the regex match group index should not exceed the number of the defined groups.</p>
+        <p>E.g. <code>"foothebar".regexpExtract("foo(.*?)(bar)", 2)"</code> returns "bar".</p>
       </td>
     </tr>
 
@@ -3232,21 +3487,34 @@ DATE_FORMAT(timestamp, string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that formats <i>timestamp</i> with a specified format <i>string</i>. The format specification is given in the <a href="#date-format-specifiers">Date Format Specifier table</a>.</p>
+        <p><span class="label label-danger">Attention</span> This function has serious bugs and should not be used for now. Please implement a custom UDF instead or use EXTRACT as a workaround.</p>
       </td>
     </tr>
 
     <tr>
       <td>
         {% highlight text %}
-TIMESTAMPADD(unit, interval, timevalue)
+TIMESTAMPADD(timeintervalunit, interval, timepoint)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new time value that adds a (signed) integer interval to <i>timevalue</i>. The unit for <i>interval</i> is given by the unit argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>WEEK</code>, <code>MONTH</code>, <code>QUARTER</code>, or <code>YEAR</code>.</p> 
+        <p>Returns a new time value that adds a (signed) integer interval to <i>timepoint</i>. The unit for <i>interval</i> is given by the unit argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>WEEK</code>, <code>MONTH</code>, <code>QUARTER</code>, or <code>YEAR</code>.</p> 
         <p>E.g., <code>TIMESTAMPADD(WEEK, 1, DATE '2003-01-02')</code> returns <code>2003-01-09</code>.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the (signed) number of <i>timepointunit</i> between <i>timepoint1</i> and <i>timepoint2</i>. The unit for the interval is given by the first argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>MONTH</code>, or <code>YEAR</code>. See also the <a href="#time-interval-and-point-unit-specifiers">Time Interval and Point Unit Specifiers table</a>.</p>
+        <p>E.g., <code>TIMESTAMPDIFF(DAY, TIMESTAMP '2003-01-02 10:00:00', TIMESTAMP '2003-01-03 10:00:00')</code> leads to <code>1</code>.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 </div>
@@ -3488,10 +3756,22 @@ dateFormat(TIMESTAMP, STRING)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that formats <i>TIMESTAMP</i> with a specified format <i>STRING</i>. The format specification is given in the <a href="#date-format-specifiers">Date Format Specifier table</a>.</p>
-        <p>E.g., <code>dateFormat(ts, '%Y, %d %M')</code> results in strings formatted as "2017, 05 May".</p>
+        <p><span class="label label-danger">Attention</span> This function has serious bugs and should not be used for now. Please implement a custom UDF instead or use extract() as a workaround.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the (signed) number of <i>TIMEPOINTUNIT</i> between <i>TIMEPOINT1</i> and <i>TIMEPOINT2</i>. The unit for the interval is given by the first argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>MONTH</code>, or <code>YEAR</code>. See also the <a href="#time-interval-and-point-unit-specifiers">Time Interval and Point Unit Specifiers table</a>.</p>
+        <p>E.g., <code>timestampDiff(DAY, '2003-01-02 10:00:00'.toTimestamp, '2003-01-03 10:00:00'.toTimestamp)</code> leads to <code>1</code>.</p>
+      </td>
+    </tr>
+
     </tbody>
 </table>
 </div>
@@ -3733,10 +4013,22 @@ dateFormat(TIMESTAMP, STRING)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that formats <i>TIMESTAMP</i> with a specified format <i>STRING</i>. The format specification is given in the <a href="#date-format-specifiers">Date Format Specifier table</a>.</p>
-        <p>E.g., <code>dateFormat('ts, "%Y, %d %M")</code> results in strings formatted as "2017, 05 May".</p>
+        <p><span class="label label-danger">Attention</span> This function has serious bugs and should not be used for now. Please implement a custom UDF instead or use extract() as a workaround.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the (signed) number of <i>TIMEPOINTUNIT</i> between <i>TIMEPOINT1</i> and <i>TIMEPOINT2</i>. The unit for the interval is given by the first argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>MONTH</code>, or <code>YEAR</code>. See also the <a href="#time-interval-and-point-unit-specifiers">Time Interval and Point Unit Specifiers table</a>.</p>
+        <p>E.g., <code>timestampDiff(TimePointUnit.DAY, '2003-01-02 10:00:00'.toTimestamp, '2003-01-03 10:00:00'.toTimestamp)</code> leads to <code>1</code>.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 </div>
@@ -3892,7 +4184,7 @@ CAST(value AS type)
       </td>
       <td>
         <p>Returns a new <i>value</i> being cast to type <i>type</i>. See the supported types <a href="sql.html#data-types">here</a>.</p>
-        <p>E.g., <code>CAST('42' AS INT)</code> returns 42.</p>
+        <p>E.g., <code>CAST('42' AS INT)</code> returns 42; <code>CAST(NULL AS VARCHAR)</code> returns NULL of type VARCHAR.</p>
       </td>
     </tr>
   </tbody>
@@ -3917,7 +4209,7 @@ ANY.cast(TYPE)
       </td>
       <td>
         <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="tableApi.html#data-types">here</a>.</p>
-        <p>E.g., <code>'42'.cast(INT)</code> returns 42.</p>
+        <p>E.g., <code>'42'.cast(INT)</code> returns 42; <code>Null(STRING)</code> returns NULL of type STRING.</p>
       </td>
     </tr>
     </tbody>
@@ -3942,7 +4234,7 @@ ANY.cast(TYPE)
       </td>
       <td>
         <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="tableApi.html#data-types">here</a>.</p>
-        <p>E.g., <code>"42".cast(Types.INT)</code> returns 42.</p>
+        <p>E.g., <code>"42".cast(Types.INT)</code> returns 42; <code>Null(Types.STRING)</code> returns NULL of type STRING.</p>
       </td>
     </tr>
   </tbody>
@@ -5389,5 +5681,46 @@ The following table lists specifiers for date format functions.
   </tr>
   </tbody>
 </table>
+
+{% top %}
+
+Time Interval and Point Unit Specifiers
+---------------------------------------
+
+The following table lists specifiers for time interval and time point units. 
+
+For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
+
+| Time Interval Unit       | Time Point Unit                |
+| :----------------------- | :----------------------------- |
+| `MILLENIUM` _(SQL-only)_ |                                |
+| `CENTURY` _(SQL-only)_   |                                |
+| `YEAR`                   | `YEAR`                         |
+| `YEAR TO MONTH`          |                                |
+| `QUARTER`                | `QUARTER`                      |
+| `MONTH`                  | `MONTH`                        |
+| `WEEK`                   | `WEEK`                         |
+| `DAY`                    | `DAY`                          |
+| `DAY TO HOUR`            |                                |
+| `DAY TO MINUTE`          |                                |
+| `DAY TO SECOND`          |                                |
+| `HOUR`                   | `HOUR`                         |
+| `HOUR TO MINUTE`         |                                |
+| `HOUR TO SECOND`         |                                |
+| `MINUTE`                 | `MINUTE`                       |
+| `MINUTE TO SECOND`       |                                |
+| `SECOND`                 | `SECOND`                       |
+|                          | `MILLISECOND`                  |
+|                          | `MICROSECOND`                  |
+| `DOY` _(SQL-only)_       |                                |
+| `DOW` _(SQL-only)_       |                                |
+|                          | `SQL_TSI_YEAR` _(SQL-only)_    |
+|                          | `SQL_TSI_QUARTER` _(SQL-only)_ |
+|                          | `SQL_TSI_MONTH` _(SQL-only)_   |
+|                          | `SQL_TSI_WEEK` _(SQL-only)_    |
+|                          | `SQL_TSI_DAY` _(SQL-only)_     |
+|                          | `SQL_TSI_HOUR` _(SQL-only)_    |
+|                          | `SQL_TSI_MINUTE` _(SQL-only)_  |
+|                          | `SQL_TSI_SECOND ` _(SQL-only)_ |
 
 {% top %}

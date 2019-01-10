@@ -18,7 +18,6 @@
 
 package org.apache.flink.storm.util;
 
-import org.apache.flink.storm.api.FlinkTopology;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 
 import java.util.ArrayList;
@@ -26,7 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 
 /**
- * Used by {@link FlinkTopology} to split multiple declared output streams within Flink.
+ * Used to split multiple declared output streams within Flink.
  */
 public final class StormStreamSelector<T> implements OutputSelector<SplitStreamType<T>> {
 	private static final long serialVersionUID = 2553423379715401023L;

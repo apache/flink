@@ -17,10 +17,12 @@
  */
 package org.apache.flink.table.api.stream.table.validation
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils._
+import org.apache.flink.table.runtime.stream.table.TestAppendSink
 import org.apache.flink.table.utils.{ObjectTableFunction, TableFunc1, TableFunc2, TableTestBase}
 import org.junit.Assert.{assertTrue, fail}
 import org.junit.Test
@@ -47,6 +49,9 @@ class CorrelateValidationTest extends TableTestBase {
 
     val func1 = new TableFunc1
     util.javaTableEnv.registerFunction("func1", func1)
+    util.javaTableEnv.registerTableSink(
+      "testSink", new TestAppendSink().configure(
+        Array[String]("f"), Array[TypeInformation[_]](Types.INT)))
 
     // table function call select
     expectExceptionThrown(
@@ -60,10 +65,10 @@ class CorrelateValidationTest extends TableTestBase {
       "TableFunction can only be used in join and leftOuterJoin."
     )
 
-    // table function call writeToSink
+    // table function call insertInto
     expectExceptionThrown(
-      func1('c).writeToSink(null),
-      "Cannot translate a query with an unbounded table function call."
+      func1('c).insertInto("testSink"),
+      "TableFunction can only be used in join and leftOuterJoin."
     )
 
     // table function call distinct

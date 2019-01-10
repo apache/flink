@@ -30,8 +30,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.testdata.KMeansData;
 import org.apache.flink.test.util.SuccessException;
@@ -44,6 +44,7 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -90,18 +91,18 @@ public class ClassLoaderITCase extends TestLogger {
 	private static final String CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH = "checkpointing_custom_kv_state-test-jar.jar";
 
 
-	private static final TemporaryFolder FOLDER = new TemporaryFolder();
+	@ClassRule
+	public static final TemporaryFolder FOLDER = new TemporaryFolder();
 
 	@Rule
 	public ExpectedException expectedException = ExpectedException.none();
 
-	private static MiniCluster testCluster;
+	private static MiniClusterResource miniClusterResource = null;
 
 	private static final int parallelism = 4;
 
 	@BeforeClass
 	public static void setUp() throws Exception {
-		FOLDER.create();
 
 		Configuration config = new Configuration();
 
@@ -117,26 +118,25 @@ public class ClassLoaderITCase extends TestLogger {
 		// required as we otherwise run out of memory
 		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "80m");
 
-		testCluster = new MiniCluster(
-			new MiniClusterConfiguration.Builder()
-				.setNumTaskManagers(2)
-				.setNumSlotsPerTaskManager(2)
+		miniClusterResource = new MiniClusterResource(
+			new MiniClusterResourceConfiguration.Builder()
+				.setNumberTaskManagers(2)
+				.setNumberSlotsPerTaskManager(2)
 				.setConfiguration(config)
-			.build()
-		);
-		testCluster.start();
+				.build());
+
+		miniClusterResource.before();
 	}
 
 	@AfterClass
-	public static void tearDownClass() throws Exception {
-		if (testCluster != null) {
-			testCluster.close();
+	public static void tearDownClass() {
+		if (miniClusterResource != null) {
+			miniClusterResource.after();
 		}
-		FOLDER.delete();
 	}
 
 	@After
-	public void tearDown() throws Exception {
+	public void tearDown() {
 		TestStreamEnvironment.unsetAsContext();
 		TestEnvironment.unsetAsContext();
 	}
@@ -147,7 +147,7 @@ public class ClassLoaderITCase extends TestLogger {
 		PackagedProgram inputSplitTestProg = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE));
 
 		TestEnvironment.setAsContext(
-			testCluster,
+			miniClusterResource.getMiniCluster(),
 			parallelism,
 			Collections.singleton(new Path(INPUT_SPLITS_PROG_JAR_FILE)),
 			Collections.<URL>emptyList());
@@ -160,7 +160,7 @@ public class ClassLoaderITCase extends TestLogger {
 		PackagedProgram streamingInputSplitTestProg = new PackagedProgram(new File(STREAMING_INPUT_SPLITS_PROG_JAR_FILE));
 
 		TestStreamEnvironment.setAsContext(
-			testCluster,
+			miniClusterResource.getMiniCluster(),
 			parallelism,
 			Collections.singleton(new Path(STREAMING_INPUT_SPLITS_PROG_JAR_FILE)),
 			Collections.<URL>emptyList());
@@ -174,7 +174,7 @@ public class ClassLoaderITCase extends TestLogger {
 		PackagedProgram inputSplitTestProg2 = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE));
 
 		TestEnvironment.setAsContext(
-			testCluster,
+			miniClusterResource.getMiniCluster(),
 			parallelism,
 			Collections.<Path>emptyList(),
 			Collections.singleton(classpath));
@@ -188,7 +188,7 @@ public class ClassLoaderITCase extends TestLogger {
 		PackagedProgram streamingProg = new PackagedProgram(new File(STREAMING_PROG_JAR_FILE));
 
 		TestStreamEnvironment.setAsContext(
-			testCluster,
+			miniClusterResource.getMiniCluster(),
 			parallelism,
 			Collections.singleton(new Path(STREAMING_PROG_JAR_FILE)),
 			Collections.<URL>emptyList());
@@ -203,7 +203,7 @@ public class ClassLoaderITCase extends TestLogger {
 		PackagedProgram streamingCheckpointedProg = new PackagedProgram(new File(STREAMING_CHECKPOINTED_PROG_JAR_FILE));
 
 		TestStreamEnvironment.setAsContext(
-			testCluster,
+			miniClusterResource.getMiniCluster(),
 			parallelism,
 			Collections.singleton(new Path(STREAMING_CHECKPOINTED_PROG_JAR_FILE)),
 			Collections.<URL>emptyList());
@@ -242,7 +242,7 @@ public class ClassLoaderITCase extends TestLogger {
 			});
 
 		TestEnvironment.setAsContext(
-			testCluster,
+			miniClusterResource.getMiniCluster(),
 			parallelism,
 			Collections.singleton(new Path(KMEANS_JAR_PATH)),
 			Collections.<URL>emptyList());
@@ -255,7 +255,7 @@ public class ClassLoaderITCase extends TestLogger {
 		PackagedProgram userCodeTypeProg = new PackagedProgram(new File(USERCODETYPE_JAR_PATH));
 
 		TestEnvironment.setAsContext(
-			testCluster,
+			miniClusterResource.getMiniCluster(),
 			parallelism,
 			Collections.singleton(new Path(USERCODETYPE_JAR_PATH)),
 			Collections.<URL>emptyList());
@@ -276,7 +276,7 @@ public class ClassLoaderITCase extends TestLogger {
 			});
 
 		TestStreamEnvironment.setAsContext(
-			testCluster,
+			miniClusterResource.getMiniCluster(),
 			parallelism,
 			Collections.singleton(new Path(CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH)),
 			Collections.<URL>emptyList());
@@ -292,7 +292,7 @@ public class ClassLoaderITCase extends TestLogger {
 	 */
 	@Test
 	public void testDisposeSavepointWithCustomKvState() throws Exception {
-		ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), testCluster);
+		ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), miniClusterResource.getMiniCluster());
 
 		Deadline deadline = new FiniteDuration(100, TimeUnit.SECONDS).fromNow();
 
@@ -309,7 +309,7 @@ public class ClassLoaderITCase extends TestLogger {
 				});
 
 		TestStreamEnvironment.setAsContext(
-			testCluster,
+			miniClusterResource.getMiniCluster(),
 			parallelism,
 			Collections.singleton(new Path(CUSTOM_KV_STATE_JAR_PATH)),
 			Collections.<URL>emptyList()

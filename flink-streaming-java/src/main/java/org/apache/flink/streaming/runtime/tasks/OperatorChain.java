@@ -315,7 +315,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				return allOutputs.get(0).f0;
 			}
 			else {
-				// send to N outputs. Note that this includes teh special case
+				// send to N outputs. Note that this includes the special case
 				// of sending to zero outputs
 				@SuppressWarnings({"unchecked", "rawtypes"})
 				Output<StreamRecord<T>>[] asArray = new Output[allOutputs.size()];

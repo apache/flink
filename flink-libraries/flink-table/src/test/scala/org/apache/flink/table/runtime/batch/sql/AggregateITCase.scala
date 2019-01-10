@@ -559,4 +559,41 @@ class AggregateITCase(
 
     TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
+
+  @Test
+  def testMultipleDistinctWithDiffParams(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlWithNull = "SELECT a, " +
+      " CASE WHEN b = 2 THEN null ELSE b END AS b, " +
+      " c FROM MyTable"
+
+    val sqlQuery =
+      "SELECT b, " +
+      "  COUNT(DISTINCT b), " +
+      "  SUM(DISTINCT (a / 3)), " +
+      "  COUNT(DISTINCT SUBSTRING(c FROM 1 FOR 2))," +
+      "  COUNT(DISTINCT c) " +
+      "FROM (" +
+      sqlWithNull +
+      ") GROUP BY b " +
+      "ORDER BY b"
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+
+    val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
+
+    val expected = Seq(
+      "1,1,0,1,1",
+      "3,1,3,3,3",
+      "4,1,5,1,4",
+      "5,1,12,1,5",
+      "6,1,18,1,6",
+      "null,0,1,1,2"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
 }

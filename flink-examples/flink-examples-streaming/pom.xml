@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>1.7-SNAPSHOT</version>
+		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -525,43 +525,6 @@ under the License.
 										<include>org/apache/flink/streaming/connectors/kafka/**</include>
 										<include>org/apache/kafka/**</include>
 										<include>kafka/</include>
-									</includes>
-								</filter>
-							</filters>
-						</configuration>
-					</execution>
-
-					<execution>
-						<id>fat-jar-kafka-010-example</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadeTestJar>false</shadeTestJar>
-							<shadedArtifactAttached>false</shadedArtifactAttached>
-							<createDependencyReducedPom>false</createDependencyReducedPom>
-							<transformers>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>org.apache.flink.streaming.examples.kafka.Kafka010Example</mainClass>
-								</transformer>
-							</transformers>
-							<finalName>Kafka010Example</finalName>
-							<!-- <outputFile>Kafka.jar</outputFile> -->
-							<filters>
-								<filter>
-									<artifact>*</artifact>
-									<includes>
-										<include>org/apache/flink/streaming/examples/kafka/**</include>
-										<include>org/apache/flink/streaming/**</include>
-										<include>org/apache/kafka/**</include>
-										<include>org/apache/curator/**</include>
-										<include>org/apache/zookeeper/**</include>
-										<include>org/apache/jute/**</include>
-										<include>org/I0Itec/**</include>
-										<include>jline/**</include>
-										<include>com/yammer/**</include>
-										<include>kafka/**</include>
 									</includes>
 								</filter>
 							</filters>

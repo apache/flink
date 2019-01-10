@@ -115,7 +115,7 @@ public class DatadogHttpClient {
 
 		@Override
 		public void onResponse(Call call, Response response) throws IOException {
-			// Do nothing
+			response.close();
 		}
 	}
 }

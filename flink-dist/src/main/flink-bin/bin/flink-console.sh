@@ -19,7 +19,7 @@
 
 # Start a Flink service as a console application. Must be stopped with Ctrl-C
 # or with SIGTERM by kill or the controlling process.
-USAGE="Usage: flink-console.sh (jobmanager|taskmanager|taskexecutor|zookeeper|historyserver|standalonesession|standalonejob) [args]"
+USAGE="Usage: flink-console.sh (taskexecutor|zookeeper|historyserver|standalonesession|standalonejob) [args]"
 
 SERVICE=$1
 ARGS=("${@:2}") # get remaining arguments as array
@@ -30,14 +30,6 @@ bin=`cd "$bin"; pwd`
 . "$bin"/config.sh
 
 case $SERVICE in
-    (jobmanager)
-        CLASS_TO_RUN=org.apache.flink.runtime.jobmanager.JobManager
-    ;;
-
-    (taskmanager)
-        CLASS_TO_RUN=org.apache.flink.runtime.taskmanager.TaskManager
-    ;;
-
     (taskexecutor)
         CLASS_TO_RUN=org.apache.flink.runtime.taskexecutor.TaskManagerRunner
     ;;

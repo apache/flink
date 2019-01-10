@@ -106,6 +106,16 @@ public class QueryableStateOptions {
 			.defaultValue(0)
 			.withDescription("Number of query Threads for queryable state server. Uses the number of slots if set to 0.");
 
+	/** Option whether the queryable state proxy and server should be enabled where possible and configurable.
+	 *
+	 * <p>Queryable state proxy and server are still more experimental features, hence disabled unless they are enable
+	 * in user configuration. */
+	public static final ConfigOption<Boolean> ENABLE_QUERYABLE_STATE_PROXY_SERVER =
+		key("queryable-state.enable")
+			.defaultValue(false)
+			.withDescription("Option whether the queryable state proxy and server should be enabled where possible" +
+				" and configurable.");
+
 	// ------------------------------------------------------------------------
 	// Client Options
 	// ------------------------------------------------------------------------

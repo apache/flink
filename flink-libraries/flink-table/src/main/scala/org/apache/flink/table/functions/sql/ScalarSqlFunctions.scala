@@ -34,12 +34,28 @@ object ScalarSqlFunctions {
     OperandTypes.NILADIC,
     SqlFunctionCategory.NUMERIC)
 
+  val TANH = new SqlFunction(
+    "TANH",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.DOUBLE_NULLABLE,
+    null,
+    OperandTypes.NUMERIC,
+    SqlFunctionCategory.NUMERIC)
+
   val BIN = new SqlFunction(
     "BIN",
     SqlKind.OTHER_FUNCTION,
     ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
     InferTypes.RETURN_TYPE,
     OperandTypes.family(SqlTypeFamily.INTEGER),
+    SqlFunctionCategory.NUMERIC)
+
+  val SINH = new SqlFunction(
+    "SINH",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.DOUBLE_NULLABLE,
+    null,
+    OperandTypes.NUMERIC,
     SqlFunctionCategory.NUMERIC)
 
   val HEX = new SqlFunction(
@@ -84,6 +100,14 @@ object ScalarSqlFunctions {
     OperandTypes.NUMERIC,
     SqlFunctionCategory.NUMERIC
   )
+
+  val COSH = new SqlFunction(
+    "COSH",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.DOUBLE_NULLABLE,
+    null,
+    OperandTypes.NUMERIC,
+    SqlFunctionCategory.NUMERIC)
 
   val LPAD = new SqlFunction(
     "LPAD",
@@ -187,6 +211,28 @@ object ScalarSqlFunctions {
     SqlFunctionCategory.TIMEDATE
   )
 
+  val REGEXP_REPLACE = new SqlFunction(
+    "REGEXP_REPLACE",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(
+      ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.STRING_STRING_STRING,
+    SqlFunctionCategory.STRING
+  )
+
+  val REGEXP_EXTRACT = new SqlFunction(
+    "REGEXP_EXTRACT",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(
+      ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.FORCE_NULLABLE),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.or(OperandTypes.STRING_STRING_INTEGER,
+      OperandTypes.STRING_STRING
+    ),
+    SqlFunctionCategory.STRING
+  )
+
   val FROM_BASE64 = new SqlFunction(
     "FROM_BASE64",
     SqlKind.OTHER_FUNCTION,
@@ -220,6 +266,14 @@ object ScalarSqlFunctions {
     ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
     InferTypes.RETURN_TYPE,
     OperandTypes.STRING,
+    SqlFunctionCategory.STRING)
+
+  val REPEAT = new SqlFunction(
+    "REPEAT",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
     SqlFunctionCategory.STRING)
 
 }

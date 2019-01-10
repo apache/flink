@@ -26,6 +26,42 @@ import org.junit.Test
 class SetOperatorsTest extends TableTestBase {
 
   @Test
+  def testInOnLiterals(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    val resultStr = (1 to 30).mkString(", ")
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term("select", "a", "b", "c"),
+      term("where", s"IN(b, $resultStr)")
+    )
+
+    util.verifySql(
+      s"SELECT * FROM MyTable WHERE b in ($resultStr)",
+      expected)
+  }
+
+  @Test
+  def testNotInOnLiterals(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    val resultStr = (1 to 30).mkString(", ")
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term("select", "a", "b", "c"),
+      term("where", s"NOT IN(b, $resultStr)")
+    )
+
+    util.verifySql(
+      s"SELECT * FROM MyTable WHERE b NOT IN ($resultStr)",
+      expected)
+  }
+
+  @Test
   def testInUncorrelated(): Unit = {
     val streamUtil = streamTestUtil()
     streamUtil.addTable[(Int, Long, String)]("tableA", 'a, 'b, 'c)
@@ -173,29 +209,26 @@ class SetOperatorsTest extends TableTestBase {
 
   @Test
   def testValuesWithCast(): Unit = {
-    val util = batchTestUtil()
+    val util = streamTestUtil()
 
     val expected = naryNode(
-      "DataSetUnion",
+      "DataStreamUnion",
       List(
-        unaryNode("DataSetCalc",
-          values("DataSetValues",
-            tuples(List("0")),
-            "values=[ZERO]"),
+        unaryNode("DataStreamCalc",
+          values("DataStreamValues",
+            tuples(List("0"))),
           term("select", "1 AS EXPR$0, 1 AS EXPR$1")),
-        unaryNode("DataSetCalc",
-          values("DataSetValues",
-            tuples(List("0")),
-            "values=[ZERO]"),
+        unaryNode("DataStreamCalc",
+          values("DataStreamValues",
+            tuples(List("0"))),
           term("select", "2 AS EXPR$0, 2 AS EXPR$1")),
-        unaryNode("DataSetCalc",
-          values("DataSetValues",
-            tuples(List("0")),
-            "values=[ZERO]"),
+        unaryNode("DataStreamCalc",
+          values("DataStreamValues",
+            tuples(List("0"))),
           term("select", "3 AS EXPR$0, 3 AS EXPR$1"))
       ),
       term("all", "true"),
-      term("union", "EXPR$0, EXPR$1")
+      term("union all", "EXPR$0, EXPR$1")
     )
 
     util.verifySql(

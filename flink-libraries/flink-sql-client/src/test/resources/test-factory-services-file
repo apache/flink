@@ -17,5 +17,5 @@
 # Test file for org.apache.flink.table.client.gateway.local.DependencyTest.
 #==============================================================================
 
-org.apache.flink.table.client.gateway.utils.TestTableSourceFactory
-org.apache.flink.table.client.gateway.utils.TestTableSinkFactory
+org.apache.flink.table.client.gateway.local.DependencyTest$TestTableSourceFactory
+org.apache.flink.table.client.gateway.local.DependencyTest$TestTableSinkFactory

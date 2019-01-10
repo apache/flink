@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
@@ -67,7 +69,9 @@ import java.util.UUID;
  *  +--------------+---------------------+---------+------+---------------+
  * </pre>
  */
-class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
+@Internal
+@VisibleForTesting
+public class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 
 	/** Random magic number for consistency checks */
 	private static final int MASTER_STATE_MAGIC_NUMBER = 0xc96b1696;
@@ -320,7 +324,8 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 				keyedStateStream);
 	}
 
-	private static void serializeKeyedStateHandle(
+	@VisibleForTesting
+	public static void serializeKeyedStateHandle(
 			KeyedStateHandle stateHandle, DataOutputStream dos) throws IOException {
 
 		if (stateHandle == null) {
@@ -380,7 +385,8 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 		return result;
 	}
 
-	private static KeyedStateHandle deserializeKeyedStateHandle(DataInputStream dis) throws IOException {
+	@VisibleForTesting
+	public static KeyedStateHandle deserializeKeyedStateHandle(DataInputStream dis) throws IOException {
 		final int type = dis.readByte();
 		if (NULL_HANDLE == type) {
 
@@ -433,7 +439,8 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 		}
 	}
 
-	private static void serializeOperatorStateHandle(
+	@VisibleForTesting
+	public static void serializeOperatorStateHandle(
 		OperatorStateHandle stateHandle, DataOutputStream dos) throws IOException {
 
 		if (stateHandle != null) {
@@ -461,7 +468,8 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 		}
 	}
 
-	private static OperatorStateHandle deserializeOperatorStateHandle(
+	@VisibleForTesting
+	public static OperatorStateHandle deserializeOperatorStateHandle(
 			DataInputStream dis) throws IOException {
 
 		final int type = dis.readByte();
@@ -492,7 +500,8 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 		}
 	}
 
-	private static void serializeStreamStateHandle(
+	@VisibleForTesting
+	public static void serializeStreamStateHandle(
 			StreamStateHandle stateHandle, DataOutputStream dos) throws IOException {
 
 		if (stateHandle == null) {
@@ -518,7 +527,7 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 		dos.flush();
 	}
 
-	private static StreamStateHandle deserializeStreamStateHandle(DataInputStream dis) throws IOException {
+	public static StreamStateHandle deserializeStreamStateHandle(DataInputStream dis) throws IOException {
 		final int type = dis.read();
 		if (NULL_HANDLE == type) {
 			return null;

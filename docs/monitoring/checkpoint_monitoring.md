@@ -70,7 +70,7 @@ You can configure the number of recent checkpoints that are remembered for the h
 
 {% highlight yaml %}
 # Number of recent checkpoints that are remembered
-jobmanager.web.checkpoints.history: 15
+web.checkpoints.history: 15
 {% endhighlight %}
 
 ### Summary Tab

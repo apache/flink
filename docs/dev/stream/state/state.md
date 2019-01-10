@@ -142,7 +142,7 @@ is available in a `RichFunction` has these methods for accessing state:
 * `ValueState<T> getState(ValueStateDescriptor<T>)`
 * `ReducingState<T> getReducingState(ReducingStateDescriptor<T>)`
 * `ListState<T> getListState(ListStateDescriptor<T>)`
-* `AggregatingState<IN, OUT> getAggregatingState(AggregatingState<IN, OUT>)`
+* `AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT>)`
 * `FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC>)`
 * `MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV>)`
 
@@ -349,6 +349,9 @@ and a primitive long value in memory. The RocksDB state backend adds 8 bytes per
 will lead to compatibility failure and `StateMigrationException`.
 
 - The TTL configuration is not part of check- or savepoints but rather a way of how Flink treats it in the currently running job.
+
+- The map state with TTL currently supports null user values only if the user value serializer can handle null values. 
+If the serializer does not support null values, it can be wrapped with `NullableSerializer` at the cost of an extra byte in the serialized form.
 
 #### Cleanup of Expired State
 

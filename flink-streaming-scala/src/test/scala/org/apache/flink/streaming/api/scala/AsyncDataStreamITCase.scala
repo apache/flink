@@ -20,9 +20,11 @@ package org.apache.flink.streaming.api.scala
 
 import java.util.concurrent.TimeUnit
 
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.streaming.api.functions.async.RichAsyncFunction.{RichAsyncFunctionIterationRuntimeContext, RichAsyncFunctionRuntimeContext}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.AsyncDataStreamITCase._
-import org.apache.flink.streaming.api.scala.async.{AsyncFunction, ResultFuture}
+import org.apache.flink.streaming.api.scala.async.{AsyncFunction, ResultFuture, RichAsyncFunction}
 import org.apache.flink.test.util.AbstractTestBase
 import org.junit.Assert._
 import org.junit.Test
@@ -95,6 +97,21 @@ class AsyncDataStreamITCase extends AbstractTestBase {
     testAsyncWaitUsingAnonymousFunction(false)
   }
 
+  @Test
+  def testRichAsyncFunctionRuntimeContext(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+
+    val source = env.fromElements(1)
+
+
+    val richAsyncFunction = new MyRichAsyncFunction
+    val asyncMapped = AsyncDataStream
+      .unorderedWait(source, richAsyncFunction, timeout, TimeUnit.MILLISECONDS)
+
+    executeAndValidate(false, env, asyncMapped, mutable.ArrayBuffer[Int](2))
+  }
+
   private def testAsyncWaitUsingAnonymousFunction(ordered: Boolean): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
@@ -121,6 +138,27 @@ class AsyncDataStreamITCase extends AbstractTestBase {
 }
 
 class MyAsyncFunction extends AsyncFunction[Int, Int] {
+  override def asyncInvoke(input: Int, resultFuture: ResultFuture[Int]): Unit = {
+    Future {
+      // trigger the timeout of the even input number
+      if (input % 2 == 0) {
+        Thread.sleep(AsyncDataStreamITCase.timeout + 1000)
+      }
+
+      resultFuture.complete(Seq(input * 2))
+    } (ExecutionContext.global)
+  }
+  override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
+    resultFuture.complete(Seq(input * 3))
+  }
+}
+
+class MyRichAsyncFunction extends RichAsyncFunction[Int, Int] {
+
+  override def open(parameters: Configuration): Unit = {
+    assertEquals(getRuntimeContext.getNumberOfParallelSubtasks, 1)
+  }
+
   override def asyncInvoke(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     Future {
       // trigger the timeout of the even input number

@@ -33,7 +33,9 @@ Apache Flink is an open source platform for distributed stream and batch data pr
 
 - **Concepts**: Start with the basic concepts of Flink's [Dataflow Programming Model](concepts/programming-model.html) and [Distributed Runtime Environment](concepts/runtime.html). This will help you understand other parts of the documentation, including the setup and programming guides. We recommend you read these sections first.
 
-- **Quickstarts**: [Run an example program](quickstart/setup_quickstart.html) on your local machine or [study some examples](examples/index.html).
+- **Tutorials**: 
+  * [Implement and run a DataStream application](./tutorials/datastream_api.html)
+  * [Setup a local Flink cluster](./tutorials/local_setup.html)
 
 - **Programming Guides**: You can read our guides about [basic API concepts](dev/api_concepts.html) and the [DataStream API](dev/datastream_api.html) or the [DataSet API](dev/batch/index.html) to learn how to write your first Flink programs.
 
@@ -45,6 +47,8 @@ Before putting your Flink job into production, read the [Production Readiness Ch
 
 Release notes cover important changes between Flink versions. Please carefully read these notes if you plan to upgrade your Flink setup to a later version. 
 
+* [Release notes for Flink 1.8](release-notes/flink-1.8.html).
+* [Release notes for Flink 1.7](release-notes/flink-1.7.html).
 * [Release notes for Flink 1.6](release-notes/flink-1.6.html).
 * [Release notes for Flink 1.5](release-notes/flink-1.5.html).
 

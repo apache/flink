@@ -47,7 +47,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -60,7 +59,6 @@ public class SubtaskExecutionAttemptAccumulatorsHandler
 	/**
 	 * Instantiates a new Abstract job vertex handler.
 	 *
-	 * @param localRestAddress    the local rest address
 	 * @param leaderRetriever     the leader retriever
 	 * @param timeout             the timeout
 	 * @param responseHeaders     the response headers
@@ -69,7 +67,6 @@ public class SubtaskExecutionAttemptAccumulatorsHandler
 	 * @param executor            the executor
 	 */
 	public SubtaskExecutionAttemptAccumulatorsHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
@@ -77,7 +74,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandler
 			ExecutionGraphCache executionGraphCache,
 			Executor executor) {
 
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 	}
 
 	@Override

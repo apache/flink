@@ -34,9 +34,12 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTrace;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 
+import javax.annotation.Nonnull;
+
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -53,6 +56,9 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 	private Optional<Consumer<ExecutionAttemptID>> optCancelConsumer;
 
 	private volatile BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction;
+
+	@Nonnull
+	private volatile BiConsumer<InstanceID, Exception> disconnectFromJobManagerConsumer = (ignoredA, ignoredB) -> {};
 
 	public SimpleAckingTaskManagerGateway() {
 		optSubmitConsumer = Optional.empty();
@@ -71,13 +77,19 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 		this.freeSlotFunction = freeSlotFunction;
 	}
 
+	public void setDisconnectFromJobManagerConsumer(@Nonnull BiConsumer<InstanceID, Exception> disconnectFromJobManagerConsumer) {
+		this.disconnectFromJobManagerConsumer = disconnectFromJobManagerConsumer;
+	}
+
 	@Override
 	public String getAddress() {
 		return address;
 	}
 
 	@Override
-	public void disconnectFromJobManager(InstanceID instanceId, Exception cause) {}
+	public void disconnectFromJobManager(InstanceID instanceId, Exception cause) {
+		disconnectFromJobManagerConsumer.accept(instanceId, cause);
+	}
 
 	@Override
 	public void stopCluster(ApplicationStatus applicationStatus, String message) {}

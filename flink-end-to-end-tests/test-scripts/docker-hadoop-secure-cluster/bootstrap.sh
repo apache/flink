@@ -124,6 +124,7 @@ elif [ "$1" == "master" ]; then
     hdfs dfs -chown hadoop-user:hadoop-user /user/hadoop-user
 
     kdestroy
+    echo "Finished master initialization"
 
     while true; do sleep 1000; done
 elif [ "$1" == "worker" ]; then

@@ -71,6 +71,10 @@ class StateCleaningCountTrigger(queryConfig: StreamQueryConfig, maxCount: Long)
         val cleanupTime = currentTime + maxRetentionTime
         // register timer and remember clean-up time
         ctx.registerProcessingTimeTimer(cleanupTime)
+        // delete expired timer
+        if (curCleanupTime != null) {
+          ctx.deleteProcessingTimeTimer(curCleanupTime)
+        }
 
         ctx.getPartitionedState(cleanupStateDesc).update(cleanupTime)
       }
@@ -93,12 +97,9 @@ class StateCleaningCountTrigger(queryConfig: StreamQueryConfig, maxCount: Long)
       ctx: TriggerContext): TriggerResult = {
 
     if (stateCleaningEnabled) {
-      val cleanupTime = ctx.getPartitionedState(cleanupStateDesc).value()
-      // check that the triggered timer is the last registered processing time timer.
-      if (null != cleanupTime && time == cleanupTime) {
-        clear(window, ctx)
-        return TriggerResult.FIRE_AND_PURGE
-      }
+      // do clear directly, since we have already deleted expired timer
+      clear(window, ctx)
+      return TriggerResult.FIRE_AND_PURGE
     }
     TriggerResult.CONTINUE
   }

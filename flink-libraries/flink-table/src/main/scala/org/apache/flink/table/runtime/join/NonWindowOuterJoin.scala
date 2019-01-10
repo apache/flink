@@ -31,7 +31,6 @@ import org.apache.flink.util.Collector
   *
   * @param leftType        the input type of left stream
   * @param rightType       the input type of right stream
-  * @param resultType      the output type of join
   * @param genJoinFuncName the function code of other non-equi condition
   * @param genJoinFuncCode the function name of other non-equi condition
   * @param isLeftJoin      the type of join, whether it is the type of left join
@@ -40,7 +39,6 @@ import org.apache.flink.util.Collector
 abstract class NonWindowOuterJoin(
     leftType: TypeInformation[Row],
     rightType: TypeInformation[Row],
-    resultType: TypeInformation[CRow],
     genJoinFuncName: String,
     genJoinFuncCode: String,
     isLeftJoin: Boolean,
@@ -48,7 +46,6 @@ abstract class NonWindowOuterJoin(
   extends NonWindowJoin(
     leftType,
     rightType,
-    resultType,
     genJoinFuncName,
     genJoinFuncCode,
     queryConfig) {
@@ -60,8 +57,9 @@ abstract class NonWindowOuterJoin(
 
   override def open(parameters: Configuration): Unit = {
     super.open(parameters)
-    leftResultRow = new Row(resultType.getArity)
-    rightResultRow = new Row(resultType.getArity)
+    val arity = leftType.getArity + rightType.getArity
+    leftResultRow = new Row(arity)
+    rightResultRow = new Row(arity)
     LOG.debug(s"Instantiating NonWindowOuterJoin")
   }
 
@@ -75,7 +73,7 @@ abstract class NonWindowOuterJoin(
     * @param otherSideState   the other side state
     * @return the number of matched rows
     */
-  def preservedJoin(
+  protected def preservedJoin(
       inputRow: Row,
       inputRowFromLeft: Boolean,
       otherSideState: MapState[Row, JTuple2[Long, Long]]): Long = {
@@ -108,7 +106,7 @@ abstract class NonWindowOuterJoin(
     * RowWrapper has been reset before we call retractJoin and we also assume that the current
     * change of cRowWrapper is equal to value.change.
     */
-  def retractJoin(
+  protected def retractJoin(
       value: CRow,
       inputRowFromLeft: Boolean,
       currentSideState: MapState[Row, JTuple2[Long, Long]],
@@ -154,7 +152,8 @@ abstract class NonWindowOuterJoin(
     * Return approximate number of records in corresponding state. Only check if record number is
     * 0, 1 or bigger.
     */
-  def approxiRecordNumInState(currentSideState: MapState[Row, JTuple2[Long, Long]]): Long = {
+  protected def approxiRecordNumInState(
+      currentSideState: MapState[Row, JTuple2[Long, Long]]): Long = {
     var recordNum = 0L
     val it = currentSideState.iterator()
     while(it.hasNext && recordNum < 2) {
@@ -166,7 +165,7 @@ abstract class NonWindowOuterJoin(
   /**
     * Append input row with default null value if there is no match and Collect.
     */
-  def collectAppendNull(
+  protected def collectAppendNull(
       inputRow: Row,
       inputFromLeft: Boolean,
       out: Collector[Row]): Unit = {

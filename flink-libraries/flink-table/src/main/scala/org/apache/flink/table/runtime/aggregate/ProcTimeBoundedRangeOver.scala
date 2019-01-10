@@ -95,7 +95,7 @@ class ProcTimeBoundedRangeOver(
 
     val currentTime = ctx.timerService.currentProcessingTime
     // register state-cleanup timer
-    registerProcessingCleanupTimer(ctx, currentTime)
+    processCleanupTimer(ctx, currentTime)
 
     // buffer the event incoming event
 
@@ -117,11 +117,14 @@ class ProcTimeBoundedRangeOver(
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
 
-    if (needToCleanupState(timestamp)) {
-      // clean up and return
-      cleanupState(rowMapState, accumulatorState)
-      function.cleanup()
-      return
+    if (stateCleaningEnabled) {
+      val cleanupTime = cleanupTimeState.value()
+      if (null != cleanupTime && timestamp == cleanupTime) {
+        // clean up and return
+        cleanupState(rowMapState, accumulatorState)
+        function.cleanup()
+        return
+      }
     }
 
     // remove timestamp set outside of ProcessFunction.
@@ -131,11 +134,10 @@ class ProcTimeBoundedRangeOver(
     // that have registered this time trigger 1 ms ago
 
     val currentTime = timestamp - 1
-    var i = 0
     // get the list of elements of current proctime
     val currentElements = rowMapState.get(currentTime)
 
-    // Expired clean-up timers pass the needToCleanupState() check.
+    // Expired clean-up timers pass the needToCleanupState check.
     // Perform a null check to verify that we have data to process.
     if (null == currentElements) {
       return
@@ -156,7 +158,6 @@ class ProcTimeBoundedRangeOver(
     // and eliminate them. Multiple elements could have been received at the same timestamp
     // the removal of old elements happens only once per proctime as onTimer is called only once
     val iter = rowMapState.iterator
-    val markToRemove = new ArrayList[Long]()
     while (iter.hasNext) {
       val entry = iter.next()
       val elementKey = entry.getKey
@@ -169,17 +170,9 @@ class ProcTimeBoundedRangeOver(
           function.retract(accumulators, retractRow)
           iRemove += 1
         }
-        // mark element for later removal not to modify the iterator over MapState
-        markToRemove.add(elementKey)
+        iter.remove()
       }
     }
-    // need to remove in 2 steps not to have concurrent access errors via iterator to the MapState
-    i = 0
-    while (i < markToRemove.size()) {
-      rowMapState.remove(markToRemove.get(i))
-      i += 1
-    }
-
 
     // add current elements to aggregator. Multiple elements might
     // have arrived in the same proctime

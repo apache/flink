@@ -177,7 +177,7 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> implements ResultType
 					// the error state EMPTY_COLUMN is ignored
 					if (parser.getErrorState() != FieldParser.ParseErrorState.EMPTY_COLUMN) {
 						throw new ParseException(String.format("Parsing error for column %1$s of row '%2$s' originated by %3$s: %4$s.",
-							field, new String(bytes, offset, numBytes), parser.getClass().getSimpleName(), parser.getErrorState()));
+							field + 1, new String(bytes, offset, numBytes), parser.getClass().getSimpleName(), parser.getErrorState()));
 					}
 				}
 				holders[fieldPosMap[output]] = parser.getLastResult();
@@ -199,7 +199,7 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> implements ResultType
 			// check if something went wrong
 			if (startPos < 0) {
 				throw new ParseException(String.format("Unexpected parser position for column %1$s of row '%2$s'",
-					field, new String(bytes, offset, numBytes)));
+					field + 1, new String(bytes, offset, numBytes)));
 			}
 			else if (startPos == limit
 					&& field != fieldIncluded.length - 1

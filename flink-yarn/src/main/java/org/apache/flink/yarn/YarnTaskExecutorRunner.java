@@ -19,10 +19,10 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -32,6 +32,7 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.security.UserGroupInformation;
@@ -40,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
@@ -131,22 +133,20 @@ public class YarnTaskExecutorRunner {
 			// use the hostname passed by job manager
 			final String taskExecutorHostname = ENV.get(YarnResourceManager.ENV_FLINK_NODE_ID);
 			if (taskExecutorHostname != null) {
-				configuration.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, taskExecutorHostname);
+				configuration.setString(TaskManagerOptions.HOST, taskExecutorHostname);
 			}
 
 			SecurityUtils.install(sc);
 
-			SecurityUtils.getInstalledContext().runSecured(new Callable<Void>() {
-				@Override
-				public Void call() throws Exception {
-					TaskManagerRunner.runTaskManager(configuration, new ResourceID(containerId));
-					return null;
-				}
+			SecurityUtils.getInstalledContext().runSecured((Callable<Void>) () -> {
+				TaskManagerRunner.runTaskManager(configuration, new ResourceID(containerId));
+				return null;
 			});
 		}
 		catch (Throwable t) {
+			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
 			// make sure that everything whatever ends up in the log
-			LOG.error("YARN TaskManager initialization failed.", t);
+			LOG.error("YARN TaskManager initialization failed.", strippedThrowable);
 			System.exit(INIT_ERROR_EXIT_CODE);
 		}
 	}

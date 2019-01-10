@@ -23,7 +23,7 @@ import java.util
 import org.apache.flink.table.sinks.BatchTableSink
 
 /**
-  * A factory to create configured table sink instances in a streaming environment based on
+  * A factory to create configured table sink instances in a batch environment based on
   * string-based properties. See also [[TableFactory]] for more information.
   *
   * @tparam T type of records that the factory consumes

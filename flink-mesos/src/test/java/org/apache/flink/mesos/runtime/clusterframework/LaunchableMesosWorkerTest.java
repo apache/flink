@@ -23,11 +23,14 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.util.Iterator;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.flink.mesos.configuration.MesosOptions.PORT_ASSIGNMENTS;
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 
 /**
  * Test that mesos config are extracted correctly from the configuration.
@@ -37,19 +40,30 @@ public class LaunchableMesosWorkerTest extends TestLogger {
 	@Test
 	public void canGetPortKeys() {
 		// Setup
+		Set<String> additionalPorts = new HashSet<>(Arrays.asList("someport.here", "anotherport"));
+
 		Configuration config = new Configuration();
-		config.setString(PORT_ASSIGNMENTS, "someport.here,anotherport");
+		config.setString(PORT_ASSIGNMENTS, String.join(",", additionalPorts));
 
 		// Act
 		Set<String> portKeys = LaunchableMesosWorker.extractPortKeys(config);
 
 		// Assert
-		assertEquals("Must get right number of port keys", 4, portKeys.size());
-		Iterator<String> iterator = portKeys.iterator();
-		assertEquals("port key must be correct", LaunchableMesosWorker.TM_PORT_KEYS[0], iterator.next());
-		assertEquals("port key must be correct", LaunchableMesosWorker.TM_PORT_KEYS[1], iterator.next());
-		assertEquals("port key must be correct", "someport.here", iterator.next());
-		assertEquals("port key must be correct", "anotherport", iterator.next());
+		Set<String> expectedPorts = new HashSet<>(LaunchableMesosWorker.TM_PORT_KEYS);
+		expectedPorts.addAll(additionalPorts);
+		assertThat(portKeys, is(equalTo(expectedPorts)));
+	}
+
+	@Test
+	public void canGetNoPortKeys() {
+		// Setup
+		Configuration config = new Configuration();
+
+		// Act
+		Set<String> portKeys = LaunchableMesosWorker.extractPortKeys(config);
+
+		// Assert
+		assertThat(portKeys, is(equalTo(LaunchableMesosWorker.TM_PORT_KEYS)));
 	}
 
 }

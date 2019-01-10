@@ -23,9 +23,12 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
+import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nonnull;
 
+import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -38,20 +41,19 @@ public class TestingResourceActions implements ResourceActions {
 	private final BiConsumer<InstanceID, Exception> releaseResourceConsumer;
 
 	@Nonnull
-	private final Consumer<ResourceProfile> allocateResourceConsumer;
+	private final FunctionWithException<ResourceProfile, Collection<ResourceProfile>, ResourceManagerException> allocateResourceFunction;
 
 	@Nonnull
 	private final Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer;
 
 	public TestingResourceActions(
 			@Nonnull BiConsumer<InstanceID, Exception> releaseResourceConsumer,
-			@Nonnull Consumer<ResourceProfile> allocateResourceConsumer,
+			@Nonnull FunctionWithException<ResourceProfile, Collection<ResourceProfile>, ResourceManagerException> allocateResourceFunction,
 			@Nonnull Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer) {
 		this.releaseResourceConsumer = releaseResourceConsumer;
-		this.allocateResourceConsumer = allocateResourceConsumer;
+		this.allocateResourceFunction = allocateResourceFunction;
 		this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
 	}
-
 
 	@Override
 	public void releaseResource(InstanceID instanceId, Exception cause) {
@@ -59,8 +61,8 @@ public class TestingResourceActions implements ResourceActions {
 	}
 
 	@Override
-	public void allocateResource(ResourceProfile resourceProfile) {
-		allocateResourceConsumer.accept(resourceProfile);
+	public Collection<ResourceProfile> allocateResource(ResourceProfile resourceProfile) throws ResourceManagerException {
+		return allocateResourceFunction.apply(resourceProfile);
 	}
 
 	@Override

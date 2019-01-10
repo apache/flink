@@ -30,13 +30,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class CloseableRegistryTest extends AbstractCloseableRegistryTest<Closeable, Object> {
 
 	@Override
-	protected Closeable createCloseable() {
-		return new Closeable() {
-			@Override
-			public void close() throws IOException {
-
-			}
-		};
+	protected void registerCloseable(final Closeable closeable) throws IOException {
+		closeableRegistry.registerCloseable(closeable);
 	}
 
 	@Override

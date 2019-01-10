@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.7-SNAPSHOT</version>
+		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -53,12 +53,9 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<!-- use a dedicated Scala version to not depend on it -->
-			<artifactId>flink-table_2.11</artifactId>
+			<artifactId>flink-table-common</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
-			<!-- Projects depending on this project, won't depend on flink-table. -->
-			<optional>true</optional>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -68,16 +65,24 @@ under the License.
 			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 
+		<!-- JSON table descriptor testing -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<!-- use a dedicated Scala version to not depend on it -->
-			<artifactId>flink-table_2.11</artifactId>
+			<artifactId>flink-table-common</artifactId>
 			<version>${project.version}</version>
+			<scope>test</scope>
 			<type>test-jar</type>
+		</dependency>
+
+		<!-- TODO This could be dropped if we change JsonRowFormatFactoryTest -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
-		<!-- flink-table needs Scala -->
+		<!-- TODO This could be dropped if we change JsonRowFormatFactoryTest -->
 		<dependency>
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-compiler</artifactId>

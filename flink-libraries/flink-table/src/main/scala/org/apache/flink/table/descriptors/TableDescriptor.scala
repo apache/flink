@@ -19,6 +19,6 @@
 package org.apache.flink.table.descriptors
 
 /**
-  * Common trait for all descriptors describing table sources and sinks.
+  * Common class for all descriptors describing table sources and sinks.
   */
-trait TableDescriptor extends Descriptor
+abstract class TableDescriptor extends DescriptorBase

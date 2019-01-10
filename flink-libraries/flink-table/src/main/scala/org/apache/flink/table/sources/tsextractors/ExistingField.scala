@@ -42,7 +42,7 @@ final class ExistingField(val field: String) extends TimestampExtractor {
       case Types.SQL_TIMESTAMP => // OK
       case Types.STRING => // OK
       case _: TypeInformation[_] =>
-        throw ValidationException(
+        throw new ValidationException(
           s"Field '$field' must be of type Long or Timestamp or String but is of type $fieldType.")
     }
   }

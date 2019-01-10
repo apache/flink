@@ -21,7 +21,6 @@ import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
@@ -32,7 +31,6 @@ import org.apache.flink.types.Row
   *
   * @param leftType        the input type of left stream
   * @param rightType       the input type of right stream
-  * @param resultType      the output type of join
   * @param genJoinFuncName the function code of other non-equi condition
   * @param genJoinFuncCode the function name of other non-equi condition
   * @param isLeftJoin      the type of join, whether it is the type of left join
@@ -41,7 +39,6 @@ import org.apache.flink.types.Row
   abstract class NonWindowOuterJoinWithNonEquiPredicates(
     leftType: TypeInformation[Row],
     rightType: TypeInformation[Row],
-    resultType: TypeInformation[CRow],
     genJoinFuncName: String,
     genJoinFuncCode: String,
     isLeftJoin: Boolean,
@@ -49,7 +46,6 @@ import org.apache.flink.types.Row
   extends NonWindowOuterJoin(
     leftType,
     rightType,
-    resultType,
     genJoinFuncName,
     genJoinFuncCode,
     isLeftJoin,
@@ -64,8 +60,9 @@ import org.apache.flink.types.Row
   override def open(parameters: Configuration): Unit = {
     super.open(parameters)
 
-    leftResultRow = new Row(resultType.getArity)
-    rightResultRow = new Row(resultType.getArity)
+    val arity = leftType.getArity + rightType.getArity
+    leftResultRow = new Row(arity)
+    rightResultRow = new Row(arity)
 
     joinCntState = new Array[MapState[Row, Long]](2)
     val leftJoinCntStateDescriptor = new MapStateDescriptor[Row, Long](
@@ -85,7 +82,7 @@ import org.apache.flink.types.Row
     * unmatched or vice versa. The RowWrapper has been reset before we call retractJoin and we
     * also assume that the current change of cRowWrapper is equal to value.change.
     */
-  def retractJoinWithNonEquiPreds(
+  protected def retractJoinWithNonEquiPreds(
       value: CRow,
       inputRowFromLeft: Boolean,
       otherSideState: MapState[Row, JTuple2[Long, Long]],
@@ -134,48 +131,6 @@ import org.apache.flink.types.Row
   }
 
   /**
-    * Removes records which are expired from state. Registers a new timer if the state still
-    * holds records after the clean-up. Also, clear joinCnt map state when clear rowMapState.
-    */
-  def expireOutTimeRow(
-      curTime: Long,
-      rowMapState: MapState[Row, JTuple2[Long, Long]],
-      timerState: ValueState[Long],
-      isLeft: Boolean,
-      joinCntState: Array[MapState[Row, Long]],
-      ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext): Unit = {
-
-    val currentJoinCntState = getJoinCntState(joinCntState, isLeft)
-    val rowMapIter = rowMapState.iterator()
-    var validTimestamp: Boolean = false
-
-    while (rowMapIter.hasNext) {
-      val mapEntry = rowMapIter.next()
-      val recordExpiredTime = mapEntry.getValue.f1
-      if (recordExpiredTime <= curTime) {
-        rowMapIter.remove()
-        currentJoinCntState.remove(mapEntry.getKey)
-      } else {
-        // we found a timestamp that is still valid
-        validTimestamp = true
-      }
-    }
-    // If the state has non-expired timestamps, register a new timer.
-    // Otherwise clean the complete state for this input.
-    if (validTimestamp) {
-      val cleanupTime = curTime + maxRetentionTime
-      ctx.timerService.registerProcessingTimeTimer(cleanupTime)
-      timerState.update(cleanupTime)
-    } else {
-      timerState.clear()
-      rowMapState.clear()
-      if (isLeft == isLeftJoin) {
-        currentJoinCntState.clear()
-      }
-    }
-  }
-
-  /**
     * Get left or right join cnt state.
     *
     * @param joinCntState    the join cnt state array, index 0 is left join cnt state, index 1
@@ -183,7 +138,7 @@ import org.apache.flink.types.Row
     * @param isLeftCntState the flag whether get the left join cnt state
     * @return the corresponding join cnt state
     */
-  def getJoinCntState(
+  protected def getJoinCntState(
       joinCntState: Array[MapState[Row, Long]],
       isLeftCntState: Boolean)
     : MapState[Row, Long] = {

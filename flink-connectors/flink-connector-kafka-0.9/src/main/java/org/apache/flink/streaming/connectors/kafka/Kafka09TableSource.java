@@ -36,7 +36,7 @@ import java.util.Properties;
  * Kafka {@link StreamTableSource} for Kafka 0.9.
  */
 @Internal
-public class Kafka09TableSource extends KafkaTableSource {
+public class Kafka09TableSource extends KafkaTableSourceBase {
 
 	/**
 	 * Creates a Kafka 0.9 {@link StreamTableSource}.

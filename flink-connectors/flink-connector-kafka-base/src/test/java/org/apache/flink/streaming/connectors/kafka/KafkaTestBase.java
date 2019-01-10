@@ -24,10 +24,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.metrics.jmx.JMXReporter;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
@@ -81,7 +81,7 @@ public abstract class KafkaTestBase extends TestLogger {
 	protected static Properties standardProps;
 
 	@ClassRule
-	public static MiniClusterResource flink = new MiniClusterResource(
+	public static MiniClusterWithClientResource flink = new MiniClusterWithClientResource(
 		new MiniClusterResourceConfiguration.Builder()
 			.setConfiguration(getFlinkConfiguration())
 			.setNumberTaskManagers(NUM_TMS)
@@ -241,6 +241,14 @@ public abstract class KafkaTestBase extends TestLogger {
 		fail(String.format("Expected to contain all of: <%s>, but was: <%s>", expectedElements, actualElements));
 	}
 
+	protected void assertExactlyOnceForTopic(
+		Properties properties,
+		String topic,
+		int partition,
+		List<Integer> expectedElements) {
+		assertExactlyOnceForTopic(properties, topic, partition, expectedElements, 30_000L);
+	}
+
 	/**
 	 * We manually handle the timeout instead of using JUnit's timeout to return failure instead of timeout error.
 	 * After timeout we assume that there are missing records and there is a bug, not that the test has run out of time.
@@ -250,7 +258,7 @@ public abstract class KafkaTestBase extends TestLogger {
 			String topic,
 			int partition,
 			List<Integer> expectedElements,
-			long timeoutMillis) throws Exception {
+			long timeoutMillis) {
 
 		long startMillis = System.currentTimeMillis();
 		List<Integer> actualElements = new ArrayList<>();
