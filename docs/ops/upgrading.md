@@ -82,8 +82,8 @@ By default all state stored in a savepoint must be matched to the operators of a
 When upgrading an application, user functions and operators can be freely modified with one restriction. It is not possible to change the data type of the state of an operator. This is important because, state from a savepoint can (currently) not be converted into a different data type before it is loaded into an operator. Hence, changing the data type of operator state when upgrading an application breaks application state consistency and prevents the upgraded application from being restarted from the savepoint. 
 
 **Note:** From Flink 1.7, state schema evolution has been supported. You can either use state serializers that are generated
-by [Flink’s own type serialization framework](https://ci.apache.org/projects/flink/flink-docs-master/dev/stream/state/schema_evolution.html)
-or [Custom State Serialization](https://ci.apache.org/projects/flink/flink-docs-master/dev/stream/state/custom_serialization.html).
+by [Flink’s own type serialization framework]({{ site.baseurl }}/dev/stream/state/schema_evolution.html)
+or [Custom State Serialization]({{ site.baseurl }}/dev/stream/state/custom_serialization.html).
 See corresponding documentation for details.
 
 Operator state can be either user-defined or internal. 
