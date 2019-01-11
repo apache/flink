@@ -243,7 +243,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			TypeSerializerSchemaCompatibility<N> namespaceCompatibility =
 				restoredKvMetaInfo.updateNamespaceSerializer(namespaceSerializer);
-			if (!namespaceCompatibility.isCompatibleAsIs()) {
+			if (namespaceCompatibility.isCompatibleAfterMigration() || namespaceCompatibility.isIncompatible()) {
 				throw new StateMigrationException("For heap backends, the new namespace serializer must be compatible.");
 			}
 
@@ -302,7 +302,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 		StateTable<K, N, SV> stateTable = tryRegisterStateTable(
 			namespaceSerializer, stateDesc, getStateSnapshotTransformer(stateDesc, snapshotTransformFactory));
-		return stateFactory.createState(stateDesc, stateTable, keySerializer);
+		return stateFactory.createState(stateDesc, stateTable, getKeySerializer());
 	}
 
 	@SuppressWarnings("unchecked")
@@ -394,8 +394,9 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				if (!keySerializerRestored) {
 					// check for key serializer compatibility; this also reconfigures the
 					// key serializer to be compatible, if it is required and is possible
-					if (!serializationProxy.getKeySerializerConfigSnapshot()
-							.resolveSchemaCompatibility(keySerializer).isCompatibleAsIs()) {
+					TypeSerializerSchemaCompatibility<K> keySerializerSchemaCompat =
+						checkKeySerializerSchemaCompatibility(serializationProxy.getKeySerializerSnapshot());
+					if (keySerializerSchemaCompat.isCompatibleAfterMigration() || keySerializerSchemaCompat.isIncompatible()) {
 						throw new StateMigrationException("The new key serializer must be compatible.");
 					}
 
@@ -700,7 +701,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				new KeyedBackendSerializationProxy<>(
 					// TODO: this code assumes that writing a serializer is threadsafe, we should support to
 					// get a serialized form already at state registration time in the future
-					keySerializer,
+					getKeySerializer(),
 					metaInfoSnapshots,
 					!Objects.equals(UncompressedStreamCompressionDecorator.INSTANCE, keyGroupCompressionDecorator));
 

@@ -36,6 +36,7 @@ under the License.
 		<aws.sdk.version>1.11.319</aws.sdk.version>
 		<aws.kinesis-kcl.version>1.9.0</aws.kinesis-kcl.version>
 		<aws.kinesis-kpl.version>0.12.9</aws.kinesis-kpl.version>
+		<aws.dynamodbstreams-kinesis-adapter.version>1.4.0</aws.dynamodbstreams-kinesis-adapter.version>
 	</properties>
 
 	<packaging>jar</packaging>
@@ -119,11 +120,23 @@ under the License.
 			<exclusions>
 				<exclusion>
 					<groupId>com.amazonaws</groupId>
-					<artifactId>aws-java-sdk-dynamodb</artifactId>
+					<artifactId>aws-java-sdk-cloudwatch</artifactId>
 				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>dynamodb-streams-kinesis-adapter</artifactId>
+			<version>${aws.dynamodbstreams-kinesis-adapter.version}</version>
+			<exclusions>
 				<exclusion>
 					<groupId>com.amazonaws</groupId>
 					<artifactId>aws-java-sdk-cloudwatch</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-databind</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>

@@ -47,7 +47,10 @@ public class MetricOptions {
 	 */
 	public static final ConfigOption<String> REPORTERS_LIST =
 		key("metrics.reporters")
-			.noDefaultValue();
+			.noDefaultValue()
+			.withDescription("An optional list of reporter names. If configured, only reporters whose name matches" +
+				" any of the names in the list will be started. Otherwise, all reporters that could be found in" +
+				" the configuration will be started.");
 
 	public static final ConfigOption<String> REPORTER_CLASS =
 		key("metrics.reporter.<name>.class")
@@ -68,7 +71,8 @@ public class MetricOptions {
 	/** The delimiter used to assemble the metric identifier. */
 	public static final ConfigOption<String> SCOPE_DELIMITER =
 		key("metrics.scope.delimiter")
-			.defaultValue(".");
+			.defaultValue(".")
+			.withDescription("Delimiter used to assemble the metric identifier.");
 
 	/** The scope format string that is applied to all metrics scoped to a JobManager. */
 	public static final ConfigOption<String> SCOPE_NAMING_JM =
@@ -135,14 +139,18 @@ public class MetricOptions {
 	 */
 	public static final ConfigOption<Boolean> SYSTEM_RESOURCE_METRICS =
 		key("metrics.system-resource")
-			.defaultValue(false);
+			.defaultValue(false)
+			.withDescription("Flag indicating whether Flink should report system resource metrics such as machine's CPU," +
+				" memory or network usage.");
 	/**
 	 * Interval between probing of system resource metrics specified in milliseconds. Has an effect only when
 	 * {@link #SYSTEM_RESOURCE_METRICS} is enabled.
 	 */
 	public static final ConfigOption<Long> SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL =
 		key("metrics.system-resource-probing-interval")
-			.defaultValue(5000L);
+			.defaultValue(5000L)
+			.withDescription("Interval between probing of system resource metrics specified in milliseconds. Has an effect" +
+				" only when '" + SYSTEM_RESOURCE_METRICS.key() + "' is enabled.");
 
 	/**
 	 * The default network port range for Flink's internal metric query service. The {@code "0"} means that

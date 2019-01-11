@@ -254,7 +254,7 @@ public class Buckets<IN, BucketID> {
 		}
 	}
 
-	void onElement(final IN value, final SinkFunction.Context context) throws Exception {
+	Bucket<IN, BucketID> onElement(final IN value, final SinkFunction.Context context) throws Exception {
 		final long currentProcessingTime = context.currentProcessingTime();
 
 		// setting the values in the bucketer context
@@ -272,6 +272,7 @@ public class Buckets<IN, BucketID> {
 		// another part file for the bucket, if we start from 0 we may overwrite previous parts.
 
 		this.maxPartCounter = Math.max(maxPartCounter, bucket.getPartCounter());
+		return bucket;
 	}
 
 	private Bucket<IN, BucketID> getOrCreateBucketForBucketId(final BucketID bucketId) throws IOException {
@@ -304,7 +305,11 @@ public class Buckets<IN, BucketID> {
 	}
 
 	private Path assembleBucketPath(BucketID bucketId) {
-		return new Path(basePath, bucketId.toString());
+		final String child = bucketId.toString();
+		if ("".equals(child)) {
+			return basePath;
+		}
+		return new Path(basePath, child);
 	}
 
 	/**

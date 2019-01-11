@@ -77,7 +77,7 @@ class ListViewSerializer[T](val listSerializer: TypeSerializer[java.util.List[T]
     listSerializer.equals(obj.asInstanceOf[ListViewSerializer[_]].listSerializer)
 
   override def snapshotConfiguration(): ListViewSerializerSnapshot[T] =
-    new ListViewSerializerSnapshot[T](listSerializer)
+    new ListViewSerializerSnapshot[T](this)
 
   override def ensureCompatibility(
       configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[ListView[T]] = {

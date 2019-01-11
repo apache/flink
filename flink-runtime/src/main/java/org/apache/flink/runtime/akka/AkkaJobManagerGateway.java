@@ -295,12 +295,4 @@ public class AkkaJobManagerGateway implements JobManagerGateway {
 				.ask(RequestJobsWithIDsOverview.getInstance(), FutureUtils.toFiniteDuration(timeout))
 				.mapTo(ClassTag$.MODULE$.apply(JobIdsWithStatusOverview.class)));
 	}
-
-	@Override
-	public CompletableFuture<String> requestRestAddress(Time timeout) {
-		return FutureUtils.toJava(
-			jobManagerGateway
-				.ask(JobManagerMessages.getRequestRestAddress(), FutureUtils.toFiniteDuration(timeout))
-				.mapTo(ClassTag$.MODULE$.apply(String.class)));
-	}
 }

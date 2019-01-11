@@ -40,6 +40,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.yarn.AbstractYarnClusterDescriptor;
 import org.apache.flink.yarn.YarnClusterDescriptor;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -253,7 +254,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 				yarnApplicationIdFromYarnProperties = ConverterUtils.toApplicationId(yarnApplicationIdString);
 			}
 			catch (Exception e) {
-				throw new FlinkException("YARN properties contains an invalid entry for " +
+				throw new FlinkException("YARN properties contain an invalid entry for " +
 					"application id: " + yarnApplicationIdString + ". Please delete the file at " +
 					yarnPropertiesLocation.getAbsolutePath(), e);
 			}
@@ -311,14 +312,16 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		}
 
 		List<File> shipFiles = new ArrayList<>();
-		// path to directory to ship
+		// path to directories to ship
 		if (cmd.hasOption(shipPath.getOpt())) {
-			String shipPath = cmd.getOptionValue(this.shipPath.getOpt());
-			File shipDir = new File(shipPath);
-			if (shipDir.isDirectory()) {
-				shipFiles.add(shipDir);
-			} else {
-				LOG.warn("Ship directory is not a directory. Ignoring it.");
+			String[] shipPaths = cmd.getOptionValues(this.shipPath.getOpt());
+			for (String shipPath : shipPaths) {
+				File shipDir = new File(shipPath);
+				if (shipDir.isDirectory()) {
+					shipFiles.add(shipDir);
+				} else {
+					LOG.warn("Ship directory {} is not a directory. Ignoring it.", shipDir.getAbsolutePath());
+				}
 			}
 		}
 
@@ -648,49 +651,32 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 						yarnClusterDescriptor.getYarnClient(),
 						yarnApplicationId,
 						new ScheduledExecutorServiceAdapter(scheduledExecutorService));
-
+					Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
+						() -> shutdownCluster(
+							clusterClient,
+							scheduledExecutorService,
+							yarnApplicationStatusMonitor),
+						getClass().getSimpleName(),
+						LOG);
 					try {
 						runInteractiveCli(
 							clusterClient,
 							yarnApplicationStatusMonitor,
 							acceptInteractiveInput);
 					} finally {
-						try {
-							yarnApplicationStatusMonitor.close();
-						} catch (Exception e) {
-							LOG.info("Could not properly close the Yarn application status monitor.", e);
+						shutdownCluster(
+							clusterClient,
+							scheduledExecutorService,
+							yarnApplicationStatusMonitor);
+
+						if (shutdownHook != null) {
+							// we do not need the hook anymore as we have just tried to shutdown the cluster.
+							ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
 						}
 
-						clusterClient.shutDownCluster();
-
-						try {
-							clusterClient.shutdown();
-						} catch (Exception e) {
-							LOG.info("Could not properly shutdown cluster client.", e);
-						}
-
-						// shut down the scheduled executor service
-						ExecutorUtils.gracefulShutdown(
-							1000L,
-							TimeUnit.MILLISECONDS,
-							scheduledExecutorService);
-
-						deleteYarnPropertiesFile();
-
-						ApplicationReport applicationReport;
-
-						try {
-							applicationReport = yarnClusterDescriptor
-								.getYarnClient()
-								.getApplicationReport(yarnApplicationId);
-						} catch (YarnException | IOException e) {
-							LOG.info("Could not log the final application report.", e);
-							applicationReport = null;
-						}
-
-						if (applicationReport != null) {
-							logFinalApplicationReport(applicationReport);
-						}
+						tryRetrieveAndLogApplicationReport(
+							yarnClusterDescriptor.getYarnClient(),
+							yarnApplicationId);
 					}
 				}
 			}
@@ -705,7 +691,49 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		return 0;
 	}
 
-	private void logFinalApplicationReport(ApplicationReport appReport) {
+	private void shutdownCluster(
+			ClusterClient clusterClient,
+			ScheduledExecutorService scheduledExecutorService,
+			YarnApplicationStatusMonitor yarnApplicationStatusMonitor) {
+		try {
+			yarnApplicationStatusMonitor.close();
+		} catch (Exception e) {
+			LOG.info("Could not properly close the Yarn application status monitor.", e);
+		}
+
+		clusterClient.shutDownCluster();
+
+		try {
+			clusterClient.shutdown();
+		} catch (Exception e) {
+			LOG.info("Could not properly shutdown cluster client.", e);
+		}
+
+		// shut down the scheduled executor service
+		ExecutorUtils.gracefulShutdown(
+			1000L,
+			TimeUnit.MILLISECONDS,
+			scheduledExecutorService);
+
+		deleteYarnPropertiesFile();
+	}
+
+	private void tryRetrieveAndLogApplicationReport(YarnClient yarnClient, ApplicationId yarnApplicationId) {
+		ApplicationReport applicationReport;
+
+		try {
+			applicationReport = yarnClient.getApplicationReport(yarnApplicationId);
+		} catch (YarnException | IOException e) {
+			LOG.info("Could not log the final application report.", e);
+			applicationReport = null;
+		}
+
+		if (applicationReport != null) {
+			logApplicationReport(applicationReport);
+		}
+	}
+
+	private void logApplicationReport(ApplicationReport appReport) {
 		LOG.info("Application " + appReport.getApplicationId() + " finished with state " + appReport
 			.getYarnApplicationState() + " and final state " + appReport
 			.getFinalApplicationStatus() + " at " + appReport.getFinishTime());

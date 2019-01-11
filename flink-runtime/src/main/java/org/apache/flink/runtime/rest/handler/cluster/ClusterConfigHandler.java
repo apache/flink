@@ -44,13 +44,12 @@ public class ClusterConfigHandler extends AbstractRestHandler<RestfulGateway, Em
 	private final ClusterConfigurationInfo clusterConfig;
 
 	public ClusterConfigHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, ClusterConfigurationInfo, EmptyMessageParameters> messageHeaders,
 			Configuration configuration) {
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
 		Preconditions.checkNotNull(configuration);
 		this.clusterConfig = ClusterConfigurationInfo.from(configuration);

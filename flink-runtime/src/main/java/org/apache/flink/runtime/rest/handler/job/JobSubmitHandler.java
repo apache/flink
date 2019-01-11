@@ -65,13 +65,12 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 	private final Configuration configuration;
 
 	public JobSubmitHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
 			Executor executor,
 			Configuration configuration) {
-		super(localRestAddress, leaderRetriever, timeout, headers, JobSubmitHeaders.getInstance());
+		super(leaderRetriever, timeout, headers, JobSubmitHeaders.getInstance());
 		this.executor = executor;
 		this.configuration = configuration;
 	}

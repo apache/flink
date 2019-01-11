@@ -49,19 +49,6 @@ under the License.
 					<forkCount>1</forkCount>
 				</configuration>
 			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<execution>
-						<!-- Disable inherited shade-flink because of a problem in the shade plugin -->
-						<!-- When enabled you'll run into an infinite loop creating the dependency-reduced-pom.xml -->
-						<!-- Seems similar to https://issues.apache.org/jira/browse/MSHADE-148 -->
-						<id>shade-flink</id>
-						<phase>none</phase>
-					</execution>
-				</executions>
-			</plugin>
 		</plugins>
 	</build>
 
@@ -118,7 +105,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-hadoop2</artifactId>
-			<version>${project.version}</version>
+			<version>${project.version}-${hadoop.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
@@ -255,7 +242,7 @@ under the License.
 			<groupId>org.apache.hbase</groupId>
 			<artifactId>hbase-server</artifactId>
 			<version>${hbase.version}</version>
-			<classifier>tests</classifier>
+			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 

@@ -107,4 +107,84 @@ class AggFunctionHarnessTest extends HarnessTestBase {
 
     testHarness.close()
   }
+
+  @Test
+  def testMinMaxAggFunctionWithRetract(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val data = new mutable.MutableList[(JInt, JInt, String)]
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("T", t)
+    val sqlQuery = tEnv.sqlQuery(
+      s"""
+         |SELECT
+         |  c, min(a), max(b)
+         |FROM (
+         |  SELECT a, b, c
+         |  FROM T
+         |  GROUP BY a, b, c
+         |) GROUP BY c
+         |""".stripMargin)
+
+    val testHarness = createHarnessTester[String, CRow, CRow](
+      sqlQuery.toRetractStream[Row](queryConfig), "groupBy")
+
+    testHarness.setStateBackend(getStateBackend)
+    testHarness.open()
+
+    val operator = getOperator(testHarness)
+    val minState = getState(
+      operator,
+      "function",
+      classOf[GroupAggProcessFunction],
+      "acc0_map_dataview").asInstanceOf[MapView[JInt, JInt]]
+    val maxState = getState(
+      operator,
+      "function",
+      classOf[GroupAggProcessFunction],
+      "acc1_map_dataview").asInstanceOf[MapView[JInt, JInt]]
+    assertTrue(minState.isInstanceOf[StateMapView[_, _]])
+    assertTrue(maxState.isInstanceOf[StateMapView[_, _]])
+    assertTrue(operator.getKeyedStateBackend.isInstanceOf[RocksDBKeyedStateBackend[_]])
+
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    testHarness.processElement(new StreamRecord(CRow(1: JInt, 1: JInt, "aaa"), 1))
+    expectedOutput.add(new StreamRecord(CRow("aaa", 1, 1), 1))
+
+    testHarness.processElement(new StreamRecord(CRow(1: JInt, 1: JInt, "bbb"), 1))
+    expectedOutput.add(new StreamRecord(CRow("bbb", 1, 1), 1))
+
+    // min/max doesn't change
+    testHarness.processElement(new StreamRecord(CRow(2: JInt, 0: JInt, "aaa"), 1))
+
+    // min/max changed
+    testHarness.processElement(new StreamRecord(CRow(0: JInt, 2: JInt, "aaa"), 1))
+    expectedOutput.add(new StreamRecord(CRow(false, "aaa", 1, 1), 1))
+    expectedOutput.add(new StreamRecord(CRow("aaa", 0, 2), 1))
+
+    // retract the min/max value
+    testHarness.processElement(new StreamRecord(CRow(false, 0: JInt, 2: JInt, "aaa"), 1))
+    expectedOutput.add(new StreamRecord(CRow(false, "aaa", 0, 2), 1))
+    expectedOutput.add(new StreamRecord(CRow("aaa", 1, 1), 1))
+
+    // remove some state: state may be cleaned up by the state backend
+    // if not accessed beyond ttl time
+    operator.setCurrentKey(Row.of("aaa"))
+    minState.remove(1)
+    maxState.remove(1)
+
+    // retract after state has been cleaned up
+    testHarness.processElement(new StreamRecord(CRow(false, 2: JInt, 0: JInt, "aaa"), 1))
+
+    testHarness.processElement(new StreamRecord(CRow(false, 1: JInt, 1: JInt, "aaa"), 1))
+    expectedOutput.add(new StreamRecord(CRow(false, "aaa", 1, 1), 1))
+
+    val result = testHarness.getOutput
+
+    verify(expectedOutput, result)
+
+    testHarness.close()
+  }
 }

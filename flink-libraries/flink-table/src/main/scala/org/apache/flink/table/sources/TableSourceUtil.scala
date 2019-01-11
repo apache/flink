@@ -114,12 +114,12 @@ object TableSourceUtil {
           val rowtimeIdx = schema.getFieldNames.indexOf(rowtimeAttribute)
           // ensure that field exists
           if (rowtimeIdx < 0) {
-            throw new ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
+            throw new ValidationException(s"Found a rowtime attribute for field " +
               s"'$rowtimeAttribute' but field '$rowtimeAttribute' does not exist in table.")
           }
           // ensure that field is of type TIMESTAMP
           if (schema.getFieldTypes()(rowtimeIdx) != Types.SQL_TIMESTAMP) {
-            throw new ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
+            throw new ValidationException(s"Found a rowtime attribute for field " +
               s"'$rowtimeAttribute' but field '$rowtimeAttribute' is not of type TIMESTAMP.")
           }
           // look up extractor input fields in return type
@@ -138,12 +138,12 @@ object TableSourceUtil {
         val proctimeIdx = schema.getFieldNames.indexOf(proctimeAttribute)
         // ensure that field exists
         if (proctimeIdx < 0) {
-          throw new ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
+          throw new ValidationException(s"Found a processing time attribute for field " +
             s"'$proctimeAttribute' but field '$proctimeAttribute' does not exist in table.")
         }
         // ensure that field is of type TIMESTAMP
         if (schema.getFieldTypes()(proctimeIdx) != Types.SQL_TIMESTAMP) {
-          throw new ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
+          throw new ValidationException(s"Found a processing time attribute for field " +
             s"'$proctimeAttribute' but field '$proctimeAttribute' is not of type TIMESTAMP.")
         }
       case _ => // nothing to validate

@@ -554,7 +554,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * is used, Flink will throw an {@code UnsupportedOperationException} whenever it encounters
 	 * a data type that would go through Kryo for serialization.
 	 *
-	 * <p>Disabling generic types can be helpful to eagerly find and eliminate teh use of types
+	 * <p>Disabling generic types can be helpful to eagerly find and eliminate the use of types
 	 * that would go through Kryo serialization during runtime. Rather than checking types
 	 * individually, using this option will throw exceptions eagerly in the places where generic
 	 * types are used.

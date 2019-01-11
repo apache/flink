@@ -63,9 +63,9 @@ public class WebMonitorUtilsTest extends TestLogger {
 		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
 		final WebMonitorExtension webMonitorExtension = WebMonitorUtils.loadWebSubmissionExtension(
 			CompletableFuture::new,
-			CompletableFuture.completedFuture("localhost:12345"),
 			Time.seconds(10),
 			Collections.emptyMap(),
+			CompletableFuture.completedFuture("localhost:12345"),
 			Paths.get("/tmp"),
 			Executors.directExecutor(),
 			configuration);

@@ -221,3 +221,5 @@ applied updates according to the primary key until this point in time.
 By definition of event time, [watermarks]({{ site.baseurl }}/dev/event_time.html) allow the join operation to move
 forward in time and discard versions of the build table that are no longer necessary because no incoming row with
 lower or equal timestamp is expected.
+
+{% top %}

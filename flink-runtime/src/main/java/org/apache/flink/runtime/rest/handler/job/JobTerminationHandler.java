@@ -53,13 +53,12 @@ public class JobTerminationHandler extends AbstractRestHandler<RestfulGateway, E
 	private final TerminationModeQueryParameter.TerminationMode defaultTerminationMode;
 
 	public JobTerminationHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
 			MessageHeaders<EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> messageHeaders,
 			TerminationModeQueryParameter.TerminationMode defaultTerminationMode) {
-		super(localRestAddress, leaderRetriever, timeout, headers, messageHeaders);
+		super(leaderRetriever, timeout, headers, messageHeaders);
 
 		this.defaultTerminationMode = Preconditions.checkNotNull(defaultTerminationMode);
 	}

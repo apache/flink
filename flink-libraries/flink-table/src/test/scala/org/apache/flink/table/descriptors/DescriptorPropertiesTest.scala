@@ -20,6 +20,7 @@ package org.apache.flink.table.descriptors
 
 import java.util
 import java.util.Collections
+import java.util.function.Consumer
 
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.util.JavaScalaConversionUtil.toJava
@@ -32,6 +33,9 @@ import org.junit.Test
 class DescriptorPropertiesTest {
 
   private val ARRAY_KEY = "my-array"
+  private val FIXED_INDEXED_PROPERTY_KEY = "my-fixed-indexed-property"
+  private val PROPERTY_1_KEY = "property-1"
+  private val PROPERTY_2_KEY = "property-2"
 
   @Test
   def testEquals(): Unit = {
@@ -97,8 +101,8 @@ class DescriptorPropertiesTest {
   def testArrayInvalidValues(): Unit = {
     val properties = new DescriptorProperties()
     properties.putString(s"$ARRAY_KEY.0", "12")
-    properties.putString(s"$ARRAY_KEY.1", "INVALID")
-    properties.putString(s"$ARRAY_KEY.2", "66")
+    properties.putString(s"$ARRAY_KEY.1", "66")
+    properties.putString(s"$ARRAY_KEY.2", "INVALID")
 
     testArrayValidation(properties, 1, Integer.MAX_VALUE)
   }
@@ -116,6 +120,19 @@ class DescriptorPropertiesTest {
     val properties = new DescriptorProperties()
 
     testArrayValidation(properties, 1, Integer.MAX_VALUE)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidFixedIndexedProperties(): Unit = {
+    val property = new DescriptorProperties()
+    val list = new util.ArrayList[util.List[String]]()
+    list.add(util.Arrays.asList("1", "string"))
+    list.add(util.Arrays.asList("INVALID", "string"))
+    property.putIndexedFixedProperties(
+      FIXED_INDEXED_PROPERTY_KEY,
+      util.Arrays.asList(PROPERTY_1_KEY, PROPERTY_2_KEY),
+      list)
+    testFixedIndexedPropertiesValidation(property)
   }
 
   @Test
@@ -155,7 +172,7 @@ class DescriptorPropertiesTest {
       minLength: Int,
       maxLength: Int)
     : Unit = {
-    val validator: (String) => Unit = (key: String) => {
+    val validator: String => Unit = (key: String) => {
       properties.validateInt(key, false)
     }
 
@@ -164,5 +181,27 @@ class DescriptorPropertiesTest {
       toJava(validator),
       minLength,
       maxLength)
+  }
+
+  private def testFixedIndexedPropertiesValidation(properties: DescriptorProperties): Unit = {
+
+    val validatorMap = new util.HashMap[String, Consumer[String]]()
+
+    // PROPERTY_1 should be Int
+    val validator1: String => Unit = (key: String) => {
+      properties.validateInt(key, false)
+    }
+    validatorMap.put(PROPERTY_1_KEY, toJava(validator1))
+    // PROPERTY_2 should be String
+    val validator2: String => Unit = (key: String) => {
+      properties.validateString(key, false)
+    }
+    validatorMap.put(PROPERTY_2_KEY, toJava(validator2))
+
+    properties.validateFixedIndexedProperties(
+      FIXED_INDEXED_PROPERTY_KEY,
+      false,
+      validatorMap
+    )
   }
 }

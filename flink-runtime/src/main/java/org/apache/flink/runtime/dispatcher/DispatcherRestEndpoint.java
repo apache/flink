@@ -80,15 +80,14 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 	}
 
 	@Override
-	protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
-		List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = super.initializeHandlers(restAddressFuture);
+	protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture) {
+		List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = super.initializeHandlers(localAddressFuture);
 
 		// Add the Dispatcher specific handlers
 
 		final Time timeout = restConfiguration.getTimeout();
 
 		JobSubmitHandler jobSubmitHandler = new JobSubmitHandler(
-			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -99,9 +98,9 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 			try {
 				webSubmissionExtension = WebMonitorUtils.loadWebSubmissionExtension(
 					leaderRetriever,
-					restAddressFuture,
 					timeout,
 					responseHeaders,
+					localAddressFuture,
 					uploadDir,
 					executor,
 					clusterConfiguration);

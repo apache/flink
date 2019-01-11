@@ -70,7 +70,7 @@ DataStream<Integer> greenStream = ...
 orangeStream.join(greenStream)
     .where(<KeySelector>)
     .equalTo(<KeySelector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(2)))
+    .window(TumblingEventTimeWindows.of(Time.milliseconds(2)))
     .apply (new JoinFunction<Integer, Integer, String> (){
         @Override
         public String join(Integer first, Integer second) {
@@ -280,3 +280,5 @@ orangeStream
 
 </div>
 </div>
+
+{% top %}

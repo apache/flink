@@ -191,7 +191,45 @@ object ScalarOperators {
           )
         )
     }
-  }  
+  }
+
+  def generateIsNotDistinctFrom(
+      nullCheck: Boolean,
+      left: GeneratedExpression,
+      right: GeneratedExpression)
+    : GeneratedExpression = {
+
+    if (nullCheck) {
+      val resultTerm = newName("result")
+      val resultTypeTerm = primitiveTypeTermForTypeInfo(BOOLEAN_TYPE_INFO)
+      val equalExpression = generateEquals(
+        nullCheck = false,
+        left.copy(code = GeneratedExpression.NO_CODE),
+        right.copy(code = GeneratedExpression.NO_CODE))
+
+      val resultCode =
+        s"""
+          |${left.code}
+          |${right.code}
+          |$resultTypeTerm $resultTerm;
+          |if (${left.nullTerm}) {
+          |  $resultTerm = ${right.nullTerm};
+          |} else if (${right.nullTerm}) {
+          |  $resultTerm = ${left.nullTerm};
+          |} else {
+          |  ${equalExpression.code}
+          |  $resultTerm = ${equalExpression.resultTerm};
+          |}
+          |""".stripMargin
+
+      GeneratedExpression(
+        resultTerm,
+        GeneratedExpression.NEVER_NULL,
+        resultCode, BOOLEAN_TYPE_INFO)
+    } else {
+      generateEquals(nullCheck = false, left, right)
+    }
+  }
   
   def generateEquals(
       nullCheck: Boolean,

@@ -77,14 +77,13 @@ public abstract class AbstractAggregatingMetricsHandler<P extends AbstractAggreg
 	private final MetricFetcher<?> fetcher;
 
 	protected AbstractAggregatingMetricsHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			AbstractAggregatedMetricsHeaders<P> messageHeaders,
 			Executor executor,
 			MetricFetcher<?> fetcher) {
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 		this.executor = Preconditions.checkNotNull(executor);
 		this.fetcher = Preconditions.checkNotNull(fetcher);
 	}

@@ -23,6 +23,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -52,8 +54,8 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	Closeable,
 	CheckpointListener {
 
-	/** {@link TypeSerializer} for our key. */
-	protected final TypeSerializer<K> keySerializer;
+	/** {@link StateSerializerProvider} for our key serializer. */
+	private final StateSerializerProvider<K> keySerializerProvider;
 
 	/** The currently active key. */
 	private K currentKey;
@@ -104,7 +106,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		Preconditions.checkArgument(numberOfKeyGroups >= keyGroupRange.getNumberOfKeyGroups(), "The total number of key groups must be at least the number in the key group range assigned to this backend");
 
 		this.kvStateRegistry = kvStateRegistry;
-		this.keySerializer = Preconditions.checkNotNull(keySerializer);
+		this.keySerializerProvider = StateSerializerProvider.fromNewRegisteredSerializer(keySerializer);
 		this.numberOfKeyGroups = numberOfKeyGroups;
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 		this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
@@ -156,7 +158,13 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 */
 	@Override
 	public TypeSerializer<K> getKeySerializer() {
-		return keySerializer;
+		return keySerializerProvider.currentSchemaSerializer();
+	}
+
+	public TypeSerializerSchemaCompatibility<K> checkKeySerializerSchemaCompatibility(
+			TypeSerializerSnapshot<K> previousKeySerializerSnapshot) {
+
+		return keySerializerProvider.setPreviousSerializerSnapshotForRestoredState(previousKeySerializerSnapshot);
 	}
 
 	/**
@@ -230,7 +238,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 			final TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<S, V> stateDescriptor) throws Exception {
 		checkNotNull(namespaceSerializer, "Namespace serializer");
-		checkNotNull(keySerializer, "State key serializer has not been configured in the config. " +
+		checkNotNull(keySerializerProvider, "State key serializer has not been configured in the config. " +
 				"This operation cannot use partitioned state.");
 
 		InternalKvState<K, ?, ?> kvState = keyValueStatesByName.get(stateDescriptor.getName());

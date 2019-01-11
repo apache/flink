@@ -111,9 +111,7 @@ The `-Pvendor-repos` activates a Maven [build profile](http://maven.apache.org/g
 
 Flink has APIs, libraries, and runtime modules written in [Scala](http://scala-lang.org). Users of the Scala API and libraries may have to match the Scala version of Flink with the Scala version of their projects (because Scala is not strictly backwards compatible).
 
-Flink 1.4 currently builds only with Scala version 2.11.
-
-We are working on supporting Scala 2.12, but certain breaking changes in Scala 2.12 make this a more involved effort. Please check out [this JIRA issue](https://issues.apache.org/jira/browse/FLINK-7811) for updates.
+Since version 1.7 Flink builds with Scala version 2.11 and 2.12.
 
 {% top %}
 

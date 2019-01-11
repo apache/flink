@@ -258,6 +258,8 @@ public class StreamGraphGenerator {
 		StreamTransformation<T> input = split.getInput();
 		Collection<Integer> resultIds = transform(input);
 
+		validateSplitTransformation(input);
+
 		// the recursive transform call might have transformed this already
 		if (alreadyTransformed.containsKey(split)) {
 			return alreadyTransformed.get(split);
@@ -641,6 +643,22 @@ public class StreamGraphGenerator {
 				}
 			}
 			return inputGroup == null ? "default" : inputGroup;
+		}
+	}
+
+	private <T> void validateSplitTransformation(StreamTransformation<T> input) {
+		if (input instanceof SelectTransformation || input instanceof SplitTransformation) {
+			throw new IllegalStateException("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
+		} else if (input instanceof SideOutputTransformation) {
+			throw new IllegalStateException("Split after side-outputs are not supported. Splits are deprecated. Please use side-outputs.");
+		} else if (input instanceof UnionTransformation) {
+			for (StreamTransformation<T> transformation : ((UnionTransformation<T>) input).getInputs()) {
+				validateSplitTransformation(transformation);
+			}
+		} else if (input instanceof PartitionTransformation) {
+			validateSplitTransformation(((PartitionTransformation) input).getInput());
+		} else {
+			return;
 		}
 	}
 }

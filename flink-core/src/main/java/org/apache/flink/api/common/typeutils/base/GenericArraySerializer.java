@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
+import java.util.Arrays;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -86,16 +87,21 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 
 	@Override
 	public C[] copy(C[] from) {
-		C[] copy = create(from.length);
 
-		for (int i = 0; i < copy.length; i++) {
-			C val = from[i];
-			if (val != null) {
-				copy[i] = this.componentSerializer.copy(val);
+		final TypeSerializer<C> serializer = this.componentSerializer;
+
+		if (serializer.isImmutableType()) {
+			return Arrays.copyOf(from, from.length);
+		} else {
+			C[] copy = create(from.length);
+			for (int i = 0; i < copy.length; i++) {
+				C val = from[i];
+				if (val != null) {
+					copy[i] = serializer.copy(val);
+				}
 			}
+			return copy;
 		}
-
-		return copy;
 	}
 	
 	@Override
@@ -200,7 +206,7 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public GenericArraySerializerConfigSnapshot<C> snapshotConfiguration() {
-		return new GenericArraySerializerConfigSnapshot<>(this);
+	public GenericArraySerializerSnapshot<C> snapshotConfiguration() {
+		return new GenericArraySerializerSnapshot<>(this);
 	}
 }

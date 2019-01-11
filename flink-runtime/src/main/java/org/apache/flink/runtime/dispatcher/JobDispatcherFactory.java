@@ -57,7 +57,6 @@ public class JobDispatcherFactory implements DispatcherFactory<MiniDispatcher> {
 			@Nullable String metricQueryServicePath,
 			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			FatalErrorHandler fatalErrorHandler,
-			@Nullable String restAddress,
 			HistoryServerArchivist historyServerArchivist) throws Exception {
 		final JobGraph jobGraph = jobGraphRetriever.retrieveJobGraph(configuration);
 
@@ -78,7 +77,6 @@ public class JobDispatcherFactory implements DispatcherFactory<MiniDispatcher> {
 			archivedExecutionGraphStore,
 			Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
 			fatalErrorHandler,
-			restAddress,
 			historyServerArchivist,
 			jobGraph,
 			executionMode);

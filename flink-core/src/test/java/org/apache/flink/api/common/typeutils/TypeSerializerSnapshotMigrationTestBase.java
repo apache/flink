@@ -103,6 +103,8 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 		TypeSerializer<ElementT> restoredSerializer = previousSnapshot.restoreSerializer();
 
 		TypeSerializerSnapshot<ElementT> nextSnapshot = restoredSerializer.snapshotConfiguration();
+		assertThat(nextSnapshot, instanceOf(testSpecification.snapshotClass));
+
 		TypeSerializerSnapshot<ElementT> nextSnapshotDeserialized = writeAndThenReadTheSnapshot(restoredSerializer, nextSnapshot);
 
 		assertThat(nextSnapshotDeserialized, allOf(
@@ -245,6 +247,10 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 
 		private Path getSnapshotDataLocation() {
 			return resourcePath(this.snapshotDataLocation);
+		}
+
+		public Class<? extends TypeSerializerSnapshot<T>> getSnapshotClass() {
+			return snapshotClass;
 		}
 
 		@Override

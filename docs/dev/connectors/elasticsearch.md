@@ -340,8 +340,8 @@ import java.util.List
 val input: DataStream[String] = ...
 
 val httpHosts = new java.util.ArrayList[HttpHost]
-httpHosts.add(new HttpHost("127.0.0.1", 9300, "http"))
-httpHosts.add(new HttpHost("10.2.3.1", 9300, "http"))
+httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"))
+httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"))
 
 val esSinkBuilder = new ElasticsearchSink.Builer[String](
   httpHosts,
