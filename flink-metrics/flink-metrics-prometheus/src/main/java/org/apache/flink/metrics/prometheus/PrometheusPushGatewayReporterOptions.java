@@ -20,6 +20,8 @@ package org.apache.flink.metrics.prometheus;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.LinkElement;
 
 /**
  * Config options for the {@link PrometheusPushGatewayReporter}.
@@ -54,7 +56,11 @@ public class PrometheusPushGatewayReporterOptions {
 	public static final ConfigOption<Boolean> FILTER_LABEL_VALUE_CHARACTER = ConfigOptions
 		.key("filterLabelValueCharacters")
 		.defaultValue(true)
-		.withDescription("Specifies whether to filter label value characters."
-			+ " It's default to true, so only [a-zA-Z0-9:_] are valid."
-			+ " If set to false, label values can contain any Unicode characters.");
+		.withDescription(Description.builder()
+			.text("Specifies whether to filter label value characters." +
+				" If enabled, all characters not matching [a-zA-Z0-9:_] will be removed," +
+				" otherwise no characters will be removed." +
+				" Before disabling this option please ensure that your" +
+				" label values meet the %s.", LinkElement.link("https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels", "Prometheus requirements"))
+			.build());
 }
