@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.util.migration;
+package org.apache.flink.testutils.migration;
 
 /**
  * Enumeration for Flink versions, used in migration integration tests

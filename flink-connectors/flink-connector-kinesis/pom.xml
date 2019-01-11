@@ -87,6 +87,14 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- Note:
 			The below dependencies are licenced under the Amazon Software License.
 			Flink includes the "flink-connector-kinesis" only as an optional dependency for that reason.

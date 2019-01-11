@@ -36,9 +36,9 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.util.migration.MigrationVersion;
 import org.apache.flink.test.checkpointing.utils.MigrationTestUtils;
 import org.apache.flink.test.checkpointing.utils.SavepointMigrationTestBase;
+import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
