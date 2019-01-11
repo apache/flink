@@ -19,22 +19,20 @@
 package org.apache.flink.runtime.rest.handler.legacy.metrics;
 
 /**
- * The MetricFetcher can be used to fetch metrics from the JobManager and all registered TaskManagers.
- *
- * <p>Metrics will only be fetched when {@link MetricFetcher#update()} is called, provided that a sufficient time since
- * the last call has passed.
+ * No-op implementation of the {@link MetricFetcher}.
  */
-public interface MetricFetcher {
+public enum VoidMetricFetcher implements MetricFetcher {
+	INSTANCE;
 
-	/**
-	 * Get {@link MetricStore} which contains all currently fetched metrics.
-	 *
-	 * @return {@link MetricStore} with all fetched metrics
-	 */
-	MetricStore getMetricStore();
+	private static final MetricStore METRIC_STORE = new MetricStore();
 
-	/**
-	 * Trigger fetching of metrics.
-	 */
-	void update();
+	@Override
+	public MetricStore getMetricStore() {
+		return METRIC_STORE;
+	}
+
+	@Override
+	public void update() {
+		// noop
+	}
 }

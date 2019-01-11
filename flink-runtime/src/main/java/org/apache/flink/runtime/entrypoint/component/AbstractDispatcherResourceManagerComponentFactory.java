@@ -61,6 +61,7 @@ import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Abstract class which implements the creation of the {@link DispatcherResourceManagerComponent} components.
@@ -128,15 +129,17 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				10,
 				Time.milliseconds(50L));
 
+			final ExecutorService executor = WebMonitorEndpoint.createExecutorService(
+				configuration.getInteger(RestOptions.SERVER_NUM_THREADS),
+				configuration.getInteger(RestOptions.SERVER_THREAD_PRIORITY),
+				"DispatcherRestEndpoint");
+
 			webMonitorEndpoint = restEndpointFactory.createRestEndpoint(
 				configuration,
 				dispatcherGatewayRetriever,
 				resourceManagerGatewayRetriever,
 				blobServer,
-				WebMonitorEndpoint.createExecutorService(
-					configuration.getInteger(RestOptions.SERVER_NUM_THREADS),
-					configuration.getInteger(RestOptions.SERVER_THREAD_PRIORITY),
-					"DispatcherRestEndpoint"),
+				executor,
 				metricQueryServiceRetriever,
 				highAvailabilityServices.getWebMonitorLeaderElectionService(),
 				fatalErrorHandler);

@@ -74,7 +74,7 @@ import java.util.stream.Collectors;
 public abstract class AbstractAggregatingMetricsHandler<P extends AbstractAggregatedMetricsParameters<?>> extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, AggregatedMetricsResponseBody, P> {
 
 	private final Executor executor;
-	private final MetricFetcher<?> fetcher;
+	private final MetricFetcher fetcher;
 
 	protected AbstractAggregatingMetricsHandler(
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -82,7 +82,7 @@ public abstract class AbstractAggregatingMetricsHandler<P extends AbstractAggreg
 			Map<String, String> responseHeaders,
 			AbstractAggregatedMetricsHeaders<P> messageHeaders,
 			Executor executor,
-			MetricFetcher<?> fetcher) {
+			MetricFetcher fetcher) {
 		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 		this.executor = Preconditions.checkNotNull(executor);
 		this.fetcher = Preconditions.checkNotNull(fetcher);
