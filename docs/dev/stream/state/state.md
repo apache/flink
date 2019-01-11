@@ -640,7 +640,7 @@ public static class CounterSource
         implements ListCheckpointed<Long> {
 
     /**  current offset for exactly once semantics */
-    private Long offset;
+    private Long offset = 0L;
 
     /** flag for job cancellation */
     private volatile boolean isRunning = true;
