@@ -118,7 +118,7 @@ input.addSink(sink);
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 import org.apache.flink.api.java.tuple.Tuple2
-val input: DataStream[Tuple2[A, B]] = ??? //we need to use java Tuple2 for the SequenceFileWriter
+val input: DataStream[Tuple2[A, B]] = ??? // use java Tuple2 for SequenceFileWriter as a Writer for BucketingSink
 
 val sink = new BucketingSink[Tuple2[IntWritable, Text]]("/base/path")
 sink.setBucketer(new DateTimeBucketer("yyyy-MM-dd--HHmm", ZoneId.of("America/Los_Angeles")))
