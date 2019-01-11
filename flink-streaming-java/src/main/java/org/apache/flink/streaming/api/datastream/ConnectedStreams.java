@@ -26,6 +26,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
+import org.apache.flink.streaming.api.functions.co.CoKeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -33,6 +34,7 @@ import org.apache.flink.streaming.api.operators.co.CoProcessOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
+import org.apache.flink.streaming.api.operators.co.PureKeyedCoProcessOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 
 import static java.util.Objects.requireNonNull;
@@ -337,6 +339,74 @@ public class ConnectedStreams<IN1, IN2> {
 		}
 
 		return transform("Co-Process", outputType, operator);
+	}
+
+	/**
+	 * Applies the given {@link CoKeyedProcessFunction} on the connected input keyed streams,
+	 * thereby creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the input keyed streams and can produce zero or
+	 * more output elements. Contrary to the {@link #flatMap(CoFlatMapFunction)} function, this
+	 * function can also query the time and set timers. When reacting to the firing of set timers
+	 * the function can directly emit elements and/or register yet more timers.
+	 *
+	 * @param coKeyedProcessFunction The {@link CoKeyedProcessFunction} that is called for each element
+	 *                      in the stream.
+	 *
+	 * @param <R> The type of elements emitted by the {@code CoProcessFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@PublicEvolving
+	public <K, R> SingleOutputStreamOperator<R> process(
+		CoKeyedProcessFunction<K, IN1, IN2, R> coKeyedProcessFunction) {
+
+		TypeInformation<R> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(
+			coKeyedProcessFunction,
+			CoKeyedProcessFunction.class,
+			0,
+			1,
+			2,
+			TypeExtractor.NO_INDEX,
+			getType1(),
+			getType2(),
+			Utils.getCallLocationName(),
+			true);
+
+		return process(coKeyedProcessFunction, outTypeInfo);
+	}
+
+	/**
+	 * Applies the given {@link CoKeyedProcessFunction} on the connected input streams,
+	 * thereby creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements. Contrary to the {@link #flatMap(CoFlatMapFunction)} function,
+	 * this function can also query the time and set timers. When reacting to the firing of set
+	 * timers the function can directly emit elements and/or register yet more timers.
+	 *
+	 * @param coKeyedProcessFunction The {@link CoKeyedProcessFunction} that is called for each element
+	 *                      in the stream.
+	 *
+	 * @param <R> The type of elements emitted by the {@code CoProcessFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@Internal
+	public <K, R> SingleOutputStreamOperator<R> process(
+		CoKeyedProcessFunction<K, IN1, IN2, R> coKeyedProcessFunction,
+		TypeInformation<R> outputType) {
+
+		TwoInputStreamOperator<IN1, IN2, R> operator;
+
+		if ((inputStream1 instanceof KeyedStream) && (inputStream2 instanceof KeyedStream)) {
+			operator = new PureKeyedCoProcessOperator<>(inputStream1.clean(coKeyedProcessFunction));
+		} else {
+			throw new UnsupportedOperationException("CoKeyedProcessFunction can only be used " +
+				"when both input streams are of type KeyedStream.");
+		}
+
+		return transform("Co-Keyed-Process", outputType, operator);
 	}
 
 	@PublicEvolving

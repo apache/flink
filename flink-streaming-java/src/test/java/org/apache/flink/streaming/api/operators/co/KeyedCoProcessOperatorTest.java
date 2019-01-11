@@ -334,7 +334,11 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 		testHarness.close();
 	}
 
-	private static class IntToStringKeySelector<T> implements KeySelector<Integer, String> {
+	/**
+	 * A key selector which convert a integer key to string.
+	 *
+	 */
+	protected static class IntToStringKeySelector<T> implements KeySelector<Integer, String> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -343,7 +347,10 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class IdentityKeySelector<T> implements KeySelector<T, T> {
+	/**
+	 * A identity key selector.
+	 */
+	protected static class IdentityKeySelector<T> implements KeySelector<T, T> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
