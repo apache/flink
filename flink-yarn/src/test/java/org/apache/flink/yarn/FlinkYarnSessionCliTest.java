@@ -450,6 +450,23 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(1024));
 	}
 
+	@Test
+	public void testMultipleYarnShipOptions() throws Exception {
+		final String[] args = new String[]{"run", "--yarnship", tmp.newFolder().getAbsolutePath(), "--yarnship", tmp.newFolder().getAbsolutePath()};
+		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(
+			new Configuration(),
+			tmp.getRoot().getAbsolutePath(),
+			"y",
+			"yarn");
+
+		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
+
+		AbstractYarnClusterDescriptor flinkYarnDescriptor = flinkYarnSessionCli.createClusterDescriptor(commandLine);
+
+		assertEquals(2, flinkYarnDescriptor.shipFiles.size());
+
+	}
+
 
 	///////////
 	// Utils //
