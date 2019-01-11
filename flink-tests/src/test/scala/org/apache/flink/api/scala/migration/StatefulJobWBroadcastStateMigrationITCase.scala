@@ -39,8 +39,8 @@ import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.streaming.util.migration.MigrationVersion
 import org.apache.flink.test.checkpointing.utils.SavepointMigrationTestBase
+import org.apache.flink.testutils.migration.MigrationVersion
 import org.apache.flink.util.Collector
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
