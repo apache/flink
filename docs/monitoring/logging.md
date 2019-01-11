@@ -93,7 +93,7 @@ Placeholders can also be used in conjunction with exceptions which shall be logg
 
 {% highlight java %}
 catch(Exception exception){
-	LOG.error("An {} occurred.", "error", exception);
+	LOG.error("An {} occurred.", exception.getMessage());
 }
 {% endhighlight %}
 
