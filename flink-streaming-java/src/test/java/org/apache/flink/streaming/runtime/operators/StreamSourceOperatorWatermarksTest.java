@@ -43,13 +43,11 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.CollectorOutput;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -63,7 +61,7 @@ import static org.mockito.Mockito.when;
  * Tests for {@link StreamSource} operators.
  */
 @SuppressWarnings("serial")
-public class StreamSourceOperatorTest {
+public class StreamSourceOperatorWatermarksTest {
 
 	@Test
 	public void testEmitMaxWatermarkForFiniteSource() throws Exception {
@@ -74,7 +72,7 @@ public class StreamSourceOperatorTest {
 
 		final List<StreamElement> output = new ArrayList<>();
 
-		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0);
 		operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output));
 
 		assertEquals(1, output.size());
@@ -90,7 +88,7 @@ public class StreamSourceOperatorTest {
 		final StreamSource<String, InfiniteSource<String>> operator =
 				new StreamSource<>(new InfiniteSource<String>());
 
-		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0);
 		operator.cancel();
 
 		// run and exit
@@ -109,7 +107,7 @@ public class StreamSourceOperatorTest {
 		final StreamSource<String, InfiniteSource<String>> operator =
 				new StreamSource<>(new InfiniteSource<String>());
 
-		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0);
 
 		// trigger an async cancel in a bit
 		new Thread("canceler") {
@@ -141,7 +139,7 @@ public class StreamSourceOperatorTest {
 		final StoppableStreamSource<String, InfiniteSource<String>> operator =
 				new StoppableStreamSource<>(new InfiniteSource<String>());
 
-		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0);
 		operator.stop();
 
 		// run and stop
@@ -159,7 +157,7 @@ public class StreamSourceOperatorTest {
 		final StoppableStreamSource<String, InfiniteSource<String>> operator =
 				new StoppableStreamSource<>(new InfiniteSource<String>());
 
-		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0);
 
 		// trigger an async cancel in a bit
 		new Thread("canceler") {
@@ -178,53 +176,6 @@ public class StreamSourceOperatorTest {
 		assertTrue(output.isEmpty());
 	}
 
-	/**
-	 * Test that latency marks are emitted.
-	 */
-	@Test
-	public void testLatencyMarkEmission() throws Exception {
-		final List<StreamElement> output = new ArrayList<>();
-
-		final long maxProcessingTime = 100L;
-		final long latencyMarkInterval = 10L;
-
-		final TestProcessingTimeService testProcessingTimeService = new TestProcessingTimeService();
-		testProcessingTimeService.setCurrentTime(0L);
-		final List<Long> processingTimes = Arrays.asList(1L, 10L, 11L, 21L, maxProcessingTime);
-
-		// regular stream source operator
-		final StreamSource<Long, ProcessingTimeServiceSource> operator =
-				new StreamSource<>(new ProcessingTimeServiceSource(testProcessingTimeService, processingTimes));
-
-		// emit latency marks every 10 milliseconds.
-		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, latencyMarkInterval, testProcessingTimeService);
-
-		// run and wait to be stopped
-		operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<Long>(output));
-
-		int numberLatencyMarkers = (int) (maxProcessingTime / latencyMarkInterval) + 1;
-
-		assertEquals(
-			numberLatencyMarkers + 1, // + 1 is the final watermark element
-			output.size());
-
-		long timestamp = 0L;
-
-		int i = 0;
-		// and that its only latency markers + a final watermark
-		for (; i < output.size() - 1; i++) {
-			StreamElement se = output.get(i);
-			Assert.assertTrue(se.isLatencyMarker());
-			Assert.assertEquals(operator.getOperatorID(), se.asLatencyMarker().getOperatorId());
-			Assert.assertEquals(0, se.asLatencyMarker().getSubtaskIndex());
-			Assert.assertTrue(se.asLatencyMarker().getMarkedTime() == timestamp);
-
-			timestamp += latencyMarkInterval;
-		}
-
-		Assert.assertTrue(output.get(i).isWatermark());
-	}
-
 	@Test
 	public void testAutomaticWatermarkContext() throws Exception {
 
@@ -236,7 +187,7 @@ public class StreamSourceOperatorTest {
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
 		processingTimeService.setCurrentTime(0);
 
-		setupSourceOperator(operator, TimeCharacteristic.IngestionTime, watermarkInterval, 0, processingTimeService);
+		setupSourceOperator(operator, TimeCharacteristic.IngestionTime, watermarkInterval, processingTimeService);
 
 		final List<StreamElement> output = new ArrayList<>();
 
@@ -271,21 +222,18 @@ public class StreamSourceOperatorTest {
 	@SuppressWarnings("unchecked")
 	private static <T> void setupSourceOperator(StreamSource<T, ?> operator,
 			TimeCharacteristic timeChar,
-			long watermarkInterval,
-			long latencyMarkInterval) {
-		setupSourceOperator(operator, timeChar, watermarkInterval, latencyMarkInterval, new TestProcessingTimeService());
+			long watermarkInterval) {
+		setupSourceOperator(operator, timeChar, watermarkInterval, new TestProcessingTimeService());
 	}
 
 	@SuppressWarnings("unchecked")
 	private static <T> void setupSourceOperator(StreamSource<T, ?> operator,
 												TimeCharacteristic timeChar,
 												long watermarkInterval,
-												long latencyMarkInterval,
 												final ProcessingTimeService timeProvider) {
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setAutoWatermarkInterval(watermarkInterval);
-		executionConfig.setLatencyTrackingInterval(latencyMarkInterval);
 
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		cfg.setStateBackend(new MemoryStateBackend());
@@ -353,35 +301,6 @@ public class StreamSourceOperatorTest {
 		@Override
 		public void stop() {
 			running = false;
-		}
-	}
-
-	private static final class ProcessingTimeServiceSource implements SourceFunction<Long> {
-
-		private final TestProcessingTimeService processingTimeService;
-		private final List<Long> processingTimes;
-
-		private boolean cancelled = false;
-
-		private ProcessingTimeServiceSource(TestProcessingTimeService processingTimeService, List<Long> processingTimes) {
-			this.processingTimeService = processingTimeService;
-			this.processingTimes = processingTimes;
-		}
-
-		@Override
-		public void run(SourceContext<Long> ctx) throws Exception {
-			for (Long processingTime : processingTimes) {
-				if (cancelled) {
-					break;
-				}
-
-				processingTimeService.setCurrentTime(processingTime);
-			}
-		}
-
-		@Override
-		public void cancel() {
-			cancelled = true;
 		}
 	}
 }

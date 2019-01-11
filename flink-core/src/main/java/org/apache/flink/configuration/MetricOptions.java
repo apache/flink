@@ -104,6 +104,21 @@ public class MetricOptions {
 			.defaultValue("<host>.taskmanager.<tm_id>.<job_name>.<operator_name>.<subtask_index>")
 			.withDescription("Defines the scope format string that is applied to all metrics scoped to an operator.");
 
+	public static final ConfigOption<Long> LATENCY_INTERVAL =
+		key("metrics.latency.interval")
+			.defaultValue(2000L)
+			.withDescription("Defines the interval at which latency tracking marks are emitted from the sources." +
+				" Disables latency tracking if set to 0 or a negative value. Enabling this feature can significantly" +
+				" impact the performance of the cluster.");
+
+	public static final ConfigOption<String> LATENCY_SOURCE_GRANULARITY =
+		key("metrics.latency.granularity")
+			.defaultValue("subtask")
+			.withDescription("Defines the granularity of latency metrics. Accepted values are " +
+					"\"single\"(Track latency without differentiating between sources and subtasks), " +
+					"\"operator\"(Track latency while differentiating between sources, but not subtasks) and " +
+					"\"subtask\"(Track latency while differentiating between sources and subtasks).");
+
 	/** The number of measured latencies to maintain at each operator. */
 	public static final ConfigOption<Integer> LATENCY_HISTORY_SIZE =
 		key("metrics.latency.history-size")

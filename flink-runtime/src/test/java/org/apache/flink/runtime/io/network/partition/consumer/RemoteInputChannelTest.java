@@ -336,9 +336,11 @@ public class RemoteInputChannelTest {
 	 * Tests to verify the behaviours of three different processes if the number of available
 	 * buffers is less than required buffers.
 	 *
-	 * 1. Recycle the floating buffer
-	 * 2. Recycle the exclusive buffer
-	 * 3. Decrease the sender's backlog
+	 * <ol>
+	 * <li>Recycle the floating buffer</li>
+	 * <li>Recycle the exclusive buffer</li>
+	 * <li>Decrease the sender's backlog</li>
+	 * </ol>
 	 */
 	@Test
 	public void testAvailableBuffersLessThanRequiredBuffers() throws Exception {

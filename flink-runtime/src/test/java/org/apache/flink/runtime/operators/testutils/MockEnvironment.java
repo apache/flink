@@ -45,7 +45,6 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
-import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.Preconditions;
@@ -91,6 +90,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private final JobVertexID jobVertexID;
 
+	private final TaskManagerRuntimeInfo taskManagerRuntimeInfo;
+
 	private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
 
 	private final AccumulatorRegistry accumulatorRegistry;
@@ -127,7 +128,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		int parallelism,
 		int subtaskIndex,
 		ClassLoader userCodeClassLoader,
-		TaskMetricGroup taskMetricGroup) {
+		TaskMetricGroup taskMetricGroup,
+		TaskManagerRuntimeInfo taskManagerRuntimeInfo) {
 
 		this.jobID = jobID;
 		this.jobVertexID = jobVertexID;
@@ -140,6 +142,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 		this.memManager = new MemoryManager(memorySize, 1);
 		this.ioManager = new IOManagerAsync();
+		this.taskManagerRuntimeInfo = taskManagerRuntimeInfo;
 
 		this.executionConfig = executionConfig;
 		this.inputSplitProvider = inputSplitProvider;
@@ -212,7 +215,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	@Override
 	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return new TestingTaskManagerRuntimeInfo();
+		return this.taskManagerRuntimeInfo;
 	}
 
 	@Override

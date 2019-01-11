@@ -121,6 +121,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the legacy {@link TaskManager}.
+ */
 @SuppressWarnings("serial")
 public class TaskManagerTest extends TestLogger {
 
@@ -133,7 +136,7 @@ public class TaskManagerTest extends TestLogger {
 
 	private static ActorSystem system;
 
-	final static UUID leaderSessionID = UUID.randomUUID();
+	static final UUID LEADER_SESSION_ID = UUID.randomUUID();
 
 	private TestingHighAvailabilityServices highAvailabilityServices;
 
@@ -215,7 +218,6 @@ public class TaskManagerTest extends TestLogger {
 					Collections.<InputGateDeploymentDescriptor>emptyList(),
 					new ArrayList<PermanentBlobKey>(), Collections.emptyList(), 0);
 
-
 				new Within(d) {
 
 					@Override
@@ -261,8 +263,6 @@ public class TaskManagerTest extends TestLogger {
 								fail("Unexpected message: " + message);
 							}
 						} while (System.currentTimeMillis() < deadline);
-
-
 					}
 				};
 			}
@@ -283,11 +283,11 @@ public class TaskManagerTest extends TestLogger {
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
 					getTestActor(),
-					leaderSessionID);
+				LEADER_SESSION_ID);
 
 			try {
-				ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, leaderSessionID));
-				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+				ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, LEADER_SESSION_ID));
+				jobManager = new AkkaActorGateway(jm, LEADER_SESSION_ID);
 
 				highAvailabilityServices.setJobMasterLeaderRetriever(
 					HighAvailabilityServices.DEFAULT_JOB_ID,
@@ -404,7 +404,7 @@ public class TaskManagerTest extends TestLogger {
 					}
 				};
 			}
-			catch(Exception e) {
+			catch (Exception e) {
 				e.printStackTrace();
 				fail(e.getMessage());
 			}
@@ -424,11 +424,11 @@ public class TaskManagerTest extends TestLogger {
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
 					getTestActor(),
-					leaderSessionID);
+				LEADER_SESSION_ID);
 
 			try {
-				ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, leaderSessionID));
-				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+				ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, LEADER_SESSION_ID));
+				jobManager = new AkkaActorGateway(jm, LEADER_SESSION_ID);
 
 				highAvailabilityServices.setJobMasterLeaderRetriever(
 					HighAvailabilityServices.DEFAULT_JOB_ID,
@@ -554,11 +554,11 @@ public class TaskManagerTest extends TestLogger {
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
 					getTestActor(),
-					leaderSessionID);
+				LEADER_SESSION_ID);
 
 			try {
-				ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, leaderSessionID));
-				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+				ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, LEADER_SESSION_ID));
+				jobManager = new AkkaActorGateway(jm, LEADER_SESSION_ID);
 
 				highAvailabilityServices.setJobMasterLeaderRetriever(
 					HighAvailabilityServices.DEFAULT_JOB_ID,
@@ -651,7 +651,7 @@ public class TaskManagerTest extends TestLogger {
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
 					getTestActor(),
-					leaderSessionID);
+				LEADER_SESSION_ID);
 			try {
 				final JobID jid = new JobID();
 
@@ -661,8 +661,8 @@ public class TaskManagerTest extends TestLogger {
 				final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 				final ExecutionAttemptID eid2 = new ExecutionAttemptID();
 
-				ActorRef jm = system.actorOf(Props.create(new SimpleLookupJobManagerCreator(leaderSessionID)));
-				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+				ActorRef jm = system.actorOf(Props.create(new SimpleLookupJobManagerCreator(LEADER_SESSION_ID)));
+				jobManager = new AkkaActorGateway(jm, LEADER_SESSION_ID);
 
 				highAvailabilityServices.setJobMasterLeaderRetriever(
 					HighAvailabilityServices.DEFAULT_JOB_ID,
@@ -793,7 +793,7 @@ public class TaskManagerTest extends TestLogger {
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
 					getTestActor(),
-					leaderSessionID);
+				LEADER_SESSION_ID);
 			try {
 				final JobID jid = new JobID();
 
@@ -806,12 +806,12 @@ public class TaskManagerTest extends TestLogger {
 				ActorRef jm = system.actorOf(
 						Props.create(
 								new SimpleLookupFailingUpdateJobManagerCreator(
-										leaderSessionID,
+									LEADER_SESSION_ID,
 										eid2)
 						)
 				);
 
-				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+				jobManager = new AkkaActorGateway(jm, LEADER_SESSION_ID);
 
 				highAvailabilityServices.setJobMasterLeaderRetriever(
 					HighAvailabilityServices.DEFAULT_JOB_ID,
@@ -911,14 +911,14 @@ public class TaskManagerTest extends TestLogger {
 
 							assertEquals(0, tasks.size());
 						}
-						catch(Exception e) {
+						catch (Exception e) {
 							e.printStackTrace();
 							fail(e.getMessage());
 						}
 					}
 				};
 			}
-			catch(Exception e) {
+			catch (Exception e) {
 				e.printStackTrace();
 				fail(e.getMessage());
 			}
@@ -943,16 +943,16 @@ public class TaskManagerTest extends TestLogger {
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
 					getTestActor(),
-					leaderSessionID);
+				LEADER_SESSION_ID);
 
 			try {
 				final IntermediateDataSetID resultId = new IntermediateDataSetID();
 
 				// Create the JM
 				ActorRef jm = system.actorOf(Props.create(
-						new SimplePartitionStateLookupJobManagerCreator(leaderSessionID, getTestActor())));
+						new SimplePartitionStateLookupJobManagerCreator(LEADER_SESSION_ID, getTestActor())));
 
-				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+				jobManager = new AkkaActorGateway(jm, LEADER_SESSION_ID);
 
 				highAvailabilityServices.setJobMasterLeaderRetriever(
 					HighAvailabilityServices.DEFAULT_JOB_ID,
@@ -1017,12 +1017,12 @@ public class TaskManagerTest extends TestLogger {
 						// The task should fail after repeated requests
 						assertEquals(ExecutionState.FAILED, msg.getExecutionState());
 						Throwable t = msg.getError(ClassLoader.getSystemClassLoader());
-						assertEquals("Thrown exception was not a PartitionNotFoundException: " + t.getMessage(), 
+						assertEquals("Thrown exception was not a PartitionNotFoundException: " + t.getMessage(),
 							PartitionNotFoundException.class, t.getClass());
 					}
 				};
 			}
-			catch(Exception e) {
+			catch (Exception e) {
 				e.printStackTrace();
 				fail(e.getMessage());
 			}
@@ -1065,16 +1065,16 @@ public class TaskManagerTest extends TestLogger {
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
 					getTestActor(),
-					leaderSessionID);
+				LEADER_SESSION_ID);
 
 			try {
 				final IntermediateDataSetID resultId = new IntermediateDataSetID();
 
 				// Create the JM
 				ActorRef jm = system.actorOf(Props.create(
-						new SimplePartitionStateLookupJobManagerCreator(leaderSessionID, getTestActor())));
+						new SimplePartitionStateLookupJobManagerCreator(LEADER_SESSION_ID, getTestActor())));
 
-				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+				jobManager = new AkkaActorGateway(jm, LEADER_SESSION_ID);
 
 				highAvailabilityServices.setJobMasterLeaderRetriever(
 					HighAvailabilityServices.DEFAULT_JOB_ID,
@@ -1143,7 +1143,7 @@ public class TaskManagerTest extends TestLogger {
 					}
 				};
 			}
-			catch(Exception e) {
+			catch (Exception e) {
 				e.printStackTrace();
 				fail(e.getMessage());
 			}
@@ -1167,9 +1167,9 @@ public class TaskManagerTest extends TestLogger {
 
 				// Create the JM
 				ActorRef jm = system.actorOf(Props.create(
-					new SimplePartitionStateLookupJobManagerCreator(leaderSessionID, getTestActor())));
+					new SimplePartitionStateLookupJobManagerCreator(LEADER_SESSION_ID, getTestActor())));
 
-				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+				jobManager = new AkkaActorGateway(jm, LEADER_SESSION_ID);
 
 				final int dataPort = NetUtils.getAvailablePort();
 				Configuration config = new Configuration();
@@ -1209,7 +1209,8 @@ public class TaskManagerTest extends TestLogger {
 				TestingUtils.stopActor(taskManager);
 				TestingUtils.stopActor(jobManager);
 			}
-		}};}
+		}};
+	}
 
 	// ------------------------------------------------------------------------
 	// Stack trace sample
@@ -1555,7 +1556,7 @@ public class TaskManagerTest extends TestLogger {
 	 * Test that a failing schedule or update consumers call leads to the failing of the respective
 	 * task.
 	 *
-	 * IMPORTANT: We have to make sure that the invokable's cancel method is called, because only
+	 * <p>IMPORTANT: We have to make sure that the invokable's cancel method is called, because only
 	 * then the future is completed. We do this by not eagerly deploy consumer tasks and requiring
 	 * the invokable to fill one memory segment. The completed memory segment will trigger the
 	 * scheduling of the downstream operator since it is in pipeline mode. After we've filled the
@@ -1592,9 +1593,8 @@ public class TaskManagerTest extends TestLogger {
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
 				new ArrayList<>(), Collections.emptyList(), 0);
 
-
-			ActorRef jmActorRef = system.actorOf(Props.create(FailingScheduleOrUpdateConsumersJobManager.class, leaderSessionID), "jobmanager");
-			ActorGateway jobManager = new AkkaActorGateway(jmActorRef, leaderSessionID);
+			ActorRef jmActorRef = system.actorOf(Props.create(FailingScheduleOrUpdateConsumersJobManager.class, LEADER_SESSION_ID), "jobmanager");
+			ActorGateway jobManager = new AkkaActorGateway(jmActorRef, LEADER_SESSION_ID);
 
 			highAvailabilityServices.setJobMasterLeaderRetriever(
 				HighAvailabilityServices.DEFAULT_JOB_ID,
@@ -1635,8 +1635,8 @@ public class TaskManagerTest extends TestLogger {
 
 		try {
 
-			ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, leaderSessionID));
-			jobManager = new AkkaActorGateway(jm, leaderSessionID);
+			ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, LEADER_SESSION_ID));
+			jobManager = new AkkaActorGateway(jm, LEADER_SESSION_ID);
 
 			highAvailabilityServices.setJobMasterLeaderRetriever(
 				HighAvailabilityServices.DEFAULT_JOB_ID,
@@ -1696,8 +1696,8 @@ public class TaskManagerTest extends TestLogger {
 		try {
 			final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
 
-			ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, leaderSessionID));
-			jobManager = new AkkaActorGateway(jm, leaderSessionID);
+			ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, LEADER_SESSION_ID));
+			jobManager = new AkkaActorGateway(jm, LEADER_SESSION_ID);
 
 			highAvailabilityServices.setJobMasterLeaderRetriever(
 				HighAvailabilityServices.DEFAULT_JOB_ID,
@@ -1764,8 +1764,8 @@ public class TaskManagerTest extends TestLogger {
 
 		try {
 
-			ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, leaderSessionID));
-			jobManager = new AkkaActorGateway(jm, leaderSessionID);
+			ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, LEADER_SESSION_ID));
+			jobManager = new AkkaActorGateway(jm, LEADER_SESSION_ID);
 
 			highAvailabilityServices.setJobMasterLeaderRetriever(
 				HighAvailabilityServices.DEFAULT_JOB_ID,
@@ -1813,8 +1813,8 @@ public class TaskManagerTest extends TestLogger {
 
 			final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
 
-			ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, leaderSessionID));
-			jobManager = new AkkaActorGateway(jm, leaderSessionID);
+			ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, LEADER_SESSION_ID));
+			jobManager = new AkkaActorGateway(jm, LEADER_SESSION_ID);
 
 			highAvailabilityServices.setJobMasterLeaderRetriever(
 				HighAvailabilityServices.DEFAULT_JOB_ID,
@@ -1894,7 +1894,7 @@ public class TaskManagerTest extends TestLogger {
 						),
 						self);
 			}
-			else if(message instanceof TaskMessages.UpdateTaskExecutionState){
+			else if (message instanceof TaskMessages.UpdateTaskExecutionState){
 				getSender().tell(true, getSelf());
 			}
 		}
@@ -1958,7 +1958,7 @@ public class TaskManagerTest extends TestLogger {
 				TaskMessages.UpdateTaskExecutionState updateMsg =
 						(TaskMessages.UpdateTaskExecutionState) message;
 
-				if(validIDs.contains(updateMsg.taskExecutionState().getID())) {
+				if (validIDs.contains(updateMsg.taskExecutionState().getID())) {
 					getSender().tell(true, getSelf());
 				} else {
 					getSender().tell(false, getSelf());
@@ -2021,7 +2021,7 @@ public class TaskManagerTest extends TestLogger {
 
 			validIDs = new HashSet<ExecutionAttemptID>();
 
-			for(ExecutionAttemptID id : ids) {
+			for (ExecutionAttemptID id : ids) {
 				this.validIDs.add(id);
 			}
 		}
@@ -2049,9 +2049,9 @@ public class TaskManagerTest extends TestLogger {
 			return new SimplePartitionStateLookupJobManager(leaderSessionID, testActor);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static final class TestInvokableCorrect extends AbstractInvokable {
 
 		public TestInvokableCorrect(Environment environment) {
@@ -2061,7 +2061,7 @@ public class TaskManagerTest extends TestLogger {
 		@Override
 		public void invoke() {}
 	}
-	
+
 	public static class TestInvokableBlockingCancelable extends AbstractInvokable {
 
 		public TestInvokableBlockingCancelable(Environment environment) {

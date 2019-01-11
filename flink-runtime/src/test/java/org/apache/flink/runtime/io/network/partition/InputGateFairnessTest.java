@@ -58,6 +58,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests verifying fairness in input gates.
+ */
 public class InputGateFairnessTest {
 
 	@Test
@@ -115,7 +118,7 @@ public class InputGateFairnessTest {
 				max = Math.max(max, size);
 			}
 
-			assertTrue(max == min || max == min+1);
+			assertTrue(max == min || max == (min + 1));
 		}
 
 		assertFalse(gate.getNextBufferOrEvent().isPresent());
@@ -207,11 +210,11 @@ public class InputGateFairnessTest {
 
 		for (int i = 0; i < numChannels; i++) {
 			RemoteInputChannel channel = new RemoteInputChannel(
-					gate, i, new ResultPartitionID(), mock(ConnectionID.class), 
+					gate, i, new ResultPartitionID(), mock(ConnectionID.class),
 					connManager, 0, 0, UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
 			channels[i] = channel;
-			
+
 			for (int p = 0; p < buffersPerChannel; p++) {
 				channel.onBuffer(mockBuffer, p, -1);
 			}
@@ -233,7 +236,7 @@ public class InputGateFairnessTest {
 				max = Math.max(max, size);
 			}
 
-			assertTrue(max == min || max == min+1);
+			assertTrue(max == min || max == (min + 1));
 		}
 
 		assertFalse(gate.getNextBufferOrEvent().isPresent());
@@ -287,7 +290,7 @@ public class InputGateFairnessTest {
 				max = Math.max(max, size);
 			}
 
-			assertTrue(max == min || max == min+1);
+			assertTrue(max == min || max == (min + 1));
 
 			if (i % (2 * numChannels) == 0) {
 				// add three buffers to each channel, in random order
@@ -336,7 +339,7 @@ public class InputGateFairnessTest {
 			partitions[i].onBuffer(buffer, sequenceNumbers[i]++, -1);
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	private static class FairnessVerifyingInputGate extends SingleInputGate {
@@ -371,7 +374,6 @@ public class InputGateFairnessTest {
 
 			this.uniquenessChecker = new HashSet<>();
 		}
-
 
 		@Override
 		public Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException {

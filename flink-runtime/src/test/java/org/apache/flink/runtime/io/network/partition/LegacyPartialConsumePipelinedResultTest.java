@@ -40,14 +40,17 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+/**
+ * Test for consuming a pipelined result only partially.
+ */
 public class LegacyPartialConsumePipelinedResultTest extends TestLogger {
 
 	// Test configuration
-	private final static int NUMBER_OF_TMS = 1;
-	private final static int NUMBER_OF_SLOTS_PER_TM = 1;
-	private final static int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
+	private static final int NUMBER_OF_TMS = 1;
+	private static final int NUMBER_OF_SLOTS_PER_TM = 1;
+	private static final int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
 
-	private final static int NUMBER_OF_NETWORK_BUFFERS = 128;
+	private static final int NUMBER_OF_NETWORK_BUFFERS = 128;
 
 	private static TestingCluster flink;
 
@@ -72,7 +75,7 @@ public class LegacyPartialConsumePipelinedResultTest extends TestLogger {
 	/**
 	 * Tests a fix for FLINK-1930.
 	 *
-	 * <p> When consuming a pipelined result only partially, is is possible that local channels
+	 * <p>When consuming a pipelined result only partially, is is possible that local channels
 	 * release the buffer pool, which is associated with the result partition, too early.  If the
 	 * producer is still producing data when this happens, it runs into an IllegalStateException,
 	 * because of the destroyed buffer pool.

@@ -41,15 +41,19 @@ public final class RestClientConfiguration {
 
 	private final long connectionTimeout;
 
+	private final long idlenessTimeout;
+
 	private final int maxContentLength;
 
 	private RestClientConfiguration(
 			@Nullable final SSLEngineFactory sslEngineFactory,
 			final long connectionTimeout,
+			final long idlenessTimeout,
 			final int maxContentLength) {
 		checkArgument(maxContentLength > 0, "maxContentLength must be positive, was: %d", maxContentLength);
 		this.sslEngineFactory = sslEngineFactory;
 		this.connectionTimeout = connectionTimeout;
+		this.idlenessTimeout = idlenessTimeout;
 		this.maxContentLength = maxContentLength;
 	}
 
@@ -64,10 +68,17 @@ public final class RestClientConfiguration {
 	}
 
 	/**
-	 * @see RestOptions#CONNECTION_TIMEOUT
+	 * {@see RestOptions#CONNECTION_TIMEOUT}.
 	 */
 	public long getConnectionTimeout() {
 		return connectionTimeout;
+	}
+
+	/**
+	 * {@see RestOptions#IDLENESS_TIMEOUT}.
+	 */
+	public long getIdlenessTimeout() {
+		return idlenessTimeout;
 	}
 
 	/**
@@ -104,8 +115,10 @@ public final class RestClientConfiguration {
 
 		final long connectionTimeout = config.getLong(RestOptions.CONNECTION_TIMEOUT);
 
+		final long idlenessTimeout = config.getLong(RestOptions.IDLENESS_TIMEOUT);
+
 		int maxContentLength = config.getInteger(RestOptions.CLIENT_MAX_CONTENT_LENGTH);
 
-		return new RestClientConfiguration(sslEngineFactory, connectionTimeout, maxContentLength);
+		return new RestClientConfiguration(sslEngineFactory, connectionTimeout, idlenessTimeout, maxContentLength);
 	}
 }

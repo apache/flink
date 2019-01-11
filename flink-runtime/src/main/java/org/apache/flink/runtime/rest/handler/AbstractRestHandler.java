@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.AbstractHandler;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
@@ -39,6 +40,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import javax.annotation.Nonnull;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -80,43 +82,26 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 		}
 
 		return response.whenComplete((P resp, Throwable throwable) -> {
-			if (throwable != null) {
-
-				Throwable error = ExceptionUtils.stripCompletionException(throwable);
-
-				if (error instanceof RestHandlerException) {
-					final RestHandlerException rhe = (RestHandlerException) error;
-
-					processRestHandlerException(ctx, httpRequest, rhe);
-				} else {
-					log.error("Implementation error: Unhandled exception.", error);
-					HandlerUtils.sendErrorResponse(
-						ctx,
-						httpRequest,
-						new ErrorResponseBody("Internal server error."),
-						HttpResponseStatus.INTERNAL_SERVER_ERROR,
-						responseHeaders);
-				}
-			} else {
-				HandlerUtils.sendResponse(
-					ctx,
-					httpRequest,
-					resp,
-					messageHeaders.getResponseStatusCode(),
-					responseHeaders);
-			}
+			Tuple2<ResponseBody, HttpResponseStatus> r = throwable != null ?
+				errorResponse(throwable) : Tuple2.of(resp, messageHeaders.getResponseStatusCode());
+			HandlerUtils.sendResponse(ctx, httpRequest, r.f0, r.f1, responseHeaders);
 		}).thenApply(ignored -> null);
 	}
 
-	private void processRestHandlerException(ChannelHandlerContext ctx, HttpRequest httpRequest, RestHandlerException rhe) {
-		log.error("Exception occurred in REST handler.", rhe);
-
-		HandlerUtils.sendErrorResponse(
-			ctx,
-			httpRequest,
-			new ErrorResponseBody(rhe.getMessage()),
-			rhe.getHttpResponseStatus(),
-			responseHeaders);
+	private Tuple2<ResponseBody, HttpResponseStatus> errorResponse(Throwable throwable) {
+		Throwable error = ExceptionUtils.stripCompletionException(throwable);
+		if (error instanceof RestHandlerException) {
+			final RestHandlerException rhe = (RestHandlerException) error;
+			log.error("Exception occurred in REST handler.", rhe);
+			return Tuple2.of(new ErrorResponseBody(rhe.getMessage()), rhe.getHttpResponseStatus());
+		} else {
+			log.error("Implementation error: Unhandled exception.", error);
+			String stackTrace = String.format("<Exception on server side:%n%s%nEnd of exception on server side>",
+				ExceptionUtils.stringifyException(throwable));
+			return Tuple2.of(
+				new ErrorResponseBody(Arrays.asList("Internal server error.", stackTrace)),
+				HttpResponseStatus.INTERNAL_SERVER_ERROR);
+		}
 	}
 
 	/**

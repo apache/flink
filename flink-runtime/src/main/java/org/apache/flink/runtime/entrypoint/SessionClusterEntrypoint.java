@@ -50,7 +50,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Base class for session cluster entry points.
@@ -84,7 +84,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
 			LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			TransientBlobService transientBlobService,
-			Executor executor,
+			ExecutorService executor,
 			MetricQueryServiceRetriever metricQueryServiceRetriever,
 			LeaderElectionService leaderElectionService) throws Exception {
 

@@ -27,6 +27,8 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 
 public class MockEnvironmentBuilder {
 	private String taskName = "mock-task";
@@ -43,6 +45,7 @@ public class MockEnvironmentBuilder {
 	private JobID jobID = new JobID();
 	private JobVertexID jobVertexID = new JobVertexID();
 	private TaskMetricGroup taskMetricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+	private TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
 
 	public MockEnvironmentBuilder setTaskName(String taskName) {
 		this.taskName = taskName;
@@ -76,6 +79,11 @@ public class MockEnvironmentBuilder {
 
 	public MockEnvironmentBuilder setExecutionConfig(ExecutionConfig executionConfig) {
 		this.executionConfig = executionConfig;
+		return this;
+	}
+
+	public MockEnvironmentBuilder setTaskManagerRuntimeInfo(TaskManagerRuntimeInfo taskManagerRuntimeInfo){
+		this.taskManagerRuntimeInfo = taskManagerRuntimeInfo;
 		return this;
 	}
 
@@ -129,6 +137,7 @@ public class MockEnvironmentBuilder {
 			parallelism,
 			subtaskIndex,
 			userCodeClassLoader,
-			taskMetricGroup);
+			taskMetricGroup,
+			taskManagerRuntimeInfo);
 	}
 }

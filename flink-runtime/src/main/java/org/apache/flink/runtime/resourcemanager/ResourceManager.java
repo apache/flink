@@ -46,8 +46,10 @@ import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
@@ -136,6 +138,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	private final ClusterInformation clusterInformation;
 
+	private final JobManagerMetricGroup jobManagerMetricGroup;
+
 	/** The service to elect a ResourceManager leader. */
 	private LeaderElectionService leaderElectionService;
 
@@ -161,7 +165,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
 			ClusterInformation clusterInformation,
-			FatalErrorHandler fatalErrorHandler) {
+			FatalErrorHandler fatalErrorHandler,
+			JobManagerMetricGroup jobManagerMetricGroup) {
 
 		super(rpcService, resourceManagerEndpointId);
 
@@ -173,6 +178,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		this.jobLeaderIdService = checkNotNull(jobLeaderIdService);
 		this.clusterInformation = checkNotNull(clusterInformation);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
+		this.jobManagerMetricGroup = checkNotNull(jobManagerMetricGroup);
 
 		this.taskManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
 			resourceId,
@@ -218,6 +224,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		} catch (Exception e) {
 			throw new ResourceManagerException("Could not start the job leader id service.", e);
 		}
+
+		registerSlotAndTaskExecutorMetrics();
 	}
 
 	@Override
@@ -700,7 +708,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		WorkerRegistration<WorkerType> oldRegistration = taskExecutors.remove(taskExecutorResourceId);
 		if (oldRegistration != null) {
 			// TODO :: suggest old taskExecutor to stop itself
-			log.info("Replacing old registration of TaskExecutor {}.", taskExecutorResourceId);
+			log.debug("Replacing old registration of TaskExecutor {}.", taskExecutorResourceId);
 
 			// remove old task manager registration from slot manager
 			slotManager.unregisterTaskManager(oldRegistration.getInstanceID());
@@ -738,6 +746,18 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds(),
 				clusterInformation);
 		}
+	}
+
+	private void registerSlotAndTaskExecutorMetrics() {
+		jobManagerMetricGroup.gauge(
+			MetricNames.TASK_SLOTS_AVAILABLE,
+			() -> (long) slotManager.getNumberFreeSlots());
+		jobManagerMetricGroup.gauge(
+			MetricNames.TASK_SLOTS_TOTAL,
+			() -> (long) slotManager.getNumberRegisteredSlots());
+		jobManagerMetricGroup.gauge(
+			MetricNames.NUM_REGISTERED_TASK_MANAGERS,
+			() -> (long) taskExecutors.size());
 	}
 
 	private void clearStateInternal() {

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -70,6 +71,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
+import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -237,6 +239,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 				LOG.info("Starting Metrics Registry");
 				metricRegistry = createMetricRegistry(configuration);
+				this.jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
+					metricRegistry,
+					"localhost");
 
 				final RpcService jobManagerRpcService;
 				final RpcService resourceManagerRpcService;
@@ -302,7 +307,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					heartbeatServices,
 					metricRegistry,
 					resourceManagerRpcService,
-					new ClusterInformation("localhost", blobServer.getPort()));
+					new ClusterInformation("localhost", blobServer.getPort()),
+					jobManagerMetricGroup);
 
 				blobCacheService = new BlobCacheService(
 					configuration, haServices.createBlobStore(), new InetSocketAddress(InetAddress.getLocalHost(), blobServer.getPort())
@@ -342,7 +348,10 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					RestHandlerConfiguration.fromConfiguration(configuration),
 					resourceManagerGatewayRetriever,
 					blobServer.getTransientBlobService(),
-					commonRpcService.getExecutor(),
+					WebMonitorEndpoint.createExecutorService(
+						configuration.getInteger(RestOptions.SERVER_NUM_THREADS, 1),
+						configuration.getInteger(RestOptions.SERVER_THREAD_PRIORITY),
+						"DispatcherRestEndpoint"),
 					new AkkaQueryServiceRetriever(
 						actorSystem,
 						Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT))),
@@ -621,8 +630,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 		try {
 			return jobResult.toJobExecutionResult(Thread.currentThread().getContextClassLoader());
-		} catch (JobResult.WrappedJobException e) {
-			throw new JobExecutionException(job.getJobID(), e.getCause());
 		} catch (IOException | ClassNotFoundException e) {
 			throw new JobExecutionException(job.getJobID(), e);
 		}
@@ -755,7 +762,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
 			RpcService resourceManagerRpcService,
-			ClusterInformation clusterInformation) throws Exception {
+			ClusterInformation clusterInformation,
+			JobManagerMetricGroup jobManagerMetricGroup) throws Exception {
 
 		final ResourceManagerRunner resourceManagerRunner = new ResourceManagerRunner(
 			ResourceID.generate(),
@@ -765,7 +773,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			haServices,
 			heartbeatServices,
 			metricRegistry,
-			clusterInformation);
+			clusterInformation,
+			jobManagerMetricGroup);
 
 			resourceManagerRunner.start();
 

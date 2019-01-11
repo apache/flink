@@ -38,6 +38,7 @@ import static org.apache.flink.client.cli.CliFrontendParser.LOGGING_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_ALLOW_NON_RESTORED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_PATH_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.SHUTDOWN_IF_ATTACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.YARN_DETACHED_OPTION;
 
 /**
@@ -58,6 +59,8 @@ public abstract class ProgramOptions extends CommandLineOptions {
 	private final boolean stdoutLogging;
 
 	private final boolean detachedMode;
+
+	private final boolean shutdownOnAttachedExit;
 
 	private final SavepointRestoreSettings savepointSettings;
 
@@ -115,6 +118,7 @@ public abstract class ProgramOptions extends CommandLineOptions {
 		stdoutLogging = !line.hasOption(LOGGING_OPTION.getOpt());
 		detachedMode = line.hasOption(DETACHED_OPTION.getOpt()) || line.hasOption(
 			YARN_DETACHED_OPTION.getOpt());
+		shutdownOnAttachedExit = line.hasOption(SHUTDOWN_IF_ATTACHED_OPTION.getOpt());
 
 		if (line.hasOption(SAVEPOINT_PATH_OPTION.getOpt())) {
 			String savepointPath = line.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
@@ -151,6 +155,10 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 	public boolean getDetachedMode() {
 		return detachedMode;
+	}
+
+	public boolean isShutdownOnAttachedExit() {
+		return shutdownOnAttachedExit;
 	}
 
 	public SavepointRestoreSettings getSavepointRestoreSettings() {

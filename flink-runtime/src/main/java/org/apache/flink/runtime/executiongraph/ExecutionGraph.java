@@ -1151,18 +1151,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				current == JobStatus.SUSPENDED ||
 				current.isGloballyTerminalState()) {
 				return;
-			}
-			else if (current == JobStatus.RESTARTING) {
-				// we handle 'failGlobal()' while in 'RESTARTING' as a safety net in case something
-				// has gone wrong in 'RESTARTING' and we need to re-attempt the restarts
-				initFailureCause(t);
-
-				final long globalVersionForRestart = incrementGlobalModVersion();
-				if (tryRestartOrFail(globalVersionForRestart)) {
-					return;
-				}
-			}
-			else if (transitionState(current, JobStatus.FAILING, t)) {
+			} else if (transitionState(current, JobStatus.FAILING, t)) {
 				initFailureCause(t);
 
 				// make sure no concurrent local or global actions interfere with the failover
@@ -1240,7 +1229,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 						colGroups.add(cgroup);
 					}
 
-					jv.resetForNewExecution(resetTimestamp, globalModVersion);
+					jv.resetForNewExecution(resetTimestamp, expectedGlobalVersion);
 				}
 
 				for (int i = 0; i < stateTimestamps.length; i++) {
