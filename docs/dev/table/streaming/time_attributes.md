@@ -264,7 +264,7 @@ Moreover, the `DataStream` returned by the `getDataStream()` method must have wa
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // define a table source with a rowtime attribute
-public class UserActionSource implements StreamTableSource<Row>, DefinedRowtimeAttribute {
+public class UserActionSource implements StreamTableSource<Row>, DefinedRowtimeAttributes {
 
 	@Override
 	public TypeInformation<Row> getReturnType() {
@@ -301,7 +301,7 @@ WindowedTable windowedTable = tEnv
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // define a table source with a rowtime attribute
-class UserActionSource extends StreamTableSource[Row] with DefinedRowtimeAttribute {
+class UserActionSource extends StreamTableSource[Row] with DefinedRowtimeAttributes {
 
 	override def getReturnType = {
 		val names = Array[String]("Username" , "Data", "UserActionTime")
