@@ -106,7 +106,7 @@ Example:
 DataStream<Tuple2<IntWritable,Text>> input = ...;
 
 BucketingSink<Tuple2<IntWritable,Text>> sink = new BucketingSink<Tuple2<IntWritable,Text>>("/base/path");
-sink.setBucketer(new DateTimeBuckete("yyyy-MM-dd--HHmm", ZoneId.of("America/Los_Angeles")));
+sink.setBucketer(new DateTimeBucketer<>("yyyy-MM-dd--HHmm", ZoneId.of("America/Los_Angeles")));
 sink.setWriter(new SequenceFileWriter<IntWritable, Text>());
 sink.setBatchSize(1024 * 1024 * 400); // this is 400 MB,
 sink.setBatchRolloverInterval(20 * 60 * 1000); // this is 20 mins
