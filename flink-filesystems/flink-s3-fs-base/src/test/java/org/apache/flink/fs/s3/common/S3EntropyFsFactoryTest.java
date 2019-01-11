@@ -54,7 +54,7 @@ public class S3EntropyFsFactoryTest extends TestLogger {
 
 	/**
 	 * Test validates that the produced by AbstractS3FileSystemFactory object will contains
-	 * only first path from multiple paths in config
+	 * only first path from multiple paths in config.
 	 */
 	@Test
 	public void testMultipleTempDirsConfig() throws Exception {
