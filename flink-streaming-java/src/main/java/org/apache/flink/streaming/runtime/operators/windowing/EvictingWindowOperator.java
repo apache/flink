@@ -289,12 +289,12 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 			ListState<StreamRecord<IN>> windowState,
 			TriggerResult triggerResult) throws Exception {
 		if (TriggerResult.PURGE == triggerResult) {
-			evictingWindowState.clear();
+			windowState.clear();
 			return;
 		}
 
 		if (triggerResult.isFire()) {
-			Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
+			Iterable<StreamRecord<IN>> contents = windowState.get();
 			if (contents == null) {
 				// if we have no state, there is nothing to do
 				return;
