@@ -284,13 +284,19 @@ public class UserActionSource implements StreamTableSource<Row>, DefinedRowtimeA
 	}
 
 	@Override
-	public List[RowtimeAttributeDescriptor] getRowtimeAttributeDescriptors() {
-		// Mark the "UserActionTime" attribute as event-time attribute. 
-		// return List<RowtimeAttributeDescriptor>;
+	public List<RowtimeAttributeDescriptor> getRowtimeAttributeDescriptors() {
+		// Mark the "UserActionTime" attribute as event-time attribute.
+		// here we create one attribute descriptor of "UserActionTime"
+        RowtimeAttributeDescriptor rowtimeAttrDescr = new RowtimeAttributeDescriptor(
+        	"UserActionTime",
+        	new ExistingField("UserActionTime"),
+        	new AscendingTimestamps());
+        List<RowtimeAttributeDescriptor> listRowtimeAttrDescr = Collections.singletonList(rowtimeAttrDescr);
+        return listRowtimeAttrDescr;
 	}
 }
 
-// register the table source
+// register tweerererereerrerehe table source
 tEnv.registerTableSource("UserActions", new UserActionSource());
 
 WindowedTable windowedTable = tEnv
@@ -319,7 +325,13 @@ class UserActionSource extends StreamTableSource[Row] with DefinedRowtimeAttribu
 
 	override def getRowtimeAttributeDescriptors: util.List[RowtimeAttributeDescriptor] = {
 		// Mark the "UserActionTime" attribute as event-time attribute.
-		// List<RowtimeAttributeDescriptor>
+        // here we create one attribute descriptor of "UserActionTime"
+        val rowtimeAttrDescr = new RowtimeAttributeDescriptor(
+            "UserActionTime",
+            new ExistingField("UserActionTime"),
+            new AscendingTimestamps)
+        val listRowtimeAttrDescr = Collections.singletonList(rowtimeAttrDescr)
+        listRowtimeAttrDescr
 	}
 }
 
