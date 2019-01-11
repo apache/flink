@@ -284,9 +284,9 @@ public class UserActionSource implements StreamTableSource<Row>, DefinedRowtimeA
 	}
 
 	@Override
-	public String getRowtimeAttribute() {
-		// Mark the "UserActionTime" attribute as event-time attribute.
-		return "UserActionTime";
+	public List[RowtimeAttributeDescriptor] getRowtimeAttributeDescriptors() {
+		// Mark the "UserActionTime" attribute as event-time attribute. 
+		// return List<RowtimeAttributeDescriptor>;
 	}
 }
 
@@ -317,9 +317,9 @@ class UserActionSource extends StreamTableSource[Row] with DefinedRowtimeAttribu
 		stream
 	}
 
-	override def getRowtimeAttribute = {
+	override def getRowtimeAttributeDescriptors: util.List[RowtimeAttributeDescriptor] = {
 		// Mark the "UserActionTime" attribute as event-time attribute.
-		"UserActionTime"
+		// List<RowtimeAttributeDescriptor>
 	}
 }
 
