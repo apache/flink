@@ -23,7 +23,7 @@ import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
-import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator
+import org.apache.flink.streaming.api.operators.co.LegacyKeyedCoProcessOperator
 import org.apache.flink.table.api.{StreamQueryConfig, TableConfig}
 import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.plan.schema.RowSchema
@@ -146,6 +146,6 @@ class DataStreamJoinToCoProcessTranslator(
           genFunction.code,
           queryConfig)
     }
-    new KeyedCoProcessOperator(joinFunction)
+    new LegacyKeyedCoProcessOperator(joinFunction)
   }
 }

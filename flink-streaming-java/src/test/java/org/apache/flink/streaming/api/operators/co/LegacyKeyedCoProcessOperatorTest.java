@@ -26,7 +26,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
-import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
+import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
@@ -43,15 +43,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests {@link KeyedCoProcessOperator}.
+ * Tests {@link LegacyKeyedCoProcessOperator}.
  */
-public class KeyedCoProcessOperatorTest extends TestLogger {
+public class LegacyKeyedCoProcessOperatorTest extends TestLogger {
 
 	@Test
 	public void testTimestampAndWatermarkQuerying() throws Exception {
 
-		KeyedCoProcessOperator<String, Integer, String, String> operator =
-				new KeyedCoProcessOperator<>(new WatermarkQueryingProcessFunction());
+		LegacyKeyedCoProcessOperator<String, Integer, String, String> operator =
+				new LegacyKeyedCoProcessOperator<>(new WatermarkQueryingProcessFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -86,8 +86,8 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 	@Test
 	public void testTimestampAndProcessingTimeQuerying() throws Exception {
 
-		KeyedCoProcessOperator<String, Integer, String, String> operator =
-				new KeyedCoProcessOperator<>(new ProcessingTimeQueryingProcessFunction());
+		LegacyKeyedCoProcessOperator<String, Integer, String, String> operator =
+				new LegacyKeyedCoProcessOperator<>(new ProcessingTimeQueryingProcessFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -118,8 +118,8 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 	@Test
 	public void testEventTimeTimers() throws Exception {
 
-		KeyedCoProcessOperator<String, Integer, String, String> operator =
-				new KeyedCoProcessOperator<>(new EventTimeTriggeringProcessFunction());
+		LegacyKeyedCoProcessOperator<String, Integer, String, String> operator =
+				new LegacyKeyedCoProcessOperator<>(new EventTimeTriggeringProcessFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -144,9 +144,9 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 
 		expectedOutput.add(new StreamRecord<>("INPUT1:17", 42L));
 		expectedOutput.add(new StreamRecord<>("INPUT2:18", 42L));
-		expectedOutput.add(new StreamRecord<>("17:1777", 5L));
+		expectedOutput.add(new StreamRecord<>("1777", 5L));
 		expectedOutput.add(new Watermark(5L));
-		expectedOutput.add(new StreamRecord<>("18:1777", 6L));
+		expectedOutput.add(new StreamRecord<>("1777", 6L));
 		expectedOutput.add(new Watermark(6L));
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -157,8 +157,8 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 	@Test
 	public void testProcessingTimeTimers() throws Exception {
 
-		KeyedCoProcessOperator<String, Integer, String, String> operator =
-				new KeyedCoProcessOperator<>(new ProcessingTimeTriggeringProcessFunction());
+		LegacyKeyedCoProcessOperator<String, Integer, String, String> operator =
+				new LegacyKeyedCoProcessOperator<>(new ProcessingTimeTriggeringProcessFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -194,8 +194,8 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 	@Test
 	public void testEventTimeTimerWithState() throws Exception {
 
-		KeyedCoProcessOperator<String, Integer, String, String> operator =
-				new KeyedCoProcessOperator<>(new EventTimeTriggeringStatefulProcessFunction());
+		LegacyKeyedCoProcessOperator<String, Integer, String, String> operator =
+				new LegacyKeyedCoProcessOperator<>(new EventTimeTriggeringStatefulProcessFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -246,8 +246,8 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 	@Test
 	public void testProcessingTimeTimerWithState() throws Exception {
 
-		KeyedCoProcessOperator<String, Integer, String, String> operator =
-				new KeyedCoProcessOperator<>(new ProcessingTimeTriggeringStatefulProcessFunction());
+		LegacyKeyedCoProcessOperator<String, Integer, String, String> operator =
+				new LegacyKeyedCoProcessOperator<>(new ProcessingTimeTriggeringStatefulProcessFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -286,8 +286,8 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 	@Test
 	public void testSnapshotAndRestore() throws Exception {
 
-		KeyedCoProcessOperator<String, Integer, String, String> operator =
-				new KeyedCoProcessOperator<>(new BothTriggeringProcessFunction());
+		LegacyKeyedCoProcessOperator<String, Integer, String, String> operator =
+				new LegacyKeyedCoProcessOperator<>(new BothTriggeringProcessFunction());
 
 		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -307,7 +307,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 
 		testHarness.close();
 
-		operator = new KeyedCoProcessOperator<>(new BothTriggeringProcessFunction());
+		operator = new LegacyKeyedCoProcessOperator<>(new BothTriggeringProcessFunction());
 
 		testHarness = new KeyedTwoInputStreamOperatorTestHarness<>(
 				operator,
@@ -334,41 +334,10 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 		testHarness.close();
 	}
 
-	@Test
-	public void testGetCurrentKeyFromContext() throws Exception {
-		KeyedCoProcessOperator<String, Integer, String, String> operator =
-				new KeyedCoProcessOperator<>(new AppendCurrentKeyProcessFunction());
-
-		TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
-				new KeyedTwoInputStreamOperatorTestHarness<>(
-						operator,
-						new IntToStringKeySelector<>(),
-						new IdentityKeySelector<String>(),
-						BasicTypeInfo.STRING_TYPE_INFO);
-
-		testHarness.setup();
-		testHarness.open();
-
-		testHarness.processElement1(new StreamRecord<>(5));
-		testHarness.processElement1(new StreamRecord<>(6));
-		testHarness.processElement2(new StreamRecord<>("hello"));
-		testHarness.processElement2(new StreamRecord<>("world"));
-
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
-		expectedOutput.add(new StreamRecord<>("5,5"));
-		expectedOutput.add(new StreamRecord<>("6,6"));
-		expectedOutput.add(new StreamRecord<>("hello,hello"));
-		expectedOutput.add(new StreamRecord<>("world,world"));
-
-		TestHarnessUtil.assertOutputEquals(
-				"Output was not correct.",
-				expectedOutput,
-				testHarness.getOutput());
-
-		testHarness.close();
-	}
-
+	/**
+	 * A key selector which convert a integer key to string.
+	 *
+	 */
 	private static class IntToStringKeySelector<T> implements KeySelector<Integer, String> {
 		private static final long serialVersionUID = 1L;
 
@@ -378,6 +347,9 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * A identity key selector.
+	 */
 	private static class IdentityKeySelector<T> implements KeySelector<T, T> {
 		private static final long serialVersionUID = 1L;
 
@@ -387,7 +359,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class WatermarkQueryingProcessFunction extends KeyedCoProcessFunction<String, Integer, String, String> {
+	private static class WatermarkQueryingProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -409,7 +381,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class EventTimeTriggeringProcessFunction extends KeyedCoProcessFunction<String, Integer, String, String> {
+	private static class EventTimeTriggeringProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -432,11 +404,11 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 				Collector<String> out) throws Exception {
 
 			assertEquals(TimeDomain.EVENT_TIME, ctx.timeDomain());
-			out.collect(ctx.getCurrentKey() + ":" + 1777);
+			out.collect("" + 1777);
 		}
 	}
 
-	private static class EventTimeTriggeringStatefulProcessFunction extends KeyedCoProcessFunction<String, Integer, String, String> {
+	private static class EventTimeTriggeringStatefulProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -479,7 +451,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class ProcessingTimeTriggeringProcessFunction extends KeyedCoProcessFunction<String, Integer, String, String> {
+	private static class ProcessingTimeTriggeringProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -506,7 +478,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class ProcessingTimeQueryingProcessFunction extends KeyedCoProcessFunction<String, Integer, String, String> {
+	private static class ProcessingTimeQueryingProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -528,7 +500,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class ProcessingTimeTriggeringStatefulProcessFunction extends KeyedCoProcessFunction<String, Integer, String, String> {
+	private static class ProcessingTimeTriggeringStatefulProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -571,7 +543,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class BothTriggeringProcessFunction extends KeyedCoProcessFunction<String, Integer, String, String> {
+	private static class BothTriggeringProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -601,24 +573,4 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 			}
 		}
 	}
-
-	private static class AppendCurrentKeyProcessFunction extends KeyedCoProcessFunction<String, Integer, String, String> {
-
-		@Override
-		public void processElement1(
-				Integer value,
-				Context ctx,
-				Collector<String> out) throws Exception {
-			out.collect(value + "," + ctx.getCurrentKey());
-		}
-
-		@Override
-		public void processElement2(
-				String value,
-				Context ctx,
-				Collector<String> out) throws Exception {
-			out.collect(value + "," + ctx.getCurrentKey());
-		}
-	}
-
 }

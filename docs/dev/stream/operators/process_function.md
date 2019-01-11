@@ -58,7 +58,7 @@ stream.keyBy(...).process(new MyProcessFunction())
 
 ## Low-level Joins
 
-To realize low-level operations on two inputs, applications can use `CoProcessFunction`. This
+To realize low-level operations on two inputs, applications can use `CoProcessFunction` or `KeyedCoProcessFunction`. This
 function is bound to two different inputs and gets individual calls to `processElement1(...)` and
 `processElement2(...)` for records from the two different inputs.
 

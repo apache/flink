@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.join;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
+import org.apache.flink.streaming.api.operators.co.LegacyKeyedCoProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -377,7 +377,7 @@ public class RowTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase 
 	private KeyedTwoInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow, BaseRow> createTestHarness(
 			RowTimeBoundedStreamJoin windowJoinFunc)
 			throws Exception {
-		KeyedCoProcessOperator<BaseRow, BaseRow, BaseRow, BaseRow> operator = new KeyedCoProcessOperatorWithWatermarkDelay<>(
+		LegacyKeyedCoProcessOperator<BaseRow, BaseRow, BaseRow, BaseRow> operator = new KeyedCoProcessOperatorWithWatermarkDelay<>(
 				windowJoinFunc, windowJoinFunc.getMaxOutputDelay());
 		KeyedTwoInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow, BaseRow> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(operator, keySelector, keySelector, keyType);
