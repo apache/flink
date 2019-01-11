@@ -52,6 +52,10 @@ public class S3EntropyFsFactoryTest extends TestLogger {
 		assertEquals(7, fs.generateEntropy().length());
 	}
 
+	/**
+	 * Test validates that the produced by AbstractS3FileSystemFactory object will contains
+	 * only first path from multiple paths in config
+	 */
 	@Test
 	public void testMultipleTempDirsConfig() throws Exception {
 		final Configuration conf = new Configuration();
