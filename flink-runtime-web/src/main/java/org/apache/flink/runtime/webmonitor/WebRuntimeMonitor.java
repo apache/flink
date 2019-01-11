@@ -31,6 +31,7 @@ import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTrackerImpl;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.StackTraceSampleCoordinator;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
@@ -100,7 +101,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 	private final ScheduledFuture<?> executionGraphCleanupTask;
 
 	private AtomicBoolean cleanedUp = new AtomicBoolean();
-
 
 	private MetricFetcher metricFetcher;
 
@@ -193,7 +193,11 @@ public class WebRuntimeMonitor implements WebMonitor {
 		} else {
 			sslFactory = null;
 		}
-		metricFetcher = new MetricFetcher(retriever, queryServiceRetriever, scheduledExecutor, timeout);
+		metricFetcher = new MetricFetcherImpl<>(
+			retriever,
+			queryServiceRetriever,
+			scheduledExecutor,
+			timeout);
 
 		Router router = new Router();
 
