@@ -709,6 +709,13 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				throw new CancelTaskException();
 			}
 
+			//*** demo code begin
+			if (taskInfo.getTaskName().contains("Reduce") && taskInfo.getIndexOfThisSubtask() == 0
+				&& taskInfo.getAttemptNumber() == 0) {
+				throw new RuntimeException("crash");
+			}
+			//*** demo code end
+
 			// ----------------------------------------------------------------
 			//  finalization of a successful execution
 			// ----------------------------------------------------------------

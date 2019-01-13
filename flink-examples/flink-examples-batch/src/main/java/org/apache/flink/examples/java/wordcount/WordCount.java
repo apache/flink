@@ -18,7 +18,9 @@
 
 package org.apache.flink.examples.java.wordcount;
 
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -55,9 +57,14 @@ public class WordCount {
 
 		// set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, 1000L));
 
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
+
+		if (params.has("executionMode")) {
+			env.getConfig().setExecutionMode(ExecutionMode.valueOf(params.get("executionMode")));
+		}
 
 		// get input data
 		DataSet<String> text;
