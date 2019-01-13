@@ -33,7 +33,7 @@ spec:
         image: ${FLINK_IMAGE_NAME}
         imagePullPolicy: Never
         args: ["job-cluster", "--job-classname", "${FLINK_JOB}", "-Djobmanager.rpc.address=flink-job-cluster",
-               "-Dparallelism.default=${FLINK_JOB_PARALLELISM}", "-Dblob.server.port=6124", "-Dquery.server.ports=6125",
+               "-Dparallelism.default=${FLINK_JOB_PARALLELISM}", "-Dblob.server.port=6124", "-Dqueryable-state.server.ports=6125",
                ${FLINK_JOB_ARGUMENTS}]
         ports:
         - containerPort: 6123
