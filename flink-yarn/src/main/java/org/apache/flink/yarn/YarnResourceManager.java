@@ -36,6 +36,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.resourcemanager.exceptions.MaximumFailedContainersException;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -94,6 +95,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	 * Container ID generation may vary across Hadoop versions. */
 	static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
 
+	/** The default initial number of task manager. **/
+	private static final String DEFAULT_INITIAL_NUM_TASK_MANAGER = "2";
+
 	/** Environment variable name of the hostname given by the YARN.
 	 * In task executor we use the hostnames given by YARN consistently throughout akka */
 	static final String ENV_FLINK_NODE_ID = "_FLINK_NODE_ID";
@@ -113,6 +117,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	private final int defaultTaskManagerMemoryMB;
 
 	private final int defaultCpus;
+
+	/** Number of failed TaskManager containers before stopping the application. -1 means infinite. */
+	private final int maxFailedContainers;
 
 	/** Client to communicate with the Resource Manager (YARN's master). */
 	private AMRMClientAsync<AMRMClient.ContainerRequest> resourceManagerClient;
@@ -172,6 +179,11 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 					"than YARN's expiry interval ({}). The application is likely to be killed by YARN.",
 					yarnHeartbeatIntervalMS, yarnExpiryIntervalMS);
 		}
+
+		final int numInitialTM = Integer.parseInt(env.getOrDefault(
+			YarnConfigKeys.ENV_TM_COUNT, DEFAULT_INITIAL_NUM_TASK_MANAGER));
+		this.maxFailedContainers = flinkConfig.getInteger(YarnConfigOptions.MAX_FAILED_CONTAINERS.key(), numInitialTM);
+
 		yarnHeartbeatIntervalMillis = yarnHeartbeatIntervalMS;
 		numPendingContainerRequests = 0;
 
@@ -396,11 +408,19 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 					} catch (Throwable t) {
 						log.error("Could not start TaskManager in container {}.", container.getId(), t);
 
+						failedContainerSoFar.getAndAdd(1);
 						// release the failed container
 						workerNodeMap.remove(resourceId);
 						resourceManagerClient.releaseAssignedContainer(container.getId());
-						// and ask for a new one
-						requestYarnContainerIfRequired();
+						if (failedContainerSoFar.intValue() < maxFailedContainers) {
+							// and ask for a new one
+							requestYarnContainerIfRequired();
+						} else {
+							log.error("Could not start TaskManager in container {}.", container.getId(), t);
+							rejectAllPendingSlotRequests(new MaximumFailedContainersException(
+								String.format("Maximum number of failed container %d "
+										+ "is detected in Resource Manager", failedContainerSoFar.intValue())));
+						}
 					}
 				} else {
 					// return the excessive containers

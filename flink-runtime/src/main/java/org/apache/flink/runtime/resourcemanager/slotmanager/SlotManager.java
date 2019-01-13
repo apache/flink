@@ -301,12 +301,25 @@ public class SlotManager implements AutoCloseable {
 	}
 
 	/**
-	 * Cancels and removes a pending slot request with the given allocation id. If there is no such
-	 * pending request, then nothing is done.
-	 *
-	 * @param allocationId identifying the pending slot request
-	 * @return True if a pending slot request was found; otherwise false
+	 * Rejects all pending slot requests.
+	 * @param cause the exception caused the rejection
 	 */
+	public void rejectAllPendingSlotRequests(Exception cause) {
+		for (PendingSlotRequest pendingSlotRequest : pendingSlotRequests.values()) {
+			rejectPendingSlotRequest(pendingSlotRequest, cause);
+		}
+
+		pendingSlotRequests.clear();
+	}
+
+
+		/**
+         * Cancels and removes a pending slot request with the given allocation id. If there is no such
+         * pending request, then nothing is done.
+         *
+         * @param allocationId identifying the pending slot request
+         * @return True if a pending slot request was found; otherwise false
+         */
 	public boolean unregisterSlotRequest(AllocationID allocationId) {
 		checkInit();
 

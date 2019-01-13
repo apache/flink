@@ -44,6 +44,7 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.exceptions.MaximumFailedContainersException;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -688,6 +689,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				(AllocatedSlot ignored, Throwable throwable) -> {
 					if (throwable instanceof TimeoutException) {
 						timeoutPendingSlotRequest(slotRequestId);
+					} else if (throwable instanceof MaximumFailedContainersException) {
+						rejectPendingSlotRequest(slotRequestId);
 					}
 				},
 				getMainThreadExecutor());
@@ -1120,6 +1123,12 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	@VisibleForTesting
 	protected void timeoutPendingSlotRequest(SlotRequestId slotRequestId) {
 		log.info("Pending slot request [{}] timed out.", slotRequestId);
+		removePendingRequest(slotRequestId);
+	}
+
+	@VisibleForTesting
+	protected void rejectPendingSlotRequest(SlotRequestId slotRequestId) {
+		log.info("Pending slot request [{}] is rejected by resource manager.", slotRequestId);
 		removePendingRequest(slotRequestId);
 	}
 
