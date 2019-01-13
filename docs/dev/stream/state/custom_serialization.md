@@ -223,15 +223,16 @@ the same `TypeSerializerSnapshot` class as their snapshot would complicate the i
 This would also be a bad separation of concerns; a single serializer's serialization schema,
 configuration, as well as how to restore it, should be consolidated in its own dedicated `TypeSerializerSnapshot` class.
 
-#### 3. Use the `CompositeSerializerSnapshot` utility for serializers that contain nested serializers
+#### 3. Extend the `CompositeTypeSerializerSnapshot` class for serializers that contain nested serializers
 
 There may be cases where a `TypeSerializer` relies on other nested `TypeSerializer`s; take for example Flink's
-`TupleSerializer`, where it is configured with nested `TypeSerializer`s for the tuple fields. In this case,
+`MapSerializer`, where it is configured with nested `TypeSerializer`s for its keys and values in the map. In this case,
 the snapshot of the most outer serializer should also contain snapshots of the nested serializers.
 
-The `CompositeSerializerSnapshot` can be used specifically for this scenario. It wraps the logic of resolving
+`CompositeTypeSerializerSnapshot` could be extended for all nested `TypeSerializer`s in this scenario. It wraps the logic of resolving
 the overall schema compatibility check result for the composite serializer.
-For an example of how it should be used, one can refer to Flink's
+For more details and an example of how it should be used, you can refer to [`CompositeTypeSerializerSnapshot`'s doc]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/typeutils/CompositeTypeSerializerSnapshot.html)
+ and Flink's
 [ListSerializerSnapshot](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/common/typeutils/base/ListSerializerSnapshot.java) implementation.
 
 ## Migrating from deprecated serializer snapshot APIs before Flink 1.7
