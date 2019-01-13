@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
-import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -88,11 +87,6 @@ public abstract class AbstractHeapState<K, N, SV> implements InternalKvState<K, 
 	}
 
 	@Override
-	public N getCurrentNamespace() {
-		return currentNamespace;
-	}
-
-	@Override
 	public byte[] getSerializedValue(
 			final byte[] serializedKeyAndNamespace,
 			final TypeSerializer<K> safeKeySerializer,
@@ -132,7 +126,7 @@ public abstract class AbstractHeapState<K, N, SV> implements InternalKvState<K, 
 	}
 
 	@Override
-	public CloseableIterator<Tuple2<N, K>> getNamespaceKeyIterator() {
-		return stateTable.getNamespaceKeyIterator();
+	public StateIteratorWithUpdate<K, N, SV> getStateEntryIterator() {
+		return stateTable.getStateEntryIterator();
 	}
 }

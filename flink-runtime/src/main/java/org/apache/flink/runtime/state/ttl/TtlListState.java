@@ -21,6 +21,8 @@ package org.apache.flink.runtime.state.ttl;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -92,25 +94,21 @@ class TtlListState<K, N, T> extends
 		original.add(wrapWithTs(value));
 	}
 
+	@Nullable
 	@Override
-	public boolean cleanupIfExpired() throws Exception {
-		Iterable<TtlValue<T>> ttlValues = original.get();
-		if (ttlValues != null) {
-			long currentTimestamp = timeProvider.currentTimestamp();
-			List<TtlValue<T>> unexpired =  ttlValues instanceof List ?
-				new ArrayList<>(((List<?>) ttlValues).size()) : new ArrayList<>();
-			for (TtlValue<T> ttlValue : ttlValues) {
-				if (!TtlUtils.expired(ttlValue, ttl, currentTimestamp)) {
-					unexpired.add(ttlValue);
-				}
-			}
-			if (!unexpired.isEmpty()) {
-				original.update(unexpired);
-			} else {
-				return true;
+	public List<TtlValue<T>> checkIfExpiredOrUpdate(@Nonnull List<TtlValue<T>> ttlValues) {
+		long currentTimestamp = timeProvider.currentTimestamp();
+		List<TtlValue<T>> unexpired = new ArrayList<>(ttlValues.size());
+		for (TtlValue<T> ttlValue : ttlValues) {
+			if (!TtlUtils.expired(ttlValue, ttl, currentTimestamp)) {
+				unexpired.add(ttlValue);
 			}
 		}
-		return false;
+		if (!unexpired.isEmpty()) {
+			return unexpired;
+		} else {
+			return ttlValues.size() == unexpired.size() ? ttlValues : unexpired;
+		}
 	}
 
 	@Override

@@ -21,15 +21,16 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.StateEntry;
+import org.apache.flink.runtime.state.StateEntry.SimpleStateEntry;
 import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateTransformationFunction;
+import org.apache.flink.runtime.state.internal.InternalKvState.StateIteratorWithUpdate;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
-import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -38,6 +39,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
@@ -188,8 +190,8 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	}
 
 	@Override
-	public CloseableIterator<Tuple2<N, K>> getNamespaceKeyIterator() {
-		return CloseableIterator.adapterForIterator(new NamespaceKeyIterator());
+	public StateIteratorWithUpdate<K, N, S> getStateEntryIterator() {
+		return new StateEntryIterator();
 	}
 
 	// ------------------------------------------------------------------------
@@ -421,42 +423,43 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	}
 
 	/**
-	 * Iterator over (namespace, key) pairs in a {@link NestedMapsStateTable}.
+	 * Iterator over state entries in a {@link NestedMapsStateTable}.
 	 *
-	 * <p>This iterator does not tolerate concurrent modifications of state table and
-	 * supports removing of underlying next key state
-	 * but only right after calling next() without calling hasNext() in between.
+	 * <p>The iterator keeps a snapshotted copy of key/namespace sets, available at the beginning of iteration.
+	 * While further iterating the copy, the iterator returns the actual state value from primary maps
+	 * if exists at that moment.
 	 *
-	 * <p>This could be optimised for concurrent removes in future by iterating a copy of the table
-	 * and removing from original. This optimisation would be a trade-off between used memory and stability of iteration.
-	 *
+	 * <p>Note: Usage of this iterator can have a heap memory consumption impact.
 	 */
-	class NamespaceKeyIterator implements Iterator<Tuple2<N, K>> {
+	class StateEntryIterator implements StateIteratorWithUpdate<K, N, S> {
 		private int keyGropuIndex;
 		private Iterator<Map.Entry<N, Map<K, S>>> namespaceIterator;
 		private Map.Entry<N, Map<K, S>> namespace;
-		private Iterator<K> keyIterator;
-		private boolean nextCalled;
+		private Iterator<Map.Entry<K, S>> keyValueIterator;
+		private StateEntry<K, N, S> nextEntry;
+		private StateEntry<K, N, S> lastReturnedEntry;
 
-		NamespaceKeyIterator() {
+		StateEntryIterator() {
 			keyGropuIndex = 0;
 			namespace = null;
-			keyIterator = null;
-			nextCalled = false;
+			keyValueIterator = null;
 			nextKeyIterator();
 		}
 
 		@Override
 		public boolean hasNext() {
-			nextCalled = false;
 			nextKeyIterator();
 			return keyIteratorHasNext();
 		}
 
 		@Override
-		public Tuple2<N, K> next() {
-			Tuple2<N, K> next = hasNext() ? Tuple2.of(namespace.getKey(), keyIterator.next()) : null;
-			nextCalled = true;
+		public StateEntry<K, N, S> next() {
+			StateEntry<K, N, S> next = null;
+			if (hasNext()) {
+				next = nextEntry;
+			}
+			nextEntry = null;
+			lastReturnedEntry = next;
 			return next;
 		}
 
@@ -465,7 +468,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 				nextNamespaceIterator();
 				if (namespaceIteratorHasNext()) {
 					namespace = namespaceIterator.next();
-					keyIterator = namespace.getValue().keySet().iterator();
+					keyValueIterator = new HashSet<>(namespace.getValue().entrySet()).iterator();
 				} else {
 					break;
 				}
@@ -478,8 +481,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 					keyGropuIndex++;
 				}
 				if (keyGropuIndex < state.length && state[keyGropuIndex] != null) {
-					namespaceIterator = state[keyGropuIndex].entrySet().iterator();
-					keyGropuIndex++;
+					namespaceIterator = new HashSet<>(state[keyGropuIndex++].entrySet()).iterator();
 				} else {
 					break;
 				}
@@ -487,7 +489,16 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 		}
 
 		private boolean keyIteratorHasNext() {
-			return keyIterator != null && keyIterator.hasNext();
+			while (nextEntry == null && keyValueIterator != null && keyValueIterator.hasNext()) {
+				Map.Entry<K, S> next = keyValueIterator.next();
+				Map<K, S> ns = state[keyGropuIndex - 1] == null ? null :
+					state[keyGropuIndex - 1].getOrDefault(namespace.getKey(), null);
+				S upToDateValue = ns == null ? null : ns.getOrDefault(next.getKey(), null);
+				if (upToDateValue != null) {
+					nextEntry = new SimpleStateEntry<>(next.getKey(), namespace.getKey(), upToDateValue);
+				}
+			}
+			return nextEntry != null;
 		}
 
 		private boolean namespaceIteratorHasNext() {
@@ -496,15 +507,12 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 
 		@Override
 		public void remove() {
-			if (!nextCalled) {
-				throw new IllegalStateException("Remove is supported only right after calling next(), without hasNext()");
-			}
-			if (namespace != null) {
-				keyIterator.remove();
-				if (namespace.getValue().isEmpty()) {
-					namespaceIterator.remove();
-				}
-			}
+			state[keyGropuIndex - 1].get(lastReturnedEntry.getNamespace()).remove(lastReturnedEntry.getKey());
+		}
+
+		@Override
+		public void update(S newValue) {
+			state[keyGropuIndex - 1].get(lastReturnedEntry.getNamespace()).put(lastReturnedEntry.getKey(), newValue);
 		}
 	}
 }

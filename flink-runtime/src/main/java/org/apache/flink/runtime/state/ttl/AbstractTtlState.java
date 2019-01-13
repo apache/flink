@@ -24,6 +24,9 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 /**
  * Base class for TTL logic wrappers of state objects.
  *
@@ -37,6 +40,8 @@ abstract class AbstractTtlState<K, N, SV, TTLSV, S extends InternalKvState<K, N,
 	extends AbstractTtlDecorator<S>
 	implements InternalKvState<K, N, SV> {
 	private final TypeSerializer<SV> valueSerializer;
+
+	/** This registered callback is to be called whenever state is accessed for read or write. */
 	final Runnable accessCallback;
 
 	AbstractTtlState(TtlStateContext<S, SV> ttlStateContext) {
@@ -72,11 +77,6 @@ abstract class AbstractTtlState<K, N, SV, TTLSV, S extends InternalKvState<K, N,
 	}
 
 	@Override
-	public final N getCurrentNamespace() {
-		return original.getCurrentNamespace();
-	}
-
-	@Override
 	public byte[] getSerializedValue(
 		byte[] serializedKeyAndNamespace,
 		TypeSerializer<K> safeKeySerializer,
@@ -90,9 +90,17 @@ abstract class AbstractTtlState<K, N, SV, TTLSV, S extends InternalKvState<K, N,
 		original.clear();
 		accessCallback.run();
 	}
-	public abstract boolean cleanupIfExpired() throws Exception;
 
-	<V> boolean cleanupIfExpired(TtlValue<V> ttlValue) {
-		return expired(ttlValue);
+	/**
+	 * Check if state has expired or not and update it if it has partially expired.
+	 *
+	 * @return either non expired (possibly updated) state or null if the state has expired.
+	 */
+	@Nullable
+	public abstract TTLSV checkIfExpiredOrUpdate(@Nonnull TTLSV ttlValue);
+
+	@Override
+	public StateIteratorWithUpdate<K, N, SV> getStateEntryIterator() {
+		throw new UnsupportedOperationException();
 	}
 }

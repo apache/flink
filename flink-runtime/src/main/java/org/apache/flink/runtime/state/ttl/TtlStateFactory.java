@@ -34,7 +34,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.internal.InternalKvState;
-import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
@@ -48,8 +47,8 @@ import java.util.stream.Stream;
 /**
  * This state factory wraps state objects, produced by backends, with TTL logic.
  */
-public class TtlStateFactory<K, N, SV, S extends State, IS extends S> {
-	public static <K, N, SV, S extends State, IS extends S> IS createStateAndWrapWithTtlIfEnabled(
+public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
+	public static <K, N, SV, TTLSV, S extends State, IS extends S> IS createStateAndWrapWithTtlIfEnabled(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc,
 		KeyedStateBackend<K> stateBackend,
@@ -59,7 +58,7 @@ public class TtlStateFactory<K, N, SV, S extends State, IS extends S> {
 		Preconditions.checkNotNull(stateBackend);
 		Preconditions.checkNotNull(timeProvider);
 		return  stateDesc.getTtlConfig().isEnabled() ?
-			new TtlStateFactory<K, N, SV, S, IS>(
+			new TtlStateFactory<K, N, SV, TTLSV, S, IS>(
 				namespaceSerializer, stateDesc, stateBackend, timeProvider)
 				.createState() :
 			stateBackend.createInternalState(namespaceSerializer, stateDesc);
@@ -73,7 +72,7 @@ public class TtlStateFactory<K, N, SV, S extends State, IS extends S> {
 	private final StateTtlConfig ttlConfig;
 	private final TtlTimeProvider timeProvider;
 	private final long ttl;
-	private final TtlIncrementalCleanup<K, N> incrementalCleanup;
+	private final TtlIncrementalCleanup<K, N, TTLSV> incrementalCleanup;
 
 	private TtlStateFactory(
 		TypeSerializer<N> namespaceSerializer,
@@ -112,7 +111,7 @@ public class TtlStateFactory<K, N, SV, S extends State, IS extends S> {
 		}
 		IS state = stateFactory.get();
 		if (incrementalCleanup != null) {
-			incrementalCleanup.setTtlState((AbstractTtlState<K, N, ?, ?, ?>) state);
+			incrementalCleanup.setTtlState((AbstractTtlState<K, N, ?, TTLSV, ?>) state);
 		}
 		return state;
 	}
@@ -177,36 +176,38 @@ public class TtlStateFactory<K, N, SV, S extends State, IS extends S> {
 	}
 
 	@SuppressWarnings("unchecked")
-	private <OIS, TTLCON, TTLDES> TTLCON createTtlStateContext(TTLDES ttlDescriptor) throws Exception {
+	private <OIS extends State, TTLS extends State, V, TTLV> TtlStateContext<OIS, V>
+		createTtlStateContext(StateDescriptor<TTLS, TTLV> ttlDescriptor) throws Exception {
+
 		OIS originalState = (OIS) stateBackend.createInternalState(
-			namespaceSerializer, (StateDescriptor<S, TtlValue<SV>>) ttlDescriptor, getSnapshotTransformFactory());
-		return (TTLCON) new TtlStateContext<>(
-			originalState, ttlConfig, timeProvider, stateDesc.getSerializer(),
+			namespaceSerializer, ttlDescriptor, getSnapshotTransformFactory());
+		return new TtlStateContext<>(
+			originalState, ttlConfig, timeProvider, (TypeSerializer<V>) stateDesc.getSerializer(),
 			getTtlIncrementalCleanupCallback((InternalKvState<?, ?, ?>) originalState));
 	}
 
-	private TtlIncrementalCleanup<K, N> getTtlIncrementalCleanup() {
+	private TtlIncrementalCleanup<K, N, TTLSV> getTtlIncrementalCleanup() {
 		StateTtlConfig.IncrementalCleanupStrategy config =
 			ttlConfig.getCleanupStrategies().getIncrementalCleanupStrategy();
-		TtlIncrementalCleanup<K, N> incrementalCleanup = null;
+		TtlIncrementalCleanup<K, N, TTLSV> incrementalCleanup = null;
 		if (config != null) {
-			incrementalCleanup = new TtlIncrementalCleanup<>(config.getCleanupSize(), stateBackend);
+			incrementalCleanup = new TtlIncrementalCleanup<>(config.getCleanupSize());
 			if (config.runCleanupForEveryRecord()) {
-				TtlIncrementalCleanup<K, N> finalIncrementalCleanup = incrementalCleanup;
-				stateBackend.registerKeyChangeListener(stub -> finalIncrementalCleanup.stateAccessed());
+				TtlIncrementalCleanup<K, N, TTLSV> finalIncrementalCleanup = incrementalCleanup;
+				stateBackend.registerKeySelectionListener(stub -> finalIncrementalCleanup.stateAccessed());
 			}
 		}
 		return incrementalCleanup;
 	}
 
 	private Runnable getTtlIncrementalCleanupCallback(InternalKvState<?, ?, ?> originalState) {
-		boolean namespaceKeyIteratorNotSupported = true;
-		try (CloseableIterator ignored = originalState.getNamespaceKeyIterator()) {
-			namespaceKeyIteratorNotSupported = ignored == null;
-		} catch (Exception e) {
+		boolean stateIteratorNotSupported = true;
+		try {
+			stateIteratorNotSupported = originalState.getStateEntryIterator() == null;
+		} catch (Throwable t) {
 			// ignore
 		}
-		return incrementalCleanup == null || namespaceKeyIteratorNotSupported
+		return incrementalCleanup == null || stateIteratorNotSupported
 			? () -> { } : incrementalCleanup::stateAccessed;
 	}
 
@@ -224,10 +225,12 @@ public class TtlStateFactory<K, N, SV, S extends State, IS extends S> {
 	public static class TtlSerializer<T> extends CompositeSerializer<TtlValue<T>> {
 		private static final long serialVersionUID = 131020282727167064L;
 
+		@SuppressWarnings("WeakerAccess")
 		public TtlSerializer(TypeSerializer<T> userValueSerializer) {
 			super(true, LongSerializer.INSTANCE, userValueSerializer);
 		}
 
+		@SuppressWarnings("WeakerAccess")
 		public TtlSerializer(PrecomputedParameters precomputed, TypeSerializer<?> ... fieldSerializers) {
 			super(precomputed, fieldSerializers);
 		}

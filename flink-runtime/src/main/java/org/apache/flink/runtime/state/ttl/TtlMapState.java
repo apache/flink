@@ -22,6 +22,7 @@ import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.AbstractMap;
 import java.util.Collections;
@@ -118,21 +119,16 @@ class TtlMapState<K, N, UK, UV>
 		return entries().iterator();
 	}
 
+	@Nullable
 	@Override
-	public boolean cleanupIfExpired() throws Exception {
-		Iterable<Map.Entry<UK, TtlValue<UV>>> ttlValue = original.entries();
-		boolean allExpired = true;
-		if (ttlValue != null) {
-			for (Iterator<Map.Entry<UK, TtlValue<UV>>> iterator = ttlValue.iterator(); iterator.hasNext(); ) {
-				Map.Entry<UK, TtlValue<UV>> e = iterator.next();
-				if (expired(e.getValue())) {
-					iterator.remove();
-				} else {
-					allExpired = false;
-				}
+	public Map<UK, TtlValue<UV>> checkIfExpiredOrUpdate(@Nonnull Map<UK, TtlValue<UV>> ttlValue) {
+		Map<UK, TtlValue<UV>> unexpired = new HashMap<>();
+		for (Map.Entry<UK, TtlValue<UV>> e : ttlValue.entrySet()) {
+			if (!expired(e.getValue())) {
+				unexpired.put(e.getKey(), e.getValue());
 			}
 		}
-		return allExpired;
+		return ttlValue.size() == unexpired.size() ? ttlValue : unexpired;
 	}
 
 	@Override

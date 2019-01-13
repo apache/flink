@@ -26,7 +26,11 @@ class TtlStateContext<T, SV> {
 	final T original;
 	final StateTtlConfig config;
 	final TtlTimeProvider timeProvider;
+
+	/** Serializer of original user stored value without timestamp. */
 	final TypeSerializer<SV> valueSerializer;
+
+	/** This registered callback is to be called whenever state is accessed for read or write. */
 	final Runnable accessCallback;
 
 	TtlStateContext(

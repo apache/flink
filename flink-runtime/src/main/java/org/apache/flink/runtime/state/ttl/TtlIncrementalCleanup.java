@@ -18,18 +18,13 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.runtime.state.StateEntry;
+import org.apache.flink.runtime.state.internal.InternalKvState.StateIteratorWithUpdate;
 import org.apache.flink.util.FlinkRuntimeException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
-
-import java.util.ConcurrentModificationException;
 
 /**
  * Incremental cleanup of state with TTL.
@@ -37,100 +32,60 @@ import java.util.ConcurrentModificationException;
  * @param <K> type of state key
  * @param <N> type of state namespace
  */
-class TtlIncrementalCleanup<K, N> {
-	private static final Logger LOG = LoggerFactory.getLogger(TtlIncrementalCleanup.class);
-
+class TtlIncrementalCleanup<K, N, S> {
+	/** Global state entry iterator is advanced for {@code cleanupSize} entries. */
 	@Nonnegative
 	private final int cleanupSize;
 
-	@Nonnull
-	private final KeyedStateBackend<K> keyContext;
+	/** Particular state with TTL object is used to check whether currently iterated entry has expired. */
+	private AbstractTtlState<K, N, ?, S, ?> ttlState;
 
-	private AbstractTtlState<K, N, ?, ?, ?> ttlState;
-	private CloseableIterator<Tuple2<N, K>> keyNamespaceIterator;
-	private boolean suppressCallback;
+	/** Global state entry iterator, advanced for {@code cleanupSize} entries every state and/or record processing. */
+	private StateIteratorWithUpdate<K, N, S> stateIterator;
 
 	/**
 	 * TtlIncrementalCleanup constructor.
 	 *
 	 * @param cleanupSize max number of queued keys to incrementally cleanup upon state access
-	 * @param keyContext state backend to switch keys for cleanup
 	 */
-	TtlIncrementalCleanup(@Nonnegative int cleanupSize, @Nonnull KeyedStateBackend<K> keyContext) {
+	TtlIncrementalCleanup(@Nonnegative int cleanupSize) {
 		this.cleanupSize = cleanupSize;
-		this.keyContext = keyContext;
-		this.suppressCallback = false;
 	}
 
 	void stateAccessed() {
-		// key is changed during cleanup, but this should not be called recursively in this case
-		if (suppressCallback) {
-			return;
-		}
-		suppressCallback = true;
 		initIteratorIfNot();
-		K currentKey = keyContext.getCurrentKey();
-		N currentNamespace = ttlState.getCurrentNamespace();
 		try {
 			runCleanup();
-		} catch (ConcurrentModificationException e) {
-			// just start over next time
-			closeIterator();
 		} catch (Throwable t) {
 			throw new FlinkRuntimeException("Failed to incrementally clean up state with TTL", t);
-		} finally {
-			if (currentKey != null) {
-				keyContext.setCurrentKey(currentKey);
-			}
-			if (currentNamespace != null) {
-				ttlState.setCurrentNamespace(currentNamespace);
-			}
-			suppressCallback = false;
 		}
 	}
 
 	private void initIteratorIfNot() {
-		if (keyNamespaceIterator == null || !keyNamespaceIterator.hasNext()) {
-			closeIterator();
-			keyNamespaceIterator = ttlState.original.getNamespaceKeyIterator();
+		if (stateIterator == null || !stateIterator.hasNext()) {
+			stateIterator = ttlState.original.getStateEntryIterator();
 		}
 	}
 
-	private void closeIterator() {
-		if (keyNamespaceIterator != null) {
-			try {
-				keyNamespaceIterator.close();
-			} catch (Exception e) {
-				LOG.warn("Failed to close namespace/key iterator");
-			}
-			keyNamespaceIterator = null;
-		}
-	}
-
-	private void runCleanup() throws Exception {
+	private void runCleanup() {
 		int entryNum = 0;
-		while (entryNum < cleanupSize && keyNamespaceIterator.hasNext()) {
-			Tuple2<N, K> state = keyNamespaceIterator.next();
-			if (cleanupState(state)) {
-				keyNamespaceIterator.remove();
+		while (entryNum < cleanupSize && stateIterator.hasNext()) {
+			StateEntry<K, N, S> state = stateIterator.next();
+			S cleanState = ttlState.checkIfExpiredOrUpdate(state.getState());
+			if (cleanState == null) {
+				stateIterator.remove();
+			} else if (cleanState != state.getState()) {
+				stateIterator.update(cleanState);
 			}
 			entryNum++;
 		}
-	}
-
-	private boolean cleanupState(Tuple2<N, K> state) throws Exception {
-		N namespace = state.f0;
-		K key = state.f1;
-		keyContext.setCurrentKey(key);
-		ttlState.setCurrentNamespace(namespace);
-		return ttlState.cleanupIfExpired();
 	}
 
 	/**
 	 * As TTL state wrapper depends on this class through access callback,
 	 * it has to be set here after its construction is done.
 	 */
-	public void setTtlState(@Nonnull AbstractTtlState<K, N, ?, ?, ?> ttlState) {
+	public void setTtlState(@Nonnull AbstractTtlState<K, N, ?, S, ?> ttlState) {
 		this.ttlState = ttlState;
 	}
 }

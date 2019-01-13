@@ -21,6 +21,9 @@ package org.apache.flink.runtime.state.ttl;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 /**
  * This class wraps folding state with TTL logic.
  *
@@ -49,9 +52,10 @@ class TtlFoldingState<K, N, T, ACC>
 		original.add(value);
 	}
 
+	@Nullable
 	@Override
-	public boolean cleanupIfExpired() throws Exception {
-		return cleanupIfExpired(original.getInternal());
+	public TtlValue<ACC> checkIfExpiredOrUpdate(@Nonnull TtlValue<ACC> ttlValue) {
+		return expired(ttlValue) ? null : ttlValue;
 	}
 
 	@Override

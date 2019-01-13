@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.heap;
+package org.apache.flink.runtime.state;
 
 /**
- * Interface of entries in a state table. Entries are triple of key, namespace, and state.
+ * Interface of entries in a state backend. Entries are triple of key, namespace, and state.
  *
  * @param <K> type of key.
  * @param <N> type of namespace.
@@ -41,4 +41,31 @@ public interface StateEntry<K, N, S> {
 	 * Returns the state of this entry.
 	 */
 	S getState();
+
+	class SimpleStateEntry<K, N, S> implements StateEntry<K, N, S> {
+		private final K key;
+		private final N namespace;
+		private final S value;
+
+		public SimpleStateEntry(K key, N namespace, S value) {
+			this.key = key;
+			this.namespace = namespace;
+			this.value = value;
+		}
+
+		@Override
+		public K getKey() {
+			return key;
+		}
+
+		@Override
+		public N getNamespace() {
+			return namespace;
+		}
+
+		@Override
+		public S getState() {
+			return value;
+		}
+	}
 }

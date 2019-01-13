@@ -54,7 +54,7 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 	private RocksDB rocksDB;
 
 	RocksDBNativeMetricMonitor(
-		RocksDB rocksDB,
+		@Nonnull RocksDB rocksDB,
 		@Nonnull RocksDBNativeMetricOptions options,
 		@Nonnull MetricGroup metricGroup
 	) {
@@ -125,7 +125,7 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 		private boolean closed;
 
 		private RocksDBNativeMetricView(
-			ColumnFamilyHandle handle,
+			@Nonnull ColumnFamilyHandle handle,
 			@Nonnull String property
 		) {
 			this.handle = handle;

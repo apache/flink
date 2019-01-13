@@ -310,7 +310,10 @@ public class StateTtlConfig implements Serializable {
 	public static class IncrementalCleanupStrategy implements CleanupStrategies.CleanupStrategy {
 		private static final long serialVersionUID = 3109278696501988780L;
 
+		/** Max number of pulled from queue keys for clean up upon state touch for any key. */
 		private final int cleanupSize;
+
+		/** Whether to run incremental cleanup per state access. */
 		private final boolean runCleanupForEveryRecord;
 
 		private IncrementalCleanupStrategy(

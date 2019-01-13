@@ -63,7 +63,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	private K currentKey;
 
 	/** Listeners to changes of keyed context ({@link #currentKey}). */
-	private final Set<KeyChangeListener<K>> keyChangeListeners;
+	private final Set<KeySelectionListener<K>> keySelectionListeners;
 
 	/** The key group of the currently active key. */
 	private int currentKeyGroup;
@@ -120,7 +120,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		this.executionConfig = executionConfig;
 		this.keyGroupCompressionDecorator = determineStreamCompression(executionConfig);
 		this.ttlTimeProvider = Preconditions.checkNotNull(ttlTimeProvider);
-		this.keyChangeListeners = new HashSet<>();
+		this.keySelectionListeners = new HashSet<>();
 	}
 
 	private StreamCompressionDecorator determineStreamCompression(ExecutionConfig executionConfig) {
@@ -155,23 +155,23 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 */
 	@Override
 	public void setCurrentKey(K newKey) {
-		notifyKeyChanged(newKey);
+		notifyKeySelected(newKey);
 		this.currentKey = newKey;
 		this.currentKeyGroup = KeyGroupRangeAssignment.assignToKeyGroup(newKey, numberOfKeyGroups);
 	}
 
-	private void notifyKeyChanged(K newKey) {
-		keyChangeListeners.forEach(listener -> listener.keyChanged(newKey));
+	private void notifyKeySelected(K newKey) {
+		keySelectionListeners.forEach(listener -> listener.keySelected(newKey));
 	}
 
 	@Override
-	public void registerKeyChangeListener(KeyChangeListener<K> listener) {
-		keyChangeListeners.add(listener);
+	public void registerKeySelectionListener(KeySelectionListener<K> listener) {
+		keySelectionListeners.add(listener);
 	}
 
 	@Override
-	public boolean deregisterKeyChangeListener(KeyChangeListener<K> listener) {
-		return keyChangeListeners.remove(listener);
+	public boolean deregisterKeySelectionListener(KeySelectionListener<K> listener) {
+		return keySelectionListeners.remove(listener);
 	}
 
 	/**

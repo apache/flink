@@ -324,17 +324,17 @@ public class KvStateServerHandlerTest extends TestLogger {
 					}
 
 					@Override
-					public VoidNamespace getCurrentNamespace() {
-						return null;
-					}
-
-					@Override
 					public byte[] getSerializedValue(
 							final byte[] serializedKeyAndNamespace,
 							final TypeSerializer<Integer> safeKeySerializer,
 							final TypeSerializer<VoidNamespace> safeNamespaceSerializer,
 							final TypeSerializer<Long> safeValueSerializer) throws Exception {
 						throw new RuntimeException("Expected test Exception");
+					}
+
+					@Override
+					public StateIteratorWithUpdate<Integer, VoidNamespace, Long> getStateEntryIterator() {
+						throw new UnsupportedOperationException();
 					}
 
 					@Override

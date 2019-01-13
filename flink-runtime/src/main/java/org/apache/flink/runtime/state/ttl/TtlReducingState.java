@@ -20,6 +20,8 @@ package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.Collection;
 
 /**
@@ -48,9 +50,10 @@ class TtlReducingState<K, N, T>
 		original.add(wrapWithTs(value));
 	}
 
+	@Nullable
 	@Override
-	public boolean cleanupIfExpired() throws Exception {
-		return cleanupIfExpired(original.getInternal());
+	public TtlValue<T> checkIfExpiredOrUpdate(@Nonnull TtlValue<T> ttlValue) {
+		return expired(ttlValue) ? null : ttlValue;
 	}
 
 	@Override

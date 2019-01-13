@@ -20,8 +20,9 @@ package org.apache.flink.runtime.state.internal;
 
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.runtime.state.StateEntry;
+
+import java.util.Iterator;
 
 /**
  * The {@code InternalKvState} is the root of the internal state type hierarchy, similar to the
@@ -85,13 +86,6 @@ public interface InternalKvState<K, N, V> extends State {
 	void setCurrentNamespace(N namespace);
 
 	/**
-	 * Gets the current namespace, which will be used when using the state access methods.
-	 *
-	 * @return the current namespace.
-	 */
-	N getCurrentNamespace();
-
-	/**
 	 * Returns the serialized value for the given key and namespace.
 	 *
 	 * <p>If no value is associated with key and namespace, <code>null</code>
@@ -115,7 +109,28 @@ public interface InternalKvState<K, N, V> extends State {
 			final TypeSerializer<N> safeNamespaceSerializer,
 			final TypeSerializer<V> safeValueSerializer) throws Exception;
 
-	default CloseableIterator<Tuple2<N, K>> getNamespaceKeyIterator() {
-		return null;
+	/**
+	 * Get global iterator over state entries.
+	 *
+	 * <p>The iterator should tolerate concurrent modifications.
+	 * It might trade this tolerance for consistency
+	 * and return duplicates but always state values which exist and up-to-date at the moment of calling {@code next()}.
+	 *
+	 * <p>It should support remove and update operation.
+	 *
+	 * <p>State entries are not allowed to be modified in any other way, other than with the {@code update()} method.
+	 *
+	 * @return global iterator over state entries
+	 */
+	StateIteratorWithUpdate<K, N, V> getStateEntryIterator();
+
+	/** The state entry iterator which supports update of the last returned entry from the {@code next()} method. */
+	interface StateIteratorWithUpdate<K, N, V> extends Iterator<StateEntry<K, N, V>> {
+		/**
+		 * Update the value of the last returned entry from the {@code next()} method.
+		 *
+		 * @throws IllegalStateException if next() has never been called yet or iteration is over.
+		 */
+		void update(V newValue);
 	}
 }

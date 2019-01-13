@@ -314,17 +314,17 @@ public class KvStateRegistryTest extends TestLogger {
 		}
 
 		@Override
-		public VoidNamespace getCurrentNamespace() {
-			return null;
-		}
-
-		@Override
 		public byte[] getSerializedValue(
 				final byte[] serializedKeyAndNamespace,
 				final TypeSerializer<Integer> safeKeySerializer,
 				final TypeSerializer<VoidNamespace> safeNamespaceSerializer,
 				final TypeSerializer<String> safeValueSerializer) throws Exception {
 			return serializedKeyAndNamespace;
+		}
+
+		@Override
+		public StateIteratorWithUpdate<Integer, VoidNamespace, String> getStateEntryIterator() {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
