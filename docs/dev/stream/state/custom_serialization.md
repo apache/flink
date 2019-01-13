@@ -201,6 +201,10 @@ to the implementation of state serializers and their serializer snapshots.
 
 ## Implementation notes and best practices
 
+Apart from the following two points, we also recommend that serializers with nested serializers implement snapshotting
+by extending `CompositeTypeSerializerSnapshot` as a subclass.
+Please refer to the [next section]({{ site.baseurl }}/dev/stream/state/custom_serialization.html#extending-compositetypeserializersnapshot-for-snapshots-of-serializers-with-nested-serializers) for more details.
+
 #### 1. Flink restores serializer snapshots by instantiating them with their classname
 
 A serializer's snapshot, being the single source of truth for how a registered state was serialized, serves as an
@@ -223,15 +227,37 @@ the same `TypeSerializerSnapshot` class as their snapshot would complicate the i
 This would also be a bad separation of concerns; a single serializer's serialization schema,
 configuration, as well as how to restore it, should be consolidated in its own dedicated `TypeSerializerSnapshot` class.
 
-#### 3. Use the `CompositeSerializerSnapshot` utility for serializers that contain nested serializers
+### Extending `CompositeTypeSerializerSnapshot` for snapshots of serializers with nested serializers
 
-There may be cases where a `TypeSerializer` relies on other nested `TypeSerializer`s; take for example Flink's
-`TupleSerializer`, where it is configured with nested `TypeSerializer`s for the tuple fields. In this case,
-the snapshot of the most outer serializer should also contain snapshots of the nested serializers.
+Before further explanation, we call the serializer, which relies on other nested serializer(s), as "outer" serializer in this context.
+Examples for this could be `MapSerializer`, `ListSerializer`, `GenericArraySerializer`, etc.. Considering `MapSerializer`, for example,
+the map-key and map-value serializers would be the nested serializers, while `MapSerialize` itself is the "outer" serializer.
+In this case, the snapshot of the most outer serializer should also contain snapshots of the nested serializers.
+Also, note that unlike the other two serializers mentioned above, `GenericArraySerializer` contains some additional static information
+(a class of the component type) that needs to be persisted along with the nested component serializer.
 
-The `CompositeSerializerSnapshot` can be used specifically for this scenario. It wraps the logic of resolving
-the overall schema compatibility check result for the composite serializer.
-For an example of how it should be used, one can refer to Flink's
+`CompositeTypeSerializerSnapshot` is designed to assist in the implementation of snapshotting for serializers which delegate their serialization
+to multiple nested serializers. It's also helpful in cases where some extra static information needs to be persisted.
+`CompositeTypeSerializerSnapshot` takes care of the the overall schema compatibility check for the composite serializer.
+
+When adding a new serializer snapshot as a subclass of `CompositeTypeSerializerSnapshot`,
+the following three methods must be implemented:
+ * `#getCurrentOuterSnapshotVersion()`. This method defines the version of
+ the current outer serializer snapshot's written binary format.
+ * `#getNestedSerializers(TypeSerializer)`. Given the outer serializer, returns the nested serializers.
+ * `#createOuterSerializerWithNestedSerializers(TypeSerializer[])`.
+ Given the nested serializers, create an instance of the outer serializer.
+
+For serializers needing to contain some extra static information, the following two methods must also be implemented:
+ * `#writeOuterSnapshot(DataOutputView)`. This method writes the outer serializer snapshot, i.e. any information beyond the nested serializers.
+ The base implementation of this method writes nothing, i.e. it assumes that the outer serializer only has nested serializers and no extra information.
+ * `#readOuterSnapshot(int, DataInputView, ClassLoader)`. This method reads the outer serializer snapshot,
+ i.e. any information beyond the nested serializers of the outer serializer. The base implementaion of this method reads nothing,
+ i.e. it assumes that the outer serializer only has nested serializers and no extra information.
+
+For more implementation details and an example of how it should be used, you can refer to
+[`CompositeTypeSerializerSnapshot`'s class-level Javadoc]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/typeutils/CompositeTypeSerializerSnapshot.html)
+ and Flink's
 [ListSerializerSnapshot](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/common/typeutils/base/ListSerializerSnapshot.java) implementation.
 
 ## Migrating from deprecated serializer snapshot APIs before Flink 1.7
