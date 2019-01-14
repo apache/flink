@@ -1979,19 +1979,19 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       'f29.truncate('f30),
       "f29.truncate(f30)",
       "truncate(f29, f30)",
-      0.4.toString)
+      "0.4")
 
     testAllApis(
       'f31.truncate('f7),
       "f31.truncate(f7)",
       "truncate(f31, f7)",
-      (-0.123).toString)
+      "-0.123")
 
     testAllApis(
       'f4.truncate('f32),
       "f4.truncate(f32)",
       "truncate(f4, f32)",
-      40.toString)
+      "40")
 
     testAllApis(
       'f28.cast(Types.DOUBLE).truncate(1),

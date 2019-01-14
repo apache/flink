@@ -1454,19 +1454,7 @@ HEX(string)
         <p>E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".</p>
       </td>
     </tr>
- 
-    <tr>
-      <td>
-        {% highlight text %}
-TRUNCATE(numeric1)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns a <i>numeric</i> after the truncation.</p>
-        <p>E.g. truncate(42.345) to 42.0.</p>
-      </td>
-    </tr>   
-    
+        
     <tr>
       <td>
         {% highlight text %}
@@ -1474,8 +1462,8 @@ TRUNCATE(numeric1, integer2)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a <i>numeric</i> after the truncation.</p>
-        <p>E.g. truncate(42.345, 2) to 42.34.</p>
+        <p>Returns a <i>number</i> of truncated to integer2 decimal places. Returns NULL if <i>numeric1</i> or <i>integer2</i> is NULL.If integer2 is 0,the result has no decimal point or fractional part.integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero.Integer2 can also be left blank by default.</p>
+        <p>E.g. <code>truncate(42.345, 2)</code> to 42.34. and <code>truncate(42.345)</code> to 42.0.</p>
       </td>
     </tr>
         
@@ -1951,19 +1939,7 @@ STRING.hex()
       <p>E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".</p>
     </td>
    </tr>
-
-       <tr>
-         <td>
-           {% highlight text %}
-numeric1.truncate()
-   {% endhighlight %}
-         </td>
-         <td>
-           <p>Returns a <i>numeric</i> after the truncation.</p>
-           <p>E.g. 42.324.truncate() to 42.0.</p>
-         </td>
-       </tr>
-  
+ 
        <tr>
          <td>
            {% highlight text %}
@@ -1971,8 +1947,8 @@ numeric1.truncate(INTEGER2)
    {% endhighlight %}
          </td>
          <td>
-           <p>Returns a <i>numeric</i> after the truncation.</p>
-           <p>E.g. 42.324.truncate(2) to 42.34.</p>
+           <p>Returns a <i>number</i> of truncated to integer2 decimal places. Returns NULL if <i>numeric1</i> or <i>integer2</i> is NULL.If integer2 is 0,the result has no decimal point or fractional part.integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero.Integer2 can also be left blank by default.</p>
+           <p>E.g. <code>42.324.truncate(2)</code> to 42.34. and <code>42.324.truncate()</code> to 42.0.</p>
          </td>
        </tr>
    
