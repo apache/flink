@@ -20,7 +20,8 @@ package org.apache.flink.table.plan.rules.common
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
-import org.apache.calcite.rel.core.Filter
+import org.apache.calcite.rel.SingleRel
+import org.apache.calcite.rel.core.{Filter, Project}
 import org.apache.calcite.rex.{RexCall, RexLiteral, RexNode}
 import org.apache.calcite.sql.SqlBinaryOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{IN, NOT_IN, EQUALS, NOT_EQUALS, AND, OR}
@@ -43,19 +44,39 @@ class ConvertToNotInOrInRule(
     toOperator: SqlBinaryOperator,
     description: String)
   extends RelOptRule(
-    operand(classOf[Filter], any),
+    operand(classOf[SingleRel], any),
     description) {
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val filter: Filter = call.rel(0)
-    convertToNotInOrIn(call.builder(), filter.getCondition) match {
-      case Some(newRex) =>
-        call.transformTo(filter.copy(
-          filter.getTraitSet,
-          filter.getInput,
-          newRex))
+    call.rel(0).asInstanceOf[SingleRel] match {
+      case filter: Filter =>
+        convertToNotInOrIn(call.builder(), filter.getCondition) match {
+          case Some(newRex) =>
+            call.transformTo(filter.copy(
+              filter.getTraitSet,
+              filter.getInput,
+              newRex))
 
-      case None => // do nothing
+          case None => // do nothing
+        }
+      case project: Project =>
+        var hasChanged: Boolean = false
+        val projects = project.getProjects.map(e => {
+          convertToNotInOrIn(call.builder(), e) match {
+            case Some(newRex) => {
+              hasChanged = true
+              newRex
+            }
+            case None => e
+          }
+        })
+        if (hasChanged) {
+          val newProject =
+            project.copy(project.getTraitSet, project.getInput, projects, project.getRowType)
+          call.transformTo(newProject)
+        }
+
+      case _ => // do nothing
     }
   }
 
@@ -124,7 +145,19 @@ class ConvertToNotInOrInRule(
               case OR => rexBuffer += builder.or(newRex)
             }
 
-          case _ => rexBuffer += call
+          case _ => {
+            val operands = call.getOperands.map(operand => {
+              convertToNotInOrIn(builder, operand) match {
+                case Some(newRex) =>
+                  beenConverted = true
+                  newRex
+                case None => operand
+              }
+            })
+
+            val newCall = call.clone(call.getType, operands)
+            rexBuffer += newCall.asInstanceOf[RexNode]
+          }
         }
 
       case rex => rexBuffer += rex

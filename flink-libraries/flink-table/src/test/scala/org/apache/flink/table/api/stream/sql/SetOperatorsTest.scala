@@ -34,12 +34,13 @@ class SetOperatorsTest extends TableTestBase {
     val expected = unaryNode(
       "DataStreamCalc",
       streamTableNode(0),
-      term("select", "a", "b", "c"),
+      term("select", s"CASE(IN(a, $resultStr), 1, 2) AS a", "b", "c"),
       term("where", s"IN(b, $resultStr)")
     )
 
     util.verifySql(
-      s"SELECT * FROM MyTable WHERE b in ($resultStr)",
+      s"SELECT CASE WHEN a IN ($resultStr) THEN 1 ELSE 2 END AS a, b, c FROM MyTable " +
+        s"WHERE b in ($resultStr)",
       expected)
   }
 
@@ -52,12 +53,13 @@ class SetOperatorsTest extends TableTestBase {
     val expected = unaryNode(
       "DataStreamCalc",
       streamTableNode(0),
-      term("select", "a", "b", "c"),
+      term("select", s"CASE(NOT IN(a, $resultStr), 1, 2) AS a", "b", "c"),
       term("where", s"NOT IN(b, $resultStr)")
     )
 
     util.verifySql(
-      s"SELECT * FROM MyTable WHERE b NOT IN ($resultStr)",
+      s"SELECT CASE WHEN a NOT IN ($resultStr) THEN 1 ELSE 2 END AS a, b, c FROM MyTable " +
+        s"WHERE b NOT IN ($resultStr)",
       expected)
   }
 

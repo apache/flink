@@ -30,6 +30,44 @@ import org.junit.{Ignore, Test}
 class SetOperatorsTest extends TableTestBase {
 
   @Test
+  def testInOnLiterals(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    val resultStr = (1 to 30).mkString(", ")
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchTableNode(0),
+      term("select", s"CASE(IN(a, $resultStr), 1, 2) AS a", "b", "c"),
+      term("where", s"IN(b, $resultStr)")
+    )
+
+    util.verifySql(
+      s"SELECT CASE WHEN a IN ($resultStr) THEN 1 ELSE 2 END AS a, b, c FROM MyTable " +
+        s"WHERE b in ($resultStr)",
+      expected)
+  }
+
+  @Test
+  def testNotInOnLiterals(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    val resultStr = (1 to 30).mkString(", ")
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchTableNode(0),
+      term("select", s"CASE(NOT IN(a, $resultStr), 1, 2) AS a", "b", "c"),
+      term("where", s"NOT IN(b, $resultStr)")
+    )
+
+    util.verifySql(
+      s"SELECT CASE WHEN a NOT IN ($resultStr) THEN 1 ELSE 2 END AS a, b, c FROM MyTable " +
+        s"WHERE b NOT IN ($resultStr)",
+      expected)
+  }
+
+  @Test
   def testMinusWithNestedTypes(): Unit = {
     val util = batchTestUtil()
     val t = util.addTable[(Long, (Int, String), Array[Boolean])]("MyTable", 'a, 'b, 'c)
