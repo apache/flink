@@ -155,6 +155,7 @@ trait CommonCorrelate {
       val filterCondition = filterGenerator.generateExpression(condition.get)
       s"""
          |${filterGenerator.reuseInputUnboxingCode()}
+         |${filterGenerator.reusePerRecordCode()}
          |${filterCondition.code}
          |if (${filterCondition.resultTerm}) {
          |  ${crossResultExpr.code}

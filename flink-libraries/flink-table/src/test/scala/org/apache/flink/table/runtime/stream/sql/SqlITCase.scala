@@ -865,6 +865,54 @@ class SqlITCase extends StreamingWithStateTestBase {
 
     assertEquals(List(expected.toString()), StreamITCase.testResults.sorted)
   }
+
+  @Test
+  def testSplitExpr(): Unit = {
+    val data = List(
+      (1000L, "1", "Hello"),
+      (2000L, "2", "Hello"),
+      (3000L, null.asInstanceOf[String], "Hello"),
+      (4000L, "4", "Hello"),
+      (5000L, null.asInstanceOf[String], "Hello"),
+      (6000L, "6", "Hello"),
+      (7000L, "7", "Hello World"),
+      (8000L, "8", "Hello World"),
+      (20000L, "20", "Hello World"))
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val oneField = "MD5(concat('11', '111', COALESCE(LOWER(UPPER(TRIM(concat(b, c, '1')))), '')))"
+    val sqlbuf = new StringBuilder
+    sqlbuf ++= "SELECT a, b, SHA1(concat_ws('1', "
+    for (i <- 1 until 11) {
+      sqlbuf ++= oneField
+      sqlbuf += ','
+    }
+    sqlbuf ++= " '11')) FROM (SELECT a, concat_ws('1', "
+    sqlbuf ++= oneField
+    sqlbuf ++= ") as b, concat_ws('1', "
+    sqlbuf ++= oneField
+    sqlbuf ++= ") as c FROM MyTable)"
+    val sqlQuery = sqlbuf.toString()
+
+    val t = env.fromCollection(data).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+    val expected = List(
+      "1000,44f1281daa2913e41d96d68ac6b2026c,0833f734af7292ae6e2f53816a78ddb70b373344",
+      "2000,4405e62071a72fcfdaab4b4167a6baaf,eae6cdf9c37f63994d5694d45f4e190038f421af",
+      "20000,e44ada9029481350436948d4c88b3240,35519ee3d1ea794cb7f02dd63af69ba115da1326",
+      "3000,b0baee9d279d34fa1dfd71aadb908c3f,acdbec7c8d044673db4e62ea7f70811b890a240b",
+      "4000,6e8a248c926940210b7cad077b3372d4,d2c8aaa43d7960dde3bd34a853179218d2ae595d",
+      "5000,b0baee9d279d34fa1dfd71aadb908c3f,acdbec7c8d044673db4e62ea7f70811b890a240b",
+      "6000,12fbd8ab94f93accb50bccef7f8eb820,225fedc8695caca8be0d5b1944c4a45e89671cda",
+      "7000,851b1a7abc66ea346ec5956b7254d5c0,c6e2f7014441d1c31583f1496977fd12cc3bf1f4",
+      "8000,b1dd377beb81c3919a134ae984ee9233,ae855eead87d6116c45c3ab161a09cd2765b4fb8")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
 }
 
 object SqlITCase {

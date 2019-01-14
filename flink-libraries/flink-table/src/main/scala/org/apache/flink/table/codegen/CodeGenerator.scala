@@ -39,6 +39,7 @@ import org.apache.flink.table.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NU
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.codegen.calls.{CurrentTimePointCallGen, FunctionGenerator}
 import org.apache.flink.table.functions.sql.{ProctimeSqlFunction, ScalarSqlFunctions, StreamRecordTimestampSqlFunction}
+import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils._
@@ -739,9 +740,8 @@ abstract class CodeGenerator(
     }
 
     val resultType = FlinkTypeFactory.toTypeInfo(call.getType)
-
     // convert operands and help giving untyped NULL literals a type
-    val operands = call.getOperands.zipWithIndex.map {
+    var operands = call.getOperands.zipWithIndex.map {
 
       // this helps e.g. for AS(null)
       // we might need to extend this logic in case some rules do not create typed NULLs
@@ -753,6 +753,8 @@ abstract class CodeGenerator(
       case (o@_, _) =>
         o.accept(this)
     }
+
+    operands = generateExprSplits(operands, call)
 
     call.getOperator match {
       // arithmetic
@@ -1105,6 +1107,81 @@ abstract class CodeGenerator(
     else {
       splits.mkString("\n")
     }
+  }
+
+  private def generateExprSplits(operands: mutable.Buffer[GeneratedExpression], call: RexCall)
+    : mutable.Buffer[GeneratedExpression] = {
+    val totalLen = operands.map(_.code.length + 1).sum
+    val oplen = operands.size
+    for (i <- 0 to oplen-1) {
+      val operand = operands.get(i)
+      if (operand.code.size > 0 && totalLen > config.getMaxGeneratedCodeLength
+          && !call.getOperator.isInstanceOf[TableSqlFunction]) {
+        reusableInputUnboxingExprs.foreach { case (_, expr) =>
+          // declaration
+          val resultTypeTerm = primitiveTypeTermForTypeInfo(expr.resultType)
+          if (nullCheck && !expr.nullTerm.equals(NEVER_NULL) &&
+              !expr.nullTerm.equals(ALWAYS_NULL)) {
+            reusableMemberStatements.add(s"private boolean ${expr.nullTerm};")
+          }
+          reusableMemberStatements.add(s"private $resultTypeTerm ${expr.resultTerm};")
+
+          // assignment
+          if (nullCheck && !expr.nullTerm.equals(NEVER_NULL) &&
+              !expr.nullTerm.equals(ALWAYS_NULL)) {
+            reusablePerRecordStatements.add(s"this.${expr.nullTerm} = ${expr.nullTerm};")
+          }
+          reusablePerRecordStatements.add(s"this.${expr.resultTerm} = ${expr.resultTerm};")
+        }
+
+        // declaration
+        val resultTypeTerm = primitiveTypeTermForTypeInfo(operand.resultType)
+        if (nullCheck && !operand.nullTerm.equals(NEVER_NULL) &&
+            !operand.nullTerm.equals(ALWAYS_NULL)) {
+          reusableMemberStatements.add(s"private boolean ${operand.nullTerm};")
+        }
+
+        val reusableMemberStatementsSize = reusableMemberStatements
+          .filter(_.contains(s"final $resultTypeTerm ${operand.resultTerm} ="))
+          .size
+        if (reusableMemberStatementsSize == 0) {
+          reusableMemberStatements.add(s"final $resultTypeTerm ${operand.resultTerm};")
+        }
+        val methodName = newName(s"splitExpr")
+
+        val method =
+          s"""
+            |private final void $methodName() throws Exception {
+            |  ${operand.code}
+           """.stripMargin
+        val part1 = if (nullCheck && operand.nullTerm != NEVER_NULL &&
+            operand.nullTerm != ALWAYS_NULL) {
+              s"""
+                |  this.${operand.nullTerm} = ${operand.nullTerm};
+               """.stripMargin
+            } else {
+              s""""""
+            }
+        val part2 =
+          s"""
+            |  this.${operand.resultTerm} = ${operand.resultTerm};
+            |}
+           """.stripMargin
+
+        reusableMemberStatements.add(method + "\n" + part1 + "\n" + part2)
+        val code = s"$methodName();"
+        val newoperand = GeneratedExpression(
+            operand.resultTerm,
+            operand.nullTerm,
+            code,
+            operand.resultType,
+            operand.literal)
+
+        operands.set(i, newoperand)
+      }
+    }
+
+    operands
   }
 
   protected def generateFieldAccess(refExpr: GeneratedExpression, index: Int)
@@ -1982,5 +2059,13 @@ abstract class CodeGenerator(
     reusableInitStatements.add(nullableInit)
 
     fieldTerm
+  }
+ 
+  def getReusableMemberStatements(): mutable.LinkedHashSet[String] = {
+    reusableMemberStatements
+  }
+ 
+  def getReusablePerRecordStatements(): mutable.LinkedHashSet[String] = {
+    reusablePerRecordStatements
   }
 }
