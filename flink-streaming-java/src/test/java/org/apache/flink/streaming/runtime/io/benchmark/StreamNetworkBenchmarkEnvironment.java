@@ -280,7 +280,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			SingleInputGate gate = SingleInputGate.create(
 				"receiving task[" + channel + "]",
 				jobId,
-				executionAttemptID,
+				0,
 				gateDescriptor,
 				environment,
 				new NoOpTaskActions(),

@@ -47,14 +47,14 @@ public class InputChannelTestUtils {
 
 			@Override
 			public ResultSubpartitionView answer(InvocationOnMock invocation) throws Throwable {
-				BufferAvailabilityListener channel = (BufferAvailabilityListener) invocation.getArguments()[2];
-				return sources[num++].createReadView(channel);
+				BufferAvailabilityListener channel = (BufferAvailabilityListener) invocation.getArguments()[3];
+				return sources[num++].createReadView(0, channel);
 			}
 		};
 
 		ResultPartitionManager manager = mock(ResultPartitionManager.class);
 		when(manager.createSubpartitionView(
-				any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class)))
+				any(ResultPartitionID.class), anyInt(), anyInt(), any(BufferAvailabilityListener.class)))
 				.thenAnswer(viewCreator);
 
 		return manager;

@@ -31,6 +31,7 @@ public interface ResultPartitionProvider {
 	ResultSubpartitionView createSubpartitionView(
 			ResultPartitionID partitionId,
 			int index,
+			int attemptNumber,
 			BufferAvailabilityListener availabilityListener) throws IOException;
 
 }

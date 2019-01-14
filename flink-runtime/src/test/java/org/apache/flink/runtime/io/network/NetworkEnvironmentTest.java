@@ -329,7 +329,8 @@ public class NetworkEnvironmentTest {
 			connManager,
 			0,
 			0,
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+			0);
 		inputGate.setInputChannel(resultPartition.getPartitionId().getPartitionId(), channel);
 	}
 }

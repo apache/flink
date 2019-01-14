@@ -75,7 +75,8 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	public void requestSubpartitionView(
 		ResultPartitionProvider partitionProvider,
 		ResultPartitionID resultPartitionId,
-		int subPartitionIndex) throws IOException {
+		int subPartitionIndex,
+		int attemptNumber) throws IOException {
 
 		synchronized (requestLock) {
 			if (subpartitionView == null) {
@@ -86,6 +87,7 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 				this.subpartitionView = partitionProvider.createSubpartitionView(
 					resultPartitionId,
 					subPartitionIndex,
+					attemptNumber,
 					this);
 			} else {
 				throw new IllegalStateException("Subpartition already requested");
@@ -173,8 +175,8 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	}
 
 	@Override
-	public void notifySubpartitionConsumed() throws IOException {
-		subpartitionView.notifySubpartitionConsumed();
+	public void notifySubpartitionConsumed(boolean finalRelease) throws IOException {
+		subpartitionView.notifySubpartitionConsumed(finalRelease);
 	}
 
 	@Override

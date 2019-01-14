@@ -68,10 +68,11 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		ResultPartitionID partitionId,
 		ResultPartitionManager partitionManager,
 		TaskEventDispatcher taskEventDispatcher,
-		TaskIOMetricGroup metrics) {
+		TaskIOMetricGroup metrics,
+		int attemptNumber) {
 
 		this(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher,
-			0, 0, metrics);
+			0, 0, metrics, attemptNumber);
 	}
 
 	public LocalInputChannel(
@@ -82,9 +83,11 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		TaskEventDispatcher taskEventDispatcher,
 		int initialBackoff,
 		int maxBackoff,
-		TaskIOMetricGroup metrics) {
+		TaskIOMetricGroup metrics,
+		int attemptNumber) {
 
-		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, metrics.getNumBytesInLocalCounter(), metrics.getNumBuffersInLocalCounter());
+		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, metrics.getNumBytesInLocalCounter(),
+			metrics.getNumBuffersInLocalCounter(), attemptNumber);
 
 		this.partitionManager = checkNotNull(partitionManager);
 		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
@@ -109,7 +112,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
 				try {
 					ResultSubpartitionView subpartitionView = partitionManager.createSubpartitionView(
-						partitionId, subpartitionIndex, this);
+						partitionId, subpartitionIndex, attemptNumber, this);
 
 					if (subpartitionView == null) {
 						throw new IOException("Error requesting subpartition.");
@@ -164,6 +167,9 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	@Override
 	Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {
 		checkError();
+		if (isReleased) {
+			return Optional.empty();
+		}
 
 		ResultSubpartitionView subpartitionView = this.subpartitionView;
 		if (subpartitionView == null) {
@@ -238,9 +244,9 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	}
 
 	@Override
-	void notifySubpartitionConsumed() throws IOException {
+	void notifySubpartitionConsumed(boolean finalRelease) throws IOException {
 		if (subpartitionView != null) {
-			subpartitionView.notifySubpartitionConsumed();
+			subpartitionView.notifySubpartitionConsumed(finalRelease);
 		}
 	}
 
@@ -255,7 +261,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 			ResultSubpartitionView view = subpartitionView;
 			if (view != null) {
 				view.releaseAllResources();
-				subpartitionView = null;
 			}
 		}
 	}

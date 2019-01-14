@@ -206,7 +206,7 @@ public class LocalInputChannelTest {
 		LocalInputChannel ch = createLocalInputChannel(inputGate, partitionManager, backoff);
 
 		when(partitionManager
-				.createSubpartitionView(eq(ch.partitionId), eq(0), any(BufferAvailabilityListener.class)))
+				.createSubpartitionView(eq(ch.partitionId), eq(0), eq(0), any(BufferAvailabilityListener.class)))
 				.thenThrow(new PartitionNotFoundException(ch.partitionId));
 
 		Timer timer = mock(Timer.class);
@@ -222,7 +222,7 @@ public class LocalInputChannelTest {
 		// Initial request
 		ch.requestSubpartition(0);
 		verify(partitionManager)
-				.createSubpartitionView(eq(ch.partitionId), eq(0), any(BufferAvailabilityListener.class));
+				.createSubpartitionView(eq(ch.partitionId), eq(0), eq(0), any(BufferAvailabilityListener.class));
 
 		// Request subpartition and verify that the actual requests are delayed.
 		for (long expected : expectedDelays) {
@@ -249,7 +249,7 @@ public class LocalInputChannelTest {
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		when(partitionManager
-				.createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class)))
+				.createSubpartitionView(any(ResultPartitionID.class), anyInt(), anyInt(), any(BufferAvailabilityListener.class)))
 				.thenReturn(view);
 
 		SingleInputGate inputGate = mock(SingleInputGate.class);
@@ -307,6 +307,7 @@ public class LocalInputChannelTest {
 			.createSubpartitionView(
 				any(ResultPartitionID.class),
 				anyInt(),
+				anyInt(),
 				any(BufferAvailabilityListener.class)))
 			.thenAnswer(new Answer<ResultSubpartitionView>() {
 				@Override
@@ -326,7 +327,8 @@ public class LocalInputChannelTest {
 			partitionManager,
 			new TaskEventDispatcher(),
 			1, 1,
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+			0);
 
 		gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
@@ -370,6 +372,7 @@ public class LocalInputChannelTest {
 		when(partitionManager.createSubpartitionView(
 			any(ResultPartitionID.class),
 			anyInt(),
+			anyInt(),
 			any(BufferAvailabilityListener.class))).thenReturn(reader);
 
 		LocalInputChannel channel = new LocalInputChannel(
@@ -378,7 +381,8 @@ public class LocalInputChannelTest {
 			new ResultPartitionID(),
 			partitionManager,
 			new TaskEventDispatcher(),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+			0);
 
 		channel.requestSubpartition(0);
 
@@ -418,7 +422,8 @@ public class LocalInputChannelTest {
 				mock(TaskEventDispatcher.class),
 				initialAndMaxRequestBackoff._1(),
 				initialAndMaxRequestBackoff._2(),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+				0);
 	}
 
 	/**
@@ -512,7 +517,8 @@ public class LocalInputChannelTest {
 								consumedPartitionIds[i],
 								partitionManager,
 								taskEventDispatcher,
-								UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup()));
+								UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+								0));
 			}
 
 			this.numberOfInputChannels = numberOfInputChannels;

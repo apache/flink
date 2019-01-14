@@ -371,6 +371,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 
 			// Release the input channel
 			inputGate.releaseAllResources();
+			inputGate.finallyReleaseAllInputChannels(false);
 
 			// it should send a close request after releasing the input channel,
 			// but will not notify credits for a released input channel.

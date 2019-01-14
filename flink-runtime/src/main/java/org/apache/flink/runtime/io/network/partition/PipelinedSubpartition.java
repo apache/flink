@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -40,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>Whenever {@link #add(BufferConsumer)} adds a finished {@link BufferConsumer} or a second
  * {@link BufferConsumer} (in which case we will assume the first one finished), we will
  * {@link PipelinedSubpartitionView#notifyDataAvailable() notify} a read view created via
- * {@link #createReadView(BufferAvailabilityListener)} of new data availability. Except by calling
+ * {@link #createReadView(int, BufferAvailabilityListener)} of new data availability. Except by calling
  * {@link #flush()} explicitly, we always only notify when the first finished buffer turns up and
  * then, the reader has to drain the buffers via {@link #pollBuffer()} until its return value shows
  * no more buffers being available. This results in a buffer queue which is either empty or has an
@@ -68,10 +69,14 @@ class PipelinedSubpartition extends ResultSubpartition {
 	/** Flag indicating whether the subpartition has been released. */
 	private volatile boolean isReleased;
 
+	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
+	protected final ArrayDeque<BufferConsumer> buffers = new ArrayDeque<>();
+
 	// ------------------------------------------------------------------------
 
 	PipelinedSubpartition(int index, ResultPartition parent) {
 		super(index, parent);
+		baseBuffers = buffers;
 	}
 
 	@Override
@@ -83,6 +88,11 @@ class PipelinedSubpartition extends ResultSubpartition {
 	public void finish() throws IOException {
 		add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE), true);
 		LOG.debug("{}: Finished {}.", parent.getOwningTaskName(), this);
+	}
+
+	@Override
+	protected void onConsumedSubpartition(boolean finalRelease) {
+		parent.onConsumedSubpartition(index);
 	}
 
 	private boolean add(BufferConsumer bufferConsumer, boolean finish) {
@@ -219,7 +229,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public PipelinedSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException {
+	public PipelinedSubpartitionView createReadView(int attemptNumber, BufferAvailabilityListener availabilityListener) throws IOException {
 		final boolean notifyDataAvailable;
 		synchronized (buffers) {
 			checkState(!isReleased);

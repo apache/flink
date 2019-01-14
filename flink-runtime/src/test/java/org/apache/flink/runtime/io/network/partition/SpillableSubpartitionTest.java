@@ -175,7 +175,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 
 		// Create the read view
 		ResultSubpartitionView readView = spy(partition
-			.createReadView(new NoOpBufferAvailablityListener()));
+			.createReadView(0, new NoOpBufferAvailablityListener()));
 
 		// The released state check (of the parent) needs to be independent
 		// of the released state of the view.
@@ -225,7 +225,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(BUFFER_DATA_SIZE * 3 + eventSize + 4, partition.getTotalNumberOfBytes());
 
 		AwaitableBufferAvailablityListener listener = new AwaitableBufferAvailablityListener();
-		SpilledSubpartitionView reader = (SpilledSubpartitionView) partition.createReadView(listener);
+		SpilledSubpartitionView reader = (SpilledSubpartitionView) partition.createReadView(0, listener);
 
 		assertEquals(1, listener.getNumNotifications());
 		assertFalse(reader.nextBufferIsEvent()); // buffer
@@ -307,7 +307,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		Arrays.stream(bufferConsumers).forEach(bufferConsumer -> assertTrue(bufferConsumer.isRecycled()));
 
 		AwaitableBufferAvailablityListener listener = new AwaitableBufferAvailablityListener();
-		SpilledSubpartitionView reader = (SpilledSubpartitionView) partition.createReadView(listener);
+		SpilledSubpartitionView reader = (SpilledSubpartitionView) partition.createReadView(0, listener);
 
 		assertEquals(1, listener.getNumNotifications());
 		assertFalse(reader.nextBufferIsEvent()); // full buffer
@@ -355,7 +355,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(0, partition.getTotalNumberOfBytes()); // only updated when getting/spilling the buffers
 
 		AwaitableBufferAvailablityListener listener = new AwaitableBufferAvailablityListener();
-		SpillableSubpartitionView reader = (SpillableSubpartitionView) partition.createReadView(listener);
+		SpillableSubpartitionView reader = (SpillableSubpartitionView) partition.createReadView(0, listener);
 
 		// Initial notification
 		assertEquals(1, listener.getNumNotifications());
@@ -371,7 +371,8 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertFalse(bufferConsumer.isRecycled());
 
 		// Spill now
-		assertEquals(3, partition.releaseMemory());
+		// buffers are released after execution unregister
+		assertEquals(5, partition.releaseMemory());
 		assertFalse(bufferConsumer.isRecycled()); // still one in the reader!
 		// still same statistics:
 		assertEquals(5, partition.getTotalNumberOfBuffers());
@@ -572,6 +573,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 
 		BufferConsumer buffer1 = createFilledBufferConsumer(BUFFER_DATA_SIZE, BUFFER_DATA_SIZE);
 		BufferConsumer buffer2 = createFilledBufferConsumer(BUFFER_DATA_SIZE, BUFFER_DATA_SIZE);
+		int expected = 2;
 		try {
 			// we need two buffers because the view will use one of them and not release it
 			partition.add(buffer1);
@@ -584,13 +586,14 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 			if (createView) {
 				// Create a read view
 				partition.finish();
-				partition.createReadView(new NoOpBufferAvailablityListener());
+				partition.createReadView(0, new NoOpBufferAvailablityListener());
 				assertEquals(0, partition.getTotalNumberOfBytes()); // only updated when buffers are consumed or spilled
+				expected = 3;
 			}
 
 			// one instance of the buffers is placed in the view's nextBuffer and not released
 			// (if there is no view, there will be no additional EndOfPartitionEvent)
-			assertEquals(2, partition.releaseMemory());
+			assertEquals(expected, partition.releaseMemory());
 			assertFalse("buffer1 should not be recycled (advertised as nextBuffer)", buffer1.isRecycled());
 			assertFalse("buffer2 should not be recycled (not written yet)", buffer2.isRecycled());
 		} finally {
@@ -696,15 +699,18 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 			// create the read view before spilling
 			// (tests both code paths since this view may then contain the spilled view)
 			ResultSubpartitionView view = null;
+			int expected = 2;
 			if (createView) {
+				expected = 3;
 				partition.finish();
-				view = partition.createReadView(new NoOpBufferAvailablityListener());
+				view = partition.createReadView(0, new NoOpBufferAvailablityListener());
 			}
 			if (spilled) {
 				// note: in case we create a view, one buffer will already reside in the view and
 				//       one EndOfPartitionEvent will be added instead (so overall the number of
 				//       buffers to spill is the same
-				assertEquals(2, partition.releaseMemory());
+				// spill all the buffer consumers
+				assertEquals(expected, partition.releaseMemory());
 			}
 
 			partition.release();

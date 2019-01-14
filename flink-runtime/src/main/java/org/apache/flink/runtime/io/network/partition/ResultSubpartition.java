@@ -25,7 +25,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -40,9 +39,6 @@ public abstract class ResultSubpartition {
 	/** The parent partition this subpartition belongs to. */
 	protected final ResultPartition parent;
 
-	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
-	protected final ArrayDeque<BufferConsumer> buffers = new ArrayDeque<>();
-
 	/** The number of non-event buffers currently in this subpartition. */
 	@GuardedBy("buffers")
 	private int buffersInBacklog;
@@ -54,6 +50,8 @@ public abstract class ResultSubpartition {
 
 	/** The total number of bytes (both data and event buffers). */
 	private long totalNumberOfBytes;
+
+	protected Object baseBuffers;
 
 	public ResultSubpartition(int index, ResultPartition parent) {
 		this.index = index;
@@ -79,9 +77,7 @@ public abstract class ResultSubpartition {
 	/**
 	 * Notifies the parent partition about a consumed {@link ResultSubpartitionView}.
 	 */
-	protected void onConsumedSubpartition() {
-		parent.onConsumedSubpartition(index);
-	}
+	protected abstract void onConsumedSubpartition(boolean finalRelease);
 
 	protected Throwable getFailureCause() {
 		return parent.getFailureCause();
@@ -110,7 +106,7 @@ public abstract class ResultSubpartition {
 
 	public abstract void release() throws IOException;
 
-	public abstract ResultSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException;
+	public abstract ResultSubpartitionView createReadView(int attemptNumber, BufferAvailabilityListener availabilityListener) throws IOException;
 
 	abstract int releaseMemory() throws IOException;
 
@@ -141,13 +137,13 @@ public abstract class ResultSubpartition {
 	 * @return backlog after the operation
 	 */
 	public int decreaseBuffersInBacklog(Buffer buffer) {
-		synchronized (buffers) {
+		synchronized (baseBuffers) {
 			return decreaseBuffersInBacklogUnsafe(buffer != null && buffer.isBuffer());
 		}
 	}
 
 	protected int decreaseBuffersInBacklogUnsafe(boolean isBuffer) {
-		assert Thread.holdsLock(buffers);
+		assert Thread.holdsLock(baseBuffers);
 		if (isBuffer) {
 			buffersInBacklog--;
 		}
@@ -159,7 +155,7 @@ public abstract class ResultSubpartition {
 	 * buffer into this subpartition.
 	 */
 	protected void increaseBuffersInBacklog(BufferConsumer buffer) {
-		assert Thread.holdsLock(buffers);
+		assert Thread.holdsLock(baseBuffers);
 
 		if (buffer != null && buffer.isBuffer()) {
 			buffersInBacklog++;

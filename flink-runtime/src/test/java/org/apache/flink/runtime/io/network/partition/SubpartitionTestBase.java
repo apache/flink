@@ -127,7 +127,7 @@ public abstract class SubpartitionTestBase extends TestLogger {
 
 		// Create the view
 		BufferAvailabilityListener listener = mock(BufferAvailabilityListener.class);
-		ResultSubpartitionView view = partition.createReadView(listener);
+		ResultSubpartitionView view = partition.createReadView(0, listener);
 
 		// The added bufferConsumer and end-of-partition event
 		assertNotNull(view.getNextBuffer());

@@ -273,7 +273,8 @@ public class PartitionRequestClientHandlerTest {
 			connectionManager,
 			initialBackoff,
 			maxBackoff,
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+			0);
 
 		inputGate.setInputChannel(partitionId.getPartitionId(), inputChannel);
 		return inputChannel;

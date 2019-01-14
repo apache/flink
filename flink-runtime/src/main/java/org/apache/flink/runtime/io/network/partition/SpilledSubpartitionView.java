@@ -85,12 +85,16 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	/** Flag indicating whether a spill is still in progress. */
 	private volatile boolean isSpillInProgress = true;
 
+	private int skippedBufferCount;
+	private int readBufferCount;
+
 	SpilledSubpartitionView(
 		SpillableSubpartition parent,
 		int memorySegmentSize,
 		BufferFileWriter spillWriter,
 		long numberOfSpilledBuffers,
-		BufferAvailabilityListener availabilityListener) throws IOException {
+		BufferAvailabilityListener availabilityListener,
+		int skippedBufferCount) throws IOException {
 
 		this.parent = checkNotNull(parent);
 		this.bufferPool = new SpillReadBufferPool(2, memorySegmentSize);
@@ -99,6 +103,8 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		checkArgument(numberOfSpilledBuffers >= 0);
 		this.numberOfSpilledBuffers = numberOfSpilledBuffers;
 		this.availabilityListener = checkNotNull(availabilityListener);
+		this.skippedBufferCount = skippedBufferCount;
+		this.readBufferCount = 0;
 
 		// Check whether async spilling is still in progress. If not, this returns
 		// false and we can notify our availability listener about all available buffers.
@@ -155,6 +161,12 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	private Buffer requestAndFillBuffer() throws IOException, InterruptedException {
 		assert Thread.holdsLock(this);
 
+		while (readBufferCount < skippedBufferCount && !fileReader.hasReachedEndOfFile()) {
+			Buffer buffer = bufferPool.requestBufferBlocking();
+			fileReader.readInto(buffer);
+			readBufferCount++;
+			buffer.recycleBuffer();
+		}
 		if (fileReader.hasReachedEndOfFile()) {
 			return null;
 		}
@@ -162,6 +174,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		// this method don't happen before recycling buffers returned earlier.
 		Buffer buffer = bufferPool.requestBufferBlocking();
 		fileReader.readInto(buffer);
+		readBufferCount++;
 		return buffer;
 	}
 
@@ -174,8 +187,8 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	}
 
 	@Override
-	public void notifySubpartitionConsumed() throws IOException {
-		parent.onConsumedSubpartition();
+	public void notifySubpartitionConsumed(boolean finalRelease) throws IOException {
+		parent.onConsumedSubpartition(finalRelease);
 	}
 
 	@Override

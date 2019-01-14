@@ -67,6 +67,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 	public ResultSubpartitionView createSubpartitionView(
 			ResultPartitionID partitionId,
 			int subpartitionIndex,
+			int attemptNumber,
 			BufferAvailabilityListener availabilityListener) throws IOException {
 
 		synchronized (registeredPartitions) {
@@ -79,7 +80,20 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 
 			LOG.debug("Requesting subpartition {} of {}.", subpartitionIndex, partition);
 
-			return partition.createSubpartitionView(subpartitionIndex, availabilityListener);
+			return partition.createSubpartitionView(subpartitionIndex, attemptNumber, availabilityListener);
+		}
+	}
+
+	public void subpartitionConsumed(ResultPartitionID partitionId, int subpartitionIndex) {
+		synchronized (registeredPartitions) {
+			final ResultPartition partition = registeredPartitions.get(partitionId.getProducerId(),
+				partitionId.getPartitionId());
+
+			if (partition == null) {
+				LOG.error("Partition {} not found.", partitionId);
+				return;
+			}
+			partition.onConsumedSubpartition(subpartitionIndex);
 		}
 	}
 
@@ -131,7 +145,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 	void onConsumedPartition(ResultPartition partition) {
 		final ResultPartition previous;
 
-		LOG.debug("Received consume notification from {}.", partition);
+		LOG.debug("/Received consume notification from {}.", partition);
 
 		synchronized (registeredPartitions) {
 			ResultPartitionID partitionId = partition.getPartitionId();

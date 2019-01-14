@@ -25,7 +25,6 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
@@ -579,7 +578,7 @@ public class SingleInputGate implements InputGate {
 					hasReceivedAllEndOfPartitionEvents = true;
 				}
 
-				currentChannel.notifySubpartitionConsumed();
+				currentChannel.notifySubpartitionConsumed(false);
 
 				currentChannel.releaseAllResources();
 			}
@@ -653,6 +652,17 @@ public class SingleInputGate implements InputGate {
 		return inputChannels;
 	}
 
+	public void finallyReleaseAllInputChannels(boolean notifyConsumed) {
+		for (InputChannel inputChannel : inputChannels.values()) {
+			try {
+				inputChannel.notifySubpartitionConsumed(notifyConsumed);
+				inputChannel.releaseRemoteClient();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -661,7 +671,7 @@ public class SingleInputGate implements InputGate {
 	public static SingleInputGate create(
 		String owningTaskName,
 		JobID jobId,
-		ExecutionAttemptID executionId,
+		int attemptNumber,
 		InputGateDeploymentDescriptor igdd,
 		NetworkEnvironment networkEnvironment,
 		TaskActions taskActions,
@@ -696,7 +706,8 @@ public class SingleInputGate implements InputGate {
 					networkEnvironment.getTaskEventDispatcher(),
 					networkEnvironment.getPartitionRequestInitialBackoff(),
 					networkEnvironment.getPartitionRequestMaxBackoff(),
-					metrics
+					metrics,
+					attemptNumber
 				);
 
 				numLocalChannels++;
@@ -707,7 +718,8 @@ public class SingleInputGate implements InputGate {
 					networkEnvironment.getConnectionManager(),
 					networkEnvironment.getPartitionRequestInitialBackoff(),
 					networkEnvironment.getPartitionRequestMaxBackoff(),
-					metrics
+					metrics,
+					attemptNumber
 				);
 
 				numRemoteChannels++;
@@ -719,7 +731,8 @@ public class SingleInputGate implements InputGate {
 					networkEnvironment.getConnectionManager(),
 					networkEnvironment.getPartitionRequestInitialBackoff(),
 					networkEnvironment.getPartitionRequestMaxBackoff(),
-					metrics
+					metrics,
+					attemptNumber
 				);
 
 				numUnknownChannels++;

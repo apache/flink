@@ -34,7 +34,8 @@ public interface NetworkSequenceViewReader {
 	void requestSubpartitionView(
 		ResultPartitionProvider partitionProvider,
 		ResultPartitionID resultPartitionId,
-		int subPartitionIndex) throws IOException;
+		int subPartitionIndex,
+		int attemptNumber) throws IOException;
 
 	BufferAndAvailability getNextBuffer() throws IOException, InterruptedException;
 
@@ -61,7 +62,7 @@ public interface NetworkSequenceViewReader {
 	 */
 	void setRegisteredAsAvailable(boolean isRegisteredAvailable);
 
-	void notifySubpartitionConsumed() throws IOException;
+	void notifySubpartitionConsumed(boolean finalRelease) throws IOException;
 
 	boolean isReleased();
 

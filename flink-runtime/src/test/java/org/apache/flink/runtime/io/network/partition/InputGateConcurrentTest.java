@@ -75,7 +75,7 @@ public class InputGateConcurrentTest {
 
 		for (int i = 0; i < numberOfChannels; i++) {
 			LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
-					resultPartitionManager, mock(TaskEventDispatcher.class), UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+					resultPartitionManager, mock(TaskEventDispatcher.class), UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(), 0);
 			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
 			partitions[i] = new PipelinedSubpartition(0, resultPartition);
@@ -113,7 +113,7 @@ public class InputGateConcurrentTest {
 		for (int i = 0; i < numberOfChannels; i++) {
 			RemoteInputChannel channel = new RemoteInputChannel(
 					gate, i, new ResultPartitionID(), mock(ConnectionID.class),
-					connManager, 0, 0, UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+					connManager, 0, 0, UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(), 0);
 			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
 			sources[i] = new RemoteChannelSource(channel);
@@ -168,14 +168,15 @@ public class InputGateConcurrentTest {
 				sources[i] = new PipelinedSubpartitionSource(psp);
 
 				LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
-						resultPartitionManager, mock(TaskEventDispatcher.class), UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+						resultPartitionManager, mock(TaskEventDispatcher.class),
+						UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(), 0);
 				gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 			}
 			else {
 				//remote channel
 				RemoteInputChannel channel = new RemoteInputChannel(
 						gate, i, new ResultPartitionID(), mock(ConnectionID.class),
-						connManager, 0, 0, UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+						connManager, 0, 0, UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(), 0);
 				gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
 				sources[i] = new RemoteChannelSource(channel);

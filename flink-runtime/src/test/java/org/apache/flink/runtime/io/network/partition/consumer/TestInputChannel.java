@@ -48,7 +48,7 @@ public class TestInputChannel extends InputChannel {
 	private boolean isReleased = false;
 
 	TestInputChannel(SingleInputGate inputGate, int channelIndex) {
-		super(inputGate, channelIndex, new ResultPartitionID(), 0, 0, new SimpleCounter(), new SimpleCounter());
+		super(inputGate, channelIndex, new ResultPartitionID(), 0, 0, new SimpleCounter(), new SimpleCounter(), 0);
 	}
 
 	public TestInputChannel read(Buffer buffer) throws IOException, InterruptedException {
@@ -148,7 +148,7 @@ public class TestInputChannel extends InputChannel {
 	}
 
 	@Override
-	void notifySubpartitionConsumed() throws IOException {
+	void notifySubpartitionConsumed(boolean finalRelease) throws IOException {
 
 	}
 

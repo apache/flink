@@ -256,6 +256,9 @@ public abstract class NettyMessage {
 					case AddCredit.ID:
 						decodedMsg = AddCredit.readFrom(msg);
 						break;
+					case SubpartitionConsumedRequest.ID:
+						decodedMsg = SubpartitionConsumedRequest.readFrom(msg);
+						break;
 					default:
 						throw new ProtocolException(
 							"Received unknown message from producer: " + msg);
@@ -490,11 +493,14 @@ public abstract class NettyMessage {
 
 		final int credit;
 
-		PartitionRequest(ResultPartitionID partitionId, int queueIndex, InputChannelID receiverId, int credit) {
+		final int attemptNumber;
+
+		PartitionRequest(ResultPartitionID partitionId, int queueIndex, InputChannelID receiverId, int credit, int attemptNumber) {
 			this.partitionId = checkNotNull(partitionId);
 			this.queueIndex = queueIndex;
 			this.receiverId = checkNotNull(receiverId);
 			this.credit = credit;
+			this.attemptNumber = attemptNumber;
 		}
 
 		@Override
@@ -502,13 +508,14 @@ public abstract class NettyMessage {
 			ByteBuf result = null;
 
 			try {
-				result = allocateBuffer(allocator, ID, 16 + 16 + 4 + 16 + 4);
+				result = allocateBuffer(allocator, ID, 16 + 16 + 4 + 16 + 4 + 4);
 
 				partitionId.getPartitionId().writeTo(result);
 				partitionId.getProducerId().writeTo(result);
 				result.writeInt(queueIndex);
 				receiverId.writeTo(result);
 				result.writeInt(credit);
+				result.writeInt(attemptNumber);
 
 				return result;
 			}
@@ -529,8 +536,9 @@ public abstract class NettyMessage {
 			int queueIndex = buffer.readInt();
 			InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
 			int credit = buffer.readInt();
+			int attemptNumber = buffer.readInt();
 
-			return new PartitionRequest(partitionId, queueIndex, receiverId, credit);
+			return new PartitionRequest(partitionId, queueIndex, receiverId, credit, attemptNumber);
 		}
 
 		@Override
@@ -721,6 +729,52 @@ public abstract class NettyMessage {
 		@Override
 		public String toString() {
 			return String.format("AddCredit(%s : %d)", receiverId, credit);
+		}
+	}
+
+	static class SubpartitionConsumedRequest extends NettyMessage {
+		private static final byte ID = 7;
+
+		final ResultPartitionID partitionId;
+
+		final int subpartitionIndex;
+
+		SubpartitionConsumedRequest(ResultPartitionID partitionId, int subpartitionIndex) {
+			this.partitionId = partitionId;
+			this.subpartitionIndex = subpartitionIndex;
+		}
+
+		@Override
+		ByteBuf write(ByteBufAllocator alloc) throws IOException {
+			ByteBuf result = null;
+			try {
+				result = allocateBuffer(alloc, ID, 16 + 16 + 4);
+				partitionId.getPartitionId().writeTo(result);
+				partitionId.getProducerId().writeTo(result);
+				result.writeInt(subpartitionIndex);
+				return result;
+			} catch (Throwable t) {
+				if (result != null) {
+					result.release();
+				}
+
+				throw new IOException(t);
+			}
+		}
+
+		static SubpartitionConsumedRequest readFrom(ByteBuf buffer) {
+			ResultPartitionID partitionId =
+				new ResultPartitionID(
+					IntermediateResultPartitionID.fromByteBuf(buffer),
+					ExecutionAttemptID.fromByteBuf(buffer));
+			int subPartitionIndex = buffer.readInt();
+			return new SubpartitionConsumedRequest(partitionId, subPartitionIndex);
+		}
+
+		@Override
+		public String toString() {
+			return String.format("SubpartitionConsumedRequest{partitionId=%s, subpartitionIndex=%d.}",
+				partitionId, subpartitionIndex);
 		}
 	}
 }

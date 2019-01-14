@@ -124,7 +124,7 @@ public class InputChannelTest {
 			int initialBackoff,
 			int maxBackoff) {
 
-			super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, new SimpleCounter(), new SimpleCounter());
+			super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, new SimpleCounter(), new SimpleCounter(), 0);
 		}
 
 		@Override
@@ -146,7 +146,7 @@ public class InputChannelTest {
 		}
 
 		@Override
-		void notifySubpartitionConsumed() throws IOException {
+		void notifySubpartitionConsumed(boolean finalRelease) throws IOException {
 		}
 
 		@Override

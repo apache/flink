@@ -50,6 +50,8 @@ class UnknownInputChannel extends InputChannel {
 
 	private final TaskIOMetricGroup metrics;
 
+	private final int attemptNumber;
+
 	public UnknownInputChannel(
 			SingleInputGate gate,
 			int channelIndex,
@@ -59,9 +61,10 @@ class UnknownInputChannel extends InputChannel {
 			ConnectionManager connectionManager,
 			int initialBackoff,
 			int maxBackoff,
-			TaskIOMetricGroup metrics) {
+			TaskIOMetricGroup metrics,
+			int attemptNumber) {
 
-		super(gate, channelIndex, partitionId, initialBackoff, maxBackoff, null, null);
+		super(gate, channelIndex, partitionId, initialBackoff, maxBackoff, null, null, attemptNumber);
 
 		this.partitionManager = checkNotNull(partitionManager);
 		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
@@ -69,6 +72,7 @@ class UnknownInputChannel extends InputChannel {
 		this.metrics = checkNotNull(metrics);
 		this.initialBackoff = initialBackoff;
 		this.maxBackoff = maxBackoff;
+		this.attemptNumber = attemptNumber;
 	}
 
 	@Override
@@ -100,7 +104,7 @@ class UnknownInputChannel extends InputChannel {
 	}
 
 	@Override
-	public void notifySubpartitionConsumed() {
+	public void notifySubpartitionConsumed(boolean finalRelease) {
 	}
 
 	@Override
@@ -118,10 +122,12 @@ class UnknownInputChannel extends InputChannel {
 	// ------------------------------------------------------------------------
 
 	public RemoteInputChannel toRemoteInputChannel(ConnectionID producerAddress) {
-		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress), connectionManager, initialBackoff, maxBackoff, metrics);
+		return new RemoteInputChannel(inputGate, channelIndex, partitionId, checkNotNull(producerAddress),
+			connectionManager, initialBackoff, maxBackoff, metrics, attemptNumber);
 	}
 
 	public LocalInputChannel toLocalInputChannel() {
-		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher, initialBackoff, maxBackoff, metrics);
+		return new LocalInputChannel(inputGate, channelIndex, partitionId, partitionManager, taskEventDispatcher,
+			initialBackoff, maxBackoff, metrics, attemptNumber);
 	}
 }
