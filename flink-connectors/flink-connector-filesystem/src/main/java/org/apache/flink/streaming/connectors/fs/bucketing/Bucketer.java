@@ -38,6 +38,7 @@ public interface Bucketer<T> extends Serializable {
 	/**
 	 * Returns the {@link Path} of a bucket file.
 	 *
+	 * @param clock The current system time in milliseconds.
 	 * @param basePath The base path containing all the buckets.
 	 * @param element The current element being processed.
 	 *
