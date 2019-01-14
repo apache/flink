@@ -24,9 +24,13 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
 
 /**
  * Tests that validate the {@link ClassLoaderUtil}.
@@ -41,9 +45,7 @@ public class ClassLoaderUtilsTest {
 		try {
 			// file with jar contents
 			validJar = File.createTempFile("flink-url-test", ".tmp");
-			JarFileCreator jarFileCreator = new JarFileCreator(validJar);
-			jarFileCreator.addClass(ClassLoaderUtilsTest.class);
-			jarFileCreator.createJarFile();
+			createValidJar(validJar);
 			
 			// validate that the JAR is correct and the test setup is not broken
 			JarFile jarFile = null;
@@ -104,6 +106,30 @@ public class ClassLoaderUtilsTest {
 				//noinspection ResultOfMethodCallIgnored
 				invalidJar.delete();
 			}
+		}
+	}
+
+	private void createValidJar(File validJar) throws Exception {
+		final Class<?> clazz = ClassLoaderUtilsTest.class;
+		final String classExtension = ".class";
+		final byte[] buf = new byte[128];
+
+		try (FileOutputStream fos = new FileOutputStream(validJar); JarOutputStream jos = new JarOutputStream(fos, new Manifest())) {
+			String entry = clazz.getName().replace('.', '/') + classExtension;
+			jos.putNextEntry(new JarEntry(entry));
+
+			String name = clazz.getName();
+			int n = name.lastIndexOf('.');
+			String className = (n > -1) ? name.substring(n + 1) : name;
+
+			final InputStream classInputStream = clazz.getResourceAsStream(className + classExtension);
+
+			for (int num = classInputStream.read(buf); num != -1; num = classInputStream.read(buf)) {
+				jos.write(buf, 0, num);
+			}
+
+			classInputStream.close();
+			jos.closeEntry();
 		}
 	}
 	
