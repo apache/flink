@@ -150,6 +150,11 @@ abstract class CodeGenerator(
   protected var hasCodeSplits: Boolean = false
 
   /**
+    * Flag that indicates that the generated expr needed to be split into several methods.
+    */
+  protected var isExprSplits: Boolean = true
+
+  /**
     * @return code block of statements that need to be placed in the member area of the Function
     *         (e.g. member variables and their initialization)
     */
@@ -1116,7 +1121,8 @@ abstract class CodeGenerator(
     for (i <- 0 to oplen-1) {
       val operand = operands.get(i)
       if (operand.code.size > 0 && totalLen > config.getMaxGeneratedCodeLength
-          && !call.getOperator.isInstanceOf[TableSqlFunction]) {
+          && !call.getOperator.isInstanceOf[TableSqlFunction]
+          && isExprSplits) {
         reusableInputUnboxingExprs.foreach { case (_, expr) =>
           // declaration
           val resultTypeTerm = primitiveTypeTermForTypeInfo(expr.resultType)
@@ -2060,11 +2066,11 @@ abstract class CodeGenerator(
 
     fieldTerm
   }
- 
+
   def getReusableMemberStatements(): mutable.LinkedHashSet[String] = {
     reusableMemberStatements
   }
- 
+
   def getReusablePerRecordStatements(): mutable.LinkedHashSet[String] = {
     reusablePerRecordStatements
   }

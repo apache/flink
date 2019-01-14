@@ -868,16 +868,6 @@ class SqlITCase extends StreamingWithStateTestBase {
 
   @Test
   def testSplitExpr(): Unit = {
-    val data = List(
-      (1000L, "1", "Hello"),
-      (2000L, "2", "Hello"),
-      (3000L, null.asInstanceOf[String], "Hello"),
-      (4000L, "4", "Hello"),
-      (5000L, null.asInstanceOf[String], "Hello"),
-      (6000L, "6", "Hello"),
-      (7000L, "7", "Hello World"),
-      (8000L, "8", "Hello World"),
-      (20000L, "20", "Hello World"))
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
@@ -911,6 +901,74 @@ class SqlITCase extends StreamingWithStateTestBase {
       "6000,12fbd8ab94f93accb50bccef7f8eb820,225fedc8695caca8be0d5b1944c4a45e89671cda",
       "7000,851b1a7abc66ea346ec5956b7254d5c0,c6e2f7014441d1c31583f1496977fd12cc3bf1f4",
       "8000,b1dd377beb81c3919a134ae984ee9233,ae855eead87d6116c45c3ab161a09cd2765b4fb8")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testSplitExpr2(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+    val sql =
+      """
+        |select a,
+        |case when (c in ('Hello', '58','59','60','61','62','63','gd1','bj1','sh1',
+        |'sc1','hn1','sd1','js1','hub1','hb1','zj1','xb1','db1','fj1','gd2','sh2',
+        |'xn1','db2','hb2','js2','zj2','gd3','db3','hub2','hn2','sc2','hen1','gx1',
+        |'jx1','ah1','ln1','sx1','shx1','gz1','bj2','sh3','sd2','heb1','cq1','hlj1',
+        |'js3','jl1','hen2','fj2','gd4','xb2','hub3','xn2','hn3','gd5','js4','hb3',
+        |'zj3','sc3','ah2','jx2','shx2','gx2','gd6','hn4','hub4','sc4','gd7','cq2',
+        |'hn5','hub5','gd8','sc5','hn6','gx3','gd9','xn3','hub6','gd10','gd11','sc6',
+        |'hub7','hn7','yn1','gui1','xj1','yg1','gd12','hub8','gx5','gd13','40','41',
+        |'42','ln2','hlj2','hen3','sd3','ln3','heb2','hen4','bj3','sd4','hen5','sd5',
+        |'js5','fj3','db4','zj4','hb4','js6','sh4','sx2','jx3','hen6','ah3','sd6',
+        |'js8','zj6','heb4','tj1','nm1','zj7','heb5','hen7'))
+        |then 'classA'
+        |when (b in ('20', '51','52','53','54','55','56','57','gd1','bj1','sh1','sc1',
+        |'hn1','sd1','js1','hub1','hb1','zj1','xb1','db1','fj1','gd2','sh2','xn1',
+        |'db2','hb2','js2','zj2','gd3','db3','hub2','hn2','sc2','hen1','gx1','jx1',
+        |'ah1','ln1','sx1','shx1','gz1','bj2','sh3','sd2','heb1','cq1','hlj1','js3',
+        |'jl1','hen2','fj2','gd4','xb2','hub3','xn2','hn3','gd5','js4','hb3','zj3',
+        |'sc3','ah2','jx2','shx2','gx2','gd6','hn4','hub4','sc4','gd7','cq2','hn5',
+        |'hub5','gd8','sc5','hn6','gx3','gd9','xn3','hub6','gd10','gd11','sc6','hub7',
+        |'hn7','yn1','gui1','xj1','yg1','gd12','hub8','gx5','gd13','36','37','38',
+        |'39','ln2','hlj2','hen3','sd3','ln3','heb2','hen4','bj3','sd4','hen5','sd5',
+        |'js5','fj3','db4','zj4','hb4','js6','sh4','sx2','jx3','hen6','ah3','sd6',
+        |'js8','zj6','heb4','tj1','nm1','zj7','heb5','hen7'))
+        |then 'classB'
+        |when (c in ('Hello World', '43','44','45','46','47','48','49','50','gd1','bj1',
+        |'sh1','sc1','hn1','sd1','js1','hub1','hb1','zj1','xb1','db1','fj1','gd2',
+        |'sh2','xn1','db2','hb2','js2','zj2','gd3','db3','hub2','hn2','sc2','hen1',
+        |'gx1','jx1','ah1','ln1','sx1','shx1','gz1','bj2','sh3','sd2','heb1','cq1',
+        |'hlj1','js3','jl1','hen2','fj2','gd4','xb2','hub3','xn2','hn3','gd5','js4',
+        |'hb3','zj3','sc3','ah2','jx2','shx2','gx2','gd6','hn4','hub4','sc4','gd7',
+        |'cq2','hn5','hub5','gd8','sc5','hn6','gx3','gd9','xn3','hub6','gd10','gd11',
+        |'sc6','hub7','hn7','yn1','gui1','xj1','yg1','gd12','hub8','gx5','gd13',
+        |'33','34','35','ln2','hlj2','hen3','sd3','ln3','heb2','hen4','bj3','sd4',
+        |'hen5','sd5','js5','fj3','db4','zj4','hb4','js6','sh4','sx2','jx3','hen6',
+        |'ah3','sd6','js8','zj6','heb4','tj1','nm1','zj7','heb5','hen7'))
+        |then 'classC'
+        |else 'other'
+        |end as classNum
+        |from MyTable
+      """.stripMargin
+
+    val t = env.fromCollection(data).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+    val result = tEnv.sqlQuery(sql).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List(
+      "1000,classA",
+      "2000,classA",
+      "3000,classA",
+      "4000,classA",
+      "5000,classA",
+      "6000,classA",
+      "7000,classC",
+      "8000,classC",
+      "20000,classB")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }

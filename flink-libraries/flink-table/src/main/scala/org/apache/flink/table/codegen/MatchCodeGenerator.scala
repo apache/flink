@@ -435,7 +435,9 @@ class MatchCodeGenerator(
   }
 
   def generateCondition(call: RexNode): GeneratedExpression = {
+    isExprSplits = false
     val exp = call.accept(this)
+    isExprSplits = true
     aggregatesPerVariable.values.foreach(_.generateAggFunction())
     if (hasCodeSplits) {
       makeReusableInSplits(reusableAggregationExpr.values)
@@ -839,9 +841,11 @@ class MatchCodeGenerator(
       }.mkString("\n")
       isWithinAggExprState = false
 
+      reusableMemberStatements.add(s"private $rowTypeTerm $inputAggRowTerm;")
       j"""
-         |private $rowTypeTerm $funcName($rowTypeTerm $inputAggRowTerm) {
+         |private $rowTypeTerm $funcName($rowTypeTerm $inputAggRowTerm) throws Exception {
          |  $rowTypeTerm $resultTerm = new $rowTypeTerm(${inputExprs.size});
+         |  this.$inputAggRowTerm = $inputAggRowTerm;
          |  $exprs
          |  return $resultTerm;
          |}
