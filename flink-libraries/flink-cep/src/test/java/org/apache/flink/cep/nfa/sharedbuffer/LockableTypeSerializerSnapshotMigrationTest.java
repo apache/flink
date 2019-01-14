@@ -20,6 +20,7 @@ package org.apache.flink.cep.nfa.sharedbuffer;
 
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.testutils.migration.MigrationVersion;
 
 /**
  * Migration test for the {@link LockableTypeSerializerSnapshot}.
@@ -34,7 +35,8 @@ public class LockableTypeSerializerSnapshotMigrationTest extends TypeSerializerS
 			TestSpecification.<Lockable<String>>builder(
 					"1.6-lockable-type-serializer",
 					Lockable.LockableTypeSerializer.class,
-					LockableTypeSerializerSnapshot.class)
+					LockableTypeSerializerSnapshot.class,
+					MigrationVersion.v1_6)
 				.withSerializerProvider(() -> new Lockable.LockableTypeSerializer<>(StringSerializer.INSTANCE))
 				.withSnapshotDataLocation(SNAPSHOT)
 				.withTestData(DATA, 10)

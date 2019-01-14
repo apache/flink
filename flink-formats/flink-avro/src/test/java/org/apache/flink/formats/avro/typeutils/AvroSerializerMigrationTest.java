@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTest
 import org.apache.flink.formats.avro.generated.Address;
 
 import org.apache.avro.generic.GenericRecord;
+import org.apache.flink.testutils.migration.MigrationVersion;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -46,12 +47,20 @@ public class AvroSerializerMigrationTest extends TypeSerializerSnapshotMigration
 	@Parameterized.Parameters(name = "Test Specification = {0}")
 	public static Collection<Object[]> testSpecifications() {
 
-		final TestSpecification<Address> genericCase = TestSpecification.<Address>builder("1.6-generic", AvroSerializer.class, AvroSerializerSnapshot.class)
+		final TestSpecification<Address> genericCase = TestSpecification.<Address>builder(
+				"1.6-generic",
+				AvroSerializer.class,
+				AvroSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> new AvroSerializer(GenericRecord.class, Address.getClassSchema()))
 			.withSnapshotDataLocation(GENERIC_SNAPSHOT)
 			.withTestData(DATA, 10);
 
-		final TestSpecification<Address> specificCase = TestSpecification.<Address>builder("1.6-specific", AvroSerializer.class, AvroSerializerSnapshot.class)
+		final TestSpecification<Address> specificCase = TestSpecification.<Address>builder(
+				"1.6-specific",
+				AvroSerializer.class,
+				AvroSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> new AvroSerializer<>(Address.class))
 			.withSnapshotDataLocation(SPECIFIC_SNAPSHOT)
 			.withTestData(DATA, 10);

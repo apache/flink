@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -125,13 +126,17 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 		TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(out, newSnapshot, serializer);
 
 		DataInputView in = new DataInputDeserializer(out.wrapAsByteBuffer());
-		return TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(in, Thread.currentThread().getContextClassLoader(), null);
+		return readSnapshot(in);
 	}
 
 	private TypeSerializerSnapshot<ElementT> snapshotUnderTest() {
 		DataInputView input = contentsOf(testSpecification.getSnapshotDataLocation());
 		try {
-			return readPre17SnapshotFormat(input);
+			if (!testSpecification.getTestMigrationVersion().isNewerVersionThan(MigrationVersion.v1_6)) {
+				return readPre17SnapshotFormat(input);
+			} else {
+				return readSnapshot(input);
+			}
 		}
 		catch (IOException e) {
 			throw new RuntimeException("Unable to read " + testSpecification.getSnapshotDataLocation(),  e);
@@ -146,6 +151,11 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 			TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(input, cl);
 
 		return (TypeSerializerSnapshot<ElementT>) serializers.get(0).f1;
+	}
+
+	private TypeSerializerSnapshot<ElementT> readSnapshot(DataInputView in) throws IOException {
+		return TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+			in, Thread.currentThread().getContextClassLoader(), null);
 	}
 
 	private DataInputView dataUnderTest() {
@@ -189,6 +199,7 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 		private final Class<? extends TypeSerializer<T>> serializerType;
 		private final Class<? extends TypeSerializerSnapshot<T>> snapshotClass;
 		private final String name;
+		private final MigrationVersion testMigrationVersion;
 		private Supplier<? extends TypeSerializer<T>> serializerProvider;
 		private String snapshotDataLocation;
 		private String testDataLocation;
@@ -198,22 +209,26 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 		public static <T> TestSpecification<T> builder(
 			String name,
 			Class<? extends TypeSerializer> serializerClass,
-			Class<? extends TypeSerializerSnapshot> snapshotClass) {
+			Class<? extends TypeSerializerSnapshot> snapshotClass,
+			MigrationVersion testMigrationVersion) {
 
 			return new TestSpecification<>(
 				name,
 				(Class<? extends TypeSerializer<T>>) serializerClass,
-				(Class<? extends TypeSerializerSnapshot<T>>) snapshotClass);
+				(Class<? extends TypeSerializerSnapshot<T>>) snapshotClass,
+				testMigrationVersion);
 		}
 
 		private TestSpecification(
 			String name,
 			Class<? extends TypeSerializer<T>> serializerType,
-			Class<? extends TypeSerializerSnapshot<T>> snapshotClass) {
+			Class<? extends TypeSerializerSnapshot<T>> snapshotClass,
+			MigrationVersion testMigrationVersion) {
 
 			this.name = name;
 			this.serializerType = serializerType;
 			this.snapshotClass = snapshotClass;
+			this.testMigrationVersion = testMigrationVersion;
 		}
 
 		public TestSpecification<T> withSerializerProvider(Supplier<? extends TypeSerializer<T>> serializerProvider) {
@@ -247,6 +262,10 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 
 		private Path getSnapshotDataLocation() {
 			return resourcePath(this.snapshotDataLocation);
+		}
+
+		private MigrationVersion getTestMigrationVersion() {
+			return testMigrationVersion;
 		}
 
 		public Class<? extends TypeSerializerSnapshot<T>> getSnapshotClass() {

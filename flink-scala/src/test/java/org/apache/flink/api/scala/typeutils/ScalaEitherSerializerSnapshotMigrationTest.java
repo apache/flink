@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTest
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
+import org.apache.flink.testutils.migration.MigrationVersion;
 import scala.util.Either;
 
 /**
@@ -37,7 +38,8 @@ public class ScalaEitherSerializerSnapshotMigrationTest extends TypeSerializerSn
 			TestSpecification.<Either<Integer, String>>builder(
 					"1.6-scala-either-serializer",
 					EitherSerializer.class,
-					ScalaEitherSerializerSnapshot.class)
+					ScalaEitherSerializerSnapshot.class,
+					MigrationVersion.v1_6)
 				.withSerializerProvider(() -> new EitherSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE))
 				.withSnapshotDataLocation(SNAPSHOT)
 				.withTestData(DATA, 10)

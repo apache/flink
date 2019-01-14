@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase;
+import org.apache.flink.testutils.migration.MigrationVersion;
 
 import java.util.Map;
 
@@ -32,7 +33,11 @@ public class MapSerializerSnapshotMigrationTest extends TypeSerializerSnapshotMi
 
 	public MapSerializerSnapshotMigrationTest() {
 		super(
-			TestSpecification.<Map<Integer, String>>builder("1.6-map-serializer", MapSerializer.class, MapSerializerSnapshot.class)
+			TestSpecification.<Map<Integer, String>>builder(
+					"1.6-map-serializer",
+					MapSerializer.class,
+					MapSerializerSnapshot.class,
+					MigrationVersion.v1_6)
 				.withSerializerProvider(() -> new MapSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE))
 				.withSnapshotDataLocation(SNAPSHOT)
 				.withTestData(DATA, 10)
