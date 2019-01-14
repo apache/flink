@@ -146,6 +146,17 @@ env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"
 </div>
 </div>
 
+Stateback provides api implementations of FsStateBackend and MemoryStateBackend by default. 
+If you want to set Per-job state backend to RocksDBStateBackend, you need to add a dependency in your Flink project.
+
+{% highlight xml %}
+<dependency>
+    <groupId>org.apache.flink</groupId>
+    <artifactId>flink-statebackend-rocksdb{{ site.scala_version_suffix }}</artifactId>
+    <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
+
 
 ### Setting Default State Backend
 
