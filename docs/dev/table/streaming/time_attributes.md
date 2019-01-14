@@ -256,9 +256,12 @@ val windowedTable = table.window(Tumble over 10.minutes on 'UserActionTime as 'u
 
 ### Using a TableSource
 
-The event time attribute is defined by a `TableSource` that implements the `DefinedRowtimeAttribute` interface. The `getRowtimeAttribute()` method returns the name of an existing field that carries the event time attribute of the table and is of type `LONG` or `TIMESTAMP`.
+The event time attribute is defined by a `TableSource` that implements the `DefinedRowtimeAttributes` interface. The `getRowtimeAttributeDescriptors()` method returns a list of `RowtimeAttributeDescriptor` for describing the final name of a time attribute, a timestamp extractor to derive the values of the attribute, and the watermark strategy associated with the attribute.
 
-Moreover, the `DataStream` returned by the `getDataStream()` method must have watermarks assigned that are aligned with the defined time attribute. Please note that the timestamps of the `DataStream` (the ones which are assigned by a `TimestampAssigner`) are ignored. Only the values of the `TableSource`'s rowtime attribute are relevant.
+Please make sure that the `DataStream` returned by the `getDataStream()` method is aligned with the defined time attribute.
+The timestamps of the `DataStream` (the ones which are assigned by a `TimestampAssigner`) are only considered if a `StreamRecordTimestamp` timestamp extractor is defined.
+Watermarks of a `DataStream` are only preserved if a `PreserveWatermarks` watermark strategy is defined.
+Otherwise, only the values of the `TableSource`'s rowtime attribute are relevant.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
