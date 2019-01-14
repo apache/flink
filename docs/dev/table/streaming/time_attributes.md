@@ -264,7 +264,7 @@ Moreover, the `DataStream` returned by the `getDataStream()` method must have wa
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // define a table source with a rowtime attribute
-public class UserActionSource implements StreamTableSource<Row>, DefinedRowtimeAttribute {
+public class UserActionSource implements StreamTableSource<Row>, DefinedRowtimeAttributes {
 
 	@Override
 	public TypeInformation<Row> getReturnType() {
@@ -284,9 +284,15 @@ public class UserActionSource implements StreamTableSource<Row>, DefinedRowtimeA
 	}
 
 	@Override
-	public String getRowtimeAttribute() {
+	public List<RowtimeAttributeDescriptor> getRowtimeAttributeDescriptors() {
 		// Mark the "UserActionTime" attribute as event-time attribute.
-		return "UserActionTime";
+		// here we create one attribute descriptor of "UserActionTime"
+		RowtimeAttributeDescriptor rowtimeAttrDescr = new RowtimeAttributeDescriptor(
+		    "UserActionTime",
+		    new ExistingField("UserActionTime"),
+		    new AscendingTimestamps());
+		List<RowtimeAttributeDescriptor> listRowtimeAttrDescr = Collections.singletonList(rowtimeAttrDescr);
+		return listRowtimeAttrDescr;
 	}
 }
 
@@ -301,7 +307,7 @@ WindowedTable windowedTable = tEnv
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // define a table source with a rowtime attribute
-class UserActionSource extends StreamTableSource[Row] with DefinedRowtimeAttribute {
+class UserActionSource extends StreamTableSource[Row] with DefinedRowtimeAttributes {
 
 	override def getReturnType = {
 		val names = Array[String]("Username" , "Data", "UserActionTime")
@@ -317,9 +323,15 @@ class UserActionSource extends StreamTableSource[Row] with DefinedRowtimeAttribu
 		stream
 	}
 
-	override def getRowtimeAttribute = {
+	override def getRowtimeAttributeDescriptors: util.List[RowtimeAttributeDescriptor] = {
 		// Mark the "UserActionTime" attribute as event-time attribute.
-		"UserActionTime"
+		// here we create one attribute descriptor of "UserActionTime"
+		val rowtimeAttrDescr = new RowtimeAttributeDescriptor(
+		    "UserActionTime",
+		    new ExistingField("UserActionTime"),
+		    new AscendingTimestamps)
+		val listRowtimeAttrDescr = Collections.singletonList(rowtimeAttrDescr)
+		listRowtimeAttrDescr
 	}
 }
 
