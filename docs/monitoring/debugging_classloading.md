@@ -85,7 +85,6 @@ classes are loaded dynamically when the jobs are submitted.
 In setups where dynamic classloading is involved (sessions), there is a hierarchy of typically two ClassLoaders: 
 (1) Java's *application classloader*, which has all classes in the classpath, and (2) the dynamic *user code classloader*.
 for loading classes from the user-code jar(s). The user-code ClassLoader has the application classloader as its parent.
-cases.
 
 By default, Flink inverts classloading order, meaning it looks into the user code classloader first, and only looks into
 the parent (application classloader) if the class is not part of the dynamically loaded user code.
