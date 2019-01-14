@@ -99,10 +99,11 @@ public final class LongSerializer extends TypeSerializerSingleton<Long> {
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class LongSerializerSnapshot extends SimpleTypeSerializerSnapshot<Long> {
 
 		public LongSerializerSnapshot() {
-			super(LongSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

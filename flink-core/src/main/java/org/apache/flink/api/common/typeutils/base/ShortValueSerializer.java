@@ -96,10 +96,11 @@ public final class ShortValueSerializer extends TypeSerializerSingleton<ShortVal
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class ShortValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<ShortValue> {
 
 		public ShortValueSerializerSnapshot() {
-			super(ShortValueSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

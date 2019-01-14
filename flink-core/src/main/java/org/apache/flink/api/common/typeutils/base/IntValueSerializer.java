@@ -96,10 +96,11 @@ public final class IntValueSerializer extends TypeSerializerSingleton<IntValue> 
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class IntValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<IntValue> {
 
 		public IntValueSerializerSnapshot() {
-			super(IntValueSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

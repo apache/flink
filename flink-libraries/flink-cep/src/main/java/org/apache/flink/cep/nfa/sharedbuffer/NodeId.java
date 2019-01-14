@@ -18,6 +18,8 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
@@ -151,5 +153,22 @@ public class NodeId {
 			return obj.getClass().equals(NodeIdSerializer.class);
 		}
 
+		// ------------------------------------------------------------------------
+
+		@Override
+		public TypeSerializerSnapshot<NodeId> snapshotConfiguration() {
+			return new NodeIdSerializerSnapshot();
+		}
+
+		/**
+		 * Serializer configuration snapshot for compatibility and format evolution.
+		 */
+		@SuppressWarnings("WeakerAccess")
+		public static final class NodeIdSerializerSnapshot extends SimpleTypeSerializerSnapshot<NodeId> {
+
+			public NodeIdSerializerSnapshot() {
+				super(() -> INSTANCE);
+			}
+		}
 	}
 }

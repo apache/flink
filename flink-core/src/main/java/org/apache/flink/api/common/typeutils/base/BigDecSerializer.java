@@ -151,10 +151,11 @@ public final class BigDecSerializer extends TypeSerializerSingleton<BigDecimal> 
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class BigDecSerializerSnapshot extends SimpleTypeSerializerSnapshot<BigDecimal> {
 
 		public BigDecSerializerSnapshot() {
-			super(BigDecSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

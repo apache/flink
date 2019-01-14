@@ -92,10 +92,11 @@ public final class NullValueSerializer extends TypeSerializerSingleton<NullValue
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class NullValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<NullValue> {
 
 		public NullValueSerializerSnapshot() {
-			super(NullValueSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

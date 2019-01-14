@@ -101,8 +101,9 @@ public final class IntSerializer extends TypeSerializerSingleton<Integer> {
 	 */
 	public static final class IntSerializerSnapshot extends SimpleTypeSerializerSnapshot<Integer> {
 
+		@SuppressWarnings("WeakerAccess")
 		public IntSerializerSnapshot() {
-			super(IntSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

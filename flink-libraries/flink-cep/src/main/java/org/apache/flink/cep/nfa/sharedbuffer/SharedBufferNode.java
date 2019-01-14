@@ -18,6 +18,8 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferEdge.SharedBufferEdgeSerializer;
@@ -115,6 +117,24 @@ public class SharedBufferNode {
 		@Override
 		public boolean canEqual(Object obj) {
 			return obj.getClass().equals(SharedBufferNodeSerializer.class);
+		}
+
+		// -----------------------------------------------------------------------------------
+
+		@Override
+		public TypeSerializerSnapshot<SharedBufferNode> snapshotConfiguration() {
+			return new SharedBufferNodeSerializerSnapshot();
+		}
+
+		/**
+		 * Serializer configuration snapshot for compatibility and format evolution.
+		 */
+		@SuppressWarnings("WeakerAccess")
+		public static final class SharedBufferNodeSerializerSnapshot extends SimpleTypeSerializerSnapshot<SharedBufferNode> {
+
+			public SharedBufferNodeSerializerSnapshot() {
+				super(SharedBufferNodeSerializer::new);
+			}
 		}
 	}
 }

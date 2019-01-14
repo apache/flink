@@ -120,10 +120,11 @@ public final class BooleanPrimitiveArraySerializer extends TypeSerializerSinglet
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class BooleanPrimitiveArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<boolean[]> {
 
 		public BooleanPrimitiveArraySerializerSnapshot() {
-			super(BooleanPrimitiveArraySerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

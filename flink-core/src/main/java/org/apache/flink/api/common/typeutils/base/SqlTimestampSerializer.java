@@ -123,10 +123,11 @@ public final class SqlTimestampSerializer extends TypeSerializerSingleton<Timest
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class SqlTimestampSerializerSnapshot extends SimpleTypeSerializerSnapshot<Timestamp> {
 
 		public SqlTimestampSerializerSnapshot() {
-			super(SqlTimestampSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

@@ -18,7 +18,9 @@
 
 package org.apache.flink.cep.nfa;
 
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
@@ -187,4 +189,21 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 		return true;
 	}
 
+	// -----------------------------------------------------------------------------------
+
+	@Override
+	public TypeSerializerSnapshot<NFAState> snapshotConfiguration() {
+		return new NFAStateSerializerSnapshot();
+	}
+
+	/**
+	 * Serializer configuration snapshot for compatibility and format evolution.
+	 */
+	@SuppressWarnings("WeakerAccess")
+	public static final class NFAStateSerializerSnapshot extends SimpleTypeSerializerSnapshot<NFAState> {
+
+		public NFAStateSerializerSnapshot() {
+			super(() -> INSTANCE);
+		}
+	}
 }

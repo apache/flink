@@ -121,10 +121,11 @@ public final class StringValueSerializer extends TypeSerializerSingleton<StringV
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class StringValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<StringValue> {
 
 		public StringValueSerializerSnapshot() {
-			super(StringValueSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

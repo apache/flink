@@ -19,7 +19,9 @@
 package org.apache.flink.streaming.api.windowing.windows;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -119,6 +121,24 @@ public class GlobalWindow extends Window {
 		@Override
 		public boolean canEqual(Object obj) {
 			return obj instanceof Serializer;
+		}
+
+		// ------------------------------------------------------------------------
+
+		@Override
+		public TypeSerializerSnapshot<GlobalWindow> snapshotConfiguration() {
+			return new GlobalWindowSerializerSnapshot();
+		}
+
+		/**
+		 * Serializer configuration snapshot for compatibility and format evolution.
+		 */
+		@SuppressWarnings("WeakerAccess")
+		public static final class GlobalWindowSerializerSnapshot extends SimpleTypeSerializerSnapshot<GlobalWindow> {
+
+			public GlobalWindowSerializerSnapshot() {
+				super(GlobalWindow.Serializer::new);
+			}
 		}
 	}
 }

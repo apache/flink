@@ -115,10 +115,11 @@ public final class SqlDateSerializer extends TypeSerializerSingleton<Date> {
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class SqlDateSerializerSnapshot extends SimpleTypeSerializerSnapshot<Date> {
 
 		public SqlDateSerializerSnapshot() {
-			super(SqlDateSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

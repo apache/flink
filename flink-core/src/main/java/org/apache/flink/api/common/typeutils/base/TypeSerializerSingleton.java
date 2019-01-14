@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 
 @Internal
 public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
@@ -53,13 +52,12 @@ public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
 		}
 	}
 
+	/**
+	 * @deprecated this is kept around for backwards compatibility.
+	 *             Can only be removed when {@link ParameterlessTypeSerializerConfig} is removed.
+	 */
 	@Override
-	public TypeSerializerSnapshot<T> snapshotConfiguration() {
-		// type serializer singletons should always be parameter-less
-		return new ParameterlessTypeSerializerConfig<>(getSerializationFormatIdentifier());
-	}
-
-	@Override
+	@Deprecated
 	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof ParameterlessTypeSerializerConfig
 				&& isCompatibleSerializationFormatIdentifier(
