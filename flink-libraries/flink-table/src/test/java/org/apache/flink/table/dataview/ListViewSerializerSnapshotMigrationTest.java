@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTest
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.testutils.migration.MigrationVersion;
 
 /**
  * Migration test for the {@link ListViewSerializerSnapshot}.
@@ -36,7 +37,8 @@ public class ListViewSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 			TestSpecification.<ListView<String>>builder(
 					"1.6-list-view-serializer",
 					ListViewSerializer.class,
-					ListViewSerializerSnapshot.class)
+					ListViewSerializerSnapshot.class,
+					MigrationVersion.v1_6)
 				.withSerializerProvider(() -> new ListViewSerializer<>(new ListSerializer<>(StringSerializer.INSTANCE)))
 				.withSnapshotDataLocation(SNAPSHOT)
 				.withTestData(DATA, 10)

@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase;
 
+import org.apache.flink.testutils.migration.MigrationVersion;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -45,7 +46,8 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 		final TestSpecification<boolean[]> booleanArray = TestSpecification.<boolean[]>builder(
 				"1.6-boolean-primitive-array",
 				BooleanPrimitiveArraySerializer.class,
-				BooleanPrimitiveArraySerializer.BooleanPrimitiveArraySerializerSnapshot.class)
+				BooleanPrimitiveArraySerializer.BooleanPrimitiveArraySerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> BooleanPrimitiveArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-boolean-primitive-array-serializer-snapshot")
 			.withTestData("flink-1.6-boolean-primitive-array-serializer-data", 10);
@@ -55,7 +57,8 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 		final TestSpecification<byte[]> byteArray = TestSpecification.<byte[]>builder(
 				"1.6-byte-primitive-array",
 				BytePrimitiveArraySerializer.class,
-				BytePrimitiveArraySerializer.BytePrimitiveArraySerializerSnapshot.class)
+				BytePrimitiveArraySerializer.BytePrimitiveArraySerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> BytePrimitiveArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-byte-primitive-array-serializer-snapshot")
 			.withTestData("flink-1.6-byte-primitive-array-serializer-data", 10);
@@ -65,7 +68,8 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 		final TestSpecification<char[]> charArray = TestSpecification.<char[]>builder(
 				"1.6-char-primitive-array",
 				CharPrimitiveArraySerializer.class,
-				CharPrimitiveArraySerializer.CharPrimitiveArraySerializerSnapshot.class)
+				CharPrimitiveArraySerializer.CharPrimitiveArraySerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> CharPrimitiveArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-char-primitive-array-serializer-snapshot")
 			.withTestData("flink-1.6-char-primitive-array-serializer-data", 10);
@@ -75,7 +79,8 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 		final TestSpecification<double[]> doubleArray = TestSpecification.<double[]>builder(
 				"1.6-double-primitive-array",
 				DoublePrimitiveArraySerializer.class,
-				DoublePrimitiveArraySerializer.DoublePrimitiveArraySerializerSnapshot.class)
+				DoublePrimitiveArraySerializer.DoublePrimitiveArraySerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> DoublePrimitiveArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-double-primitive-array-serializer-snapshot")
 			.withTestData("flink-1.6-double-primitive-array-serializer-data", 10);
@@ -85,7 +90,8 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 		final TestSpecification<float[]> floatArray = TestSpecification.<float[]>builder(
 				"1.6-float-primitive-array",
 				FloatPrimitiveArraySerializer.class,
-				FloatPrimitiveArraySerializer.FloatPrimitiveArraySerializerSnapshot.class)
+				FloatPrimitiveArraySerializer.FloatPrimitiveArraySerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> FloatPrimitiveArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-float-primitive-array-serializer-snapshot")
 			.withTestData("flink-1.6-float-primitive-array-serializer-data", 10);
@@ -95,7 +101,8 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 		final TestSpecification<int[]> intArray = TestSpecification.<int[]>builder(
 				"1.6-int-primitive-array",
 				IntPrimitiveArraySerializer.class,
-				IntPrimitiveArraySerializer.IntPrimitiveArraySerializerSnapshot.class)
+				IntPrimitiveArraySerializer.IntPrimitiveArraySerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> IntPrimitiveArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-int-primitive-array-serializer-snapshot")
 			.withTestData("flink-1.6-int-primitive-array-serializer-data", 10);
@@ -105,7 +112,8 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 		final TestSpecification<long[]> longArray = TestSpecification.<long[]>builder(
 				"1.6-long-primitive-array",
 				LongPrimitiveArraySerializer.class,
-				LongPrimitiveArraySerializer.LongPrimitiveArraySerializerSnapshot.class)
+				LongPrimitiveArraySerializer.LongPrimitiveArraySerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> LongPrimitiveArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-long-primitive-array-serializer-snapshot")
 			.withTestData("flink-1.6-long-primitive-array-serializer-data", 10);
@@ -115,7 +123,8 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 		final TestSpecification<short[]> shortArray = TestSpecification.<short[]>builder(
 				"1.6-short-primitive-array",
 				ShortPrimitiveArraySerializer.class,
-				ShortPrimitiveArraySerializer.ShortPrimitiveArraySerializerSnapshot.class)
+				ShortPrimitiveArraySerializer.ShortPrimitiveArraySerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> ShortPrimitiveArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-short-primitive-array-serializer-snapshot")
 			.withTestData("flink-1.6-short-primitive-array-serializer-data", 10);
@@ -125,7 +134,8 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 		final TestSpecification<String[]> stringArray = TestSpecification.<String[]>builder(
 				"1.6-string-array",
 				StringArraySerializer.class,
-				StringArraySerializer.StringArraySerializerSnapshot.class)
+				StringArraySerializer.StringArraySerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> StringArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-string-array-serializer-snapshot")
 			.withTestData("flink-1.6-string-array-serializer-data", 10);

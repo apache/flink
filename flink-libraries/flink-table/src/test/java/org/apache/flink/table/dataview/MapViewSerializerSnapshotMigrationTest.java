@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.testutils.migration.MigrationVersion;
 
 /**
  * Migration test for the {@link MapViewSerializerSnapshot}.
@@ -37,7 +38,8 @@ public class MapViewSerializerSnapshotMigrationTest extends TypeSerializerSnapsh
 			TestSpecification.<MapView<Integer, String>>builder(
 					"1.6-map-view-serializer",
 					MapViewSerializer.class,
-					MapViewSerializerSnapshot.class)
+					MapViewSerializerSnapshot.class,
+					MigrationVersion.v1_6)
 				.withSerializerProvider(() -> new MapViewSerializer<>(
 					new MapSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE)))
 				.withSnapshotDataLocation(SNAPSHOT)

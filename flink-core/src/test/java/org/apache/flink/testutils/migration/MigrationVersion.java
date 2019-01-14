@@ -43,4 +43,8 @@ public enum MigrationVersion {
 	public String toString() {
 		return versionStr;
 	}
+
+	public boolean isNewerVersionThan(MigrationVersion otherVersion) {
+		return Double.valueOf(versionStr) > Double.valueOf(otherVersion.versionStr);
+	}
 }

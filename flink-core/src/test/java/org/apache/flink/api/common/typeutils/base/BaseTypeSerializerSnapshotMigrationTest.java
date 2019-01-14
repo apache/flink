@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase;
 
+import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.types.BooleanValue;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.CharValue;
@@ -61,7 +62,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<BigDecimal> bigDec = TestSpecification.<BigDecimal>builder(
 				"1.6-big-dec",
 				BigDecSerializer.class,
-				BigDecSerializer.BigDecSerializerSnapshot.class)
+				BigDecSerializer.BigDecSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> BigDecSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-big-dec-serializer-snapshot")
 			.withTestData("flink-1.6-big-dec-serializer-data", 10);
@@ -71,7 +73,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<BigInteger> bigInt = TestSpecification.<BigInteger>builder(
 				"1.6-big-int",
 				BigIntSerializer.class,
-				BigIntSerializer.BigIntSerializerSnapshot.class)
+				BigIntSerializer.BigIntSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> BigIntSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-big-int-serializer-snapshot")
 			.withTestData("flink-1.6-big-int-serializer-data", 10);
@@ -81,7 +84,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<Boolean> booleanType = TestSpecification.<Boolean>builder(
 				"1.6-boolean",
 				BooleanSerializer.class,
-				BooleanSerializer.BooleanSerializerSnapshot.class)
+				BooleanSerializer.BooleanSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> BooleanSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-boolean-serializer-snapshot")
 			.withTestData("flink-1.6-boolean-serializer-data", 10);
@@ -91,7 +95,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<BooleanValue> booleanValue = TestSpecification.<BooleanValue>builder(
 				"1.6-boolean-value",
 				BooleanValueSerializer.class,
-				BooleanValueSerializer.BooleanValueSerializerSnapshot.class)
+				BooleanValueSerializer.BooleanValueSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> BooleanValueSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-boolean-value-serializer-snapshot")
 			.withTestData("flink-1.6-boolean-value-serializer-data", 10);
@@ -101,7 +106,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<Byte> byteType = TestSpecification.<Byte>builder(
 				"1.6-byte",
 				ByteSerializer.class,
-				ByteSerializer.ByteSerializerSnapshot.class)
+				ByteSerializer.ByteSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> ByteSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-byte-serializer-snapshot")
 			.withTestData("flink-1.6-byte-serializer-data", 10);
@@ -111,7 +117,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<ByteValue> byteValue = TestSpecification.<ByteValue>builder(
 				"1.6-byte-value",
 				ByteValueSerializer.class,
-				ByteValueSerializer.ByteValueSerializerSnapshot.class)
+				ByteValueSerializer.ByteValueSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> ByteValueSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-byte-value-serializer-snapshot")
 			.withTestData("flink-1.6-byte-value-serializer-data", 10);
@@ -121,7 +128,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<Character> charType = TestSpecification.<Character>builder(
 				"1.6-char",
 				CharSerializer.class,
-				CharSerializer.CharSerializerSnapshot.class)
+				CharSerializer.CharSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> CharSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-char-serializer-snapshot")
 			.withTestData("flink-1.6-char-serializer-data", 10);
@@ -131,7 +139,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<CharValue> charValue = TestSpecification.<CharValue>builder(
 				"1.6-char-value",
 				CharValueSerializer.class,
-				CharValueSerializer.CharValueSerializerSnapshot.class)
+				CharValueSerializer.CharValueSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> CharValueSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-char-value-serializer-snapshot")
 			.withTestData("flink-1.6-char-value-serializer-data", 10);
@@ -141,7 +150,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<Date> javaDate = TestSpecification.<Date>builder(
 				"1.6-date",
 				DateSerializer.class,
-				DateSerializer.DateSerializerSnapshot.class)
+				DateSerializer.DateSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> DateSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-date-serializer-snapshot")
 			.withTestData("flink-1.6-date-serializer-data", 10);
@@ -151,7 +161,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<Double> doubleType = TestSpecification.<Double>builder(
 				"1.6-double",
 				DoubleSerializer.class,
-				DoubleSerializer.DoubleSerializerSnapshot.class)
+				DoubleSerializer.DoubleSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> DoubleSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-double-serializer-snapshot")
 			.withTestData("flink-1.6-double-serializer-data", 10);
@@ -161,7 +172,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<DoubleValue> doubleValue = TestSpecification.<DoubleValue>builder(
 				"1.6-double-value",
 				DoubleValueSerializer.class,
-				DoubleValueSerializer.DoubleValueSerializerSnapshot.class)
+				DoubleValueSerializer.DoubleValueSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> DoubleValueSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-double-value-serializer-snapshot")
 			.withTestData("flink-1.6-double-value-serializer-data", 10);
@@ -171,7 +183,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<Float> floatType = TestSpecification.<Float>builder(
 				"1.6-float",
 				FloatSerializer.class,
-				FloatSerializer.FloatSerializerSnapshot.class)
+				FloatSerializer.FloatSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> FloatSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-float-serializer-snapshot")
 			.withTestData("flink-1.6-float-serializer-data", 10);
@@ -181,7 +194,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<FloatValue> floatValue = TestSpecification.<FloatValue>builder(
 				"1.6-float-value",
 				FloatValueSerializer.class,
-				FloatValueSerializer.FloatValueSerializerSnapshot.class)
+				FloatValueSerializer.FloatValueSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> FloatValueSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-float-value-serializer-snapshot")
 			.withTestData("flink-1.6-float-value-serializer-data", 10);
@@ -191,7 +205,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<Integer> intType = TestSpecification.<Integer>builder(
 				"1.6-int",
 				IntSerializer.class,
-				IntSerializer.IntSerializerSnapshot.class)
+				IntSerializer.IntSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> IntSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-int-serializer-snapshot")
 			.withTestData("flink-1.6-int-serializer-data", 10);
@@ -201,7 +216,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<IntValue> intValue = TestSpecification.<IntValue>builder(
 				"1.6-int-value",
 				IntValueSerializer.class,
-				IntValueSerializer.IntValueSerializerSnapshot.class)
+				IntValueSerializer.IntValueSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> IntValueSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-int-value-serializer-snapshot")
 			.withTestData("flink-1.6-int-value-serializer-data", 10);
@@ -211,7 +227,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<Long> longType = TestSpecification.<Long>builder(
 				"1.6-long",
 				LongSerializer.class,
-				LongSerializer.LongSerializerSnapshot.class)
+				LongSerializer.LongSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> LongSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-long-serializer-snapshot")
 			.withTestData("flink-1.6-long-serializer-data", 10);
@@ -221,7 +238,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<LongValue> longValue = TestSpecification.<LongValue>builder(
 				"1.6-long-value",
 				LongValueSerializer.class,
-				LongValueSerializer.LongValueSerializerSnapshot.class)
+				LongValueSerializer.LongValueSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> LongValueSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-long-value-serializer-snapshot")
 			.withTestData("flink-1.6-long-value-serializer-data", 10);
@@ -231,7 +249,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<NullValue> nullValue = TestSpecification.<NullValue>builder(
 				"1.6-null-value",
 				NullValueSerializer.class,
-				NullValueSerializer.NullValueSerializerSnapshot.class)
+				NullValueSerializer.NullValueSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> NullValueSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-null-value-serializer-snapshot")
 			.withTestData("flink-1.6-null-value-serializer-data", 10);
@@ -241,7 +260,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<Short> shortType = TestSpecification.<Short>builder(
 				"1.6-short",
 				ShortSerializer.class,
-				ShortSerializer.ShortSerializerSnapshot.class)
+				ShortSerializer.ShortSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> ShortSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-short-serializer-snapshot")
 			.withTestData("flink-1.6-short-serializer-data", 10);
@@ -251,7 +271,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<ShortValue> shortValue = TestSpecification.<ShortValue>builder(
 				"1.6-short-value",
 				ShortValueSerializer.class,
-				ShortValueSerializer.ShortValueSerializerSnapshot.class)
+				ShortValueSerializer.ShortValueSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> ShortValueSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-short-value-serializer-snapshot")
 			.withTestData("flink-1.6-short-value-serializer-data", 10);
@@ -261,7 +282,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<java.sql.Date> sqlDate = TestSpecification.<java.sql.Date>builder(
 				"1.6-sql-date",
 				SqlDateSerializer.class,
-				SqlDateSerializer.SqlDateSerializerSnapshot.class)
+				SqlDateSerializer.SqlDateSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> SqlDateSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-sql-date-serializer-snapshot")
 			.withTestData("flink-1.6-sql-date-serializer-data", 10);
@@ -271,7 +293,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<Time> sqlTime = TestSpecification.<Time>builder(
 				"1.6-sql-time",
 				SqlTimeSerializer.class,
-				SqlTimeSerializer.SqlTimeSerializerSnapshot.class)
+				SqlTimeSerializer.SqlTimeSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> SqlTimeSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-sql-time-serializer-snapshot")
 			.withTestData("flink-1.6-sql-time-serializer-data", 10);
@@ -281,7 +304,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<Timestamp> sqlTimestamp = TestSpecification.<Timestamp>builder(
 				"1.6-sql-timestamp",
 				SqlTimestampSerializer.class,
-				SqlTimestampSerializer.SqlTimestampSerializerSnapshot.class)
+				SqlTimestampSerializer.SqlTimestampSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> SqlTimestampSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-sql-timestamp-serializer-snapshot")
 			.withTestData("flink-1.6-sql-timestamp-serializer-data", 10);
@@ -291,7 +315,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<String> stringType = TestSpecification.<String>builder(
 				"1.6-string",
 				StringSerializer.class,
-				StringSerializer.StringSerializerSnapshot.class)
+				StringSerializer.StringSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> StringSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-string-serializer-snapshot")
 			.withTestData("flink-1.6-string-serializer-data", 10);
@@ -301,7 +326,8 @@ public class BaseTypeSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 		final TestSpecification<StringValue> stringValue = TestSpecification.<StringValue>builder(
 				"1.6-string-value",
 				StringValueSerializer.class,
-				StringValueSerializer.StringValueSerializerSnapshot.class)
+				StringValueSerializer.StringValueSerializerSnapshot.class,
+				MigrationVersion.v1_6)
 			.withSerializerProvider(() -> StringValueSerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-string-value-serializer-snapshot")
 			.withTestData("flink-1.6-string-value-serializer-data", 10);

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.testutils.migration.MigrationVersion;
 
 import java.util.ArrayList;
 
@@ -33,7 +34,11 @@ public class ArrayListSerializerMigrationTest extends TypeSerializerSnapshotMigr
 
 	public ArrayListSerializerMigrationTest() {
 		super(
-			TestSpecification.<ArrayList<String>>builder("1.6-arraylist-serializer", ArrayListSerializer.class, ArrayListSerializerSnapshot.class)
+			TestSpecification.<ArrayList<String>>builder(
+					"1.6-arraylist-serializer",
+					ArrayListSerializer.class,
+					ArrayListSerializerSnapshot.class,
+					MigrationVersion.v1_6)
 				.withSerializerProvider(() -> new ArrayListSerializer<>(StringSerializer.INSTANCE))
 				.withSnapshotDataLocation(SNAPSHOT)
 				.withTestData(DATA, 10)

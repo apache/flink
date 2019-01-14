@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase;
+import org.apache.flink.testutils.migration.MigrationVersion;
 
 import java.util.List;
 
@@ -32,7 +33,11 @@ public class ListSerializerSnapshotMigrationTest extends TypeSerializerSnapshotM
 
 	public ListSerializerSnapshotMigrationTest() {
 		super(
-			TestSpecification.<List<String>>builder("1.6-list-serializer", ListSerializer.class, ListSerializerSnapshot.class)
+			TestSpecification.<List<String>>builder(
+					"1.6-list-serializer",
+					ListSerializer.class,
+					ListSerializerSnapshot.class,
+					MigrationVersion.v1_6)
 				.withSerializerProvider(() -> new ListSerializer<>(StringSerializer.INSTANCE))
 				.withSnapshotDataLocation(SNAPSHOT)
 				.withTestData(DATA, 10)
