@@ -30,7 +30,6 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -174,7 +173,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 		final String incompletePartObjectName = createIncompletePartObjectName();
 		file.retain();
 		try {
-			s3AccessHelper.putObject(incompletePartObjectName, file.getFile());
+			s3AccessHelper.putObject(incompletePartObjectName, file.getInputFile());
 		}
 		finally {
 			file.release();
@@ -316,7 +315,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 		@Override
 		public void run() {
 			try {
-				final UploadPartResult result = s3AccessHelper.uploadPart(objectName, uploadId, partNumber, file.getFile(), file.getPos());
+				final UploadPartResult result = s3AccessHelper.uploadPart(objectName, uploadId, partNumber, file.getInputFile(), file.getPos());
 				future.complete(new PartETag(result.getPartNumber(), result.getETag()));
 				file.release();
 			}

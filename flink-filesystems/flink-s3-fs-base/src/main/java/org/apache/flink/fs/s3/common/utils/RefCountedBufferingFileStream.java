@@ -24,9 +24,6 @@ import org.apache.flink.util.function.FunctionWithException;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -64,12 +61,7 @@ public class RefCountedBufferingFileStream extends RefCountedFSOutputStream {
 	}
 
 	@Override
-	public InputStream getInputStream() throws IOException {
-		return Files.newInputStream(currentTmpFile.getFile().toPath(), StandardOpenOption.READ);
-	}
-
-	@Override
-	public File getFile() {
+	public File getInputFile() {
 		return currentTmpFile.getFile();
 	}
 

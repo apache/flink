@@ -23,7 +23,6 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 
 /**
  * A {@link FSDataOutputStream} with the {@link RefCounted} functionality.
@@ -32,18 +31,11 @@ import java.io.InputStream;
 public abstract class RefCountedFSOutputStream extends FSDataOutputStream implements RefCounted {
 
 	/**
-	 * Gets an {@link InputStream} that allows to read the contents of the file.
-	 *
-	 * @return An input stream to the contents of the file.
-	 */
-	public abstract InputStream getInputStream() throws IOException;
-
-	/**
 	 * Gets the underyling {@link File} that allows to read the contents of the file.
 	 *
 	 * @return A handle to the File object.
 	 */
-	public abstract File getFile();
+	public abstract File getInputFile();
 
 	/**
 	 * Checks if the file is closed for writes.
