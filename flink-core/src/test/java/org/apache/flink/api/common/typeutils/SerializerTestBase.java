@@ -129,9 +129,16 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		}
 
 		TypeSerializerSchemaCompatibility<T> strategy = restoredConfig.resolveSchemaCompatibility(getSerializer());
-		assertTrue(strategy.isCompatibleAsIs());
-
-		TypeSerializer<T> restoreSerializer = restoredConfig.restoreSerializer();
+		final TypeSerializer<T> restoreSerializer;
+		if (strategy.isCompatibleAsIs()) {
+			restoreSerializer = restoredConfig.restoreSerializer();
+		}
+		else if (strategy.isCompatibleWithReconfiguredSerializer()) {
+			restoreSerializer = strategy.getReconfiguredSerializer();
+		}
+		else {
+			throw new AssertionError("Unable to restore serializer with " + strategy);
+		}
 		assertEquals(serializer.getClass(), restoreSerializer.getClass());
 	}
 
