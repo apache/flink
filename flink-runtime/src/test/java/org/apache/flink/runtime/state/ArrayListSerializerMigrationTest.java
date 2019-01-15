@@ -39,7 +39,7 @@ public class ArrayListSerializerMigrationTest extends TypeSerializerSnapshotMigr
 					ArrayListSerializer.class,
 					ArrayListSerializerSnapshot.class,
 					MigrationVersion.v1_6)
-				.withSerializerProvider(() -> new ArrayListSerializer<>(StringSerializer.INSTANCE))
+				.withNewSerializerProvider(() -> new ArrayListSerializer<>(StringSerializer.INSTANCE))
 				.withSnapshotDataLocation(SNAPSHOT)
 				.withTestData(DATA, 10)
 		);

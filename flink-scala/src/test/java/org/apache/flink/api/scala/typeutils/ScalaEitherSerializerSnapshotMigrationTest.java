@@ -40,7 +40,7 @@ public class ScalaEitherSerializerSnapshotMigrationTest extends TypeSerializerSn
 					EitherSerializer.class,
 					ScalaEitherSerializerSnapshot.class,
 					MigrationVersion.v1_6)
-				.withSerializerProvider(() -> new EitherSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE))
+				.withNewSerializerProvider(() -> new EitherSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE))
 				.withSnapshotDataLocation(SNAPSHOT)
 				.withTestData(DATA, 10)
 		);

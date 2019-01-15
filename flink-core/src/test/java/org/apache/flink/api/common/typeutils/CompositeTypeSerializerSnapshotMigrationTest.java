@@ -54,7 +54,7 @@ public class CompositeTypeSerializerSnapshotMigrationTest extends TypeSerializer
 				EitherSerializer.class,
 				JavaEitherSerializerSnapshot.class,
 				MigrationVersion.v1_6)
-			.withSerializerProvider(() -> new EitherSerializer<>(StringSerializer.INSTANCE, IntSerializer.INSTANCE))
+			.withNewSerializerProvider(() -> new EitherSerializer<>(StringSerializer.INSTANCE, IntSerializer.INSTANCE))
 			.withSnapshotDataLocation("flink-1.6-either-type-serializer-snapshot")
 			.withTestData("flink-1.6-either-type-serializer-data", 10);
 
@@ -65,7 +65,7 @@ public class CompositeTypeSerializerSnapshotMigrationTest extends TypeSerializer
 				GenericArraySerializer.class,
 				GenericArraySerializerSnapshot.class,
 				MigrationVersion.v1_6)
-			.withSerializerProvider(() -> new GenericArraySerializer<>(String.class, StringSerializer.INSTANCE))
+			.withNewSerializerProvider(() -> new GenericArraySerializer<>(String.class, StringSerializer.INSTANCE))
 			.withSnapshotDataLocation("flink-1.6-array-type-serializer-snapshot")
 			.withTestData("flink-1.6-array-type-serializer-data", 10);
 
