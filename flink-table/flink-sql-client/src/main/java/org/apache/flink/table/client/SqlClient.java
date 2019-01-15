@@ -115,16 +115,23 @@ public class SqlClient {
 	 * @param executor executor
 	 */
 	private void openCli(SessionContext context, Executor executor) {
-		final CliClient cli = new CliClient(context, executor);
-		// interactive CLI mode
-		if (options.getUpdateStatement() == null) {
-			cli.open();
-		}
-		// execute single update statement
-		else {
-			final boolean success = cli.submitUpdate(options.getUpdateStatement());
-			if (!success) {
-				throw new SqlClientException("Could not submit given SQL update statement to cluster.");
+		CliClient cli = null;
+		try {
+			cli = new CliClient(context, executor);
+			// interactive CLI mode
+			if (options.getUpdateStatement() == null) {
+				cli.open();
+			}
+			// execute single update statement
+			else {
+				final boolean success = cli.submitUpdate(options.getUpdateStatement());
+				if (!success) {
+					throw new SqlClientException("Could not submit given SQL update statement to cluster.");
+				}
+			}
+		} finally {
+			if (cli != null) {
+				cli.close();
 			}
 		}
 	}
