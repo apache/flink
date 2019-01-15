@@ -96,7 +96,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
 
 		// stop retrieval if job is done
 		if (result.getType() == TypedResult.ResultType.EOS) {
-			stopRetrieval();
+			stopRetrieval(false);
 		}
 		// update page
 		else if (result.getType() == TypedResult.ResultType.PAYLOAD) {
