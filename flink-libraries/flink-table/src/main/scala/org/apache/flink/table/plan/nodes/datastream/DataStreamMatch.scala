@@ -143,7 +143,6 @@ class DataStreamMatch(
           "Note: Match recognize should not follow a non-windowed GroupBy aggregation.")
     }
 
-    val orderKeys = logicalMatch.orderKeys.getFieldCollations
     val (timestampedInput, rowComparator) = translateOrder(tableEnv,
       crowInput,
       logicalMatch.orderKeys)
@@ -184,15 +183,11 @@ class DataStreamMatch(
     if (logicalMatch.allRows) {
       throw new TableException("All rows per match mode is not supported yet.")
     } else {
-      val patternSelectFunction =
-        MatchCodeGenerator.generateOneRowPerMatchExpression(
-          config,
+      val generator = new MatchCodeGenerator(config, inputTypeInfo, patternNames.toSeq)
+      val patternSelectFunction = generator.generateOneRowPerMatchExpression(
           schema,
           partitionKeys,
-          orderKeys,
-          measures,
-          inputTypeInfo,
-          patternNames.toSeq)
+          measures)
       patternStream.flatSelect[CRow](patternSelectFunction, outTypeInfo)
     }
   }
@@ -270,12 +265,8 @@ private class PatternVisitor(
 
     val patternDefinition = logicalMatch.patternDefinitions.get(patternName)
     if (patternDefinition != null) {
-      val condition = MatchCodeGenerator.generateIterativeCondition(
-        config,
-        patternDefinition,
-        inputTypeInfo,
-        patternName,
-        names.toSeq)
+      val generator = new MatchCodeGenerator(config, inputTypeInfo, names.toSeq, Some(patternName))
+      val condition = generator.generateIterativeCondition(patternDefinition)
 
       pattern.where(condition)
     } else {

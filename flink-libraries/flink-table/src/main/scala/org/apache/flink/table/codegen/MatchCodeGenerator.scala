@@ -21,7 +21,6 @@ package org.apache.flink.table.codegen
 import java.lang.{Long => JLong}
 import java.util
 
-import org.apache.calcite.rel.RelFieldCollation
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlAggFunction
@@ -49,61 +48,6 @@ import org.apache.flink.util.MathUtils.checkedDownCast
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-
-object MatchCodeGenerator {
-
-  def generateIterativeCondition(
-    config: TableConfig,
-    patternDefinition: RexNode,
-    inputTypeInfo: TypeInformation[_],
-    patternName: String,
-    names: Seq[String])
-  : IterativeConditionRunner = {
-    val generator = new MatchCodeGenerator(config, inputTypeInfo, names, Some(patternName))
-    val condition = generator.generateCondition(patternDefinition)
-    val body =
-      s"""
-         |${condition.code}
-         |return ${condition.resultTerm};
-         |""".stripMargin
-
-    val genCondition = generator
-      .generateMatchFunction("MatchRecognizeCondition",
-        classOf[RichIterativeCondition[Row]],
-        body,
-        condition.resultType)
-    new IterativeConditionRunner(genCondition.name, genCondition.code)
-  }
-
-  def generateOneRowPerMatchExpression(
-    config: TableConfig,
-    returnType: RowSchema,
-    partitionKeys: util.List[RexNode],
-    orderKeys: util.List[RelFieldCollation],
-    measures: util.Map[String, RexNode],
-    inputTypeInfo: TypeInformation[_],
-    patternNames: Seq[String])
-  : PatternSelectFunctionRunner = {
-    val generator = new MatchCodeGenerator(config, inputTypeInfo, patternNames)
-
-    val resultExpression = generator.generateOneRowPerMatchExpression(
-      partitionKeys,
-      measures,
-      returnType)
-    val body =
-      s"""
-         |${resultExpression.code}
-         |return ${resultExpression.resultTerm};
-         |""".stripMargin
-
-    val genFunction = generator.generateMatchFunction(
-      "MatchRecognizePatternSelectFunction",
-      classOf[RichPatternSelectFunction[Row, Row]],
-      body,
-      resultExpression.resultType)
-    new PatternSelectFunctionRunner(genFunction.name, genFunction.code)
-  }
-}
 
 /**
   * A code generator for generating CEP related functions.
@@ -278,6 +222,46 @@ class MatchCodeGenerator(
       } };")
   }
 
+  def generateIterativeCondition(patternDefinition: RexNode): IterativeConditionRunner = {
+    val condition = generateCondition(patternDefinition)
+    val body =
+      s"""
+         |${condition.code}
+         |return ${condition.resultTerm};
+         |""".stripMargin
+
+    val genCondition = generateMatchFunction(
+        "MatchRecognizeCondition",
+        classOf[RichIterativeCondition[Row]],
+        body,
+        condition.resultType)
+    new IterativeConditionRunner(genCondition.name, genCondition.code)
+  }
+
+  def generateOneRowPerMatchExpression(
+      returnType: RowSchema,
+      partitionKeys: util.List[RexNode],
+      measures: util.Map[String, RexNode])
+    : PatternSelectFunctionRunner = {
+
+    val resultExpression = generateOneRowPerMatchExpression(
+      partitionKeys,
+      measures,
+      returnType)
+    val body =
+      s"""
+         |${resultExpression.code}
+         |return ${resultExpression.resultTerm};
+         |""".stripMargin
+
+    val genFunction = generateMatchFunction(
+      "MatchRecognizePatternSelectFunction",
+      classOf[RichPatternSelectFunction[Row, Row]],
+      body,
+      resultExpression.resultType)
+    new PatternSelectFunctionRunner(genFunction.name, genFunction.code)
+  }
+
   /**
     * Generates a [[org.apache.flink.api.common.functions.Function]] that can be passed to Java
     * compiler.
@@ -292,7 +276,7 @@ class MatchCodeGenerator(
     * @tparam T Return type of the Flink Function.
     * @return instance of GeneratedFunction
     */
-  def generateMatchFunction[F <: Function, T <: Any](
+  private def generateMatchFunction[F <: Function, T <: Any](
       name: String,
       clazz: Class[F],
       bodyCode: String,
@@ -407,7 +391,7 @@ class MatchCodeGenerator(
     generateFieldAccess(keyRow, partitionKey.getIndex)
   }
 
-  def generateOneRowPerMatchExpression(
+  private def generateOneRowPerMatchExpression(
       partitionKeys: util.List[RexNode],
       measures: util.Map[String, RexNode],
       returnType: RowSchema)
@@ -434,7 +418,7 @@ class MatchCodeGenerator(
     exp
   }
 
-  def generateCondition(call: RexNode): GeneratedExpression = {
+  private def generateCondition(call: RexNode): GeneratedExpression = {
     val exp = call.accept(this)
     aggregatesPerVariable.values.foreach(_.generateAggFunction())
     if (hasCodeSplits) {
