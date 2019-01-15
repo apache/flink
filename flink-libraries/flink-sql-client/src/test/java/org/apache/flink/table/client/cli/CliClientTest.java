@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
@@ -68,14 +69,21 @@ public class CliClientTest extends TestLogger {
 
 		final MockExecutor mockExecutor = new MockExecutor();
 		mockExecutor.failExecution = failExecution;
-		final CliClient client = new CliClient(context, mockExecutor);
 
-		if (testFailure) {
-			assertFalse(client.submitUpdate(statement));
-		} else {
-			assertTrue(client.submitUpdate(statement));
-			assertEquals(statement, mockExecutor.receivedStatement);
-			assertEquals(context, mockExecutor.receivedContext);
+		CliClient cli = null;
+		try {
+			cli = new CliClient(TerminalUtils.createDummyTerminal(), context, mockExecutor);
+			if (testFailure) {
+				assertFalse(cli.submitUpdate(statement));
+			} else {
+				assertTrue(cli.submitUpdate(statement));
+				assertEquals(statement, mockExecutor.receivedStatement);
+				assertEquals(context, mockExecutor.receivedContext);
+			}
+		} finally {
+			if (cli != null) {
+				cli.close();
+			}
 		}
 	}
 
