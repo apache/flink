@@ -190,7 +190,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	}
 
 	@Override
-	public StateIteratorWithUpdate<K, N, S> getStateEntryIterator() {
+	public StateIteratorWithUpdate<K, N, S> getStateEntryIteratorWithUpdate() {
 		return new StateEntryIterator();
 	}
 

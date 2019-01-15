@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state.ttl;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.Preconditions;
 
@@ -96,12 +98,15 @@ class TtlListState<K, N, T> extends
 
 	@Nullable
 	@Override
-	public List<TtlValue<T>> checkIfExpiredOrUpdate(@Nonnull List<TtlValue<T>> ttlValues) {
+	public List<TtlValue<T>> getUnexpiredOrNull(@Nonnull List<TtlValue<T>> ttlValues) {
 		long currentTimestamp = timeProvider.currentTimestamp();
 		List<TtlValue<T>> unexpired = new ArrayList<>(ttlValues.size());
+		TypeSerializer<TtlValue<T>> elementSerializer =
+			((ListSerializer<TtlValue<T>>) original.getValueSerializer()).getElementSerializer();
 		for (TtlValue<T> ttlValue : ttlValues) {
 			if (!TtlUtils.expired(ttlValue, ttl, currentTimestamp)) {
-				unexpired.add(ttlValue);
+				// we have to do the defensive copy to update the value
+				unexpired.add(elementSerializer.copy(ttlValue));
 			}
 		}
 		if (!unexpired.isEmpty()) {

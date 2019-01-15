@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state.ttl;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -121,11 +123,14 @@ class TtlMapState<K, N, UK, UV>
 
 	@Nullable
 	@Override
-	public Map<UK, TtlValue<UV>> checkIfExpiredOrUpdate(@Nonnull Map<UK, TtlValue<UV>> ttlValue) {
+	public Map<UK, TtlValue<UV>> getUnexpiredOrNull(@Nonnull Map<UK, TtlValue<UV>> ttlValue) {
 		Map<UK, TtlValue<UV>> unexpired = new HashMap<>();
+		TypeSerializer<TtlValue<UV>> valueSerializer =
+			((MapSerializer<UK, TtlValue<UV>>) original.getValueSerializer()).getValueSerializer();
 		for (Map.Entry<UK, TtlValue<UV>> e : ttlValue.entrySet()) {
 			if (!expired(e.getValue())) {
-				unexpired.put(e.getKey(), e.getValue());
+				// we have to do the defensive copy to update the value
+				unexpired.put(e.getKey(), valueSerializer.copy(e.getValue()));
 			}
 		}
 		return ttlValue.size() == unexpired.size() ? ttlValue : unexpired;

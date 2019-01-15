@@ -240,8 +240,8 @@ public class StateTtlConfig implements Serializable {
 		 * <p>Note: if no access happens to this state or no records are processed
 		 * in case of {@code runCleanupForEveryRecord}, expired state will persist..
 		 *
-		 * @param cleanupSize max number of pulled from queue keys for clean up upon state touch for any key
-		 * @param runCleanupForEveryRecord run incremental cleanup per state access
+		 * @param cleanupSize max number of keys pulled from queue for clean up upon state touch for any key
+		 * @param runCleanupForEveryRecord run incremental cleanup per each processed record
 		 */
 		@Nonnull
 		public Builder cleanupIncrementally(
@@ -310,10 +310,10 @@ public class StateTtlConfig implements Serializable {
 	public static class IncrementalCleanupStrategy implements CleanupStrategies.CleanupStrategy {
 		private static final long serialVersionUID = 3109278696501988780L;
 
-		/** Max number of pulled from queue keys for clean up upon state touch for any key. */
+		/** Max number of keys pulled from queue for clean up upon state touch for any key. */
 		private final int cleanupSize;
 
-		/** Whether to run incremental cleanup per state access. */
+		/** Whether to run incremental cleanup per each processed record. */
 		private final boolean runCleanupForEveryRecord;
 
 		private IncrementalCleanupStrategy(

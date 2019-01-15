@@ -97,7 +97,7 @@ abstract class AbstractTtlState<K, N, SV, TTLSV, S extends InternalKvState<K, N,
 	 * @return either non expired (possibly updated) state or null if the state has expired.
 	 */
 	@Nullable
-	public abstract TTLSV checkIfExpiredOrUpdate(@Nonnull TTLSV ttlValue);
+	public abstract TTLSV getUnexpiredOrNull(@Nonnull TTLSV ttlValue);
 
 	@Override
 	public StateIteratorWithUpdate<K, N, SV> getStateEntryIterator() {

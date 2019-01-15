@@ -127,6 +127,6 @@ public abstract class AbstractHeapState<K, N, SV> implements InternalKvState<K, 
 
 	@Override
 	public StateIteratorWithUpdate<K, N, SV> getStateEntryIterator() {
-		return stateTable.getStateEntryIterator();
+		return stateTable.getStateEntryIteratorWithUpdate();
 	}
 }

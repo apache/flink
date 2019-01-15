@@ -118,7 +118,8 @@ public interface InternalKvState<K, N, V> extends State {
 	 *
 	 * <p>It should support remove and update operation.
 	 *
-	 * <p>State entries are not allowed to be modified in any other way, other than with the {@code update()} method.
+	 * <p>The state value must not be changed internally (there no defensive copies in {@code next()} for performance).
+	 * It has to be deeply copied if modified, e.g. with the {@code update()} method.
 	 *
 	 * @return global iterator over state entries
 	 */

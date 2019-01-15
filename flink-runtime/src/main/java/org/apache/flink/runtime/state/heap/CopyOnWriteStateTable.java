@@ -139,7 +139,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	private static final StateTableEntry<?, ?, ?>[] EMPTY_TABLE = new StateTableEntry[MINIMUM_CAPACITY >>> 1];
 
 	/**
-	 * Empty entry that we use to bootstrap our {@link CopyOnWriteStateTable.StateEntryIterator}.
+	 * Empty entry that we use to bootstrap our {@link CopyOnWriteStateTable.BaseStateEntryIterator}.
 	 */
 	private static final StateTableEntry<?, ?, ?> ITERATOR_BOOTSTRAP_ENTRY =
 		new StateTableEntry<>(new Object(), new Object(), new Object(), 0, null, 0, 0);
@@ -569,7 +569,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	@Nonnull
 	@Override
 	public Iterator<StateEntry<K, N, S>> iterator() {
-		return new StateEntryIterator(false);
+		return new StateEntryIteratorWithoutModifications();
 	}
 
 	// Private utility functions for StateTable management -------------------------------------------------------------
@@ -1041,65 +1041,38 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	// StateEntryIterator  ---------------------------------------------------------------------------------------------
 
 	@Override
-	public StateIteratorWithUpdate<K, N, S> getStateEntryIterator() {
-		return new StateEntryIterator(true);
+	public StateIteratorWithUpdate<K, N, S> getStateEntryIteratorWithUpdate() {
+		return new StateEntryIteratorWithModifications();
 	}
 
 	/**
 	 * Iterator over state entries in a {@link CopyOnWriteStateTable}.
-	 *
-	 * <p>This iterator can optionally tolerate concurrent modifications and
-	 * support removing of underlying next key state.
 	 */
-	class StateEntryIterator implements StateIteratorWithUpdate<K, N, S> {
-		private StateTableEntry<K, N, S>[] activeTable;
-		private int nextTablePosition;
-		private StateTableEntry<K, N, S> nextEntry;
-		private StateTableEntry<K, N, S> entryToReturn;
-		private final int expectedModCount;
+	class BaseStateEntryIterator implements Iterator<StateEntry<K, N, S>> {
+		StateTableEntry<K, N, S>[] activeTable;
+		int nextTablePosition;
+		StateTableEntry<K, N, S> nextEntry;
+		StateTableEntry<K, N, S> entryToReturn;
 
-		/** Whether to allow remove operation and concurrent modifications. */
-		private final boolean allowModifications;
-
-		StateEntryIterator(boolean allowModifications) {
-			this.allowModifications = allowModifications;
+		BaseStateEntryIterator() {
 			this.activeTable = primaryTable;
 			this.nextTablePosition = 0;
-			this.expectedModCount = modCount;
 			this.nextEntry = getBootstrapEntry();
 			advanceIterator();
 		}
 
 		@Override
 		public boolean hasNext() {
-			amendIterationIfNextStale();
 			return nextEntry != null;
 		}
 
 		@Override
 		public StateEntry<K, N, S> next() {
-			assertConcurrentModificationsIfNotAllowed();
 			if (!hasNext()) {
 				entryToReturn = null;
 				return null;
 			}
 			return advanceIterator();
-		}
-
-		private void amendIterationIfNextStale() {
-			if (allowModifications && nextEntry != null) {
-				StateTableEntry<K, N, S> currentChainHead = activeTable[nextTablePosition - 1];
-				// check if current chain has changed
-				if (currentChainHead == null || nextEntry.entryVersion < currentChainHead.entryVersion) {
-					StateTableEntry<K, N, S> nextFound = currentChainHead;
-					while (nextFound != null && nextFound != nextEntry) {
-						nextFound = nextFound.next;
-					}
-					// if nextEntry is no longer in the chain,
-					// restart chain or move to the next chain if this chain is already empty
-					nextEntry = nextFound == null ? advanceTableIfChainEnded(currentChainHead) : nextEntry;
-				}
-			}
 		}
 
 		private StateTableEntry<K, N, S> advanceIterator() {
@@ -1110,7 +1083,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 			return entryToReturn;
 		}
 
-		private StateTableEntry<K, N, S> advanceTableIfChainEnded(StateTableEntry<K, N, S> next) {
+		StateTableEntry<K, N, S> advanceTableIfChainEnded(StateTableEntry<K, N, S> next) {
 			// consider both sub-tables to cover the case of rehash
 			while (next == null) { // current chain is ended or empty
 				// try get next in active table or
@@ -1139,43 +1112,84 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 			}
 			return null;
 		}
+	}
+
+	/**
+	 * Iterator over state entries in a {@link CopyOnWriteStateTable} which does not tolerate concurrent modifications.
+	 */
+	class StateEntryIteratorWithoutModifications extends BaseStateEntryIterator {
+		private final int expectedModCount;
+
+		StateEntryIteratorWithoutModifications() {
+			super();
+			this.expectedModCount = modCount;
+		}
+
+		@Override
+		public StateEntry<K, N, S> next() {
+			assertConcurrentModificationsIfNotAllowed();
+			return super.next();
+		}
 
 		private void assertConcurrentModificationsIfNotAllowed() {
-			if (!allowModifications) {
-				if (modCount != expectedModCount) {
-					throw new ConcurrentModificationException();
+			if (modCount != expectedModCount) {
+				throw new ConcurrentModificationException();
+			}
+			if (!hasNext()) {
+				throw new NoSuchElementException();
+			}
+		}
+	}
+
+	/**
+	 * Iterator over state entries in a {@link CopyOnWriteStateTable} which tolerates concurrent modifications.
+	 *
+	 * <p>This iterator supports removing and updating of underlying next key state.
+	 * It trades modifications for consistency and might return duplicates.
+	 */
+	class StateEntryIteratorWithModifications
+		extends BaseStateEntryIterator implements StateIteratorWithUpdate<K, N, S> {
+
+		StateEntryIteratorWithModifications() {
+			super();
+		}
+
+		@Override
+		public boolean hasNext() {
+			amendIterationIfNextStale();
+			return super.hasNext();
+		}
+
+		private void amendIterationIfNextStale() {
+			if (nextEntry != null) {
+				StateTableEntry<K, N, S> currentChainHead = activeTable[nextTablePosition - 1];
+				StateTableEntry<K, N, S> nextFound = currentChainHead;
+				while (nextFound != null && nextFound != nextEntry) {
+					nextFound = nextFound.next;
 				}
-				if (!hasNext()) {
-					throw new NoSuchElementException();
-				}
+				// if nextEntry is no longer in the chain,
+				// restart chain or move to the next chain if this chain is already empty
+				nextEntry = nextFound == null ? advanceTableIfChainEnded(currentChainHead) : nextEntry;
 			}
 		}
 
 		@Override
 		public void remove() {
-			if (allowModifications) {
-				if (entryToReturn != null && entryToReturn != getBootstrapEntry()) {
-					CopyOnWriteStateTable.this.remove(entryToReturn.getKey(), entryToReturn.getNamespace());
-				} else {
-					throw new IllegalStateException(
-						"Nothing to remove, next() has never been called yet or iteration is over");
-				}
+			if (entryToReturn != null && entryToReturn != getBootstrapEntry()) {
+				CopyOnWriteStateTable.this.remove(entryToReturn.getKey(), entryToReturn.getNamespace());
 			} else {
-				throw new UnsupportedOperationException("Read-only iterator");
+				throw new IllegalStateException(
+					"Nothing to remove, next() has never been called yet or iteration is over");
 			}
 		}
 
 		@Override
 		public void update(S newValue) {
-			if (allowModifications) {
-				if (entryToReturn != null && entryToReturn != getBootstrapEntry()) {
-					CopyOnWriteStateTable.this.put(entryToReturn.getKey(), entryToReturn.getNamespace(), newValue);
-				} else {
-					throw new IllegalStateException(
-						"Nothing to update, next() has never been called yet or iteration is over");
-				}
+			if (entryToReturn != null && entryToReturn != getBootstrapEntry()) {
+				CopyOnWriteStateTable.this.put(entryToReturn.getKey(), entryToReturn.getNamespace(), newValue);
 			} else {
-				throw new UnsupportedOperationException("Read-only iterator");
+				throw new IllegalStateException(
+					"Nothing to update, next() has never been called yet or iteration is over");
 			}
 		}
 	}

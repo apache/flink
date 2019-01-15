@@ -60,7 +60,7 @@ class TtlAggregatingState<K, N, IN, ACC, OUT>
 
 	@Nullable
 	@Override
-	public TtlValue<ACC> checkIfExpiredOrUpdate(@Nonnull TtlValue<ACC> ttlValue) {
+	public TtlValue<ACC> getUnexpiredOrNull(@Nonnull TtlValue<ACC> ttlValue) {
 		return expired(ttlValue) ? null : ttlValue;
 	}
 

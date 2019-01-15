@@ -52,7 +52,7 @@ class TtlValueState<K, N, T>
 
 	@Nullable
 	@Override
-	public TtlValue<T> checkIfExpiredOrUpdate(@Nonnull TtlValue<T> ttlValue) {
+	public TtlValue<T> getUnexpiredOrNull(@Nonnull TtlValue<T> ttlValue) {
 		return expired(ttlValue) ? null : ttlValue;
 	}
 }

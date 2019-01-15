@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.internal.InternalKvState.StateIteratorWithUpdate;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -71,7 +70,7 @@ class TtlIncrementalCleanup<K, N, S> {
 		int entryNum = 0;
 		while (entryNum < cleanupSize && stateIterator.hasNext()) {
 			StateEntry<K, N, S> state = stateIterator.next();
-			S cleanState = ttlState.checkIfExpiredOrUpdate(state.getState());
+			S cleanState = ttlState.getUnexpiredOrNull(state.getState());
 			if (cleanState == null) {
 				stateIterator.remove();
 			} else if (cleanState != state.getState()) {
