@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.streaming.api.datastream.{ConnectedStreams => JavaCStream, DataStream => JavaStream}
-import org.apache.flink.streaming.api.functions.co.{CoFlatMapFunction, CoKeyedProcessFunction, CoMapFunction, CoProcessFunction}
+import org.apache.flink.streaming.api.functions.co._
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
 import org.apache.flink.util.Collector
 
@@ -127,7 +127,7 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
   }
 
   /**
-    * Applies the given [[CoKeyedProcessFunction]] on the connected input keyed streams,
+    * Applies the given [[KeyedCoProcessFunction]] on the connected input keyed streams,
     * thereby creating a transformed output stream.
     *
     * The function will be called for every element in the input keyed streams and can produce
@@ -135,21 +135,20 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     * function can also query the time and set timers. When reacting to the firing of set timers
     * the function can directly emit elements and/or register yet more timers.
     *
-    * @param coKeyedProcessFunction The [[CoKeyedProcessFunction]] that is called for each element
-    *                      in the stream.
-    *
+    * @param keyedCoProcessFunction The [[KeyedCoProcessFunction]] that is called for each element
+    *                               in the stream.
     * @return The transformed [[DataStream]].
     */
   @PublicEvolving
   def process[K, R: TypeInformation](
-      coKeyedProcessFunction: CoKeyedProcessFunction[K, IN1, IN2, R]) : DataStream[R] = {
-    if (coKeyedProcessFunction == null) {
-      throw new NullPointerException("CoKeyedProcessFunction function must not be null.")
+      keyedCoProcessFunction: KeyedCoProcessFunction[K, IN1, IN2, R]) : DataStream[R] = {
+    if (keyedCoProcessFunction == null) {
+      throw new NullPointerException("KeyedCoProcessFunction function must not be null.")
     }
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
 
-    asScalaStream(javaStream.process(coKeyedProcessFunction, outType))
+    asScalaStream(javaStream.process(keyedCoProcessFunction, outType))
   }
 
 

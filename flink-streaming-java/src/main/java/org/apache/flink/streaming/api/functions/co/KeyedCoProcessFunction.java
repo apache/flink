@@ -43,7 +43,7 @@ import org.apache.flink.util.OutputTag;
  * @param <IN2> Type of the second input.
  * @param <OUT> Output type.
  */
-public abstract class CoKeyedProcessFunction<K, IN1, IN2, OUT> extends AbstractRichFunction {
+public abstract class KeyedCoProcessFunction<K, IN1, IN2, OUT> extends AbstractRichFunction {
 
 	private static final long serialVersionUID = 1L;
 
@@ -62,7 +62,7 @@ public abstract class CoKeyedProcessFunction<K, IN1, IN2, OUT> extends AbstractR
 	 * @throws Exception The function may throw exceptions which cause the streaming program
 	 *                   to fail and go into recovery.
 	 */
-	public abstract void processElement1(IN1 value, CoKeyedProcessFunction.Context ctx, Collector<OUT> out) throws Exception;
+	public abstract void processElement1(IN1 value, KeyedCoProcessFunction.Context ctx, Collector<OUT> out) throws Exception;
 
 	/**
 	 * This method is called for each element in the second of the connected streams.
@@ -79,7 +79,7 @@ public abstract class CoKeyedProcessFunction<K, IN1, IN2, OUT> extends AbstractR
 	 * @throws Exception The function may throw exceptions which cause the streaming program
 	 *                   to fail and go into recovery.
 	 */
-	public abstract void processElement2(IN2 value, CoKeyedProcessFunction.Context ctx, Collector<OUT> out) throws Exception;
+	public abstract void processElement2(IN2 value, KeyedCoProcessFunction.Context ctx, Collector<OUT> out) throws Exception;
 
 	/**
 	 * Called when a timer set using {@link TimerService} fires.
@@ -94,12 +94,12 @@ public abstract class CoKeyedProcessFunction<K, IN1, IN2, OUT> extends AbstractR
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
 	 *                   to fail and may trigger recovery.
 	 */
-	public void onTimer(long timestamp, CoKeyedProcessFunction.OnTimerContext ctx, Collector<OUT> out) throws Exception {}
+	public void onTimer(long timestamp, KeyedCoProcessFunction.OnTimerContext ctx, Collector<OUT> out) throws Exception {}
 
 	/**
-	 * Information available in an invocation of {@link #processElement1(Object, CoKeyedProcessFunction.Context, Collector)}/
-	 * {@link #processElement2(Object, CoKeyedProcessFunction.Context, Collector)}
-	 * or {@link #onTimer(long, CoKeyedProcessFunction.OnTimerContext, Collector)}.
+	 * Information available in an invocation of {@link #processElement1(Object, KeyedCoProcessFunction.Context, Collector)}/
+	 * {@link #processElement2(Object, KeyedCoProcessFunction.Context, Collector)}
+	 * or {@link #onTimer(long, KeyedCoProcessFunction.OnTimerContext, Collector)}.
 	 */
 	public abstract class Context {
 
@@ -131,7 +131,7 @@ public abstract class CoKeyedProcessFunction<K, IN1, IN2, OUT> extends AbstractR
 	}
 
 	/**
-	 * Information available in an invocation of {@link #onTimer(long, CoKeyedProcessFunction.OnTimerContext, Collector)}.
+	 * Information available in an invocation of {@link #onTimer(long, KeyedCoProcessFunction.OnTimerContext, Collector)}.
 	 */
 	public abstract class OnTimerContext extends Context {
 		/**

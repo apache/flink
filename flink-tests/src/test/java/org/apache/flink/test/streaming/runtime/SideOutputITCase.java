@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
-import org.apache.flink.streaming.api.functions.co.CoKeyedProcessFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
@@ -544,7 +544,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 	}
 
 	/**
-	 * Test keyed CoKeyedProcessFunction side output.
+	 * Test keyed KeyedCoProcessFunction side output.
 	 */
 	@Test
 	public void testRealKeyedCoProcessFunctionSideOutput() throws Exception {
@@ -562,9 +562,9 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 		SingleOutputStreamOperator<Integer> passThroughtStream = ds1
 			.keyBy(i -> i)
 			.connect(ds2.keyBy(i -> i))
-			.process(new CoKeyedProcessFunction<Integer, Integer, Integer, Integer>() {
+			.process(new KeyedCoProcessFunction<Integer, Integer, Integer, Integer>() {
 				@Override
-				public void processElement1(Integer value, CoKeyedProcessFunction.Context ctx, Collector<Integer> out) throws Exception {
+				public void processElement1(Integer value, KeyedCoProcessFunction.Context ctx, Collector<Integer> out) throws Exception {
 					if (value < 3) {
 						out.collect(value);
 						ctx.output(sideOutputTag, "sideout1-" + ctx.getCurrentKey() + "-" + String.valueOf(value));
@@ -572,7 +572,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 				}
 
 				@Override
-				public void processElement2(Integer value, CoKeyedProcessFunction.Context ctx, Collector<Integer> out) throws Exception {
+				public void processElement2(Integer value, KeyedCoProcessFunction.Context ctx, Collector<Integer> out) throws Exception {
 					if (value >= 3) {
 						out.collect(value);
 						ctx.output(sideOutputTag, "sideout2-" + ctx.getCurrentKey() + "-" + String.valueOf(value));
@@ -638,7 +638,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 	}
 
 	/**
-	 * Test keyed CoKeyedProcessFunction side output with multiple consumers.
+	 * Test keyed KeyedCoProcessFunction side output with multiple consumers.
 	 */
 	@Test
 	public void testRealKeyedCoProcessFunctionSideOutputWithMultipleConsumers() throws Exception {
@@ -658,9 +658,9 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 		SingleOutputStreamOperator<Integer> passThroughtStream = ds1
 			.keyBy(i -> i)
 			.connect(ds2.keyBy(i -> i))
-			.process(new CoKeyedProcessFunction<Integer, Integer, Integer, Integer>() {
+			.process(new KeyedCoProcessFunction<Integer, Integer, Integer, Integer>() {
 				@Override
-				public void processElement1(Integer value, CoKeyedProcessFunction.Context ctx, Collector<Integer> out)
+				public void processElement1(Integer value, KeyedCoProcessFunction.Context ctx, Collector<Integer> out)
 					throws Exception {
 					if (value < 4) {
 						out.collect(value);
@@ -669,7 +669,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 				}
 
 				@Override
-				public void processElement2(Integer value, CoKeyedProcessFunction.Context ctx, Collector<Integer> out)
+				public void processElement2(Integer value, KeyedCoProcessFunction.Context ctx, Collector<Integer> out)
 					throws Exception {
 					if (value >= 4) {
 						out.collect(value);
