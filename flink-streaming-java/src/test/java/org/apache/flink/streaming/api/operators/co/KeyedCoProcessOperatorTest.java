@@ -112,12 +112,12 @@ public class KeyedCoProcessOperatorTest extends LegacyKeyedCoProcessOperatorTest
 	private static class RepeatKeyProcessFunction extends KeyedCoProcessFunction<String, Integer, String, String> {
 
 		@Override
-		public void processElement1(Integer value, KeyedCoProcessFunction.Context ctx, Collector<String> out) throws Exception {
+		public void processElement1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect(value + "," + ctx.getCurrentKey());
 		}
 
 		@Override
-		public void processElement2(String value, KeyedCoProcessFunction.Context ctx, Collector<String> out) throws Exception {
+		public void processElement2(String value, Context ctx, Collector<String> out) throws Exception {
 			out.collect(value + "," + ctx.getCurrentKey());
 		}
 	}
@@ -127,13 +127,13 @@ public class KeyedCoProcessOperatorTest extends LegacyKeyedCoProcessOperatorTest
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void processElement1(Integer value, KeyedCoProcessFunction.Context ctx, Collector<String> out) throws Exception {
+		public void processElement1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT1:" + value);
 			ctx.timerService().registerEventTimeTimer(5);
 		}
 
 		@Override
-		public void processElement2(String value, KeyedCoProcessFunction.Context ctx, Collector<String> out) throws Exception {
+		public void processElement2(String value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT2:" + value);
 			ctx.timerService().registerEventTimeTimer(6);
 		}
@@ -141,7 +141,7 @@ public class KeyedCoProcessOperatorTest extends LegacyKeyedCoProcessOperatorTest
 		@Override
 		public void onTimer(
 			long timestamp,
-			KeyedCoProcessFunction.OnTimerContext ctx,
+			OnTimerContext ctx,
 			Collector<String> out) throws Exception {
 
 			assertEquals(TimeDomain.EVENT_TIME, ctx.timeDomain());

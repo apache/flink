@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.functions.co;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
@@ -43,6 +44,7 @@ import org.apache.flink.util.OutputTag;
  * @param <IN2> Type of the second input.
  * @param <OUT> Output type.
  */
+@PublicEvolving
 public abstract class KeyedCoProcessFunction<K, IN1, IN2, OUT> extends AbstractRichFunction {
 
 	private static final long serialVersionUID = 1L;
@@ -51,10 +53,10 @@ public abstract class KeyedCoProcessFunction<K, IN1, IN2, OUT> extends AbstractR
 	 * This method is called for each element in the first of the connected streams.
 	 *
 	 * <p>This function can output zero or more elements using the {@link Collector} parameter
-	 * and also update internal state or set timers using the {@link CoProcessFunction.Context} parameter.
+	 * and also update internal state or set timers using the {@link KeyedCoProcessFunction.Context} parameter.
 	 *
 	 * @param value The stream element
-	 * @param ctx A {@link CoProcessFunction.Context} that allows querying the timestamp of the element,
+	 * @param ctx A {@link KeyedCoProcessFunction.Context} that allows querying the timestamp of the element,
 	 *            querying the {@link TimeDomain} of the firing timer and getting a
 	 *            {@link TimerService} for registering timers and querying the time.
 	 *            The context is only valid during the invocation of this method, do not store it.
@@ -62,16 +64,16 @@ public abstract class KeyedCoProcessFunction<K, IN1, IN2, OUT> extends AbstractR
 	 * @throws Exception The function may throw exceptions which cause the streaming program
 	 *                   to fail and go into recovery.
 	 */
-	public abstract void processElement1(IN1 value, KeyedCoProcessFunction.Context ctx, Collector<OUT> out) throws Exception;
+	public abstract void processElement1(IN1 value, Context ctx, Collector<OUT> out) throws Exception;
 
 	/**
 	 * This method is called for each element in the second of the connected streams.
 	 *
 	 * <p>This function can output zero or more elements using the {@link Collector} parameter
-	 * and also update internal state or set timers using the {@link CoProcessFunction.Context} parameter.
+	 * and also update internal state or set timers using the {@link KeyedCoProcessFunction.Context} parameter.
 	 *
 	 * @param value The stream element
-	 * @param ctx A {@link CoProcessFunction.Context} that allows querying the timestamp of the element,
+	 * @param ctx A {@link KeyedCoProcessFunction.Context} that allows querying the timestamp of the element,
 	 *            querying the {@link TimeDomain} of the firing timer and getting a
 	 *            {@link TimerService} for registering timers and querying the time.
 	 *            The context is only valid during the invocation of this method, do not store it.
@@ -79,13 +81,13 @@ public abstract class KeyedCoProcessFunction<K, IN1, IN2, OUT> extends AbstractR
 	 * @throws Exception The function may throw exceptions which cause the streaming program
 	 *                   to fail and go into recovery.
 	 */
-	public abstract void processElement2(IN2 value, KeyedCoProcessFunction.Context ctx, Collector<OUT> out) throws Exception;
+	public abstract void processElement2(IN2 value, Context ctx, Collector<OUT> out) throws Exception;
 
 	/**
 	 * Called when a timer set using {@link TimerService} fires.
 	 *
 	 * @param timestamp The timestamp of the firing timer.
-	 * @param ctx An {@link CoProcessFunction.OnTimerContext} that allows querying the timestamp of the firing timer,
+	 * @param ctx An {@link KeyedCoProcessFunction.OnTimerContext} that allows querying the timestamp of the firing timer,
 	 *            querying the {@link TimeDomain} of the firing timer and getting a
 	 *            {@link TimerService} for registering timers and querying the time.
 	 *            The context is only valid during the invocation of this method, do not store it.
@@ -94,7 +96,7 @@ public abstract class KeyedCoProcessFunction<K, IN1, IN2, OUT> extends AbstractR
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
 	 *                   to fail and may trigger recovery.
 	 */
-	public void onTimer(long timestamp, KeyedCoProcessFunction.OnTimerContext ctx, Collector<OUT> out) throws Exception {}
+	public void onTimer(long timestamp, OnTimerContext ctx, Collector<OUT> out) throws Exception {}
 
 	/**
 	 * Information available in an invocation of {@link #processElement1(Object, KeyedCoProcessFunction.Context, Collector)}/

@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.streaming.api.operators.co.{KeyedCoProcessOperator, LegacyKeyedCoProcessOperator}
+import org.apache.flink.streaming.api.operators.co.LegacyKeyedCoProcessOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness
@@ -323,7 +323,7 @@ class JoinHarnessTest extends HarnessTestBase {
       JoinType.INNER, -10, 20, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
 
     val operator: LegacyKeyedCoProcessOperator[String, CRow, CRow, CRow] =
-      new LegacyKeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
+      new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
         joinProcessFunc,
         joinProcessFunc.getMaxOutputDelay)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow] =
@@ -418,7 +418,7 @@ class JoinHarnessTest extends HarnessTestBase {
       JoinType.INNER, -10, -7, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
 
     val operator: LegacyKeyedCoProcessOperator[String, CRow, CRow, CRow] =
-      new LegacyKeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
+      new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
         joinProcessFunc,
         joinProcessFunc.getMaxOutputDelay)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow] =
@@ -496,7 +496,7 @@ class JoinHarnessTest extends HarnessTestBase {
       JoinType.LEFT_OUTER, -5, 9, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
 
     val operator: LegacyKeyedCoProcessOperator[String, CRow, CRow, CRow] =
-      new LegacyKeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
+      new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
         joinProcessFunc,
         joinProcessFunc.getMaxOutputDelay)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow] =
@@ -606,7 +606,7 @@ class JoinHarnessTest extends HarnessTestBase {
       JoinType.RIGHT_OUTER, -5, 9, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
 
     val operator: LegacyKeyedCoProcessOperator[String, CRow, CRow, CRow] =
-      new LegacyKeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
+      new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
         joinProcessFunc,
         joinProcessFunc.getMaxOutputDelay)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow] =
@@ -715,7 +715,7 @@ class JoinHarnessTest extends HarnessTestBase {
       JoinType.FULL_OUTER, -5, 9, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
 
     val operator: LegacyKeyedCoProcessOperator[String, CRow, CRow, CRow] =
-      new LegacyKeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
+      new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
         joinProcessFunc,
         joinProcessFunc.getMaxOutputDelay)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow] =

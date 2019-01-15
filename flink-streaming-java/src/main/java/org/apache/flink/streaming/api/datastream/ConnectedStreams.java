@@ -364,9 +364,9 @@ public class ConnectedStreams<IN1, IN2> {
 		TypeInformation<R> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(
 			keyedCoProcessFunction,
 			KeyedCoProcessFunction.class,
-			0,
 			1,
 			2,
+			3,
 			TypeExtractor.NO_INDEX,
 			getType1(),
 			getType2(),
