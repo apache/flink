@@ -271,6 +271,11 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 			return this;
 		}
 
+		public TestSpecification<T> withTestDataCount(int expectedDataItmes) {
+			this.testDataCount = expectedDataItmes;
+			return this;
+		}
+
 		private TypeSerializer<T> createSerializer() {
 			try {
 				return (serializerProvider == null) ? serializerType.newInstance() : serializerProvider.get();
@@ -296,6 +301,7 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 		public String toString() {
 			return String.format("%s , %s, %s", name, serializerType.getSimpleName(), snapshotClass.getSimpleName());
 		}
+
 	}
 
 	/**
