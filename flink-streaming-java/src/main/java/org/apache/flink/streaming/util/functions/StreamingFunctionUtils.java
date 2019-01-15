@@ -151,13 +151,14 @@ public final class StreamingFunctionUtils {
 
 	public static void restoreFunctionState(
 			StateInitializationContext context,
+			OperatorStateBackend backend,
 			Function userFunction) throws Exception {
 
 		Preconditions.checkNotNull(context);
 
 		while (true) {
 
-			if (tryRestoreFunction(context, userFunction)) {
+			if (tryRestoreFunction(context, backend, userFunction)) {
 				break;
 			}
 
@@ -172,6 +173,7 @@ public final class StreamingFunctionUtils {
 
 	private static boolean tryRestoreFunction(
 			StateInitializationContext context,
+			OperatorStateBackend backend,
 			Function userFunction) throws Exception {
 
 		if (userFunction instanceof CheckpointedFunction) {
@@ -184,7 +186,7 @@ public final class StreamingFunctionUtils {
 			@SuppressWarnings("unchecked")
 			ListCheckpointed<Serializable> listCheckpointedFun = (ListCheckpointed<Serializable>) userFunction;
 
-			ListState<Serializable> listState = context.getOperatorStateStore().
+			ListState<Serializable> listState = backend.
 					getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
 
 			List<Serializable> list = new ArrayList<>();
