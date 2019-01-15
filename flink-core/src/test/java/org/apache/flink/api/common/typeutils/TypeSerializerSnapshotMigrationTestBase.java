@@ -71,16 +71,7 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 	}
 
 	@Test
-	public void serializerSnapshotRestoresCurrentSerializer() {
-		TypeSerializerSnapshot<ElementT> snapshot = snapshotUnderTest();
-
-		TypeSerializer<ElementT> restoredSerializer = snapshot.restoreSerializer();
-
-		assertThat(restoredSerializer, instanceOf(testSpecification.serializerType));
-	}
-
-	@Test
-	public void snapshotIsCompatibleWithTheCurrentSerializer() {
+	public void specifiedNewSerializerHasExpectedCompatibilityResultsWithSnapshot() {
 		TypeSerializerSnapshot<ElementT> snapshot = snapshotUnderTest();
 
 		TypeSerializerSchemaCompatibility<ElementT> result = snapshot.resolveSchemaCompatibility(testSpecification.createSerializer());
