@@ -28,7 +28,6 @@ import com.amazonaws.services.s3.model.UploadPartResult;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
