@@ -116,7 +116,7 @@ under the License.
 		<scala.version>2.11.12</scala.version>
 		<scala.binary.version>2.11</scala.binary.version>
 		<chill.version>0.7.6</chill.version>
-		<zookeeper.version>3.4.13</zookeeper.version>
+		<zookeeper.version>3.4.12</zookeeper.version>
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.7.9</jackson.version>
 		<metrics.version>3.1.5</metrics.version>
@@ -317,7 +317,7 @@ under the License.
 				<version>3.4.0</version>
 			</dependency>
 
-			<!-- Make sure we use a consistent avro version between Flink and Hadoop -->		
+			<!-- Make sure we use a consistent avro version between Flink and Hadoop -->
 			<dependency>
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro</artifactId>
@@ -1605,7 +1605,7 @@ under the License.
 						<failOnViolation>true</failOnViolation>
 					</configuration>
 				</plugin>
-				
+
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-javadoc-plugin</artifactId>
@@ -1633,7 +1633,7 @@ under the License.
 				<plugin>
 					<groupId>pl.project13.maven</groupId>
 					<artifactId>git-commit-id-plugin</artifactId>
-					<!-- Don't use 2.1.14 as it is incompatible with various maven versions --> 
+					<!-- Don't use 2.1.14 as it is incompatible with various maven versions -->
 					<version>2.1.10</version>
 					<configuration>
 						<excludeProperties>
