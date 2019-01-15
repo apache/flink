@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
+package org.apache.flink.streaming.tests;
 
 /**
- * A {@code Taskmanager} in the same package as the proper Flink {@link TaskManager}. We use this
- * to check whether Flink correctly uses the child-first {@link ClassLoader} when configured to do
- * so.
+ * This is used for test_streaming_classloader.sh. We have a version of this in a "lib" package that
+ * we place in the lib/ folder of Flink and a version in the "user" package. We check how they are
+ * resolved in ClassLoaderTestProgram.
  */
-public class TaskManager {
+public class ParentChildTestingVehicle {
 	public static String getMessage() {
-		return "Hello, World!";
+		return "Hello, from lib package!";
 	}
 }
