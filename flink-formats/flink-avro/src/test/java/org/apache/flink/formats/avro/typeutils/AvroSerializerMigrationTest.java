@@ -52,7 +52,7 @@ public class AvroSerializerMigrationTest extends TypeSerializerSnapshotMigration
 				AvroSerializer.class,
 				AvroSerializerSnapshot.class,
 				MigrationVersion.v1_6)
-			.withSerializerProvider(() -> new AvroSerializer(GenericRecord.class, Address.getClassSchema()))
+			.withNewSerializerProvider(() -> new AvroSerializer(GenericRecord.class, Address.getClassSchema()))
 			.withSnapshotDataLocation(GENERIC_SNAPSHOT)
 			.withTestData(DATA, 10);
 
@@ -61,7 +61,7 @@ public class AvroSerializerMigrationTest extends TypeSerializerSnapshotMigration
 				AvroSerializer.class,
 				AvroSerializerSnapshot.class,
 				MigrationVersion.v1_6)
-			.withSerializerProvider(() -> new AvroSerializer<>(Address.class))
+			.withNewSerializerProvider(() -> new AvroSerializer<>(Address.class))
 			.withSnapshotDataLocation(SPECIFIC_SNAPSHOT)
 			.withTestData(DATA, 10);
 

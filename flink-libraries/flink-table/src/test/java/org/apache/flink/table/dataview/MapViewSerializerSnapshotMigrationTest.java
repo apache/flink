@@ -40,7 +40,7 @@ public class MapViewSerializerSnapshotMigrationTest extends TypeSerializerSnapsh
 					MapViewSerializer.class,
 					MapViewSerializerSnapshot.class,
 					MigrationVersion.v1_6)
-				.withSerializerProvider(() -> new MapViewSerializer<>(
+				.withNewSerializerProvider(() -> new MapViewSerializer<>(
 					new MapSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE)))
 				.withSnapshotDataLocation(SNAPSHOT)
 				.withTestData(DATA, 10)

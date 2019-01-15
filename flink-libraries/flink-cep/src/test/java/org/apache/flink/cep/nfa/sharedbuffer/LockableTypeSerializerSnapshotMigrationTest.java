@@ -37,7 +37,7 @@ public class LockableTypeSerializerSnapshotMigrationTest extends TypeSerializerS
 					Lockable.LockableTypeSerializer.class,
 					LockableTypeSerializerSnapshot.class,
 					MigrationVersion.v1_6)
-				.withSerializerProvider(() -> new Lockable.LockableTypeSerializer<>(StringSerializer.INSTANCE))
+				.withNewSerializerProvider(() -> new Lockable.LockableTypeSerializer<>(StringSerializer.INSTANCE))
 				.withSnapshotDataLocation(SNAPSHOT)
 				.withTestData(DATA, 10)
 		);

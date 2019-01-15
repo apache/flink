@@ -39,7 +39,7 @@ public class ListViewSerializerSnapshotMigrationTest extends TypeSerializerSnaps
 					ListViewSerializer.class,
 					ListViewSerializerSnapshot.class,
 					MigrationVersion.v1_6)
-				.withSerializerProvider(() -> new ListViewSerializer<>(new ListSerializer<>(StringSerializer.INSTANCE)))
+				.withNewSerializerProvider(() -> new ListViewSerializer<>(new ListSerializer<>(StringSerializer.INSTANCE)))
 				.withSnapshotDataLocation(SNAPSHOT)
 				.withTestData(DATA, 10)
 		);

@@ -48,7 +48,7 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 				BooleanPrimitiveArraySerializer.class,
 				BooleanPrimitiveArraySerializer.BooleanPrimitiveArraySerializerSnapshot.class,
 				MigrationVersion.v1_6)
-			.withSerializerProvider(() -> BooleanPrimitiveArraySerializer.INSTANCE)
+			.withNewSerializerProvider(() -> BooleanPrimitiveArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-boolean-primitive-array-serializer-snapshot")
 			.withTestData("flink-1.6-boolean-primitive-array-serializer-data", 10);
 
@@ -59,7 +59,7 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 				BytePrimitiveArraySerializer.class,
 				BytePrimitiveArraySerializer.BytePrimitiveArraySerializerSnapshot.class,
 				MigrationVersion.v1_6)
-			.withSerializerProvider(() -> BytePrimitiveArraySerializer.INSTANCE)
+			.withNewSerializerProvider(() -> BytePrimitiveArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-byte-primitive-array-serializer-snapshot")
 			.withTestData("flink-1.6-byte-primitive-array-serializer-data", 10);
 
@@ -70,7 +70,7 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 				CharPrimitiveArraySerializer.class,
 				CharPrimitiveArraySerializer.CharPrimitiveArraySerializerSnapshot.class,
 				MigrationVersion.v1_6)
-			.withSerializerProvider(() -> CharPrimitiveArraySerializer.INSTANCE)
+			.withNewSerializerProvider(() -> CharPrimitiveArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-char-primitive-array-serializer-snapshot")
 			.withTestData("flink-1.6-char-primitive-array-serializer-data", 10);
 
@@ -81,7 +81,7 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 				DoublePrimitiveArraySerializer.class,
 				DoublePrimitiveArraySerializer.DoublePrimitiveArraySerializerSnapshot.class,
 				MigrationVersion.v1_6)
-			.withSerializerProvider(() -> DoublePrimitiveArraySerializer.INSTANCE)
+			.withNewSerializerProvider(() -> DoublePrimitiveArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-double-primitive-array-serializer-snapshot")
 			.withTestData("flink-1.6-double-primitive-array-serializer-data", 10);
 
@@ -92,7 +92,7 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 				FloatPrimitiveArraySerializer.class,
 				FloatPrimitiveArraySerializer.FloatPrimitiveArraySerializerSnapshot.class,
 				MigrationVersion.v1_6)
-			.withSerializerProvider(() -> FloatPrimitiveArraySerializer.INSTANCE)
+			.withNewSerializerProvider(() -> FloatPrimitiveArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-float-primitive-array-serializer-snapshot")
 			.withTestData("flink-1.6-float-primitive-array-serializer-data", 10);
 
@@ -103,7 +103,7 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 				IntPrimitiveArraySerializer.class,
 				IntPrimitiveArraySerializer.IntPrimitiveArraySerializerSnapshot.class,
 				MigrationVersion.v1_6)
-			.withSerializerProvider(() -> IntPrimitiveArraySerializer.INSTANCE)
+			.withNewSerializerProvider(() -> IntPrimitiveArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-int-primitive-array-serializer-snapshot")
 			.withTestData("flink-1.6-int-primitive-array-serializer-data", 10);
 
@@ -114,7 +114,7 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 				LongPrimitiveArraySerializer.class,
 				LongPrimitiveArraySerializer.LongPrimitiveArraySerializerSnapshot.class,
 				MigrationVersion.v1_6)
-			.withSerializerProvider(() -> LongPrimitiveArraySerializer.INSTANCE)
+			.withNewSerializerProvider(() -> LongPrimitiveArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-long-primitive-array-serializer-snapshot")
 			.withTestData("flink-1.6-long-primitive-array-serializer-data", 10);
 
@@ -125,7 +125,7 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 				ShortPrimitiveArraySerializer.class,
 				ShortPrimitiveArraySerializer.ShortPrimitiveArraySerializerSnapshot.class,
 				MigrationVersion.v1_6)
-			.withSerializerProvider(() -> ShortPrimitiveArraySerializer.INSTANCE)
+			.withNewSerializerProvider(() -> ShortPrimitiveArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-short-primitive-array-serializer-snapshot")
 			.withTestData("flink-1.6-short-primitive-array-serializer-data", 10);
 
@@ -136,7 +136,7 @@ public class PrimitiveArraySerializerSnapshotMigrationTest extends TypeSerialize
 				StringArraySerializer.class,
 				StringArraySerializer.StringArraySerializerSnapshot.class,
 				MigrationVersion.v1_6)
-			.withSerializerProvider(() -> StringArraySerializer.INSTANCE)
+			.withNewSerializerProvider(() -> StringArraySerializer.INSTANCE)
 			.withSnapshotDataLocation("flink-1.6-string-array-serializer-snapshot")
 			.withTestData("flink-1.6-string-array-serializer-data", 10);
 

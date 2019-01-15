@@ -38,7 +38,7 @@ public class ListSerializerSnapshotMigrationTest extends TypeSerializerSnapshotM
 					ListSerializer.class,
 					ListSerializerSnapshot.class,
 					MigrationVersion.v1_6)
-				.withSerializerProvider(() -> new ListSerializer<>(StringSerializer.INSTANCE))
+				.withNewSerializerProvider(() -> new ListSerializer<>(StringSerializer.INSTANCE))
 				.withSnapshotDataLocation(SNAPSHOT)
 				.withTestData(DATA, 10)
 		);
