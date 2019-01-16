@@ -170,17 +170,16 @@ public class LocalInputChannelTest {
 
 			// Submit consumer
 			for (int i = 0; i < parallelism; i++) {
-				results.add(CompletableFuture.supplyAsync(
-					CheckedSupplier.unchecked(
-						new TestLocalInputChannelConsumer(
-							i,
-							parallelism,
-							numberOfBuffersPerChannel,
-							networkBuffers.createBufferPool(parallelism, parallelism),
-							partitionManager,
-							new TaskEventDispatcher(),
-							partitionIds)::call),
-					executor));
+				final TestLocalInputChannelConsumer consumer = new TestLocalInputChannelConsumer(
+					i,
+					parallelism,
+					numberOfBuffersPerChannel,
+					networkBuffers.createBufferPool(parallelism, parallelism),
+					partitionManager,
+					new TaskEventDispatcher(),
+					partitionIds);
+
+				results.add(CompletableFuture.supplyAsync(CheckedSupplier.unchecked(consumer::call), executor));
 			}
 
 			FutureUtils.waitForAll(results)
