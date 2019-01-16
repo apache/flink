@@ -26,9 +26,9 @@ under the License.
 This connector provides a Sink that writes partitioned files to filesystems
 supported by the [Flink `FileSystem` abstraction]({{ site.baseurl}}/ops/filesystems.html).
 
-<span class="label label-danger">Important Note</span>: For S3, the `StreamingFileSink` 
+<span class="label label-danger">Important Note</span>: For S3, the `StreamingFileSink`
 supports only the [Hadoop-based](https://hadoop.apache.org/) FileSystem implementation, not
-the implementation based on [Presto](https://prestodb.io/). In case your job uses the 
+the implementation based on [Presto](https://prestodb.io/). In case your job uses the
 `StreamingFileSink` to write to S3 but you want to use the Presto-based one for checkpointing,
 it is advised to use explicitly *"s3a://"* (for Hadoop) as the scheme for the target path of
 the sink and *"s3p://"* for checkpointing (for Presto). Using *"s3://"* for both the sink
@@ -42,7 +42,7 @@ individual files that each contain a part of the infinite output stream.
 Within a bucket, we further split the output into smaller part files based on a
 rolling policy. This is useful to prevent individual bucket files from getting
 too big. This is also configurable but the default policy rolls files based on
-file size and a timeout, *i.e* if no new data was written to a part file. 
+file size and a timeout, *i.e* if no new data was written to a part file.
 
 The `StreamingFileSink` supports both row-wise encoding formats and
 bulk-encoding formats, such as [Apache Parquet](http://parquet.apache.org).
@@ -85,7 +85,7 @@ val input: DataStream[String] = ...
 val sink: StreamingFileSink[String] = StreamingFileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder[String]("UTF-8"))
     .build()
-    
+
 input.addSink(sink)
 
 {% endhighlight %}
@@ -110,12 +110,45 @@ interactions of bucket assigners and rolling policies.
 
 In the above example we used an `Encoder` that can encode or serialize each
 record individually. The streaming file sink also supports bulk-encoded output
-formats such as [Apache Parquet](http://parquet.apache.org). To use these,
-instead of `StreamingFileSink.forRowFormat()` you would use
+formats such as [Apache Parquet](http://parquet.apache.org) or [Apache Avro](https://avro.apache.org/).
+To use these, instead of `StreamingFileSink.forRowFormat()` you would use
 `StreamingFileSink.forBulkFormat()` and specify a `BulkWriter.Factory`.
 
-[ParquetAvroWriters]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/parquet/avro/ParquetAvroWriters.html)
-has static methods for creating a `BulkWriter.Factory` for various types.
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.formats.parquet.avro.ParquetAvroWriters;
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+
+DataStream<RawEvent> input = ...;
+
+StreamingFileSink<RawEvent> sink = StreamingFileSink.forBulkFormat(
+				new Path(outputPath),
+				ParquetAvroWriters.forSpecificRecord(RawEvent.class)
+)
+
+input.addSink(sink);
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.formats.parquet.avro.ParquetAvroWriters
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+
+val input: DataStream[RawEvent] = ...
+
+val sink: StreamingFileSink[RawEvent] = StreamingFileSink
+    .forRowFormat(new Path(outputPath), ParquetAvroWriters.forSpecificRecord(RawEvent.class))
+    .build()
+
+input.addSink(sink)
+
+{% endhighlight %}
+</div>
+</div>
 
 <div class="alert alert-info">
     <b>IMPORTANT:</b> Bulk-encoding formats can only be combined with the
@@ -124,3 +157,6 @@ has static methods for creating a `BulkWriter.Factory` for various types.
 </div>
 
 {% top %}
+
+[ParquetAvroWriters]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/parquet/avro/ParquetAvroWriters.html)
+has static methods for creating a `BulkWriter.Factory` for various types.
