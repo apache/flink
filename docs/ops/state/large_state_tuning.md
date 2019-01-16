@@ -132,7 +132,7 @@ Incremental checkpoints can dramatically reduce the checkpointing time in compar
 recovery time. The core idea is that incremental checkpoints only record all changes to the previous completed checkpoint, instead of
 producing a full, self-contained backup of the state backend. Like this, incremental checkpoints build upon previous checkpoints. Flink leverages
 RocksDB's internal backup mechanism in a way that is self-consolidating over time. As a result, the incremental checkpoint history in Flink
-does not grow indefinitely, and old checkpoints are eventually subsumed and pruned automatically. `
+does not grow indefinitely, and old checkpoints are eventually subsumed and pruned automatically.
 
 While we strongly encourage the use of incremental checkpoints for large state, please note that this is a new feature and currently not enabled 
 by default. To enable this feature, users can instantiate a `RocksDBStateBackend` with the corresponding boolean flag in the constructor set to `true`, e.g.:
