@@ -34,7 +34,7 @@ public class StandaloneSubmittedJobGraphStoreTest {
 	public void testNoOps() {
 		StandaloneSubmittedJobGraphStore jobGraphs = new StandaloneSubmittedJobGraphStore();
 
-		SubmittedJobGraph jobGraph = new SubmittedJobGraph(new JobGraph("testNoOps"), null);
+		SubmittedJobGraph jobGraph = new SubmittedJobGraph(new JobGraph("testNoOps"));
 
 		assertEquals(0, jobGraphs.getJobIds().size());
 
