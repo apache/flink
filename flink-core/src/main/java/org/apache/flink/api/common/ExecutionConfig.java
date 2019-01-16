@@ -525,10 +525,11 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * Sets the default input dependency constraint for vertex scheduling. It indicates when a task
 	 * should be scheduled considering its inputs status.
 	 *
-	 * The default constraint is {@link InputDependencyConstraint#ANY}.
+	 * <p>The default constraint is {@link InputDependencyConstraint#ANY}.
 	 *
 	 * @param inputDependencyConstraint The input dependency constraint.
 	 */
+	@PublicEvolving
 	public void setDefaultInputDependencyConstraint(InputDependencyConstraint inputDependencyConstraint) {
 		this.defaultInputDependencyConstraint = inputDependencyConstraint;
 	}
@@ -537,10 +538,11 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * Gets the default input dependency constraint for vertex scheduling. It indicates when a task
 	 * should be scheduled considering its inputs status.
 	 *
-	 * The default constraint is {@link InputDependencyConstraint#ANY}.
+	 * <p>The default constraint is {@link InputDependencyConstraint#ANY}.
 	 *
 	 * @return The input dependency constraint of this job.
 	 */
+	@PublicEvolving
 	public InputDependencyConstraint getDefaultInputDependencyConstraint() {
 		return defaultInputDependencyConstraint;
 	}
