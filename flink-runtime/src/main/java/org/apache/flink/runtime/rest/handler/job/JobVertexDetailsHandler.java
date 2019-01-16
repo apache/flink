@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
@@ -109,45 +110,49 @@ public class JobVertexDetailsHandler extends AbstractExecutionGraphHandler<JobVe
 	private static JobVertexDetailsInfo createJobVertexDetailsInfo(AccessExecutionJobVertex jobVertex, JobID jobID, @Nullable MetricFetcher<?> metricFetcher) {
 		List<JobVertexDetailsInfo.VertexTaskDetail> subtasks = new ArrayList<>();
 		final long now = System.currentTimeMillis();
-		int num = 0;
 		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
-			final ExecutionState status = vertex.getExecutionState();
+			AccessExecution currentExecution = vertex.getCurrentExecutionAttempt();
 
-			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
-			String locationString = location == null ? "(unassigned)" : location.getHostname() + ":" + location.dataPort();
+			for (int attemptNumber = 0; attemptNumber <= currentExecution.getAttemptNumber(); attemptNumber++) {
+				final AccessExecution execution =  attemptNumber == currentExecution.getAttemptNumber() ?
+					currentExecution : vertex.getPriorExecutionAttempt(attemptNumber);
 
-			long startTime = vertex.getStateTimestamp(ExecutionState.DEPLOYING);
-			if (startTime == 0) {
-				startTime = -1;
+				final ExecutionState status = execution.getState();
+				TaskManagerLocation location = execution.getAssignedResourceLocation();
+				String locationString = location == null ? "(unassigned)" : location.getHostname() + ":" + location.dataPort();
+
+				long startTime = execution.getStateTimestamp(ExecutionState.DEPLOYING);
+				if (startTime == 0) {
+					startTime = -1;
+				}
+
+				long endTime = status.isTerminal() ? execution.getStateTimestamp(status) : -1;
+				long duration = startTime > 0 ? ((endTime > 0 ? endTime : now) - startTime) : -1;
+
+				MutableIOMetrics counts = new MutableIOMetrics();
+				counts.addIOMetrics(
+					execution,
+					metricFetcher,
+					jobID.toString(),
+					jobVertex.getJobVertexId().toString());
+				subtasks.add(new JobVertexDetailsInfo.VertexTaskDetail(
+					vertex.getParallelSubtaskIndex(),
+					status,
+					execution.getAttemptNumber(),
+					locationString,
+					startTime,
+					endTime,
+					duration,
+					new IOMetricsInfo(
+						counts.getNumBytesInLocal() + counts.getNumBytesInRemote(),
+						counts.isNumBytesInLocalComplete() && counts.isNumBytesInRemoteComplete(),
+						counts.getNumBytesOut(),
+						counts.isNumBytesOutComplete(),
+						counts.getNumRecordsIn(),
+						counts.isNumRecordsInComplete(),
+						counts.getNumRecordsOut(),
+						counts.isNumRecordsOutComplete())));
 			}
-			long endTime = status.isTerminal() ? vertex.getStateTimestamp(status) : -1;
-			long duration = startTime > 0 ? ((endTime > 0 ? endTime : now) - startTime) : -1;
-
-			MutableIOMetrics counts = new MutableIOMetrics();
-			counts.addIOMetrics(
-				vertex.getCurrentExecutionAttempt(),
-				metricFetcher,
-				jobID.toString(),
-				jobVertex.getJobVertexId().toString());
-			subtasks.add(new JobVertexDetailsInfo.VertexTaskDetail(
-				num,
-				status,
-				vertex.getCurrentExecutionAttempt().getAttemptNumber(),
-				locationString,
-				startTime,
-				endTime,
-				duration,
-				new IOMetricsInfo(
-					counts.getNumBytesInLocal() + counts.getNumBytesInRemote(),
-					counts.isNumBytesInLocalComplete() && counts.isNumBytesInRemoteComplete(),
-					counts.getNumBytesOut(),
-					counts.isNumBytesOutComplete(),
-					counts.getNumRecordsIn(),
-					counts.isNumRecordsInComplete(),
-					counts.getNumRecordsOut(),
-					counts.isNumRecordsOutComplete())));
-
-			num++;
 		}
 
 		return new JobVertexDetailsInfo(

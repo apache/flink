@@ -21,6 +21,7 @@ limitations under the License.
 <table ng-if="subtasks" class="table table-hover table-clickable table-activable table-inner">
   <thead>
     <tr>
+      <th>Subtask</th>
       <th>Start Time</th>
       <th>End Time</th>
       <th>Duration</th>
@@ -35,6 +36,7 @@ limitations under the License.
   </thead>
   <tbody>
     <tr ng-repeat="subtask in subtasks | orderBy:'host'">
+      <td>{{ subtask.subtask + 1 }}</td>
       <td><span ng-if="subtask['start-time'] &gt; -1">{{ subtask['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="subtask['end-time'] &gt; -1">{{ subtask['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="subtask.duration &gt; -1" title="{{subtask.duration | humanizeDuration:false}}">{{subtask.duration | humanizeDuration:true}}</span></td>
