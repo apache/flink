@@ -41,14 +41,11 @@ import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 /**
  * Tests for the interaction between the {@link ExecutionGraph} and the {@link CheckpointCoordinator}.
@@ -61,8 +58,11 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 	 */
 	@Test
 	public void testShutdownCheckpointCoordinatorOnFailure() throws Exception {
-		CheckpointIDCounter counter = mock(CheckpointIDCounter.class);
-		CompletedCheckpointStore store = mock(CompletedCheckpointStore.class);
+		final CompletableFuture<JobStatus> counterShutdownFuture = new CompletableFuture<>();
+		CheckpointIDCounter counter = new TestingCheckpointIDCounter(counterShutdownFuture);
+
+		final CompletableFuture<JobStatus> storeShutdownFuture = new CompletableFuture<>();
+		CompletedCheckpointStore store = new TestingCompletedCheckpointStore(storeShutdownFuture);
 
 		ExecutionGraph graph = createExecutionGraphAndEnableCheckpointing(counter, store);
 		final CheckpointCoordinator checkpointCoordinator = graph.getCheckpointCoordinator();
@@ -73,8 +73,8 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 		graph.failGlobal(new Exception("Test Exception"));
 
 		assertThat(checkpointCoordinator.isShutdown(), is(true));
-		verify(counter, times(1)).shutdown(JobStatus.FAILED);
-		verify(store, times(1)).shutdown(eq(JobStatus.FAILED));
+		assertThat(counterShutdownFuture.get(), is(JobStatus.FAILED));
+		assertThat(storeShutdownFuture.get(), is(JobStatus.FAILED));
 	}
 
 	/**
@@ -83,8 +83,11 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 	 */
 	@Test
 	public void testShutdownCheckpointCoordinatorOnSuspend() throws Exception {
-		CheckpointIDCounter counter = mock(CheckpointIDCounter.class);
-		CompletedCheckpointStore store = mock(CompletedCheckpointStore.class);
+		final CompletableFuture<JobStatus> counterShutdownFuture = new CompletableFuture<>();
+		CheckpointIDCounter counter = new TestingCheckpointIDCounter(counterShutdownFuture);
+
+		final CompletableFuture<JobStatus> storeShutdownFuture = new CompletableFuture<>();
+		CompletedCheckpointStore store = new TestingCompletedCheckpointStore(storeShutdownFuture);
 
 		ExecutionGraph graph = createExecutionGraphAndEnableCheckpointing(counter, store);
 		final CheckpointCoordinator checkpointCoordinator = graph.getCheckpointCoordinator();
@@ -95,8 +98,8 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 		graph.suspend(new Exception("Test Exception"));
 
 		assertThat(checkpointCoordinator.isShutdown(), is(true));
-		verify(counter, times(1)).shutdown(eq(JobStatus.SUSPENDED));
-		verify(store, times(1)).shutdown(eq(JobStatus.SUSPENDED));
+		assertThat(counterShutdownFuture.get(), is(JobStatus.SUSPENDED));
+		assertThat(storeShutdownFuture.get(), is(JobStatus.SUSPENDED));
 	}
 
 	/**
@@ -105,8 +108,11 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 	 */
 	@Test
 	public void testShutdownCheckpointCoordinatorOnFinished() throws Exception {
-		CheckpointIDCounter counter = mock(CheckpointIDCounter.class);
-		CompletedCheckpointStore store = mock(CompletedCheckpointStore.class);
+		final CompletableFuture<JobStatus> counterShutdownFuture = new CompletableFuture<>();
+		CheckpointIDCounter counter = new TestingCheckpointIDCounter(counterShutdownFuture);
+
+		final CompletableFuture<JobStatus> storeShutdownFuture = new CompletableFuture<>();
+		CompletedCheckpointStore store = new TestingCompletedCheckpointStore(storeShutdownFuture);
 
 		ExecutionGraph graph = createExecutionGraphAndEnableCheckpointing(counter, store);
 		final CheckpointCoordinator checkpointCoordinator = graph.getCheckpointCoordinator();
@@ -124,8 +130,8 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 		assertThat(graph.getTerminationFuture().get(), is(JobStatus.FINISHED));
 
 		assertThat(checkpointCoordinator.isShutdown(), is(true));
-		verify(counter, times(1)).shutdown(eq(JobStatus.FINISHED));
-		verify(store, times(1)).shutdown(eq(JobStatus.FINISHED));
+		assertThat(counterShutdownFuture.get(), is(JobStatus.FINISHED));
+		assertThat(storeShutdownFuture.get(), is(JobStatus.FINISHED));
 	}
 
 	private ExecutionGraph createExecutionGraphAndEnableCheckpointing(
@@ -165,5 +171,81 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 		executionGraph.setQueuedSchedulingAllowed(true);
 
 		return executionGraph;
+	}
+
+	private static final class TestingCheckpointIDCounter implements CheckpointIDCounter {
+
+		private final CompletableFuture<JobStatus> shutdownStatus;
+
+		private TestingCheckpointIDCounter(CompletableFuture<JobStatus> shutdownStatus) {
+			this.shutdownStatus = shutdownStatus;
+		}
+
+		@Override
+		public void start() {}
+
+		@Override
+		public void shutdown(JobStatus jobStatus) {
+			shutdownStatus.complete(jobStatus);
+		}
+
+		@Override
+		public long getAndIncrement() {
+			throw new UnsupportedOperationException("Not implemented.");
+		}
+
+		@Override
+		public void setCount(long newId) {
+			throw new UnsupportedOperationException("Not implemented.");
+		}
+	}
+
+	private static final class TestingCompletedCheckpointStore implements CompletedCheckpointStore {
+
+		private final CompletableFuture<JobStatus> shutdownStatus;
+
+		private TestingCompletedCheckpointStore(CompletableFuture<JobStatus> shutdownStatus) {
+			this.shutdownStatus = shutdownStatus;
+		}
+
+		@Override
+		public void recover() {
+			throw new UnsupportedOperationException("Not implemented.");
+		}
+
+		@Override
+		public void addCheckpoint(CompletedCheckpoint checkpoint) {
+			throw new UnsupportedOperationException("Not implemented.");
+		}
+
+		@Override
+		public CompletedCheckpoint getLatestCheckpoint() {
+			throw new UnsupportedOperationException("Not implemented.");
+		}
+
+		@Override
+		public void shutdown(JobStatus jobStatus) {
+			shutdownStatus.complete(jobStatus);
+		}
+
+		@Override
+		public List<CompletedCheckpoint> getAllCheckpoints() {
+			throw new UnsupportedOperationException("Not implemented.");
+		}
+
+		@Override
+		public int getNumberOfRetainedCheckpoints() {
+			throw new UnsupportedOperationException("Not implemented.");
+		}
+
+		@Override
+		public int getMaxNumberOfRetainedCheckpoints() {
+			throw new UnsupportedOperationException("Not implemented.");
+		}
+
+		@Override
+		public boolean requiresExternalizedCheckpoints() {
+			throw new UnsupportedOperationException("Not implemented.");
+		}
 	}
 }
