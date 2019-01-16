@@ -325,7 +325,7 @@ public class DispatcherTest extends TestLogger {
 
 		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
-		submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph, null));
+		submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph));
 		dispatcher.onAddedJobGraph(TEST_JOB_ID);
 
 		final CompletableFuture<Throwable> errorFuture = fatalErrorHandler.getErrorFuture();
@@ -343,7 +343,7 @@ public class DispatcherTest extends TestLogger {
 
 		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
-		submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph, null));
+		submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph));
 		runningJobsRegistry.setJobFinished(TEST_JOB_ID);
 		dispatcher.onAddedJobGraph(TEST_JOB_ID);
 
@@ -542,7 +542,7 @@ public class DispatcherTest extends TestLogger {
 
 		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch));
 
-		final SubmittedJobGraph submittedJobGraph = new SubmittedJobGraph(jobGraph, null);
+		final SubmittedJobGraph submittedJobGraph = new SubmittedJobGraph(jobGraph);
 		submittedJobGraphStore.putJobGraph(submittedJobGraph);
 
 		submittedJobGraphStore.setRecoverJobGraphFunction(
@@ -572,7 +572,7 @@ public class DispatcherTest extends TestLogger {
 
 		final JobGraph failingJobGraph = createFailingJobGraph(testException);
 
-		final SubmittedJobGraph submittedJobGraph = new SubmittedJobGraph(failingJobGraph, null);
+		final SubmittedJobGraph submittedJobGraph = new SubmittedJobGraph(failingJobGraph);
 		submittedJobGraphStore.putJobGraph(submittedJobGraph);
 
 		electDispatcher();

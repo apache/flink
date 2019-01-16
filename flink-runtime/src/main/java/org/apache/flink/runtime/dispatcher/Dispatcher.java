@@ -265,7 +265,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	private CompletableFuture<Void> persistAndRunJob(JobGraph jobGraph) throws Exception {
-		submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph, null));
+		submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph));
 
 		final CompletableFuture<Void> runJobFuture = runJob(jobGraph);
 

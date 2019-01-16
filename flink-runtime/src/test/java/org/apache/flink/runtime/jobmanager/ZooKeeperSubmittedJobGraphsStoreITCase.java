@@ -293,7 +293,7 @@ public class ZooKeeperSubmittedJobGraphsStoreITCase extends TestLogger {
 
 		jobGraph.addVertex(jobVertex);
 
-		return new SubmittedJobGraph(jobGraph, null);
+		return new SubmittedJobGraph(jobGraph);
 	}
 
 	private void verifyJobGraphs(SubmittedJobGraph expected, SubmittedJobGraph actual) {

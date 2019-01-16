@@ -115,7 +115,7 @@ public class DispatcherHATest extends TestLogger {
 	public void testGrantingRevokingLeadership() throws Exception {
 		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		final JobGraph nonEmptyJobGraph = createNonEmptyJobGraph();
-		final SubmittedJobGraph submittedJobGraph = new SubmittedJobGraph(nonEmptyJobGraph, null);
+		final SubmittedJobGraph submittedJobGraph = new SubmittedJobGraph(nonEmptyJobGraph);
 
 		final OneShotLatch enterGetJobIdsLatch = new OneShotLatch();
 		final OneShotLatch proceedGetJobIdsLatch = new OneShotLatch();
