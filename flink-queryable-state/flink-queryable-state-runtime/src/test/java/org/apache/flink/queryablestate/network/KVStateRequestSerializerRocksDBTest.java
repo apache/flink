@@ -32,7 +32,7 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -89,7 +89,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 				TtlTimeProvider.DEFAULT,
 				new UnregisteredMetricsGroup(),
 				Collections.emptyList(),
-				AbstractStateBackend.getCompressionDecorator(executionConfig),
+				AbstractKeyedStateBackend.determineStreamCompression(executionConfig),
 				new CloseableRegistry()
 			).build();
 		longHeapKeyedStateBackend.setCurrentKey(key);
@@ -133,7 +133,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 				TtlTimeProvider.DEFAULT,
 				new UnregisteredMetricsGroup(),
 				Collections.emptyList(),
-				AbstractStateBackend.getCompressionDecorator(executionConfig),
+				AbstractKeyedStateBackend.determineStreamCompression(executionConfig),
 				new CloseableRegistry()
 			).build();
 		longHeapKeyedStateBackend.setCurrentKey(key);

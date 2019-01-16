@@ -18,6 +18,11 @@
             <td>Option whether the state backend should use an asynchronous snapshot method where possible and configurable. Some state backends may not support asynchronous snapshots, or only support asynchronous snapshots, and ignore this option.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.compression-decorator</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Option of class name defines what compression algorithm used for checkpoints and savepoint. Specifically, RocksDBKeyedStateBackend would not use this option to compress data when executing incremental checkpoints as RocksDB has its own compressed format. This option has no default value and would be treated as no compression. This option could be configure as Flink built-in compression decorator as 'org.apache.flink.runtime.state.compression.LZ4StreamCompressionDecorator', or 'org.apache.flink.runtime.state.compression.SnappyStreamCompressionDecorator'. User could also define its own compression decorator and configure this option via class name.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.fs.memory-threshold</h5></td>
             <td style="word-wrap: break-word;">1024</td>
             <td>The minimum size of state data files. All state chunks smaller than that are stored inline in the root checkpoint metadata file.</td>

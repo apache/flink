@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.compression.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
@@ -483,7 +484,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 					new KeyedBackendSerializationProxy<>(
 						keySerializer,
 						stateMetaInfoSnapshots,
-						false);
+						UncompressedStreamCompressionDecorator.UncompressedDecoratorSnapshot.INSTANCE);
 
 				DataOutputView out =
 					new DataOutputViewStreamWrapper(streamWithResultProvider.getCheckpointOutputStream());

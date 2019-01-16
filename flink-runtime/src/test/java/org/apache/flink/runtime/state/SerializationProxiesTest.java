@@ -28,6 +28,10 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.state.compression.LZ4StreamCompressionDecorator;
+import org.apache.flink.runtime.state.compression.SnappyStreamCompressionDecorator;
+import org.apache.flink.runtime.state.compression.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.compression.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoReader;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters;
@@ -36,6 +40,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters.CURRENT_STATE_META_INFO_SNAPSHOT_VERSION;
@@ -58,26 +63,34 @@ public class SerializationProxiesTest {
 		stateMetaInfoList.add(new RegisteredKeyValueStateBackendMetaInfo<>(
 			StateDescriptor.Type.VALUE, "c", namespaceSerializer, stateSerializer).snapshot());
 
-		KeyedBackendSerializationProxy<?> serializationProxy =
-				new KeyedBackendSerializationProxy<>(keySerializer, stateMetaInfoList, true);
+		List<StreamCompressionDecorator> compressionDecorators = Arrays.asList(
+			LZ4StreamCompressionDecorator.INSTANCE,
+			SnappyStreamCompressionDecorator.INSTANCE,
+			UncompressedStreamCompressionDecorator.INSTANCE);
 
-		byte[] serialized;
-		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
-			serializationProxy.write(new DataOutputViewStreamWrapper(out));
-			serialized = out.toByteArray();
-		}
+		for (StreamCompressionDecorator compressionDecorator : compressionDecorators) {
+			KeyedBackendSerializationProxy<?> serializationProxy =
+				new KeyedBackendSerializationProxy<>(keySerializer, stateMetaInfoList, compressionDecorator.snapshotConfiguration());
 
-		serializationProxy =
+			byte[] serialized;
+			try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
+				serializationProxy.write(new DataOutputViewStreamWrapper(out));
+				serialized = out.toByteArray();
+			}
+
+			serializationProxy =
 				new KeyedBackendSerializationProxy<>(Thread.currentThread().getContextClassLoader());
 
-		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
-			serializationProxy.read(new DataInputViewStreamWrapper(in));
+			try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
+				serializationProxy.read(new DataInputViewStreamWrapper(in));
+			}
+
+			Assert.assertEquals(compressionDecorator.snapshotConfiguration(), serializationProxy.getCompressionDecoratorSnapshot());
+			Assert.assertTrue(serializationProxy.getKeySerializerSnapshot() instanceof IntSerializer.IntSerializerSnapshot);
+
+			assertEqualStateMetaInfoSnapshotsLists(stateMetaInfoList, serializationProxy.getStateMetaInfoSnapshots());
 		}
 
-		Assert.assertTrue(serializationProxy.isUsingKeyGroupCompression());
-		Assert.assertTrue(serializationProxy.getKeySerializerSnapshot() instanceof IntSerializer.IntSerializerSnapshot);
-
-		assertEqualStateMetaInfoSnapshotsLists(stateMetaInfoList, serializationProxy.getStateMetaInfoSnapshots());
 	}
 
 	@Test

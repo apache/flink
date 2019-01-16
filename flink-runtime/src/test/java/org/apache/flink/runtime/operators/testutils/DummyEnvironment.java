@@ -56,7 +56,7 @@ public class DummyEnvironment implements Environment {
 	private final JobID jobId = new JobID();
 	private final JobVertexID jobVertexId = new JobVertexID();
 	private final ExecutionAttemptID executionId = new ExecutionAttemptID();
-	private final ExecutionConfig executionConfig = new ExecutionConfig();
+	private final ExecutionConfig executionConfig;
 	private final TaskInfo taskInfo;
 	private KvStateRegistry kvStateRegistry = new KvStateRegistry();
 	private TaskStateManager taskStateManager;
@@ -78,9 +78,14 @@ public class DummyEnvironment implements Environment {
 	}
 
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex, int maxParallelism) {
+		this(taskName, numSubTasks, subTaskIndex, maxParallelism, new ExecutionConfig());
+	}
+
+	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex, int maxParallelism, ExecutionConfig executionConfig) {
 		this.taskInfo = new TaskInfo(taskName, maxParallelism, subTaskIndex, numSubTasks, 0);
 		this.taskStateManager = new TestTaskStateManager();
 		this.aggregateManager = new TestGlobalAggregateManager();
+		this.executionConfig = executionConfig;
 	}
 
 	public void setKvStateRegistry(KvStateRegistry kvStateRegistry) {

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.runtime.state.compression;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.util.NonClosingInputStreamDecorator;
@@ -70,4 +70,11 @@ public abstract class StreamCompressionDecorator implements Serializable {
 	 * @return an input stream that is decorated by the compression scheme.
 	 */
 	protected abstract InputStream decorateWithCompression(NonClosingInputStreamDecorator stream) throws IOException;
+
+	/**
+	 * Returns the configuration snapshot of this StreamCompressionDecorator.
+	 *
+	 * @return the configuration snapshot of this StreamCompressionDecorator.
+	 */
+	public abstract StreamCompressionDecoratorSnapshot snapshotConfiguration();
 }

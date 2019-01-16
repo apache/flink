@@ -43,9 +43,9 @@ public class StateMetaInfoSnapshotReadersWriters {
 
 	/**
 	 * Current version for the serialization format of {@link StateMetaInfoSnapshotReadersWriters}.
-	 * - v6: since Flink 1.7.x
+	 * - v7: since Flink 1.8.x
 	 */
-	public static final int CURRENT_STATE_META_INFO_SNAPSHOT_VERSION = 6;
+	public static final int CURRENT_STATE_META_INFO_SNAPSHOT_VERSION = 7;
 
 	/**
 	 * Enum for backwards compatibility. This gives a hint about the expected state type for which a
@@ -102,6 +102,7 @@ public class StateMetaInfoSnapshotReadersWriters {
 	static StateMetaInfoReader getReader(int readVersion) {
 		switch (readVersion) {
 			case CURRENT_STATE_META_INFO_SNAPSHOT_VERSION:
+			case 6:
 				return CurrentReaderImpl.INSTANCE;
 			case 5:
 				return V5ReaderImpl.INSTANCE;

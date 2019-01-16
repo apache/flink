@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.compression.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.Preconditions;
 
@@ -88,6 +89,11 @@ public class TestSpyWrapperStateBackend extends AbstractStateBackend {
 			CloseableRegistry cancelStreamRegistry) throws Exception {
 			return spy(delegate.createOperatorStateBackend(env, operatorIdentifier, stateHandles, cancelStreamRegistry));
 		}
+
+	@Override
+	public void setStreamCompressionDecorator(StreamCompressionDecorator streamCompressionDecorator) {
+		delegate.setStreamCompressionDecorator(streamCompressionDecorator);
+	}
 
 	@Override
 	public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) throws IOException {

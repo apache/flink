@@ -138,7 +138,7 @@ public class MockStateBackend extends AbstractStateBackend {
 			env.getExecutionConfig(),
 			ttlTimeProvider,
 			stateHandles,
-			AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
+			this.determineCompressionDecorator(env.getExecutionConfig()),
 			cancelStreamRegistry).build();
 	}
 

@@ -27,9 +27,12 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
+import org.apache.flink.runtime.state.compression.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.state.compression.SnappyStreamCompressionDecorator;
+import org.apache.flink.runtime.state.compression.UncompressedStreamCompressionDecorator;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -92,6 +95,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	/** The key context for this backend. */
 	protected final InternalKeyContext<K> keyContext;
 
+	@VisibleForTesting
 	public AbstractKeyedStateBackend(
 		TaskKvStateRegistry kvStateRegistry,
 		TypeSerializer<K> keySerializer,
@@ -138,7 +142,9 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		this.keySelectionListeners = new ArrayList<>(1);
 	}
 
-	private static StreamCompressionDecorator determineStreamCompression(ExecutionConfig executionConfig) {
+	@VisibleForTesting
+	@Deprecated
+	public static StreamCompressionDecorator determineStreamCompression(ExecutionConfig executionConfig) {
 		if (executionConfig != null && executionConfig.isUseSnapshotCompression()) {
 			return SnappyStreamCompressionDecorator.INSTANCE;
 		} else {

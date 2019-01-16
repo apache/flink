@@ -41,7 +41,8 @@ import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.compression.CompressionDecoratorUtils;
+import org.apache.flink.runtime.state.compression.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.AbstractID;
@@ -346,12 +347,18 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			PredefinedOptions.valueOf(config.getString(RocksDBOptions.PREDEFINED_OPTIONS)) : original.predefinedOptions;
 		LOG.info("Using predefined options: {}.", predefinedOptions.name());
 
-		// configure RocksDB options factory
 		try {
+			// configure RocksDB options factory
 			this.optionsFactory = configureOptionsFactory(
 				original.optionsFactory,
 				config.getString(RocksDBOptions.OPTIONS_FACTORY),
 				config,
+				classLoader);
+
+			// configure stream compression decorator
+			this.streamCompressionDecorator = CompressionDecoratorUtils.loadCompressionDecorator(
+				original.streamCompressionDecorator,
+				config.getString(CheckpointingOptions.COMPRESSION_DECORATOR),
 				classLoader);
 		} catch (DynamicCodeLoadingException e) {
 			throw new FlinkRuntimeException(e);
@@ -494,7 +501,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			env.getTaskStateManager().createLocalRecoveryConfig();
 
 		ExecutionConfig executionConfig = env.getExecutionConfig();
-		StreamCompressionDecorator keyGroupCompressionDecorator = getCompressionDecorator(executionConfig);
+		StreamCompressionDecorator keyGroupCompressionDecorator = determineCompressionDecorator(executionConfig);
 		RocksDBKeyedStateBackendBuilder<K> builder = new RocksDBKeyedStateBackendBuilder<>(
 			operatorIdentifier,
 			env.getUserClassLoader(),

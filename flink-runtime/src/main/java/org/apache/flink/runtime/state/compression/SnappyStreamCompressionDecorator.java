@@ -16,33 +16,53 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.runtime.state.compression;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.util.NonClosingInputStreamDecorator;
 import org.apache.flink.runtime.util.NonClosingOutpusStreamDecorator;
+
+import org.xerial.snappy.SnappyFramedInputStream;
+import org.xerial.snappy.SnappyFramedOutputStream;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * This implementation does not decorate the stream with any compression.
+ * This implementation decorates the stream with snappy compression.
  */
 @Internal
-public class UncompressedStreamCompressionDecorator extends StreamCompressionDecorator {
+public class SnappyStreamCompressionDecorator extends StreamCompressionDecorator {
 
-	public static final StreamCompressionDecorator INSTANCE = new UncompressedStreamCompressionDecorator();
+	public static final StreamCompressionDecorator INSTANCE = new SnappyStreamCompressionDecorator();
 
 	private static final long serialVersionUID = 1L;
 
+	private static final int COMPRESSION_BLOCK_SIZE = 64 * 1024;
+	private static final double MIN_COMPRESSION_RATIO = 0.85d;
+
 	@Override
 	protected OutputStream decorateWithCompression(NonClosingOutpusStreamDecorator stream) throws IOException {
-		return stream;
+		return new SnappyFramedOutputStream(stream, COMPRESSION_BLOCK_SIZE, MIN_COMPRESSION_RATIO);
 	}
 
 	@Override
 	protected InputStream decorateWithCompression(NonClosingInputStreamDecorator stream) throws IOException {
-		return stream;
+		return new SnappyFramedInputStream(stream, false);
+	}
+
+	@Override
+	public StreamCompressionDecoratorSnapshot snapshotConfiguration() {
+		return SnappyCompressionDecoratorSnapshot.INSTANCE;
+	}
+
+	public static class SnappyCompressionDecoratorSnapshot extends SimpleStreamCompressionDecoratorSnapshot {
+
+		public static final SnappyCompressionDecoratorSnapshot INSTANCE = new SnappyCompressionDecoratorSnapshot();
+
+		public SnappyCompressionDecoratorSnapshot() {
+			super(SnappyStreamCompressionDecorator.class);
+		}
 	}
 }

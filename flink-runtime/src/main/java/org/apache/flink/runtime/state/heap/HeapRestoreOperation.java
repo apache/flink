@@ -35,12 +35,10 @@ import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RestoreOperation;
-import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
-import org.apache.flink.runtime.state.StreamCompressionDecorator;
-import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
+import org.apache.flink.runtime.state.compression.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
@@ -156,7 +154,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 					keyGroupsStateHandle.getGroupRangeOffsets(),
 					kvStatesById, restoredMetaInfos.size(),
 					serializationProxy.getReadVersion(),
-					serializationProxy.isUsingKeyGroupCompression());
+					serializationProxy.getCompressionDecoratorSnapshot().getStreamCompressionDecorator());
 			} finally {
 				if (cancelStreamRegistry.unregisterCloseable(fsDataInputStream)) {
 					IOUtils.closeQuietly(fsDataInputStream);
@@ -230,10 +228,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
 		Map<Integer, StateMetaInfoSnapshot> kvStatesById,
 		int numStates,
 		int readVersion,
-		boolean isCompressed) throws IOException {
-
-		final StreamCompressionDecorator streamCompressionDecorator = isCompressed ?
-			SnappyStreamCompressionDecorator.INSTANCE : UncompressedStreamCompressionDecorator.INSTANCE;
+		StreamCompressionDecorator streamCompressionDecorator) throws IOException {
 
 		for (Tuple2<Integer, Long> groupOffset : keyGroupOffsets) {
 			int keyGroupIndex = groupOffset.f0;

@@ -34,6 +34,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.compression.LZ4StreamCompressionDecorator;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -261,8 +262,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 			env.getConfig().disableSysoutLogging();
+			stateBackend.setStreamCompressionDecorator(LZ4StreamCompressionDecorator.INSTANCE);
 			env.setStateBackend(this.stateBackend);
-			env.getConfig().setUseSnapshotCompression(true);
 
 			env
 					.addSource(new FailingSource(new KeyedEventTimeGenerator(numKeys, windowSize), numElementsPerKey))
@@ -337,8 +338,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 			env.getConfig().disableSysoutLogging();
+			stateBackend.setStreamCompressionDecorator(LZ4StreamCompressionDecorator.INSTANCE);
 			env.setStateBackend(this.stateBackend);
-			env.getConfig().setUseSnapshotCompression(true);
 
 			env
 					.addSource(new FailingSource(new KeyedEventTimeGenerator(numKeys, windowSize), numElementsPerKey))
@@ -406,8 +407,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 			env.getConfig().disableSysoutLogging();
+			stateBackend.setStreamCompressionDecorator(LZ4StreamCompressionDecorator.INSTANCE);
 			env.setStateBackend(this.stateBackend);
-			env.getConfig().setUseSnapshotCompression(true);
 
 			env
 					.addSource(new FailingSource(new KeyedEventTimeGenerator(numKeys, windowSlide), numElementsPerKey))
@@ -471,8 +472,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 			env.getConfig().disableSysoutLogging();
+			stateBackend.setStreamCompressionDecorator(LZ4StreamCompressionDecorator.INSTANCE);
 			env.setStateBackend(this.stateBackend);
-			env.getConfig().setUseSnapshotCompression(true);
 
 			env
 					.addSource(new FailingSource(new KeyedEventTimeGenerator(numKeys, windowSize), numElementsPerKey))
@@ -544,8 +545,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 			env.getConfig().disableSysoutLogging();
+			stateBackend.setStreamCompressionDecorator(LZ4StreamCompressionDecorator.INSTANCE);
 			env.setStateBackend(this.stateBackend);
-			env.getConfig().setUseSnapshotCompression(true);
 
 			env
 					.addSource(new FailingSource(new KeyedEventTimeGenerator(numKeys, windowSlide), numElementsPerKey))

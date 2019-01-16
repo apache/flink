@@ -30,7 +30,7 @@ import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
@@ -312,7 +312,7 @@ public class KvStateRequestSerializerTest {
 				executionConfig,
 				TtlTimeProvider.DEFAULT,
 				Collections.emptyList(),
-				AbstractStateBackend.getCompressionDecorator(executionConfig),
+				AbstractKeyedStateBackend.determineStreamCompression(executionConfig),
 				TestLocalRecoveryConfig.disabled(),
 				new HeapPriorityQueueSetFactory(keyGroupRange, keyGroupRange.getNumberOfKeyGroups(), 128),
 				async,

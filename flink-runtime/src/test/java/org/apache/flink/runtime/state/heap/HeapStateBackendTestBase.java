@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
@@ -68,7 +68,7 @@ public abstract class HeapStateBackendTestBase {
 			executionConfig,
 			TtlTimeProvider.DEFAULT,
 			stateHandles,
-			AbstractStateBackend.getCompressionDecorator(executionConfig),
+			AbstractKeyedStateBackend.determineStreamCompression(executionConfig),
 			TestLocalRecoveryConfig.disabled(),
 			new HeapPriorityQueueSetFactory(keyGroupRange, numKeyGroups, 128),
 			async,

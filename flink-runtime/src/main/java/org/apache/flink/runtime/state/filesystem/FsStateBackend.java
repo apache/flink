@@ -30,7 +30,6 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
@@ -42,8 +41,11 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
+import org.apache.flink.runtime.state.compression.CompressionDecoratorUtils;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.util.DynamicCodeLoadingException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TernaryBoolean;
 
 import org.slf4j.LoggerFactory;
@@ -365,6 +367,15 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 					CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.key(), sizeThreshold,
 					CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue());
 		}
+
+		try {
+			this.streamCompressionDecorator = CompressionDecoratorUtils.loadCompressionDecorator(
+				original.streamCompressionDecorator,
+				configuration.getString(CheckpointingOptions.COMPRESSION_DECORATOR),
+				classLoader);
+		} catch (DynamicCodeLoadingException e) {
+			throw new FlinkRuntimeException(e);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -482,7 +493,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 			env.getExecutionConfig(),
 			ttlTimeProvider,
 			stateHandles,
-			AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
+			this.determineCompressionDecorator(env.getExecutionConfig()),
 			localRecoveryConfig,
 			priorityQueueSetFactory,
 			isUsingAsynchronousSnapshots(),

@@ -33,10 +33,8 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.StateSerializerProvider;
-import org.apache.flink.runtime.state.StreamCompressionDecorator;
-import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
+import org.apache.flink.runtime.state.compression.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -169,8 +167,8 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 	private void restoreKVStateMetaData() throws IOException, StateMigrationException {
 		KeyedBackendSerializationProxy<K> serializationProxy = readMetaData(currentStateHandleInView);
 
-		this.keygroupStreamCompressionDecorator = serializationProxy.isUsingKeyGroupCompression() ?
-			SnappyStreamCompressionDecorator.INSTANCE : UncompressedStreamCompressionDecorator.INSTANCE;
+		this.keygroupStreamCompressionDecorator =
+			serializationProxy.getCompressionDecoratorSnapshot().getStreamCompressionDecorator();
 
 		List<StateMetaInfoSnapshot> restoredMetaInfos =
 			serializationProxy.getStateMetaInfoSnapshots();

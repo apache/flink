@@ -26,9 +26,14 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.compression.SnappyStreamCompressionDecorator;
+import org.apache.flink.runtime.state.compression.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.compression.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -43,12 +48,31 @@ public abstract class AbstractStateBackend implements StateBackend, java.io.Seri
 
 	private static final long serialVersionUID = 4620415814639230247L;
 
-	public static StreamCompressionDecorator getCompressionDecorator(ExecutionConfig executionConfig) {
-		if (executionConfig != null && executionConfig.isUseSnapshotCompression()) {
-			return SnappyStreamCompressionDecorator.INSTANCE;
-		} else {
-			return UncompressedStreamCompressionDecorator.INSTANCE;
+	protected StreamCompressionDecorator streamCompressionDecorator;
+
+	/**
+	 * Sets the stream compression decorator which would used in checkpoint and savepoint for state backend.
+	 *
+	 * @param streamCompressionDecorator The given streamCompressionDecorator.
+	 */
+	public void setStreamCompressionDecorator(StreamCompressionDecorator streamCompressionDecorator) {
+		this.streamCompressionDecorator = Preconditions.checkNotNull(streamCompressionDecorator,
+			"The configured streamCompressionDecorator should not be null.");
+	}
+
+	public StreamCompressionDecorator determineCompressionDecorator(
+		@Nullable ExecutionConfig executionConfig) {
+
+		if (streamCompressionDecorator != null) {
+			return streamCompressionDecorator;
 		}
+
+		if (executionConfig != null && executionConfig.isUseSnapshotCompression()) {
+			this.streamCompressionDecorator = SnappyStreamCompressionDecorator.INSTANCE;
+		} else {
+			this.streamCompressionDecorator = UncompressedStreamCompressionDecorator.INSTANCE;
+		}
+		return streamCompressionDecorator;
 	}
 
 	// ------------------------------------------------------------------------

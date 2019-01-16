@@ -67,6 +67,10 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateRegistryListener;
+import org.apache.flink.runtime.state.compression.LZ4StreamCompressionDecorator;
+import org.apache.flink.runtime.state.compression.SnappyStreamCompressionDecorator;
+import org.apache.flink.runtime.state.compression.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.compression.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.AbstractHeapState;
 import org.apache.flink.runtime.state.heap.NestedMapsStateTable;
 import org.apache.flink.runtime.state.heap.StateTable;
@@ -3874,6 +3878,43 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		} finally {
 			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testSetCompressionDecorator() throws Exception {
+		B stateBackend = getStateBackend();
+
+		List<StreamCompressionDecorator> streamCompressionDecorators = asList(LZ4StreamCompressionDecorator.INSTANCE,
+			SnappyStreamCompressionDecorator.INSTANCE,
+			UncompressedStreamCompressionDecorator.INSTANCE);
+
+		for (StreamCompressionDecorator streamCompressionDecorator : streamCompressionDecorators) {
+			stateBackend.setStreamCompressionDecorator(streamCompressionDecorator);
+
+			AbstractKeyedStateBackend<Integer> keyedStateBackend = null;
+			DummyEnvironment env = new DummyEnvironment();
+			try {
+				keyedStateBackend = stateBackend.createKeyedStateBackend(
+					env,
+					new JobID(),
+					"test_op",
+					IntSerializer.INSTANCE,
+					10,
+					KeyGroupRange.of(0, 9),
+					env.getTaskKvStateRegistry(),
+					TtlTimeProvider.DEFAULT,
+					new UnregisteredMetricsGroup(),
+					Collections.emptyList(),
+					new CloseableRegistry());
+
+				assertEquals(streamCompressionDecorator, keyedStateBackend.getKeyGroupCompressionDecorator());
+			} finally {
+				if (null != keyedStateBackend) {
+					IOUtils.closeQuietly(keyedStateBackend);
+					keyedStateBackend.dispose();
+				}
+			}
 		}
 	}
 

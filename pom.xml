@@ -312,6 +312,12 @@ under the License.
 			</dependency>
 
 			<dependency>
+				<groupId>org.lz4</groupId>
+				<artifactId>lz4-java</artifactId>
+				<version>1.5.0</version>
+			</dependency>
+
+			<dependency>
 				<groupId>com.github.oshi</groupId>
 				<artifactId>oshi-core</artifactId>
 				<version>3.4.0</version>

@@ -27,6 +27,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.state.compression.SnappyStreamCompressionDecorator;
+import org.apache.flink.runtime.state.compression.StreamCompressionDecoratorSnapshot;
+import org.apache.flink.runtime.state.compression.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoReader;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters;
@@ -46,7 +49,7 @@ import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReade
  */
 public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritable {
 
-	public static final int VERSION = 6;
+	public static final int VERSION = 7;
 
 	private static final Map<Integer, Integer> META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER = new HashMap<>();
 	static {
@@ -55,12 +58,12 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(3, 3);
 		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(4, 4);
 		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(5, 5);
-		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(6, CURRENT_STATE_META_INFO_SNAPSHOT_VERSION);
+		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(6, 6);
+		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(7, CURRENT_STATE_META_INFO_SNAPSHOT_VERSION);
 	}
 
-	//TODO allow for more (user defined) compression formats + backwards compatibility story.
 	/** This specifies if we use a compressed format write the key-groups */
-	private boolean usingKeyGroupCompression;
+	private StreamCompressionDecoratorSnapshot compressionDecoratorSnapshot;
 
 	// TODO the keySerializer field should be removed, once all serializers have the restoreSerializer() method implemented
 	private TypeSerializer<K> keySerializer;
@@ -77,9 +80,9 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 	public KeyedBackendSerializationProxy(
 			TypeSerializer<K> keySerializer,
 			List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-			boolean compression) {
+			StreamCompressionDecoratorSnapshot decoratorSnapshot) {
 
-		this.usingKeyGroupCompression = compression;
+		this.compressionDecoratorSnapshot = Preconditions.checkNotNull(decoratorSnapshot);
 
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.keySerializerSnapshot = Preconditions.checkNotNull(keySerializer.snapshotConfiguration());
@@ -97,8 +100,8 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 		return keySerializerSnapshot;
 	}
 
-	public boolean isUsingKeyGroupCompression() {
-		return usingKeyGroupCompression;
+	public StreamCompressionDecoratorSnapshot getCompressionDecoratorSnapshot() {
+		return compressionDecoratorSnapshot;
 	}
 
 	@Override
@@ -108,7 +111,7 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
 	@Override
 	public int[] getCompatibleVersions() {
-		return new int[]{VERSION, 5, 4, 3, 2, 1};
+		return new int[]{VERSION, 6, 5, 4, 3, 2, 1};
 	}
 
 	@Override
@@ -116,7 +119,7 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 		super.write(out);
 
 		// write the compression format used to write each key-group
-		out.writeBoolean(usingKeyGroupCompression);
+		StreamCompressionDecoratorSnapshot.writeVersionedSnapshot(out, compressionDecoratorSnapshot);
 
 		TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(out, keySerializerSnapshot, keySerializer);
 
@@ -134,10 +137,15 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
 		final int readVersion = getReadVersion();
 
-		if (readVersion >= 4) {
-			usingKeyGroupCompression = in.readBoolean();
+		// only starting from version 7, we have different compression decorator snapshot written.
+		if (readVersion == 7) {
+			compressionDecoratorSnapshot = StreamCompressionDecoratorSnapshot.readVersionedSnapshot(in, userCodeClassLoader);
+		} else if (readVersion >= 4) {
+			boolean useSnapshotCompression = in.readBoolean();
+			compressionDecoratorSnapshot = useSnapshotCompression ?
+				SnappyStreamCompressionDecorator.INSTANCE.snapshotConfiguration() : UncompressedStreamCompressionDecorator.INSTANCE.snapshotConfiguration();
 		} else {
-			usingKeyGroupCompression = false;
+			compressionDecoratorSnapshot = UncompressedStreamCompressionDecorator.INSTANCE.snapshotConfiguration();
 		}
 
 		// only starting from version 3, we have the key serializer and its config snapshot written

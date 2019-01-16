@@ -923,10 +923,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		this.autoTypeRegistrationEnabled = false;
 	}
 
+	@Deprecated
 	public boolean isUseSnapshotCompression() {
 		return useSnapshotCompression;
 	}
 
+	/**
+	 * @deprecated Use {@code AbstractStateBackend.setStreamCompressionDecorator(StreamCompressionDecorator)}.
+	 */
+	@Deprecated
 	public void setUseSnapshotCompression(boolean useSnapshotCompression) {
 		this.useSnapshotCompression = useSnapshotCompression;
 	}
