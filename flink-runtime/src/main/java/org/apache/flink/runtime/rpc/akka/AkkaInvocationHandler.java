@@ -27,6 +27,7 @@ import org.apache.flink.runtime.rpc.RpcServer;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.StartStoppable;
 import org.apache.flink.runtime.rpc.akka.messages.Processing;
+import org.apache.flink.runtime.rpc.exceptions.RpcException;
 import org.apache.flink.runtime.rpc.messages.CallAsync;
 import org.apache.flink.runtime.rpc.messages.LocalRpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RemoteRpcInvocation;
@@ -205,35 +206,28 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 			tell(rpcInvocation);
 
 			result = null;
-		} else if (Objects.equals(returnType, CompletableFuture.class)) {
+		} else {
 			// execute an asynchronous call
 			CompletableFuture resultFuture = ask(rpcInvocation, futureTimeout);
 
-			result = resultFuture.thenApply((Object o) -> {
+			CompletableFuture completableFuture = resultFuture.thenApply((Object o) -> {
 				if (o instanceof SerializedValue) {
 					try {
 						return  ((SerializedValue) o).deserializeValue(getClass().getClassLoader());
 					} catch (IOException | ClassNotFoundException e) {
-						throw new CompletionException(e);
+						throw new CompletionException(
+							new RpcException("Could not deserialize the serialized payload of RPC method : "
+								+ methodName, e));
 					}
 				} else {
 					return o;
 				}
 			});
-		} else {
-			// execute a synchronous call
-			CompletableFuture<?> resultFuture = ask(rpcInvocation, futureTimeout);
 
-			Object returnedResult = resultFuture.get(futureTimeout.getSize(), futureTimeout.getUnit());
-
-			if (returnedResult instanceof SerializedValue) {
-				try {
-					result = ((SerializedValue) returnedResult).deserializeValue(getClass().getClassLoader());
-				} catch (IOException | ClassNotFoundException e) {
-					throw new CompletionException(e);
-				}
+			if (!Objects.equals(returnType, CompletableFuture.class)) {
+				result = completableFuture.get(futureTimeout.getSize(), futureTimeout.getUnit());
 			} else {
-				result = returnedResult;
+				result = completableFuture;
 			}
 		}
 

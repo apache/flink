@@ -22,6 +22,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import scala.concurrent.duration.FiniteDuration;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Configuration object for {@link AkkaRpcService}.
  */
@@ -29,10 +32,14 @@ public class AkkaRpcServiceConfiguration {
 
 	private final Time timeout;
 	private final long maximumFramesize;
+	private final Configuration configuration;
 
-	public AkkaRpcServiceConfiguration(Time timeout, long maximumFramesize) {
+	public AkkaRpcServiceConfiguration(Time timeout, long maximumFramesize, Configuration configuration) {
+		checkNotNull(timeout);
+		checkArgument(maximumFramesize > 0, "Maximum framesize must be positive.");
 		this.timeout = timeout;
 		this.maximumFramesize = maximumFramesize;
+		this.configuration = configuration;
 	}
 
 	public Time getTimeout() {
@@ -43,13 +50,17 @@ public class AkkaRpcServiceConfiguration {
 		return maximumFramesize;
 	}
 
+	public Configuration getConfiguration() {
+		return configuration;
+	}
+
 	public static AkkaRpcServiceConfiguration fromConfiguration(Configuration configuration) {
 		FiniteDuration duration = AkkaUtils.getTimeout(configuration);
 		Time timeout = Time.of(duration.length(), duration.unit());
 
 		long maximumFramesize = AkkaRpcServiceUtils.extractMaximumFramesize(configuration);
 
-		return new AkkaRpcServiceConfiguration(timeout, maximumFramesize);
+		return new AkkaRpcServiceConfiguration(timeout, maximumFramesize, configuration);
 	}
 
 	public static AkkaRpcServiceConfiguration defaultConfiguration() {

@@ -92,7 +92,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 
 	private State state;
 
-	public AkkaRpcActor(
+	AkkaRpcActor(
 			final T rpcEndpoint,
 			final CompletableFuture<Boolean> terminationFuture,
 			final int version,

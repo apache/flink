@@ -265,7 +265,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 				AkkaRpcServiceConfiguration akkaRpcServiceConfig = AkkaRpcServiceConfiguration.fromConfiguration(configuration);
 				// we always need the 'commonRpcService' for auxiliary calls
-				commonRpcService = createRpcService(configuration, akkaRpcServiceConfig, false, null);
+				commonRpcService = createRpcService(akkaRpcServiceConfig, false, null);
 
 				// TODO: Temporary hack until the metric query service is ported to the RpcEndpoint
 				metricQueryServiceActorSystem = MetricUtils.startMetricsActorSystem(
@@ -292,12 +292,11 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					final String taskManagerBindAddress = miniClusterConfiguration.getTaskManagerBindAddress();
 					final String resourceManagerBindAddress = miniClusterConfiguration.getResourceManagerBindAddress();
 
-					jobManagerRpcService = createRpcService(configuration, akkaRpcServiceConfig, true, jobManagerBindAddress);
-					resourceManagerRpcService = createRpcService(configuration, akkaRpcServiceConfig, true, resourceManagerBindAddress);
+					jobManagerRpcService = createRpcService(akkaRpcServiceConfig, true, jobManagerBindAddress);
+					resourceManagerRpcService = createRpcService(akkaRpcServiceConfig, true, resourceManagerBindAddress);
 
 					for (int i = 0; i < numTaskManagers; i++) {
-						taskManagerRpcServices[i] = createRpcService(
-								configuration, akkaRpcServiceConfig, true, taskManagerBindAddress);
+						taskManagerRpcServices[i] = createRpcService(akkaRpcServiceConfig, true, taskManagerBindAddress);
 					}
 
 					this.jobManagerRpcService = jobManagerRpcService;
@@ -744,8 +743,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	/**
 	 * Factory method to instantiate the RPC service.
 	 *
-	 * @param configuration
-	 *            The configuration of the mini cluster
 	 * @param akkaRpcServiceConfig
 	 *            The default RPC timeout for asynchronous "ask" requests.
 	 * @param remoteEnabled
@@ -756,7 +753,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	 * @return The instantiated RPC service
 	 */
 	protected RpcService createRpcService(
-			Configuration configuration,
 			AkkaRpcServiceConfiguration akkaRpcServiceConfig,
 			boolean remoteEnabled,
 			String bindAddress) {
@@ -764,9 +760,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		final Config akkaConfig;
 
 		if (remoteEnabled) {
-			akkaConfig = AkkaUtils.getAkkaConfig(configuration, bindAddress, 0);
+			akkaConfig = AkkaUtils.getAkkaConfig(akkaRpcServiceConfig.getConfiguration(), bindAddress, 0);
 		} else {
-			akkaConfig = AkkaUtils.getAkkaConfig(configuration);
+			akkaConfig = AkkaUtils.getAkkaConfig(akkaRpcServiceConfig.getConfiguration());
 		}
 
 		final Config effectiveAkkaConfig = AkkaUtils.testDispatcherConfig().withFallback(akkaConfig);

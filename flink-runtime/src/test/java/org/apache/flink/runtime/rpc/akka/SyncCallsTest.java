@@ -15,21 +15,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc;
+package org.apache.flink.runtime.rpc.akka;
 
 import akka.actor.ActorSystem;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
+import org.apache.flink.runtime.rpc.RpcEndpoint;
+import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -38,6 +41,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * RPC sync invoke test.
@@ -117,7 +122,49 @@ public class SyncCallsTest extends TestLogger {
 				rpcEndpoint.shutDown();
 			}
 		}
+	}
 
+	@Test
+	public void testSimpleRemoteSyncCallWithOversizedMsg() throws Exception {
+		Configuration configuration = new Configuration();
+		configuration.setString(AkkaOptions.FRAMESIZE, "10 b");
+		OversizedMsgRpcEndpoint rpcEndpoint = null;
+
+		ActorSystem actorSystem1 = AkkaUtils.createDefaultActorSystem();
+		ActorSystem actorSystem2 = AkkaUtils.createDefaultActorSystem();
+		AkkaRpcServiceConfiguration akkaRpcServiceConfig = AkkaRpcServiceConfiguration.fromConfiguration(configuration);
+		AkkaRpcService rpcService1 = new AkkaRpcService(actorSystem1, akkaRpcServiceConfig);;
+		AkkaRpcService rpcService2 = new AkkaRpcService(actorSystem2, akkaRpcServiceConfig);;
+
+		try {
+			rpcEndpoint = new OversizedMsgRpcEndpoint(rpcService1, "hello world");
+
+			rpcEndpoint.start();
+
+			CompletableFuture<OversizedMsgRpcGateway> future = rpcService2.connect(
+				rpcEndpoint.getAddress(), OversizedMsgRpcGateway.class);
+			OversizedMsgRpcGateway rpcGateway = future.get(10000, TimeUnit.SECONDS);
+
+			String result = rpcGateway.response();
+
+			fail("Expected an AkkaRpcException.");
+		} catch (Exception e) {
+			assertTrue(e.getCause() instanceof IOException);
+		} finally {
+			if (rpcEndpoint != null) {
+				rpcEndpoint.shutDown();
+			}
+
+			final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(4);
+			terminationFutures.add(rpcService1.stopService());
+			terminationFutures.add(FutureUtils.toJava(actorSystem1.terminate()));
+			terminationFutures.add(rpcService2.stopService());
+			terminationFutures.add(FutureUtils.toJava(actorSystem2.terminate()));
+
+			FutureUtils
+				.waitForAll(terminationFutures)
+				.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+		}
 	}
 
 	/**
@@ -144,6 +191,36 @@ public class SyncCallsTest extends TestLogger {
 		@Override
 		public CompletableFuture<Void> postStop() {
 			return CompletableFuture.completedFuture(null);
+		}
+	}
+
+	/**
+	 * Oversized message rpc gateway.
+	 */
+	private interface OversizedMsgRpcGateway extends RpcGateway {
+		String response();
+	}
+
+	/**
+	 * Oversized message rpc endpoint.
+	 */
+	private static class OversizedMsgRpcEndpoint extends RpcEndpoint implements OversizedMsgRpcGateway {
+
+		private String txt;
+
+		public OversizedMsgRpcEndpoint(RpcService rpcService, String txt) {
+			super(rpcService);
+			this.txt = txt;
+		}
+
+		@Override
+		public CompletableFuture<Void> postStop() {
+			return CompletableFuture.completedFuture(null);
+		}
+
+		@Override
+		public String response() {
+			return this.txt;
 		}
 	}
 
