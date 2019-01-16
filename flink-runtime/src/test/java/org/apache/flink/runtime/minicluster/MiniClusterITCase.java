@@ -66,37 +66,43 @@ public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void runJobWithSingleRpcService() throws Exception {
+		final int[] numOfTMs = { 1, 3 };
 		final int parallelism = 23;
 
-		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(parallelism)
-			.setRpcServiceSharing(RpcServiceSharing.SHARED)
-			.setConfiguration(getDefaultConfiguration())
-			.build();
+		for (int n : numOfTMs) {
+			final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
+				.setNumTaskManagers(n)
+				.setNumSlotsPerTaskManager(parallelism)
+				.setRpcServiceSharing(RpcServiceSharing.SHARED)
+				.setConfiguration(getDefaultConfiguration())
+				.build();
 
-		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
-			miniCluster.start();
+			try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
+				miniCluster.start();
 
-			miniCluster.executeJobBlocking(getSimpleJob(parallelism));
+				miniCluster.executeJobBlocking(getSimpleJob(n * parallelism));
+			}
 		}
 	}
 
 	@Test
 	public void runJobWithMultipleRpcServices() throws Exception {
+		final int[] numOfTMs = { 1, 3 };
 		final int parallelism = 23;
 
-		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(parallelism)
-			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
-			.setConfiguration(getDefaultConfiguration())
-			.build();
+		for (int n : numOfTMs) {
+			final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
+				.setNumTaskManagers(n)
+				.setNumSlotsPerTaskManager(parallelism)
+				.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
+				.setConfiguration(getDefaultConfiguration())
+				.build();
 
-		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
-			miniCluster.start();
+			try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
+				miniCluster.start();
 
-			miniCluster.executeJobBlocking(getSimpleJob(parallelism));
+				miniCluster.executeJobBlocking(getSimpleJob(n * parallelism));
+			}
 		}
 	}
 
