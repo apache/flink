@@ -34,7 +34,7 @@ public class SubmittedJobGraph implements Serializable {
 
 	private static final long serialVersionUID = 2836099271734771825L;
 
-	/** The submitted {@link JobGraph} */
+	/** The submitted {@link JobGraph}. */
 	private final JobGraph jobGraph;
 
 	/** The {@link JobInfo}. */
