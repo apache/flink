@@ -1335,7 +1335,7 @@ object AggregateUtil {
     *
     * @param aggregateCalls calcite's aggregate function
     * @param aggregateInputType input type of given aggregates
-    * @param inputFieldsCount number of input fields,
+    * @param inputFieldsCount number of input fields
     * @param needRetraction if the [[TableAggregateFunction]] should produce retractions
     * @param tableConfig tableConfig, required for decimal precision
     * @param isStateBackedDataViews if data should be backed by state backend

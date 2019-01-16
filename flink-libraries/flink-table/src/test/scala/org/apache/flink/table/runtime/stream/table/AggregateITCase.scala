@@ -88,15 +88,30 @@ class AggregateITCase extends StreamingWithStateTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
 
-    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
-      .groupBy('e)
-      .select('e, 'a.count.distinct, 'a.sum.distinct)
+    val data = new mutable.MutableList[(Int, Int, String)]
+    data.+=((1, 1, "A"))
+    data.+=((2, 2, "B"))
+    data.+=((2, 2, "B"))
+    data.+=((4, 3, "C"))
+    data.+=((5, 3, "C"))
+    data.+=((4, 3, "C"))
+    data.+=((7, 3, "B"))
+    data.+=((1, 4, "A"))
+    data.+=((9, 4, "D"))
+    data.+=((4, 1, "A"))
+    data.+=((3, 2, "B"))
+
+    val testAgg = new WeightedAvg
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+      .groupBy('c)
+      .select('c, 'a.count.distinct, 'a.sum.distinct,
+              testAgg.distinct('a, 'b), testAgg.distinct('b, 'a), testAgg('a, 'b))
 
     val results = t.toRetractStream[Row](queryConfig)
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
-    val expected = mutable.MutableList("1,4,12", "2,4,14", "3,2,8")
+    val expected = mutable.MutableList("A,2,5,1,1,1", "B,3,12,4,2,3", "C,2,9,4,3,4", "D,1,9,9,4,9")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
@@ -116,39 +131,6 @@ class AggregateITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = mutable.MutableList("1,4,5", "2,4,7", "3,2,3")
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
-  }
-
-  @Test
-  def testDistinctAGGWithDifferentArgumentOrder(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStateBackend(getStateBackend)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
-
-    val data = new mutable.MutableList[(Int, Int, String)]
-    data.+=((1, 1, "A"))
-    data.+=((2, 2, "B"))
-    data.+=((2, 2, "B"))
-    data.+=((4, 3, "C"))
-    data.+=((5, 3, "C"))
-    data.+=((4, 3, "C"))
-    data.+=((7, 3, "B"))
-    data.+=((1, 4, "A"))
-    data.+=((9, 4, "D"))
-    data.+=((4, 1, "A"))
-    data.+=((3, 2, "B"))
-
-    val testAgg = new WeightedAvg
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
-      .groupBy('c)
-      .select('c, testAgg.distinct('a, 'b), testAgg.distinct('b, 'a), testAgg('a, 'b))
-
-    val results = t.toRetractStream[Row](queryConfig)
-    results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
-    env.execute()
-
-    val expected = mutable.MutableList("A,1,1,1", "B,4,2,3", "C,4,3,4", "D,9,4,9")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 

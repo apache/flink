@@ -651,7 +651,7 @@ class MatchCodeGenerator(
 
   class AggBuilder(variable: String) {
 
-    private val  aggregates = new mutable.ListBuffer[RexCall]()
+    private val aggregates = new mutable.ListBuffer[RexCall]()
 
     private val variableUID = newName("variable")
 
