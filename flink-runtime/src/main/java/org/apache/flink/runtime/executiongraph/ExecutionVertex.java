@@ -691,9 +691,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			throw new IllegalStateException("Unknown partition " + partitionId + ".");
 		}
 
+		partition.markDataProduced();
+
 		if (partition.getIntermediateResult().getResultType().isPipelined()) {
 			// Schedule or update receivers of this partition
-			partition.markDataProduced();
 			execution.scheduleOrUpdateConsumers(partition.getConsumers());
 		}
 		else {
@@ -739,7 +740,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 *
 	 * @return whether the input constraint is satisfied
 	 */
-	public boolean checkInputDependencyConstraints() {
+	boolean checkInputDependencyConstraints() {
 		if (getInputDependencyConstraint() == InputDependencyConstraint.ANY) {
 			// InputDependencyConstraint == ANY
 			return IntStream.range(0, inputEdges.length).anyMatch(this::isInputConsumable);
@@ -757,7 +758,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 *
 	 * @return whether the input is consumable
 	 */
-	public boolean isInputConsumable(int inputNumber) {
+	boolean isInputConsumable(int inputNumber) {
 		return Arrays.stream(inputEdges[inputNumber]).map(ExecutionEdge::getSource).anyMatch(
 				IntermediateResultPartition::isConsumable);
 	}
