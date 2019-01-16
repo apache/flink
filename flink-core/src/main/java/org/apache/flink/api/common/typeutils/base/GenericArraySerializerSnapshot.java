@@ -52,6 +52,15 @@ public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerial
 		this.componentClass = genericArraySerializer.getComponentClass();
 	}
 
+	/**
+	 * Constructor that the legacy {@link GenericArraySerializerConfigSnapshot} uses
+	 * to delegate compatibility checks to this class.
+	 */
+	GenericArraySerializerSnapshot(Class<C> componentClass) {
+		super(GenericArraySerializer.class);
+		this.componentClass = componentClass;
+	}
+
 	@Override
 	protected int getCurrentOuterSnapshotVersion() {
 		return CURRENT_VERSION;

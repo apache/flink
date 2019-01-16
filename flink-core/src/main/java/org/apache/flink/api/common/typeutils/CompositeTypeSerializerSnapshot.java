@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
@@ -147,6 +148,13 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 
 	@Override
 	public final TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
+		return internalResolveSchemaCompatibility(newSerializer, nestedSerializersSnapshotDelegate.getNestedSerializerSnapshots());
+	}
+
+	@Internal
+	TypeSerializerSchemaCompatibility<T> internalResolveSchemaCompatibility(
+			TypeSerializer<T> newSerializer,
+			TypeSerializerSnapshot<?>[] snapshots) {
 		if (newSerializer.getClass() != correspondingSerializerClass) {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
@@ -158,10 +166,9 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 
-		// since outer configuration is compatible, the final compatibility result depends only on the nested serializers
 		return constructFinalSchemaCompatibilityResult(
 			getNestedSerializers(castedNewSerializer),
-			nestedSerializersSnapshotDelegate.getNestedSerializerSnapshots());
+			snapshots);
 	}
 
 	@Override
