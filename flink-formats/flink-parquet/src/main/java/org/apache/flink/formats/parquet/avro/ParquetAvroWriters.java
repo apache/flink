@@ -45,8 +45,8 @@ public class ParquetAvroWriters {
 	 * @param type The class of the type to write.
 	 */
 	public static <T extends SpecificRecordBase> ParquetWriterFactory<T> forSpecificRecord(Class<T> type) {
-		final String schemaString = SpecificData.get().getSchema(type).toString();
-		final ParquetBuilder<T> builder = (out) -> createAvroParquetWriter(schemaString, SpecificData.get(), out);
+		final Schema schema = SpecificData.get().getSchema(type);
+		final ParquetBuilder<T> builder = (out) -> createAvroParquetWriter(schema, SpecificData.get(), out);
 		return new ParquetWriterFactory<>(builder);
 	}
 
@@ -57,8 +57,7 @@ public class ParquetAvroWriters {
 	 * @param schema The schema of the generic type.
 	 */
 	public static ParquetWriterFactory<GenericRecord> forGenericRecord(Schema schema) {
-		final String schemaString = schema.toString();
-		final ParquetBuilder<GenericRecord> builder = (out) -> createAvroParquetWriter(schemaString, GenericData.get(), out);
+		final ParquetBuilder<GenericRecord> builder = (out) -> createAvroParquetWriter(schema, GenericData.get(), out);
 		return new ParquetWriterFactory<>(builder);
 	}
 
@@ -69,17 +68,15 @@ public class ParquetAvroWriters {
 	 * @param type The class of the type to write.
 	 */
 	public static <T> ParquetWriterFactory<T> forReflectRecord(Class<T> type) {
-		final String schemaString = ReflectData.get().getSchema(type).toString();
-		final ParquetBuilder<T> builder = (out) -> createAvroParquetWriter(schemaString, ReflectData.get(), out);
+		final Schema schema = ReflectData.get().getSchema(type);
+		final ParquetBuilder<T> builder = (out) -> createAvroParquetWriter(schema, ReflectData.get(), out);
 		return new ParquetWriterFactory<>(builder);
 	}
 
 	private static <T> ParquetWriter<T> createAvroParquetWriter(
-			String schemaString,
+			Schema schema,
 			GenericData dataModel,
 			OutputFile out) throws IOException {
-
-		final Schema schema = new Schema.Parser().parse(schemaString);
 
 		return AvroParquetWriter.<T>builder(out)
 				.withSchema(schema)
