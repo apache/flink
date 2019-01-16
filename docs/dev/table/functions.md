@@ -3582,6 +3582,7 @@ NUMERIC.quarters
       </td>
       <td>
         <p>Creates an interval of months for <i>NUMERIC</i> quarters.</p>
+        <p>E.g., <code>2.quarters</code> returns 6.</p>
       </td>
     </tr>
     <tr>
@@ -3605,6 +3606,7 @@ NUMERIC.weeks
       </td>
       <td>
         <p>Creates an interval of milliseconds for <i>NUMERIC</i> weeks.</p>
+        <p>E.g., <code>2.weeks</code> returns 1209600000.</p>
       </td>
     </tr>
     
@@ -3862,6 +3864,7 @@ NUMERIC.quarters
       </td>
       <td>
         <p>Creates an interval of months for <i>NUMERIC</i> quarters.</p>
+        <p>E.g., <code>2.quarters</code> returns 6.</p>
       </td>
     </tr>
 
@@ -3886,6 +3889,7 @@ NUMERIC.weeks
       </td>
       <td>
         <p>Creates an interval of milliseconds for <i>NUMERIC</i> weeks.</p>
+        <p>E.g., <code>2.weeks</code> returns 1209600000.</p>
       </td>
     </tr>
     
