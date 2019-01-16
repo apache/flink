@@ -71,9 +71,7 @@ wiki-edits/
         ├── java
         │   └── wikiedits
         │       ├── BatchJob.java
-        │       ├── SocketTextStreamWordCount.java
-        │       ├── StreamingJob.java
-        │       └── WordCount.java
+        │       └── StreamingJob.java
         └── resources
             └── log4j.properties
 {% endhighlight %}
@@ -355,7 +353,7 @@ We also have to create the Kafka Topic, so that our program can write to it:
 
 {% highlight bash %}
 $ cd my/kafka/directory
-$ bin/kafka-topics.sh --create --zookeeper localhost:2181 --topic wiki-results
+$ bin/kafka-create-topic.sh --zookeeper localhost:2181 --topic wiki-results
 {% endhighlight %}
 
 Now we are ready to run our jar file on the local Flink cluster:
