@@ -1319,16 +1319,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 			LOG.debug("Invoking async call {} on task {}", callName, taskNameWithSubtask);
 
-			try {
-				executor.submit(runnable);
-			}
-			catch (RejectedExecutionException e) {
-				// may be that we are concurrently finished or canceled.
-				// if not, report that something is fishy
-				if (executionState == ExecutionState.RUNNING) {
-					throw new RuntimeException("Async call was rejected, even though the task is running.", e);
-				}
-			}
+			executor.submit(runnable);
 		}
 	}
 
