@@ -475,7 +475,7 @@ public class BufferingSink
     }
 
     @Override
-    public void invoke(Tuple2<String, Integer> value) throws Exception {
+    public void invoke(Tuple2<String, Integer> value, Context contex) throws Exception {
         bufferedElements.add(value);
         if (bufferedElements.size() == threshold) {
             for (Tuple2<String, Integer> element: bufferedElements) {
@@ -523,7 +523,7 @@ class BufferingSink(threshold: Int = 0)
 
   private val bufferedElements = ListBuffer[(String, Int)]()
 
-  override def invoke(value: (String, Int)): Unit = {
+  override def invoke(value: (String, Int), context: Context): Unit = {
     bufferedElements += value
     if (bufferedElements.size == threshold) {
       for (element <- bufferedElements) {
