@@ -21,6 +21,7 @@ import java.lang.{Integer => JInt, Long => JLong}
 import java.util.concurrent.ConcurrentLinkedQueue
 
 import org.apache.flink.api.common.time.Time
+import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment

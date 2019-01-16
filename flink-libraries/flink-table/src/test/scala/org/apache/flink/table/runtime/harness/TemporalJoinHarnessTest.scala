@@ -720,10 +720,10 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
   @Test
   def testProcessingTimeJoinCleanupTimerUpdatedFromProbeSide(): Unit = {
     // min=2ms max=4ms
-    val testHarness = createTestHarness[(JLong, String, Timestamp), (String, JLong, Timestamp)](
-      isRowtime = true,
-      ordersRowtimeFields,
-      ratesRowtimeFields)
+    val testHarness = createTestHarness[(JLong, String), (String, JLong)](
+      isRowtime = false,
+      ordersProctimeFields,
+      ratesProctimeFields)
 
     testHarness.open()
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
@@ -760,10 +760,10 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
   @Test
   def testProcessingTimeJoinCleanupTimerUpdatedFromBuildSide(): Unit = {
     // min=2ms max=4ms
-    val testHarness = createTestHarness[(JLong, String, Timestamp), (String, JLong, Timestamp)](
-      isRowtime = true,
-      ordersRowtimeFields,
-      ratesRowtimeFields)
+    val testHarness = createTestHarness[(JLong, String), (String, JLong)](
+      isRowtime = false,
+      ordersProctimeFields,
+      ratesProctimeFields)
 
     testHarness.open()
     val expectedOutput = new ConcurrentLinkedQueue[Object]()

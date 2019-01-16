@@ -27,7 +27,7 @@ import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, AbstractUdfStreamOperator, OneInputStreamOperator, TwoInputStreamOperator}
-import org.apache.flink.streaming.api.scala.{DataStream, asScalaStream}
+import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.transformations._
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
@@ -48,9 +48,16 @@ class HarnessTestBase extends StreamingWithStateTestBase {
       dataStream: DataStream[_],
       prefixOperatorName: String)
   : KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT] = {
+    createHarnessTester(dataStream.javaStream, prefixOperatorName)
+  }
+
+  def createHarnessTester[KEY, IN, OUT](
+      dataStream: JDataStream[_],
+      prefixOperatorName: String)
+  : KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT] = {
 
     val transformation = extractExpectedTransformation(
-      dataStream.javaStream.getTransformation,
+      dataStream.getTransformation,
       prefixOperatorName).asInstanceOf[OneInputTransformation[_, _]]
     if (transformation == null) {
       throw new Exception("Can not find the expected transformation")
@@ -68,9 +75,16 @@ class HarnessTestBase extends StreamingWithStateTestBase {
       dataStream: DataStream[_],
       prefixOperatorName: String)
   : KeyedTwoInputStreamOperatorTestHarness[KEY, IN1, IN2, OUT] = {
+    createHarnessTester(dataStream.javaStream, prefixOperatorName)
+  }
+
+  def createHarnessTester[KEY, IN1, IN2, OUT](
+      dataStream: JDataStream[_],
+      prefixOperatorName: String)
+  : KeyedTwoInputStreamOperatorTestHarness[KEY, IN1, IN2, OUT] = {
 
     val transformation = extractExpectedTransformation(
-      dataStream.javaStream.getTransformation,
+      dataStream.getTransformation,
       prefixOperatorName).asInstanceOf[TwoInputTransformation[_, _, _]]
     if (transformation == null) {
       throw new Exception("Can not find the expected transformation")
@@ -184,7 +198,7 @@ class HarnessTestBase extends StreamingWithStateTestBase {
   def toUpsertStream[T: TypeInformation](
       tEnv: StreamTableEnvironment,
       table: Table,
-      queryConfig: StreamQueryConfig): DataStream[(JBoolean, T)] = {
+      queryConfig: StreamQueryConfig): JDataStream[(JBoolean, T)] = {
     val returnType = createTypeInformation[(JBoolean, T)]
     val translateMethod = classOf[org.apache.flink.table.api.StreamTableEnvironment]
       .getDeclaredMethod(
@@ -196,10 +210,9 @@ class HarnessTestBase extends StreamingWithStateTestBase {
         classOf[TypeInformation[_]])
     translateMethod.setAccessible(true)
 
-    val ds = translateMethod.invoke(
+    translateMethod.invoke(
       tEnv, table, queryConfig, JBoolean.FALSE, JBoolean.TRUE, returnType)
       .asInstanceOf[JDataStream[(JBoolean, T)]]
-    asScalaStream(ds)
   }
 
   def verify(expected: JQueue[Object], actual: JQueue[Object]): Unit = {
