@@ -577,7 +577,6 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			final Execution oldExecution = currentExecution;
 			final ExecutionState oldState = oldExecution.getState();
 
-			LOG.info("wb_fuck, reset state={}, time stamp: ", oldState, oldExecution.archive().getStateTimestamp(oldState));
 			if (oldState.isTerminal()) {
 				priorExecutions.add(oldExecution.archive());
 
