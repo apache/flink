@@ -152,13 +152,13 @@ tableEnvironment
   // declare the schema of the table
   .withSchema(
     new Schema()
-      .field("rowtime", Types.SQL_TIMESTAMP)
+      .field("rowtime", Types.SQL_TIMESTAMP())
         .rowtime(new Rowtime()
           .timestampsFromField("timestamp")
           .watermarksPeriodicBounded(60000)
         )
-      .field("user", Types.LONG)
-      .field("message", Types.STRING)
+      .field("user", Types.LONG())
+      .field("message", Types.STRING())
   )
 
   // specify the update-mode for streaming tables
@@ -240,9 +240,9 @@ The following example shows a simple schema without time attributes and one-to-o
 {% highlight java %}
 .withSchema(
   new Schema()
-    .field("MyField1", Types.INT)     // required: specify the fields of the table (in this order)
-    .field("MyField2", Types.STRING)
-    .field("MyField3", Types.BOOLEAN)
+    .field("MyField1", Types.INT())     // required: specify the fields of the table (in this order)
+    .field("MyField2", Types.STRING())
+    .field("MyField3", Types.BOOLEAN())
 )
 {% endhighlight %}
 </div>
@@ -267,11 +267,11 @@ For *each field*, the following properties can be declared in addition to the co
 {% highlight java %}
 .withSchema(
   new Schema()
-    .field("MyField1", Types.SQL_TIMESTAMP)
+    .field("MyField1", Types.SQL_TIMESTAMP())
       .proctime()      // optional: declares this field as a processing-time attribute
-    .field("MyField2", Types.SQL_TIMESTAMP)
+    .field("MyField2", Types.SQL_TIMESTAMP())
       .rowtime(...)    // optional: declares this field as a event-time attribute
-    .field("MyField3", Types.BOOLEAN)
+    .field("MyField3", Types.BOOLEAN())
       .from("mf3")     // optional: original field in the input that is referenced/aliased by this field
 )
 {% endhighlight %}
@@ -715,8 +715,8 @@ The CSV format allows to read and write comma-separated rows.
 {% highlight java %}
 .withFormat(
   new Csv()
-    .field("field1", Types.STRING)    // required: ordered format fields
-    .field("field2", Types.TIMESTAMP)
+    .field("field1", Types.STRING())    // required: ordered format fields
+    .field("field2", Types.SQL_TIMESTAMP())
     .fieldDelimiter(",")              // optional: string delimiter "," by default
     .lineDelimiter("\n")              // optional: string delimiter "\n" by default
     .quoteCharacter('"')              // optional: single character for string values, empty by default
@@ -1062,7 +1062,7 @@ tableEnv.registerTableSink(
   "csvOutputTable",
   // specify table schema
   new String[]{"f0", "f1"},
-  new TypeInformation[]{Types.STRING, Types.INT},
+  new TypeInformation[]{Types.STRING(), Types.INT()},
   sink);
 
 Table table = ...
@@ -1115,7 +1115,7 @@ tableEnv.registerTableSink(
   "jdbcOutputTable",
   // specify table schema
   new String[]{"id"},
-  new TypeInformation[]{Types.INT},
+  new TypeInformation[]{Types.INT()},
   sink);
 
 Table table = ...
@@ -1172,7 +1172,7 @@ tableEnv.registerTableSink(
   "cassandraOutputTable",
   // specify table schema
   new String[]{"id", "name", "value"},
-  new TypeInformation[]{Types.INT, Types.STRING, Types.DOUBLE},
+  new TypeInformation[]{Types.INT(), Types.STRING(), Types.DOUBLE()},
   sink);
 
 Table table = ...

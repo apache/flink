@@ -111,7 +111,7 @@ public static class TimestampModifier extends ScalarFunction {
   }
 
   public TypeInformation<?> getResultType(Class<?>[] signature) {
-    return Types.SQL_TIMESTAMP;
+    return Types.SQL_TIMESTAMP();
   }
 }
 {% endhighlight %}
@@ -237,7 +237,7 @@ public class CustomTypeSplit extends TableFunction<Row> {
 
     @Override
     public TypeInformation<Row> getResultType() {
-        return Types.ROW(Types.STRING, Types.INT);
+        return Types.ROW(Types.STRING(), Types.INT());
     }
 }
 {% endhighlight %}

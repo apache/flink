@@ -63,7 +63,7 @@ Table result2 = tableEnv.sqlQuery(
 // create and register a TableSink
 TableSink csvSink = new CsvTableSink("/path/to/file", ...);
 String[] fieldNames = {"product", "amount"};
-TypeInformation[] fieldTypes = {Types.STRING, Types.INT};
+TypeInformation[] fieldTypes = {Types.STRING(), Types.INT()};
 tableEnv.registerTableSink("RubberOrders", fieldNames, fieldTypes, csvSink);
 // run a SQL update query on the Table and emit the result to the TableSink
 tableEnv.sqlUpdate(

@@ -259,7 +259,7 @@ TableSink csvSink = new CsvTableSink("/path/to/file", ...);
 
 // define the field names and types
 String[] fieldNames = {"a", "b", "c"};
-TypeInformation[] fieldTypes = {Types.INT, Types.STRING, Types.LONG};
+TypeInformation[] fieldTypes = {Types.INT(), Types.STRING(), Types.LONG()};
 
 // register the TableSink as table "CsvSinkTable"
 tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, csvSink);
@@ -519,7 +519,7 @@ TableSink sink = new CsvTableSink("/path/to/file", fieldDelim = "|");
 
 // register the TableSink with a specific schema
 String[] fieldNames = {"a", "b", "c"};
-TypeInformation[] fieldTypes = {Types.INT, Types.STRING, Types.LONG};
+TypeInformation[] fieldTypes = {Types.INT(), Types.STRING(), Types.LONG()};
 tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, sink);
 
 // compute a result Table using Table API operators and/or SQL queries
