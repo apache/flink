@@ -109,7 +109,7 @@ Table orders = tEnv.scan("Orders"); // schema (a, b, c, rowtime)
 
 Table result = orders
         .filter("a.isNotNull && b.isNotNull && c.isNotNull")
-        .select("a.lowerCase(), b, rowtime")
+        .select("a.lowerCase() as a, b, rowtime")
         .window(Tumble.over("1.hour").on("rowtime").as("hourlyWindow"))
         .groupBy("hourlyWindow, a")
         .select("a, hourlyWindow.end as hour, b.avg as avgBillingAmount");
@@ -128,7 +128,7 @@ val orders: Table = tEnv.scan("Orders") // schema (a, b, c, rowtime)
 
 val result: Table = orders
         .filter('a.isNotNull && 'b.isNotNull && 'c.isNotNull)
-        .select('a.lowerCase(), 'b, 'rowtime)
+        .select('a.lowerCase() as 'a, 'b, 'rowtime)
         .window(Tumble over 1.hour on 'rowtime as 'hourlyWindow)
         .groupBy('hourlyWindow, 'a)
         .select('a, 'hourlyWindow.end as 'hour, 'b.avg as 'avgBillingAmount)
