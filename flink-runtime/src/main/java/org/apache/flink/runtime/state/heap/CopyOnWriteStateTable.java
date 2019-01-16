@@ -1127,11 +1127,11 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 
 		@Override
 		public StateEntry<K, N, S> next() {
-			assertConcurrentModificationsIfNotAllowed();
+			assertConcurrentModifications();
 			return super.next();
 		}
 
-		private void assertConcurrentModificationsIfNotAllowed() {
+		private void assertConcurrentModifications() {
 			if (modCount != expectedModCount) {
 				throw new ConcurrentModificationException();
 			}
