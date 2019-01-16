@@ -66,11 +66,12 @@ public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void runJobWithSingleRpcService() throws Exception {
-		final int parallelism = 23;
+		final int numOfTMs = 3;
+		final int slotsPerTM = 7;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(parallelism)
+			.setNumTaskManagers(numOfTMs)
+			.setNumSlotsPerTaskManager(slotsPerTM)
 			.setRpcServiceSharing(RpcServiceSharing.SHARED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
@@ -78,17 +79,18 @@ public class MiniClusterITCase extends TestLogger {
 		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
 			miniCluster.start();
 
-			miniCluster.executeJobBlocking(getSimpleJob(parallelism));
+			miniCluster.executeJobBlocking(getSimpleJob(numOfTMs * slotsPerTM));
 		}
 	}
 
 	@Test
 	public void runJobWithMultipleRpcServices() throws Exception {
-		final int parallelism = 23;
+		final int numOfTMs = 3;
+		final int slotsPerTM = 7;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(parallelism)
+			.setNumTaskManagers(numOfTMs)
+			.setNumSlotsPerTaskManager(slotsPerTM)
 			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
@@ -96,7 +98,7 @@ public class MiniClusterITCase extends TestLogger {
 		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
 			miniCluster.start();
 
-			miniCluster.executeJobBlocking(getSimpleJob(parallelism));
+			miniCluster.executeJobBlocking(getSimpleJob(numOfTMs * slotsPerTM));
 		}
 	}
 
