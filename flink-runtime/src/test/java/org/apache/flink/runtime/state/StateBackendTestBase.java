@@ -77,6 +77,7 @@ import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -3908,41 +3909,42 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 	@Test
 	public void testNonConcurrentSnapshotTransformerAccess() throws Exception {
-		Random rnd = new Random();
 		BlockerCheckpointStreamFactory streamFactory = new BlockerCheckpointStreamFactory(1024 * 1024);
 		AbstractKeyedStateBackend<Integer> backend = null;
 		try {
 			backend = createKeyedBackend(IntSerializer.INSTANCE);
-			InternalValueState<Integer, VoidNamespace, String> valueState = backend.createInternalState(
-				VoidNamespaceSerializer.INSTANCE,
-				new ValueStateDescriptor<>("test", StringSerializer.INSTANCE),
-				createSingleThreadAccessCheckingStateSnapshotTransformFactory());
+			StateSnapshotTransformFactory<?> snapshotTransformFactory =
+				SingleThreadAccessCheckingStateSnapshotTransformFactory.create();
+			List<TestState> testStates = Arrays.asList(
+				new TestValueState(backend, snapshotTransformFactory),
+				new TestListState(backend, snapshotTransformFactory),
+				new TestMapState(backend, snapshotTransformFactory)
+			);
+			for (TestState state : testStates) {
+				for (int i = 0; i < 100; i++) {
+					backend.setCurrentKey(i);
+					state.setToRandomValue();
+				}
 
-			valueState.setCurrentNamespace(VoidNamespace.INSTANCE);
+				CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
 
-			for (int i = 0; i < 100; i++) {
-				backend.setCurrentKey(i);
-				valueState.update(StringUtils.getRandomString(rnd,5, 10));
+				RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot1 =
+					backend.snapshot(1L, 0L, streamFactory, checkpointOptions);
+
+				RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot2 =
+					backend.snapshot(2L, 0L, streamFactory, checkpointOptions);
+
+				Thread runner1 = new Thread(snapshot1, "snapshot1");
+				runner1.start();
+				Thread runner2 = new Thread(snapshot2, "snapshot2");
+				runner2.start();
+
+				runner1.join();
+				runner2.join();
+
+				snapshot1.get();
+				snapshot2.get();
 			}
-
-			CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
-
-			RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot1 =
-				backend.snapshot(1L, 0L, streamFactory, checkpointOptions);
-
-			RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot2 =
-				backend.snapshot(2L, 0L, streamFactory, checkpointOptions);
-
-			Thread runner1 = new Thread(snapshot1, "snapshot1");
-			runner1.start();
-			Thread runner2 = new Thread(snapshot2, "snapshot2");
-			runner2.start();
-
-			runner1.join();
-			runner2.join();
-
-			snapshot1.get();
-			snapshot2.get();
 		} finally {
 			if (backend != null) {
 				IOUtils.closeQuietly(backend);
@@ -3951,37 +3953,130 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		}
 	}
 
-	private static <T> StateSnapshotTransformFactory<T>
-	createSingleThreadAccessCheckingStateSnapshotTransformFactory() {
-		return new StateSnapshotTransformFactory<T>() {
-			@Override
-			public Optional<StateSnapshotTransformer<T>> createForDeserializedState() {
-				return createStateSnapshotTransformer();
+	private static abstract class TestState {
+		final AbstractKeyedStateBackend<Integer> backend;
+		final StateSnapshotTransformFactory<?> stateSnapshotTransformFactory;
+		final Random rnd;
+
+		private TestState(
+			AbstractKeyedStateBackend<Integer> backend,
+			StateSnapshotTransformFactory<?> stateSnapshotTransformFactory) {
+
+			this.backend = backend;
+			this.stateSnapshotTransformFactory = stateSnapshotTransformFactory;
+			this.rnd = new Random();
+		}
+
+		abstract void setToRandomValue() throws Exception;
+
+		String getRandomString() {
+			return StringUtils.getRandomString(rnd, 5, 10);
+		}
+	}
+
+	private static class TestValueState extends TestState {
+		private final InternalValueState<Integer, VoidNamespace, String> state;
+
+		private TestValueState(
+			AbstractKeyedStateBackend<Integer> backend,
+			StateSnapshotTransformFactory<?> stateSnapshotTransformFactory) throws Exception {
+
+			super(backend, stateSnapshotTransformFactory);
+			this.state = backend.createInternalState(
+				VoidNamespaceSerializer.INSTANCE,
+				new ValueStateDescriptor<>("TestValueState", StringSerializer.INSTANCE),
+				stateSnapshotTransformFactory);
+			state.setCurrentNamespace(VoidNamespace.INSTANCE);
+		}
+
+		@Override
+		void setToRandomValue() throws Exception {
+			state.update(getRandomString());
+		}
+	}
+
+	private static class TestListState extends TestState {
+		private final InternalListState<Integer, VoidNamespace, String> state;
+
+		private TestListState(
+			AbstractKeyedStateBackend<Integer> backend,
+			StateSnapshotTransformFactory<?> stateSnapshotTransformFactory) throws Exception {
+
+			super(backend, stateSnapshotTransformFactory);
+			this.state = backend.createInternalState(
+				VoidNamespaceSerializer.INSTANCE,
+				new ListStateDescriptor<>("TestListState", StringSerializer.INSTANCE),
+				stateSnapshotTransformFactory);
+			state.setCurrentNamespace(VoidNamespace.INSTANCE);
+		}
+
+		@Override
+		void setToRandomValue() throws Exception {
+			int length = rnd.nextInt(10);
+			for (int i = 0; i < length; i++) {
+				state.add(getRandomString());
 			}
+		}
+	}
 
-			@Override
-			public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
-				return createStateSnapshotTransformer();
+	private static class TestMapState extends TestState {
+		private final InternalMapState<Integer, VoidNamespace, String, String> state;
+
+		private TestMapState(
+			AbstractKeyedStateBackend<Integer> backend,
+			StateSnapshotTransformFactory<?> stateSnapshotTransformFactory) throws Exception {
+
+			super(backend, stateSnapshotTransformFactory);
+			this.state = backend.createInternalState(
+				VoidNamespaceSerializer.INSTANCE,
+				new MapStateDescriptor<>("TestMapState", StringSerializer.INSTANCE, StringSerializer.INSTANCE),
+				stateSnapshotTransformFactory);
+			state.setCurrentNamespace(VoidNamespace.INSTANCE);
+		}
+
+		@Override
+		void setToRandomValue() throws Exception {
+			int length = rnd.nextInt(10);
+			for (int i = 0; i < length; i++) {
+				state.put(getRandomString(), getRandomString());
 			}
+		}
+	}
 
-			private <T1> Optional<StateSnapshotTransformer<T1>> createStateSnapshotTransformer() {
-				return Optional.of(new StateSnapshotTransformer<T1>() {
-					private Thread currentThread = null;
+	private static class SingleThreadAccessCheckingStateSnapshotTransformFactory<T>
+		implements StateSnapshotTransformFactory<T> {
 
-					@Nullable
-					@Override
-					public T1 filterOrTransform(@Nullable T1 value) {
-						if (currentThread == null) {
-							currentThread = Thread.currentThread();
-						} else {
-							assertEquals("Concurrent access from another thread",
-								currentThread, Thread.currentThread());
-						}
-						return value;
+		static <T> StateSnapshotTransformFactory<T> create() {
+			return new SingleThreadAccessCheckingStateSnapshotTransformFactory<>();
+		}
+
+		@Override
+		public Optional<StateSnapshotTransformer<T>> createForDeserializedState() {
+			return createStateSnapshotTransformer();
+		}
+
+		@Override
+		public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
+			return createStateSnapshotTransformer();
+		}
+
+		private <T1> Optional<StateSnapshotTransformer<T1>> createStateSnapshotTransformer() {
+			return Optional.of(new StateSnapshotTransformer<T1>() {
+				private Thread currentThread = null;
+
+				@Nullable
+				@Override
+				public T1 filterOrTransform(@Nullable T1 value) {
+					if (currentThread == null) {
+						currentThread = Thread.currentThread();
+					} else {
+						assertEquals("Concurrent access from another thread",
+							currentThread, Thread.currentThread());
 					}
-				});
-			}
-		};
+					return value;
+				}
+			});
+		}
 	}
 
 	@Test
