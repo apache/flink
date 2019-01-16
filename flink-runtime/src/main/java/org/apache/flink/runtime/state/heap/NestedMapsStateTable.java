@@ -29,7 +29,7 @@ import org.apache.flink.runtime.state.StateEntry.SimpleStateEntry;
 import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateTransformationFunction;
-import org.apache.flink.runtime.state.internal.InternalKvState.StateIteratorWithUpdate;
+import org.apache.flink.runtime.state.internal.InternalKvState.StateIncrementalVisitor;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
 
@@ -37,6 +37,7 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -190,7 +191,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	}
 
 	@Override
-	public StateIteratorWithUpdate<K, N, S> getStateEntryIteratorWithUpdate() {
+	public StateIncrementalVisitor<K, N, S> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
 		return new StateEntryIterator();
 	}
 
@@ -431,7 +432,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	 *
 	 * <p>Note: Usage of this iterator can have a heap memory consumption impact.
 	 */
-	class StateEntryIterator implements StateIteratorWithUpdate<K, N, S> {
+	class StateEntryIterator implements StateIncrementalVisitor<K, N, S>, Iterator<StateEntry<K, N, S>> {
 		private int keyGropuIndex;
 		private Iterator<Map.Entry<N, Map<K, S>>> namespaceIterator;
 		private Map.Entry<N, Map<K, S>> namespace;
@@ -450,6 +451,12 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 		public boolean hasNext() {
 			nextKeyIterator();
 			return keyIteratorHasNext();
+		}
+
+		@Override
+		public Collection<StateEntry<K, N, S>> nextEntries() {
+			StateEntry<K, N, S> nextEntry = next();
+			return nextEntry == null ? Collections.emptyList() : Collections.singletonList(nextEntry);
 		}
 
 		@Override
@@ -507,12 +514,17 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 
 		@Override
 		public void remove() {
-			state[keyGropuIndex - 1].get(lastReturnedEntry.getNamespace()).remove(lastReturnedEntry.getKey());
+			remove(lastReturnedEntry);
 		}
 
 		@Override
-		public void update(S newValue) {
-			state[keyGropuIndex - 1].get(lastReturnedEntry.getNamespace()).put(lastReturnedEntry.getKey(), newValue);
+		public void remove(StateEntry<K, N, S> stateEntry) {
+			state[keyGropuIndex - 1].get(stateEntry.getNamespace()).remove(stateEntry.getKey());
+		}
+
+		@Override
+		public void update(StateEntry<K, N, S> stateEntry, S newValue) {
+			state[keyGropuIndex - 1].get(stateEntry.getNamespace()).put(stateEntry.getKey(), newValue);
 		}
 	}
 }

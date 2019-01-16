@@ -19,11 +19,12 @@
 package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.runtime.state.StateEntry;
-import org.apache.flink.runtime.state.internal.InternalKvState.StateIteratorWithUpdate;
+import org.apache.flink.runtime.state.internal.InternalKvState.StateIncrementalVisitor;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
+import java.util.Collection;
 
 /**
  * Incremental cleanup of state with TTL.
@@ -40,7 +41,7 @@ class TtlIncrementalCleanup<K, N, S> {
 	private AbstractTtlState<K, N, ?, S, ?> ttlState;
 
 	/** Global state entry iterator, advanced for {@code cleanupSize} entries every state and/or record processing. */
-	private StateIteratorWithUpdate<K, N, S> stateIterator;
+	private StateIncrementalVisitor<K, N, S> stateIterator;
 
 	/**
 	 * TtlIncrementalCleanup constructor.
@@ -62,21 +63,28 @@ class TtlIncrementalCleanup<K, N, S> {
 
 	private void initIteratorIfNot() {
 		if (stateIterator == null || !stateIterator.hasNext()) {
-			stateIterator = ttlState.original.getStateEntryIterator();
+			stateIterator = ttlState.original.getStateIncrementalVisitor(cleanupSize);
 		}
 	}
 
 	private void runCleanup() {
 		int entryNum = 0;
-		while (entryNum < cleanupSize && stateIterator.hasNext()) {
-			StateEntry<K, N, S> state = stateIterator.next();
-			S cleanState = ttlState.getUnexpiredOrNull(state.getState());
-			if (cleanState == null) {
-				stateIterator.remove();
-			} else if (cleanState != state.getState()) {
-				stateIterator.update(cleanState);
+		Collection<StateEntry<K, N, S>> nextEntries;
+		while (
+			entryNum < cleanupSize &&
+			stateIterator.hasNext() &&
+			!(nextEntries = stateIterator.nextEntries()).isEmpty()) {
+
+			for (StateEntry<K, N, S> state : nextEntries) {
+				S cleanState = ttlState.getUnexpiredOrNull(state.getState());
+				if (cleanState == null) {
+					stateIterator.remove(state);
+				} else if (cleanState != state.getState()) {
+					stateIterator.update(state, cleanState);
+				}
 			}
-			entryNum++;
+
+			entryNum += nextEntries.size();
 		}
 	}
 
@@ -86,5 +94,9 @@ class TtlIncrementalCleanup<K, N, S> {
 	 */
 	public void setTtlState(@Nonnull AbstractTtlState<K, N, ?, S, ?> ttlState) {
 		this.ttlState = ttlState;
+	}
+
+	int getCleanupSize() {
+		return cleanupSize;
 	}
 }

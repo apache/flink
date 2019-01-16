@@ -203,12 +203,11 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 	private Runnable getTtlIncrementalCleanupCallback(InternalKvState<?, ?, ?> originalState) {
 		boolean stateIteratorNotSupported = true;
 		try {
-			stateIteratorNotSupported = originalState.getStateEntryIterator() == null;
+			stateIteratorNotSupported = originalState.getStateIncrementalVisitor(incrementalCleanup.getCleanupSize()) == null;
 		} catch (Throwable t) {
 			// ignore
 		}
-		return incrementalCleanup == null || stateIteratorNotSupported
-			? () -> { } : incrementalCleanup::stateAccessed;
+		return incrementalCleanup == null || stateIteratorNotSupported ? () -> { } : incrementalCleanup::stateAccessed;
 	}
 
 	private StateSnapshotTransformFactory<?> getSnapshotTransformFactory() {

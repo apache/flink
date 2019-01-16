@@ -100,7 +100,7 @@ abstract class AbstractTtlState<K, N, SV, TTLSV, S extends InternalKvState<K, N,
 	public abstract TTLSV getUnexpiredOrNull(@Nonnull TTLSV ttlValue);
 
 	@Override
-	public StateIteratorWithUpdate<K, N, SV> getStateEntryIterator() {
+	public StateIncrementalVisitor<K, N, SV> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
 		throw new UnsupportedOperationException();
 	}
 }

@@ -237,7 +237,7 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
 	}
 
 	@Override
-	public StateIteratorWithUpdate<K, N, V> getStateEntryIterator() {
+	public StateIncrementalVisitor<K, N, V> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
 		throw new UnsupportedOperationException("Global state entry iterator is unsupported for RocksDb backend");
 	}
 }

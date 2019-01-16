@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateTransformationFunction;
-import org.apache.flink.runtime.state.internal.InternalKvState.StateIteratorWithUpdate;
+import org.apache.flink.runtime.state.internal.InternalKvState.StateIncrementalVisitor;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -33,8 +33,10 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.TreeSet;
@@ -139,7 +141,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	private static final StateTableEntry<?, ?, ?>[] EMPTY_TABLE = new StateTableEntry[MINIMUM_CAPACITY >>> 1];
 
 	/**
-	 * Empty entry that we use to bootstrap our {@link CopyOnWriteStateTable.BaseStateEntryIterator}.
+	 * Empty entry that we use to bootstrap our {@link CopyOnWriteStateTable.StateEntryIterator}.
 	 */
 	private static final StateTableEntry<?, ?, ?> ITERATOR_BOOTSTRAP_ENTRY =
 		new StateTableEntry<>(new Object(), new Object(), new Object(), 0, null, 0, 0);
@@ -569,7 +571,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	@Nonnull
 	@Override
 	public Iterator<StateEntry<K, N, S>> iterator() {
-		return new StateEntryIteratorWithoutModifications();
+		return new StateEntryIterator();
 	}
 
 	// Private utility functions for StateTable management -------------------------------------------------------------
@@ -1041,22 +1043,81 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	// StateEntryIterator  ---------------------------------------------------------------------------------------------
 
 	@Override
-	public StateIteratorWithUpdate<K, N, S> getStateEntryIteratorWithUpdate() {
-		return new StateEntryIteratorWithModifications();
+	public StateIncrementalVisitor<K, N, S> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
+		return new StateIncrementalVisitorImpl(recommendedMaxNumberOfReturnedRecords);
 	}
 
 	/**
-	 * Iterator over state entries in a {@link CopyOnWriteStateTable}.
+	 * Iterator over state entry chains in a {@link CopyOnWriteStateTable}.
 	 */
-	class BaseStateEntryIterator implements Iterator<StateEntry<K, N, S>> {
+	class StateEntryChainIterator implements Iterator<StateTableEntry<K, N, S>> {
 		StateTableEntry<K, N, S>[] activeTable;
-		int nextTablePosition;
-		StateTableEntry<K, N, S> nextEntry;
-		StateTableEntry<K, N, S> entryToReturn;
+		private int nextTablePosition;
+		private final int maxTraversedTablePositions;
 
-		BaseStateEntryIterator() {
+		StateEntryChainIterator() {
+			this(Integer.MAX_VALUE);
+		}
+
+		StateEntryChainIterator(int maxTraversedTablePositions) {
+			this.maxTraversedTablePositions = maxTraversedTablePositions;
 			this.activeTable = primaryTable;
 			this.nextTablePosition = 0;
+		}
+
+		@Override
+		public boolean hasNext() {
+			return size() > 0 && (nextTablePosition < activeTable.length || activeTable == primaryTable);
+		}
+
+		@Override
+		public StateTableEntry<K, N, S> next() {
+			StateTableEntry<K, N, S> next;
+			// consider both sub-tables to cover the case of rehash
+			while (true) { // current is empty
+				// try get next in active table or
+				// iteration is done over primary and rehash table
+				// or primary was swapped with rehash when rehash is done
+				next = nextActiveTablePosition();
+				if (next != null ||
+					nextTablePosition < activeTable.length ||
+					activeTable == incrementalRehashTable ||
+					activeTable != primaryTable) {
+					return next;
+				} else {
+					// switch to rehash (empty if no rehash)
+					activeTable = incrementalRehashTable;
+					nextTablePosition = 0;
+				}
+			}
+		}
+
+		private StateTableEntry<K, N, S> nextActiveTablePosition() {
+			StateTableEntry<K, N, S>[] tab = activeTable;
+			int traversedPositions = 0;
+			while (nextTablePosition < tab.length && traversedPositions < maxTraversedTablePositions) {
+				StateTableEntry<K, N, S> next = tab[nextTablePosition++];
+				if (next != null) {
+					return next;
+				}
+				traversedPositions++;
+			}
+			return null;
+		}
+	}
+
+	/**
+	 * Iterator over state entries in a {@link CopyOnWriteStateTable} which does not tolerate concurrent modifications.
+	 */
+	class StateEntryIterator implements Iterator<StateEntry<K, N, S>> {
+
+		private final StateEntryChainIterator chainIterator;
+		private StateTableEntry<K, N, S> nextEntry;
+		private final int expectedModCount;
+
+		StateEntryIterator() {
+			this.chainIterator = new StateEntryChainIterator();
+			this.expectedModCount = modCount;
 			this.nextEntry = getBootstrapEntry();
 			advanceIterator();
 		}
@@ -1068,129 +1129,64 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 
 		@Override
 		public StateEntry<K, N, S> next() {
-			if (!hasNext()) {
-				entryToReturn = null;
-				return null;
-			}
-			return advanceIterator();
-		}
-
-		private StateTableEntry<K, N, S> advanceIterator() {
-			entryToReturn = nextEntry;
-			StateTableEntry<K, N, S> next = nextEntry.next;
-			next = advanceTableIfChainEnded(next);
-			nextEntry = next;
-			return entryToReturn;
-		}
-
-		StateTableEntry<K, N, S> advanceTableIfChainEnded(StateTableEntry<K, N, S> next) {
-			// consider both sub-tables to cover the case of rehash
-			while (next == null) { // current chain is ended or empty
-				// try get next in active table or
-				// iteration is done over primary and rehash table
-				// or primary was swapped with rehash when rehash is done
-				if ((next = nextActiveTablePosition()) != null ||
-					activeTable == incrementalRehashTable ||
-					activeTable != primaryTable) {
-					break;
-				} else {
-					// switch to rehash (empty if no rehash)
-					activeTable = incrementalRehashTable;
-					nextTablePosition = 0;
-				}
-			}
-			return next;
-		}
-
-		private StateTableEntry<K, N, S> nextActiveTablePosition() {
-			StateTableEntry<K, N, S>[] tab = activeTable;
-			while (nextTablePosition < tab.length) {
-				StateTableEntry<K, N, S> next = tab[nextTablePosition++];
-				if (next != null) {
-					return next;
-				}
-			}
-			return null;
-		}
-	}
-
-	/**
-	 * Iterator over state entries in a {@link CopyOnWriteStateTable} which does not tolerate concurrent modifications.
-	 */
-	class StateEntryIteratorWithoutModifications extends BaseStateEntryIterator {
-		private final int expectedModCount;
-
-		StateEntryIteratorWithoutModifications() {
-			super();
-			this.expectedModCount = modCount;
-		}
-
-		@Override
-		public StateEntry<K, N, S> next() {
-			assertConcurrentModifications();
-			return super.next();
-		}
-
-		private void assertConcurrentModifications() {
 			if (modCount != expectedModCount) {
 				throw new ConcurrentModificationException();
 			}
 			if (!hasNext()) {
 				throw new NoSuchElementException();
 			}
+			return advanceIterator();
+		}
+
+		StateTableEntry<K, N, S> advanceIterator() {
+			StateTableEntry<K, N, S> entryToReturn = nextEntry;
+			StateTableEntry<K, N, S> next = nextEntry.next;
+			if (next == null) {
+				next = chainIterator.next();
+			}
+			nextEntry = next;
+			return entryToReturn;
 		}
 	}
 
 	/**
-	 * Iterator over state entries in a {@link CopyOnWriteStateTable} which tolerates concurrent modifications.
-	 *
-	 * <p>This iterator supports removing and updating of underlying next key state.
-	 * It trades modifications for consistency and might return duplicates.
+	 * Incremental visitor over state entries in a {@link CopyOnWriteStateTable}.
 	 */
-	class StateEntryIteratorWithModifications
-		extends BaseStateEntryIterator implements StateIteratorWithUpdate<K, N, S> {
+	class StateIncrementalVisitorImpl implements StateIncrementalVisitor<K, N, S> {
 
-		StateEntryIteratorWithModifications() {
-			super();
+		private final StateEntryChainIterator chainIterator;
+
+		StateIncrementalVisitorImpl(int recommendedMaxNumberOfReturnedRecords) {
+			chainIterator = new StateEntryChainIterator(recommendedMaxNumberOfReturnedRecords);
 		}
 
 		@Override
 		public boolean hasNext() {
-			amendIterationIfNextStale();
-			return super.hasNext();
-		}
-
-		private void amendIterationIfNextStale() {
-			if (nextEntry != null) {
-				StateTableEntry<K, N, S> currentChainHead = activeTable[nextTablePosition - 1];
-				StateTableEntry<K, N, S> nextFound = currentChainHead;
-				while (nextFound != null && nextFound != nextEntry) {
-					nextFound = nextFound.next;
-				}
-				// if nextEntry is no longer in the chain,
-				// restart chain or move to the next chain if this chain is already empty
-				nextEntry = nextFound == null ? advanceTableIfChainEnded(currentChainHead) : nextEntry;
-			}
+			return chainIterator.hasNext();
 		}
 
 		@Override
-		public void remove() {
-			if (entryToReturn != null && entryToReturn != getBootstrapEntry()) {
-				CopyOnWriteStateTable.this.remove(entryToReturn.getKey(), entryToReturn.getNamespace());
-			} else {
-				throw new IllegalStateException(
-					"Nothing to remove, next() has never been called yet or iteration is over");
+		public Collection<StateEntry<K, N, S>> nextEntries() {
+			if (!hasNext()) {
+				return null;
 			}
+			Collection<StateEntry<K, N, S>> chain = new LinkedList<>();
+			for (StateTableEntry<K, N, S> nextEntry = chainIterator.next();
+				 nextEntry != null;
+				 nextEntry = nextEntry.next) {
+				chain.add(nextEntry);
+			}
+			return chain;
 		}
 
 		@Override
-		public void update(S newValue) {
-			if (entryToReturn != null && entryToReturn != getBootstrapEntry()) {
-				CopyOnWriteStateTable.this.put(entryToReturn.getKey(), entryToReturn.getNamespace(), newValue);
-			} else {
-				throw new IllegalStateException(
-					"Nothing to update, next() has never been called yet or iteration is over");
-			}
+		public void remove(StateEntry<K, N, S> stateEntry) {
+			CopyOnWriteStateTable.this.remove(stateEntry.getKey(), stateEntry.getNamespace());
+		}
+
+		@Override
+		public void update(StateEntry<K, N, S> stateEntry, S newValue) {
+			CopyOnWriteStateTable.this.put(stateEntry.getKey(), stateEntry.getNamespace(), newValue);
 		}
 	}
 }

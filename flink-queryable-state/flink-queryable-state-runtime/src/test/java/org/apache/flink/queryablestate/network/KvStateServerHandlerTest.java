@@ -333,7 +333,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 					}
 
 					@Override
-					public StateIteratorWithUpdate<Integer, VoidNamespace, Long> getStateEntryIterator() {
+					public StateIncrementalVisitor<Integer, VoidNamespace, Long> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
 						throw new UnsupportedOperationException();
 					}
 

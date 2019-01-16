@@ -22,7 +22,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.StateEntry;
 
-import java.util.Iterator;
+import java.util.Collection;
 
 /**
  * The {@code InternalKvState} is the root of the internal state type hierarchy, similar to the
@@ -110,28 +110,36 @@ public interface InternalKvState<K, N, V> extends State {
 			final TypeSerializer<V> safeValueSerializer) throws Exception;
 
 	/**
-	 * Get global iterator over state entries.
-	 *
-	 * <p>The iterator should tolerate concurrent modifications.
-	 * It might trade this tolerance for consistency
-	 * and return duplicates but always state values which exist and up-to-date at the moment of calling {@code next()}.
-	 *
-	 * <p>It should support remove and update operation.
-	 *
-	 * <p>The state value must not be changed internally (there no defensive copies in {@code next()} for performance).
-	 * It has to be deeply copied if modified, e.g. with the {@code update()} method.
+	 * Get global visitor of state entries.
 	 *
 	 * @return global iterator over state entries
 	 */
-	StateIteratorWithUpdate<K, N, V> getStateEntryIterator();
+	StateIncrementalVisitor<K, N, V> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords);
 
-	/** The state entry iterator which supports update of the last returned entry from the {@code next()} method. */
-	interface StateIteratorWithUpdate<K, N, V> extends Iterator<StateEntry<K, N, V>> {
+	/**
+	 * The state entry visitor which supports remove and update of the last returned entries.
+	 *
+	 * <p>The visitor should tolerate concurrent modifications.
+	 * It might trade this tolerance for consistency
+	 * and return duplicates or not all values (created while visiting)
+	 * but always state values which exist and up-to-date at the moment of calling {@code next()}.
+	 *
+	 * <p>The returned state values must not be changed internally
+	 * (there no defensive copies in {@code nextEntries()} for performance).
+	 * It has to be deeply copied if modified, e.g. with the {@code update()} method.
+	 */
+	interface StateIncrementalVisitor<K, N, V> {
+		boolean hasNext();
+
+		Collection<StateEntry<K, N, V>> nextEntries();
+
+		void remove(StateEntry<K, N, V> stateEntry);
+
 		/**
 		 * Update the value of the last returned entry from the {@code next()} method.
 		 *
 		 * @throws IllegalStateException if next() has never been called yet or iteration is over.
 		 */
-		void update(V newValue);
+		void update(StateEntry<K, N, V> stateEntry, V newValue);
 	}
 }

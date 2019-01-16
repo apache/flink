@@ -87,7 +87,7 @@ abstract class MockInternalKvState<K, N, T> implements InternalKvState<K, N, T> 
 	}
 
 	@Override
-	public StateIteratorWithUpdate<K, N, T> getStateEntryIterator() {
+	public StateIncrementalVisitor<K, N, T> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
 		throw new UnsupportedOperationException();
 	}
 }
