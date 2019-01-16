@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.core.io.CompressionType;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -58,26 +59,29 @@ public class SerializationProxiesTest {
 		stateMetaInfoList.add(new RegisteredKeyValueStateBackendMetaInfo<>(
 			StateDescriptor.Type.VALUE, "c", namespaceSerializer, stateSerializer).snapshot());
 
-		KeyedBackendSerializationProxy<?> serializationProxy =
-				new KeyedBackendSerializationProxy<>(keySerializer, stateMetaInfoList, true);
+		for (CompressionType compressionType : CompressionTypes.values()) {
+			KeyedBackendSerializationProxy<?> serializationProxy =
+				new KeyedBackendSerializationProxy<>(keySerializer, stateMetaInfoList, compressionType);
 
-		byte[] serialized;
-		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
-			serializationProxy.write(new DataOutputViewStreamWrapper(out));
-			serialized = out.toByteArray();
-		}
+			byte[] serialized;
+			try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
+				serializationProxy.write(new DataOutputViewStreamWrapper(out));
+				serialized = out.toByteArray();
+			}
 
-		serializationProxy =
+			serializationProxy =
 				new KeyedBackendSerializationProxy<>(Thread.currentThread().getContextClassLoader());
 
-		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
-			serializationProxy.read(new DataInputViewStreamWrapper(in));
+			try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
+				serializationProxy.read(new DataInputViewStreamWrapper(in));
+			}
+
+			Assert.assertEquals(compressionType, serializationProxy.getCompressionType());
+			Assert.assertTrue(serializationProxy.getKeySerializerSnapshot() instanceof IntSerializer.IntSerializerSnapshot);
+
+			assertEqualStateMetaInfoSnapshotsLists(stateMetaInfoList, serializationProxy.getStateMetaInfoSnapshots());
 		}
 
-		Assert.assertTrue(serializationProxy.isUsingKeyGroupCompression());
-		Assert.assertTrue(serializationProxy.getKeySerializerSnapshot() instanceof IntSerializer.IntSerializerSnapshot);
-
-		assertEqualStateMetaInfoSnapshotsLists(stateMetaInfoList, serializationProxy.getStateMetaInfoSnapshots());
 	}
 
 	@Test

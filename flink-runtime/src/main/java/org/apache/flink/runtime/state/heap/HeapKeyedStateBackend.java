@@ -32,6 +32,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.io.CompressionType;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -56,16 +57,14 @@ import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
-import org.apache.flink.runtime.state.StreamCompressionDecorator;
+import org.apache.flink.core.io.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -414,7 +413,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					keyGroupsStateHandle.getGroupRangeOffsets(),
 					kvStatesById, restoredMetaInfos.size(),
 					serializationProxy.getReadVersion(),
-					serializationProxy.isUsingKeyGroupCompression());
+					serializationProxy.getCompressionType());
 			} finally {
 				if (cancelStreamRegistry.unregisterCloseable(fsDataInputStream)) {
 					IOUtils.closeQuietly(fsDataInputStream);
@@ -430,10 +429,9 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		Map<Integer, StateMetaInfoSnapshot> kvStatesById,
 		int numStates,
 		int readVersion,
-		boolean isCompressed) throws IOException {
+		CompressionType compressionType) throws IOException {
 
-		final StreamCompressionDecorator streamCompressionDecorator = isCompressed ?
-			SnappyStreamCompressionDecorator.INSTANCE : UncompressedStreamCompressionDecorator.INSTANCE;
+		final StreamCompressionDecorator streamCompressionDecorator = compressionType.getStreamCompressionDecorator();
 
 		for (Tuple2<Integer, Long> groupOffset : keyGroupOffsets) {
 			int keyGroupIndex = groupOffset.f0;
@@ -703,7 +701,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					// get a serialized form already at state registration time in the future
 					getKeySerializer(),
 					metaInfoSnapshots,
-					!Objects.equals(UncompressedStreamCompressionDecorator.INSTANCE, keyGroupCompressionDecorator));
+					compressionType);
 
 			final SupplierWithException<CheckpointStreamWithResultProvider, Exception> checkpointStreamSupplier =
 
@@ -751,7 +749,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 									stateSnapshot.getValue().getKeyGroupWriter();
 								try (
 									OutputStream kgCompressionOut =
-										keyGroupCompressionDecorator.decorateWithCompression(localStream)) {
+										compressionType.getStreamCompressionDecorator().decorateWithCompression(localStream)) {
 									DataOutputViewStreamWrapper kgCompressionView =
 										new DataOutputViewStreamWrapper(kgCompressionOut);
 									kgCompressionView.writeShort(stateNamesToId.get(stateSnapshot.getKey()));

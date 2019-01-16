@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.core.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.util.NonClosingInputStreamDecorator;
-import org.apache.flink.runtime.util.NonClosingOutpusStreamDecorator;
 
 import java.io.IOException;
 import java.io.InputStream;

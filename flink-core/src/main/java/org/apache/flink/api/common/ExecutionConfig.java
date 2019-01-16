@@ -24,9 +24,12 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.io.CompressionType;
 import org.apache.flink.util.Preconditions;
 
 import com.esotericsoftware.kryo.Serializer;
+
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -153,8 +156,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 */
 	private long taskCancellationTimeoutMillis = -1;
 
-	/** This flag defines if we use compression for the state snapshot data or not. Default: false */
-	private boolean useSnapshotCompression = false;
+	/** The compression type we used. Default: null, means no compression. **/
+	@Nullable
+	private CompressionType compressionType = null;
 
 	/** Determines if a task fails or not if there is an error in writing its checkpoint data. Default: true */
 	private boolean failTaskOnCheckpointError = true;
@@ -894,12 +898,13 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		this.autoTypeRegistrationEnabled = false;
 	}
 
-	public boolean isUseSnapshotCompression() {
-		return useSnapshotCompression;
+	public void setCompressionType(CompressionType compressionType) {
+		this.compressionType = compressionType;
 	}
 
-	public void setUseSnapshotCompression(boolean useSnapshotCompression) {
-		this.useSnapshotCompression = useSnapshotCompression;
+	@Nullable
+	public CompressionType getCompressionType() {
+		return compressionType;
 	}
 
 	/**
@@ -947,9 +952,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				registeredKryoTypes.equals(other.registeredKryoTypes) &&
 				registeredPojoTypes.equals(other.registeredPojoTypes) &&
 				taskCancellationIntervalMillis == other.taskCancellationIntervalMillis &&
-				useSnapshotCompression == other.useSnapshotCompression &&
-				defaultInputDependencyConstraint == other.defaultInputDependencyConstraint;
-
+				defaultInputDependencyConstraint == other.defaultInputDependencyConstraint &&
+				Objects.equals(compressionType, other.compressionType);
 		} else {
 			return false;
 		}
@@ -976,8 +980,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			registeredKryoTypes,
 			registeredPojoTypes,
 			taskCancellationIntervalMillis,
-			useSnapshotCompression,
-			defaultInputDependencyConstraint);
+			defaultInputDependencyConstraint,
+			compressionType);
 	}
 
 	public boolean canEqual(Object obj) {
@@ -989,7 +993,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	public ArchivedExecutionConfig archive() {
 		return new ArchivedExecutionConfig(this);
 	}
-
 
 	// ------------------------------ Utilities  ----------------------------------
 

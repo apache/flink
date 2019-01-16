@@ -217,6 +217,11 @@ under the License.
 			<artifactId>snappy-java</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>org.lz4</groupId>
+			<artifactId>lz4-java</artifactId>
+		</dependency>
+
 		<!--
 		The KryoSerializer dynamically loads Kryo instances via Chill and requires that Chill
 		is in the classpath. Because we do not want to have transitive Scala dependencies

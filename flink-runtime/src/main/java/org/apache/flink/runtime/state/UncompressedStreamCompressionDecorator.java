@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.util.NonClosingInputStreamDecorator;
-import org.apache.flink.runtime.util.NonClosingOutpusStreamDecorator;
+import org.apache.flink.core.io.StreamCompressionDecorator;
+import org.apache.flink.core.io.NonClosingInputStreamDecorator;
+import org.apache.flink.core.io.NonClosingOutpusStreamDecorator;
 
 import java.io.IOException;
 import java.io.InputStream;

@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.io.CompressionType;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.internal.InternalKvState;
@@ -91,7 +92,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	private final TtlTimeProvider ttlTimeProvider;
 
 	/** Decorates the input and output streams to write key-groups compressed. */
-	protected final StreamCompressionDecorator keyGroupCompressionDecorator;
+	protected final CompressionType compressionType;
 
 	public AbstractKeyedStateBackend(
 		TaskKvStateRegistry kvStateRegistry,
@@ -113,16 +114,8 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		this.cancelStreamRegistry = new CloseableRegistry();
 		this.keyValueStatesByName = new HashMap<>();
 		this.executionConfig = executionConfig;
-		this.keyGroupCompressionDecorator = determineStreamCompression(executionConfig);
+		this.compressionType = executionConfig.getCompressionType() == null ? CompressionTypes.NONE : executionConfig.getCompressionType();
 		this.ttlTimeProvider = Preconditions.checkNotNull(ttlTimeProvider);
-	}
-
-	private StreamCompressionDecorator determineStreamCompression(ExecutionConfig executionConfig) {
-		if (executionConfig != null && executionConfig.isUseSnapshotCompression()) {
-			return SnappyStreamCompressionDecorator.INSTANCE;
-		} else {
-			return UncompressedStreamCompressionDecorator.INSTANCE;
-		}
 	}
 
 	/**
@@ -316,8 +309,8 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	}
 
 	@VisibleForTesting
-	StreamCompressionDecorator getKeyGroupCompressionDecorator() {
-		return keyGroupCompressionDecorator;
+	CompressionType getCompressionType() {
+		return compressionType;
 	}
 
 	/**

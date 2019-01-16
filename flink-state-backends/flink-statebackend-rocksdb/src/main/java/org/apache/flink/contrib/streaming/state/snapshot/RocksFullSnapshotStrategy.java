@@ -26,6 +26,8 @@ import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStatesPerKeyGroupMergeIterator;
 import org.apache.flink.contrib.streaming.state.iterator.RocksTransformingIteratorWrapper;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.io.CompressionType;
+import org.apache.flink.core.io.StreamCompressionDecorator;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -43,8 +45,6 @@ import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
-import org.apache.flink.runtime.state.StreamCompressionDecorator;
-import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.ResourceGuard;
@@ -64,7 +64,6 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.RunnableFuture;
 
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.END_OF_KEY_GROUP_MARK;
@@ -82,6 +81,10 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 
 	private static final String DESCRIPTION = "Asynchronous incremental RocksDB snapshot";
 
+	/** The compression type per key-group for the written snapshot data. */
+	@Nonnull
+	private final CompressionType compressionType;
+
 	/** This decorator is used to apply compression per key-group for the written snapshot data. */
 	@Nonnull
 	private final StreamCompressionDecorator keyGroupCompressionDecorator;
@@ -95,7 +98,7 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 		@Nonnegative int keyGroupPrefixBytes,
 		@Nonnull LocalRecoveryConfig localRecoveryConfig,
 		@Nonnull CloseableRegistry cancelStreamRegistry,
-		@Nonnull StreamCompressionDecorator keyGroupCompressionDecorator) {
+		@Nonnull CompressionType compressionType) {
 		super(
 			DESCRIPTION,
 			db,
@@ -107,7 +110,8 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 			localRecoveryConfig,
 			cancelStreamRegistry);
 
-		this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
+		this.compressionType = compressionType;
+		this.keyGroupCompressionDecorator = compressionType.getStreamCompressionDecorator();
 	}
 
 	@Nonnull
@@ -288,9 +292,7 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 					// get a serialized form already at state registration time in the future
 					keySerializer,
 					stateMetaInfoSnapshots,
-					!Objects.equals(
-						UncompressedStreamCompressionDecorator.INSTANCE,
-						keyGroupCompressionDecorator));
+					compressionType);
 
 			serializationProxy.write(outputView);
 		}

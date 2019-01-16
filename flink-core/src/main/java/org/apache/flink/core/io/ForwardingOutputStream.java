@@ -16,68 +16,48 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.core.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.OutputStream;
 
 /**
- * Input stream, that wraps another input stream and forwards all method calls to the wrapped stream.
+ * Output stream, that wraps another input stream and forwards all method calls to the wrapped stream.
  */
 @Internal
-public class ForwardingInputStream extends InputStream {
+public class ForwardingOutputStream extends OutputStream {
 
-	private final InputStream delegate;
+	private final OutputStream delegate;
 
-	public ForwardingInputStream(InputStream delegate) {
+	public ForwardingOutputStream(OutputStream delegate) {
 		this.delegate = Preconditions.checkNotNull(delegate);
 	}
 
 	@Override
-	public int read() throws IOException {
-		return delegate.read();
+	public void write(int b) throws IOException {
+		delegate.write(b);
 	}
 
 	@Override
-	public int read(byte[] b) throws IOException {
-		return delegate.read(b);
+	public void write(byte[] b) throws IOException {
+		delegate.write(b);
 	}
 
 	@Override
-	public int read(byte[] b, int off, int len) throws IOException {
-		return delegate.read(b, off, len);
+	public void write(byte[] b, int off, int len) throws IOException {
+		delegate.write(b, off, len);
 	}
 
 	@Override
-	public long skip(long n) throws IOException {
-		return delegate.skip(n);
-	}
-
-	@Override
-	public int available() throws IOException {
-		return delegate.available();
+	public void flush() throws IOException {
+		delegate.flush();
 	}
 
 	@Override
 	public void close() throws IOException {
 		delegate.close();
-	}
-
-	@Override
-	public void mark(int readlimit) {
-		delegate.mark(readlimit);
-	}
-
-	@Override
-	public void reset() throws IOException {
-		delegate.reset();
-	}
-
-	@Override
-	public boolean markSupported() {
-		return delegate.markSupported();
 	}
 }

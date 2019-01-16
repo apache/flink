@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.runtime.util.NonClosingInputStreamDecorator;
+import org.apache.flink.core.io.NonClosingInputStreamDecorator;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
