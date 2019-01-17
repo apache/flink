@@ -51,11 +51,11 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
 		this.fs = checkNotNull(fs);
 
 		// This writer is only supported on a subset of file systems, and on
-		// specific versions. We check these schemes and versions eagerly for
+		// specific versions. We check versions eagerly for
 		// better error messages.
-		if (!"hdfs".equalsIgnoreCase(fs.getScheme()) || !HadoopUtils.isMinHadoopVersion(2, 7)) {
+		if (!HadoopUtils.isMinHadoopVersion(2, 7)) {
 			throw new UnsupportedOperationException(
-					"Recoverable writers on Hadoop are only supported for HDFS and for Hadoop version 2.7 or newer");
+					"Recoverable writers on Hadoop are only supported for Hadoop version 2.7 or newer");
 		}
 	}
 
