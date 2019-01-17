@@ -23,7 +23,7 @@ import org.apache.flink.util.Preconditions;
 
 /**
  * A {@link IterativeCondition condition} which filters elements of the given type.
- * An element is filtered out iff it is not assignable to the given subtype of {@code T}.
+ * An element is filtered out if it is not assignable to the given subtype of {@code T}.
  *
  * @param <T> Type of the elements to be filtered
  */
