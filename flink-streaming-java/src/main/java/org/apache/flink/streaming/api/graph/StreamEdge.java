@@ -60,7 +60,14 @@ public class StreamEdge implements Serializable {
 	 */
 	private StreamPartitioner<?> outputPartitioner;
 
+	/**
+	 * The name of the operator in the source vertex.
+	 */
 	private final String sourceOperatorName;
+
+	/**
+	 * The name of the operator in the target vertex.
+	 */
 	private final String targetOperatorName;
 
 	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
