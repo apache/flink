@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
@@ -309,7 +310,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		}
 	}
 
-	private static Configuration loadConfiguration(String[] args) throws FlinkParseException {
+	@VisibleForTesting
+	static Configuration loadConfiguration(String[] args) throws FlinkParseException {
 		final CommandLineParser<ClusterConfiguration> commandLineParser = new CommandLineParser<>(new ClusterConfigurationParserFactory());
 
 		final ClusterConfiguration clusterConfiguration;

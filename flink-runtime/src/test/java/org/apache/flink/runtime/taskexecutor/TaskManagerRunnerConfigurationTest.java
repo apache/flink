@@ -16,24 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager;
+package org.apache.flink.runtime.taskexecutor;
 
 import net.jcip.annotations.NotThreadSafe;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.IOUtils;
 import org.junit.Rule;
 import org.junit.Test;
 
 import org.junit.rules.TemporaryFolder;
-import scala.Tuple2;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,12 +40,11 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.URI;
-import java.util.Iterator;
 
 import static org.junit.Assert.*;
 
 /**
- * Validates that the TaskManager startup properly obeys the configuration
+ * Validates that the TaskManagerRunner startup properly obeys the configuration
  * values.
  *
  * NOTE: at least {@link #testDefaultFsParameterLoading()} should not be run in parallel to other
@@ -54,13 +52,13 @@ import static org.junit.Assert.*;
  * and verifies its content.
  */
 @NotThreadSafe
-public class TaskManagerConfigurationTest {
+public class TaskManagerRunnerConfigurationTest {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@Test
-	public void testUsePreconfiguredNetworkInterface() throws Exception {
+	public void testUsePreconfiguredRpcService() throws Exception {
 		final String TEST_HOST_NAME = "testhostname";
 
 		Configuration config = new Configuration();
@@ -74,67 +72,41 @@ public class TaskManagerConfigurationTest {
 			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 		try {
-
-			Tuple2<String, Iterator<Integer>> address = TaskManager.selectNetworkInterfaceAndPortRange(config, highAvailabilityServices);
-
-			// validate the configured test host name
-			assertEquals(TEST_HOST_NAME, address._1());
-		} finally {
-			highAvailabilityServices.closeAndCleanupAllData();
-		}
-	}
-
-	@Test
-	public void testActorSystemPortConfig() throws Exception {
-		// config with pre-configured hostname to speed up tests (no interface selection)
-		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.HOST, "localhost");
-		config.setString(JobManagerOptions.ADDRESS, "localhost");
-		config.setInteger(JobManagerOptions.PORT, 7891);
-
-		HighAvailabilityServices highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
-			config,
-			Executors.directExecutor(),
-			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
-
-		try {
 			// auto port
-			Iterator<Integer> portsIter = TaskManager.selectNetworkInterfaceAndPortRange(config, highAvailabilityServices)._2();
-			assertTrue(portsIter.hasNext());
-			assertEquals(0, (int) portsIter.next());
+			RpcService rpcService = TaskManagerRunner.createRpcService(config, highAvailabilityServices);
+			assertTrue(rpcService.getPort() >= 0);
+			// pre-defined host name
+			assertEquals(TEST_HOST_NAME, rpcService.getAddress());
 
 			// pre-defined port
 			final int testPort = 22551;
 			config.setString(TaskManagerOptions.RPC_PORT, String.valueOf(testPort));
-
-			portsIter = TaskManager.selectNetworkInterfaceAndPortRange(config, highAvailabilityServices)._2();
-			assertTrue(portsIter.hasNext());
-			assertEquals(testPort, (int) portsIter.next());
+			rpcService = TaskManagerRunner.createRpcService(config, highAvailabilityServices);
+			assertEquals(testPort, rpcService.getPort());
 
 			// port range
 			config.setString(TaskManagerOptions.RPC_PORT, "8000-8001");
-			portsIter = TaskManager.selectNetworkInterfaceAndPortRange(config, highAvailabilityServices)._2();
-			assertTrue(portsIter.hasNext());
-			assertEquals(8000, (int) portsIter.next());
-			assertEquals(8001, (int) portsIter.next());
+			rpcService = TaskManagerRunner.createRpcService(config, highAvailabilityServices);
+			assertTrue(rpcService.getPort() >= 8000);
+			assertTrue(rpcService.getPort() <= 8001);
 
 			// invalid port
 			try {
 				config.setString(TaskManagerOptions.RPC_PORT, "-1");
-				TaskManager.selectNetworkInterfaceAndPortRange(config, highAvailabilityServices);
+				TaskManagerRunner.createRpcService(config, highAvailabilityServices);
 				fail("should fail with an exception");
 			}
-			catch (IllegalConfigurationException e) {
+			catch (IllegalArgumentException e) {
 				// bam!
 			}
 
 			// invalid port
 			try {
 				config.setString(TaskManagerOptions.RPC_PORT, "100000");
-				TaskManager.selectNetworkInterfaceAndPortRange(config, highAvailabilityServices);
+				TaskManagerRunner.createRpcService(config, highAvailabilityServices);
 				fail("should fail with an exception");
 			}
-			catch (IllegalConfigurationException e) {
+			catch (IllegalArgumentException e) {
 				// bam!
 			}
 		}
@@ -158,8 +130,9 @@ public class TaskManagerConfigurationTest {
 			pw1.println("fs.default-scheme: " + defaultFS);
 			pw1.close();
 
-			String[] args = new String[] {"--configDir:" + tmpDir};
-			TaskManager.parseArgsAndLoadConfig(args);
+			String[] args = new String[] {"--configDir", tmpDir.toString()};
+			Configuration configuration = TaskManagerRunner.loadConfiguration(args);
+			FileSystem.initialize(configuration);
 
 			assertEquals(defaultFS, FileSystem.getDefaultFsUri());
 		}
@@ -170,7 +143,7 @@ public class TaskManagerConfigurationTest {
 	}
 
 	@Test
-	public void testNetworkInterfaceSelection() throws Exception {
+	public void testCreateRpcService() throws Exception {
 		ServerSocket server;
 		String hostname = "localhost";
 
@@ -179,7 +152,7 @@ public class TaskManagerConfigurationTest {
 			server = new ServerSocket(0, 50, localhostAddress);
 		} catch (IOException e) {
 			// may happen in certain test setups, skip test.
-			System.err.println("Skipping 'testNetworkInterfaceSelection' test.");
+			System.err.println("Skipping 'testCreateRpcService' test.");
 			return;
 		}
 
@@ -195,7 +168,7 @@ public class TaskManagerConfigurationTest {
 			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 		try {
-			assertNotNull(TaskManager.selectNetworkInterfaceAndPortRange(config, highAvailabilityServices)._1());
+			assertNotNull(TaskManagerRunner.createRpcService(config, highAvailabilityServices).getAddress());
 		}
 		finally {
 			highAvailabilityServices.closeAndCleanupAllData();
