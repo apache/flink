@@ -35,7 +35,7 @@ public class LogListInfo implements ResponseBody {
 	private final List<String> loglist;
 
 	public LogListInfo(String[] loglist) {
-		TreeSet<String> sortedFiles = new TreeSet<>(Comparator.reverseOrder());
+		TreeSet<String> sortedFiles = new TreeSet<>(Comparator.naturalOrder());
 		for (String file : loglist) {
 			sortedFiles.add(file);
 		}
