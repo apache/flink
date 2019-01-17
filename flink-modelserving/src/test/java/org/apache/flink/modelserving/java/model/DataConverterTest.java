@@ -23,12 +23,6 @@ import org.apache.flink.modelserving.java.model.tensorflow.TField;
 import org.apache.flink.modelserving.java.model.tensorflow.TSignature;
 
 import com.google.protobuf.ByteString;
-import org.dmg.pmml.DataField;
-import org.dmg.pmml.DataType;
-import org.dmg.pmml.Field;
-import org.dmg.pmml.FieldName;
-import org.dmg.pmml.OpType;
-import org.jpmml.evaluator.InputField;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -57,7 +51,6 @@ public class DataConverterTest {
 
 	private static String tfmodeloptimized = "model/TF/optimized/optimized_WineQuality.pb";
 	private static String tfmodelsaved = "model/TF/saved/";
-	private static String pmmlmodel = "model/PMML/winequalityDecisionTreeClassification.pmml";
 	private static String name = "test";
 	private static String description = "test";
 	private static String dataType = "simple";
@@ -74,74 +67,10 @@ public class DataConverterTest {
 		new TField("detection_scores", null, Arrays.asList(-1, 100))
 	);
 
-
-    // PMML input fields
-    // InputField{name=fixed acidity, dataType=DOUBLE, opType=CONTINUOUS},
-    // InputField{name=volatile acidity, dataType=DOUBLE, opType=CONTINUOUS},
-    // InputField{name=residual sugar, dataType=DOUBLE, opType=CONTINUOUS},
-    // InputField{name=free sulfur dioxide, dataType=DOUBLE, opType=CONTINUOUS},
-    // InputField{name=total sulfur dioxide, dataType=DOUBLE, opType=CONTINUOUS},
-    // InputField{name=pH, dataType=DOUBLE, opType=CONTINUOUS},
-    // InputField{name=sulphates, dataType=DOUBLE, opType=CONTINUOUS},
-    // InputField{name=alcohol, dataType=DOUBLE, opType=CONTINUOUS}]
-
-	private static DataField[] pmmlInputs = {
-		new DataField(new FieldName("fixed acidity"), OpType.CONTINUOUS, DataType.DOUBLE),
-		new DataField(new FieldName("volatile acidity"), OpType.CONTINUOUS, DataType.DOUBLE),
-		new DataField(new FieldName("residual sugar"), OpType.CONTINUOUS, DataType.DOUBLE),
-		new DataField(new FieldName("free sulfur dioxide"), OpType.CONTINUOUS, DataType.DOUBLE),
-		new DataField(new FieldName("total sulfur dioxide"), OpType.CONTINUOUS, DataType.DOUBLE),
-		new DataField(new FieldName("pH"), OpType.CONTINUOUS, DataType.DOUBLE),
-		new DataField(new FieldName("sulphates"), OpType.CONTINUOUS, DataType.DOUBLE),
-		new DataField(new FieldName("alcohol"), OpType.CONTINUOUS, DataType.DOUBLE)};
-
 	@BeforeClass
 	public static void oneTimeSetUp() {
         // Set resolver
 		DataConverter.setResolver(new SimpleFactoryResolver());
-	}
-
-	@Test
-	public void testPMML() {
-        // Get PMML model from File
-		byte[] model = getModel(pmmlmodel);
-        // Build input record
-		byte[] record = getbinaryContent(model, null, Modeldescriptor.ModelDescriptor.ModelType.PMML);
-        // Convert input record
-		Optional<ModelToServe> result = DataConverter.convertModel(record);
-        // validate it
-		validateModelToServe(result, model, null, Modeldescriptor.ModelDescriptor.ModelType.PMML);
-        // Build PMML model
-		Optional<Model> pmml = DataConverter.toModel(result.get());
-
-        // Validate
-		assertTrue("PMML Model created", pmml.isPresent());
-		valdatePMMLModel(pmml.get());
-
-        // Simply copy the model
-		Model copyDirect = DataConverter.copy(pmml.get());
-        // Validate
-		assertEquals("Copy equal to source", pmml.get(), copyDirect);
-        // Create model from binary
-		Model direct = DataConverter.restore(Modeldescriptor.ModelDescriptor.ModelType.PMML.getNumber(), model);
-        // Validate it
-		valdatePMMLModel(direct);
-	}
-
-	@Test
-	public void testPMMLBadData() {
-        // Get PMML model from File
-		byte[] model = new byte[0];
-        // Build input record
-		byte[] record = getbinaryContent(model, null, Modeldescriptor.ModelDescriptor.ModelType.PMML);
-        // Convert input record
-		Optional<ModelToServe> result = DataConverter.convertModel(record);
-        // validate it
-		validateModelToServe(result, model, null, Modeldescriptor.ModelDescriptor.ModelType.PMML);
-        // Build PMML model
-		Optional<Model> pmml = DataConverter.toModel(result.get());
-        // Validate
-		assertFalse("PMML Model is not created", pmml.isPresent());
 	}
 
 	@Test
@@ -226,21 +155,6 @@ public class DataConverterTest {
 		Optional<Model> tf = DataConverter.toModel(result.get());
         // Validate
 		assertFalse("TF Model is not created", tf.isPresent());
-	}
-
-	private void valdatePMMLModel(Model pmml){
-		assertTrue(pmml instanceof SimplePMMLModel);
-		SimplePMMLModel pmmlModel = (SimplePMMLModel) pmml;
-		assertNotEquals("PMML is created", null, pmmlModel.getPmml());
-		assertNotEquals("PMML Evaluator is created", null, pmmlModel.getEvaluator());
-		assertEquals("PMML input is correct", "quality", pmmlModel.getTname().toString());
-		Iterator<InputField> inputsIterator = pmmlModel.getInputFields().iterator();
-		for (DataField field : pmmlInputs) {
-			Field<?> recieved = inputsIterator.next().getField();
-			assertEquals("Output field name", field.getName().getValue(), recieved.getName().getValue());
-			assertEquals("Output field type", field.getDataType().value(), recieved.getDataType().value());
-			assertEquals("Output field operation type", field.getOpType().value(), recieved.getOpType().value());
-		}
 	}
 
 	private void valdateTFModel(Model tf) {

@@ -48,10 +48,10 @@ object ModelToServe {
   def fromByteArray(message: Array[Byte]) = Try{
     val m = ModelDescriptor.parseFrom(message)
     m.messageContent.isData match {
-      case true => new ModelToServe(m.name, m.description, m.modeltype,
+      case true => ModelToServe(m.name, m.description, m.modeltype,
         m.getData.toByteArray, null, m.dataType)
-      case _ => new ModelToServe(m.name, m.description, m.modeltype,
-        null, m.getLocation, m.dataType)
+      case _ => ModelToServe(m.name, m.description, m.modeltype,
+        Array[Byte](), m.getLocation, m.dataType)
     }
   }
 

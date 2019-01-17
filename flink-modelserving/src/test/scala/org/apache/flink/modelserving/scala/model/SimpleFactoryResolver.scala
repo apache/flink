@@ -26,7 +26,6 @@ import org.apache.flink.model.modeldescriptor.ModelDescriptor
 class SimpleFactoryResolver extends ModelFactoryResolver{
 
   private val factories = Map(
-    ModelDescriptor.ModelType.PMML.value -> SimplePMMLModel,
     ModelDescriptor.ModelType.TENSORFLOW.value -> SimpleTensorflowModel,
     ModelDescriptor.ModelType.TENSORFLOWSAVED.value -> SimpleTensorflowBundleModel
   )

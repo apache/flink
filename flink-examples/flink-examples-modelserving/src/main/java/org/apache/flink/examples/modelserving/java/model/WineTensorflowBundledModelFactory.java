@@ -25,37 +25,37 @@ import org.apache.flink.modelserving.java.model.ModelToServe;
 import java.util.Optional;
 
 /**
- * Implementation of PMML model factory.
+ * Implementation of tensorflow (bundled) model factory.
  */
-public class WinePMMLModelFactory implements ModelFactory {
+public class WineTensorflowBundledModelFactory implements ModelFactory {
 
 	private static ModelFactory instance = null;
 
 	/**
 	 * Default constructor - protected.
 	 */
-	private WinePMMLModelFactory(){}
+	private WineTensorflowBundledModelFactory(){}
 
 	/**
-	 * Creates a new PMML model.
+	 * Creates a new tensorflow (bundled) model.
 	 *
-	 * @param descriptor model to serve representation of PMML model.
+	 * @param descriptor model to serve representation of tensorflow (bundled) model.
 	 * @return model
 	 */
 	@Override
 	public Optional<Model> create(ModelToServe descriptor) {
 		try {
-			return Optional.of(new WinePMMLModel(descriptor.getModelData()));
+			return Optional.of(new WineTensorflowBundledModel(descriptor.getModelDataLocation().getBytes()));
 		}
 		catch (Throwable t){
-			System.out.println("Exception creating SpecificPMMLModel from " + descriptor);
+			System.out.println("Exception creating SpecificTensorflowModel from " + descriptor);
 			t.printStackTrace();
 			return Optional.empty();
 		}
 	}
 
 	/**
-	 * Restore PMML model from binary.
+	 * Restore tensorflow (bundled) model from binary.
 	 *
 	 * @param bytes binary representation of PMML model.
 	 * @return model
@@ -63,10 +63,10 @@ public class WinePMMLModelFactory implements ModelFactory {
 	@Override
 	public Model restore(byte[] bytes) {
 		try {
-			return new WinePMMLModel(bytes);
+			return new WineTensorflowBundledModel(bytes);
 		}
 		catch (Throwable t){
-			System.out.println("Exception restoring SpecificPMMLModel from ");
+			System.out.println("Exception restoring SpecificTensorflowModel from ");
 			t.printStackTrace();
 			return null;
 		}
@@ -79,7 +79,7 @@ public class WinePMMLModelFactory implements ModelFactory {
 	 */
 	public static ModelFactory getInstance(){
 		if (instance == null) {
-			instance = new WinePMMLModelFactory();
+			instance = new WineTensorflowBundledModelFactory();
 		}
 		return instance;
 	}

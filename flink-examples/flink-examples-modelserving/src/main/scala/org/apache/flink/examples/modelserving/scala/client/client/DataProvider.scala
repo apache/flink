@@ -38,9 +38,10 @@ object DataProvider {
 
   import ModelServingConfiguration._
   val file = "flink-examples/flink-examples-modelserving/data/winequality_red.csv"
-  var dataTimeInterval = 1000 * 1 // 1 sec
-  val directory = "flink-examples/flink-examples-modelserving/data/"
+  val tensorfilesaved = "flink-examples/flink-examples-modelserving/data/saved"
   val tensorfile = "flink-examples/flink-examples-modelserving/data/optimized_WineQuality.pb"
+
+  var dataTimeInterval = 1000 * 1 // 1 sec
   var modelTimeInterval = 1000 * 60 * 1 // 5 mins
 
   def main(args: Array[String]) {
@@ -92,24 +93,18 @@ object DataProvider {
   def publishModels() : Future[Unit] = Future {
 
     val sender = MessageSender(LOCAL_KAFKA_BROKER)
-    val files = getListOfModelFiles(directory)
     val bos = new ByteArrayOutputStream()
     while (true) {
-      files.foreach(f => {
-        // PMML
-        val pByteArray = Files.readAllBytes(Paths.get(directory + f))
-        val pRecord = ModelDescriptor(
-          name = f.dropRight(5),
-          description = "generated from SparkML", modeltype = ModelDescriptor.ModelType.PMML,
-          dataType = "wine"
-        ).withData(ByteString.copyFrom(pByteArray))
-        bos.reset()
-        pRecord.writeTo(bos)
-        sender.writeValue(MODELS_TOPIC, bos.toByteArray)
-        println(s"Published Model ${pRecord.description}")
-        pause(modelTimeInterval)
-      })
-
+      // TF model bundled
+      val tbRecord = ModelDescriptor(name = "tensorflow saved model",
+        description = "generated from TensorFlow saved bundle", modeltype =
+          ModelDescriptor.ModelType.TENSORFLOWSAVED, dataType = "wine").
+        withLocation(tensorfilesaved)
+      bos.reset()
+      tbRecord.writeTo(bos)
+      sender.writeValue(MODELS_TOPIC, bos.toByteArray)
+      println(s"Published Model ${tbRecord.description}")
+      pause(modelTimeInterval)
       // TF model
       val tByteArray = Files.readAllBytes(Paths.get(tensorfile))
       val tRecord = ModelDescriptor(name = tensorfile.dropRight(3),

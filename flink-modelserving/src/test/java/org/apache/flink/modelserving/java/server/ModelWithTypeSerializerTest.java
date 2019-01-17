@@ -40,7 +40,6 @@ public class ModelWithTypeSerializerTest extends SerializerTestBase<ModelWithTyp
 
 	private static String tfmodeloptimized = "model/TF/optimized/optimized_WineQuality.pb";
 	private static String tfmodelsaved = "model/TF/saved/";
-	private static String pmmlmodel = "model/PMML/winequalityDecisionTreeClassification.pmml";
 
 	private static String dataType = "wine";
 
@@ -69,12 +68,8 @@ public class ModelWithTypeSerializerTest extends SerializerTestBase<ModelWithTyp
 
 	@Override
 	protected ModelWithType[] getTestData() {
-        // Get PMML model from File
-		byte[] model = getModel(pmmlmodel);
-        // Create model from binary
-		Model pmml = DataConverter.restore(Modeldescriptor.ModelDescriptor.ModelType.PMML.getNumber(), model);
         // Get TF Optimized model from file
-		model = getModel(tfmodeloptimized);
+		byte[] model = getModel(tfmodeloptimized);
         // Create model from binary
 		Model tfoptimized = DataConverter.restore(Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOW.getNumber(), model);
         // Get TF bundled model location
@@ -84,7 +79,6 @@ public class ModelWithTypeSerializerTest extends SerializerTestBase<ModelWithTyp
         // Create model from location
 		Model tfbundled = DataConverter.restore(Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOWSAVED.getNumber(), location.getBytes());
 		return new ModelWithType[]{
-			new ModelWithType(false, dataType, Optional.of(pmml)),
 			new ModelWithType(false, dataType, Optional.empty()),
 			new ModelWithType(false, dataType, Optional.of(tfoptimized)),
 			new ModelWithType(false, dataType, Optional.of(tfbundled))};

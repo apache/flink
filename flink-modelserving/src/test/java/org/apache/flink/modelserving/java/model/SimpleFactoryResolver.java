@@ -32,7 +32,6 @@ public class SimpleFactoryResolver implements ModelFacroriesResolver {
 		{
 			put(Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOW.getNumber(), SimpleTensorflowModelFactory.getInstance());
 			put(Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOWSAVED.getNumber(), SimpleTensorflowBundleModelFactory.getInstance());
-			put(Modeldescriptor.ModelDescriptor.ModelType.PMML.getNumber(), SimplePMMLModelFactory.getInstance());
 		}
 	};
 

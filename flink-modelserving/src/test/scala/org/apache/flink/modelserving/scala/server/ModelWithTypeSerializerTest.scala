@@ -35,7 +35,6 @@ class ModelWithTypeSerializerTest extends SerializerTestBase[ModelWithType]{
 
   private val tfmodeloptimized = "model/TF/optimized/optimized_WineQuality.pb"
   private val tfmodelsaved = "model/TF/saved/"
-  private val pmmlmodel = "model/PMML/winequalityDecisionTreeClassification.pmml"
 
   private val dataType = "wine"
 
@@ -50,12 +49,8 @@ class ModelWithTypeSerializerTest extends SerializerTestBase[ModelWithType]{
 
   override protected def getTestData: Array[ModelWithType] = {
 
-    // Get PMML model from File
-    var model = getModel(pmmlmodel)
-    // Create model from binary
-    val pmml = ModelToServe.restore(ModelDescriptor.ModelType.PMML.value, model)
     // Get TF Optimized model from file
-    model = getModel(tfmodeloptimized)
+    var model = getModel(tfmodeloptimized)
     val tfoptimized = ModelToServe.restore(ModelDescriptor.ModelType.TENSORFLOW.value, model)
     // Get TF bundled model location
     val classLoader = getClass.getClassLoader
@@ -66,7 +61,6 @@ class ModelWithTypeSerializerTest extends SerializerTestBase[ModelWithType]{
       location.getBytes)
 
     Array[ModelWithType](
-      new ModelWithType(false, dataType, pmml),
       new ModelWithType(false, dataType, Option.empty),
       new ModelWithType(false, dataType, tfoptimized),
       new ModelWithType(false, dataType, tfbundled))

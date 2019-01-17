@@ -34,7 +34,6 @@ under the License.
 	<properties>
 		<scalapb.version>0.8.2</scalapb.version>
 		<tensorflow.version>1.12.0</tensorflow.version>
-		<pmml.version>1.4.4</pmml.version>
 	</properties>
 
 	<packaging>jar</packaging>
@@ -100,17 +99,6 @@ under the License.
 			<groupId>org.tensorflow</groupId>
 			<artifactId>proto</artifactId>
 			<version>${tensorflow.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.jpmml</groupId>
-			<artifactId>pmml-evaluator</artifactId>
-			<version>${pmml.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.jpmml</groupId>
-			<artifactId>pmml-evaluator-extension</artifactId>
-			<version>${pmml.version}</version>
 		</dependency>
 
 		<dependency>

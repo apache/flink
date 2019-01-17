@@ -21,6 +21,9 @@ package org.apache.flink.examples.modelserving.java.model;
 import org.apache.flink.modelserving.java.model.Model;
 import org.apache.flink.modelserving.java.model.ModelFactory;
 import org.apache.flink.modelserving.java.model.ModelToServe;
+import org.apache.flink.modelserving.wine.Winerecord;
+
+import org.tensorflow.Tensor;
 
 import java.util.Optional;
 
@@ -70,6 +73,29 @@ public class WineTensorflowModelFactory implements ModelFactory {
 			t.printStackTrace();
 			return null;
 		}
+	}
+
+	/**
+	 * Convert wine record to tensor.
+	 *
+	 * @param record wine record.
+	 * @return tensor
+	 */
+	public static Tensor toTensor(Winerecord.WineRecord record){
+		float[][] data = {{
+			(float) record.getFixedAcidity(),
+			(float) record.getVolatileAcidity(),
+			(float) record.getCitricAcid(),
+			(float) record.getResidualSugar(),
+			(float) record.getChlorides(),
+			(float) record.getFreeSulfurDioxide(),
+			(float) record.getTotalSulfurDioxide(),
+			(float) record.getDensity(),
+			(float) record.getPH(),
+			(float) record.getSulphates(),
+			(float) record.getAlcohol()
+		}};
+		return Tensor.create(data);
 	}
 
 	/**

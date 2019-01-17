@@ -22,7 +22,7 @@ import java.util.Properties
 
 import org.apache.flink.examples.modelserving.scala.configuration.ModelServingConfiguration
 import org.apache.flink.examples.modelserving.scala.model.WineFactoryResolver
-import org.apache.flink.modelserving.scala.model.{ModelToServe, DataToServe}
+import org.apache.flink.modelserving.scala.model.{DataToServe, ModelToServe}
 import org.apache.flink.modelserving.scala.server.keyed.DataProcessorKeyed
 import org.apache.flink.modelserving.scala.server.typeschema.ByteArraySchema
 import org.apache.flink.configuration.{Configuration, JobManagerOptions, QueryableStateOptions, TaskManagerOptions}

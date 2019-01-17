@@ -26,8 +26,10 @@ import org.apache.flink.modelserving.scala.model.{ModelFactory, ModelFactoryReso
   */
 object WineFactoryResolver extends ModelFactoryResolver{
 
-  private val factories = Map(ModelDescriptor.ModelType.PMML.value -> WinePMMLModel,
-                              ModelDescriptor.ModelType.TENSORFLOW.value -> WineTensorFlowModel)
+  private val factories = Map(
+    ModelDescriptor.ModelType.TENSORFLOWSAVED.value -> WineTensorFlowBundledModel,
+    ModelDescriptor.ModelType.TENSORFLOW.value -> WineTensorFlowModel)
 
-  override def getFactory(`type`: Int): Option[ModelFactory] = factories.get(`type`)
+  override def getFactory(`type`: Int): Option[ModelFactory] =
+    factories.get(`type`)
 }

@@ -25,7 +25,6 @@ import java.io._
 import java.nio.file.{Files, Paths}
 
 import com.google.protobuf.ByteString
-import org.dmg.pmml.{DataField, DataType, FieldName, OpType}
 import org.junit.Assert.{assertArrayEquals, assertEquals, assertNotEquals, assertTrue}
 import org.junit.Test
 
@@ -41,25 +40,6 @@ class ModelToServeTest {
   private val description = "test"
   private val dataType = "simple"
 
-  // PMML input fields
-  // InputField{name=fixed acidity, dataType=DOUBLE, opType=CONTINUOUS},
-  // InputField{name=volatile acidity, dataType=DOUBLE, opType=CONTINUOUS},
-  // InputField{name=residual sugar, dataType=DOUBLE, opType=CONTINUOUS},
-  // InputField{name=free sulfur dioxide, dataType=DOUBLE, opType=CONTINUOUS},
-  // InputField{name=total sulfur dioxide, dataType=DOUBLE, opType=CONTINUOUS},
-  // InputField{name=pH, dataType=DOUBLE, opType=CONTINUOUS},
-  // InputField{name=sulphates, dataType=DOUBLE, opType=CONTINUOUS},
-  // InputField{name=alcohol, dataType=DOUBLE, opType=CONTINUOUS}]
-  private val pmmlInputs = Seq(
-    new DataField(new FieldName("fixed acidity"), OpType.CONTINUOUS, DataType.DOUBLE),
-    new DataField(new FieldName("volatile acidity"), OpType.CONTINUOUS, DataType.DOUBLE),
-    new DataField(new FieldName("residual sugar"), OpType.CONTINUOUS, DataType.DOUBLE),
-    new DataField(new FieldName("free sulfur dioxide"), OpType.CONTINUOUS, DataType.DOUBLE),
-    new DataField(new FieldName("total sulfur dioxide"), OpType.CONTINUOUS, DataType.DOUBLE),
-    new DataField(new FieldName("pH"), OpType.CONTINUOUS, DataType.DOUBLE),
-    new DataField(new FieldName("sulphates"), OpType.CONTINUOUS, DataType.DOUBLE),
-    new DataField(new FieldName("alcohol"), OpType.CONTINUOUS, DataType.DOUBLE))
-
   private val bundleTag = "serve"
   private val bundleSignature = "serving_default"
   private val bundleInputs = "inputs"
@@ -73,44 +53,6 @@ class ModelToServeTest {
     Field("detection_scores", null, Seq(-1, 100)))
 
   ModelToServe.setResolver(new SimpleFactoryResolver)
-
-  @Test
-  def testPMML(): Unit = {
-    val model = getModel(pmmlmodel)
-    // Build input record
-    val record = getbinaryContent(Some(model), Option.empty, ModelDescriptor.ModelType.PMML)
-    // Convert input record
-    val result = ModelToServe.fromByteArray(record).toOption
-    // validate it
-    validateModelToServe(result, Some(model), Option.empty, ModelDescriptor.ModelType.PMML)
-    // Build PMML model
-    val pmml = ModelToServe.   toModel(result.get)
-    // Validate
-    assertTrue("PMML Model created", pmml.isDefined)
-    valdatePMMLModel(pmml.get)
-    // Simply copy the model
-    val copyDirect = ModelToServe.copy(pmml)
-    assertEquals("Copy equal to source", pmml.get, copyDirect.get)
-    // Create model from binary
-    val direct = ModelToServe.restore(ModelDescriptor.ModelType.PMML.value, model)
-    // Validate it
-    valdatePMMLModel(direct.get)
-  }
-
-  @Test
-  def testPMMLBadData(): Unit = {
-    val model = Array[Byte]()
-    // Build input record
-    val record = getbinaryContent(Some(model), Option.empty, ModelDescriptor.ModelType.PMML)
-    // Convert input record
-    val result = ModelToServe.fromByteArray(record).toOption
-    // validate it
-    validateModelToServe(result, Some(model), Option.empty, ModelDescriptor.ModelType.PMML)
-    // Build PMML model
-    val pmml = ModelToServe.toModel(result.get)
-    // Validate
-    assertTrue("PMML Model is not created", pmml.isEmpty)
-  }
 
   @Test
   def testTFOptimized(): Unit = {
@@ -200,21 +142,6 @@ class ModelToServeTest {
     val tf = ModelToServe.  toModel(result.get)
     // Validate
     assertTrue("TF Model is not created",tf.isEmpty)
-  }
-
-  private def valdatePMMLModel(pmml: Model): Unit = {
-    assertTrue(pmml.isInstanceOf[SimplePMMLModel])
-    val pmmlModel = pmml.asInstanceOf[SimplePMMLModel]
-    assertNotEquals("PMML build",null, pmmlModel.getPmml)
-    assertNotEquals("PMML evaluator created", null, pmmlModel.getEvaluator)
-    assertEquals("Output name is correct", "quality", pmmlModel.getTname.toString)
-    val inputsIterator = pmmlModel.getInputFields.iterator
-    for (field <- pmmlInputs) {
-      val recieved = inputsIterator.next.getField
-      assertEquals("Field name correct",field.getName.getValue, recieved.getName.getValue)
-      assertEquals("Field type correct",field.getDataType.value, recieved.getDataType.value)
-      assertEquals("Field operation correct",field.getOpType.value, recieved.getOpType.value)
-    }
   }
 
   private def valdateTFModel(tf: Model): Unit = {

@@ -44,23 +44,8 @@ public class WineTensorflowModel extends TensorflowModel {
 	 */
 	@Override
 	public Object score(Object input) {
-		// Convert input data
-		Winerecord.WineRecord record = (Winerecord.WineRecord) input;
 		// Build input tensor
-		float[][] data = {{
-			(float) record.getFixedAcidity(),
-			(float) record.getVolatileAcidity(),
-			(float) record.getCitricAcid(),
-			(float) record.getResidualSugar(),
-			(float) record.getChlorides(),
-			(float) record.getFreeSulfurDioxide(),
-			(float) record.getTotalSulfurDioxide(),
-			(float) record.getDensity(),
-			(float) record.getPH(),
-			(float) record.getSulphates(),
-			(float) record.getAlcohol()
-		}};
-		Tensor modelInput = Tensor.create(data);
+		Tensor modelInput = WineTensorflowModelFactory.toTensor((Winerecord.WineRecord) input);
 		// Serve using tensorflow APIs
 		Tensor result = session.runner().feed("dense_1_input", modelInput).fetch("dense_3/Sigmoid").run().get(0);
 		// Convert result

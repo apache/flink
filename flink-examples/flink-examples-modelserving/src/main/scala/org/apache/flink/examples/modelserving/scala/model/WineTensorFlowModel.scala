@@ -29,6 +29,8 @@ import org.tensorflow.Tensor
   */
 class WineTensorFlowModel(inputStream: Array[Byte]) extends TensorFlowModel(inputStream){
 
+  import WineTensorFlowModel._
+
   /**
     * Score data.
     *
@@ -36,23 +38,8 @@ class WineTensorFlowModel(inputStream: Array[Byte]) extends TensorFlowModel(inpu
     */
   override def score(input: AnyVal): AnyVal = {
 
-    // Convert input data
-    val record = input.asInstanceOf[WineRecord]
     // Create input tensor
-    val data = Array(
-      record.fixedAcidity.toFloat,
-      record.volatileAcidity.toFloat,
-      record.citricAcid.toFloat,
-      record.residualSugar.toFloat,
-      record.chlorides.toFloat,
-      record.freeSulfurDioxide.toFloat,
-      record.totalSulfurDioxide.toFloat,
-      record.density.toFloat,
-      record.pH.toFloat,
-      record.sulphates.toFloat,
-      record.alcohol.toFloat
-    )
-    val modelInput = Tensor.create(Array(data))
+    val modelInput  = toTensor(input.asInstanceOf[WineRecord])
     // Serve model using tensorflow APIs
     val result = session.runner.feed("dense_1_input", modelInput).fetch("dense_3/Sigmoid").run().
       get(0)
@@ -76,6 +63,29 @@ class WineTensorFlowModel(inputStream: Array[Byte]) extends TensorFlowModel(inpu
   * Implementation of tensorflow (optimized) model factory for wine.
   */
 object WineTensorFlowModel extends  ModelFactory {
+
+  /**
+    * Convert wine record into input tensor for serving.
+    *
+    * @param record Wine record.
+    * @return tensor
+    */
+  def toTensor(record : WineRecord) : Tensor[_] = {
+    val data = Array(
+      record.fixedAcidity.toFloat,
+      record.volatileAcidity.toFloat,
+      record.citricAcid.toFloat,
+      record.residualSugar.toFloat,
+      record.chlorides.toFloat,
+      record.freeSulfurDioxide.toFloat,
+      record.totalSulfurDioxide.toFloat,
+      record.density.toFloat,
+      record.pH.toFloat,
+      record.sulphates.toFloat,
+      record.alcohol.toFloat
+    )
+    Tensor.create(Array(data))
+  }
 
   /**
     * Creates a new tensorflow (optimized) model.

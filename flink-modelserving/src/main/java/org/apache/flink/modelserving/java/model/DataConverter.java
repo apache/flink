@@ -77,7 +77,7 @@ public class DataConverter {
 			else {
 				return Optional.of(new ModelToServe(
 					model.getName(), model.getDescription(), model.getModeltype(),
-					null, model.getLocation(), model.getDataType()));
+					new byte[0], model.getLocation(), model.getDataType()));
 			}
 		} catch (Throwable t) {
 			// Oops
