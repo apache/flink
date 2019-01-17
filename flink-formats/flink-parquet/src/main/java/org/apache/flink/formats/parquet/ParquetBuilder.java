@@ -19,6 +19,7 @@
 package org.apache.flink.formats.parquet;
 
 import org.apache.parquet.hadoop.ParquetWriter;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.io.OutputFile;
 
 import java.io.IOException;
@@ -35,5 +36,5 @@ public interface ParquetBuilder<T> extends Serializable {
 	/**
 	 * Creates and configures a parquet writer to the given output file.
 	 */
-	ParquetWriter<T> createWriter(OutputFile out) throws IOException;
+	ParquetWriter<T> createWriter(OutputFile out, CompressionCodecName compressionCodec) throws IOException;
 }

@@ -29,6 +29,7 @@ import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.ParquetWriter;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.io.OutputFile;
 
 import java.io.IOException;
@@ -46,7 +47,8 @@ public class ParquetAvroWriters {
 	 */
 	public static <T extends SpecificRecordBase> ParquetWriterFactory<T> forSpecificRecord(Class<T> type) {
 		final String schemaString = SpecificData.get().getSchema(type).toString();
-		final ParquetBuilder<T> builder = (out) -> createAvroParquetWriter(schemaString, SpecificData.get(), out);
+		final ParquetBuilder<T> builder =
+			(out, compressionCodec) -> createAvroParquetWriter(schemaString, SpecificData.get(), out, compressionCodec);
 		return new ParquetWriterFactory<>(builder);
 	}
 
@@ -58,7 +60,8 @@ public class ParquetAvroWriters {
 	 */
 	public static ParquetWriterFactory<GenericRecord> forGenericRecord(Schema schema) {
 		final String schemaString = schema.toString();
-		final ParquetBuilder<GenericRecord> builder = (out) -> createAvroParquetWriter(schemaString, GenericData.get(), out);
+		final ParquetBuilder<GenericRecord> builder =
+			(out, compressionCodec) -> createAvroParquetWriter(schemaString, GenericData.get(), out, compressionCodec);
 		return new ParquetWriterFactory<>(builder);
 	}
 
@@ -70,20 +73,23 @@ public class ParquetAvroWriters {
 	 */
 	public static <T> ParquetWriterFactory<T> forReflectRecord(Class<T> type) {
 		final String schemaString = ReflectData.get().getSchema(type).toString();
-		final ParquetBuilder<T> builder = (out) -> createAvroParquetWriter(schemaString, ReflectData.get(), out);
+		final ParquetBuilder<T> builder =
+			(out, compressionCodec) -> createAvroParquetWriter(schemaString, ReflectData.get(), out, compressionCodec);
 		return new ParquetWriterFactory<>(builder);
 	}
 
 	private static <T> ParquetWriter<T> createAvroParquetWriter(
 			String schemaString,
 			GenericData dataModel,
-			OutputFile out) throws IOException {
+			OutputFile out,
+			CompressionCodecName compressionCodec) throws IOException {
 
 		final Schema schema = new Schema.Parser().parse(schemaString);
 
 		return AvroParquetWriter.<T>builder(out)
 				.withSchema(schema)
 				.withDataModel(dataModel)
+				.withCompressionCodec(compressionCodec)
 				.build();
 	}
 

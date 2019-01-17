@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.core.fs.FSDataOutputStream;
 
 import org.apache.parquet.hadoop.ParquetWriter;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.io.OutputFile;
 
 import java.io.IOException;
@@ -38,6 +39,8 @@ public class ParquetWriterFactory<T> implements BulkWriter.Factory<T> {
 
 	private static final long serialVersionUID = 1L;
 
+	private CompressionCodecName compressionCodec = CompressionCodecName.UNCOMPRESSED;
+
 	/** The builder to construct the ParquetWriter. */
 	private final ParquetBuilder<T> writerBuilder;
 
@@ -51,10 +54,20 @@ public class ParquetWriterFactory<T> implements BulkWriter.Factory<T> {
 		this.writerBuilder = writerBuilder;
 	}
 
+	/**
+	 * Sets the compression codec to enable compression on the ParquetWriter.
+	 *
+	 * @param compressionCodec Compression codec
+	 */
+	public ParquetWriterFactory<T> withCompressionCodec(CompressionCodecName compressionCodec) {
+		this.compressionCodec = compressionCodec;
+		return this;
+	}
+
 	@Override
 	public BulkWriter<T> create(FSDataOutputStream stream) throws IOException {
 		final OutputFile out = new StreamOutputFile(stream);
-		final ParquetWriter<T> writer = writerBuilder.createWriter(out);
+		final ParquetWriter<T> writer = writerBuilder.createWriter(out, this.compressionCodec);
 		return new ParquetBulkWriter<>(writer);
 	}
 }
