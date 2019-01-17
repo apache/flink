@@ -23,33 +23,25 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
-import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
-import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nullable;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -58,99 +50,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for {@link RocksDBStateDataTransfer}.
+ * Test class for {@link RocksDBStateUploader}.
  */
-public class RocksDBStateDataTransferTest extends TestLogger {
+public class RocksDBStateUploaderTest extends TestLogger {
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-	/**
-	 * Test that the exception arose in the thread pool will rethrow to the main thread.
-	 */
-	@Test
-	public void testMultiThreadRestoreThreadPoolExceptionRethrow() {
-		SpecifiedException expectedException = new SpecifiedException("throw exception while multi thread restore.");
-		StreamStateHandle stateHandle = new StreamStateHandle() {
-			@Override
-			public FSDataInputStream openInputStream() throws IOException {
-				throw expectedException;
-			}
-
-			@Override
-			public void discardState() {
-
-			}
-
-			@Override
-			public long getStateSize() {
-				return 0;
-			}
-		};
-
-		Map<StateHandleID, StreamStateHandle> stateHandles = new HashMap<>(1);
-		stateHandles.put(new StateHandleID("state1"), stateHandle);
-
-		IncrementalKeyedStateHandle incrementalKeyedStateHandle =
-			new IncrementalKeyedStateHandle(
-				UUID.randomUUID(),
-				KeyGroupRange.EMPTY_KEY_GROUP_RANGE,
-				1,
-				stateHandles,
-				stateHandles,
-				stateHandle);
-
-		try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(5)) {
-			rocksDBStateDownloader.transferAllStateDataToDirectory(incrementalKeyedStateHandle, new Path(temporaryFolder.newFolder().toURI()), new CloseableRegistry());
-			fail();
-		} catch (Exception e) {
-			assertEquals(expectedException, e);
-		}
-	}
-
-	/**
-	 * Tests that download files with multi-thread correctly.
-	 */
-	@Test
-	public void testMultiThreadRestoreCorrectly() throws Exception {
-		Random random = new Random();
-		int contentNum = 6;
-		byte[][] contents = new byte[contentNum][];
-		for (int i = 0; i < contentNum; ++i) {
-			contents[i] = new byte[random.nextInt(100000) + 1];
-			random.nextBytes(contents[i]);
-		}
-
-		List<StreamStateHandle> handles = new ArrayList<>(contentNum);
-		for (int i = 0; i < contentNum; ++i) {
-			handles.add(new ByteStreamStateHandle(String.format("state%d", i), contents[i]));
-		}
-
-		Map<StateHandleID, StreamStateHandle> sharedStates = new HashMap<>(contentNum);
-		Map<StateHandleID, StreamStateHandle> privateStates = new HashMap<>(contentNum);
-		for (int i = 0; i < contentNum; ++i) {
-			sharedStates.put(new StateHandleID(String.format("sharedState%d", i)), handles.get(i));
-			privateStates.put(new StateHandleID(String.format("privateState%d", i)), handles.get(i));
-		}
-
-		IncrementalKeyedStateHandle incrementalKeyedStateHandle =
-			new IncrementalKeyedStateHandle(
-				UUID.randomUUID(),
-				KeyGroupRange.of(0, 1),
-				1,
-				sharedStates,
-				privateStates,
-				handles.get(0));
-
-		Path dstPath = new Path(temporaryFolder.newFolder().toURI());
-		try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(5)) {
-			rocksDBStateDownloader.transferAllStateDataToDirectory(incrementalKeyedStateHandle, dstPath, new CloseableRegistry());
-		}
-
-		for (int i = 0; i < contentNum; ++i) {
-			assertStateContentEqual(contents[i], new Path(dstPath, String.format("sharedState%d", i)));
-		}
-	}
-
 	/**
 	 * Test that the exception arose in the thread pool will rethrow to the main thread.
 	 */
@@ -158,7 +62,7 @@ public class RocksDBStateDataTransferTest extends TestLogger {
 	public void testMultiThreadUploadThreadPoolExceptionRethrow() throws IOException {
 		SpecifiedException expectedException = new SpecifiedException("throw exception while multi thread upload states.");
 
-		CheckpointStateOutputStream outputStream = createFailingCheckpointStateOutputStream(expectedException);
+		CheckpointStreamFactory.CheckpointStateOutputStream outputStream = createFailingCheckpointStateOutputStream(expectedException);
 		CheckpointStreamFactory checkpointStreamFactory = (CheckpointedStateScope scope) -> outputStream;
 
 		File file = temporaryFolder.newFile(String.valueOf(UUID.randomUUID()));
@@ -208,9 +112,9 @@ public class RocksDBStateDataTransferTest extends TestLogger {
 		}
 	}
 
-	private CheckpointStateOutputStream createFailingCheckpointStateOutputStream(
+	private CheckpointStreamFactory.CheckpointStateOutputStream createFailingCheckpointStateOutputStream(
 		IOException failureException) {
-		return new CheckpointStateOutputStream() {
+		return new CheckpointStreamFactory.CheckpointStateOutputStream() {
 			@Nullable
 			@Override
 			public StreamStateHandle closeAndGetHandle() {
@@ -272,14 +176,10 @@ public class RocksDBStateDataTransferTest extends TestLogger {
 		assertArrayEquals(excepted, actual);
 	}
 
-	private void assertStateContentEqual(byte[] expected, Path path) throws IOException {
-		byte[] actual = Files.readAllBytes(Paths.get(path.toUri()));
-		assertArrayEquals(expected, actual);
-	}
-
 	private static class SpecifiedException extends IOException {
 		SpecifiedException(String message) {
 			super(message);
 		}
 	}
 }
+
