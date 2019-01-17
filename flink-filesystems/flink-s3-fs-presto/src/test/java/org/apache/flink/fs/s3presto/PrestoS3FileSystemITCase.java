@@ -34,16 +34,16 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-import static com.facebook.presto.hive.PrestoS3FileSystem.S3_USE_INSTANCE_CREDENTIALS;
+import static com.facebook.presto.hive.s3.PrestoS3FileSystem.S3_USE_INSTANCE_CREDENTIALS;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 /**
- * Unit tests for the S3 file system support via Presto's {@link com.facebook.presto.hive.PrestoS3FileSystem}.
+ * Unit tests for the S3 file system support via Presto's {@link com.facebook.presto.hive.s3.PrestoS3FileSystem}.
  *
  * <p><strong>BEWARE</strong>: tests must take special care of S3's
  * <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel">consistency guarantees</a>
- * and what the {@link com.facebook.presto.hive.PrestoS3FileSystem} offers.
+ * and what the {@link com.facebook.presto.hive.s3.PrestoS3FileSystem} offers.
  */
 @RunWith(Parameterized.class)
 public class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
