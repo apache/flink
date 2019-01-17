@@ -60,6 +60,9 @@ public class StreamEdge implements Serializable {
 	 */
 	private StreamPartitioner<?> outputPartitioner;
 
+	private final String sourceOperatorName;
+	private final String targetOperatorName;
+
 	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
 			List<String> selectedNames, StreamPartitioner<?> outputPartitioner, OutputTag outputTag) {
 		this.sourceId = sourceVertex.getId();
@@ -68,6 +71,8 @@ public class StreamEdge implements Serializable {
 		this.selectedNames = selectedNames;
 		this.outputPartitioner = outputPartitioner;
 		this.outputTag = outputTag;
+		this.sourceOperatorName = sourceVertex.getOperatorName();
+		this.targetOperatorName = targetVertex.getOperatorName();
 
 		this.edgeId = sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + selectedNames
 				+ "_" + outputPartitioner;
@@ -122,8 +127,8 @@ public class StreamEdge implements Serializable {
 
 	@Override
 	public String toString() {
-		return "(" + sourceId + " -> " + targetId + ", typeNumber=" + typeNumber
-				+ ", selectedNames=" + selectedNames + ", outputPartitioner=" + outputPartitioner
-				+ ", outputTag=" + outputTag + ')';
+		return "(" + (sourceOperatorName + "-" + sourceId) + " -> " + (targetOperatorName + "-" + targetId)
+			+ ", typeNumber=" + typeNumber + ", selectedNames=" + selectedNames + ", outputPartitioner=" + outputPartitioner
+			+ ", outputTag=" + outputTag + ')';
 	}
 }
