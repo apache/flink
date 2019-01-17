@@ -37,7 +37,7 @@ These classes can be divided into two domains:
     (via REST, CLI, web UI). They are loaded (and unloaded) dynamically per job.
 
 What classes are part of which domain depends on the particular setup in which you run Apache Flink. As a general rule, whenever you start the Flink
-processes first, and the submit jobs, the job's classes are loaded dynamically. If the Flink processes are started together with the job/application,
+processes first, and submit jobs, the job's classes are loaded dynamically. If the Flink processes are started together with the job/application,
 or the application spawns the Flink components (JobManager, TaskManager, etc.) then all classes are in the Java classpath.
 
 In the following are some more details about the different deployment modes:
@@ -93,7 +93,7 @@ The benefit of inverted classloading is that jobs can use different library vers
 useful when the different versions of the libraries are not compatible. The mechanism helps to avoid the common dependency conflict
 errors like `IllegalAccessError` or `NoSuchMethodError`. Different parts of the code simply have separate copies of the
 classes (Flink's core or one of its dependencies can use a different copy than the user code).
-In most cases, this work well and no additional configuration from the user is needed.
+In most cases, this works well and no additional configuration from the user is needed.
 
 However, there are cases when the inverted classloading causes problems (see below, "X cannot be cast to X"). 
 You can revert back to Java's default mode by configuring the ClassLoader resolution order via
