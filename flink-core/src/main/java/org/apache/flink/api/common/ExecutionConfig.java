@@ -25,11 +25,10 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.CompressionType;
+import org.apache.flink.core.io.CompressionTypes;
 import org.apache.flink.util.Preconditions;
 
 import com.esotericsoftware.kryo.Serializer;
-
-import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -156,9 +155,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 */
 	private long taskCancellationTimeoutMillis = -1;
 
-	/** The compression type we used. Default: null, means no compression. **/
-	@Nullable
-	private CompressionType compressionType = null;
+	/** The compression type we used. Default: CompressionTypes.NONE, means no compression. **/
+	private CompressionType compressionType = CompressionTypes.NONE;
 
 	/** Determines if a task fails or not if there is an error in writing its checkpoint data. Default: true */
 	private boolean failTaskOnCheckpointError = true;
@@ -902,9 +900,32 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		this.compressionType = compressionType;
 	}
 
-	@Nullable
 	public CompressionType getCompressionType() {
 		return compressionType;
+	}
+
+	/**
+	 * If return true, snappy/LZ4 compression is used to decorate stream, otherwise no compression.
+	 *
+	 * @deprecated use {@link #getCompressionType()} to get the specific compression type.
+	 */
+	@Deprecated
+	public boolean isUseSnapshotCompression() {
+		return !Objects.equals(compressionType, CompressionTypes.NONE);
+	}
+
+	/**
+	 * If set true, snappy compression is used to decorate stream, otherwise no compression.
+	 *
+	 * @deprecated use {@link #setCompressionType(CompressionType)} to set specific compression type.
+	 */
+	@Deprecated
+	public void setUseSnapshotCompression(boolean useSnapshotCompression) {
+		if (useSnapshotCompression) {
+			compressionType = CompressionTypes.SNAPPY;
+		} else {
+			compressionType = CompressionTypes.NONE;
+		}
 	}
 
 	/**

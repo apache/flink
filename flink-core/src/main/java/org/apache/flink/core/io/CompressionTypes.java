@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
-
-import org.apache.flink.core.io.CompressionType;
-import org.apache.flink.core.io.StreamCompressionDecorator;
+package org.apache.flink.core.io;
 
 /**
  * Set of supported compression types.

@@ -80,6 +80,19 @@ under the License.
 			<!-- managed version -->
 		</dependency>
 
+		<!-- Supported compression algorithms -->
+		<dependency>
+			<groupId>org.xerial.snappy</groupId>
+			<artifactId>snappy-java</artifactId>
+			<!-- managed version -->
+		</dependency>
+
+		<dependency>
+			<groupId>org.lz4</groupId>
+			<artifactId>lz4-java</artifactId>
+			<!-- managed version -->
+		</dependency>
+
 		<!-- ================== test dependencies ================== -->
 
 		<dependency>
