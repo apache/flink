@@ -32,6 +32,8 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -45,11 +47,24 @@ class TestingJobManagerRunnerFactory implements Dispatcher.JobManagerRunnerFacto
 	private final CompletableFuture<JobGraph> jobGraphFuture;
 	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
 	private final CompletableFuture<Void> terminationFuture;
+	private final AtomicReference<Supplier<Exception>> failJobMasterCreationWith;
 
-	TestingJobManagerRunnerFactory(CompletableFuture<JobGraph> jobGraphFuture, CompletableFuture<ArchivedExecutionGraph> resultFuture, CompletableFuture<Void> terminationFuture) {
+	TestingJobManagerRunnerFactory(
+			CompletableFuture<JobGraph> jobGraphFuture,
+			CompletableFuture<ArchivedExecutionGraph> resultFuture,
+			CompletableFuture<Void> terminationFuture) {
+		this(jobGraphFuture, resultFuture, terminationFuture, new AtomicReference<>());
+	}
+
+	TestingJobManagerRunnerFactory(
+			CompletableFuture<JobGraph> jobGraphFuture,
+			CompletableFuture<ArchivedExecutionGraph> resultFuture,
+			CompletableFuture<Void> terminationFuture,
+			AtomicReference<Supplier<Exception>> failJobMasterCreationWith) {
 		this.jobGraphFuture = jobGraphFuture;
 		this.resultFuture = resultFuture;
 		this.terminationFuture = terminationFuture;
+		this.failJobMasterCreationWith = failJobMasterCreationWith;
 	}
 
 	@Override
@@ -64,13 +79,19 @@ class TestingJobManagerRunnerFactory implements Dispatcher.JobManagerRunnerFacto
 			JobManagerSharedServices jobManagerSharedServices,
 			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
-		jobGraphFuture.complete(jobGraph);
+		final Supplier<Exception> exceptionSupplier = failJobMasterCreationWith.get();
 
-		final JobManagerRunner mock = mock(JobManagerRunner.class);
-		when(mock.getResultFuture()).thenReturn(resultFuture);
-		when(mock.closeAsync()).thenReturn(terminationFuture);
-		when(mock.getJobGraph()).thenReturn(jobGraph);
+		if (exceptionSupplier != null) {
+			throw exceptionSupplier.get();
+		} else {
+			jobGraphFuture.complete(jobGraph);
 
-		return mock;
+			final JobManagerRunner mock = mock(JobManagerRunner.class);
+			when(mock.getResultFuture()).thenReturn(resultFuture);
+			when(mock.closeAsync()).thenReturn(terminationFuture);
+			when(mock.getJobGraph()).thenReturn(jobGraph);
+
+			return mock;
+		}
 	}
 }

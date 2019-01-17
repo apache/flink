@@ -236,6 +236,14 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, Time timeout) {
+		return internalSubmitJob(jobGraph).whenCompleteAsync((acknowledge, throwable) -> {
+			if (throwable != null) {
+				cleanUpJobData(jobGraph.getJobID(), true);
+			}
+		}, getRpcService().getExecutor());
+	}
+
+	private CompletableFuture<Acknowledge> internalSubmitJob(JobGraph jobGraph) {
 		final JobID jobId = jobGraph.getJobID();
 
 		log.info("Submitting job {} ({}).", jobId, jobGraph.getName());
