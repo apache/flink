@@ -1462,7 +1462,7 @@ TRUNCATE(numeric1, integer2)
 {% endhighlight %}
       </td>
       <td>
-           <p>Returns a <i>numeric</i> of truncated to <i>integer2</i> decimal places. Returns NULL if <i>numeric1</i> or <i>integer2</i> is NULL.If <i>integer2</i> is 0,the result has no decimal point or fractional part.<i>integer2</i> can be negative to cause <i>integer2</i> digits left of the decimal point of the value to become zero.This function can also pass in only one <i>numeric1</i> parameter and not set <i>Integer2</i> to use.</p>
+        <p>Returns a <i>numeric</i> of truncated to <i>integer2</i> decimal places. Returns NULL if <i>numeric1</i> or <i>integer2</i> is NULL.If <i>integer2</i> is 0,the result has no decimal point or fractional part.<i>integer2</i> can be negative to cause <i>integer2</i> digits left of the decimal point of the value to become zero.This function can also pass in only one <i>numeric1</i> parameter and not set <i>Integer2</i> to use.If <i>Integer2</i> is not set, the function truncates as if <i>Integer2</i> were 0.</p>
         <p>E.g. <code>truncate(42.345, 2)</code> to 42.34. and <code>truncate(42.345)</code> to 42.0.</p>
       </td>
     </tr>
@@ -1947,7 +1947,7 @@ numeric1.truncate(INTEGER2)
    {% endhighlight %}
          </td>
          <td>
-           <p>Returns a <i>numeric</i> of truncated to <i>integer2</i> decimal places. Returns NULL if <i>numeric1</i> or <i>integer2</i> is NULL.If <i>integer2</i> is 0,the result has no decimal point or fractional part.<i>integer2</i> can be negative to cause <i>integer2</i> digits left of the decimal point of the value to become zero.This function can also pass in only one <i>numeric1</i> parameter and not set <i>Integer2</i> to use.</p>
+           <p>Returns a <i>numeric</i> of truncated to <i>integer2</i> decimal places. Returns NULL if <i>numeric1</i> or <i>integer2</i> is NULL.If <i>integer2</i> is 0,the result has no decimal point or fractional part.<i>integer2</i> can be negative to cause <i>integer2</i> digits left of the decimal point of the value to become zero.This function can also pass in only one <i>numeric1</i> parameter and not set <i>Integer2</i> to use.If <i>Integer2</i> is not set, the function truncates as if <i>Integer2</i> were 0.</p>
            <p>E.g. <code>42.324.truncate(2)</code> to 42.34. and <code>42.324.truncate()</code> to 42.0.</p>
          </td>
        </tr>
