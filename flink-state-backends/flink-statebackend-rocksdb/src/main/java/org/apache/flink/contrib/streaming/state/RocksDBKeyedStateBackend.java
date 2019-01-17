@@ -126,7 +126,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static org.apache.flink.contrib.streaming.state.RocksDbStateDataTransfer.transferAllStateDataToDirectory;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.END_OF_KEY_GROUP_MARK;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.SST_FILE_SUFFIX;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.clearMetaDataFollowsFlag;
@@ -217,11 +216,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** True if incremental checkpointing is enabled. */
 	private final boolean enableIncrementalCheckpointing;
 
-	/** Thread number used to download from DFS when restore. */
-	private final int numberOfRestoringThreads;
-
-	/** Thread number used to upload to DFS when snapshot. */
-	private final int numberOfSnapshottingThreads;
+	/** Thread number used to transfer state files while restoring/snapshotting. */
+	private final int numberOfTransferingThreads;
 
 	/** The configuration of local recovery. */
 	private final LocalRecoveryConfig localRecoveryConfig;
@@ -266,8 +262,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
 		boolean enableIncrementalCheckpointing,
-		int numberOfRestoringThreads,
-		int numberOfSnapshottingThreads,
+		int numberOfTransferingThreads,
 		LocalRecoveryConfig localRecoveryConfig,
 		RocksDBStateBackend.PriorityQueueStateType priorityQueueStateType,
 		TtlTimeProvider ttlTimeProvider,
@@ -281,8 +276,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.operatorIdentifier = Preconditions.checkNotNull(operatorIdentifier);
 
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
-		this.numberOfRestoringThreads = numberOfRestoringThreads;
-		this.numberOfSnapshottingThreads = numberOfSnapshottingThreads;
+		this.numberOfTransferingThreads = numberOfTransferingThreads;
 		this.rocksDBResourceGuard = new ResourceGuard();
 
 		// ensure that we use the right merge operator, because other code relies on this
@@ -523,7 +517,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		LOG.info("Initializing RocksDB keyed state backend.");
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Restoring snapshot from state handles: {}, will use {} thread(s) to download files from DFS.", restoreState, numberOfRestoringThreads);
+			LOG.debug("Restoring snapshot from state handles: {}, will use {} thread(s) to download files from DFS.", restoreState, numberOfTransferingThreads);
 		}
 
 		// clear all meta data
@@ -535,7 +529,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				createDB();
 			} else {
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Restoring snapshot from state handles: {}, will use {} thread(s) to download files from DFS.", restoreState, numberOfRestoringThreads);
+					LOG.debug("Restoring snapshot from state handles: {}, will use {} thread(s) to download files from DFS.", restoreState, numberOfTransferingThreads);
 				}
 
 				KeyedStateHandle firstStateHandle = restoreState.iterator().next();
@@ -566,7 +560,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	@VisibleForTesting
 	void initializeSnapshotStrategy(
-		@Nullable RocksDBIncrementalRestoreOperation<K> incrementalRestoreOperation) {
+		@Nullable RocksDBIncrementalRestoreOperation<K> incrementalRestoreOperation) throws IOException {
 
 		this.savepointSnapshotStrategy =
 			new RocksFullSnapshotStrategy<>(
@@ -609,7 +603,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				backendUID,
 				materializedSstFiles,
 				lastCompletedCheckpointId,
-				numberOfSnapshottingThreads);
+				numberOfTransferingThreads);
 		} else {
 			this.checkpointSnapshotStrategy = savepointSnapshotStrategy;
 		}
@@ -926,7 +920,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					IncrementalKeyedStateHandle restoreStateHandle = (IncrementalKeyedStateHandle) rawStateHandle;
 
 					// read state data.
-					transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath, stateBackend.numberOfRestoringThreads, stateBackend.cancelStreamRegistry);
+					try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(stateBackend.numberOfTransferingThreads)) {
+						rocksDBStateDownloader.transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath, stateBackend.cancelStreamRegistry);
+					}
 
 					stateMetaInfoSnapshots = readMetaData(restoreStateHandle.getMetaStateHandle());
 					columnFamilyDescriptors = createAndRegisterColumnFamilyDescriptors(stateMetaInfoSnapshots);
@@ -1079,7 +1075,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			IncrementalKeyedStateHandle restoreStateHandle,
 			Path temporaryRestoreInstancePath) throws Exception {
 
-			transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath, stateBackend.numberOfRestoringThreads, stateBackend.cancelStreamRegistry);
+			try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(stateBackend.numberOfTransferingThreads)) {
+				rocksDBStateDownloader.transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath, stateBackend.cancelStreamRegistry);
+			}
 
 			// read meta data
 			List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =

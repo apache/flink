@@ -20,6 +20,7 @@ package org.apache.flink.contrib.streaming.state.snapshot;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.contrib.streaming.state.RocksDBStateUploader;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
@@ -75,7 +76,6 @@ import java.util.SortedMap;
 import java.util.UUID;
 import java.util.concurrent.RunnableFuture;
 
-import static org.apache.flink.contrib.streaming.state.RocksDbStateDataTransfer.uploadFilesToCheckpointFs;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.SST_FILE_SUFFIX;
 
 /**
@@ -105,8 +105,8 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 	/** The identifier of the last completed checkpoint. */
 	private long lastCompletedCheckpointId;
 
-	/** The number of threads used to upload files to DFS.*/
-	private final int numberOfRestoringThreads;
+	/** The help class used to upload state files. */
+	private final RocksDBStateUploader stateUploader;
 
 	public RocksIncrementalSnapshotStrategy(
 		@Nonnull RocksDB db,
@@ -121,7 +121,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		@Nonnull UUID backendUID,
 		@Nonnull SortedMap<Long, Set<StateHandleID>> materializedSstFiles,
 		long lastCompletedCheckpointId,
-		int numberOfRestoringThreads) {
+		int numberOfTransferingThreads) throws IOException {
 
 		super(
 			DESCRIPTION,
@@ -138,7 +138,8 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		this.backendUID = backendUID;
 		this.materializedSstFiles = materializedSstFiles;
 		this.lastCompletedCheckpointId = lastCompletedCheckpointId;
-		this.numberOfRestoringThreads = numberOfRestoringThreads;
+		this.stateUploader = new RocksDBStateUploader(numberOfTransferingThreads);
+		cancelStreamRegistry.registerCloseable(stateUploader);
 	}
 
 	@Nonnull
@@ -419,14 +420,12 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			if (fileStatuses != null) {
 				createUploadFilePaths(fileStatuses, sstFiles, sstFilePaths, miscFilePaths);
 
-				sstFiles.putAll(uploadFilesToCheckpointFs(
+				sstFiles.putAll(stateUploader.uploadFilesToCheckpointFs(
 					sstFilePaths,
-					numberOfRestoringThreads,
 					checkpointStreamFactory,
 					getSnapshotCloseableRegistry()));
-				miscFiles.putAll(uploadFilesToCheckpointFs(
+				miscFiles.putAll(stateUploader.uploadFilesToCheckpointFs(
 					miscFilePaths,
-					numberOfRestoringThreads,
 					checkpointStreamFactory,
 					getSnapshotCloseableRegistry()));
 			}
