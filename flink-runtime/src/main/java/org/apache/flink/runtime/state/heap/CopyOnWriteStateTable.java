@@ -33,10 +33,10 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.TreeSet;
@@ -1155,6 +1155,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	class StateIncrementalVisitorImpl implements StateIncrementalVisitor<K, N, S> {
 
 		private final StateEntryChainIterator chainIterator;
+		private final Collection<StateEntry<K, N, S>> chainToReturn = new ArrayList<>(5);
 
 		StateIncrementalVisitorImpl(int recommendedMaxNumberOfReturnedRecords) {
 			chainIterator = new StateEntryChainIterator(recommendedMaxNumberOfReturnedRecords);
@@ -1170,13 +1171,14 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 			if (!hasNext()) {
 				return null;
 			}
-			Collection<StateEntry<K, N, S>> chain = new LinkedList<>();
+
+			chainToReturn.clear();
 			for (StateTableEntry<K, N, S> nextEntry = chainIterator.next();
 				 nextEntry != null;
 				 nextEntry = nextEntry.next) {
-				chain.add(nextEntry);
+				chainToReturn.add(nextEntry);
 			}
-			return chain;
+			return chainToReturn;
 		}
 
 		@Override
