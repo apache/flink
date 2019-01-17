@@ -20,6 +20,7 @@ package org.apache.flink.runtime.util;
 
 import java.io.File;
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * FileOffsetRange is used to decide which part of files to read.
@@ -44,6 +45,26 @@ public class FileOffsetRange implements Serializable{
 
 	public long getEndOffsetForFile(File file) {
 		return Math.min(end, file.length());
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+
+		if (null == o || this.getClass() != o.getClass()) {
+			return false;
+		}
+
+		FileOffsetRange that = (FileOffsetRange) o;
+		return Objects.equals(start, that.start) &&
+			Objects.equals(end, that.end);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(start, end);
 	}
 
 	public String toString() {

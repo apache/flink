@@ -300,7 +300,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	 */
 	@Override
 	public CompletableFuture<Void> postStop() {
-		log.info("Stopping TaskExecutor {}.", getAddress());
+		log.info("Stopping TaskExecutor {}.", getAddress());                                        
 
 		Throwable throwable = null;
 
@@ -826,7 +826,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		switch (fileType) {
 			case LOG:
-				if(filename != null && !filename.equals("")) {
+				if (filename != null && !filename.equals("")) {
 					filePath = new File(taskManagerConfiguration.getTaskManagerLogPath()).getParent().concat("/" + filename);
 				} else {
 					filePath = taskManagerConfiguration.getTaskManagerLogPath();
@@ -846,7 +846,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				final RandomAccessFile raf;
 				try {
 				 raf = new RandomAccessFile(file, "r");
-				}catch (FileNotFoundException e) {
+				} catch (FileNotFoundException e) {
 					log.debug("Could not find file {}.", file, e);
 					return FutureUtils.completedExceptionally(new FlinkException("Could not find file " + file + '.', e));
 				}
