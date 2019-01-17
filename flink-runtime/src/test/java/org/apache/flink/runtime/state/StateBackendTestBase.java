@@ -70,14 +70,12 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateRegistryListener;
-import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.heap.AbstractHeapState;
 import org.apache.flink.runtime.state.heap.NestedMapsStateTable;
 import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
-import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -87,7 +85,6 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
-import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
@@ -101,7 +98,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -112,7 +108,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.PrimitiveIterator;
 import java.util.Random;
 import java.util.Timer;
@@ -3913,169 +3908,13 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		AbstractKeyedStateBackend<Integer> backend = null;
 		try {
 			backend = createKeyedBackend(IntSerializer.INSTANCE);
-			StateSnapshotTransformFactory<?> snapshotTransformFactory =
-				SingleThreadAccessCheckingStateSnapshotTransformFactory.create();
-			List<TestState> testStates = Arrays.asList(
-				new TestValueState(backend, snapshotTransformFactory),
-				new TestListState(backend, snapshotTransformFactory),
-				new TestMapState(backend, snapshotTransformFactory)
-			);
-			for (TestState state : testStates) {
-				for (int i = 0; i < 100; i++) {
-					backend.setCurrentKey(i);
-					state.setToRandomValue();
-				}
-
-				CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
-
-				RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot1 =
-					backend.snapshot(1L, 0L, streamFactory, checkpointOptions);
-
-				RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot2 =
-					backend.snapshot(2L, 0L, streamFactory, checkpointOptions);
-
-				Thread runner1 = new Thread(snapshot1, "snapshot1");
-				runner1.start();
-				Thread runner2 = new Thread(snapshot2, "snapshot2");
-				runner2.start();
-
-				runner1.join();
-				runner2.join();
-
-				snapshot1.get();
-				snapshot2.get();
-			}
+			new StateSnapshotTransformerTest(backend, streamFactory)
+				.testNonConcurrentSnapshotTransformerAccess();
 		} finally {
 			if (backend != null) {
 				IOUtils.closeQuietly(backend);
 				backend.dispose();
 			}
-		}
-	}
-
-	private static abstract class TestState {
-		final AbstractKeyedStateBackend<Integer> backend;
-		final StateSnapshotTransformFactory<?> stateSnapshotTransformFactory;
-		final Random rnd;
-
-		private TestState(
-			AbstractKeyedStateBackend<Integer> backend,
-			StateSnapshotTransformFactory<?> stateSnapshotTransformFactory) {
-
-			this.backend = backend;
-			this.stateSnapshotTransformFactory = stateSnapshotTransformFactory;
-			this.rnd = new Random();
-		}
-
-		abstract void setToRandomValue() throws Exception;
-
-		String getRandomString() {
-			return StringUtils.getRandomString(rnd, 5, 10);
-		}
-	}
-
-	private static class TestValueState extends TestState {
-		private final InternalValueState<Integer, VoidNamespace, String> state;
-
-		private TestValueState(
-			AbstractKeyedStateBackend<Integer> backend,
-			StateSnapshotTransformFactory<?> stateSnapshotTransformFactory) throws Exception {
-
-			super(backend, stateSnapshotTransformFactory);
-			this.state = backend.createInternalState(
-				VoidNamespaceSerializer.INSTANCE,
-				new ValueStateDescriptor<>("TestValueState", StringSerializer.INSTANCE),
-				stateSnapshotTransformFactory);
-			state.setCurrentNamespace(VoidNamespace.INSTANCE);
-		}
-
-		@Override
-		void setToRandomValue() throws Exception {
-			state.update(getRandomString());
-		}
-	}
-
-	private static class TestListState extends TestState {
-		private final InternalListState<Integer, VoidNamespace, String> state;
-
-		private TestListState(
-			AbstractKeyedStateBackend<Integer> backend,
-			StateSnapshotTransformFactory<?> stateSnapshotTransformFactory) throws Exception {
-
-			super(backend, stateSnapshotTransformFactory);
-			this.state = backend.createInternalState(
-				VoidNamespaceSerializer.INSTANCE,
-				new ListStateDescriptor<>("TestListState", StringSerializer.INSTANCE),
-				stateSnapshotTransformFactory);
-			state.setCurrentNamespace(VoidNamespace.INSTANCE);
-		}
-
-		@Override
-		void setToRandomValue() throws Exception {
-			int length = rnd.nextInt(10);
-			for (int i = 0; i < length; i++) {
-				state.add(getRandomString());
-			}
-		}
-	}
-
-	private static class TestMapState extends TestState {
-		private final InternalMapState<Integer, VoidNamespace, String, String> state;
-
-		private TestMapState(
-			AbstractKeyedStateBackend<Integer> backend,
-			StateSnapshotTransformFactory<?> stateSnapshotTransformFactory) throws Exception {
-
-			super(backend, stateSnapshotTransformFactory);
-			this.state = backend.createInternalState(
-				VoidNamespaceSerializer.INSTANCE,
-				new MapStateDescriptor<>("TestMapState", StringSerializer.INSTANCE, StringSerializer.INSTANCE),
-				stateSnapshotTransformFactory);
-			state.setCurrentNamespace(VoidNamespace.INSTANCE);
-		}
-
-		@Override
-		void setToRandomValue() throws Exception {
-			int length = rnd.nextInt(10);
-			for (int i = 0; i < length; i++) {
-				state.put(getRandomString(), getRandomString());
-			}
-		}
-	}
-
-	private static class SingleThreadAccessCheckingStateSnapshotTransformFactory<T>
-		implements StateSnapshotTransformFactory<T> {
-
-		static <T> StateSnapshotTransformFactory<T> create() {
-			return new SingleThreadAccessCheckingStateSnapshotTransformFactory<>();
-		}
-
-		@Override
-		public Optional<StateSnapshotTransformer<T>> createForDeserializedState() {
-			return createStateSnapshotTransformer();
-		}
-
-		@Override
-		public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
-			return createStateSnapshotTransformer();
-		}
-
-		private <T1> Optional<StateSnapshotTransformer<T1>> createStateSnapshotTransformer() {
-			return Optional.of(new StateSnapshotTransformer<T1>() {
-				private Thread currentThread = null;
-
-				@Nullable
-				@Override
-				public T1 filterOrTransform(@Nullable T1 value) {
-					if (currentThread == null) {
-						currentThread = Thread.currentThread();
-					} else {
-						assertEquals("Concurrent access from another thread",
-							currentThread, Thread.currentThread());
-					}
-					return value;
-				}
-			});
 		}
 	}
 
