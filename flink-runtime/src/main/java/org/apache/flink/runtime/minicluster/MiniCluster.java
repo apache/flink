@@ -202,6 +202,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 	}
 
+	public ClusterInformation getClusterInformation() {
+		synchronized (lock) {
+			checkState(running, "MiniCluster is not yet running.");
+			return new ClusterInformation("localhost", blobServer.getPort());
+		}
+	}
+
 	public HighAvailabilityServices getHighAvailabilityServices() {
 		synchronized (lock) {
 			checkState(running, "MiniCluster is not yet running.");
