@@ -126,9 +126,9 @@ public class YarnTaskExecutorRunner {
 
 			SecurityConfiguration sc = new SecurityConfiguration(configuration);
 
-			final String containerId = ENV.get(YarnFlinkResourceManager.ENV_FLINK_CONTAINER_ID);
+			final String containerId = ENV.get(YarnResourceManager.ENV_FLINK_CONTAINER_ID);
 			Preconditions.checkArgument(containerId != null,
-				"ContainerId variable %s not set", YarnFlinkResourceManager.ENV_FLINK_CONTAINER_ID);
+				"ContainerId variable %s not set", YarnResourceManager.ENV_FLINK_CONTAINER_ID);
 
 			// use the hostname passed by job manager
 			final String taskExecutorHostname = ENV.get(YarnResourceManager.ENV_FLINK_NODE_ID);

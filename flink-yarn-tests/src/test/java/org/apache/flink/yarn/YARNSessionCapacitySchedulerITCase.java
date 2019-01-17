@@ -284,7 +284,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			ConcurrentMap<ContainerId, Container> containers = nm.getNMContext().getContainers();
 			for (Map.Entry<ContainerId, Container> entry : containers.entrySet()) {
 				String command = StringUtils.join(entry.getValue().getLaunchContext().getCommands(), " ");
-				if (command.contains(YarnTaskManager.class.getSimpleName())) {
+				if (command.contains("YarnTaskManager.class.getSimpleName()")) {
 					taskManagerContainer = entry.getKey();
 					nodeManager = nm;
 					nmIdent = new NMTokenIdentifier(taskManagerContainer.getApplicationAttemptId(), null, "", 0);
