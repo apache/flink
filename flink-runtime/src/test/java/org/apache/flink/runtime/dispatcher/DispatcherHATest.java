@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
@@ -59,6 +58,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -125,7 +125,7 @@ public class DispatcherHATest extends TestLogger {
 
 		final BlockingQueue<DispatcherId> fencingTokens = new ArrayBlockingQueue<>(2);
 
-		final HATestingDispatcher dispatcher = createHADispatcher(highAvailabilityServices, fencingTokens);
+		final HATestingDispatcher dispatcher = createDispatcher(highAvailabilityServices, fencingTokens);
 
 		dispatcher.start();
 
@@ -149,25 +149,6 @@ public class DispatcherHATest extends TestLogger {
 		}
 	}
 
-	@Nonnull
-	private HATestingDispatcher createHADispatcher(TestingHighAvailabilityServices highAvailabilityServices, BlockingQueue<DispatcherId> fencingTokens) throws Exception {
-		final Configuration configuration = new Configuration();
-		return new HATestingDispatcher(
-			rpcService,
-			UUID.randomUUID().toString(),
-			configuration,
-			highAvailabilityServices,
-			new TestingResourceManagerGateway(),
-			new BlobServer(configuration, new VoidBlobStore()),
-			new HeartbeatServices(1000L, 1000L),
-			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
-			null,
-			new MemoryArchivedExecutionGraphStore(),
-			new TestingJobManagerRunnerFactory(new CompletableFuture<>(), new CompletableFuture<>(), CompletableFuture.completedFuture(null)),
-			testingFatalErrorHandler,
-			fencingTokens);
-	}
-
 	/**
 	 * Tests that all JobManagerRunner are terminated if the leadership of the
 	 * Dispatcher is revoked.
@@ -182,7 +163,7 @@ public class DispatcherHATest extends TestLogger {
 		highAvailabilityServices.setDispatcherLeaderElectionService(leaderElectionService);
 
 		final ArrayBlockingQueue<DispatcherId> fencingTokens = new ArrayBlockingQueue<>(2);
-		final HATestingDispatcher dispatcher = createHADispatcher(
+		final HATestingDispatcher dispatcher = createDispatcher(
 			highAvailabilityServices,
 			fencingTokens);
 
@@ -225,32 +206,75 @@ public class DispatcherHATest extends TestLogger {
 		return jobGraph;
 	}
 
+	@Nonnull
+	private HATestingDispatcher createDispatcher(
+			TestingHighAvailabilityServices highAvailabilityServices,
+			@Nonnull Queue<DispatcherId> fencingTokens) throws Exception {
+		final Configuration configuration = new Configuration();
+
+		return new HATestingDispatcher(
+			rpcService,
+			UUID.randomUUID().toString(),
+			configuration,
+			highAvailabilityServices,
+			new TestingResourceManagerGateway(),
+			new BlobServer(configuration, new VoidBlobStore()),
+			new HeartbeatServices(1000L, 1000L),
+			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+			null,
+			new MemoryArchivedExecutionGraphStore(),
+			new TestingJobManagerRunnerFactory(new CompletableFuture<>(), new CompletableFuture<>(), CompletableFuture.completedFuture(null)),
+			testingFatalErrorHandler,
+			fencingTokens);
+	}
+
 	private static class HATestingDispatcher extends TestingDispatcher {
 
 		@Nonnull
-		private final BlockingQueue<DispatcherId> fencingTokens;
+		private final Queue<DispatcherId> fencingTokens;
 
-		HATestingDispatcher(RpcService rpcService, String endpointId, Configuration configuration, HighAvailabilityServices highAvailabilityServices, ResourceManagerGateway resourceManagerGateway, BlobServer blobServer, HeartbeatServices heartbeatServices, JobManagerMetricGroup jobManagerMetricGroup, @Nullable String metricQueryServicePath, ArchivedExecutionGraphStore archivedExecutionGraphStore, JobManagerRunnerFactory jobManagerRunnerFactory, FatalErrorHandler fatalErrorHandler, @Nonnull BlockingQueue<DispatcherId> fencingTokens) throws Exception {
-			super(rpcService, endpointId, configuration, highAvailabilityServices, resourceManagerGateway, blobServer, heartbeatServices, jobManagerMetricGroup, metricQueryServicePath, archivedExecutionGraphStore, jobManagerRunnerFactory, fatalErrorHandler);
+		HATestingDispatcher(
+				RpcService rpcService,
+				String endpointId,
+				Configuration configuration,
+				HighAvailabilityServices highAvailabilityServices,
+				ResourceManagerGateway resourceManagerGateway,
+				BlobServer blobServer,
+				HeartbeatServices heartbeatServices,
+				JobManagerMetricGroup jobManagerMetricGroup,
+				@Nullable String metricQueryServicePath,
+				ArchivedExecutionGraphStore archivedExecutionGraphStore,
+				JobManagerRunnerFactory jobManagerRunnerFactory,
+				FatalErrorHandler fatalErrorHandler,
+				@Nonnull Queue<DispatcherId> fencingTokens) throws Exception {
+			super(
+				rpcService,
+				endpointId,
+				configuration,
+				highAvailabilityServices,
+				resourceManagerGateway,
+				blobServer,
+				heartbeatServices,
+				jobManagerMetricGroup,
+				metricQueryServicePath,
+				archivedExecutionGraphStore,
+				jobManagerRunnerFactory,
+				fatalErrorHandler);
 			this.fencingTokens = fencingTokens;
-		}
-
-		@VisibleForTesting
-		CompletableFuture<Integer> getNumberJobs(Time timeout) {
-			return callAsyncWithoutFencing(
-				() -> listJobs(timeout).get().size(),
-				timeout);
 		}
 
 		@Override
 		protected void setFencingToken(@Nullable DispatcherId newFencingToken) {
 			super.setFencingToken(newFencingToken);
 
+			final DispatcherId fencingToken;
 			if (newFencingToken == null) {
-				fencingTokens.offer(NULL_FENCING_TOKEN);
+				fencingToken = NULL_FENCING_TOKEN;
 			} else {
-				fencingTokens.offer(newFencingToken);
+				fencingToken = newFencingToken;
 			}
+
+			fencingTokens.offer(fencingToken);
 		}
 	}
 

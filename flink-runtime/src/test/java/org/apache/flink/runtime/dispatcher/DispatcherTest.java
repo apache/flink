@@ -61,12 +61,14 @@ import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.ThrowingRunnable;
 
+import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -659,6 +661,28 @@ public class DispatcherTest extends TestLogger {
 		queue.offer(Optional.empty());
 
 		submissionFuture.get();
+	}
+
+	@Test
+	public void testPersistedJobGraphWhenDispatcherIsShutDown() throws Exception {
+		final InMemorySubmittedJobGraphStore submittedJobGraphStore = new InMemorySubmittedJobGraphStore();
+		haServices.setSubmittedJobGraphStore(submittedJobGraphStore);
+
+		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE);
+
+		// grant leadership and submit a single job
+		final DispatcherId expectedDispatcherId = DispatcherId.generate();
+		dispatcherLeaderElectionService.isLeader(expectedDispatcherId.toUUID()).get();
+
+		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+		final CompletableFuture<Acknowledge> submissionFuture = dispatcherGateway.submitJob(jobGraph, TIMEOUT);
+		submissionFuture.get();
+		assertThat(dispatcher.getNumberJobs(TIMEOUT).get(), Matchers.is(1));
+
+		dispatcher.shutDown();
+		dispatcher.getTerminationFuture().get();
+
+		assertThat(submittedJobGraphStore.contains(jobGraph.getJobID()), Matchers.is(true));
 	}
 
 	private final class BlockingJobManagerRunnerFactory extends TestingJobManagerRunnerFactory {
