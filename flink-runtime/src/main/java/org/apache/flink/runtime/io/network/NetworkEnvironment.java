@@ -345,7 +345,7 @@ public class NetworkEnvironment {
 				} catch (Throwable ie) {
 					kvStateServer.shutdown();
 					kvStateServer = null;
-					throw new IOException("Failed to start the Queryable State Data Server.", ie);
+					LOG.error("Failed to start the Queryable State Data Server.", ie);
 				}
 			}
 
@@ -355,7 +355,7 @@ public class NetworkEnvironment {
 				} catch (Throwable ie) {
 					kvStateProxy.shutdown();
 					kvStateProxy = null;
-					throw new IOException("Failed to start the Queryable State Client Proxy.", ie);
+					LOG.error("Failed to start the Queryable State Client Proxy.", ie);
 				}
 			}
 		}

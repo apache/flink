@@ -22,7 +22,8 @@ import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, TimestampedCollector, TwoInputStreamOperator}
+import org.apache.flink.runtime.state.VoidNamespace
+import org.apache.flink.streaming.api.operators.{InternalTimer, TimestampedCollector}
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.Compiler
@@ -38,8 +39,7 @@ class TemporalProcessTimeJoin(
     genJoinFuncName: String,
     genJoinFuncCode: String,
     queryConfig: StreamQueryConfig)
-  extends AbstractStreamOperator[CRow]
-  with TwoInputStreamOperator[CRow, CRow, CRow]
+  extends BaseTwoInputStreamOperatorWithStateRetention(queryConfig)
   with Compiler[FlatJoinFunction[Row, Row, Row]]
   with Logging {
 
@@ -70,30 +70,50 @@ class TemporalProcessTimeJoin(
     collector = new TimestampedCollector[CRow](output)
     cRowWrapper = new CRowWrappingCollector()
     cRowWrapper.out = collector
+
+    super.open()
   }
 
   override def processElement1(element: StreamRecord[CRow]): Unit = {
 
-    if (rightState.value() == null) {
+    val rightSideRow = rightState.value()
+    if (rightSideRow == null) {
       return
     }
 
     cRowWrapper.setChange(element.getValue.change)
 
-    val rightSideRow = rightState.value()
     joinFunction.join(element.getValue.row, rightSideRow, cRowWrapper)
+
+    registerProcessingCleanUpTimer()
   }
 
   override def processElement2(element: StreamRecord[CRow]): Unit = {
 
     if (element.getValue.change) {
       rightState.update(element.getValue.row)
+      registerProcessingCleanUpTimer()
     } else {
       rightState.clear()
+      cleanUpLastTimer()
     }
   }
 
   override def close(): Unit = {
     FunctionUtils.closeFunction(joinFunction)
   }
+
+  /**
+    * The method to be called when a cleanup timer fires.
+    *
+    * @param time The timestamp of the fired timer.
+    */
+  override def cleanUpState(time: Long): Unit = {
+    rightState.clear()
+  }
+
+  /**
+    * Invoked when an event-time timer fires.
+    */
+  override def onEventTime(timer: InternalTimer[Any, VoidNamespace]): Unit = ???
 }

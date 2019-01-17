@@ -40,7 +40,6 @@ import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -192,7 +191,6 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 	}
 
 	@Test
-	@Ignore("This currently doesn't pass because the ListSerializer doesn't respect the reconfigured case, yet.")
 	public void testKeyedListStateSerializerReconfiguration() throws Exception {
 		final String stateName = "test-name";
 

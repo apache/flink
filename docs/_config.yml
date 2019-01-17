@@ -34,6 +34,8 @@ version_title: "1.8-SNAPSHOT"
 # Branch on Github for this version
 github_branch: "master"
 
+# Plain Scala version is needed for e.g. the Gradle quickstart.
+scala_version: "2.11"
 # This suffix is appended to the Scala-dependent Maven artifact names
 scala_version_suffix: "_2.11"
 

@@ -22,24 +22,37 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTest
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.testutils.migration.MigrationVersion;
+
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
+import java.util.Collection;
 
 /**
  * Migration test for the {@link ListViewSerializerSnapshot}.
  */
+@RunWith(Parameterized.class)
 public class ListViewSerializerSnapshotMigrationTest extends TypeSerializerSnapshotMigrationTestBase<ListView<String>> {
 
-	private static final String DATA = "flink-1.6-list-view-serializer-data";
-	private static final String SNAPSHOT = "flink-1.6-list-view-serializer-snapshot";
+	private static final String SPEC_NAME = "list-view-serializer";
 
-	public ListViewSerializerSnapshotMigrationTest() {
-		super(
-			TestSpecification.<ListView<String>>builder(
-					"1.6-list-view-serializer",
-					ListViewSerializer.class,
-					ListViewSerializerSnapshot.class)
-				.withSerializerProvider(() -> new ListViewSerializer<>(new ListSerializer<>(StringSerializer.INSTANCE)))
-				.withSnapshotDataLocation(SNAPSHOT)
-				.withTestData(DATA, 10)
-		);
+	public ListViewSerializerSnapshotMigrationTest(TestSpecification<ListView<String>> testSpecification) {
+		super(testSpecification);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Parameterized.Parameters(name = "Test Specification = {0}")
+	public static Collection<TestSpecification<?>> testSpecifications() {
+
+		final TestSpecifications testSpecifications = new TestSpecifications(MigrationVersion.v1_6, MigrationVersion.v1_7);
+
+		testSpecifications.add(
+			SPEC_NAME,
+			ListViewSerializer.class,
+			ListViewSerializerSnapshot.class,
+			() -> new ListViewSerializer<>(new ListSerializer<>(StringSerializer.INSTANCE)));
+
+		return testSpecifications.get();
 	}
 }

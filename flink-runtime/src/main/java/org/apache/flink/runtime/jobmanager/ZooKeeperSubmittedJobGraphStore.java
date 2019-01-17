@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
-import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -69,9 +68,6 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 	/** Lock to synchronize with the {@link SubmittedJobGraphListener}. */
 	private final Object cacheLock = new Object();
 
-	/** Client (not a namespace facade). */
-	private final CuratorFramework client;
-
 	/** The set of IDs of all added job graphs. */
 	private final Set<JobID> addedJobGraphs = new HashSet<>();
 
@@ -96,34 +92,20 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 	/**
 	 * Submitted job graph store backed by ZooKeeper.
 	 *
-	 * @param client ZooKeeper client
-	 * @param currentJobsPath ZooKeeper path for current job graphs
-	 * @param stateStorage State storage used to persist the submitted jobs
-	 * @throws Exception
+	 * @param zooKeeperFullBasePath ZooKeeper path for current job graphs
+	 * @param zooKeeperStateHandleStore State storage used to persist the submitted jobs
 	 */
 	public ZooKeeperSubmittedJobGraphStore(
-			CuratorFramework client,
-			String currentJobsPath,
-			RetrievableStateStorageHelper<SubmittedJobGraph> stateStorage) throws Exception {
+			String zooKeeperFullBasePath,
+			ZooKeeperStateHandleStore<SubmittedJobGraph> zooKeeperStateHandleStore,
+			PathChildrenCache pathCache) {
 
-		checkNotNull(currentJobsPath, "Current jobs path");
-		checkNotNull(stateStorage, "State storage");
+		checkNotNull(zooKeeperFullBasePath, "Current jobs path");
 
-		// Keep a reference to the original client and not the namespace facade. The namespace
-		// facade cannot be closed.
-		this.client = checkNotNull(client, "Curator client");
+		this.zooKeeperFullBasePath = zooKeeperFullBasePath;
+		this.jobGraphsInZooKeeper = checkNotNull(zooKeeperStateHandleStore);
 
-		// Ensure that the job graphs path exists
-		client.newNamespaceAwareEnsurePath(currentJobsPath)
-				.ensure(client.getZookeeperClient());
-
-		// All operations will have the path as root
-		CuratorFramework facade = client.usingNamespace(client.getNamespace() + currentJobsPath);
-
-		this.zooKeeperFullBasePath = client.getNamespace() + currentJobsPath;
-		this.jobGraphsInZooKeeper = new ZooKeeperStateHandleStore<>(facade, stateStorage);
-
-		this.pathCache = new PathChildrenCache(facade, "/", false);
+		this.pathCache = checkNotNull(pathCache);
 		pathCache.getListenable().addListener(new SubmittedJobGraphsPathCacheListener());
 	}
 

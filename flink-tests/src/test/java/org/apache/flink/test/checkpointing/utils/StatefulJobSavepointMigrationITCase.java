@@ -40,7 +40,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.migration.MigrationVersion;
+import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -72,6 +72,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 	}
 
 	// TODO change this to PERFORM_SAVEPOINT to regenerate binary savepoints
+	// TODO Note: You should generate the savepoint based on the release branch instead of the master.
 	private final ExecutionMode executionMode = ExecutionMode.VERIFY_SAVEPOINT;
 
 	@Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")

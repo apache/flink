@@ -22,7 +22,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.TestLogger;
+
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeMatcher;
 
 import org.junit.Test;
 
@@ -32,16 +37,19 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Supplier;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 /**
  * A test base for verifying {@link TypeSerializerSnapshot} migration.
@@ -67,21 +75,12 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 	}
 
 	@Test
-	public void serializerSnapshotRestoresCurrentSerializer() {
-		TypeSerializerSnapshot<ElementT> snapshot = snapshotUnderTest();
-
-		TypeSerializer<ElementT> restoredSerializer = snapshot.restoreSerializer();
-
-		assertThat(restoredSerializer, instanceOf(testSpecification.serializerType));
-	}
-
-	@Test
-	public void snapshotIsCompatibleWithTheCurrentSerializer() {
+	public void specifiedNewSerializerHasExpectedCompatibilityResultsWithSnapshot() {
 		TypeSerializerSnapshot<ElementT> snapshot = snapshotUnderTest();
 
 		TypeSerializerSchemaCompatibility<ElementT> result = snapshot.resolveSchemaCompatibility(testSpecification.createSerializer());
 
-		assertTrue(result.isCompatibleAsIs());
+		assertThat(result, hasSameCompatibilityType(testSpecification.expectedCompatibilityResult));
 	}
 
 	@Test
@@ -125,13 +124,17 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 		TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(out, newSnapshot, serializer);
 
 		DataInputView in = new DataInputDeserializer(out.wrapAsByteBuffer());
-		return TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(in, Thread.currentThread().getContextClassLoader(), null);
+		return readSnapshot(in);
 	}
 
 	private TypeSerializerSnapshot<ElementT> snapshotUnderTest() {
 		DataInputView input = contentsOf(testSpecification.getSnapshotDataLocation());
 		try {
-			return readPre17SnapshotFormat(input);
+			if (!testSpecification.getTestMigrationVersion().isNewerVersionThan(MigrationVersion.v1_6)) {
+				return readPre17SnapshotFormat(input);
+			} else {
+				return readSnapshot(input);
+			}
 		}
 		catch (IOException e) {
 			throw new RuntimeException("Unable to read " + testSpecification.getSnapshotDataLocation(),  e);
@@ -146,6 +149,11 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 			TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(input, cl);
 
 		return (TypeSerializerSnapshot<ElementT>) serializers.get(0).f1;
+	}
+
+	private TypeSerializerSnapshot<ElementT> readSnapshot(DataInputView in) throws IOException {
+		return TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+			in, Thread.currentThread().getContextClassLoader(), null);
 	}
 
 	private DataInputView dataUnderTest() {
@@ -189,7 +197,9 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 		private final Class<? extends TypeSerializer<T>> serializerType;
 		private final Class<? extends TypeSerializerSnapshot<T>> snapshotClass;
 		private final String name;
+		private final MigrationVersion testMigrationVersion;
 		private Supplier<? extends TypeSerializer<T>> serializerProvider;
+		private TypeSerializerSchemaCompatibility<T> expectedCompatibilityResult;
 		private String snapshotDataLocation;
 		private String testDataLocation;
 		private int testDataCount;
@@ -198,26 +208,37 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 		public static <T> TestSpecification<T> builder(
 			String name,
 			Class<? extends TypeSerializer> serializerClass,
-			Class<? extends TypeSerializerSnapshot> snapshotClass) {
+			Class<? extends TypeSerializerSnapshot> snapshotClass,
+			MigrationVersion testMigrationVersion) {
 
 			return new TestSpecification<>(
 				name,
 				(Class<? extends TypeSerializer<T>>) serializerClass,
-				(Class<? extends TypeSerializerSnapshot<T>>) snapshotClass);
+				(Class<? extends TypeSerializerSnapshot<T>>) snapshotClass,
+				testMigrationVersion);
 		}
 
 		private TestSpecification(
 			String name,
 			Class<? extends TypeSerializer<T>> serializerType,
-			Class<? extends TypeSerializerSnapshot<T>> snapshotClass) {
+			Class<? extends TypeSerializerSnapshot<T>> snapshotClass,
+			MigrationVersion testMigrationVersion) {
 
 			this.name = name;
 			this.serializerType = serializerType;
 			this.snapshotClass = snapshotClass;
+			this.testMigrationVersion = testMigrationVersion;
 		}
 
-		public TestSpecification<T> withSerializerProvider(Supplier<? extends TypeSerializer<T>> serializerProvider) {
+		public TestSpecification<T> withNewSerializerProvider(Supplier<? extends TypeSerializer<T>> serializerProvider) {
+			return withNewSerializerProvider(serializerProvider, TypeSerializerSchemaCompatibility.compatibleAsIs());
+		}
+
+		public TestSpecification<T> withNewSerializerProvider(
+				Supplier<? extends TypeSerializer<T>> serializerProvider,
+				TypeSerializerSchemaCompatibility<T> expectedCompatibilityResult) {
 			this.serializerProvider = serializerProvider;
+			this.expectedCompatibilityResult = expectedCompatibilityResult;
 			return this;
 		}
 
@@ -249,6 +270,10 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 			return resourcePath(this.snapshotDataLocation);
 		}
 
+		private MigrationVersion getTestMigrationVersion() {
+			return testMigrationVersion;
+		}
+
 		public Class<? extends TypeSerializerSnapshot<T>> getSnapshotClass() {
 			return snapshotClass;
 		}
@@ -257,5 +282,138 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 		public String toString() {
 			return String.format("%s , %s, %s", name, serializerType.getSimpleName(), snapshotClass.getSimpleName());
 		}
+	}
+
+	/**
+	 * Utility class to help build a collection of {@link TestSpecification} for
+	 * multiple test migration versions. For each test specification added,
+	 * an entry will be added for each specified migration version.
+	 */
+	protected static final class TestSpecifications {
+
+		private static final int DEFAULT_TEST_DATA_COUNT = 10;
+		private static final String DEFAULT_SNAPSHOT_FILENAME_FORMAT = "flink-%s-%s-snapshot";
+		private static final String DEFAULT_TEST_DATA_FILENAME_FORMAT = "flink-%s-%s-data";
+
+		private final Collection<TestSpecification<?>> testSpecifications = new LinkedList<>();
+		private final MigrationVersion[] testVersions;
+
+		public TestSpecifications(MigrationVersion... testVersions) {
+			checkArgument(
+				testVersions.length > 0,
+				"At least one test migration version should be specified.");
+			this.testVersions = testVersions;
+		}
+
+		/**
+		 * Adds a test specification to be tested for all specified test versions.
+		 *
+		 * <p>This method adds the specification with pre-defined snapshot and data filenames,
+		 * with the format "flink-&lt;testVersion&gt;-&lt;specName&gt;-&lt;data/snapshot&gt;",
+		 * and each specification's test data count is assumed to always be 10.
+		 *
+		 * @param name test specification name.
+		 * @param serializerClass class of the current serializer.
+		 * @param snapshotClass class of the current serializer snapshot class.
+		 * @param serializerProvider provider for an instance of the current serializer.
+		 *
+		 * @param <T> type of the test data.
+		 */
+		public <T> void add(
+				String name,
+				Class<? extends TypeSerializer> serializerClass,
+				Class<? extends TypeSerializerSnapshot> snapshotClass,
+				Supplier<? extends TypeSerializer<T>> serializerProvider) {
+			for (MigrationVersion testVersion : testVersions) {
+				testSpecifications.add(
+					TestSpecification.<T>builder(
+						getSpecNameForVersion(name, testVersion),
+						serializerClass,
+						snapshotClass,
+						testVersion)
+						.withNewSerializerProvider(serializerProvider)
+						.withSnapshotDataLocation(
+							String.format(DEFAULT_SNAPSHOT_FILENAME_FORMAT, testVersion, name))
+						.withTestData(
+							String.format(DEFAULT_TEST_DATA_FILENAME_FORMAT, testVersion, name),
+							DEFAULT_TEST_DATA_COUNT)
+				);
+			}
+		}
+
+		/**
+		 * Adds a test specification to be tested for all specified test versions.
+		 *
+		 * @param name test specification name.
+		 * @param serializerClass class of the current serializer.
+		 * @param snapshotClass class of the current serializer snapshot class.
+		 * @param serializerProvider provider for an instance of the current serializer.
+		 * @param testSnapshotFilenameProvider provider for the filename of the test snapshot.
+		 * @param testDataFilenameProvider provider for the filename of the test data.
+		 * @param testDataCount expected number of records to be read in the test data files.
+		 *
+		 * @param <T> type of the test data.
+		 */
+		public <T> void add(
+				String name,
+				Class<? extends TypeSerializer> serializerClass,
+				Class<? extends TypeSerializerSnapshot> snapshotClass,
+				Supplier<? extends TypeSerializer<T>> serializerProvider,
+				TestResourceFilenameSupplier testSnapshotFilenameProvider,
+				TestResourceFilenameSupplier testDataFilenameProvider,
+				int testDataCount) {
+			for (MigrationVersion testVersion : testVersions) {
+				testSpecifications.add(
+					TestSpecification.<T>builder(
+						getSpecNameForVersion(name, testVersion),
+						serializerClass,
+						snapshotClass,
+						testVersion)
+					.withNewSerializerProvider(serializerProvider)
+					.withSnapshotDataLocation(testSnapshotFilenameProvider.get(testVersion))
+					.withTestData(testDataFilenameProvider.get(testVersion), testDataCount)
+				);
+			}
+		}
+
+		public Collection<TestSpecification<?>> get() {
+			return Collections.unmodifiableCollection(testSpecifications);
+		}
+
+		private static String getSpecNameForVersion(String baseName, MigrationVersion testVersion) {
+			return testVersion + "-" + baseName;
+		}
+	}
+
+	protected interface TestResourceFilenameSupplier {
+		String get(MigrationVersion testVersion);
+	}
+
+	// --------------------------------------------------------------------------------------------------------------
+	// Utilities
+	// --------------------------------------------------------------------------------------------------------------
+
+	private <T> Matcher<TypeSerializerSchemaCompatibility<T>> hasSameCompatibilityType(TypeSerializerSchemaCompatibility<T> expectedCompatibilty) {
+		return new TypeSafeMatcher<TypeSerializerSchemaCompatibility<T>>() {
+
+			@Override
+			protected boolean matchesSafely(TypeSerializerSchemaCompatibility<T> testResultCompatibility) {
+				if (expectedCompatibilty.isCompatibleAsIs()) {
+					return testResultCompatibility.isCompatibleAsIs();
+				} else if (expectedCompatibilty.isIncompatible()) {
+					return testResultCompatibility.isCompatibleAfterMigration();
+				} else if (expectedCompatibilty.isIncompatible()) {
+					return testResultCompatibility.isIncompatible();
+				} else if (expectedCompatibilty.isCompatibleWithReconfiguredSerializer()) {
+					return testResultCompatibility.isCompatibleWithReconfiguredSerializer();
+				}
+				return false;
+			}
+
+			@Override
+			public void describeTo(Description description) {
+				description.appendText("same compatibility as ").appendValue(expectedCompatibilty);
+			}
+		};
 	}
 }

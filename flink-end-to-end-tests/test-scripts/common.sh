@@ -152,8 +152,8 @@ function create_ha_config() {
 
     rest.port: 8081
 
-    query.server.ports: 9000-9009
-    query.proxy.ports: 9010-9019
+    queryable-state.server.ports: 9000-9009
+    queryable-state.proxy.ports: 9010-9019
 EOL
 }
 

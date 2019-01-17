@@ -34,6 +34,7 @@ under the License.
 	<name>flink-shaded-hadoop2-uber</name>
 
 	<packaging>jar</packaging>
+	<version>1.8-SNAPSHOT-${hadoop.version}</version>
 
 	<!--
 		the only dependency of the 'flink-shaded-hadoop2' artifact, out
@@ -52,19 +53,6 @@ under the License.
 
 	<build>
 		<plugins>
-
-			<!-- 
-				Don't deploy this uber-jar. It is not referenced by any other artifact.
-				Its sole purpose is to be included in the 'flink-dist' build.
-			-->
- 
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-deploy-plugin</artifactId>
-				<configuration>
-					<skip>true</skip>
-				</configuration>
-			</plugin>
 
 			<!-- 
 				Build an uber jar of the shaded-hadoop-dependency

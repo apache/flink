@@ -71,8 +71,7 @@ public class PatternTimeoutSelectAdapter<IN, OUT, T>
 			final Map<String, List<IN>> match,
 			final Context ctx) throws Exception {
 
-		final long resultTimestamp = ctx.timestamp() != null ? ctx.timestamp() : ctx.currentProcessingTime();
-		final T timedOutPatternResult = timeoutFunction.timeout(match, resultTimestamp);
+		final T timedOutPatternResult = timeoutFunction.timeout(match, ctx.timestamp());
 
 		ctx.output(timedOutPartialMatchesTag, timedOutPatternResult);
 	}

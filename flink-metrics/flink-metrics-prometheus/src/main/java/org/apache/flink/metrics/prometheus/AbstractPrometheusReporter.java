@@ -26,6 +26,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
@@ -46,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.FILTER_LABEL_VALUE_CHARACTER;
 
 /**
  * base prometheus reporter for prometheus metrics.
@@ -75,6 +77,18 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 		return UNALLOWED_CHAR_PATTERN.matcher(input).replaceAll("_");
 	}
 
+	private CharacterFilter labelValueCharactersFilter = CHARACTER_FILTER;
+
+	@Override
+	public void open(MetricConfig config) {
+		boolean filterLabelValueCharacters = config.getBoolean(
+			FILTER_LABEL_VALUE_CHARACTER.key(), FILTER_LABEL_VALUE_CHARACTER.defaultValue());
+
+		if (!filterLabelValueCharacters) {
+			labelValueCharactersFilter = input -> input;
+		}
+	}
+
 	@Override
 	public void close() {
 		CollectorRegistry.defaultRegistry.clear();
@@ -88,7 +102,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 		for (final Map.Entry<String, String> dimension : group.getAllVariables().entrySet()) {
 			final String key = dimension.getKey();
 			dimensionKeys.add(CHARACTER_FILTER.filterCharacters(key.substring(1, key.length() - 1)));
-			dimensionValues.add(CHARACTER_FILTER.filterCharacters(dimension.getValue()));
+			dimensionValues.add(labelValueCharactersFilter.filterCharacters(dimension.getValue()));
 		}
 
 		final String scopedMetricName = getScopedName(metricName, group);
@@ -173,7 +187,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
 		List<String> dimensionValues = new LinkedList<>();
 		for (final Map.Entry<String, String> dimension : group.getAllVariables().entrySet()) {
-			dimensionValues.add(CHARACTER_FILTER.filterCharacters(dimension.getValue()));
+			dimensionValues.add(labelValueCharactersFilter.filterCharacters(dimension.getValue()));
 		}
 
 		final String scopedMetricName = getScopedName(metricName, group);

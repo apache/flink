@@ -23,25 +23,37 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.testutils.migration.MigrationVersion;
+
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
+import java.util.Collection;
 
 /**
  * Migration test for the {@link MapViewSerializerSnapshot}.
  */
+@RunWith(Parameterized.class)
 public class MapViewSerializerSnapshotMigrationTest extends TypeSerializerSnapshotMigrationTestBase<MapView<Integer, String>> {
 
-	private static final String DATA = "flink-1.6-map-view-serializer-data";
-	private static final String SNAPSHOT = "flink-1.6-map-view-serializer-snapshot";
+	private static final String SPEC_NAME = "map-view-serializer";
 
-	public MapViewSerializerSnapshotMigrationTest() {
-		super(
-			TestSpecification.<MapView<Integer, String>>builder(
-					"1.6-map-view-serializer",
-					MapViewSerializer.class,
-					MapViewSerializerSnapshot.class)
-				.withSerializerProvider(() -> new MapViewSerializer<>(
-					new MapSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE)))
-				.withSnapshotDataLocation(SNAPSHOT)
-				.withTestData(DATA, 10)
-		);
+	public MapViewSerializerSnapshotMigrationTest(TestSpecification<MapView<Integer, String>> testSpecification) {
+		super(testSpecification);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Parameterized.Parameters(name = "Test Specification = {0}")
+	public static Collection<TestSpecification<?>> testSpecifications() {
+
+		final TestSpecifications testSpecifications = new TestSpecifications(MigrationVersion.v1_6, MigrationVersion.v1_7);
+
+		testSpecifications.add(
+			SPEC_NAME,
+			MapViewSerializer.class,
+			MapViewSerializerSnapshot.class,
+			() -> new MapViewSerializer<>(new MapSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE)));
+
+		return testSpecifications.get();
 	}
 }

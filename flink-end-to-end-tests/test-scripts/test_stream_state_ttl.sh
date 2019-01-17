@@ -45,6 +45,8 @@ function test_cleanup {
 trap test_cleanup INT
 trap test_cleanup EXIT
 
+set_conf "metrics.fetcher.update-interval" "2000"
+
 start_cluster
 start_taskmanagers $PARALLELISM
 

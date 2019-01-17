@@ -34,8 +34,10 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -348,6 +350,27 @@ public class FutureUtils {
 	// ------------------------------------------------------------------------
 	//  Future actions
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Run the given {@code RunnableFuture} if it is not done, and then retrieves its result.
+	 * @param future to run if not done and get
+	 * @param <T> type of the result
+	 * @return the result after running the future
+	 * @throws ExecutionException if a problem occurred
+	 * @throws InterruptedException if the current thread has been interrupted
+	 */
+	public static <T> T runIfNotDoneAndGet(RunnableFuture<T> future) throws ExecutionException, InterruptedException {
+
+		if (null == future) {
+			return null;
+		}
+
+		if (!future.isDone()) {
+			future.run();
+		}
+
+		return future.get();
+	}
 
 	/**
 	 * Run the given action after the completion of the given future. The given future can be

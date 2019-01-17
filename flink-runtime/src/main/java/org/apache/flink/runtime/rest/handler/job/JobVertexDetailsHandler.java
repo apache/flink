@@ -57,7 +57,7 @@ import java.util.concurrent.Executor;
  * Request handler for the job vertex details.
  */
 public class JobVertexDetailsHandler extends AbstractExecutionGraphHandler<JobVertexDetailsInfo, JobVertexMessageParameters> implements JsonArchivist {
-	private final MetricFetcher<? extends RestfulGateway> metricFetcher;
+	private final MetricFetcher metricFetcher;
 
 	public JobVertexDetailsHandler(
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -66,7 +66,7 @@ public class JobVertexDetailsHandler extends AbstractExecutionGraphHandler<JobVe
 			MessageHeaders<EmptyRequestBody, JobVertexDetailsInfo, JobVertexMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor,
-			MetricFetcher<? extends RestfulGateway> metricFetcher) {
+			MetricFetcher metricFetcher) {
 		super(
 			leaderRetriever,
 			timeout,
@@ -106,7 +106,7 @@ public class JobVertexDetailsHandler extends AbstractExecutionGraphHandler<JobVe
 		return archive;
 	}
 
-	private static JobVertexDetailsInfo createJobVertexDetailsInfo(AccessExecutionJobVertex jobVertex, JobID jobID, @Nullable MetricFetcher<?> metricFetcher) {
+	private static JobVertexDetailsInfo createJobVertexDetailsInfo(AccessExecutionJobVertex jobVertex, JobID jobID, @Nullable MetricFetcher metricFetcher) {
 		List<JobVertexDetailsInfo.VertexTaskDetail> subtasks = new ArrayList<>();
 		final long now = System.currentTimeMillis();
 		int num = 0;

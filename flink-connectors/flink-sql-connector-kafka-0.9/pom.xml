@@ -65,9 +65,12 @@ under the License.
 							</artifactSet>
 							<filters>
 								<filter>
-									<artifact>*:*</artifact>
+									<artifact>org.apache.kafka:*</artifact>
 									<excludes>
 										<exclude>kafka/kafka-version.properties</exclude>
+										<exclude>LICENSE</exclude>
+										<!-- Does not contain anything relevant -->
+										<exclude>NOTICE</exclude>
 									</excludes>
 								</filter>
 							</filters>

@@ -26,7 +26,7 @@ import org.apache.flink.fs.s3.common.HadoopConfigLoader;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.services.s3.AmazonS3Client;
-import com.facebook.presto.hive.PrestoS3FileSystem;
+import com.facebook.presto.hive.s3.PrestoS3FileSystem;
 import org.junit.Test;
 
 import java.lang.reflect.Field;

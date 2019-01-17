@@ -141,7 +141,7 @@ object AkkaUtils {
     * @param configuration containing the user provided configuration values
     * @param hostname to bind against. If null, then the loopback interface is used
     * @param port to bind against
-    * @param executorMode containing the user specified mode of executor
+    * @param executorConfig containing the user specified config of executor
     * @return A remote Akka config
     */
   def getAkkaConfig(configuration: Configuration,

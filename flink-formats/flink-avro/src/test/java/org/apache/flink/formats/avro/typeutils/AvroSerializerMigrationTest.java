@@ -20,46 +20,52 @@ package org.apache.flink.formats.avro.typeutils;
 
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase;
 import org.apache.flink.formats.avro.generated.Address;
+import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.apache.avro.generic.GenericRecord;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
 import java.util.Collection;
 
 /**
  * Tests migrations for {@link AvroSerializerSnapshot}.
  */
 @RunWith(Parameterized.class)
-public class AvroSerializerMigrationTest extends TypeSerializerSnapshotMigrationTestBase<Object> {
+public class AvroSerializerMigrationTest extends TypeSerializerSnapshotMigrationTestBase<Address> {
 
-	private static final String DATA = "flink-1.6-avro-type-serializer-address-data";
-	private static final String SPECIFIC_SNAPSHOT = "flink-1.6-avro-type-serializer-address-snapshot";
-	private static final String GENERIC_SNAPSHOT = "flink-1.6-avro-generic-type-serializer-address-snapshot";
+	private static final String DATA_FILE_FORMAT = "flink-%s-avro-type-serializer-address-data";
+	private static final String SPECIFIC_SNAPSHOT_FILE_FORMAT = "flink-%s-avro-type-serializer-address-snapshot";
+	private static final String GENERIC_SNAPSHOT_FILE_FORMAT = "flink-%s-avro-generic-type-serializer-address-snapshot";
 
-	public AvroSerializerMigrationTest(TestSpecification<Object> testSpec) {
+	public AvroSerializerMigrationTest(TestSpecification<Address> testSpec) {
 		super(testSpec);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<Object[]> testSpecifications() {
+	public static Collection<TestSpecification<?>> testSpecifications() {
 
-		final TestSpecification<Address> genericCase = TestSpecification.<Address>builder("1.6-generic", AvroSerializer.class, AvroSerializerSnapshot.class)
-			.withSerializerProvider(() -> new AvroSerializer(GenericRecord.class, Address.getClassSchema()))
-			.withSnapshotDataLocation(GENERIC_SNAPSHOT)
-			.withTestData(DATA, 10);
+		final TestSpecifications testSpecifications = new TestSpecifications(MigrationVersion.v1_6, MigrationVersion.v1_7);
 
-		final TestSpecification<Address> specificCase = TestSpecification.<Address>builder("1.6-specific", AvroSerializer.class, AvroSerializerSnapshot.class)
-			.withSerializerProvider(() -> new AvroSerializer<>(Address.class))
-			.withSnapshotDataLocation(SPECIFIC_SNAPSHOT)
-			.withTestData(DATA, 10);
+		testSpecifications.add(
+			"generic-avro-serializer",
+			AvroSerializer.class,
+			AvroSerializerSnapshot.class,
+			() -> new AvroSerializer(GenericRecord.class, Address.getClassSchema()),
+			testVersion -> String.format(GENERIC_SNAPSHOT_FILE_FORMAT, testVersion),
+			testVersion -> String.format(DATA_FILE_FORMAT, testVersion),
+			10);
+		testSpecifications.add(
+			"specific-avro-serializer",
+			AvroSerializer.class,
+			AvroSerializerSnapshot.class,
+			() -> new AvroSerializer<>(Address.class),
+			testVersion -> String.format(SPECIFIC_SNAPSHOT_FILE_FORMAT, testVersion),
+			testVersion -> String.format(DATA_FILE_FORMAT, testVersion),
+			10);
 
-		return Arrays.asList(
-			new Object[]{genericCase},
-			new Object[]{specificCase}
-		);
+		return testSpecifications.get();
 	}
 
 }

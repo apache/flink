@@ -9,12 +9,8 @@ Copyright 2014-2018 The Apache Software Foundation
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
 - com.chuusai:shapeless_2.11:2.3.2
-- com.google.guava:guava:14.0.1
-- com.twitter:hbc-core:2.2.0
-- com.twitter:joauth:6.0.2
 - log4j:log4j:1.2.17
 - net.sf.opencsv:opencsv:2.3
-- org.apache.kafka:kafka-clients:jar:0.10.2.1
 - org.scalanlp:breeze_2.11:0.13
 - org.scalanlp:breeze-macros_2.11:0.13
 - org.typelevel:macro-compat_2.11:1.1.1
@@ -64,7 +60,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - commons-collections:commons-collections:3.2.2
 - commons-io:commons-io:2.4
 - org.apache.camel:camel-core:2.17.7
-- org.apache.commons:commons-compress:1.4.1
+- org.apache.commons:commons-compress:1.18
 - org.apache.commons:commons-lang3:3.3.2
 - org.apache.commons:commons-math3:3.5
 - org.javassist:javassist:3.19.0-GA
@@ -344,7 +340,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.htrace:htrace-core4:4.0.1-incubating
 - org.apache.httpcomponents:httpclient:4.5.3
 - org.apache.httpcomponents:httpcore:4.4.6
-- org.apache.commons:commons-compress:1.4.1
+- org.apache.commons:commons-compress:1.18
 - org.apache.commons:commons-math3:3.5
 - commons-beanutils:commons-beanutils:1.8.3
 - commons-cli:commons-cli:1.3.1
@@ -2412,7 +2408,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - commons-logging:commons-logging:1.1.3
 - commons-net:commons-net:3.1
 - org.apache.avro:avro:1.8.2
-- org.apache.commons:commons-compress:1.4.1
+- org.apache.commons:commons-compress:1.18
 - org.apache.commons:commons-math3:3.5
 - org.apache.zookeeper:zookeeper:3.4.10
 - org.codehaus.jackson:jackson-core-asl:1.9.13
@@ -2555,12 +2551,12 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.facebook.presto:presto-hive:0.185
+- com.facebook.presto:presto-hive:0.187
 - com.facebook.presto.hadoop:hadoop-apache2:2.7.3-1
 - com.google.guava:guava:21.0
-- io.airlift:configuration:0.148
-- io.airlift:log:0.148
-- io.airlift:stats:0.148
+- io.airlift:configuration:0.153
+- io.airlift:log:0.153
+- io.airlift:stats:0.153
 - io.airlift:units:1.0
 - io.airlift:slice:0.31
 - com.fasterxml.jackson.core:jackson-annotations:2.8.1
@@ -5797,7 +5793,7 @@ The Apache Software Foundation (http://www.apache.org/).
 This project bundles the following dependencies under the Python Software Foundation License. (https://opensource.org/licenses/PythonSoftFoundation.php)
 See bundled license files for details.
 
-- org.python:jython-standalone:2.7.0
+- org.python:jython-standalone:2.7.1
 
 flink-metrics-graphite
 Copyright 2014-2018 The Apache Software Foundation
@@ -5806,3 +5802,62 @@ This project bundles the following dependencies under the Apache Software Licens
 
 - io.dropwizard.metrics:metrics-core:3.1.5
 - io.dropwizard.metrics:metrics-graphite:3.1.5
+
+// NOTICE file corresponding to the section 4d of The Apache License,
+// Version 2.0, in this case for Apache Flink
+// ------------------------------------------------------------------
+
+Apache Flink
+Copyright 2006-2019 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+flink-examples-streaming-state-machine
+Copyright 2014-2018 The Apache Software Foundation
+
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- org.apache.kafka:kafka-clients:0.10.2.1
+
+
+flink-connector-kafka-0.10
+Copyright 2014-2019 The Apache Software Foundation
+
+flink-connector-kafka-0.9
+Copyright 2014-2019 The Apache Software Foundation
+
+flink-connector-kafka-base
+Copyright 2014-2019 The Apache Software Foundation
+
+// ------------------------------------------------------------------
+// NOTICE file corresponding to the section 4d of The Apache License,
+// Version 2.0, in this case for Apache Flink
+// ------------------------------------------------------------------
+
+Apache Flink
+Copyright 2006-2019 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+
+flink-examples-streaming-twitter
+Copyright 2014-2019 The Apache Software Foundation
+
+Apache HttpCore
+Copyright 2005-2017 The Apache Software Foundation
+
+flink-connector-twitter
+Copyright 2014-2018 The Apache Software Foundation
+
+This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.google.guava:guava:14.0.1
+- com.twitter:hbc-core:2.2.0
+- com.twitter:joauth:6.0.2
+- org.apache.httpcomponents:httpclient:4.5.3
+- org.apache.httpcomponents:httpcore:4.4.6
+
+Apache HttpClient
+Copyright 1999-2017 The Apache Software Foundation

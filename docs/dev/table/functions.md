@@ -3573,7 +3573,18 @@ NUMERIC.years
         <p>Creates an interval of months for <i>NUMERIC</i> years.</p>
       </td>
     </tr>
-
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.quarter
+NUMERIC.quarters
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of months for <i>NUMERIC</i> quarters.</p>
+        <p>E.g., <code>2.quarters</code> returns 6.</p>
+      </td>
+    </tr>
     <tr>
       <td>
         {% highlight java %}
@@ -3586,6 +3597,19 @@ NUMERIC.months
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.week
+NUMERIC.weeks
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of milliseconds for <i>NUMERIC</i> weeks.</p>
+        <p>E.g., <code>2.weeks</code> returns 1209600000.</p>
+      </td>
+    </tr>
+    
     <tr>
       <td>
         {% highlight java %}
@@ -3834,6 +3858,19 @@ NUMERIC.years
     <tr>
       <td>
         {% highlight scala %}
+NUMERIC.quarter
+NUMERIC.quarters
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of months for <i>NUMERIC</i> quarters.</p>
+        <p>E.g., <code>2.quarters</code> returns 6.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
 NUMERIC.month
 NUMERIC.months
 {% endhighlight %}
@@ -3843,6 +3880,19 @@ NUMERIC.months
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.week
+NUMERIC.weeks
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of milliseconds for <i>NUMERIC</i> weeks.</p>
+        <p>E.g., <code>2.weeks</code> returns 1209600000.</p>
+      </td>
+    </tr>
+    
     <tr>
       <td>
         {% highlight scala %}

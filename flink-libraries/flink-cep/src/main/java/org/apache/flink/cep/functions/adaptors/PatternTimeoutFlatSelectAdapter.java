@@ -78,8 +78,7 @@ public class PatternTimeoutFlatSelectAdapter<IN, OUT, T>
 			Map<String, List<IN>> match,
 			Context ctx) throws Exception {
 		sideCollector.setCtx(ctx);
-		long timestamp = ctx.timestamp() != null ? ctx.timestamp() : ctx.currentProcessingTime();
-		flatTimeoutFunction.timeout(match, timestamp, sideCollector);
+		flatTimeoutFunction.timeout(match, ctx.timestamp(), sideCollector);
 	}
 
 	/**

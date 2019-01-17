@@ -20,24 +20,38 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.testutils.migration.MigrationVersion;
+
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
+import java.util.Collection;
 
 /**
  * Migration test for the {@link ArrayListSerializerSnapshot}.
  */
+@RunWith(Parameterized.class)
 public class ArrayListSerializerMigrationTest extends TypeSerializerSnapshotMigrationTestBase<ArrayList<String>> {
 
-	private static final String DATA = "flink-1.6-arraylist-serializer-data";
-	private static final String SNAPSHOT = "flink-1.6-arraylist-serializer-snapshot";
+	private static final String SPEC_NAME = "arraylist-serializer";
 
-	public ArrayListSerializerMigrationTest() {
-		super(
-			TestSpecification.<ArrayList<String>>builder("1.6-arraylist-serializer", ArrayListSerializer.class, ArrayListSerializerSnapshot.class)
-				.withSerializerProvider(() -> new ArrayListSerializer<>(StringSerializer.INSTANCE))
-				.withSnapshotDataLocation(SNAPSHOT)
-				.withTestData(DATA, 10)
-		);
+	public ArrayListSerializerMigrationTest(TestSpecification<ArrayList<String>> testSpecification) {
+		super(testSpecification);
 	}
 
+	@SuppressWarnings("unchecked")
+	@Parameterized.Parameters(name = "Test Specification = {0}")
+	public static Collection<TestSpecification<?>> testSpecifications() {
+
+		final TestSpecifications testSpecifications = new TestSpecifications(MigrationVersion.v1_6, MigrationVersion.v1_7);
+
+		testSpecifications.add(
+			SPEC_NAME,
+			ArrayListSerializer.class,
+			ArrayListSerializerSnapshot.class,
+			() -> new ArrayListSerializer<>(StringSerializer.INSTANCE));
+
+		return testSpecifications.get();
+	}
 }

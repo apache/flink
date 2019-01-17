@@ -32,7 +32,7 @@ spec:
       - name: flink-job-cluster
         image: ${FLINK_IMAGE_NAME}
         args: ["job-cluster", "--job-classname", "${FLINK_JOB}", "-Djobmanager.rpc.address=flink-job-cluster",
-               "-Dparallelism.default=${FLINK_JOB_PARALLELISM}", "-Dblob.server.port=6124", "-Dquery.server.ports=6125"]
+               "-Dparallelism.default=${FLINK_JOB_PARALLELISM}", "-Dblob.server.port=6124", "-Dqueryable-state.server.ports=6125"]
         ports:
         - containerPort: 6123
           name: rpc

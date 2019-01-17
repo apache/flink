@@ -79,7 +79,7 @@ public class AggregatingSubtasksMetricsHandlerTest extends AggregatingMetricsHan
 	}
 
 	@Override
-	protected AggregatingSubtasksMetricsHandler getHandler(GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, Executor executor, MetricFetcher<?> fetcher) {
+	protected AggregatingSubtasksMetricsHandler getHandler(GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, Executor executor, MetricFetcher fetcher) {
 		return new AggregatingSubtasksMetricsHandler(
 			leaderRetriever,
 			timeout,
