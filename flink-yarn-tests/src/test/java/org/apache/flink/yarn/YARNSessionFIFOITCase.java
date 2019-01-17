@@ -18,24 +18,15 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
-import org.apache.flink.yarn.util.YarnTestUtils;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -55,7 +46,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -273,74 +263,5 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Finished testfullAlloc()");
 		checkForLogString("There is not enough memory available in the YARN cluster. The TaskManager(s) require 3840MB each. NodeManagers available: [4096, 4096]\n" +
 				"After allocating the JobManager (512MB) and (1/2) TaskManagers, the following NodeManagers are available: [3584, 256]");
-	}
-
-	/**
-	 * Test the YARN Java API.
-	 */
-	@Test
-	public void testJavaAPI() throws Exception {
-		LOG.info("Starting testJavaAPI()");
-
-		final String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
-		final Configuration configuration = GlobalConfiguration.loadConfiguration();
-		final YarnClient yarnClient = getYarnClient();
-
-		try (final AbstractYarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
-			configuration,
-			getYarnConfiguration(),
-			confDirPath,
-			yarnClient,
-			true)) {
-
-			Assert.assertNotNull("unable to get yarn client", clusterDescriptor);
-
-			clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-			clusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
-
-			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-				.setMasterMemoryMB(768)
-				.setTaskManagerMemoryMB(1024)
-				.setNumberTaskManagers(1)
-				.setSlotsPerTaskManager(1)
-				.createClusterSpecification();
-
-			// deploy
-			ClusterClient<ApplicationId> yarnClusterClient = null;
-			try {
-				yarnClusterClient = clusterDescriptor.deploySessionCluster(clusterSpecification);
-				yarnClusterClient.setDetached(false);
-
-				StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-				env.setParallelism(2);
-
-				env.addSource(new NoDataSource())
-					.shuffle()
-					.addSink(new DiscardingSink<>());
-
-				final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-
-				File testingJar = YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-yarn-tests"));
-
-				jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
-
-				JobExecutionResult result =
-					yarnClusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader()).getJobExecutionResult();
-
-				Assert.assertNotNull(result);
-				Assert.assertTrue(result.getNetRuntime() > 0);
-				Assert.assertEquals(jobGraph.getJobID(), result.getJobID());
-
-				LOG.info("All tests passed.");
-			} finally {
-				if (yarnClusterClient != null) {
-					// shutdown cluster
-					LOG.info("Shutting down the Flink Yarn application.");
-					yarnClusterClient.shutDownCluster();
-					yarnClusterClient.shutdown();
-				}
-			}
-		}
-		LOG.info("Finished testJavaAPI()");
 	}
 }
