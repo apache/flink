@@ -87,4 +87,10 @@ class TestingDispatcher extends Dispatcher {
 			this::getRecoveryOperation,
 			timeout).thenCompose(Function.identity());
 	}
+
+	CompletableFuture<Integer> getNumberJobs(Time timeout) {
+		return callAsyncWithoutFencing(
+			() -> listJobs(timeout).get().size(),
+			timeout);
+	}
 }
