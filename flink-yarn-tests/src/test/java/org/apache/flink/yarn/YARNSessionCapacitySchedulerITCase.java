@@ -70,6 +70,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.apache.flink.yarn.UtilsTest.addTestAppender;
 import static org.apache.flink.yarn.UtilsTest.checkForLogString;
 import static org.apache.flink.yarn.util.YarnTestUtils.getTestJarPath;
@@ -220,11 +221,10 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		}
 		LOG.info("Extracted hostname:port: {} {}", hostname, port);
 
-		final YarnClient yc = YarnClient.createYarnClient();
-		yc.init(YARN_CONFIGURATION);
-		yc.start();
+		final YarnClient yarnClient = getYarnClient();
+		checkState(yarnClient != null);
 
-		List<ApplicationReport> apps = yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
+		List<ApplicationReport> apps = yarnClient.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
 		assertEquals(1, apps.size()); // Only one running
 		ApplicationReport app = apps.get(0);
 		assertEquals("customName", app.getName());
