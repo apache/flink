@@ -43,7 +43,10 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -64,6 +67,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Supplier;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -125,7 +129,7 @@ public class DispatcherHATest extends TestLogger {
 
 		final BlockingQueue<DispatcherId> fencingTokens = new ArrayBlockingQueue<>(2);
 
-		final HATestingDispatcher dispatcher = createDispatcher(highAvailabilityServices, fencingTokens);
+		final HATestingDispatcher dispatcher = createDispatcherWithObservableFencingTokens(highAvailabilityServices, fencingTokens);
 
 		dispatcher.start();
 
@@ -162,7 +166,7 @@ public class DispatcherHATest extends TestLogger {
 			.build();
 
 		final ArrayBlockingQueue<DispatcherId> fencingTokens = new ArrayBlockingQueue<>(2);
-		final HATestingDispatcher dispatcher = createDispatcher(
+		final HATestingDispatcher dispatcher = createDispatcherWithObservableFencingTokens(
 			highAvailabilityServices,
 			fencingTokens);
 
@@ -195,20 +199,117 @@ public class DispatcherHATest extends TestLogger {
 		}
 	}
 
-	@Nonnull
-	public static JobGraph createNonEmptyJobGraph() {
-		final JobVertex noOpVertex = new JobVertex("NoOp vertex");
-		noOpVertex.setInvokableClass(NoOpInvokable.class);
-		final JobGraph jobGraph = new JobGraph(noOpVertex);
-		jobGraph.setAllowQueuedScheduling(true);
+	/**
+	 * Tests that a Dispatcher does not remove the JobGraph from the submitted job graph store
+	 * when losing leadership and recovers it when regaining leadership.
+	 */
+	@Test
+	public void testJobRecoveryWhenChangingLeadership() throws Exception {
+		final InMemorySubmittedJobGraphStore submittedJobGraphStore = new InMemorySubmittedJobGraphStore();
 
-		return jobGraph;
+		final CompletableFuture<JobID> recoveredJobFuture = new CompletableFuture<>();
+		submittedJobGraphStore.setRecoverJobGraphFunction((jobID, jobIDSubmittedJobGraphMap) -> {
+			recoveredJobFuture.complete(jobID);
+			return jobIDSubmittedJobGraphMap.get(jobID);
+		});
+
+		final TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
+
+		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServicesBuilder()
+			.setSubmittedJobGraphStore(submittedJobGraphStore)
+			.setDispatcherLeaderElectionService(leaderElectionService)
+			.build();
+
+		final ArrayBlockingQueue<DispatcherId> fencingTokens = new ArrayBlockingQueue<>(2);
+		final HATestingDispatcher dispatcher = createDispatcherWithObservableFencingTokens(
+			highAvailabilityServices,
+			fencingTokens);
+
+		dispatcher.start();
+
+		try {
+			// grant leadership and submit a single job
+			final DispatcherId expectedDispatcherId = DispatcherId.generate();
+			leaderElectionService.isLeader(expectedDispatcherId.toUUID()).get();
+
+			assertThat(fencingTokens.take(), is(equalTo(expectedDispatcherId)));
+
+			final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+			final JobGraph jobGraph = createNonEmptyJobGraph();
+			final CompletableFuture<Acknowledge> submissionFuture = dispatcherGateway.submitJob(jobGraph, timeout);
+
+			submissionFuture.get();
+
+			final JobID jobId = jobGraph.getJobID();
+			assertThat(submittedJobGraphStore.contains(jobId), is(true));
+
+			// revoke the leadership --> this should stop all running JobManagerRunners
+			leaderElectionService.notLeader();
+
+			assertThat(fencingTokens.take(), is(equalTo(NULL_FENCING_TOKEN)));
+
+			assertThat(submittedJobGraphStore.contains(jobId), is(true));
+
+			assertThat(recoveredJobFuture.isDone(), is(false));
+
+			// re-grant leadership
+			leaderElectionService.isLeader(DispatcherId.generate().toUUID());
+
+			assertThat(recoveredJobFuture.get(), is(equalTo(jobId)));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(dispatcher, timeout);
+		}
+	}
+
+	/**
+	 * Tests that a fatal error is reported if the job recovery fails.
+	 */
+	@Test
+	public void testFailingRecoveryIsAFatalError() throws Exception {
+		final String exceptionMessage = "Job recovery test failure.";
+		final Supplier<Exception> exceptionSupplier = () -> new FlinkException(exceptionMessage);
+		final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServicesBuilder()
+			.setSubmittedJobGraphStore(new FailingSubmittedJobGraphStore(exceptionSupplier))
+			.build();
+
+		final HATestingDispatcher dispatcher = createDispatcher(haServices);
+		dispatcher.start();
+
+		final Throwable failure = testingFatalErrorHandler.getErrorFuture().get();
+
+		assertThat(ExceptionUtils.findThrowableWithMessage(failure, exceptionMessage).isPresent(), is(true));
+
+		testingFatalErrorHandler.clearError();
+	}
+
+	@Nonnull
+	private HATestingDispatcher createDispatcherWithObservableFencingTokens(HighAvailabilityServices highAvailabilityServices, Queue<DispatcherId> fencingTokens) throws Exception {
+		return createDispatcher(highAvailabilityServices, fencingTokens, createTestingJobManagerRunnerFactory());
+	}
+
+	@Nonnull
+	private TestingJobManagerRunnerFactory createTestingJobManagerRunnerFactory() {
+		return new TestingJobManagerRunnerFactory(new CompletableFuture<>(), new CompletableFuture<>(), CompletableFuture.completedFuture(null));
+	}
+
+	@Nonnull
+	private HATestingDispatcher createDispatcherWithJobManagerRunnerFactory(HighAvailabilityServices highAvailabilityServices, Dispatcher.JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
+		return createDispatcher(highAvailabilityServices, null, jobManagerRunnerFactory);
+	}
+
+	private HATestingDispatcher createDispatcher(HighAvailabilityServices haServices) throws Exception {
+		return createDispatcher(
+			haServices,
+			null,
+			createTestingJobManagerRunnerFactory());
 	}
 
 	@Nonnull
 	private HATestingDispatcher createDispatcher(
-			TestingHighAvailabilityServices highAvailabilityServices,
-			@Nonnull Queue<DispatcherId> fencingTokens) throws Exception {
+		HighAvailabilityServices highAvailabilityServices,
+		@Nullable Queue<DispatcherId> fencingTokens,
+		Dispatcher.JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
 		final Configuration configuration = new Configuration();
 
 		return new HATestingDispatcher(
@@ -222,9 +323,19 @@ public class DispatcherHATest extends TestLogger {
 			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 			null,
 			new MemoryArchivedExecutionGraphStore(),
-			new TestingJobManagerRunnerFactory(new CompletableFuture<>(), new CompletableFuture<>(), CompletableFuture.completedFuture(null)),
+			jobManagerRunnerFactory,
 			testingFatalErrorHandler,
 			fencingTokens);
+	}
+
+	@Nonnull
+	public static JobGraph createNonEmptyJobGraph() {
+		final JobVertex noOpVertex = new JobVertex("NoOp vertex");
+		noOpVertex.setInvokableClass(NoOpInvokable.class);
+		final JobGraph jobGraph = new JobGraph(noOpVertex);
+		jobGraph.setAllowQueuedScheduling(true);
+
+		return jobGraph;
 	}
 
 	private static class HATestingDispatcher extends TestingDispatcher {
@@ -332,6 +443,52 @@ public class DispatcherHATest extends TestLogger {
 			enterGetJobIdsLatch.trigger();
 			proceedGetJobIdsLatch.await();
 			return Collections.singleton(submittedJobGraph.getJobId());
+		}
+	}
+
+	private static class FailingSubmittedJobGraphStore implements SubmittedJobGraphStore {
+		private final JobID jobId = new JobID();
+
+		private final Supplier<Exception> exceptionSupplier;
+
+		private FailingSubmittedJobGraphStore(Supplier<Exception> exceptionSupplier) {
+			this.exceptionSupplier = exceptionSupplier;
+		}
+
+		@Override
+		public void start(SubmittedJobGraphListener jobGraphListener) throws Exception {
+
+		}
+
+		@Override
+		public void stop() throws Exception {
+
+		}
+
+		@Nullable
+		@Override
+		public SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception {
+			throw exceptionSupplier.get();
+		}
+
+		@Override
+		public void putJobGraph(SubmittedJobGraph jobGraph) throws Exception {
+
+		}
+
+		@Override
+		public void removeJobGraph(JobID jobId) throws Exception {
+
+		}
+
+		@Override
+		public void releaseJobGraph(JobID jobId) throws Exception {
+
+		}
+
+		@Override
+		public Collection<JobID> getJobIds() throws Exception {
+			return Collections.singleton(jobId);
 		}
 	}
 }
