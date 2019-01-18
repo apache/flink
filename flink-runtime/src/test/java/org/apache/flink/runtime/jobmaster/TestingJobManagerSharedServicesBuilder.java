@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.runtime.execution.librarycache.ContextClassLoaderLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.NoOrFixedIfCheckpointingEnabledRestartStrategyFactory;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
@@ -51,7 +52,7 @@ public class TestingJobManagerSharedServicesBuilder {
 
 	public TestingJobManagerSharedServicesBuilder() {
 		scheduledExecutorService = TestingUtils.defaultExecutor();
-		libraryCacheManager = mock(LibraryCacheManager.class);
+		libraryCacheManager = ContextClassLoaderLibraryCacheManager.INSTANCE;
 		restartStrategyFactory = new NoOrFixedIfCheckpointingEnabledRestartStrategyFactory();
 		stackTraceSampleCoordinator = mock(StackTraceSampleCoordinator.class);
 		backPressureStatsTracker = VoidBackPressureStatsTracker.INSTANCE;
