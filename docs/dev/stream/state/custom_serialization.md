@@ -201,9 +201,9 @@ to the implementation of state serializers and their serializer snapshots.
 
 ## Implementation notes and best practices
 
-Apart from the following two points, we also recommend serializer with nested serializers implementing its snapshot
-by extending as subclass of `CompositeTypeSerializerSnapshot`.
-Please refer to the [next section]({{ site.baseurl }}/dev/stream/state/custom_serialization.html#extending-compositetypeserializersnapshot-for-serializer-snapshot-with-nested-serializers) for more details.
+Apart from the following two points, we also recommend that serializers with nested serializers implement snapshotting
+by extending `CompositeTypeSerializerSnapshot` as a subclass.
+Please refer to the [next section]({{ site.baseurl }}/dev/stream/state/custom_serialization.html#extending-compositetypeserializersnapshot-for-snapshots-of-serializers-with-nested-serializers) for more details.
 
 #### 1. Flink restores serializer snapshots by instantiating them with their classname
 
@@ -227,32 +227,31 @@ the same `TypeSerializerSnapshot` class as their snapshot would complicate the i
 This would also be a bad separation of concerns; a single serializer's serialization schema,
 configuration, as well as how to restore it, should be consolidated in its own dedicated `TypeSerializerSnapshot` class.
 
-### Extending `CompositeTypeSerializerSnapshot` for serializer snapshot with nested serializers
+### Extending `CompositeTypeSerializerSnapshot` for snapshots of serializers with nested serializers
 
 Before further explanation, we call the serializer, which relies on other nested serializer(s), as "outer" serializer in this context.
-Eamples for this could be `MapSerializer`, `ListSerializer`, `GenericArraySerializer`, etc., and take `MapSerializer` for example,
-the map-key and map-value serializers consist as the nested serializers, while `MapSerialize` itself is the "outer" serializer.
+Examples for this could be `MapSerializer`, `ListSerializer`, `GenericArraySerializer`, etc.. Considering `MapSerializer`, for example,
+the map-key and map-value serializers would be the nested serializers, while `MapSerialize` itself is the "outer" serializer.
 In this case, the snapshot of the most outer serializer should also contain snapshots of the nested serializers.
-Besides, unlike the former two serializers, `GenericArraySerializer` also contains some extra static information, a class of the component type,
-that needs to be persisted beyond the nested component serializer.
+Also, note that unlike the other two serializers mentioned above, `GenericArraySerializer` contains some additional static information
+(a class of the component type) that needs to be persisted along with the nested component serializer.
 
-`CompositeTypeSerializerSnapshot` is a convenient serializer snapshot class for serializers which delegate its serialization
-to multiple nested serializers, and also useful for serializers which need to persist some extra static information as its snapshot.
-It wraps the logic of resolving
-the overall schema compatibility check result for the composite serializer.
+`CompositeTypeSerializerSnapshot` is designed to assist in the implementation of snapshotting for serializers which delegate their serialization
+to multiple nested serializers. It's also helpful in cases where some extra static information needs to be persisted.
+`CompositeTypeSerializerSnapshot` takes care of the the overall schema compatibility check for the composite serializer.
 
 When adding a new serializer snapshot as a subclass of `CompositeTypeSerializerSnapshot`,
 the following three methods must be implemented:
  * `#getCurrentOuterSnapshotVersion()`. This method defines the version of
- current outer serializer snapshot's written binary format.
+ the current outer serializer snapshot's written binary format.
  * `#getNestedSerializers(TypeSerializer)`. Given the outer serializer, returns the nested serializers.
  * `#createOuterSerializerWithNestedSerializers(TypeSerializer[])`.
  Given the nested serializers, create an instance of the outer serializer.
 
 For serializers needing to contain some extra static information, the following two methods must also be implemented:
- * `#writeOuterSnapshot(DataOutputView)`. This method writes outer serializer snapshot, i.e. any information beyond the nested serializers.
+ * `#writeOuterSnapshot(DataOutputView)`. This method writes the outer serializer snapshot, i.e. any information beyond the nested serializers.
  The base implementation of this method writes nothing, i.e. it assumes that the outer serializer only has nested serializers and no extra information.
- * `#readOuterSnapshot(int, DataInputView, ClassLoader)`. This method reads outer serializer snapshot,
+ * `#readOuterSnapshot(int, DataInputView, ClassLoader)`. This method reads the outer serializer snapshot,
  i.e. any information beyond the nested serializers of the outer serializer. The base implementaion of this method reads nothing,
  i.e. it assumes that the outer serializer only has nested serializers and no extra information.
 
