@@ -272,17 +272,25 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 		}
 	}
 
-	@Override
-	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
-		JobDetailsHeaders detailsHeaders = JobDetailsHeaders.getInstance();
+	/**
+	 * Requests the job details.
+	 *
+	 * @param jobId The job id
+	 * @return Job details
+	 */
+	public CompletableFuture<JobDetailsInfo> getJobDetails(JobID jobId) {
+		final JobDetailsHeaders detailsHeaders = JobDetailsHeaders.getInstance();
 		final JobMessageParameters  params = new JobMessageParameters();
 		params.jobPathParameter.resolve(jobId);
 
-		CompletableFuture<JobDetailsInfo> responseFuture = sendRequest(
+		return sendRequest(
 			detailsHeaders,
 			params);
+	}
 
-		return responseFuture.thenApply(JobDetailsInfo::getJobStatus);
+	@Override
+	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
+		return getJobDetails(jobId).thenApply(JobDetailsInfo::getJobStatus);
 	}
 
 	/**

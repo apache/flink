@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -36,18 +37,11 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.yarn.api.protocolrecords.StopContainersRequest;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
-import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.security.NMTokenIdentifier;
-import org.apache.hadoop.yarn.server.nodemanager.NodeManager;
-import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.apache.log4j.Level;
@@ -63,15 +57,15 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -79,6 +73,7 @@ import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.yarn.UtilsTest.addTestAppender;
 import static org.apache.flink.yarn.UtilsTest.checkForLogString;
 import static org.apache.flink.yarn.util.YarnTestUtils.getTestJarPath;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -187,14 +182,22 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	}
 
 	/**
-	 * Test TaskManager failure and also if the vcores are set correctly (see issue FLINK-2213).
+	 * Starts a session cluster on YARN, and submits a streaming job.
+	 *
+	 * Tests
+	 * <ul>
+	 * 	<li>if the vcores are set correctly (FLINK-2213),
+	 *  <li>if jobmanager hostname/port are shown in web interface (FLINK-1902),
+	 *  <li>if dynamic properties from the command line are set
+	 *  <li>if a custom YARN application name can be set from the command line
+	 *  <li>if the number of TaskManager slots can be set from the command line
+	 * </ul>
+	 *
+	 * <b>Hint: </b> If you think it is a good idea to add more assertions to this test, think again!
 	 */
 	@Test(timeout = 100000) // timeout after 100 seconds
-	public void testTaskManagerFailure() throws Exception {
-		assumeTrue("The new mode does not start TMs upfront.", !isNewMode);
-		LOG.info("Starting testTaskManagerFailure()");
+	public void testVCoresAreSetCorrectlyAndJobManagerHostnameAreShownInWebInterfaceAndDynamicPropertiesAndYarnApplicationNameAndTaskManagerSlots() throws Exception {
 		Runner runner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
-				"-n", "1",
 				"-jm", "768m",
 				"-tm", "1024m",
 				"-s", "3", // set the slots 3 to check if the vCores are set properly!
@@ -202,45 +205,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-Dfancy-configuration-value=veryFancy",
 				"-Dyarn.maximum-failed-containers=3",
 				"-D" + YarnConfigOptions.VCORES.key() + "=2"},
-			"Number of connected TaskManagers changed to 1. Slots available: 3",
+			"Flink JobManager is now running on ",
 			RunTypes.YARN_SESSION);
-
-		Assert.assertEquals(2, getRunningContainers());
-
-		// ------------------------ Test if JobManager web interface is accessible -------
-
-		final YarnClient yc = YarnClient.createYarnClient();
-		yc.init(YARN_CONFIGURATION);
-		yc.start();
-
-		List<ApplicationReport> apps = yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
-		Assert.assertEquals(1, apps.size()); // Only one running
-		ApplicationReport app = apps.get(0);
-		Assert.assertEquals("customName", app.getName());
-		String url = app.getTrackingUrl();
-		if (!url.endsWith("/")) {
-			url += "/";
-		}
-		if (!url.startsWith("http://")) {
-			url = "http://" + url;
-		}
-		LOG.info("Got application URL from YARN {}", url);
-
-		String response = TestBaseUtils.getFromHTTP(url + "taskmanagers/");
-
-		JsonNode parsedTMs = new ObjectMapper().readTree(response);
-		ArrayNode taskManagers = (ArrayNode) parsedTMs.get("taskmanagers");
-		Assert.assertNotNull(taskManagers);
-		Assert.assertEquals(1, taskManagers.size());
-		Assert.assertEquals(3, taskManagers.get(0).get("slotsNumber").asInt());
-
-		// get the configuration from webinterface & check if the dynamic properties from YARN show up there.
-		String jsonConfig = TestBaseUtils.getFromHTTP(url + "jobmanager/config");
-		Map<String, String> parsedConfig = WebMonitorUtils.fromKeyValueJsonArray(jsonConfig);
-
-		Assert.assertEquals("veryFancy", parsedConfig.get("fancy-configuration-value"));
-		Assert.assertEquals("3", parsedConfig.get("yarn.maximum-failed-containers"));
-		Assert.assertEquals("2", parsedConfig.get(YarnConfigOptions.VCORES.key()));
 
 		// -------------- FLINK-1902: check if jobmanager hostname/port are shown in web interface
 		// first, get the hostname/port
@@ -255,110 +221,72 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		}
 		LOG.info("Extracted hostname:port: {} {}", hostname, port);
 
-		Assert.assertEquals("unable to find hostname in " + jsonConfig, hostname,
+		// ------------------------ Test if JobManager web interface is accessible -------
+
+		final YarnClient yc = YarnClient.createYarnClient();
+		yc.init(YARN_CONFIGURATION);
+		yc.start();
+
+		List<ApplicationReport> apps = yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
+		assertEquals(1, apps.size()); // Only one running
+		ApplicationReport app = apps.get(0);
+		assertEquals("customName", app.getName());
+		String url = app.getTrackingUrl();
+		if (!url.endsWith("/")) {
+			url += "/";
+		}
+		if (!url.startsWith("http://")) {
+			url = "http://" + url;
+		}
+		LOG.info("Got application URL from YARN {}", url);
+
+		Runner jobRunner = startWithArgs(new String[]{"run",
+				"--detached", getTestJarPath("WindowJoin.jar").getAbsolutePath()},
+			"Job has been submitted with JobID", RunTypes.CLI_FRONTEND);
+		jobRunner.join();
+
+		waitForTaskManager(url, Duration.ofMillis(30_000));
+
+		String response = TestBaseUtils.getFromHTTP(url + "taskmanagers/");
+		JsonNode parsedTMs = new ObjectMapper().readTree(response);
+		ArrayNode taskManagers = (ArrayNode) parsedTMs.get("taskmanagers");
+		assertEquals(3, taskManagers.get(0).get("slotsNumber").asInt());
+
+		// get the configuration from webinterface & check if the dynamic properties from YARN show up there.
+		String jsonConfig = TestBaseUtils.getFromHTTP(url + "jobmanager/config");
+		Map<String, String> parsedConfig = WebMonitorUtils.fromKeyValueJsonArray(jsonConfig);
+
+		assertEquals("veryFancy", parsedConfig.get("fancy-configuration-value"));
+		assertEquals("3", parsedConfig.get("yarn.maximum-failed-containers"));
+		assertEquals("2", parsedConfig.get(YarnConfigOptions.VCORES.key()));
+
+		assertEquals("unable to find hostname in " + jsonConfig, hostname,
 			parsedConfig.get(JobManagerOptions.ADDRESS.key()));
-		Assert.assertEquals("unable to find port in " + jsonConfig, port,
-			parsedConfig.get(JobManagerOptions.PORT.key()));
 
-		// test logfile access
-		String logs = TestBaseUtils.getFromHTTP(url + "jobmanager/log");
-		Assert.assertTrue(logs.contains("Starting YARN ApplicationMaster"));
-		Assert.assertTrue(logs.contains("Starting JobManager"));
-		Assert.assertTrue(logs.contains("Starting JobManager Web Frontend"));
-
-		// ------------------------ Kill container with TaskManager and check if vcores are set correctly -------
-
-		// find container id of taskManager:
-		ContainerId taskManagerContainer = null;
-		NodeManager nodeManager = null;
-		UserGroupInformation remoteUgi = null;
-		NMTokenIdentifier nmIdent = null;
-		try {
-			remoteUgi = UserGroupInformation.getCurrentUser();
-		} catch (IOException e) {
-			LOG.warn("Unable to get curr user", e);
-			Assert.fail();
-		}
-		for (int nmId = 0; nmId < NUM_NODEMANAGERS; nmId++) {
-			NodeManager nm = yarnCluster.getNodeManager(nmId);
-			ConcurrentMap<ContainerId, Container> containers = nm.getNMContext().getContainers();
-			for (Map.Entry<ContainerId, Container> entry : containers.entrySet()) {
-				String command = StringUtils.join(entry.getValue().getLaunchContext().getCommands(), " ");
-				if (command.contains(YarnTaskManager.class.getSimpleName())) {
-					taskManagerContainer = entry.getKey();
-					nodeManager = nm;
-					nmIdent = new NMTokenIdentifier(taskManagerContainer.getApplicationAttemptId(), null, "", 0);
-					// allow myself to do stuff with the container
-					// remoteUgi.addCredentials(entry.getValue().getCredentials());
-					remoteUgi.addTokenIdentifier(nmIdent);
-				}
-			}
-			sleep(500);
-		}
-
-		Assert.assertNotNull("Unable to find container with TaskManager", taskManagerContainer);
-		Assert.assertNotNull("Illegal state", nodeManager);
-
-		yc.stop();
-
-		List<ContainerId> toStop = new LinkedList<ContainerId>();
-		toStop.add(taskManagerContainer);
-		StopContainersRequest scr = StopContainersRequest.newInstance(toStop);
-
-		try {
-			nodeManager.getNMContext().getContainerManager().stopContainers(scr);
-		} catch (Throwable e) {
-			LOG.warn("Error stopping container", e);
-			Assert.fail("Error stopping container: " + e.getMessage());
-		}
-
-		// stateful termination check:
-		// wait until we saw a container being killed and AFTERWARDS a new one launched
-		boolean ok = false;
-		do {
-			LOG.debug("Waiting for correct order of events. Output: {}", errContent.toString());
-
-			String o = errContent.toString();
-			int killedOff = o.indexOf("Container killed by the ApplicationMaster");
-			if (killedOff != -1) {
-				o = o.substring(killedOff);
-				ok = o.indexOf("Launching TaskManager") > 0;
-			}
-			sleep(1000);
-		} while(!ok);
-
-		// send "stop" command to command line interface
 		runner.sendStop();
-		// wait for the thread to stop
-		try {
-			runner.join();
-		} catch (InterruptedException e) {
-			LOG.warn("Interrupted while stopping runner", e);
+		runner.join();
+	}
+
+	private void waitForTaskManager(final String url, final Duration waitDuration) throws Exception {
+		final Deadline deadline = Deadline.fromNow(waitDuration);
+		while (true) {
+			if (getNumberOfTaskManagers(url) > 0) {
+				return;
+			}
+
+			if (!deadline.hasTimeLeft()) {
+				throw new TimeoutException();
+			}
+
+			Thread.sleep(500);
 		}
-		LOG.warn("stopped");
+	}
 
-		// ----------- Send output to logger
-		System.setOut(ORIGINAL_STDOUT);
-		System.setErr(ORIGINAL_STDERR);
-		oC = outContent.toString();
-		String eC = errContent.toString();
-		LOG.info("Sending stdout content through logger: \n\n{}\n\n", oC);
-		LOG.info("Sending stderr content through logger: \n\n{}\n\n", eC);
-
-		// ------ Check if everything happened correctly
-		Assert.assertTrue("Expect to see failed container",
-			eC.contains("New messages from the YARN cluster"));
-
-		Assert.assertTrue("Expect to see failed container",
-			eC.contains("Container killed by the ApplicationMaster"));
-
-		Assert.assertTrue("Expect to see new container started",
-			eC.contains("Launching TaskManager") && eC.contains("on host"));
-
-		// cleanup auth for the subsequent tests.
-		remoteUgi.getTokenIdentifiers().remove(nmIdent);
-
-		LOG.info("Finished testTaskManagerFailure()");
+	private int getNumberOfTaskManagers(final String url) throws Exception {
+		String response = TestBaseUtils.getFromHTTP(url + "taskmanagers/");
+		JsonNode parsedTMs = new ObjectMapper().readTree(response);
+		ArrayNode taskManagers = (ArrayNode) parsedTMs.get("taskmanagers");
+		return taskManagers == null ? 0 : taskManagers.size();
 	}
 
 	/**
@@ -623,7 +551,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		@SuppressWarnings("unchecked")
 		Set<String> applicationTags = (Set<String>) applicationTagsMethod.invoke(report);
 
-		Assert.assertEquals(Collections.singleton("test-tag"), applicationTags);
+		assertEquals(Collections.singleton("test-tag"), applicationTags);
 	}
 
 	@After
