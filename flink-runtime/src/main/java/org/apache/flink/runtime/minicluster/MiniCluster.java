@@ -23,10 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.configuration.*;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -67,6 +64,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerRunner;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -359,6 +357,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					configuration.getInteger(RestOptions.SERVER_NUM_THREADS, 1),
 					configuration.getInteger(RestOptions.SERVER_THREAD_PRIORITY),
 					"DispatcherRestEndpoint");
+				final long updateInterval = configuration.getLong(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
 
 				this.dispatcherRestEndpoint = new DispatcherRestEndpoint(
 					RestServerEndpointConfiguration.fromConfiguration(configuration),
@@ -368,7 +367,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					resourceManagerGatewayRetriever,
 					blobServer.getTransientBlobService(),
 					executor,
-					MetricFetcherImpl.fromConfiguration(
+					updateInterval == 0 ?
+						VoidMetricFetcher.INSTANCE :
+						MetricFetcherImpl.fromConfiguration(
 						configuration,
 						new AkkaQueryServiceRetriever(
 							metricQueryServiceActorSystem,
