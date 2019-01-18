@@ -194,12 +194,15 @@ public class WebRuntimeMonitor implements WebMonitor {
 		} else {
 			sslFactory = null;
 		}
-		metricFetcher = new MetricFetcherImpl<>(
-			retriever,
-			queryServiceRetriever,
-			scheduledExecutor,
-			timeout,
-			MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
+
+		long updateInterval = config
+			.getLong(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL,
+				MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
+		if (updateInterval != 0) {
+			metricFetcher =
+				new MetricFetcherImpl<>(retriever, queryServiceRetriever,
+					scheduledExecutor, timeout, updateInterval);
+		}
 
 		Router router = new Router();
 
