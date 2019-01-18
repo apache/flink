@@ -37,9 +37,7 @@ import java.util.stream.Collectors;
 /**
  * Contains utility methods for clients.
  */
-public enum ClientUtils {
-	;
-
+public final class ClientUtils {
 	/**
 	 * Extracts all files required for the execution from the given {@link JobGraph} and uploads them using the {@link BlobClient}
 	 * from the given {@link Supplier}.
@@ -138,5 +136,12 @@ public enum ClientUtils {
 			jobGraph.setUserArtifactBlobKey(blobKey.f0, blobKey.f1);
 		}
 		jobGraph.writeUserArtifactEntriesToConfiguration();
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private ClientUtils() {
+		throw new RuntimeException();
 	}
 }

@@ -21,9 +21,7 @@ package org.apache.flink.docs.util;
 /**
  * Contains various shared utility functions.
  */
-public enum Utils {
-	;
-
+public final class Utils {
 	/**
 	 * Placeholder that is used to prevent certain sections from being escaped. We don't need a sophisticated value
 	 * but only something that won't show up in config options.
@@ -36,5 +34,12 @@ public enum Utils {
 			.replaceAll("<", "&lt;")
 			.replaceAll(">", "&gt;")
 			.replaceAll(TEMPORARY_PLACEHOLDER, "<wbr>");
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private Utils() {
+		throw new RuntimeException();
 	}
 }
