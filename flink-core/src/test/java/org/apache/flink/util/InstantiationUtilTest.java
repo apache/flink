@@ -26,14 +26,17 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
-
 import org.junit.Test;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
 import java.util.Objects;
 import java.util.Random;
+import java.util.function.Supplier;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -47,6 +50,17 @@ import static org.junit.Assert.fail;
 public class InstantiationUtilTest extends TestLogger {
 
 	@Test
+	public void testResolveProxyClass() throws Exception {
+
+		UserDefineFunction func = serializableProxy((Supplier<UserDefineFunction> & Serializable) () ->
+			new UserDefineFunctionImpl(), UserDefineFunction.class);
+
+		final Configuration config = new Configuration();
+		InstantiationUtil.writeObjectToConfig(func, config, "test");
+		InstantiationUtil.readObjectFromConfig(config, "test", func.getClass().getClassLoader());
+	}
+
+	@Tests
 	public void testInstantiationOfStringValue() {
 		StringValue stringValue = InstantiationUtil.instantiate(
 				StringValue.class, null);
@@ -152,6 +166,27 @@ public class InstantiationUtilTest extends TestLogger {
 	}
 
 	// --------------------------------------------------------------------------------------------
+
+	@SuppressWarnings("unchecked")
+	private static <T> T serializableProxy(final Supplier<? extends T> realObjectSupplier, final Class<?> clazz) {
+		return (T) Proxy.newProxyInstance(
+			clazz.getClassLoader(), new Class<?>[] {clazz, Serializable.class}, delegateTo(realObjectSupplier));
+	}
+	private static <T> InvocationHandler delegateTo(final Supplier<T> realObjectSupplier) {
+		return (InvocationHandler & Serializable) (proxy, method, args) -> {
+			return method.invoke(realObjectSupplier.get(), args);
+		};
+	}
+	interface UserDefineFunction extends Serializable {
+		void test();
+	}
+
+	private static class UserDefineFunctionImpl implements UserDefineFunction {
+		@Override
+		public void test() {
+
+		}
+	}
 
 	private class TestClass {}
 
