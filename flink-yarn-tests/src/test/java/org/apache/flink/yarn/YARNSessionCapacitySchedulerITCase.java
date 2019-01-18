@@ -208,7 +208,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			"Flink JobManager is now running on ",
 			RunTypes.YARN_SESSION);
 
-		// -------------- FLINK-1902: check if jobmanager hostname/port are shown in web interface
 		// first, get the hostname/port
 		String oC = outContent.toString();
 		Pattern p = Pattern.compile("Flink JobManager is now running on ([a-zA-Z0-9.-]+):([0-9]+)");
@@ -220,8 +219,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			port = matches.group(2);
 		}
 		LOG.info("Extracted hostname:port: {} {}", hostname, port);
-
-		// ------------------------ Test if JobManager web interface is accessible -------
 
 		final YarnClient yc = YarnClient.createYarnClient();
 		yc.init(YARN_CONFIGURATION);
@@ -247,6 +244,9 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
 		waitForTaskManager(url, Duration.ofMillis(30_000));
 
+		//
+		// Test if JobManager web interface is accessible
+		//
 		String response = TestBaseUtils.getFromHTTP(url + "taskmanagers/");
 		JsonNode parsedTMs = new ObjectMapper().readTree(response);
 		ArrayNode taskManagers = (ArrayNode) parsedTMs.get("taskmanagers");
@@ -260,6 +260,9 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		assertEquals("3", parsedConfig.get("yarn.maximum-failed-containers"));
 		assertEquals("2", parsedConfig.get(YarnConfigOptions.VCORES.key()));
 
+		//
+		// FLINK-1902: check if jobmanager hostname is shown in web interface
+		//
 		assertEquals("unable to find hostname in " + jsonConfig, hostname,
 			parsedConfig.get(JobManagerOptions.ADDRESS.key()));
 
