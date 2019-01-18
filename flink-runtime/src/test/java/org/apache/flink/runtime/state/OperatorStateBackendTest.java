@@ -36,14 +36,11 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend.PartitionableListState;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
-import org.apache.flink.testutils.ArtificialCNFExceptionThrowingClassLoader;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
@@ -52,7 +49,6 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -840,61 +836,6 @@ public class OperatorStateBackendTest {
 			runnableFuture.get(60, TimeUnit.SECONDS);
 			Assert.fail();
 		} catch (CancellationException ignore) {
-		}
-	}
-
-	@Test
-	public void testRestoreFailsIfSerializerDeserializationFails() throws Exception {
-		AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
-
-		OperatorStateBackend operatorStateBackend = abstractStateBackend.createOperatorStateBackend(createMockEnvironment(), "test-op-name");
-
-		// write some state
-		ListStateDescriptor<Serializable> stateDescriptor1 = new ListStateDescriptor<>("test1", new JavaSerializer<>());
-		ListStateDescriptor<Serializable> stateDescriptor2 = new ListStateDescriptor<>("test2", new JavaSerializer<>());
-		ListStateDescriptor<Serializable> stateDescriptor3 = new ListStateDescriptor<>("test3", new JavaSerializer<>());
-		ListState<Serializable> listState1 = operatorStateBackend.getListState(stateDescriptor1);
-		ListState<Serializable> listState2 = operatorStateBackend.getListState(stateDescriptor2);
-		ListState<Serializable> listState3 = operatorStateBackend.getUnionListState(stateDescriptor3);
-
-		listState1.add(42);
-		listState1.add(4711);
-
-		listState2.add(7);
-		listState2.add(13);
-		listState2.add(23);
-
-		listState3.add(17);
-		listState3.add(18);
-		listState3.add(19);
-		listState3.add(20);
-
-		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4096);
-		RunnableFuture<SnapshotResult<OperatorStateHandle>> runnableFuture =
-			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
-
-		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtils.runIfNotDoneAndGet(runnableFuture);
-		OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
-
-		try {
-
-			operatorStateBackend.close();
-			operatorStateBackend.dispose();
-
-			operatorStateBackend = abstractStateBackend.createOperatorStateBackend(
-				new DummyEnvironment(
-					new ArtificialCNFExceptionThrowingClassLoader(
-						getClass().getClassLoader(),
-						Collections.singleton(JavaSerializer.class.getName()))),
-				"testOperator");
-
-			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
-
-			fail("The operator state restore should have failed if the previous state serializer could not be loaded.");
-		} catch (Exception expected) {
-			Assert.assertTrue(ExceptionUtils.findThrowable(expected, ClassNotFoundException.class).isPresent());
-		} finally {
-			stateHandle.discardState();
 		}
 	}
 
