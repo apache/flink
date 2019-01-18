@@ -134,7 +134,7 @@ public class Pattern<T, F extends T> {
 	 * of the new sequence. Furthermore, the base type of the event sequence is set.
 	 *
 	 * @param name The name of starting pattern of the new pattern sequence
-	 * @param afterMatchSkipStrategy the {@link AfterMatchSkipStrategy.SkipStrategy} to use after each match.
+	 * @param afterMatchSkipStrategy the {@link AfterMatchSkipStrategy} to use after each match.
 	 * @param <X> Base type of the event pattern
 	 * @return The first pattern of a pattern sequence
 	 */
@@ -487,7 +487,7 @@ public class Pattern<T, F extends T> {
 	 *
 	 *
 	 * @param group the pattern to begin with
-	 * @param afterMatchSkipStrategy the {@link AfterMatchSkipStrategy.SkipStrategy} to use after each match.
+	 * @param afterMatchSkipStrategy the {@link AfterMatchSkipStrategy} to use after each match.
 	 * @return The first pattern of a pattern sequence
 	 */
 	public static <T, F extends T> GroupPattern<T, F> begin(final Pattern<T, F> group, final AfterMatchSkipStrategy afterMatchSkipStrategy) {
@@ -557,7 +557,7 @@ public class Pattern<T, F extends T> {
 	}
 
 	/**
-	 * @return the pattern's {@link AfterMatchSkipStrategy.SkipStrategy} after match.
+	 * @return the pattern's {@link AfterMatchSkipStrategy} after match.
 	 */
 	public AfterMatchSkipStrategy getAfterMatchSkipStrategy() {
 		return afterMatchSkipStrategy;

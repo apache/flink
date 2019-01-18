@@ -875,6 +875,43 @@ public class CEPOperatorTest extends TestLogger {
 	}
 
 	@Test
+	public void testCEPOperatorCleanupExpireDataWithOutComparatorProcessingTime() throws Exception {
+
+		Event startEvent1 = new Event(42, "start", 1.0);
+		Event startEventK2 = new Event(43, "start", 1.0);
+
+		CepOperator<Event, Integer, Map<String, List<Event>>> operator = getKeyedCepOperator(true);
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(operator);
+
+		try {
+			harness.open();
+
+			harness.setProcessingTime(0L);
+
+			harness.processElement(new StreamRecord<>(startEvent1, 1L));
+			harness.processElement(new StreamRecord<>(startEventK2, 1L));
+
+			assertTrue(!operator.hasNonEmptyPQ(42));
+			assertTrue(!operator.hasNonEmptyPQ(43));
+			assertTrue(operator.hasNonEmptySharedBuffer(42));
+			assertTrue(operator.hasNonEmptySharedBuffer(43));
+
+			assertEquals(2, harness.numProcessingTimeTimers());
+
+			harness.setProcessingTime(CepOperator.PROCESSING_TIME_CLEANUP_INTERVAL - 1);
+
+			assertTrue(operator.hasNonEmptySharedBuffer(42));
+			assertTrue(operator.hasNonEmptySharedBuffer(43));
+
+			harness.setProcessingTime(CepOperator.PROCESSING_TIME_CLEANUP_INTERVAL);
+			assertTrue(!operator.hasNonEmptySharedBuffer(42));
+			assertTrue(!operator.hasNonEmptySharedBuffer(43));
+		} finally {
+			harness.close();
+		}
+	}
+
+	@Test
 	public void testCEPOperatorSerializationWRocksDB() throws Exception {
 		String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
 		RocksDBStateBackend rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());

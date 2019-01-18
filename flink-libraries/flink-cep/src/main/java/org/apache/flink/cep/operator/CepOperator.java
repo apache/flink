@@ -104,6 +104,9 @@ public class CepOperator<IN, KEY, OUT>
 
 	private transient NFA<IN> nfa;
 
+	/** Trigger the check of expiration of the element under processing time semantic.*/
+	public static final long PROCESSING_TIME_CLEANUP_INTERVAL = 1000;
+
 	/**
 	 * The last seen watermark. This will be used to
 	 * decide if an incoming element is late or not.
@@ -168,7 +171,6 @@ public class CepOperator<IN, KEY, OUT>
 	@Override
 	public void initializeState(StateInitializationContext context) throws Exception {
 		super.initializeState(context);
-
 		// initializeState through the provided context
 		computationStates = context.getKeyedStateStore().getState(
 				new ValueStateDescriptor<>(
@@ -239,6 +241,10 @@ public class CepOperator<IN, KEY, OUT>
 				advanceTime(nfaState, timestamp);
 				processEvent(nfaState, element.getValue(), timestamp);
 				updateNFA(nfaState);
+
+				// register timer to trigger the data cleaning up
+				timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE,
+					(timestamp - timestamp % PROCESSING_TIME_CLEANUP_INTERVAL) + PROCESSING_TIME_CLEANUP_INTERVAL);
 			} else {
 				long currentTime = timerService.currentProcessingTime();
 				bufferEvent(element.getValue(), currentTime);
@@ -348,6 +354,18 @@ public class CepOperator<IN, KEY, OUT>
 
 	@Override
 	public void onProcessingTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
+
+		NFAState nfa = getNFAState();
+
+		// cleaning up expiration data
+		if (comparator == null) {
+			advanceTime(nfa, timer.getTimestamp());
+			if (!partialMatches.isEmpty()) {
+				timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, timer.getTimestamp() + PROCESSING_TIME_CLEANUP_INTERVAL);
+			}
+			return;
+		}
+
 		// 1) get the queue of pending elements for the key and the corresponding NFA,
 		// 2) process the pending elements in process time order and custom comparator if exists
 		//		by feeding them in the NFA
@@ -356,7 +374,6 @@ public class CepOperator<IN, KEY, OUT>
 
 		// STEP 1
 		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
-		NFAState nfa = getNFAState();
 
 		// STEP 2
 		while (!sortedTimestamps.isEmpty()) {
