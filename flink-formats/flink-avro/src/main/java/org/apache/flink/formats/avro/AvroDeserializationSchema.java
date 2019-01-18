@@ -38,6 +38,7 @@ import org.apache.avro.specific.SpecificRecord;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.Serializable;
 
 /**
  * Deserialization schema that deserializes from Avro binary format.
@@ -73,6 +74,8 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
 
 	/** Schema in case of GenericRecord for serialization purpose. */
 	private final String schemaString;
+
+	private SpecificDataFactory specificDataFactory = new DefaultSpecificDataFactory();
 
 	/** Reader that deserializes byte array into a record. */
 	private transient GenericDatumReader<T> datumReader;
@@ -142,7 +145,7 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
 
 		ClassLoader cl = Thread.currentThread().getContextClassLoader();
 		if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
-			SpecificData specificData = new SpecificData(cl);
+			SpecificData specificData = specificDataFactory.getSpecificData(cl);
 			this.datumReader = new SpecificDatumReader<>(specificData);
 			this.reader = specificData.getSchema(recordClazz);
 		} else {
@@ -167,6 +170,33 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
 			return new AvroTypeInfo(recordClazz);
 		} else {
 			return (TypeInformation<T>) new GenericRecordAvroTypeInfo(this.reader);
+		}
+	}
+
+	/**
+	 * Sets the {@link SpecificDataFactory} that we use for instantiating a {@link SpecificData}.
+	 * Use this if you want to configure the {@link SpecificData} that is used, for example
+	 * for specifying logical type conversions.
+	 */
+	public void setSpecificDataFactory(SpecificDataFactory specificDataFactory) {
+		this.specificDataFactory = specificDataFactory;
+	}
+
+	/**
+	 * Creates a {@link SpecificData} for use by {@link AvroDeserializationSchema}.
+	 */
+	public interface SpecificDataFactory extends Serializable {
+		SpecificData getSpecificData(ClassLoader classLoader);
+	}
+
+	/**
+	 * Default implementation of {@link SpecificDataFactory} that creates a vanilla
+	 * {@link SpecificData} that uses the {@link ClassLoader} that was handed in.
+	 */
+	private static class DefaultSpecificDataFactory implements SpecificDataFactory {
+		@Override
+		public SpecificData getSpecificData(ClassLoader classLoader) {
+			return new SpecificData(classLoader);
 		}
 	}
 }
