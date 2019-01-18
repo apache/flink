@@ -42,6 +42,7 @@ under the License.
 		<module>flink-table-common</module>
 		<module>flink-sql-client</module>
 		<module>flink-ml</module>
+		<module>flink-ml-uber</module>
 		<module>flink-cep</module>
 		<module>flink-cep-scala</module>
 		<module>flink-streaming-python</module>
