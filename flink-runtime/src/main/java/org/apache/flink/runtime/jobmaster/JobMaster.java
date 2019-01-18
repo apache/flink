@@ -30,7 +30,7 @@ import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
-import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointDeclineReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -163,7 +163,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private final HighAvailabilityServices highAvailabilityServices;
 
-	private final BlobServer blobServer;
+	private final BlobWriter blobWriter;
 
 	private final JobManagerJobMetricGroupFactory jobMetricGroupFactory;
 
@@ -230,7 +230,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			SlotPoolFactory slotPoolFactory,
 			JobManagerSharedServices jobManagerSharedServices,
 			HeartbeatServices heartbeatServices,
-			BlobServer blobServer,
+			BlobWriter blobWriter,
 			JobManagerJobMetricGroupFactory jobMetricGroupFactory,
 			OnCompletionActions jobCompletionActions,
 			FatalErrorHandler fatalErrorHandler,
@@ -245,7 +245,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.jobGraph = checkNotNull(jobGraph);
 		this.rpcTimeout = jobMasterConfiguration.getRpcTimeout();
 		this.highAvailabilityServices = checkNotNull(highAvailabilityService);
-		this.blobServer = checkNotNull(blobServer);
+		this.blobWriter = checkNotNull(blobWriter);
 		this.scheduledExecutorService = jobManagerSharedServices.getScheduledExecutorService();
 		this.jobCompletionActions = checkNotNull(jobCompletionActions);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
@@ -1173,7 +1173,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			rpcTimeout,
 			restartStrategy,
 			currentJobManagerJobMetricGroup,
-			blobServer,
+			blobWriter,
 			jobMasterConfiguration.getSlotRequestTimeout(),
 			log);
 	}
