@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -60,7 +61,7 @@ public class InstantiationUtilTest extends TestLogger {
 		InstantiationUtil.readObjectFromConfig(config, "test", func.getClass().getClassLoader());
 	}
 
-	@Tests
+	@Test
 	public void testInstantiationOfStringValue() {
 		StringValue stringValue = InstantiationUtil.instantiate(
 				StringValue.class, null);
@@ -172,11 +173,13 @@ public class InstantiationUtilTest extends TestLogger {
 		return (T) Proxy.newProxyInstance(
 			clazz.getClassLoader(), new Class<?>[] {clazz, Serializable.class}, delegateTo(realObjectSupplier));
 	}
+
 	private static <T> InvocationHandler delegateTo(final Supplier<T> realObjectSupplier) {
 		return (InvocationHandler & Serializable) (proxy, method, args) -> {
 			return method.invoke(realObjectSupplier.get(), args);
 		};
 	}
+
 	interface UserDefineFunction extends Serializable {
 		void test();
 	}
