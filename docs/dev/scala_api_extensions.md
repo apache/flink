@@ -235,17 +235,6 @@ data.mapWith {
       </td>
     </tr>
     <tr>
-      <td><strong>mapPartitionWith</strong></td>
-      <td><strong>mapPartition (DataStream)</strong></td>
-      <td>
-{% highlight scala %}
-data.mapPartitionWith {
-  case head #:: _ => head
-}
-{% endhighlight %}
-      </td>
-    </tr>
-    <tr>
       <td><strong>flatMapWith</strong></td>
       <td><strong>flatMap (DataStream)</strong></td>
       <td>
