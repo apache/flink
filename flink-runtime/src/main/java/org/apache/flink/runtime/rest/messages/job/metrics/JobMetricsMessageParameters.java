@@ -31,7 +31,7 @@ import java.util.Collections;
  */
 public class JobMetricsMessageParameters extends JobMessageParameters {
 
-	private final MetricsFilterParameter metricsFilterParameter = new MetricsFilterParameter();
+	public final MetricsFilterParameter metricsFilterParameter = new MetricsFilterParameter();
 
 	@Override
 	public Collection<MessageQueryParameter<?>> getQueryParameters() {
