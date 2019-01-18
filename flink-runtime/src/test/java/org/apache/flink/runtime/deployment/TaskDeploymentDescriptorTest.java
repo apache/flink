@@ -42,6 +42,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -110,6 +111,25 @@ public class TaskDeploymentDescriptorTest {
 			assertEquals(orig.getTaskRestore().getTaskStateSnapshot(), copy.getTaskRestore().getTaskStateSnapshot());
 			assertEquals(orig.getProducedPartitions(), copy.getProducedPartitions());
 			assertEquals(orig.getInputGates(), copy.getInputGates());
+
+			final TaskDeploymentDescriptor testOffLoadedTaskInformation = new TaskDeploymentDescriptor(
+				jobID,
+				new TaskDeploymentDescriptor.NonOffloaded<>(serializedJobInformation),
+				new TaskDeploymentDescriptor.Offloaded<>(new PermanentBlobKey()),
+				execId,
+				allocationId,
+				indexInSubtaskGroup,
+				attemptNumber,
+				targetSlotNumber,
+				taskRestore,
+				producedResults,
+				inputGates);
+			try {
+				testOffLoadedTaskInformation.getSerializedTaskInformation();
+			} catch (Exception e) {
+				assertTrue(e instanceof IllegalStateException);
+			}
+
 		}
 		catch (Exception e) {
 			e.printStackTrace();
