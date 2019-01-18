@@ -16,21 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.docs.rest;
+package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.blob.TransientBlobKey;
-import org.apache.flink.runtime.blob.TransientBlobService;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * No-op implementation of {@link TransientBlobService} used by the {@link RestAPIDocGenerator}.
+ * No-op implementation of {@link TransientBlobService}.
  */
-enum NoOpTransientBlobService implements TransientBlobService {
-	INSTANCE;
+public class NoOpTransientBlobService implements TransientBlobService {
 
 	@Override
 	public File getFile(TransientBlobKey key) throws IOException {

@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.runtime.blob.NoOpTransientBlobService;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
@@ -348,7 +349,7 @@ public class RestAPIDocGenerator {
 				config,
 				handlerConfig,
 				resourceManagerGatewayRetriever,
-				NoOpTransientBlobService.INSTANCE,
+				new NoOpTransientBlobService(),
 				Executors.newFixedThreadPool(1),
 				VoidMetricFetcher.INSTANCE,
 				NoOpElectionService.INSTANCE,
