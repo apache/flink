@@ -1698,6 +1698,74 @@ public class TaskExecutorTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that the TaskExecutor disconnects from the JobMaster if a new leader
+	 * is detected.
+	 */
+	@Test
+	public void testDisconnectFromJobMasterWhenNewLeader() throws Exception {
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskSlotTable(new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService))
+			.build();
+		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices);
+
+		final CompletableFuture<Integer> offeredSlotsFuture = new CompletableFuture<>();
+		final CompletableFuture<ResourceID> disconnectFuture = new CompletableFuture<>();
+		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
+			.setOfferSlotsFunction((resourceID, slotOffers) -> {
+				offeredSlotsFuture.complete(slotOffers.size());
+				return CompletableFuture.completedFuture(slotOffers);
+			})
+			.setDisconnectTaskManagerFunction(
+				resourceID -> {
+					disconnectFuture.complete(resourceID);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				}
+			)
+			.build();
+		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+
+		final CompletableFuture<Void> initialSlotReportFuture = new CompletableFuture<>();
+		resourceManagerGateway.setSendSlotReportFunction(resourceIDInstanceIDSlotReportTuple3 -> {
+			initialSlotReportFuture.complete(null);
+			return CompletableFuture.completedFuture(Acknowledge.get());
+
+		});
+
+		rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
+		rpc.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+
+		try {
+			taskExecutor.start();
+
+			TaskExecutorGateway taskExecutorGateway = taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+
+			resourceManagerLeaderRetriever.notifyListener(resourceManagerGateway.getAddress(), resourceManagerGateway.getFencingToken().toUUID());
+
+			initialSlotReportFuture.get();
+
+			ResourceID resourceID = taskManagerServices.getTaskManagerLocation().getResourceID();
+			taskExecutorGateway.requestSlot(
+				new SlotID(resourceID, 0),
+				jobId,
+				new AllocationID(),
+				"foobar",
+				resourceManagerGateway.getFencingToken(),
+				timeout).get();
+
+			jobManagerLeaderRetriever.notifyListener(jobMasterGateway.getAddress(), UUID.randomUUID());
+
+			assertThat(offeredSlotsFuture.get(), is(1));
+
+			// notify loss of leadership
+			jobManagerLeaderRetriever.notifyListener(null, null);
+
+			assertThat(disconnectFuture.get(), is(resourceID));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
 	@Nonnull
 	private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices) {
 		return new TaskExecutor(
