@@ -50,12 +50,7 @@ class WineTensorFlowModel(inputStream: Array[Byte]) extends TensorFlowModel(inpu
     result.copyTo(rMatrix)
     // Get result
     var value = (0, rMatrix(0)(0))
-    1 to (rshape(1).asInstanceOf[Int] - 1) foreach { i => {
-      if (rMatrix(0)(i) > value._2) {
-        value = (i, rMatrix(0)(i))
-      }
-    }}
-    value._1.toDouble
+    rMatrix(0).indices.maxBy(rMatrix(0)).toDouble
   }
 }
 

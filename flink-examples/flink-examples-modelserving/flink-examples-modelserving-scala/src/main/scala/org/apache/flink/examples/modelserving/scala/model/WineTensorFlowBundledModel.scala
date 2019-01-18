@@ -46,7 +46,7 @@ class WineTensorFlowBundledModel(inputStream: Array[Byte])
     val rshape = result.shape
     var rMatrix = Array.ofDim[Float](rshape(0).asInstanceOf[Int], rshape(1).asInstanceOf[Int])
     result.copyTo(rMatrix)
-    rMatrix(0).indices.maxBy(rMatrix(0)).asInstanceOf[AnyVal]
+    rMatrix(0).indices.maxBy(rMatrix(0)).toDouble
   }
 }
 
