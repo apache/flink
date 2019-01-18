@@ -230,7 +230,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			SlotPoolFactory slotPoolFactory,
 			JobManagerSharedServices jobManagerSharedServices,
 			HeartbeatServices heartbeatServices,
-			BlobWriter blobWriter,
 			JobManagerJobMetricGroupFactory jobMetricGroupFactory,
 			OnCompletionActions jobCompletionActions,
 			FatalErrorHandler fatalErrorHandler,
@@ -245,7 +244,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.jobGraph = checkNotNull(jobGraph);
 		this.rpcTimeout = jobMasterConfiguration.getRpcTimeout();
 		this.highAvailabilityServices = checkNotNull(highAvailabilityService);
-		this.blobWriter = checkNotNull(blobWriter);
+		this.blobWriter = jobManagerSharedServices.getBlobWriter();
 		this.scheduledExecutorService = jobManagerSharedServices.getScheduledExecutorService();
 		this.jobCompletionActions = checkNotNull(jobCompletionActions);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);

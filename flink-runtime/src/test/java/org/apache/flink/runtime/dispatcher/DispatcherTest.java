@@ -697,10 +697,10 @@ public class DispatcherTest extends TestLogger {
 		}
 
 		@Override
-		public JobManagerRunner createJobManagerRunner(ResourceID resourceId, JobGraph jobGraph, Configuration configuration, RpcService rpcService, HighAvailabilityServices highAvailabilityServices, HeartbeatServices heartbeatServices, BlobServer blobServer, JobManagerSharedServices jobManagerSharedServices, JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory, FatalErrorHandler fatalErrorHandler) throws Exception {
+		public JobManagerRunner createJobManagerRunner(ResourceID resourceId, JobGraph jobGraph, Configuration configuration, RpcService rpcService, HighAvailabilityServices highAvailabilityServices, HeartbeatServices heartbeatServices, JobManagerSharedServices jobManagerSharedServices, JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory, FatalErrorHandler fatalErrorHandler) throws Exception {
 			jobManagerRunnerCreationLatch.run();
 
-			return super.createJobManagerRunner(resourceId, jobGraph, configuration, rpcService, highAvailabilityServices, heartbeatServices, blobServer, jobManagerSharedServices, jobManagerJobMetricGroupFactory, fatalErrorHandler);
+			return super.createJobManagerRunner(resourceId, jobGraph, configuration, rpcService, highAvailabilityServices, heartbeatServices, jobManagerSharedServices, jobManagerJobMetricGroupFactory, fatalErrorHandler);
 		}
 	}
 
@@ -754,7 +754,6 @@ public class DispatcherTest extends TestLogger {
 				RpcService rpcService,
 				HighAvailabilityServices highAvailabilityServices,
 				HeartbeatServices heartbeatServices,
-				BlobServer blobServer,
 				JobManagerSharedServices jobManagerSharedServices,
 				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
 				FatalErrorHandler fatalErrorHandler) throws Exception {
@@ -769,7 +768,6 @@ public class DispatcherTest extends TestLogger {
 				rpcService,
 				highAvailabilityServices,
 				heartbeatServices,
-				blobServer,
 				jobManagerSharedServices,
 				jobManagerJobMetricGroupFactory,
 				fatalErrorHandler);

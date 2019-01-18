@@ -21,7 +21,6 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -109,7 +108,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 			final RpcService rpcService,
 			final HighAvailabilityServices haServices,
 			final HeartbeatServices heartbeatServices,
-			final BlobServer blobServer,
 			final JobManagerSharedServices jobManagerSharedServices,
 			final JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
 			final FatalErrorHandler fatalErrorHandler) throws Exception {
@@ -163,7 +161,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 				slotPoolFactory,
 				jobManagerSharedServices,
 				heartbeatServices,
-				blobServer,
 				jobManagerJobMetricGroupFactory,
 				this,
 				fatalErrorHandler,

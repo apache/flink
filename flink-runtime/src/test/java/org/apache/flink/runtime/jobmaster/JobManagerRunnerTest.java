@@ -61,7 +61,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link JobManagerRunner}
+ * Tests for the {@link JobManagerRunner}.
  */
 public class JobManagerRunnerTest extends TestLogger {
 
@@ -138,7 +138,7 @@ public class JobManagerRunnerTest extends TestLogger {
 			rpcService.stopService();
 		}
 	}
-	
+
 	@Test
 	public void testJobCompletion() throws Exception {
 		final JobManagerRunner jobManagerRunner = createJobManagerRunner();
@@ -235,7 +235,6 @@ public class JobManagerRunnerTest extends TestLogger {
 			rpcService,
 			haServices,
 			heartbeatServices,
-			blobServer,
 			jobManagerSharedServices,
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
 			fatalErrorHandler);

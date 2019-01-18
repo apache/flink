@@ -314,7 +314,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 					rpcService,
 					highAvailabilityServices,
 					heartbeatServices,
-					blobServer,
 					jobManagerSharedServices,
 					new DefaultJobManagerJobMetricGroupFactory(jobManagerMetricGroup),
 					fatalErrorHandler)),
@@ -1024,7 +1023,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
-			BlobServer blobServer,
 			JobManagerSharedServices jobManagerServices,
 			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
 			FatalErrorHandler fatalErrorHandler) throws Exception;
@@ -1044,7 +1042,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				RpcService rpcService,
 				HighAvailabilityServices highAvailabilityServices,
 				HeartbeatServices heartbeatServices,
-				BlobServer blobServer,
 				JobManagerSharedServices jobManagerServices,
 				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
 				FatalErrorHandler fatalErrorHandler) throws Exception {
@@ -1055,7 +1052,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				rpcService,
 				highAvailabilityServices,
 				heartbeatServices,
-				blobServer,
 				jobManagerServices,
 				jobManagerJobMetricGroupFactory,
 				fatalErrorHandler);

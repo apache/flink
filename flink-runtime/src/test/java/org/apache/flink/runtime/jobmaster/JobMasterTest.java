@@ -34,8 +34,6 @@ import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
@@ -193,8 +191,6 @@ public class JobMasterTest extends TestLogger {
 
 	private static HeartbeatServices heartbeatServices;
 
-	private BlobServer blobServer;
-
 	private Configuration configuration;
 
 	private ResourceID jmResourceId;
@@ -232,19 +228,12 @@ public class JobMasterTest extends TestLogger {
 		haServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
 
 		configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-		blobServer = new BlobServer(configuration, new VoidBlobStore());
-
-		blobServer.start();
 	}
 
 	@After
 	public void teardown() throws Exception {
 		if (testingFatalErrorHandler != null) {
 			testingFatalErrorHandler.rethrowError();
-		}
-
-		if (blobServer != null) {
-			blobServer.close();
 		}
 
 		rpcService.clearGateways();
@@ -283,7 +272,6 @@ public class JobMasterTest extends TestLogger {
 				DefaultSlotPoolFactory.fromConfiguration(configuration, rpcService1),
 				jobManagerSharedServices,
 				heartbeatServices,
-				blobServer,
 				UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
 				new NoOpOnCompletionActions(),
 				testingFatalErrorHandler,
@@ -1339,7 +1327,6 @@ public class JobMasterTest extends TestLogger {
 			DefaultSlotPoolFactory.fromConfiguration(configuration, rpcService),
 			new TestingJobManagerSharedServicesBuilder().build(),
 			heartbeatServices,
-			blobServer,
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
 			new NoOpOnCompletionActions(),
 			testingFatalErrorHandler,
@@ -1553,7 +1540,6 @@ public class JobMasterTest extends TestLogger {
 			DefaultSlotPoolFactory.fromConfiguration(configuration, rpcService),
 			jobManagerSharedServices,
 			heartbeatServices,
-			blobServer,
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
 			new NoOpOnCompletionActions(),
 			testingFatalErrorHandler,
