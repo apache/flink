@@ -271,11 +271,6 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	}
 
 	@Override
-	public CompletableFuture<ClassloadingProps> requestClassloadingProps() {
-		return classloadingPropsSupplier.get();
-	}
-
-	@Override
 	public CompletableFuture<Collection<SlotOffer>> offerSlots(ResourceID taskManagerId, Collection<SlotOffer> slots, Time timeout) {
 		return offerSlotsFunction.apply(taskManagerId, slots);
 	}

@@ -70,7 +70,6 @@ import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.exceptions.JobModificationException;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
-import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolGateway;
@@ -797,14 +796,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			}
 			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
 		}
-	}
-
-	@Override
-	public CompletableFuture<ClassloadingProps> requestClassloadingProps() {
-		return CompletableFuture.completedFuture(
-			new ClassloadingProps(blobServer.getPort(),
-				executionGraph.getRequiredJarFiles(),
-				executionGraph.getRequiredClasspaths()));
 	}
 
 	@Override
