@@ -99,18 +99,15 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	}
 
 	/**
-	 * Test regular operation, including command line parameter parsing.
+	 * Tests that a session cluster, that uses the resources from the <i>qa-team</i> queue,
+	 * can be started from the command line.
 	 */
 	@Test
-	public void testClientStartup() throws IOException {
-		assumeTrue("The new mode does not start TMs upfront.", !isNewMode);
-		LOG.info("Starting testClientStartup()");
+	public void testStartYarnSessionClusterInQaTeamQueue() throws IOException {
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
-						"-n", "1",
 						"-jm", "768m",
 						"-tm", "1024m", "-qu", "qa-team"},
-				"Number of connected TaskManagers changed to 1. Slots available: 1", null, RunTypes.YARN_SESSION, 0);
-		LOG.info("Finished testClientStartup()");
+				"Flink JobManager is now running on ", null, RunTypes.YARN_SESSION, 0);
 	}
 
 	/**
