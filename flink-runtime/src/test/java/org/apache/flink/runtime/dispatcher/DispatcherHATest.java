@@ -27,9 +27,9 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmanager.StandaloneSubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
@@ -156,11 +156,10 @@ public class DispatcherHATest extends TestLogger {
 	@Test
 	public void testRevokeLeadershipTerminatesJobManagerRunners() throws Exception {
 
-		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
-		highAvailabilityServices.setSubmittedJobGraphStore(new StandaloneSubmittedJobGraphStore());
-
 		final TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
-		highAvailabilityServices.setDispatcherLeaderElectionService(leaderElectionService);
+		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServicesBuilder()
+			.setDispatcherLeaderElectionService(leaderElectionService)
+			.build();
 
 		final ArrayBlockingQueue<DispatcherId> fencingTokens = new ArrayBlockingQueue<>(2);
 		final HATestingDispatcher dispatcher = createDispatcher(
