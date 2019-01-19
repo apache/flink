@@ -217,11 +217,11 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		LOG.info("Extracted hostname: {}", hostname);
 
 		final ApplicationReport applicationReport = getOnlyApplicationReport();
-		final String url = normalizeTrackingUrl(applicationReport.getTrackingUrl());
-		LOG.info("Got application URL from YARN {}", url);
+		final String restApiBaseUrl = normalizeTrackingUrl(applicationReport.getTrackingUrl());
+		LOG.info("Got application URL from YARN {}", restApiBaseUrl);
 
 		submitJob("WindowJoin.jar");
-		waitForTaskManager(url, Duration.ofMillis(30_000));
+		waitForTaskManagerRegistration(restApiBaseUrl, Duration.ofMillis(30_000));
 
 		//
 		// Assert that custom YARN application name "customName" is set
@@ -231,10 +231,10 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		//
 		// Assert the number of TaskManager slots are set
 		//
-		final int slotsNumber = getNumberOfSlotsPerTaskManager(url);
+		final int slotsNumber = getNumberOfSlotsPerTaskManager(restApiBaseUrl);
 		assertEquals(3, slotsNumber);
 
-		final Map<String, String> flinkConfig = getFlinkConfigFromRestApi(url);
+		final Map<String, String> flinkConfig = getFlinkConfig(restApiBaseUrl);
 
 		//
 		// Assert dynamic properties
@@ -256,7 +256,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		yarnSessionClusterRunner.join();
 	}
 
-	private Map<String, String> getFlinkConfigFromRestApi(final String url) throws Exception {
+	private Map<String, String> getFlinkConfig(final String url) throws Exception {
 		String jsonConfig = TestBaseUtils.getFromHTTP(url + "jobmanager/config");
 		return WebMonitorUtils.fromKeyValueJsonArray(jsonConfig);
 	}
@@ -309,7 +309,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		return apps.get(0);
 	}
 
-	private void waitForTaskManager(final String url, final Duration waitDuration) throws Exception {
+	private void waitForTaskManagerRegistration(final String url, final Duration waitDuration) throws Exception {
 		waitUntilCondition(() -> getNumberOfTaskManagers(url) > 0, Deadline.fromNow(waitDuration));
 	}
 
