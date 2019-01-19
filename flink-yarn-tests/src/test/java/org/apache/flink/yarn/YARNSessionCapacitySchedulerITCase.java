@@ -271,18 +271,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	}
 
 	private void waitForTaskManager(final String url, final Duration waitDuration) throws Exception {
-		final Deadline deadline = Deadline.fromNow(waitDuration);
-		while (true) {
-			if (getNumberOfTaskManagers(url) > 0) {
-				return;
-			}
-
-			if (!deadline.hasTimeLeft()) {
-				throw new TimeoutException();
-			}
-
-			Thread.sleep(500);
-		}
+		waitUntilCondition(() -> getNumberOfTaskManagers(url) > 0, Deadline.fromNow(waitDuration));
 	}
 
 	private int getNumberOfTaskManagers(final String url) throws Exception {

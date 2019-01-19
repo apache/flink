@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
 import org.apache.commons.io.FileUtils;
@@ -81,6 +82,7 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -103,6 +105,8 @@ public abstract class YarnTestBase extends TestLogger {
 	protected static final String TEST_CLUSTER_NAME_KEY = "flink-yarn-minicluster-name";
 
 	protected static final int NUM_NODEMANAGERS = 2;
+
+	private static final long RETRY_TIMEOUT = 100L;
 
 	/** The tests are scanning for these strings in the final output. */
 	protected static final String[] PROHIBITED_STRINGS = {
@@ -272,6 +276,16 @@ public abstract class YarnTestBase extends TestLogger {
 			}
 		}
 		return null;
+	}
+
+	protected void waitUntilCondition(SupplierWithException<Boolean, Exception> condition, Deadline timeout) throws Exception {
+		while (timeout.hasTimeLeft() && !condition.get()) {
+			Thread.sleep(Math.min(RETRY_TIMEOUT, timeout.timeLeft().toMillis()));
+		}
+
+		if (!timeout.hasTimeLeft()) {
+			throw new TimeoutException("Condition was not met in given timeout.");
+		}
 	}
 
 	@Nonnull

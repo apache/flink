@@ -44,10 +44,12 @@ import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.protocolrecords.StopContainersRequest;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.security.NMTokenIdentifier;
 import org.apache.hadoop.yarn.server.nodemanager.NodeManager;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
@@ -92,7 +94,6 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 
 	private static final String LOG_DIR = "flink-yarn-tests-ha";
 	private static final Duration TIMEOUT = Duration.ofSeconds(200L);
-	private static final long RETRY_TIMEOUT = 100L;
 
 	private static TestingServer zkServer;
 	private static String storageDir;
@@ -138,18 +139,12 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 
 		final ApplicationId id = restClusterClient.getClusterId();
 
-		waitUntilJobIsRunning(restClusterClient, jobId, RETRY_TIMEOUT);
+		waitUntilJobIsRunning(restClusterClient, jobId);
 
 		killApplicationMaster(yarnClusterDescriptor.getYarnSessionClusterEntrypoint());
+		waitForApplicationAttempt(id, 2);
 
-		final YarnClient yarnClient = getYarnClient();
-		assertNotNull(yarnClient);
-
-		while (yarnClient.getApplicationReport(id).getCurrentApplicationAttemptId().getAttemptId() < 2) {
-			Thread.sleep(RETRY_TIMEOUT);
-		}
-
-		waitUntilJobIsRunning(restClusterClient, jobId, RETRY_TIMEOUT);
+		waitUntilJobIsRunning(restClusterClient, jobId);
 
 		killApplicationAndWait(id);
 	}
@@ -159,12 +154,22 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		final RestClusterClient<ApplicationId> restClusterClient = deploySessionCluster(setupYarnClusterDescriptor());
 		final JobID jobId = submitJob(restClusterClient, createJobGraph());
 		final ApplicationId id = restClusterClient.getClusterId();
-		waitUntilJobIsRunning(restClusterClient, jobId, RETRY_TIMEOUT);
+		waitUntilJobIsRunning(restClusterClient, jobId);
 
 		stopTaskManagerContainer();
-		waitUntilJobIsRunning(restClusterClient, jobId, RETRY_TIMEOUT);
+		waitUntilJobIsRunning(restClusterClient, jobId);
 
 		killApplicationAndWait(id);
+	}
+
+	private void waitForApplicationAttempt(final ApplicationId applicationId, final int attemptId) throws Exception {
+		final YarnClient yarnClient = getYarnClient();
+		checkState(yarnClient != null, "yarnClient must be initialized");
+
+		waitUntilCondition(() -> {
+			final ApplicationReport applicationReport = yarnClient.getApplicationReport(applicationId);
+			return applicationReport.getCurrentApplicationAttemptId().getAttemptId() >= attemptId;
+		}, Deadline.fromNow(TIMEOUT));
 	}
 
 	/**
@@ -214,8 +219,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		yarnClient.killApplication(id);
 
 		waitUntilCondition(() -> !yarnClient.getApplications(EnumSet.of(YarnApplicationState.KILLED, YarnApplicationState.FINISHED)).isEmpty(),
-			Deadline.fromNow(TIMEOUT),
-			RETRY_TIMEOUT);
+			Deadline.fromNow(TIMEOUT));
 	}
 
 	@Nonnull
@@ -273,7 +277,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		return job;
 	}
 
-	private void waitUntilJobIsRunning(RestClusterClient<ApplicationId> restClusterClient, JobID jobId, long retryTimeout) throws Exception {
+	private void waitUntilJobIsRunning(RestClusterClient<ApplicationId> restClusterClient, JobID jobId) throws Exception {
 		waitUntilCondition(
 			() -> {
 				final JobDetailsInfo jobDetails = restClusterClient.getJobDetails(jobId).get();
@@ -282,18 +286,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 					.map(toExecutionState())
 					.allMatch(isRunning());
 			},
-			Deadline.fromNow(TIMEOUT),
-			retryTimeout);
-	}
-
-	private void waitUntilCondition(SupplierWithException<Boolean, Exception> condition, Deadline timeout, long retryTimeout) throws Exception {
-		while (timeout.hasTimeLeft() && !condition.get()) {
-			Thread.sleep(Math.min(retryTimeout, timeout.timeLeft().toMillis()));
-		}
-
-		if (!timeout.hasTimeLeft()) {
-			throw new TimeoutException("Condition was not met in given timeout.");
-		}
+			Deadline.fromNow(TIMEOUT));
 	}
 
 	private static Function<JobDetailsInfo.JobVertexDetailsInfo, ExecutionState> toExecutionState() {
@@ -303,4 +296,5 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	private static Predicate<ExecutionState> isRunning() {
 		return executionState -> executionState == ExecutionState.RUNNING;
 	}
+
 }
