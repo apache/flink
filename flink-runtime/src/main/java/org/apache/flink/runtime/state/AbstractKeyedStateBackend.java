@@ -36,6 +36,8 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
@@ -88,6 +90,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 
 	protected final ClassLoader userCodeClassLoader;
 
+	@Nullable
 	private final ExecutionConfig executionConfig;
 
 	private final TtlTimeProvider ttlTimeProvider;
@@ -115,7 +118,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		this.cancelStreamRegistry = new CloseableRegistry();
 		this.keyValueStatesByName = new HashMap<>();
 		this.executionConfig = executionConfig;
-		this.compressionType = executionConfig.getCompressionType() == null ? CompressionTypes.NONE : executionConfig.getCompressionType();
+		this.compressionType = executionConfig == null ? CompressionTypes.NONE : executionConfig.getCompressionType();
 		this.ttlTimeProvider = Preconditions.checkNotNull(ttlTimeProvider);
 	}
 
