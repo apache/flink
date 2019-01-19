@@ -101,6 +101,7 @@ public class StateMetaInfoSnapshotReadersWriters {
 	@Nonnull
 	static StateMetaInfoReader getReader(int readVersion) {
 		switch (readVersion) {
+			case 6:
 			case CURRENT_STATE_META_INFO_SNAPSHOT_VERSION:
 				return CurrentReaderImpl.INSTANCE;
 			case 5:
