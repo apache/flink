@@ -40,7 +40,10 @@ class ExtractCallGen(returnType: TypeInformation[_], method: Method)
            TimeUnit.DAY |
            TimeUnit.QUARTER |
            TimeUnit.DOY |
+           TimeUnit.ISOYEAR |
            TimeUnit.DOW |
+           TimeUnit.DECADE |
+           TimeUnit.ISODOW |
            TimeUnit.WEEK |
            TimeUnit.CENTURY |
            TimeUnit.MILLENNIUM =>
@@ -63,6 +66,27 @@ class ExtractCallGen(returnType: TypeInformation[_], method: Method)
           case _ => // do nothing
         }
 
+      case TimeUnit.EPOCH =>
+        tpe match {
+          case SqlTimeTypeInfo.TIMESTAMP =>
+            return generateCallIfArgsNotNull(codeGenerator.nullCheck, returnType, operands) {
+              (terms) =>
+                s"""
+                   |${qualifyMethod(method)}(${terms.head},
+                   |    ${terms(1)} * ${TimeUnit.SECOND.multiplier.intValue()}
+                   |        / ${TimeUnit.DAY.multiplier.intValue()})
+                   |  / ${TimeUnit.SECOND.multiplier.intValue()}
+                   |""".stripMargin
+            }
+
+          case SqlTimeTypeInfo.DATE =>
+            return super.generate(codeGenerator, operands)
+
+          case SqlTimeTypeInfo.TIME =>
+            throw new ValidationException("unit " + unit + " can not be applied to time variable")
+
+          case _ => // do nothing
+        }
       case _ => // do nothing
     }
     generateCallIfArgsNotNull(codeGenerator.nullCheck, returnType, operands) {
@@ -72,6 +96,10 @@ class ExtractCallGen(returnType: TypeInformation[_], method: Method)
           case TimeUnit.QUARTER =>
             s"""
                |((${terms(1)} % $factor) - 1) / ${unit.multiplier.intValue()} + 1
+               |""".stripMargin
+          case TimeUnit.MICROSECOND =>
+            s"""
+               |(${terms(1)} % $factor) * $factor
                |""".stripMargin
           case _ =>
             if (factor == 1) {
@@ -98,11 +126,15 @@ class ExtractCallGen(returnType: TypeInformation[_], method: Method)
         TimeUnit.HOUR.multiplier.longValue()
       case TimeUnit.SECOND =>
         TimeUnit.MINUTE.multiplier.longValue()
+      case TimeUnit.MILLISECOND |
+        TimeUnit.MICROSECOND =>
+        TimeUnit.SECOND.multiplier.longValue()
       case TimeUnit.MONTH =>
         TimeUnit.YEAR.multiplier.longValue()
       case TimeUnit.QUARTER =>
         TimeUnit.YEAR.multiplier.longValue()
       case TimeUnit.YEAR |
+           TimeUnit.DECADE |
            TimeUnit.CENTURY |
            TimeUnit.MILLENNIUM => 1L
       case _ =>
