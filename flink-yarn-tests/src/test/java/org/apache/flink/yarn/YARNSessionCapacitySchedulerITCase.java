@@ -42,6 +42,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.apache.log4j.Level;
@@ -213,20 +214,12 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		final String hostname = parseJobManagerHostname(logs);
 		LOG.info("Extracted hostname: {}", hostname);
 
-		final YarnClient yarnClient = getYarnClient();
-		checkState(yarnClient != null);
-
-		List<ApplicationReport> apps = yarnClient.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
-		assertEquals(1, apps.size()); // Only one running
-		ApplicationReport app = apps.get(0);
-		assertEquals("customName", app.getName());
-		String url = app.getTrackingUrl();
-		if (!url.endsWith("/")) {
-			url += "/";
-		}
-		if (!url.startsWith("http://")) {
-			url = "http://" + url;
-		}
+		// --------------------------------------------------------------------
+		// Assert that custom YARN application name "customName" is set
+		// --------------------------------------------------------------------
+		final ApplicationReport applicationReport = getOnlyApplicationReport();
+		assertEquals("customName", applicationReport.getName());
+		final String url = normalizeTrackingUrl(applicationReport.getTrackingUrl());
 		LOG.info("Got application URL from YARN {}", url);
 
 		Runner jobRunner = startWithArgs(new String[]{"run",
@@ -262,6 +255,17 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		runner.join();
 	}
 
+	private String normalizeTrackingUrl(final String trackingUrl) {
+		String url = trackingUrl;
+		if (!url.endsWith("/")) {
+			url += "/";
+		}
+		if (!url.startsWith("http://")) {
+			url = "http://" + url;
+		}
+		return url;
+	}
+
 	private String parseJobManagerHostname(final String logs) {
 		final Pattern p = Pattern.compile("Flink JobManager is now running on ([a-zA-Z0-9.-]+):([0-9]+)");
 		final Matcher matches = p.matcher(logs);
@@ -274,6 +278,15 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		assertNotNull("hostname not found in log", hostname);
 
 		return hostname;
+	}
+
+	private ApplicationReport getOnlyApplicationReport() throws IOException, YarnException {
+		final YarnClient yarnClient = getYarnClient();
+		checkState(yarnClient != null);
+
+		final List<ApplicationReport> apps = yarnClient.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
+		assertEquals(1, apps.size()); // Only one running
+		return apps.get(0);
 	}
 
 	private void waitForTaskManager(final String url, final Duration waitDuration) throws Exception {
