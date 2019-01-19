@@ -201,7 +201,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 */
 	@Test(timeout = 100_000)
 	public void testVCoresAreSetCorrectlyAndJobManagerHostnameAreShownInWebInterfaceAndDynamicPropertiesAndYarnApplicationNameAndTaskManagerSlots() throws Exception {
-		Runner runner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
+		final Runner yarnSessionClusterRunner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 				"-jm", "768m",
 				"-tm", "1024m",
 				"-s", "3", // set the slots 3 to check if the vCores are set properly!
@@ -252,8 +252,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		//
 		assertThat(flinkConfig, hasEntry(JobManagerOptions.ADDRESS.key(), hostname));
 
-		runner.sendStop();
-		runner.join();
+		yarnSessionClusterRunner.sendStop();
+		yarnSessionClusterRunner.join();
 	}
 
 	private Map<String, String> getFlinkConfigFromRestApi(final String url) throws Exception {
