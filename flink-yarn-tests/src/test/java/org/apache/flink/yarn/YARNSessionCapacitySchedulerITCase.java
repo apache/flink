@@ -188,16 +188,16 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	/**
 	 * Starts a session cluster on YARN, and submits a streaming job.
 	 *
-	 * Tests
+	 * <p>Tests
 	 * <ul>
-	 *  <li>if a custom YARN application name can be set from the command line,
-	 *  <li>if the number of TaskManager slots can be set from the command line,
-	 *  <li>if dynamic properties from the command line are set,
-	 *  <li>if the vcores are set correctly (FLINK-2213),
-	 * 	<li>if jobmanager hostname/port are shown in web interface (FLINK-1902)
+	 * <li>if a custom YARN application name can be set from the command line,
+	 * <li>if the number of TaskManager slots can be set from the command line,
+	 * <li>if dynamic properties from the command line are set,
+	 * <li>if the vcores are set correctly (FLINK-2213),
+	 * <li>if jobmanager hostname/port are shown in web interface (FLINK-1902)
 	 * </ul>
 	 *
-	 * <b>Hint: </b> If you think it is a good idea to add more assertions to this test, think again!
+	 * <p><b>Hint: </b> If you think it is a good idea to add more assertions to this test, think again!
 	 */
 	@Test(timeout = 100_000)
 	public void testVCoresAreSetCorrectlyAndJobManagerHostnameAreShownInWebInterfaceAndDynamicPropertiesAndYarnApplicationNameAndTaskManagerSlots() throws Exception {
