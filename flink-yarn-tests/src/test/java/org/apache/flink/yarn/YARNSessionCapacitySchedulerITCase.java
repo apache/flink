@@ -209,17 +209,9 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			"Flink JobManager is now running on ",
 			RunTypes.YARN_SESSION);
 
-		// first, get the hostname/port
-		String oC = outContent.toString();
-		Pattern p = Pattern.compile("Flink JobManager is now running on ([a-zA-Z0-9.-]+):([0-9]+)");
-		Matcher matches = p.matcher(oC);
-		String hostname = null;
-		String port = null;
-		while (matches.find()) {
-			hostname = matches.group(1).toLowerCase();
-			port = matches.group(2);
-		}
-		LOG.info("Extracted hostname:port: {} {}", hostname, port);
+		final String logs = outContent.toString();
+		final String hostname = parseJobManagerHostname(logs);
+		LOG.info("Extracted hostname: {}", hostname);
 
 		final YarnClient yarnClient = getYarnClient();
 		checkState(yarnClient != null);
@@ -268,6 +260,20 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
 		runner.sendStop();
 		runner.join();
+	}
+
+	private String parseJobManagerHostname(final String logs) {
+		final Pattern p = Pattern.compile("Flink JobManager is now running on ([a-zA-Z0-9.-]+):([0-9]+)");
+		final Matcher matches = p.matcher(logs);
+		String hostname = null;
+
+		while (matches.find()) {
+			hostname = matches.group(1).toLowerCase();
+		}
+
+		assertNotNull("hostname not found in log", hostname);
+
+		return hostname;
 	}
 
 	private void waitForTaskManager(final String url, final Duration waitDuration) throws Exception {
