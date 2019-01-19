@@ -222,11 +222,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		final String url = normalizeTrackingUrl(applicationReport.getTrackingUrl());
 		LOG.info("Got application URL from YARN {}", url);
 
-		Runner jobRunner = startWithArgs(new String[]{"run",
-				"--detached", getTestJarPath("WindowJoin.jar").getAbsolutePath()},
-			"Job has been submitted with JobID", RunTypes.CLI_FRONTEND);
-		jobRunner.join();
-
+		submitJob("WindowJoin.jar");
 		waitForTaskManager(url, Duration.ofMillis(30_000));
 
 		//
@@ -253,6 +249,13 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
 		runner.sendStop();
 		runner.join();
+	}
+
+	private void submitJob(final String jobFileName) throws IOException, InterruptedException {
+		Runner jobRunner = startWithArgs(new String[]{"run",
+				"--detached", getTestJarPath(jobFileName).getAbsolutePath()},
+			"Job has been submitted with JobID", RunTypes.CLI_FRONTEND);
+		jobRunner.join();
 	}
 
 	private String normalizeTrackingUrl(final String trackingUrl) {
