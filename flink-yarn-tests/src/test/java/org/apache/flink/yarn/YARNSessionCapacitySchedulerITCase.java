@@ -199,7 +199,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 *
 	 * <b>Hint: </b> If you think it is a good idea to add more assertions to this test, think again!
 	 */
-	@Test(timeout = 100000) // timeout after 100 seconds
+	@Test(timeout = 100_000)
 	public void testVCoresAreSetCorrectlyAndJobManagerHostnameAreShownInWebInterfaceAndDynamicPropertiesAndYarnApplicationNameAndTaskManagerSlots() throws Exception {
 		Runner runner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 				"-jm", "768m",
