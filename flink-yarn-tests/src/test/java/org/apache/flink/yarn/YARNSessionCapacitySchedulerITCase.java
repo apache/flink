@@ -66,7 +66,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -75,7 +74,10 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.apache.flink.yarn.UtilsTest.addTestAppender;
 import static org.apache.flink.yarn.UtilsTest.checkForLogString;
 import static org.apache.flink.yarn.util.YarnTestUtils.getTestJarPath;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -188,11 +190,11 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 *
 	 * Tests
 	 * <ul>
-	 * 	<li>if the vcores are set correctly (FLINK-2213),
-	 *  <li>if jobmanager hostname/port are shown in web interface (FLINK-1902),
-	 *  <li>if dynamic properties from the command line are set
-	 *  <li>if a custom YARN application name can be set from the command line
-	 *  <li>if the number of TaskManager slots can be set from the command line
+	 *  <li>if a custom YARN application name can be set from the command line,
+	 *  <li>if the number of TaskManager slots can be set from the command line,
+	 *  <li>if dynamic properties from the command line are set,
+	 *  <li>if the vcores are set correctly (FLINK-2213),
+	 * 	<li>if jobmanager hostname/port are shown in web interface (FLINK-1902)
 	 * </ul>
 	 *
 	 * <b>Hint: </b> If you think it is a good idea to add more assertions to this test, think again!
@@ -214,11 +216,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		final String hostname = parseJobManagerHostname(logs);
 		LOG.info("Extracted hostname: {}", hostname);
 
-		// --------------------------------------------------------------------
-		// Assert that custom YARN application name "customName" is set
-		// --------------------------------------------------------------------
 		final ApplicationReport applicationReport = getOnlyApplicationReport();
-		assertEquals("customName", applicationReport.getName());
 		final String url = normalizeTrackingUrl(applicationReport.getTrackingUrl());
 		LOG.info("Got application URL from YARN {}", url);
 
@@ -226,27 +224,41 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		waitForTaskManager(url, Duration.ofMillis(30_000));
 
 		//
-		// Test if JobManager web interface is accessible
+		// Assert that custom YARN application name "customName" is set
+		//
+		assertEquals("customName", applicationReport.getName());
+
+		//
+		// Assert the number of TaskManager slots are set
 		//
 		final int slotsNumber = getNumberOfSlotsPerTaskManager(url);
 		assertEquals(3, slotsNumber);
 
-		// get the configuration from webinterface & check if the dynamic properties from YARN show up there.
-		String jsonConfig = TestBaseUtils.getFromHTTP(url + "jobmanager/config");
-		Map<String, String> parsedConfig = WebMonitorUtils.fromKeyValueJsonArray(jsonConfig);
+		final Map<String, String> flinkConfig = getFlinkConfigFromRestApi(url);
 
-		assertEquals("veryFancy", parsedConfig.get("fancy-configuration-value"));
-		assertEquals("3", parsedConfig.get("yarn.maximum-failed-containers"));
-		assertEquals("2", parsedConfig.get(YarnConfigOptions.VCORES.key()));
+		//
+		// Assert dynamic properties
+		//
+		assertThat(flinkConfig, hasEntry("fancy-configuration-value", "veryFancy"));
+		assertThat(flinkConfig, hasEntry("yarn.maximum-failed-containers", "3"));
+
+		//
+		// FLINK-2213: assert that vcores are set
+		//
+		assertThat(flinkConfig, hasEntry(YarnConfigOptions.VCORES.key(), "2"));
 
 		//
 		// FLINK-1902: check if jobmanager hostname is shown in web interface
 		//
-		assertEquals("unable to find hostname in " + jsonConfig, hostname,
-			parsedConfig.get(JobManagerOptions.ADDRESS.key()));
+		assertThat(flinkConfig, hasEntry(JobManagerOptions.ADDRESS.key(), hostname));
 
 		runner.sendStop();
 		runner.join();
+	}
+
+	private Map<String, String> getFlinkConfigFromRestApi(final String url) throws Exception {
+		String jsonConfig = TestBaseUtils.getFromHTTP(url + "jobmanager/config");
+		return WebMonitorUtils.fromKeyValueJsonArray(jsonConfig);
 	}
 
 	private int getNumberOfSlotsPerTaskManager(final String url) throws Exception {
