@@ -228,10 +228,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		//
 		// Test if JobManager web interface is accessible
 		//
-		String response = TestBaseUtils.getFromHTTP(url + "taskmanagers/");
-		JsonNode parsedTMs = new ObjectMapper().readTree(response);
-		ArrayNode taskManagers = (ArrayNode) parsedTMs.get("taskmanagers");
-		assertEquals(3, taskManagers.get(0).get("slotsNumber").asInt());
+		final int slotsNumber = getNumberOfSlotsPerTaskManager(url);
+		assertEquals(3, slotsNumber);
 
 		// get the configuration from webinterface & check if the dynamic properties from YARN show up there.
 		String jsonConfig = TestBaseUtils.getFromHTTP(url + "jobmanager/config");
@@ -249,6 +247,13 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
 		runner.sendStop();
 		runner.join();
+	}
+
+	private int getNumberOfSlotsPerTaskManager(final String url) throws Exception {
+		String response = TestBaseUtils.getFromHTTP(url + "taskmanagers/");
+		JsonNode parsedTMs = new ObjectMapper().readTree(response);
+		ArrayNode taskManagers = (ArrayNode) parsedTMs.get("taskmanagers");
+		return taskManagers.get(0).get("slotsNumber").asInt();
 	}
 
 	private void submitJob(final String jobFileName) throws IOException, InterruptedException {
