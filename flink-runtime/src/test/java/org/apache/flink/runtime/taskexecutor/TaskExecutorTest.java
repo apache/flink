@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
@@ -54,6 +55,7 @@ import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -67,7 +69,11 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -308,6 +314,9 @@ public class TaskExecutorTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * This test also verify the metric registry life cycle on ResourceManager re-connects.
+	 */
 	@Test
 	public void testHeartbeatTimeoutWithResourceManager() throws Exception {
 		final String rmAddress = "rm";
@@ -355,11 +364,26 @@ public class TaskExecutorTest extends TestLogger {
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
+		final NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 128);
+
+		when(networkEnvironment.getNetworkBufferPool()).thenReturn(networkBufferPool);
+
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setNetworkEnvironment(networkEnvironment)
 			.setTaskManagerLocation(taskManagerLocation)
 			.setTaskSlotTable(taskSlotTable)
 			.setTaskStateManager(localStateStoresManager)
 			.build();
+
+		final MetricRegistryImpl metricRegistry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.fromConfiguration(configuration));
+
+		final TaskManagerMetricGroup taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
+			metricRegistry,
+			taskManagerLocation,
+			networkEnvironment,
+			ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
 
 		final TaskExecutor taskManager = new TaskExecutor(
 			rpc,
@@ -367,7 +391,7 @@ public class TaskExecutorTest extends TestLogger {
 			haServices,
 			taskManagerServices,
 			heartbeatServices,
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			taskManagerMetricGroup,
 			null,
 			dummyBlobCacheService,
 			testingFatalErrorHandler);
@@ -387,6 +411,8 @@ public class TaskExecutorTest extends TestLogger {
 			// the TaskExecutor should try to reconnect to the RM
 			registrationAttempts.await();
 
+			// verify that the registry was not shutdown due to the disconnect
+			assertFalse(metricRegistry.isShutdown());
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
