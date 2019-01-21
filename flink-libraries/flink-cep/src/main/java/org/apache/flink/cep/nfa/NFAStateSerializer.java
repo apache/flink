@@ -95,7 +95,7 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 	private static final StringSerializer STATE_NAME_SERIALIZER = StringSerializer.INSTANCE;
 	private static final LongSerializer TIMESTAMP_SERIALIZER = LongSerializer.INSTANCE;
 	private static final DeweyNumber.DeweyNumberSerializer VERSION_SERIALIZER = DeweyNumber.DeweyNumberSerializer.INSTANCE;
-	private static final NodeId.NodeIdSerializer NODE_ID_SERIALIZER = NodeId.NodeIdSerializer.INSTANCE;
+	private static final NodeId.NodeIdSerializer NODE_ID_SERIALIZER = new NodeId.NodeIdSerializer();
 	private static final EventId.EventIdSerializer EVENT_ID_SERIALIZER = EventId.EventIdSerializer.INSTANCE;
 
 	@Override
