@@ -166,6 +166,8 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 	/** Provided to the user via the {@link ElasticsearchSinkFunction} to add {@link ActionRequest ActionRequests}. */
 	private transient RequestIndexer requestIndexer;
 
+	private transient ElasticsearchFailureHandlerIndexer failureRequestIndexer;
+
 	// ------------------------------------------------------------------------
 	//  Internals for the Flink Elasticsearch Sink
 	// ------------------------------------------------------------------------
@@ -296,12 +298,14 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 		client = callBridge.createClient(userConfig);
 		bulkProcessor = buildBulkProcessor(new BulkProcessorListener());
 		requestIndexer = callBridge.createBulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
+		failureRequestIndexer = callBridge.createFailureHandlerIndexer(flushOnCheckpoint, numPendingRequests);
 	}
 
 	@Override
 	public void invoke(T value) throws Exception {
 		// if bulk processor callbacks have previously reported an error, we rethrow the error and fail the sink
 		checkErrorAndRethrow();
+		reindexFailedRequest();
 
 		elasticsearchSinkFunction.process(value, getRuntimeContext(), requestIndexer);
 	}
@@ -380,6 +384,15 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 		}
 	}
 
+	private void reindexFailedRequest() {
+		if (failureRequestIndexer.numberOfActions() > 0) {
+			BulkRequest failedRequest = failureRequestIndexer.getBulkRequest();
+			for (ActionRequest request: failedRequest.requests()) {
+				requestIndexer.add(request);
+			}
+		}
+	}
+
 	private class BulkProcessorListener implements BulkProcessor.Listener {
 		@Override
 		public void beforeBulk(long executionId, BulkRequest request) { }
@@ -400,9 +413,9 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 
 							restStatus = itemResponse.getFailure().getStatus();
 							if (restStatus == null) {
-								failureHandler.onFailure(request.requests().get(i), failure, -1, requestIndexer);
+								failureHandler.onFailure(request.requests().get(i), failure, -1, failureRequestIndexer);
 							} else {
-								failureHandler.onFailure(request.requests().get(i), failure, restStatus.getStatus(), requestIndexer);
+								failureHandler.onFailure(request.requests().get(i), failure, restStatus.getStatus(), failureRequestIndexer);
 							}
 						}
 					}
@@ -424,7 +437,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 
 			try {
 				for (ActionRequest action : request.requests()) {
-					failureHandler.onFailure(action, failure, -1, requestIndexer);
+					failureHandler.onFailure(action, failure, -1, failureRequestIndexer);
 				}
 			} catch (Throwable t) {
 				// fail the sink and skip the rest of the items
