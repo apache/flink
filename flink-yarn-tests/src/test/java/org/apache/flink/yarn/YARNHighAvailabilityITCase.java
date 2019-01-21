@@ -64,9 +64,8 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.EnumSet;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
@@ -193,15 +192,12 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 					remoteUgi.addTokenIdentifier(nmIdent);
 				}
 			}
-			sleep(500);
 		}
 
 		assertNotNull("Unable to find container with TaskManager", taskManagerContainer);
 		assertNotNull("Illegal state", nodeManager);
 
-		List<ContainerId> toStop = new LinkedList<>();
-		toStop.add(taskManagerContainer);
-		StopContainersRequest scr = StopContainersRequest.newInstance(toStop);
+		StopContainersRequest scr = StopContainersRequest.newInstance(Collections.singletonList(taskManagerContainer));
 
 		nodeManager.getNMContext().getContainerManager().stopContainers(scr);
 
