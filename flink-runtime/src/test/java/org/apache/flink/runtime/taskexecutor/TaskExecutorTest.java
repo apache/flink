@@ -23,10 +23,14 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.configuration.BlobServerOptions;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -89,6 +93,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.util.FileOffsetRange;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -110,8 +115,13 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -1694,6 +1704,61 @@ public class TaskExecutorTest extends TestLogger {
 			assertThat(offeredSlotFuture.get(), is(allocationId));
 			assertTrue(taskSlotTable.isSlotFree(1));
 		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
+	@Test
+	public void testRequestFileUpload() throws Exception {
+		String blobServerPath = tmp.newFolder().getAbsolutePath();
+		String logFilePath = tmp.newFolder().getAbsolutePath();
+		final Configuration configuration = new Configuration();
+		configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, blobServerPath);
+		File tmlog = new File(logFilePath, "taskmanager.log");
+		String logContent = "this is a test.";
+		try (FileOutputStream fileOutputStream = new FileOutputStream(tmlog)) {
+			fileOutputStream.write(logContent.getBytes("UTF-8"));
+		}
+		configuration.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, tmlog.getAbsolutePath());
+
+		int start = 0;
+		int end = 10;
+		FileOffsetRange range = new FileOffsetRange(start, end);
+
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder().build();
+		TaskExecutor taskExecutor = null;
+		BlobServer server = new BlobServer(configuration, new VoidBlobStore());
+		BlobCacheService cache = new BlobCacheService(
+			configuration,
+			new VoidBlobStore(),
+			new InetSocketAddress("localhost", server.getPort()));
+		try {
+			server.start();
+			taskExecutor = new TaskExecutor(
+				rpc,
+				TaskManagerConfiguration.fromConfiguration(configuration),
+				haServices,
+				taskManagerServices,
+				new HeartbeatServices(1000L, 1000L),
+				UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+				null,
+				cache,
+				testingFatalErrorHandler);
+			taskExecutor.start();
+
+			TransientBlobKey transientBlobKey = taskExecutor.requestFileUpload(FileType.LOG, RpcUtils.INF_TIMEOUT, "taskmanager.log", range).get();
+
+			File fileFromBlob = cache.getTransientBlobService().getFile(transientBlobKey);
+			String result;
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(fileFromBlob)))) {
+				result = reader.readLine();
+			}
+			String expected = logContent.substring(Math.min(logContent.length(), start), Math.min(logContent.length(), end));
+
+			assertEquals(expected, result);
+
+		} finally {
+			server.close();
 			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
 		}
 	}

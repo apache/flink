@@ -23,6 +23,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.TreeSet;
 
 /**
@@ -44,5 +45,24 @@ public class LogListInfo implements ResponseBody {
 
 	public List<String> getLoglist() {
 		return loglist;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+
+		if (null == o || this.getClass() != o.getClass()) {
+			return false;
+		}
+
+		LogListInfo that = (LogListInfo) o;
+		return that.loglist.equals(this.loglist);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(this.loglist);
 	}
 }
