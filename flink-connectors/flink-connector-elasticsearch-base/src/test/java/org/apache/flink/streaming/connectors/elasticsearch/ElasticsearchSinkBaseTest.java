@@ -366,9 +366,9 @@ public class ElasticsearchSinkBaseTest {
 
 		// since the previous flush should have resulted in a request re-add from the failure handler,
 		// we should have flushed again, and eventually be blocked before snapshot triggers the 2nd flush
-		while (snapshotThread.getState() != Thread.State.WAITING) {
-			Thread.sleep(10);
-		}
+//		while (snapshotThread.getState() != Thread.State.WAITING) {
+//			Thread.sleep(10);
+//		}
 
 		// current number of pending request should be 1 due to the re-add
 		Assert.assertEquals(1, sink.getNumPendingRequests());
