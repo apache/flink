@@ -66,6 +66,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -78,6 +79,7 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -231,8 +233,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		//
 		// Assert the number of TaskManager slots are set
 		//
-		final int slotsNumber = getNumberOfSlotsPerTaskManager(restApiBaseUrl);
-		assertEquals(3, slotsNumber);
+		assertNumberOfSlotsPerTask(restApiBaseUrl, 3);
 
 		final Map<String, String> flinkConfig = getFlinkConfig(restApiBaseUrl);
 
@@ -299,6 +300,15 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
 	private static void waitForTaskManagerRegistration(final String url, final Duration waitDuration) throws Exception {
 		waitUntilCondition(() -> getNumberOfTaskManagers(url) > 0, Deadline.fromNow(waitDuration));
+	}
+
+	private static void assertNumberOfSlotsPerTask(final String url, final int slotsNumber) throws Exception {
+		try {
+			waitUntilCondition(() -> getNumberOfSlotsPerTaskManager(url) == slotsNumber, Deadline.fromNow(Duration.ofSeconds(30)));
+		} catch (final TimeoutException e) {
+			final int currentNumberOfSlots = getNumberOfSlotsPerTaskManager(url);
+			fail(String.format("Expected slots per TM to be %d, was: %d", slotsNumber, currentNumberOfSlots));
+		}
 	}
 
 	private static int getNumberOfTaskManagers(final String url) throws Exception {

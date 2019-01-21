@@ -129,7 +129,8 @@ public abstract class YarnTestBase extends TestLogger {
 		"java.util.concurrent.RejectedExecutionException: Worker has already been shutdown",
 
 		"org.apache.flink.util.FlinkException: Stopping JobMaster",
-		"org.apache.flink.util.FlinkException: JobManager is shutting down."
+		"org.apache.flink.util.FlinkException: JobManager is shutting down.",
+		"lost the leadership."
 	};
 
 	// Temp directory which is deleted after the unit test.
