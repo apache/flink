@@ -256,37 +256,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		yarnSessionClusterRunner.join();
 	}
 
-	private Map<String, String> getFlinkConfig(final String url) throws Exception {
-		String jsonConfig = TestBaseUtils.getFromHTTP(url + "jobmanager/config");
-		return WebMonitorUtils.fromKeyValueJsonArray(jsonConfig);
-	}
-
-	private int getNumberOfSlotsPerTaskManager(final String url) throws Exception {
-		String response = TestBaseUtils.getFromHTTP(url + "taskmanagers/");
-		JsonNode parsedTMs = new ObjectMapper().readTree(response);
-		ArrayNode taskManagers = (ArrayNode) parsedTMs.get("taskmanagers");
-		return taskManagers.get(0).get("slotsNumber").asInt();
-	}
-
-	private void submitJob(final String jobFileName) throws IOException, InterruptedException {
-		Runner jobRunner = startWithArgs(new String[]{"run",
-				"--detached", getTestJarPath(jobFileName).getAbsolutePath()},
-			"Job has been submitted with JobID", RunTypes.CLI_FRONTEND);
-		jobRunner.join();
-	}
-
-	private String normalizeTrackingUrl(final String trackingUrl) {
-		String url = trackingUrl;
-		if (!url.endsWith("/")) {
-			url += "/";
-		}
-		if (!url.startsWith("http://")) {
-			url = "http://" + url;
-		}
-		return url;
-	}
-
-	private String parseJobManagerHostname(final String logs) {
+	private static String parseJobManagerHostname(final String logs) {
 		final Pattern p = Pattern.compile("Flink JobManager is now running on ([a-zA-Z0-9.-]+):([0-9]+)");
 		final Matcher matches = p.matcher(logs);
 		String hostname = null;
@@ -309,15 +279,45 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		return apps.get(0);
 	}
 
-	private void waitForTaskManagerRegistration(final String url, final Duration waitDuration) throws Exception {
+	private static String normalizeTrackingUrl(final String trackingUrl) {
+		String url = trackingUrl;
+		if (!url.endsWith("/")) {
+			url += "/";
+		}
+		if (!url.startsWith("http://")) {
+			url = "http://" + url;
+		}
+		return url;
+	}
+
+	private void submitJob(final String jobFileName) throws IOException, InterruptedException {
+		Runner jobRunner = startWithArgs(new String[]{"run",
+				"--detached", getTestJarPath(jobFileName).getAbsolutePath()},
+			"Job has been submitted with JobID", RunTypes.CLI_FRONTEND);
+		jobRunner.join();
+	}
+
+	private static void waitForTaskManagerRegistration(final String url, final Duration waitDuration) throws Exception {
 		waitUntilCondition(() -> getNumberOfTaskManagers(url) > 0, Deadline.fromNow(waitDuration));
 	}
 
-	private int getNumberOfTaskManagers(final String url) throws Exception {
+	private static int getNumberOfTaskManagers(final String url) throws Exception {
 		String response = TestBaseUtils.getFromHTTP(url + "taskmanagers/");
 		JsonNode parsedTMs = new ObjectMapper().readTree(response);
 		ArrayNode taskManagers = (ArrayNode) parsedTMs.get("taskmanagers");
 		return taskManagers == null ? 0 : taskManagers.size();
+	}
+
+	private static int getNumberOfSlotsPerTaskManager(final String url) throws Exception {
+		String response = TestBaseUtils.getFromHTTP(url + "taskmanagers/");
+		JsonNode parsedTMs = new ObjectMapper().readTree(response);
+		ArrayNode taskManagers = (ArrayNode) parsedTMs.get("taskmanagers");
+		return taskManagers.get(0).get("slotsNumber").asInt();
+	}
+
+	private static Map<String, String> getFlinkConfig(final String url) throws Exception {
+		String jsonConfig = TestBaseUtils.getFromHTTP(url + "jobmanager/config");
+		return WebMonitorUtils.fromKeyValueJsonArray(jsonConfig);
 	}
 
 	/**

@@ -278,7 +278,7 @@ public abstract class YarnTestBase extends TestLogger {
 		return null;
 	}
 
-	protected void waitUntilCondition(SupplierWithException<Boolean, Exception> condition, Deadline timeout) throws Exception {
+	protected static void waitUntilCondition(SupplierWithException<Boolean, Exception> condition, Deadline timeout) throws Exception {
 		while (timeout.hasTimeLeft() && !condition.get()) {
 			Thread.sleep(Math.min(RETRY_TIMEOUT, timeout.timeLeft().toMillis()));
 		}
