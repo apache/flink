@@ -93,7 +93,7 @@ project.
 {% endhighlight %}
 
 Alternatively, you can also add the dependency to the cluster classpath (see the
-[dependency section]({{ site.baseurl}}/projectsetup/dependencies.html) for more information).
+[dependency section]({{ site.baseurl}}/dev/projectsetup/dependencies.html) for more information).
 
 If you want to use the `MATCH_RECOGNIZE` clause in the
 [SQL Client]({{ site.baseurl}}/dev/table/sqlClient.html), you don't have to do anything as all the
@@ -1035,7 +1035,7 @@ use [time attributes](time_attributes.html). To select those there are available
         <code>MATCH_ROWTIME()</code><br/>
       </td>
       <td><p>Returns the timestamp of the last row that was mapped to the given pattern.</p>
-      <p>The resulting attribute is a <a href="streaming/time_attributes.html">rowtime attribute</a>
+      <p>The resulting attribute is a <a href="time_attributes.html">rowtime attribute</a>
          that can be used in subsequent time-based operations such as
          <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over
          window aggregations</a>.</p></td>
@@ -1044,7 +1044,7 @@ use [time attributes](time_attributes.html). To select those there are available
       <td>
         <code>MATCH_PROCTIME()</code><br/>
       </td>
-      <td><p>Returns a <a href="streaming/time_attributes.html#processing-time">proctime attribute</a>
+      <td><p>Returns a <a href="time_attributes.html#processing-time">proctime attribute</a>
           that can be used in subsequent time-based operations such as
           <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over
           window aggregations</a>.</p></td>
