@@ -94,6 +94,18 @@ public interface ElasticsearchApiCallBridge<C extends AutoCloseable> extends Ser
 	}
 
 	/**
+	 * Creates a {@link RequestIndexer} that is able to work with {@link BulkProcessor} binary compatible.
+	 */
+	default ElasticsearchFailureHandlerIndexer createFailureHandlerIndexer(
+			boolean flushOnCheckpoint,
+			AtomicLong numPendingRequestsRef) {
+		return new ElasticsearchFailureHandlerIndexer(
+			flushOnCheckpoint,
+			numPendingRequestsRef);
+	}
+
+
+	/**
 	 * Perform any necessary state cleanup.
 	 */
 	default void cleanup() {
