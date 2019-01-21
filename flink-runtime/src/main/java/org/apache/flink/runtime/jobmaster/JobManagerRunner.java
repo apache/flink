@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -35,13 +36,17 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -81,6 +86,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 
 	private final CompletableFuture<Void> terminationFuture;
 
+	private CompletableFuture<Void> leadershipOperation;
+
 	/** flag marking the runner as shut down. */
 	private volatile boolean shutdown;
 
@@ -105,6 +112,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 
 		this.resultFuture = new CompletableFuture<>();
 		this.terminationFuture = new CompletableFuture<>();
+		this.leadershipOperation = CompletableFuture.completedFuture(null);
 
 		// make sure we cleanly shut down out JobManager services if initialization fails
 		try {
@@ -277,38 +285,72 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 				return;
 			}
 
-			try {
-				verifyJobSchedulingStatusAndStartJobManager(leaderSessionID);
-			} catch (Exception e) {
-				handleJobManagerRunnerError(e);
-			}
+			leadershipOperation = leadershipOperation.thenCompose(
+				(ignored) -> {
+					synchronized (lock) {
+						return verifyJobSchedulingStatusAndStartJobManager(leaderSessionID);
+					}
+				});
+
+			handleException(leadershipOperation, "Could not start the job manager.");
 		}
 	}
 
-	private void verifyJobSchedulingStatusAndStartJobManager(UUID leaderSessionId) throws Exception {
-		final JobSchedulingStatus jobSchedulingStatus = runningJobsRegistry.getJobSchedulingStatus(jobGraph.getJobID());
+	private CompletableFuture<Void> verifyJobSchedulingStatusAndStartJobManager(UUID leaderSessionId) {
+		final CompletableFuture<JobSchedulingStatus> jobSchedulingStatusFuture = getJobSchedulingStatus();
 
-		if (jobSchedulingStatus == JobSchedulingStatus.DONE) {
-			log.info("Granted leader ship but job {} has been finished. ", jobGraph.getJobID());
-			jobFinishedByOther();
-		} else {
-			log.info("JobManager runner for job {} ({}) was granted leadership with session id {} at {}.",
-				jobGraph.getName(), jobGraph.getJobID(), leaderSessionId, getAddress());
+		return jobSchedulingStatusFuture.thenCompose(
+			jobSchedulingStatus -> {
+				if (jobSchedulingStatus == JobSchedulingStatus.DONE) {
+					return jobAlreadyDone();
+				} else {
+					return startJobMaster(leaderSessionId);
+				}
+			});
+	}
 
+	private CompletionStage<Void> startJobMaster(UUID leaderSessionId) {
+		log.info("JobManager runner for job {} ({}) was granted leadership with session id {} at {}.",
+			jobGraph.getName(), jobGraph.getJobID(), leaderSessionId, getAddress());
+
+		try {
 			runningJobsRegistry.setJobRunning(jobGraph.getJobID());
+		} catch (IOException e) {
+			return FutureUtils.completedExceptionally(
+				new FlinkException(
+					String.format("Failed to set the job %s to running in the running jobs registry.", jobGraph.getJobID()),
+					e));
+		}
 
-			final CompletableFuture<Acknowledge> startFuture = jobMasterService.start(new JobMasterId(leaderSessionId));
-			final CompletableFuture<JobMasterGateway> currentLeaderGatewayFuture = leaderGatewayFuture;
+		final CompletableFuture<Acknowledge> startFuture;
+		try {
+			startFuture = jobMasterService.start(new JobMasterId(leaderSessionId));
+		} catch (Exception e) {
+			return FutureUtils.completedExceptionally(new FlinkException("Failed to start the JobMaster.", e));
+		}
 
-			startFuture.whenCompleteAsync(
-				(Acknowledge ack, Throwable throwable) -> {
-					if (throwable != null) {
-						handleJobManagerRunnerError(new FlinkException("Could not start the job manager.", throwable));
-					} else {
-						confirmLeaderSessionIdIfStillLeader(leaderSessionId, currentLeaderGatewayFuture);
-					}
-				},
-				executor);
+		final CompletableFuture<JobMasterGateway> currentLeaderGatewayFuture = leaderGatewayFuture;
+		return startFuture.thenAcceptAsync(
+			(Acknowledge ack) -> confirmLeaderSessionIdIfStillLeader(leaderSessionId, currentLeaderGatewayFuture),
+			executor);
+	}
+
+	@Nonnull
+	private CompletionStage<Void> jobAlreadyDone() {
+		log.info("Granted leader ship but job {} has been finished. ", jobGraph.getJobID());
+		jobFinishedByOther();
+		return CompletableFuture.completedFuture(null);
+	}
+
+	private CompletableFuture<JobSchedulingStatus> getJobSchedulingStatus() {
+		try {
+			JobSchedulingStatus jobSchedulingStatus = runningJobsRegistry.getJobSchedulingStatus(jobGraph.getJobID());
+			return CompletableFuture.completedFuture(jobSchedulingStatus);
+		} catch (IOException e) {
+			return FutureUtils.completedExceptionally(
+				new FlinkException(
+					String.format("Could not retrieve the job scheduling status for job %s.", jobGraph.getJobID()),
+					e));
 		}
 	}
 
@@ -329,21 +371,35 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 				return;
 			}
 
-			log.info("JobManager for job {} ({}) was revoked leadership at {}.",
-				jobGraph.getName(), jobGraph.getJobID(), getAddress());
-
-			setNewLeaderGatewayFuture();
-
-			CompletableFuture<Acknowledge>  suspendFuture = jobMasterService.suspend(new FlinkException("JobManager is no longer the leader."));
-
-			suspendFuture.whenCompleteAsync(
-				(Acknowledge ack, Throwable throwable) -> {
-					if (throwable != null) {
-						handleJobManagerRunnerError(new FlinkException("Could not suspend the job manager.", throwable));
+			leadershipOperation = leadershipOperation.thenCompose(
+				(ignored) -> {
+					synchronized (lock) {
+						return revokeJobMasterLeadership();
 					}
-				},
-				executor);
+				});
+
+			handleException(leadershipOperation, "Could not suspend the job manager.");
 		}
+	}
+
+	private CompletableFuture<Void> revokeJobMasterLeadership() {
+		log.info("JobManager for job {} ({}) was revoked leadership at {}.",
+			jobGraph.getName(), jobGraph.getJobID(), getAddress());
+
+		setNewLeaderGatewayFuture();
+
+		return jobMasterService
+			.suspend(new FlinkException("JobManager is no longer the leader."))
+			.thenApply(FunctionUtils.nullFn());
+	}
+
+	private void handleException(CompletableFuture<Void> leadershipOperation, String message) {
+		leadershipOperation.whenComplete(
+			(ignored, throwable) -> {
+				if (throwable != null) {
+					handleJobManagerRunnerError(new FlinkException(message, throwable));
+				}
+			});
 	}
 
 	private void setNewLeaderGatewayFuture() {

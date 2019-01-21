@@ -48,7 +48,7 @@ public interface SlotPoolGateway extends AllocatedSlotActions, RpcGateway {
 	//  shutdown
 	// ------------------------------------------------------------------------
 
-	void suspend();
+	CompletableFuture<Acknowledge> suspend();
 
 	// ------------------------------------------------------------------------
 	//  resource manager connection

@@ -24,14 +24,25 @@ import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterService;
 import org.apache.flink.runtime.jobmaster.TestingJobMasterService;
 
+import java.util.function.Supplier;
+
 /**
  * Testing implementation of the {@link JobMasterServiceFactory} which returns a {@link JobMaster} mock.
  */
-public enum TestingJobMasterFactory implements JobMasterServiceFactory {
-	INSTANCE;
+public class TestingJobMasterServiceFactory implements JobMasterServiceFactory {
+
+	private final Supplier<JobMasterService> jobMasterServiceSupplier;
+
+	public TestingJobMasterServiceFactory(Supplier<JobMasterService> jobMasterServiceSupplier) {
+		this.jobMasterServiceSupplier = jobMasterServiceSupplier;
+	}
+
+	public TestingJobMasterServiceFactory() {
+		this(TestingJobMasterService::new);
+	}
 
 	@Override
 	public JobMasterService createJobMasterService(JobGraph jobGraph, OnCompletionActions jobCompletionActions, ClassLoader userCodeClassloader) {
-		return new TestingJobMasterService();
+		return jobMasterServiceSupplier.get();
 	}
 }
