@@ -46,6 +46,11 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-fs-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 		<!-- Hadoop's file system abstraction (bundled) -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>

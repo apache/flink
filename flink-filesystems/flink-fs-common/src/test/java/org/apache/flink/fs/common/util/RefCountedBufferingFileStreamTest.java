@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.fs.s3.common.utils;
+package org.apache.flink.fs.common.util;
 
 import org.junit.Assert;
 import org.junit.Rule;

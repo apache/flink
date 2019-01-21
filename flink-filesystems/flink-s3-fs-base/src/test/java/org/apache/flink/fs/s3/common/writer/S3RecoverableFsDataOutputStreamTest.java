@@ -20,9 +20,9 @@ package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
-import org.apache.flink.fs.s3.common.utils.RefCountedBufferingFileStream;
-import org.apache.flink.fs.s3.common.utils.RefCountedFSOutputStream;
-import org.apache.flink.fs.s3.common.utils.RefCountedFile;
+import org.apache.flink.fs.common.util.RefCountedBufferingFileStream;
+import org.apache.flink.fs.common.util.RefCountedFSOutputStream;
+import org.apache.flink.fs.common.util.RefCountedFile;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionWithException;

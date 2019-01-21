@@ -16,31 +16,47 @@
  * limitations under the License.
  */
 
-package org.apache.flink.fs.s3.common.utils;
+package org.apache.flink.fs.common.util;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.util.IOUtils;
 
-import java.io.File;
+import java.io.Closeable;
 import java.io.IOException;
+import java.io.OutputStream;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link FSDataOutputStream} with the {@link RefCounted} functionality.
+ * An {@link OutputStream} that keeps track of its current length.
  */
 @Internal
-public abstract class RefCountedFSOutputStream extends FSDataOutputStream implements RefCounted {
+public final class OffsetAwareOutputStream implements Closeable {
 
-	/**
-	 * Gets the underlying {@link File} that allows to read the contents of the file.
-	 *
-	 * @return A handle to the File object.
-	 */
-	public abstract File getInputFile();
+	private final OutputStream currentOut;
 
-	/**
-	 * Checks if the file is closed for writes.
-	 *
-	 * @return {@link true} if the file is closed, {@link false} otherwise.
-	 */
-	public abstract boolean isClosed() throws IOException;
+	private long position;
+
+	OffsetAwareOutputStream(OutputStream currentOut, long position) {
+		this.currentOut = checkNotNull(currentOut);
+		this.position = position;
+	}
+
+	public long getLength() {
+		return position;
+	}
+
+	public void write(byte[] b, int off, int len) throws IOException {
+		currentOut.write(b, off, len);
+		position += len;
+	}
+
+	public void flush() throws IOException {
+		currentOut.flush();
+	}
+
+	@Override
+	public void close() {
+		IOUtils.closeQuietly(currentOut);
+	}
 }
