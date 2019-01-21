@@ -632,24 +632,6 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			cacheEntryDuration,
 			FileType.LOG);
 
-		final TaskManagerLogFileHandler taskManagerLogFileWithRangeHandler = new TaskManagerLogFileHandler(
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			TaskManagerLogFileWithRangeHeaders.getInstance(),
-			resourceManagerRetriever,
-			transientBlobService,
-			cacheEntryDuration);
-
-		final TaskManagerLogFileHandler taskManagerHistoricalLogFileHandler = new TaskManagerLogFileHandler(
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			TaskManagerHistoricalLogFileHeaders.getInstance(),
-			resourceManagerRetriever,
-			transientBlobService,
-			cacheEntryDuration);
-
 		final TaskManagerLogFileHandler taskManagerStdoutFileHandler = new TaskManagerLogFileHandler(
 			leaderRetriever,
 			timeout,
@@ -669,8 +651,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
 		handlers.add(Tuple2.of(TaskManagerLogFileHeaders.getInstance(), taskManagerLogFileHandler));
 		handlers.add(Tuple2.of(TaskManagerStdoutFileHeaders.getInstance(), taskManagerStdoutFileHandler));
-
 		handlers.add(Tuple2.of(TaskManagerLogListHeaders.getInstance(), taskManagerLogListHandler));
+
 		handlers.stream()
 			.map(tuple -> tuple.f1)
 			.filter(handler -> handler instanceof JsonArchivist)

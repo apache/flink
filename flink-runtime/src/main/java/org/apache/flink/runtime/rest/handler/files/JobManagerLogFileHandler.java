@@ -122,6 +122,7 @@ public class JobManagerLogFileHandler extends AbstractHandler<RestfulGateway, Em
 					ctx.newProgressivePromise());
 				// HttpChunkedInput will write the end marker (LastHttpContent) for us.
 			}
+			raf.close();
 
 			// close the connection, if no keep-alive is needed
 			if (!HttpHeaders.isKeepAlive(httpRequest)) {
