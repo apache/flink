@@ -60,7 +60,7 @@ public enum SessionDispatcherFactory implements DispatcherFactory<Dispatcher> {
 			jobManagerMetricGroup,
 			metricQueryServicePath,
 			archivedExecutionGraphStore,
-			Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
+			DefaultJobManagerRunnerFactory.INSTANCE,
 			fatalErrorHandler,
 			historyServerArchivist);
 	}

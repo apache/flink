@@ -19,25 +19,19 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobSchedulingStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
-import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
-import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolFactory;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
+import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceFactory;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -48,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -74,7 +69,9 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	/** Leader election for this job. */
 	private final LeaderElectionService leaderElectionService;
 
-	private final JobManagerSharedServices jobManagerSharedServices;
+	private final LibraryCacheManager libraryCacheManager;
+
+	private final Executor executor;
 
 	private final JobMasterService jobMasterService;
 
@@ -99,14 +96,11 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	 *                   required services could not be started, or the Job could not be initialized.
 	 */
 	public JobManagerRunner(
-			final ResourceID resourceId,
 			final JobGraph jobGraph,
-			final Configuration configuration,
-			final RpcService rpcService,
+			final JobMasterServiceFactory jobMasterFactory,
 			final HighAvailabilityServices haServices,
-			final HeartbeatServices heartbeatServices,
-			final JobManagerSharedServices jobManagerSharedServices,
-			final JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+			final LibraryCacheManager libraryCacheManager,
+			final Executor executor,
 			final FatalErrorHandler fatalErrorHandler) throws Exception {
 
 		this.resultFuture = new CompletableFuture<>();
@@ -115,13 +109,13 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 		// make sure we cleanly shut down out JobManager services if initialization fails
 		try {
 			this.jobGraph = checkNotNull(jobGraph);
-			this.jobManagerSharedServices = checkNotNull(jobManagerSharedServices);
+			this.libraryCacheManager = checkNotNull(libraryCacheManager);
+			this.executor = checkNotNull(executor);
 			this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
 			checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
 
 			// libraries and class loader first
-			final LibraryCacheManager libraryCacheManager = jobManagerSharedServices.getLibraryCacheManager();
 			try {
 				libraryCacheManager.registerJob(
 						jobGraph.getJobID(), jobGraph.getUserJarBlobKeys(), jobGraph.getClasspaths());
@@ -138,28 +132,10 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 			this.runningJobsRegistry = haServices.getRunningJobsRegistry();
 			this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
-			final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
-
 			this.leaderGatewayFuture = new CompletableFuture<>();
 
-			final SlotPoolFactory slotPoolFactory = DefaultSlotPoolFactory.fromConfiguration(
-				configuration,
-				rpcService);
-
 			// now start the JobManager
-			this.jobMasterService = new JobMaster(
-				rpcService,
-				jobMasterConfiguration,
-				resourceId,
-				jobGraph,
-				haServices,
-				slotPoolFactory,
-				jobManagerSharedServices,
-				heartbeatServices,
-				jobManagerJobMetricGroupFactory,
-				this,
-				fatalErrorHandler,
-				userCodeLoader);
+			this.jobMasterService = jobMasterFactory.createJobMasterService(jobGraph, this, userCodeLoader);
 		}
 		catch (Throwable t) {
 			terminationFuture.completeExceptionally(t);
@@ -217,7 +193,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 							throwable = ExceptionUtils.firstOrSuppressed(t, ExceptionUtils.stripCompletionException(throwable));
 						}
 
-						final LibraryCacheManager libraryCacheManager = jobManagerSharedServices.getLibraryCacheManager();
 						libraryCacheManager.unregisterJob(jobGraph.getJobID());
 
 						if (throwable != null) {
@@ -333,7 +308,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 						confirmLeaderSessionIdIfStillLeader(leaderSessionId, currentLeaderGatewayFuture);
 					}
 				},
-				jobManagerSharedServices.getScheduledExecutorService());
+				executor);
 		}
 	}
 
@@ -367,7 +342,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 						handleJobManagerRunnerError(new FlinkException("Could not suspend the job manager.", throwable));
 					}
 				},
-				jobManagerSharedServices.getScheduledExecutorService());
+				executor);
 		}
 	}
 

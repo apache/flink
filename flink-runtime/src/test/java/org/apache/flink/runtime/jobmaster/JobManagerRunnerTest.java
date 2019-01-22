@@ -19,24 +19,23 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.BlobServerOptions;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.FailingPermanentBlobService;
 import org.apache.flink.runtime.blob.VoidPermanentBlobService;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
+import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceFactory;
+import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterFactory;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
-import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
@@ -68,30 +67,26 @@ public class JobManagerRunnerTest extends TestLogger {
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private static Configuration configuration;
-
-	private static TestingRpcService rpcService;
-
-	private static HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
-
-	private static JobManagerSharedServices jobManagerSharedServices;
-
 	private static JobGraph jobGraph;
 
 	private static ArchivedExecutionGraph archivedExecutionGraph;
+
+	private static LibraryCacheManager libraryCacheManager;
+
+	private static JobMasterServiceFactory jobMasterFactory;
 
 	private TestingHighAvailabilityServices haServices;
 
 	private TestingFatalErrorHandler fatalErrorHandler;
 
 	@BeforeClass
-	public static void setupClass() throws Exception {
-		configuration = new Configuration();
-		rpcService = new TestingRpcService();
+	public static void setupClass() {
+		libraryCacheManager = new BlobLibraryCacheManager(
+			FailingPermanentBlobService.INSTANCE,
+			FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
+			new String[]{});
 
-		configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
-		jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+		jobMasterFactory = TestingJobMasterFactory.INSTANCE;
 
 		final JobVertex jobVertex = new JobVertex("Test vertex");
 		jobVertex.setInvokableClass(NoOpInvokable.class);
@@ -119,13 +114,9 @@ public class JobManagerRunnerTest extends TestLogger {
 	}
 
 	@AfterClass
-	public static void tearDownClass() throws Exception {
-		if (jobManagerSharedServices != null) {
-			jobManagerSharedServices.shutdown();
-		}
-
-		if (rpcService != null) {
-			rpcService.stopService();
+	public static void tearDownClass() {
+		if (libraryCacheManager != null) {
+			libraryCacheManager.shutdown();
 		}
 	}
 
@@ -202,10 +193,7 @@ public class JobManagerRunnerTest extends TestLogger {
 			VoidPermanentBlobService.INSTANCE,
 			FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
 			new String[]{});
-		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder()
-			.setLibraryCacheManager(libraryCacheManager)
-			.build();
-		final JobManagerRunner jobManagerRunner = createJobManagerRunner(jobManagerSharedServices);
+		final JobManagerRunner jobManagerRunner = createJobManagerRunner(libraryCacheManager);
 
 		try {
 			jobManagerRunner.start();
@@ -222,21 +210,18 @@ public class JobManagerRunnerTest extends TestLogger {
 	}
 
 	@Nonnull
-	private JobManagerRunner createJobManagerRunner() throws Exception {
-		return createJobManagerRunner(jobManagerSharedServices);
+	private JobManagerRunner createJobManagerRunner(LibraryCacheManager libraryCacheManager) throws Exception {
+		return new JobManagerRunner(
+			jobGraph,
+			jobMasterFactory,
+			haServices,
+			libraryCacheManager,
+			TestingUtils.defaultExecutor(),
+			fatalErrorHandler);
 	}
 
 	@Nonnull
-	private JobManagerRunner createJobManagerRunner(final JobManagerSharedServices jobManagerSharedServices) throws Exception {
-		return new JobManagerRunner(
-			ResourceID.generate(),
-			jobGraph,
-			configuration,
-			rpcService,
-			haServices,
-			heartbeatServices,
-			jobManagerSharedServices,
-			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
-			fatalErrorHandler);
+	private JobManagerRunner createJobManagerRunner() throws Exception {
+		return createJobManagerRunner(libraryCacheManager);
 	}
 }
