@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.AutoCloseableAsync;
 
@@ -33,21 +32,19 @@ public interface JobMasterService extends AutoCloseableAsync {
 	 * Start the JobMaster service with the given {@link JobMasterId}.
 	 *
 	 * @param jobMasterId to start the service with
-	 * @param rpcTimeout timeout of this operation
 	 * @return Future which is completed once the JobMaster service has been started
 	 * @throws Exception if the JobMaster service could not be started
 	 */
-	CompletableFuture<Acknowledge> start(JobMasterId jobMasterId, Time rpcTimeout) throws Exception;
+	CompletableFuture<Acknowledge> start(JobMasterId jobMasterId) throws Exception;
 
 	/**
 	 * Suspend the JobMaster service. This means that the service will stop to react
 	 * to messages.
 	 *
 	 * @param cause for the suspension
-	 * @param rpcTimeout timeout of this operation
 	 * @return Future which is completed once the JobMaster service has been suspended
 	 */
-	CompletableFuture<Acknowledge> suspend(Exception cause, Time rpcTimeout);
+	CompletableFuture<Acknowledge> suspend(Exception cause);
 
 	/**
 	 * Get the {@link JobMasterGateway} belonging to this service.

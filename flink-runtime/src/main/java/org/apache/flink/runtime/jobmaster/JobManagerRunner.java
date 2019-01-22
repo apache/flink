@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -81,8 +80,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 
 	private final FatalErrorHandler fatalErrorHandler;
 
-	private final Time rpcTimeout;
-
 	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
 
 	private final CompletableFuture<Void> terminationFuture;
@@ -142,8 +139,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 			this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
 			final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
-
-			this.rpcTimeout = jobMasterConfiguration.getRpcTimeout();
 
 			this.leaderGatewayFuture = new CompletableFuture<>();
 
@@ -327,7 +322,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 
 			runningJobsRegistry.setJobRunning(jobGraph.getJobID());
 
-			final CompletableFuture<Acknowledge> startFuture = jobMasterService.start(new JobMasterId(leaderSessionId), rpcTimeout);
+			final CompletableFuture<Acknowledge> startFuture = jobMasterService.start(new JobMasterId(leaderSessionId));
 			final CompletableFuture<JobMasterGateway> currentLeaderGatewayFuture = leaderGatewayFuture;
 
 			startFuture.whenCompleteAsync(
@@ -364,7 +359,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 
 			setNewLeaderGatewayFuture();
 
-			CompletableFuture<Acknowledge>  suspendFuture = jobMasterService.suspend(new FlinkException("JobManager is no longer the leader."), rpcTimeout);
+			CompletableFuture<Acknowledge>  suspendFuture = jobMasterService.suspend(new FlinkException("JobManager is no longer the leader."));
 
 			suspendFuture.whenCompleteAsync(
 				(Acknowledge ack, Throwable throwable) -> {

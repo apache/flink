@@ -282,7 +282,7 @@ public class JobMasterTest extends TestLogger {
 				}
 			};
 
-			jobMaster.start(jobMasterId, testingTimeout).get();
+			jobMaster.start(jobMasterId).get();
 
 			final String className = "UserException";
 			final URLClassLoader userClassLoader = ClassLoaderUtils.compileAndLoadJava(
@@ -334,7 +334,7 @@ public class JobMasterTest extends TestLogger {
 			haServices,
 			jobManagerSharedServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 
 		try {
 			// wait for the start to complete
@@ -401,7 +401,7 @@ public class JobMasterTest extends TestLogger {
 			haServices,
 			jobManagerSharedServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 
 		try {
 			// wait for the start operation to complete
@@ -640,7 +640,7 @@ public class JobMasterTest extends TestLogger {
 
 		try {
 			final long start = System.nanoTime();
-			jobMaster.start(JobMasterId.generate(), testingTimeout).get();
+			jobMaster.start(JobMasterId.generate()).get();
 
 			final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 			final ArrayBlockingQueue<SlotRequest> blockingQueue = new ArrayBlockingQueue<>(2);
@@ -706,7 +706,7 @@ public class JobMasterTest extends TestLogger {
 			new TestingJobManagerSharedServicesBuilder().build());
 
 		try {
-			jobMaster.start(JobMasterId.generate(), testingTimeout).get();
+			jobMaster.start(JobMasterId.generate()).get();
 			final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 			final String firstResourceManagerAddress = "address1";
 			final String secondResourceManagerAddress = "address2";
@@ -755,7 +755,7 @@ public class JobMasterTest extends TestLogger {
 
 		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 
 		try {
 			// wait for the start to complete
@@ -799,7 +799,7 @@ public class JobMasterTest extends TestLogger {
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build());
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 
 		try {
 			// wait for the start to complete
@@ -820,11 +820,11 @@ public class JobMasterTest extends TestLogger {
 
 			assertThat(firstRegistrationAttempt, equalTo(jobMasterId));
 
-			jobMaster.suspend(new FlinkException("Test exception."), testingTimeout).get();
+			jobMaster.suspend(new FlinkException("Test exception.")).get();
 
 			final JobMasterId jobMasterId2 = JobMasterId.generate();
 
-			jobMaster.start(jobMasterId2, testingTimeout).get();
+			jobMaster.start(jobMasterId2).get();
 
 			final JobMasterId secondRegistrationAttempt = registrationQueue.take();
 
@@ -866,7 +866,7 @@ public class JobMasterTest extends TestLogger {
 			haServices,
 			jobManagerSharedServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 
 		try {
 			// wait for the start to complete
@@ -991,7 +991,7 @@ public class JobMasterTest extends TestLogger {
 			new TestingJobManagerSharedServicesBuilder().build(),
 			heartbeatServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
 		try {
@@ -1021,7 +1021,7 @@ public class JobMasterTest extends TestLogger {
 			new TestingJobManagerSharedServicesBuilder().build(),
 			heartbeatServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
 		try {
@@ -1066,7 +1066,7 @@ public class JobMasterTest extends TestLogger {
 			new TestingJobManagerSharedServicesBuilder().build(),
 			heartbeatServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
 		try {
@@ -1104,7 +1104,7 @@ public class JobMasterTest extends TestLogger {
 			new TestingJobManagerSharedServicesBuilder().build(),
 			heartbeatServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
 		try {
@@ -1167,7 +1167,7 @@ public class JobMasterTest extends TestLogger {
 			new TestingJobManagerSharedServicesBuilder().build(),
 			heartbeatServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
 		try {
@@ -1222,7 +1222,7 @@ public class JobMasterTest extends TestLogger {
 			new TestingJobManagerSharedServicesBuilder().build(),
 			heartbeatServices);
 
-		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 
 		try {
 			// wait for the start to complete
@@ -1342,7 +1342,7 @@ public class JobMasterTest extends TestLogger {
 		};
 
 		try {
-			final CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+			final CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId);
 			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
@@ -1402,7 +1402,7 @@ public class JobMasterTest extends TestLogger {
 		rpcService.registerGateway(testingTaskExecutorGateway.getAddress(), testingTaskExecutorGateway);
 
 		try {
-			jobMaster.start(jobMasterId, testingTimeout).get();
+			jobMaster.start(jobMasterId).get();
 
 			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
