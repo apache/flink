@@ -31,7 +31,7 @@ import java.util.AbstractMap;
 import java.util.Map;
 
 /**
- * Extends base Kafka09ConsumerRecord to provide access to Kafka headers.
+ * Extends base {@link Kafka09ConsumerRecord} to provide access to Kafka headers.
  */
 class Kafka011ConsumerRecord extends Kafka09ConsumerRecord {
 	/**
