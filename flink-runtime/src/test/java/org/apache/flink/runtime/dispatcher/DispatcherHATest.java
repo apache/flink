@@ -293,11 +293,6 @@ public class DispatcherHATest extends TestLogger {
 		return new TestingJobManagerRunnerFactory(new CompletableFuture<>(), new CompletableFuture<>(), CompletableFuture.completedFuture(null));
 	}
 
-	@Nonnull
-	private HATestingDispatcher createDispatcherWithJobManagerRunnerFactory(HighAvailabilityServices highAvailabilityServices, Dispatcher.JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
-		return createDispatcher(highAvailabilityServices, null, jobManagerRunnerFactory);
-	}
-
 	private HATestingDispatcher createDispatcher(HighAvailabilityServices haServices) throws Exception {
 		return createDispatcher(
 			haServices,
@@ -309,7 +304,7 @@ public class DispatcherHATest extends TestLogger {
 	private HATestingDispatcher createDispatcher(
 		HighAvailabilityServices highAvailabilityServices,
 		@Nullable Queue<DispatcherId> fencingTokens,
-		Dispatcher.JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
+		JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
 		final Configuration configuration = new Configuration();
 
 		return new HATestingDispatcher(

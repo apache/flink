@@ -75,7 +75,7 @@ public class JobDispatcherFactory implements DispatcherFactory<MiniDispatcher> {
 			jobManagerMetricGroup,
 			metricQueryServicePath,
 			archivedExecutionGraphStore,
-			Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
+			DefaultJobManagerRunnerFactory.INSTANCE,
 			fatalErrorHandler,
 			historyServerArchivist,
 			jobGraph,

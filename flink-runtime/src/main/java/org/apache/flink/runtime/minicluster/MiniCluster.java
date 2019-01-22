@@ -37,6 +37,7 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.dispatcher.DefaultJobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
@@ -400,7 +401,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					jobManagerMetricGroup,
 					metricRegistry.getMetricQueryServicePath(),
 					new MemoryArchivedExecutionGraphStore(),
-					Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
+					DefaultJobManagerRunnerFactory.INSTANCE,
 					new ShutDownFatalErrorHandler(),
 					historyServerArchivist);
 
