@@ -747,7 +747,10 @@ public class CheckpointCoordinator {
 
 			if (checkpoint != null && !checkpoint.isDiscarded()) {
 
-				switch (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getSubtaskState(), message.getCheckpointMetrics())) {
+				PendingCheckpoint.TaskAcknowledgeResult taskAcknowledgeResult =
+					checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getSubtaskState(), message.getCheckpointMetrics());
+
+				switch (taskAcknowledgeResult) {
 					case SUCCESS:
 						LOG.debug("Received acknowledge message for checkpoint {} from task {} of job {}.",
 							checkpointId, message.getTaskExecutionId(), message.getJob());
@@ -776,6 +779,10 @@ public class CheckpointCoordinator {
 							message.getCheckpointId(), message.getTaskExecutionId(), message.getJob());
 
 						discardSubtaskState(message.getJob(), message.getTaskExecutionId(), message.getCheckpointId(), message.getSubtaskState());
+						break;
+					default:
+						throw new RuntimeException("Unknown taskAcknowledgeResult: " + taskAcknowledgeResult);
+
 				}
 
 				return true;
