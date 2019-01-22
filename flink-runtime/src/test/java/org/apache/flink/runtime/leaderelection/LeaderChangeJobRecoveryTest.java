@@ -29,6 +29,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -39,16 +40,19 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
-
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
+
 import static org.junit.Assert.assertTrue;
 
+/**
+ * test for leader change job recovery.
+ */
 public class LeaderChangeJobRecoveryTest extends TestLogger {
 
 	private static FiniteDuration timeout = FiniteDuration.apply(30, TimeUnit.SECONDS);
@@ -65,8 +69,6 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 	@Before
 	public void before() throws TimeoutException, InterruptedException {
 		jobId = HighAvailabilityServices.DEFAULT_JOB_ID;
-
-		Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(true);
 
 		Configuration configuration = new Configuration();
 
@@ -132,7 +134,8 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 
 		highAvailabilityServices.revokeLeadership(jobId);
 
-		executionGraph.getTerminationFuture().get(30, TimeUnit.SECONDS);
+		JobStatus js = executionGraph.getTerminationFuture().get(30, TimeUnit.SECONDS);
+		assertTrue(js != JobStatus.RESTARTING || !js.isTerminalState());
 	}
 
 	public JobGraph createBlockingJob(int parallelism) {
