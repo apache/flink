@@ -641,7 +641,7 @@ public class FlinkKafkaProducer011<IN>
 		} else {
 			record = new ProducerRecord<>(targetTopic, null, timestamp, serializedKey, serializedValue);
 		}
-		for (Map.Entry<String, byte[]> header: schema.headers(next)) {
+		for (Map.Entry<String, byte[]> header : schema.headers(next)) {
 			record.headers().add(header.getKey(), header.getValue());
 		}
 		pendingRecords.incrementAndGet();
