@@ -123,8 +123,7 @@ public class SlidingProcessingTimeWindows extends WindowAssigner<Object, TimeWin
 	 * @return The time policy.
 	 */
 	public static SlidingProcessingTimeWindows of(Time size, Time slide, Time offset) {
-		return new SlidingProcessingTimeWindows(size.toMilliseconds(), slide.toMilliseconds(),
-			offset.toMilliseconds() % slide.toMilliseconds());
+		return new SlidingProcessingTimeWindows(size.toMilliseconds(), slide.toMilliseconds(), offset.toMilliseconds());
 	}
 
 	@Override

@@ -130,8 +130,7 @@ public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> 
 	 * @return The time policy.
 	 */
 	public static SlidingEventTimeWindows of(Time size, Time slide, Time offset) {
-		return new SlidingEventTimeWindows(size.toMilliseconds(), slide.toMilliseconds(),
-			offset.toMilliseconds() % slide.toMilliseconds());
+		return new SlidingEventTimeWindows(size.toMilliseconds(), slide.toMilliseconds(), offset.toMilliseconds());
 	}
 
 	@Override
