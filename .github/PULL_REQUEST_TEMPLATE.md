@@ -73,9 +73,7 @@ This change added tests and can be verified as follows:
 
 ----
 
-# Review Progress
-
-**NOTE: THE REVIEW PROGRESS MUST ONLY BE UPDATED BY AN APACHE FLINK COMMITTER!**
+# Review Progress <!-- NOTE: DO NOT REMOVE THIS SECTION! -->
 
 * [ ] 1. The contribution is well-described.
 * [ ] 2. There is consensus that the contribution should go into to Flink.
