@@ -22,6 +22,7 @@ import org.apache.flink.runtime.rest.handler.job.JobExceptionsHandler;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
@@ -88,11 +89,15 @@ public class JobExceptionsInfo implements ResponseBody {
 	/**
 	 * Nested class to encapsulate the task execution exception.
 	 */
-	public static final class ExecutionExceptionInfo {
+	public static final class ExecutionExceptionInfo implements Comparable<ExecutionExceptionInfo> {
 		public static final String FIELD_NAME_EXCEPTION = "exception";
 		public static final String FIELD_NAME_TASK = "task";
 		public static final String FIELD_NAME_LOCATION = "location";
 		public static final String FIELD_NAME_TIMESTAMP = "timestamp";
+		public static final String FIELD_NAME_VERTEX_ID = "vertex-id";
+		public static final String FIELD_NAME_VERTEX_NAME = "vertex-name";
+		public static final String FIELD_NAME_SUBTASK_INDEX = "subtask-index";
+		public static final String FIELD_NAME_ATTEMPT_NUM = "attempt-num";
 
 		@JsonProperty(FIELD_NAME_EXCEPTION)
 		private final String exception;
@@ -106,16 +111,36 @@ public class JobExceptionsInfo implements ResponseBody {
 		@JsonProperty(FIELD_NAME_TIMESTAMP)
 		private final long timestamp;
 
+		@JsonProperty(FIELD_NAME_VERTEX_ID)
+		private final String vertexID;
+
+		@JsonProperty(FIELD_NAME_VERTEX_NAME)
+		private final String vertexName;
+
+		@JsonProperty(FIELD_NAME_SUBTASK_INDEX)
+		private final int subtaskIndex;
+
+		@JsonProperty(FIELD_NAME_ATTEMPT_NUM)
+		private final int attemptNum;
+
 		@JsonCreator
 		public ExecutionExceptionInfo(
 			@JsonProperty(FIELD_NAME_EXCEPTION) String exception,
 			@JsonProperty(FIELD_NAME_TASK) String task,
 			@JsonProperty(FIELD_NAME_LOCATION) String location,
-			@JsonProperty(FIELD_NAME_TIMESTAMP) long timestamp) {
+			@JsonProperty(FIELD_NAME_TIMESTAMP) long timestamp,
+			@JsonProperty(FIELD_NAME_VERTEX_ID) String vertexID,
+			@JsonProperty(FIELD_NAME_VERTEX_NAME) String vertexName,
+			@JsonProperty(FIELD_NAME_SUBTASK_INDEX) int subtaskIndex,
+			@JsonProperty(FIELD_NAME_ATTEMPT_NUM) int attemptNum) {
 			this.exception = Preconditions.checkNotNull(exception);
 			this.task = Preconditions.checkNotNull(task);
 			this.location = Preconditions.checkNotNull(location);
 			this.timestamp = timestamp;
+			this.vertexID = vertexID;
+			this.vertexName = vertexName;
+			this.subtaskIndex = subtaskIndex;
+			this.attemptNum = attemptNum;
 		}
 
 		@Override
@@ -128,14 +153,48 @@ public class JobExceptionsInfo implements ResponseBody {
 			}
 			JobExceptionsInfo.ExecutionExceptionInfo that = (JobExceptionsInfo.ExecutionExceptionInfo) o;
 			return timestamp == that.timestamp &&
+				subtaskIndex == subtaskIndex &&
+				attemptNum == attemptNum &&
 				Objects.equals(exception, that.exception) &&
 				Objects.equals(task, that.task) &&
-				Objects.equals(location, that.location);
+				Objects.equals(location, that.location) &&
+				Objects.equals(vertexID, that.vertexID) &&
+				Objects.equals(vertexName, that.vertexName);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(timestamp, exception, task, location);
+			return Objects.hash(timestamp, exception, task, location, vertexID, vertexName, subtaskIndex, attemptNum);
+		}
+
+		@Override
+		public int compareTo(ExecutionExceptionInfo o) {
+			return Long.compare(timestamp, o.timestamp);
+		}
+
+		@JsonIgnore
+		public long getTimestamp() {
+			return timestamp;
+		}
+
+		@JsonIgnore
+		public String getVertexID() {
+			return vertexID;
+		}
+
+		@JsonIgnore
+		public String getVertexName() {
+			return vertexName;
+		}
+
+		@JsonIgnore
+		public int getSubtaskIndex() {
+			return subtaskIndex;
+		}
+
+		@JsonIgnore
+		public int getAttemptNum() {
+			return attemptNum;
 		}
 	}
 }
