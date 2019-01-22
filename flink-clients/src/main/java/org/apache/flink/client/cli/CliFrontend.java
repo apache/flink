@@ -881,7 +881,7 @@ public class CliFrontend {
 	private static int handleArgException(CliArgsException e) {
 		LOG.error("Invalid command line arguments.", e);
 
-		System.out.println(e.getMessage());
+		e.printStackTrace();
 		System.out.println();
 		System.out.println("Use the help option (-h or --help) to get help on the command.");
 		return 1;
