@@ -23,21 +23,24 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Proxy;
+import java.net.URLClassLoader;
 import java.util.Objects;
 import java.util.Random;
-import java.util.function.Supplier;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -50,15 +53,30 @@ import static org.junit.Assert.fail;
  */
 public class InstantiationUtilTest extends TestLogger {
 
+	@ClassRule
+	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	@Test
 	public void testResolveProxyClass() throws Exception {
 
-		UserDefineFunction func = serializableProxy((Supplier<UserDefineFunction> & Serializable) () ->
-			new UserDefineFunctionImpl(), UserDefineFunction.class);
+		UserDefineFunctionImpl method = new UserDefineFunctionImpl();
+		final String className = "UserDefineFunctionImpl";
+		final URLClassLoader userClassLoader = ClassLoaderUtils.compileAndLoadJava(
+			temporaryFolder.newFolder(),
+			className + ".java",
+			"import java.io.Serializable;\n"
+				+ "interface UserDefineFunction { void test();}\n"
+				+ "public class " + className + " implements UserDefineFunction, Serializable {public void test() {} }");
 
-		final Configuration config = new Configuration();
-		InstantiationUtil.writeObjectToConfig(func, config, "test");
-		InstantiationUtil.readObjectFromConfig(config, "test", func.getClass().getClassLoader());
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+		InstantiationUtil.serializeObject(baos, method);
+
+		InstantiationUtil.ClassLoaderObjectInputStream cloi = new InstantiationUtil.ClassLoaderObjectInputStream(
+			new ByteArrayInputStream(baos.toByteArray()), userClassLoader);
+		cloi.resolveProxyClass(new String[]{"UserDefineFunction"});
+
+		userClassLoader.close();
 	}
 
 	@Test
@@ -167,18 +185,6 @@ public class InstantiationUtilTest extends TestLogger {
 	}
 
 	// --------------------------------------------------------------------------------------------
-
-	@SuppressWarnings("unchecked")
-	private static <T> T serializableProxy(final Supplier<? extends T> realObjectSupplier, final Class<?> clazz) {
-		return (T) Proxy.newProxyInstance(
-			clazz.getClassLoader(), new Class<?>[] {clazz, Serializable.class}, delegateTo(realObjectSupplier));
-	}
-
-	private static <T> InvocationHandler delegateTo(final Supplier<T> realObjectSupplier) {
-		return (InvocationHandler & Serializable) (proxy, method, args) -> {
-			return method.invoke(realObjectSupplier.get(), args);
-		};
-	}
 
 	interface UserDefineFunction extends Serializable {
 		void test();
