@@ -71,16 +71,21 @@ public class SharedBufferEdge {
 
 		private static final long serialVersionUID = -5122474955050663979L;
 
-		private NodeId.NodeIdSerializer nodeIdSerializer;
-		private DeweyNumber.DeweyNumberSerializer deweyNumberSerializer;
+		/**
+		 * NOTE: these serializer fields should actually be final.
+		 * The reason that it isn't final is due to backward compatible deserialization
+		 * paths. See {@link #readObject(ObjectInputStream)}.
+		 */
+		private TypeSerializer<NodeId> nodeIdSerializer;
+		private TypeSerializer<DeweyNumber> deweyNumberSerializer;
 
 		public SharedBufferEdgeSerializer() {
 			this(new NodeId.NodeIdSerializer(), DeweyNumber.DeweyNumberSerializer.INSTANCE);
 		}
 
 		private SharedBufferEdgeSerializer(
-				NodeId.NodeIdSerializer nodeIdSerializer,
-				DeweyNumber.DeweyNumberSerializer deweyNumberSerializer) {
+				TypeSerializer<NodeId> nodeIdSerializer,
+				TypeSerializer<DeweyNumber> deweyNumberSerializer) {
 			this.nodeIdSerializer = checkNotNull(nodeIdSerializer);
 			this.deweyNumberSerializer = checkNotNull(deweyNumberSerializer);
 		}

@@ -267,11 +267,6 @@ public class DeweyNumber implements Serializable {
 			return true;
 		}
 
-		@Override
-		public int hashCode() {
-			return getClass().hashCode();
-		}
-
 		// -----------------------------------------------------------------------------------
 
 		@Override

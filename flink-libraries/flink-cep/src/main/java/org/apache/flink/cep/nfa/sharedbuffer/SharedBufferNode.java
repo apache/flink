@@ -68,7 +68,7 @@ public class SharedBufferNode {
 
 		private static final long serialVersionUID = -6687780732295439832L;
 
-		private ListSerializer<SharedBufferEdge> edgesSerializer;
+		private final ListSerializer<SharedBufferEdge> edgesSerializer;
 
 		public SharedBufferNodeSerializer() {
 			this.edgesSerializer = new ListSerializer<>(new SharedBufferEdgeSerializer());

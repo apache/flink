@@ -115,7 +115,7 @@ public class EventId implements Comparable<EventId> {
 
 		@Override
 		public int getLength() {
-			return -1;
+			return Integer.BYTES + Long.BYTES;
 		}
 
 		@Override

@@ -84,13 +84,18 @@ public class NodeId {
 
 		private static final long serialVersionUID = 9209498028181378582L;
 
-		private EventId.EventIdSerializer eventIdSerializer;
+		/**
+		 * NOTE: this field should actually be final.
+		 * The reason that it isn't final is due to backward compatible deserialization
+		 * paths. See {@link #readObject(ObjectInputStream)}.
+		 */
+		private TypeSerializer<EventId> eventIdSerializer;
 
 		public NodeIdSerializer() {
 			this(EventId.EventIdSerializer.INSTANCE);
 		}
 
-		private NodeIdSerializer(EventId.EventIdSerializer eventIdSerializer) {
+		private NodeIdSerializer(TypeSerializer<EventId> eventIdSerializer) {
 			this.eventIdSerializer = checkNotNull(eventIdSerializer);
 		}
 
