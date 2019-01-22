@@ -425,7 +425,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 			throw new IllegalStateException("All references released.");
 		}
 
-		LOG.debug("{}: //partition {} (/ggt: {}).",
+		LOG.debug("{}: Received release notification for subpartition {} (reference count now at: {}).",
 				this, subpartitionIndex, pendingReferences);
 	}
 

@@ -145,7 +145,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 	void onConsumedPartition(ResultPartition partition) {
 		final ResultPartition previous;
 
-		LOG.debug("/Received consume notification from {}.", partition);
+		LOG.debug("Received consume notification from {}.", partition);
 
 		synchronized (registeredPartitions) {
 			ResultPartitionID partitionId = partition.getPartitionId();

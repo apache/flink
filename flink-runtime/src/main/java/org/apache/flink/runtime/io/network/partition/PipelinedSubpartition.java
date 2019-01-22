@@ -92,7 +92,9 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	@Override
 	protected void onConsumedSubpartition(boolean finalRelease) {
-		parent.onConsumedSubpartition(index);
+		if (finalRelease) {
+			parent.onConsumedSubpartition(index);
+		}
 	}
 
 	private boolean add(BufferConsumer bufferConsumer, boolean finish) {

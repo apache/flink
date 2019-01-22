@@ -103,17 +103,6 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		}
 	}
 
-	void createSpilledView(int numBuffers) throws IOException {
-		BufferFileWriter spillWriter = ioManager.createBufferFileWriter(ioManager.createChannel());
-		spilledView = new SpilledSubpartitionView(
-			parent,
-			memorySegmentSize,
-			spillWriter,
-			numBuffers,
-			listener,
-			processedBufferCount);
-	}
-
 	int releaseMemory() throws IOException {
 		synchronized (buffers) {
 			if (spilledView != null || nextBuffer == null) {

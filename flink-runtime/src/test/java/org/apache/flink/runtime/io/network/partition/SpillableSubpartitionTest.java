@@ -162,6 +162,65 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	}
 
 	/**
+	 * Tests a fix for FLINK-11309.
+	 *
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-11309">FLINK-11309</a>
+	 */
+	@Test
+	public void testPartitionRepeatedlyReadable() throws IOException, InterruptedException {
+		SpillableSubpartition partition = createSubpartition();
+
+		BufferConsumer buffer1 = createFilledBufferConsumer(BUFFER_DATA_SIZE, BUFFER_DATA_SIZE);
+		BufferConsumer buffer2 = createFilledBufferConsumer(BUFFER_DATA_SIZE, BUFFER_DATA_SIZE);
+		boolean buffer1Recycled;
+		boolean buffer2Recycled;
+		try {
+			partition.add(buffer1);
+			partition.add(buffer2);
+			partition.finish();
+
+			// create the read view before spilling
+			// (tests both code paths since this view may then contain the spilled view)
+			ResultSubpartitionView view1 = partition.createReadView(0, new NoOpBufferAvailablityListener());
+			view1.getNextBuffer().buffer().recycleBuffer();
+			view1.getNextBuffer().buffer().recycleBuffer();
+
+			ResultSubpartitionView view2 = partition.createReadView(1, new NoOpBufferAvailablityListener());
+			view2.getNextBuffer().buffer().recycleBuffer();
+			/**
+			 * {@link SpillableSubpartition#finish()} add one additional EndOfPartitionEvent, and buffer consumer is
+			 * NOT removed from {@link SpillableSubpartition#buffers} to make repeatedly readable when creating read view
+			 * or {@link ResultSubpartitionView#getNextBuffer()}, thus buffer consumer number is 3.
+			 */
+			assertEquals(3, partition.releaseMemory());
+
+			partition.release();
+			view2.releaseAllResources();
+
+			assertTrue(partition.isReleased());
+			assertTrue(view1.isReleased());
+			assertTrue(view2.isReleased());
+			assertTrue(buffer1.isRecycled());
+			assertTrue(buffer2.isRecycled());
+		} finally {
+			buffer1Recycled = buffer1.isRecycled();
+			if (!buffer1Recycled) {
+				buffer1.close();
+			}
+			buffer2Recycled = buffer2.isRecycled();
+			if (!buffer2Recycled) {
+				buffer2.close();
+			}
+		}
+		if (!buffer1Recycled) {
+			Assert.fail("buffer 1 not recycled");
+		}
+		if (!buffer2Recycled) {
+			Assert.fail("buffer 2 not recycled");
+		}
+	}
+
+	/**
 	 * Tests a fix for FLINK-2412.
 	 *
 	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-2412">FLINK-2412</a>
@@ -371,7 +430,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertFalse(bufferConsumer.isRecycled());
 
 		// Spill now
-		// buffers are released after execution unregister
+		// buffer consumers are not remove from buffers, thus spill 5
 		assertEquals(5, partition.releaseMemory());
 		assertFalse(bufferConsumer.isRecycled()); // still one in the reader!
 		// still same statistics:
@@ -588,11 +647,19 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 				partition.finish();
 				partition.createReadView(0, new NoOpBufferAvailablityListener());
 				assertEquals(0, partition.getTotalNumberOfBytes()); // only updated when buffers are consumed or spilled
+				/**
+				 * {@link SpillableSubpartition#finish()} add one additional EndOfPartitionEvent, and buffer consumer is
+				 * NOT removed from {@link SpillableSubpartition#buffers} to make repeatedly readable when creating read view,
+				 * thus buffer consumer number is 3.
+				 */
 				expected = 3;
 			}
 
-			// one instance of the buffers is placed in the view's nextBuffer and not released
-			// (if there is no view, there will be no additional EndOfPartitionEvent)
+			/**
+			 * although one instance of the buffers is placed in the view's nextBuffer but not removed from
+			 * {@link SpillableSubpartition#buffers}, thus expected number is increased one by the additional
+			 * EndOfPartitionEvent when {@link SpillableSubpartition#finish()}
+			 */
 			assertEquals(expected, partition.releaseMemory());
 			assertFalse("buffer1 should not be recycled (advertised as nextBuffer)", buffer1.isRecycled());
 			assertFalse("buffer2 should not be recycled (not written yet)", buffer2.isRecycled());
@@ -701,15 +768,21 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 			ResultSubpartitionView view = null;
 			int expected = 2;
 			if (createView) {
-				expected = 3;
 				partition.finish();
 				view = partition.createReadView(0, new NoOpBufferAvailablityListener());
+				/**
+				 * {@link SpillableSubpartition#finish()} add one additional EndOfPartitionEvent, and buffer consumer is
+				 * NOT removed from {@link SpillableSubpartition#buffers} to make repeatedly readable when creating read view,
+				 * thus buffer consumer number is 3.
+				 */
+				expected = 3;
 			}
 			if (spilled) {
-				// note: in case we create a view, one buffer will already reside in the view and
-				//       one EndOfPartitionEvent will be added instead (so overall the number of
-				//       buffers to spill is the same
-				// spill all the buffer consumers
+				/**
+				 * although one instance of the buffers is placed in the view's nextBuffer but not removed from
+				 * {@link SpillableSubpartition#buffers}, thus expected number is increased one by the additional
+				 * EndOfPartitionEvent when {@link SpillableSubpartition#finish()}
+				 */
 				assertEquals(expected, partition.releaseMemory());
 			}
 

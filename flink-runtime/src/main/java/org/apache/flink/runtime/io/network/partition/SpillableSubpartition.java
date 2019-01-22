@@ -219,6 +219,10 @@ class SpillableSubpartition extends ResultSubpartition {
 					+ " , but we currently allow subpartitions to only be consumed once for each attempt.");
 			}
 
+			if (readView != null) {
+				readView.releaseAllResources();
+			}
+
 			if (spillWriter != null) {
 				readView = new SpilledSubpartitionView(
 					this,
