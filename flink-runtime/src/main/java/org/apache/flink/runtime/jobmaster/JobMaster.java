@@ -145,7 +145,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * given task</li>
  * </ul>
  */
-public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMasterGateway {
+public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMasterGateway, JobMasterService {
 
 	/** Default names for Flink's distributed components. */
 	public static final String JOB_MANAGER_NAME = "jobmanager";
@@ -1497,6 +1497,21 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 			rescalingBehaviour.accept(jobVertex, newParallelism);
 		}
+	}
+
+	//----------------------------------------------------------------------------------------------
+	// Service methods
+	//----------------------------------------------------------------------------------------------
+
+	@Override
+	public JobMasterGateway getGateway() {
+		return getSelfGateway(JobMasterGateway.class);
+	}
+
+	@Override
+	public CompletableFuture<Void> closeAsync() {
+		shutDown();
+		return getTerminationFuture();
 	}
 
 	//----------------------------------------------------------------------------------------------
