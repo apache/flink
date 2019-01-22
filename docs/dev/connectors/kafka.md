@@ -686,10 +686,9 @@ there will be data loss (Kafka will automatically abort transactions that exceed
 Having this in mind, please configure your transaction timeout appropriately to your expected down
 times.
 
-Kafka brokers by default have `transaction.max.timeout.ms` set to 15 minutes. This property will
-not allow to set transaction timeouts for the producers larger than it's value.
-`FlinkKafkaProducer011` by default sets the `transaction.timeout.ms` property in producer config to
-1 hour, thus `transaction.max.timeout.ms` should be increased before using the
+Kafka will not allow producers to set transactions timeouts greater than the value of `transaction.max.timeout.ms`,
+which by default is set to 15 minutes. As `FlinkKafkaProducer011` sets the `transaction.timeout.ms` property in the
+producer configuration to 1 hour, by default, you should increase `transaction.max.timeout.ms` before using
 `Semantic.EXACTLY_ONCE` mode.
 
 In `read_committed` mode of `KafkaConsumer`, any transactions that were not finished
