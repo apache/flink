@@ -226,7 +226,9 @@ public class CepOperator<IN, KEY, OUT>
 	@Override
 	public void close() throws Exception {
 		super.close();
-		nfa.close();
+		if (nfa != null) {
+			nfa.close();
+		}
 	}
 
 	@Override
