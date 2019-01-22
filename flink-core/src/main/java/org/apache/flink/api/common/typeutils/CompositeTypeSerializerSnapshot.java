@@ -169,9 +169,13 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 
-		return constructFinalSchemaCompatibilityResult(
-			getNestedSerializers(castedNewSerializer),
-			snapshots);
+		final TypeSerializer<?>[] newNestedSerializers = getNestedSerializers(castedNewSerializer);
+		// check that nested serializer arity remains identical; if not, short circuit result
+		if (newNestedSerializers.length != snapshots.length) {
+			return TypeSerializerSchemaCompatibility.incompatible();
+		}
+
+		return constructFinalSchemaCompatibilityResult(newNestedSerializers, snapshots);
 	}
 
 	@Internal
