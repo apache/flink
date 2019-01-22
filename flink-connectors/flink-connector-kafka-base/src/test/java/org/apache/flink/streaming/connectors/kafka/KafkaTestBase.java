@@ -80,6 +80,8 @@ public abstract class KafkaTestBase extends TestLogger {
 
 	protected static Properties standardProps;
 
+	private static String kafkaTestImplementation = "org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl";
+
 	@ClassRule
 	public static MiniClusterWithClientResource flink = new MiniClusterWithClientResource(
 		new MiniClusterResourceConfiguration.Builder()
@@ -143,7 +145,7 @@ public abstract class KafkaTestBase extends TestLogger {
 	protected static void startClusters(boolean secureMode, boolean hideKafkaBehindProxy) throws ClassNotFoundException {
 
 		// dynamically load the implementation for the test
-		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
+		Class<?> clazz = Class.forName(kafkaTestImplementation);
 		kafkaServer = (KafkaTestEnvironment) InstantiationUtil.instantiate(clazz);
 
 		LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
@@ -289,5 +291,13 @@ public abstract class KafkaTestBase extends TestLogger {
 		}
 
 		fail(String.format("Expected number of elements: <%s>, but was: <%s>", expectedElements.size(), actualElements.size()));
+	}
+
+	public static void setKafkaTestImplementation(String path) {
+		kafkaTestImplementation = path;
+	}
+
+	public static String getKafkaTestImplementation() {
+		return kafkaTestImplementation;
 	}
 }
