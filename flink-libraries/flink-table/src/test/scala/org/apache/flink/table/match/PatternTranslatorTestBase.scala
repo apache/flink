@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironm
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableConfig, TableEnvironment}
 import org.apache.flink.table.calcite.FlinkPlannerImpl
-import org.apache.flink.table.plan.nodes.datastream.{DataStreamMatch, DataStreamScan}
+import org.apache.flink.table.plan.nodes.datastream.{AppendStreamScan, DataStreamMatch}
 import org.apache.flink.types.Row
 import org.apache.flink.util.TestLogger
 import org.junit.Assert._
@@ -85,7 +85,7 @@ abstract class PatternTranslatorTestBase extends TestLogger{
     val optimized = env.optimize(converted, updatesAsRetraction = false)
 
     // throw exception if plan contains more than a match
-    if (!optimized.getInput(0).isInstanceOf[DataStreamScan]) {
+    if (!optimized.getInput(0).isInstanceOf[AppendStreamScan]) {
       fail("Expression is converted into more than a Match operation. Use a different test method.")
     }
 

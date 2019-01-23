@@ -36,6 +36,8 @@ import org.junit.Assert.assertEquals
 import org.junit.{ComparisonFailure, Rule}
 import org.junit.rules.ExpectedException
 import org.mockito.Mockito.{mock, when}
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import _root_.java.lang.{Boolean => JBool}
 
 import util.control.Breaks._
 
@@ -68,7 +70,7 @@ class TableTestBase {
 
 abstract class TableTestUtil {
 
-  private var counter = 0
+  protected var counter = 0
 
   def addTable[T: TypeInformation](fields: Expression*): Table = {
     counter += 1
@@ -183,6 +185,10 @@ object TableTestUtil {
   def AppendTableNode(idx: Int): String = {
     s"AppendStreamScan(table=[[_DataStreamTable_$idx]])"
   }
+
+  def UpsertTableNode(idx: Int): String = {
+    s"UpsertStreamScan(table=[[_DataStreamTable_$idx]])"
+  }
 }
 
 case class BatchTableTestUtil() extends TableTestUtil {
@@ -294,6 +300,28 @@ case class StreamTableTestUtil() extends TableTestUtil {
     table
   }
 
+  def addTableFromUpsert[T: TypeInformation](fields: Expression*): Table = {
+    counter += 1
+    addTableFromUpsert[T](s"Table$counter", fields: _*)
+  }
+
+  def addTableFromUpsert[T: TypeInformation](name: String, fields: Expression*): Table = {
+    val table = env.fromElements().toTableFromUpsertStream(tableEnv, fields: _*)
+    tableEnv.registerTable(name, table)
+    table
+  }
+
+  def addJavaTableFromUpsert[T](
+      typeInfo: TypeInformation[JTuple2[JBool, T]],
+      name: String,
+      fields: String): Table = {
+
+    val stream = javaEnv.addSource(new EmptySource[JTuple2[JBool, T]], typeInfo)
+    val table = javaTableEnv.fromUpsertStream(stream, fields)
+    javaTableEnv.registerTable(name, table)
+    table
+  }
+
   def addFunction[T: TypeInformation](
       name: String,
       function: TableFunction[T])
@@ -316,14 +344,22 @@ case class StreamTableTestUtil() extends TableTestUtil {
     verifyTable(tableEnv.sqlQuery(query), expected)
   }
 
+  def verifySql(query: String, expected: String, updatesAsRetraction: Boolean): Unit = {
+    verifyTable(tableEnv.sqlQuery(query), expected, updatesAsRetraction)
+  }
+
   def verifySqlPlansIdentical(query1: String, queries: String*): Unit = {
     val resultTable1 = tableEnv.sqlQuery(query1)
     queries.foreach(s => verify2Tables(resultTable1, tableEnv.sqlQuery(s)))
   }
 
   def verifyTable(resultTable: Table, expected: String): Unit = {
+    verifyTable(resultTable, expected, updatesAsRetraction = false)
+  }
+
+  def verifyTable(resultTable: Table, expected: String, updatesAsRetraction: Boolean): Unit = {
     val relNode = resultTable.getRelNode
-    val optimized = tableEnv.optimize(relNode, updatesAsRetraction = false)
+    val optimized = tableEnv.optimize(relNode, updatesAsRetraction)
     verifyString(expected, optimized)
   }
 
@@ -339,9 +375,17 @@ case class StreamTableTestUtil() extends TableTestUtil {
     verifyJavaTable(javaTableEnv.sqlQuery(query), expected)
   }
 
+  def verifyJavaSql(query: String, expected: String, updatesAsRetraction: Boolean): Unit = {
+    verifyJavaTable(javaTableEnv.sqlQuery(query), expected, updatesAsRetraction)
+  }
+
   def verifyJavaTable(resultTable: Table, expected: String): Unit = {
+    verifyJavaTable(resultTable, expected, updatesAsRetraction = false)
+  }
+
+  def verifyJavaTable(resultTable: Table, expected: String, updatesAsRetraction: Boolean): Unit = {
     val relNode = resultTable.getRelNode
-    val optimized = javaTableEnv.optimize(relNode, updatesAsRetraction = false)
+    val optimized = javaTableEnv.optimize(relNode, updatesAsRetraction)
     verifyString(expected, optimized)
   }
 

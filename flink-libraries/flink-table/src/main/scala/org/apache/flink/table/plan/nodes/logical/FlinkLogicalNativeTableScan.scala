@@ -27,7 +27,7 @@ import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.schema.{DataSetTable, DataStreamTable}
+import org.apache.flink.table.plan.schema.{AppendStreamTable, DataSetTable, UpsertStreamTable}
 
 class FlinkLogicalNativeTableScan (
     cluster: RelOptCluster,
@@ -56,8 +56,17 @@ class FlinkLogicalNativeTableScanConverter
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan = call.rel[TableScan](0)
     val dataSetTable = scan.getTable.unwrap(classOf[DataSetTable[_]])
-    val dataStreamTable = scan.getTable.unwrap(classOf[DataStreamTable[_]])
-    dataSetTable != null || dataStreamTable != null
+    val appendStreamTable = scan.getTable.unwrap(classOf[AppendStreamTable[_]])
+    val upsertStreamTable = scan.getTable.unwrap(classOf[UpsertStreamTable[_]])
+
+    // dataSetTable != null || appendStreamTable != null || upsertStreamTable != null
+    // avoid direct null here
+    (dataSetTable, appendStreamTable, upsertStreamTable) match {
+      case _: (DataSetTable[_], _, _) => true
+      case _: (_, AppendStreamTable[_], _) => true
+      case _: (_, _, UpsertStreamTable[_]) => true
+      case _ => false
+    }
   }
 
   def convert(rel: RelNode): RelNode = {

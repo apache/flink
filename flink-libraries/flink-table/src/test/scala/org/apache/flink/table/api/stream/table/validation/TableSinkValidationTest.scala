@@ -18,12 +18,11 @@
 
 package org.apache.flink.table.api.stream.table.validation
 
-import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{TableEnvironment, TableException}
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.{TableException, Types}
+import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.stream.table.{TestAppendSink, TestUpsertSink}
-import org.apache.flink.table.runtime.utils.StreamTestData
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
 
@@ -31,57 +30,66 @@ class TableSinkValidationTest extends TableTestBase {
 
   @Test(expected = classOf[TableException])
   def testAppendSinkOnUpdatingTable(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val util = streamTestUtil()
 
-    val t = StreamTestData.get3TupleDataStream(env)
-      .toTableFromAppendStream(tEnv, 'id, 'num, 'text)
-    tEnv.registerTableSink("testSink", new TestAppendSink)
+    val t = util.addTable[(Int, Long, String)]("MyTable", 'id, 'num, 'text)
+    util.tableEnv.registerTableSink("testSink",
+      new TestAppendSink().configure(
+      Array[String]("text", "id", "sum"),
+      Array[TypeInformation[_]](Types.STRING, Types.LONG, Types.LONG)))
 
     t.groupBy('text)
     .select('text, 'id.count, 'num.sum)
     .insertInto("testSink")
-
     // must fail because table is not append-only
-    env.execute()
+  }
+
+  @Test(expected = classOf[TableException])
+  def testAppendSinkOnUpdatingTable2(): Unit = {
+    val util = streamTestUtil()
+
+    util.tableEnv.registerTableSink("testSink",
+      new TestAppendSink().configure(
+      Array[String]("id", "num", "text"),
+      Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING)))
+
+    val t = util.addTableFromUpsert[(Boolean, (Int, Long, String))]("MyTable", 'a.key, 'b, 'c)
+
+    t.insertInto("testSink")
+    // must fail because table is not append-only
   }
 
   @Test(expected = classOf[TableException])
   def testUpsertSinkOnUpdatingTableWithoutFullKey(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val util = streamTestUtil()
 
-    val t = StreamTestData.get3TupleDataStream(env)
-      .assignAscendingTimestamps(_._1.toLong)
-      .toTableFromAppendStream(tEnv, 'id, 'num, 'text)
-    tEnv.registerTableSink("testSink", new TestUpsertSink(Array("len", "cTrue"), false))
+    val t = util.addTable[(Int, Long, String)]("MyTable", 'id, 'num, 'text)
+    util.tableEnv.registerTableSink("testSink",
+      new TestUpsertSink(Array("len", "cTrue"), false).configure(
+        Array[String]("text", "id", "sum"),
+        Array[TypeInformation[_]](Types.INT, Types.LONG, Types.LONG)))
 
     t.select('id, 'num, 'text.charLength() as 'len, ('id > 0) as 'cTrue)
     .groupBy('len, 'cTrue)
     .select('len, 'id.count, 'num.sum)
     .insertInto("testSink")
-
     // must fail because table is updating table without full key
-    env.execute()
   }
 
   @Test(expected = classOf[TableException])
   def testAppendSinkOnLeftJoin(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val util = streamTestUtil()
 
-    val ds1 = StreamTestData.get3TupleDataStream(env)
-      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env)
-      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
-    tEnv.registerTableSink("testSink", new TestAppendSink)
+    val t1 = util.addTable[(Int, Long, String)]('a, 'b, 'c)
+    val t2 = util.addTable[(Int, Long, Int, String, Long)]('d, 'e, 'f, 'g, 'h)
+    util.tableEnv.registerTableSink("testSink",
+      new TestAppendSink().configure(
+      Array[String]("c", "g"),
+      Array[TypeInformation[_]](Types.STRING, Types.STRING)))
 
-    ds1.leftOuterJoin(ds2, 'a === 'd && 'b === 'h)
+    t1.leftOuterJoin(t2, 'a === 'd && 'b === 'h)
       .select('c, 'g)
       .insertInto("testSink")
-
     // must fail because table is not append-only
-    env.execute()
   }
 }

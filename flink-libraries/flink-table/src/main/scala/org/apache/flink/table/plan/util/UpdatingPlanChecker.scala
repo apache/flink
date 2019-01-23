@@ -22,6 +22,7 @@ import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.flink.table.expressions.ProctimeAttribute
 import org.apache.flink.table.plan.nodes.datastream._
+import org.apache.flink.table.plan.schema.UpsertStreamTable
 
 import _root_.scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -72,15 +73,15 @@ object UpdatingPlanChecker {
     // forwards keys from its input(s).
     def visit(node: RelNode): Option[Seq[(String, String)]] = {
       node match {
-        case c: DataStreamCalc =>
+        case calc: DataStreamCalc =>
           val inputKeys = visit(node.getInput(0))
           // check if input has keys
           if (inputKeys.isDefined) {
             // track keys forward
-            val inNames = c.getInput.getRowType.getFieldNames
-            val inOutNames = c.getProgram.getNamedProjects
+            val inNames = calc.getInput.getRowType.getFieldNames
+            val inOutNames = calc.getProgram.getNamedProjects
               .map(p => {
-                c.getProgram.expandLocalRef(p.left) match {
+                calc.getProgram.expandLocalRef(p.left) match {
                   // output field is forwarded input field
                   case i: RexInputRef => (i.getIndex, p.right)
                   // output field is renamed input field
@@ -128,16 +129,16 @@ object UpdatingPlanChecker {
         case _: DataStreamOverAggregate =>
           // keys are always forwarded by Over aggregate
           visit(node.getInput(0))
-        case a: DataStreamGroupAggregate =>
+        case groupAgg: DataStreamGroupAggregate =>
           // get grouping keys
-          val groupKeys = a.getRowType.getFieldNames.take(a.getGroupings.length)
+          val groupKeys = groupAgg.getRowType.getFieldNames.take(groupAgg.getGroupings.length)
           Some(groupKeys.map(e => (e, e)))
-        case w: DataStreamGroupWindowAggregate =>
+        case windowAgg: DataStreamGroupWindowAggregate =>
           // get grouping keys
           val groupKeys =
-            w.getRowType.getFieldNames.take(w.getGroupings.length).toArray
+            windowAgg.getRowType.getFieldNames.take(windowAgg.getGroupings.length).toArray
           // proctime is not a valid key
-          val windowProperties = w.getWindowProperties
+          val windowProperties = windowAgg.getWindowProperties
             .filter(!_.property.isInstanceOf[ProctimeAttribute])
             .map(_.name)
           // we have only a unique key if at least one window property is selected
@@ -148,18 +149,18 @@ object UpdatingPlanChecker {
             None
           }
 
-        case j: DataStreamJoin =>
+        case join: DataStreamJoin =>
           // get key(s) for join
-          val lInKeys = visit(j.getLeft)
-          val rInKeys = visit(j.getRight)
+          val lInKeys = visit(join.getLeft)
+          val rInKeys = visit(join.getRight)
           if (lInKeys.isEmpty || rInKeys.isEmpty) {
             None
           } else {
             // Output of join must have keys if left and right both contain key(s).
             // Key groups from both side will be merged by join equi-predicates
-            val lInNames: Seq[String] = j.getLeft.getRowType.getFieldNames
-            val rInNames: Seq[String] = j.getRight.getRowType.getFieldNames
-            val joinNames = j.getRowType.getFieldNames
+            val lInNames: Seq[String] = join.getLeft.getRowType.getFieldNames
+            val rInNames: Seq[String] = join.getRight.getRowType.getFieldNames
+            val joinNames = join.getRowType.getFieldNames
 
             // if right field names equal to left field names, calcite will rename right
             // field names. For example, T1(pk, a) join T2(pk, b), calcite will rename T2(pk, b)
@@ -168,9 +169,9 @@ object UpdatingPlanChecker {
               .zip(joinNames.subList(lInNames.size, joinNames.length))
               .toMap
 
-            val lJoinKeys: Seq[String] = j.getJoinInfo.leftKeys
+            val lJoinKeys: Seq[String] = join.getJoinInfo.leftKeys
               .map(lInNames.get(_))
-            val rJoinKeys: Seq[String] = j.getJoinInfo.rightKeys
+            val rJoinKeys: Seq[String] = join.getJoinInfo.rightKeys
               .map(rInNames.get(_))
               .map(rInNamesToJoinNamesMap(_))
 
@@ -183,6 +184,17 @@ object UpdatingPlanChecker {
               lJoinKeys.zip(rJoinKeys)
             )
           }
+
+        case upsertToRetraction: DataStreamUpsertToRetraction =>
+          val uniqueKeyNames = upsertToRetraction.getRowType.getFieldNames.zipWithIndex
+            .filter(e => upsertToRetraction.keyIndexes.contains(e._2))
+            .map(_._1)
+          Some(uniqueKeyNames.map(e => (e, e)))
+
+        case scan: UpsertStreamScan =>
+          val uniqueKeyNames = scan.dataStreamTable.asInstanceOf[UpsertStreamTable[_]].uniqueKeys
+          Some(uniqueKeyNames.map(e => (e, e)))
+
         case _: DataStreamRel =>
           // anything else does not forward keys, so we can stop
           None

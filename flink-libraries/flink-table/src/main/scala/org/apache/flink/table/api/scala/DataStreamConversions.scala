@@ -88,5 +88,38 @@ class DataStreamConversions[T](dataStream: DataStream[T], inputType: TypeInforma
     }
   }
 
+  /**
+    * Converts the upsert [[DataStream]] with upsert messages into a [[Table]] with keys.
+    *
+    * The incoming messages from the source DataStream are expected to be encoded as [[Tuple2]].
+    * The first field is a [[Boolean]] flag, the second field holds the record. A true [[Boolean]]
+    * flag indicates an update message, a false flag indicates a delete message.
+    *
+    * The field name and key of the new [[Table]] can be specified like this:
+    *
+    * {{{
+    *   val env = StreamExecutionEnvironment.getExecutionEnvironment
+    *   val tEnv = TableEnvironment.getTableEnvironment(env)
+    *
+    *   val stream: DataStream[(Boolean, (String, Int))] = ...
+    *   val table = stream.toTableFromUpsertStream(tEnv, 'name.key, 'amount)
+    * }}}
+    *
+    * If field names are not explicitly specified, names are automatically extracted from the type
+    * of the [[DataStream]].
+    * If keys are not explicitly specified, an empty key will be used and the table will be a
+    * single row table.
+    *
+    * @param tableEnv The [[StreamTableEnvironment]] in which the new [[Table]] is created.
+    * @param fields The field names of the new [[Table]] (optional).
+    * @return The resulting [[Table]].
+    */
+  def toTableFromUpsertStream(tableEnv: StreamTableEnvironment, fields: Expression*): Table = {
+    if (fields.isEmpty) {
+      tableEnv.fromUpsertStream(dataStream)
+    } else {
+      tableEnv.fromUpsertStream(dataStream, fields:_*)
+    }
+  }
 }
 

@@ -93,6 +93,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val UNBOUNDED_RANGE: Keyword = Keyword("unbounded_range")
   lazy val ROWTIME: Keyword = Keyword("rowtime")
   lazy val PROCTIME: Keyword = Keyword("proctime")
+  lazy val KEY: Keyword = Keyword("key")
   lazy val TRUE: Keyword = Keyword("true")
   lazy val FALSE: Keyword = Keyword("false")
   lazy val PRIMITIVE_ARRAY: Keyword = Keyword("PRIMITIVE_ARRAY")
@@ -357,7 +358,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     // function call must always be at the end
     suffixFunctionCall | suffixFunctionCallOneArg |
     // rowtime or proctime
-    timeIndicator
+    timeIndicator |
+    key
 
   // prefix operators
 
@@ -533,6 +535,11 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val rowtime: PackratParser[Expression] = fieldReference ~ "." ~ ROWTIME ^^ {
     case f ~ _ ~ _ => RowtimeAttribute(f)
+  }
+
+  lazy val key: PackratParser[Expression] = fieldReference ~ "." ~ KEY ^^ {
+    case f ~ _ ~ _ =>
+      new UnresolvedKeyFieldReference(f.asInstanceOf[UnresolvedFieldReference].name)
   }
 
   // alias

@@ -22,8 +22,8 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.datastream.DataStreamScan
-import org.apache.flink.table.plan.schema.{DataStreamTable, RowSchema}
+import org.apache.flink.table.plan.nodes.datastream.{AppendStreamScan, UpsertStreamScan}
+import org.apache.flink.table.plan.schema.{AppendStreamTable, RowSchema, UpsertStreamTable}
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalNativeTableScan
 
 class DataStreamScanRule
@@ -36,25 +36,38 @@ class DataStreamScanRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: FlinkLogicalNativeTableScan = call.rel(0).asInstanceOf[FlinkLogicalNativeTableScan]
-    val dataSetTable = scan.getTable.unwrap(classOf[DataStreamTable[Any]])
-    dataSetTable match {
-      case _: DataStreamTable[Any] =>
-        true
-      case _ =>
-        false
+    val appendTable = scan.getTable.unwrap(classOf[AppendStreamTable[Any]])
+    val upsertTable = scan.getTable.unwrap(classOf[UpsertStreamTable[Any]])
+
+    // appendTable != null || upsertTable != null
+    // avoid direct null here
+    (appendTable, upsertTable) match {
+      case _: (AppendStreamTable[_], _) => true
+      case _: (_, UpsertStreamTable[_]) => true
+      case _ => false
     }
   }
 
   def convert(rel: RelNode): RelNode = {
     val scan: FlinkLogicalNativeTableScan = rel.asInstanceOf[FlinkLogicalNativeTableScan]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASTREAM)
+    val appendTable = scan.getTable.unwrap(classOf[AppendStreamTable[Any]])
 
-    new DataStreamScan(
-      rel.getCluster,
-      traitSet,
-      scan.getTable,
-      new RowSchema(rel.getRowType)
-    )
+    if (appendTable != null) {
+      new AppendStreamScan(
+        rel.getCluster,
+        traitSet,
+        scan.getTable,
+        new RowSchema(rel.getRowType)
+      )
+    } else {
+      new UpsertStreamScan(
+        rel.getCluster,
+        traitSet,
+        scan.getTable,
+        new RowSchema(rel.getRowType)
+      )
+    }
   }
 }
 

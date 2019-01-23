@@ -121,6 +121,53 @@ class StreamTableEnvironment(
   }
 
   /**
+    * Converts the given upsert [[DataStream]] into a single row [[Table]].
+    *
+    * The field names of the [[Table]] are automatically derived from the type of the
+    * [[DataStream]]. Since the key has not been specified, an empty key will be used and the table
+    * will be a single row [[Table]].
+    *
+    * @param dataStream The [[DataStream]] to be converted.
+    * @tparam T The type of the [[DataStream]].
+    * @return The converted [[Table]].
+    */
+  def fromUpsertStream[T](dataStream: DataStream[T]): Table = {
+
+    val name = createUniqueTableName()
+    registerUpsertStreamInternal(name, dataStream.javaStream)
+    scan(name)
+  }
+
+  /**
+    * Converts the given upsert [[DataStream]] into a [[Table]] with specified field names and keys.
+    *
+    * The message will be encoded as [[Tuple2]]. The first field is a [[Boolean]] flag, the second
+    * field holds the record of the specified type [[T]]. A true [[Boolean]] flag indicates an
+    * update message, a false flag indicates a delete message.
+    *
+    * Example:
+    *
+    * {{{
+    *   val stream: DataStream[(Boolean, Row)] = ...
+    *   val tab: Table = tableEnv.fromUpsertStream(stream, 'a.key, 'b)
+    * }}}
+    *
+    * If keys are not explicitly specified, an empty key will be used and the table will be a
+    * single row [[Table]].
+    *
+    * @param dataStream The [[DataStream]] to be converted.
+    * @param fields The field names of the resulting [[Table]].
+    * @tparam T The type of the [[DataStream]].
+    * @return The converted [[Table]].
+    */
+  def fromUpsertStream[T](dataStream: DataStream[T], fields: Expression*): Table = {
+
+    val name = createUniqueTableName()
+    registerUpsertStreamInternal(name, dataStream.javaStream, fields.toArray)
+    scan(name)
+  }
+
+  /**
     * Registers the given append [[DataStream]] as table in the
     * [[TableEnvironment]]'s catalog.
     * Registered tables can be referenced in SQL queries.

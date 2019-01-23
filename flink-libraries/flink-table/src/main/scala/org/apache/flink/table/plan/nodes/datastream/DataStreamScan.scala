@@ -19,15 +19,13 @@
 package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
 import org.apache.flink.table.expressions.Cast
-import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.plan.schema.DataStreamTable
+import org.apache.flink.table.plan.schema.{DataStreamTable, RowSchema}
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
@@ -36,7 +34,7 @@ import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
   * It ensures that types without deterministic field order (e.g. POJOs) are not part of
   * the plan translation.
   */
-class DataStreamScan(
+abstract class DataStreamScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
@@ -47,15 +45,6 @@ class DataStreamScan(
   val dataStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
 
   override def deriveRowType(): RelDataType = schema.relDataType
-
-  override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new DataStreamScan(
-      cluster,
-      traitSet,
-      getTable,
-      schema
-    )
-  }
 
   override def translateToPlan(
       tableEnv: StreamTableEnvironment,

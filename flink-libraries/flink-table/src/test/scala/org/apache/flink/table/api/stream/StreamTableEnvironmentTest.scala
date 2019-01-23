@@ -184,5 +184,4 @@ class StreamTableEnvironmentTest extends TableTestBase {
 
     (jTEnv, ds)
   }
-
 }

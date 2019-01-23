@@ -52,6 +52,8 @@ case class UnresolvedFieldReference(name: String) extends Attribute {
     ValidationFailure(s"Unresolved reference $name.")
 }
 
+class UnresolvedKeyFieldReference(name: String) extends UnresolvedFieldReference(name) {}
+
 case class ResolvedFieldReference(
     name: String,
     resultType: TypeInformation[_]) extends Attribute {

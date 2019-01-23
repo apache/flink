@@ -18,18 +18,27 @@
 
 package org.apache.flink.table.plan.schema
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.plan.stats.FlinkStatistic
 
 /**
-  * Base class for Table that to be registered in the [[TableEnvironment]]'s catalog.
+  * Table that to be registered in the [[TableEnvironment]]'s catalog. The dataStream is an upsert
+  * stream, while [[AppendStreamTable]] contains an append stream.
   */
-abstract class DataStreamTable[T](
-    val dataStream: DataStream[T],
-    override val typeInfo: TypeInformation[T],
+class UpsertStreamTable[T](
+    override val dataStream: DataStream[T],
     override val fieldIndexes: Array[Int],
     override val fieldNames: Array[String],
+    val uniqueKeys: Array[String] = Array(),
     override val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends InlineTable[T](typeInfo, fieldIndexes, fieldNames, statistic)
+  extends DataStreamTable[T](
+    dataStream,
+    dataStream.getType match {
+      case c: CaseClassTypeInfo[_] => c.getTypeAt(1)
+      case t: TupleTypeInfo[_] => t.getTypeAt(1)},
+    fieldIndexes,
+    fieldNames,
+    statistic)

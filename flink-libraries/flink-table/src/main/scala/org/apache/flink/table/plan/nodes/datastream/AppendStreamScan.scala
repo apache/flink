@@ -16,20 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.schema
+package org.apache.flink.table.plan.nodes.datastream
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.calcite.plan._
+import org.apache.calcite.rel.RelNode
+import org.apache.flink.table.plan.schema.RowSchema
 
 /**
-  * Base class for Table that to be registered in the [[TableEnvironment]]'s catalog.
+  * [[DataStreamScan]] which used to handle append streams from source.
   */
-abstract class DataStreamTable[T](
-    val dataStream: DataStream[T],
-    override val typeInfo: TypeInformation[T],
-    override val fieldIndexes: Array[Int],
-    override val fieldNames: Array[String],
-    override val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends InlineTable[T](typeInfo, fieldIndexes, fieldNames, statistic)
+class AppendStreamScan(
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    table: RelOptTable,
+    schema: RowSchema)
+  extends DataStreamScan(cluster, traitSet, table, schema)
+  with StreamScan {
+
+  override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
+    new AppendStreamScan(
+      cluster,
+      traitSet,
+      getTable,
+      schema
+    )
+  }
+}

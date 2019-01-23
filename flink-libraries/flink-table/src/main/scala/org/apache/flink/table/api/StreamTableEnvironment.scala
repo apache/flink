@@ -36,7 +36,7 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
+import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter, UpsertToRetractionConverter}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions._
@@ -517,7 +517,7 @@ abstract class StreamTableEnvironment(
     dataStream: DataStream[T]): Unit = {
 
     val (fieldNames, fieldIndexes) = getFieldInfo[T](dataStream.getType)
-    val dataStreamTable = new DataStreamTable[T](
+    val dataStreamTable = new AppendStreamTable[T](
       dataStream,
       fieldIndexes,
       fieldNames
@@ -555,14 +555,98 @@ abstract class StreamTableEnvironment(
           s"But is: ${execEnv.getStreamTimeCharacteristic}")
     }
 
+    // Can not apply key on append stream
+    if (extractUniqueKeys(fields).nonEmpty) {
+      throw new TableException(
+        s"Defining key on append stream has not been supported yet, use fromUpsertStream instead.")
+    }
+
     // adjust field indexes and field names
     val indexesWithIndicatorFields = adjustFieldIndexes(fieldIndexes, rowtime, proctime)
     val namesWithIndicatorFields = adjustFieldNames(fieldNames, rowtime, proctime)
 
-    val dataStreamTable = new DataStreamTable[T](
+    val dataStreamTable = new AppendStreamTable[T](
       dataStream,
       indexesWithIndicatorFields,
       namesWithIndicatorFields
+    )
+    registerTableInternal(name, dataStreamTable)
+  }
+
+  private def getTypeFromUpsertStream[T](dataStream: DataStream[T]): TypeInformation[T] = {
+    dataStream.getType match {
+      case c: CaseClassTypeInfo[_]
+        if (c.getTypeClass.equals(classOf[Tuple2[_, _]])) => c.getTypeAt(1)
+      case t: TupleTypeInfo[_]
+        if (t.getTypeClass.equals(classOf[JTuple2[_, _]])) => t.getTypeAt(1)
+      case _ =>
+        throw new TableException("You can only upsert from a datastream with type of Tuple2!")
+    }
+  }
+
+  /**
+    * Registers an upsert [[DataStream]] as a table under a given name in the [[TableEnvironment]]'s
+    * catalog.
+    *
+    * @param name The name under which the table is registered in the catalog.
+    * @param dataStream The [[DataStream]] to register as table in the catalog.
+    * @tparam T the type of the [[DataStream]].
+    */
+  protected def registerUpsertStreamInternal[T](name: String, dataStream: DataStream[T]): Unit = {
+
+    val streamType: TypeInformation[T] = getTypeFromUpsertStream(dataStream)
+
+    val (fieldNames, fieldIndexes) = getFieldInfo[T](streamType)
+    val dataStreamTable = new UpsertStreamTable[T](
+      dataStream,
+      fieldIndexes,
+      fieldNames
+    )
+    registerTableInternal(name, dataStreamTable)
+  }
+
+  /**
+    * Registers an upsert [[DataStream]] as a table under a given name with field names as specified
+    * by field expressions in the [[TableEnvironment]]'s catalog.
+    *
+    * @param name The name under which the table is registered in the catalog.
+    * @param dataStream The [[DataStream]] to register as table in the catalog.
+    * @param fields The field expressions to define the field names of the table.
+    * @tparam T The type of the [[DataStream]].
+    */
+  protected def registerUpsertStreamInternal[T](
+      name: String,
+      dataStream: DataStream[T],
+      fields: Array[Expression])
+  : Unit = {
+
+    val streamType: TypeInformation[T] = getTypeFromUpsertStream(dataStream)
+
+    // get field names and types for all non-replaced fields
+    val (fieldNames, fieldIndexes) = getFieldInfo[T](streamType, fields)
+
+    // validate and extract time attributes
+    val (rowtime, proctime) = validateAndExtractTimeAttributes(streamType, fields)
+
+    // validate and extract unique keys
+    val uniqueKeys = extractUniqueKeys(fields)
+
+    // check if event-time is enabled
+    if (rowtime.isDefined && execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
+      throw new TableException(
+        s"A rowtime attribute requires an EventTime time characteristic in stream environment. " +
+          s"But is: ${execEnv.getStreamTimeCharacteristic}")
+    }
+
+    // adjust field indexes and field names
+    val indexesWithIndicatorFields = adjustFieldIndexes(fieldIndexes, rowtime, proctime)
+    val namesWithIndicatorFields = adjustFieldNames(fieldNames, rowtime, proctime)
+
+    val dataStreamTable = new UpsertStreamTable[T](
+      dataStream,
+      indexesWithIndicatorFields,
+      namesWithIndicatorFields,
+      uniqueKeys
     )
     registerTableInternal(name, dataStreamTable)
   }
@@ -702,6 +786,24 @@ abstract class StreamTableEnvironment(
   }
 
   /**
+    * Extract unique keys from expressions.
+    * Returns the unique keys.
+    *
+    * @return unique keys
+    */
+  private def extractUniqueKeys(exprs: Array[Expression]): Array[String] = {
+
+    var uniqueKeys: List[String] = Nil
+    exprs.zipWithIndex.foreach {
+      case (expr: UnresolvedKeyFieldReference, _) => uniqueKeys = expr.name :: uniqueKeys
+      case (Alias(_: UnresolvedKeyFieldReference, name, _), _) => uniqueKeys = name :: uniqueKeys
+      case _ =>
+    }
+
+    uniqueKeys.toArray
+  }
+
+  /**
     * Injects markers for time indicator fields into the field indexes.
     *
     * @param fieldIndexes The field indexes into which the time indicators markers are injected.
@@ -808,11 +910,15 @@ abstract class StreamTableEnvironment(
     val convSubQueryPlan = optimizeConvertSubQueries(relNode)
     val expandedPlan = optimizeExpandPlan(convSubQueryPlan)
     val decorPlan = RelDecorrelator.decorrelateQuery(expandedPlan)
+    // converters
+    val planWithConvertedUpsertToRetraction =
+      UpsertToRetractionConverter.convert(decorPlan, getRelBuilder.getRexBuilder)
     val planWithMaterializedTimeAttributes =
-      RelTimeIndicatorConverter.convert(decorPlan, getRelBuilder.getRexBuilder)
+      RelTimeIndicatorConverter.convert(
+        planWithConvertedUpsertToRetraction, getRelBuilder.getRexBuilder)
+
     val normalizedPlan = optimizeNormalizeLogicalPlan(planWithMaterializedTimeAttributes)
     val logicalPlan = optimizeLogicalPlan(normalizedPlan)
-
     val physicalPlan = optimizePhysicalPlan(logicalPlan, FlinkConventions.DATASTREAM)
     optimizeDecoratePlan(physicalPlan, updatesAsRetraction)
   }
