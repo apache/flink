@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 
@@ -42,9 +43,10 @@ abstract class RocksDBSnapshotTransformFactoryAdaptor<SV, SEV> implements StateS
 	@SuppressWarnings("unchecked")
 	static <SV, SEV> StateSnapshotTransformFactory<SV> wrapStateSnapshotTransformFactory(
 		StateDescriptor<?, SV> stateDesc,
-		StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
+		StateSnapshotTransformFactory<SEV> snapshotTransformFactory,
+		TypeSerializer<SV> stateSerializer) {
 		if (stateDesc instanceof ListStateDescriptor) {
-			TypeSerializer<SEV> elementSerializer =  ((ListStateDescriptor<SEV>) stateDesc).getElementSerializer();
+			TypeSerializer<SEV> elementSerializer = ((ListSerializer<SEV>) stateSerializer).getElementSerializer();
 			return new RocksDBListStateSnapshotTransformFactory<>(snapshotTransformFactory, elementSerializer);
 		} else if (stateDesc instanceof MapStateDescriptor) {
 			return new RocksDBMapStateSnapshotTransformFactory<>(snapshotTransformFactory);
@@ -97,7 +99,7 @@ abstract class RocksDBSnapshotTransformFactoryAdaptor<SV, SEV> implements StateS
 		@Override
 		public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
 			return snapshotTransformFactory.createForDeserializedState()
-				.map(est -> new RocksDBListState.StateSnapshotTransformerWrapper<>(est, elementSerializer));
+				.map(est -> new RocksDBListState.StateSnapshotTransformerWrapper<>(est, elementSerializer.duplicate()));
 		}
 	}
 }

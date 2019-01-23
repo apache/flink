@@ -21,7 +21,11 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -32,6 +36,7 @@ import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -51,7 +56,7 @@ class StateSnapshotTransformerTest {
 
 		this.backend = backend;
 		this.streamFactory = streamFactory;
-		this.snapshotTransformFactory = SingleThreadAccessCheckingsnapshotTransformFactory.create();
+		this.snapshotTransformFactory = SingleThreadAccessCheckingSnapshotTransformFactory.create();
 	}
 
 	void testNonConcurrentSnapshotTransformerAccess() throws Exception {
@@ -125,7 +130,7 @@ class StateSnapshotTransformerTest {
 		private TestListState() throws Exception {
 			this.state = backend.createInternalState(
 				VoidNamespaceSerializer.INSTANCE,
-				new ListStateDescriptor<>("TestListState", StringSerializer.INSTANCE),
+				new ListStateDescriptor<>("TestListState", new SingleThreadAccessCheckingTypeSerializer()),
 				snapshotTransformFactory);
 			state.setCurrentNamespace(VoidNamespace.INSTANCE);
 		}
@@ -159,39 +164,142 @@ class StateSnapshotTransformerTest {
 		}
 	}
 
-	private static class SingleThreadAccessCheckingsnapshotTransformFactory<T>
+	private static class SingleThreadAccessCheckingSnapshotTransformFactory<T>
 		implements StateSnapshotTransformFactory<T> {
 
+		private final SingleThreadAccessChecker singleThreadAccessChecker = new SingleThreadAccessChecker();
+
 		static <T> StateSnapshotTransformFactory<T> create() {
-			return new SingleThreadAccessCheckingsnapshotTransformFactory<>();
+			return new SingleThreadAccessCheckingSnapshotTransformFactory<>();
 		}
 
 		@Override
 		public Optional<StateSnapshotTransformer<T>> createForDeserializedState() {
+			singleThreadAccessChecker.checkSingleThreadAccess();
 			return createStateSnapshotTransformer();
 		}
 
 		@Override
 		public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
+			singleThreadAccessChecker.checkSingleThreadAccess();
 			return createStateSnapshotTransformer();
 		}
 
 		private <T1> Optional<StateSnapshotTransformer<T1>> createStateSnapshotTransformer() {
 			return Optional.of(new StateSnapshotTransformer<T1>() {
-				private Thread currentThread = null;
+				private final SingleThreadAccessChecker singleThreadAccessChecker = new SingleThreadAccessChecker();
 
 				@Nullable
 				@Override
 				public T1 filterOrTransform(@Nullable T1 value) {
-					if (currentThread == null) {
-						currentThread = Thread.currentThread();
-					} else {
-						assertEquals("Concurrent access from another thread",
-							currentThread, Thread.currentThread());
-					}
+					singleThreadAccessChecker.checkSingleThreadAccess();
 					return value;
 				}
 			});
+		}
+	}
+
+	private static class SingleThreadAccessCheckingTypeSerializer extends TypeSerializer<String> {
+		private final SingleThreadAccessChecker singleThreadAccessChecker = new SingleThreadAccessChecker();
+
+		@Override
+		public boolean isImmutableType() {
+			singleThreadAccessChecker.checkSingleThreadAccess();
+			return StringSerializer.INSTANCE.isImmutableType();
+		}
+
+		@Override
+		public TypeSerializer<String> duplicate() {
+			singleThreadAccessChecker.checkSingleThreadAccess();
+			return new SingleThreadAccessCheckingTypeSerializer();
+		}
+
+		@Override
+		public String createInstance() {
+			singleThreadAccessChecker.checkSingleThreadAccess();
+			return StringSerializer.INSTANCE.createInstance();
+		}
+
+		@Override
+		public String copy(String from) {
+			singleThreadAccessChecker.checkSingleThreadAccess();
+			return StringSerializer.INSTANCE.copy(from);
+		}
+
+		@Override
+		public String copy(String from, String reuse) {
+			singleThreadAccessChecker.checkSingleThreadAccess();
+			return StringSerializer.INSTANCE.copy(from, reuse);
+		}
+
+		@Override
+		public int getLength() {
+			singleThreadAccessChecker.checkSingleThreadAccess();
+			return StringSerializer.INSTANCE.getLength();
+		}
+
+		@Override
+		public void serialize(String record, DataOutputView target) throws IOException {
+			singleThreadAccessChecker.checkSingleThreadAccess();
+			StringSerializer.INSTANCE.serialize(record, target);
+		}
+
+		@Override
+		public String deserialize(DataInputView source) throws IOException {
+			singleThreadAccessChecker.checkSingleThreadAccess();
+			return StringSerializer.INSTANCE.deserialize(source);
+		}
+
+		@Override
+		public String deserialize(String reuse, DataInputView source) throws IOException {
+			singleThreadAccessChecker.checkSingleThreadAccess();
+			return StringSerializer.INSTANCE.deserialize(reuse, source);
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			singleThreadAccessChecker.checkSingleThreadAccess();
+			StringSerializer.INSTANCE.copy(source, target);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			singleThreadAccessChecker.checkSingleThreadAccess();
+			return obj == this ||
+				(obj != null && obj.getClass() == getClass() &&
+					StringSerializer.INSTANCE.equals(obj));
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			singleThreadAccessChecker.checkSingleThreadAccess();
+			return (obj != null && obj.getClass() == getClass() &&
+				StringSerializer.INSTANCE.canEqual(obj));
+		}
+
+		@Override
+		public int hashCode() {
+			singleThreadAccessChecker.checkSingleThreadAccess();
+			return StringSerializer.INSTANCE.hashCode();
+		}
+
+		@Override
+		public TypeSerializerSnapshot<String> snapshotConfiguration() {
+			singleThreadAccessChecker.checkSingleThreadAccess();
+			return StringSerializer.INSTANCE.snapshotConfiguration();
+		}
+	}
+
+	private static class SingleThreadAccessChecker {
+		private Thread currentThread = null;
+
+		void checkSingleThreadAccess() {
+			if (currentThread == null) {
+				currentThread = Thread.currentThread();
+			} else {
+				assertEquals("Concurrent access from another thread",
+					currentThread, Thread.currentThread());
+			}
 		}
 	}
 }

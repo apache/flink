@@ -368,7 +368,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@VisibleForTesting
-	public ColumnFamilyHandle getColumnFamilyHandle(String state) {
+	ColumnFamilyHandle getColumnFamilyHandle(String state) {
 		Tuple2<ColumnFamilyHandle, ?> columnInfo = kvStateInformation.get(state);
 		return columnInfo != null ? columnInfo.f0 : null;
 	}
@@ -688,7 +688,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 *
 		 * @param rocksDBKeyedStateBackend the state backend into which we restore
 		 */
-		public RocksDBFullRestoreOperation(RocksDBKeyedStateBackend<K> rocksDBKeyedStateBackend) {
+		RocksDBFullRestoreOperation(RocksDBKeyedStateBackend<K> rocksDBKeyedStateBackend) {
 			this.rocksDBKeyedStateBackend = Preconditions.checkNotNull(rocksDBKeyedStateBackend);
 		}
 
@@ -697,7 +697,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 *
 		 * @param keyedStateHandles List of all key groups state handles that shall be restored.
 		 */
-		public void doRestore(Collection<KeyedStateHandle> keyedStateHandles)
+		void doRestore(Collection<KeyedStateHandle> keyedStateHandles)
 			throws IOException, StateMigrationException, RocksDBException {
 
 			rocksDBKeyedStateBackend.createDB();
@@ -1332,10 +1332,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * already have a registered entry for that and return it (after some necessary state compatibility checks)
 	 * or create a new one if it does not exist.
 	 */
-	private <N, S extends State, SV> Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> tryRegisterKvStateInformation(
+	private <N, S extends State, SV, SEV> Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> tryRegisterKvStateInformation(
 			StateDescriptor<S, SV> stateDesc,
 			TypeSerializer<N> namespaceSerializer,
-			@Nonnull StateSnapshotTransformFactory<SV> snapshotTransformFactory) throws Exception {
+			@Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory) throws Exception {
 
 		Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> oldStateInfo =
 			kvStateInformation.get(stateDesc.getName());
@@ -1352,8 +1352,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				Tuple2.of(oldStateInfo.f0, castedMetaInfo),
 				stateDesc,
 				namespaceSerializer,
-				stateSerializer,
-				snapshotTransformFactory);
+				stateSerializer);
 
 			oldStateInfo.f1 = newMetaInfo;
 			newColumnFamily = oldStateInfo.f0;
@@ -1363,11 +1362,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateDesc.getName(),
 				namespaceSerializer,
 				stateSerializer,
-				snapshotTransformFactory);
+				StateSnapshotTransformFactory.noTransform());
 
 			newColumnFamily = createColumnFamily(stateDesc.getName());
 			registerKvStateInformation(stateDesc.getName(), Tuple2.of(newColumnFamily, newMetaInfo));
 		}
+
+		StateSnapshotTransformFactory<SV> wrappedSnapshotTransformFactory = wrapStateSnapshotTransformFactory(
+			stateDesc, snapshotTransformFactory, newMetaInfo.getStateSerializer());
+		newMetaInfo.updateSnapshotTransformFactory(wrappedSnapshotTransformFactory);
 
 		return Tuple2.of(newColumnFamily, newMetaInfo);
 	}
@@ -1376,13 +1379,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> oldStateInfo,
 			StateDescriptor<S, SV> stateDesc,
 			TypeSerializer<N> namespaceSerializer,
-			TypeSerializer<SV> stateSerializer,
-			@Nullable StateSnapshotTransformFactory<SV> snapshotTransformFactory) throws Exception {
+			TypeSerializer<SV> stateSerializer) throws Exception {
 
 		@SuppressWarnings("unchecked")
 		RegisteredKeyValueStateBackendMetaInfo<N, SV> restoredKvStateMetaInfo = oldStateInfo.f1;
-
-		restoredKvStateMetaInfo.updateSnapshotTransformFactory(snapshotTransformFactory);
 
 		TypeSerializerSchemaCompatibility<N> s = restoredKvStateMetaInfo.updateNamespaceSerializer(namespaceSerializer);
 		if (s.isCompatibleAfterMigration() || s.isIncompatible()) {
@@ -1500,14 +1500,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			throw new FlinkRuntimeException(message);
 		}
 		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult = tryRegisterKvStateInformation(
-			stateDesc, namespaceSerializer, wrapStateSnapshotTransformFactory(stateDesc, snapshotTransformFactory));
+			stateDesc, namespaceSerializer, snapshotTransformFactory);
 		return stateFactory.createState(stateDesc, registerResult, RocksDBKeyedStateBackend.this);
 	}
 
 	/**
 	 * Only visible for testing, DO NOT USE.
 	 */
-	public File getInstanceBasePath() {
+	File getInstanceBasePath() {
 		return instanceBasePath;
 	}
 
@@ -1541,7 +1541,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return new RocksIteratorWrapper(db.newIterator());
 	}
 
-	public static RocksIteratorWrapper getRocksIterator(
+	static RocksIteratorWrapper getRocksIterator(
 		RocksDB db,
 		ColumnFamilyHandle columnFamilyHandle) {
 		return new RocksIteratorWrapper(db.newIterator(columnFamilyHandle));
