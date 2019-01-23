@@ -68,7 +68,9 @@ public class JSONKeyValueDeserializationSchemaTest {
 	}
 
 	private static ConsumerRecord<byte[], byte[]> newConsumerRecord(byte[] serializedKey, byte[] serializedValue) {
-		return new ConsumerRecord<>("", 0, serializedKey, serializedValue, 0L);
+		final ConsumerRecord<byte[], byte[]> record = new ConsumerRecord<>(
+			"", 0, serializedKey, serializedValue, 0L);
+		return record;
 	}
 
 	@Test
@@ -100,9 +102,9 @@ public class JSONKeyValueDeserializationSchemaTest {
 		byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
 
 		JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(true);
-		ObjectNode deserializedValue = schema.deserialize(
-			new ConsumerRecord<>(
-				"topic#1", 3, serializedKey, serializedValue, 4L));
+		final ConsumerRecord<byte[], byte[]> consumerRecord = new ConsumerRecord<>(
+			"topic#1", 3, serializedKey, serializedValue, 4L);
+		ObjectNode deserializedValue = schema.deserialize(consumerRecord);
 
 		Assert.assertEquals(4, deserializedValue.get("key").get("index").asInt());
 		Assert.assertEquals("world", deserializedValue.get("value").get("word").asText());
