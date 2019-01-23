@@ -171,9 +171,9 @@ public class CepOperator<IN, KEY, OUT>
 
 		// initializeState through the provided context
 		computationStates = context.getKeyedStateStore().getState(
-				new ValueStateDescriptor<>(
-						NFA_STATE_NAME,
-						NFAStateSerializer.INSTANCE));
+			new ValueStateDescriptor<>(
+				NFA_STATE_NAME,
+				new NFAStateSerializer()));
 
 		partialMatches = new SharedBuffer<>(context.getKeyedStateStore(), inputSerializer);
 
