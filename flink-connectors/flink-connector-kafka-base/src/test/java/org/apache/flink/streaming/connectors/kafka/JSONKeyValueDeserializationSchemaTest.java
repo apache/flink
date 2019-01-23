@@ -68,7 +68,7 @@ public class JSONKeyValueDeserializationSchemaTest {
 	}
 
 	private static ConsumerRecord<byte[], byte[]> newConsumerRecord(byte[] serializedKey, byte[] serializedValue) {
-		final ConsumerRecord<byte[], byte[]> record = new ConsumerRecord<>(
+		final ConsumerRecord<byte[], byte[]> record = new ConsumerRecord<byte[], byte[]>(
 			"", 0, serializedKey, serializedValue, 0L);
 		return record;
 	}
@@ -102,7 +102,7 @@ public class JSONKeyValueDeserializationSchemaTest {
 		byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
 
 		JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(true);
-		final ConsumerRecord<byte[], byte[]> consumerRecord = new ConsumerRecord<>(
+		final ConsumerRecord<byte[], byte[]> consumerRecord = new ConsumerRecord<byte[], byte[]>(
 			"topic#1", 3, serializedKey, serializedValue, 4L);
 		ObjectNode deserializedValue = schema.deserialize(consumerRecord);
 
