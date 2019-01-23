@@ -18,7 +18,6 @@
 
 package org.apache.flink.cep.nfa;
 
-import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
@@ -33,30 +32,46 @@ import org.apache.flink.types.StringValue;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.PriorityQueue;
 import java.util.Queue;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * A {@link TypeSerializer} for {@link NFAState} that uses Java Serialization.
+ * A {@link TypeSerializer} for {@link NFAState}.
  */
 public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 
 	private static final long serialVersionUID = 2098282423980597010L;
 
-	public static final NFAStateSerializer INSTANCE = new NFAStateSerializer();
+	/**
+	 * NOTE: this field should actually be final.
+	 * The reason that it isn't final is due to backward compatible deserialization
+	 * paths. See {@link #readObject(ObjectInputStream)}.
+	 */
+	private TypeSerializer<DeweyNumber> versionSerializer;
+	private TypeSerializer<NodeId> nodeIdSerializer;
+	private TypeSerializer<EventId> eventIdSerializer;
 
-	private static final DeweyNumber.DeweyNumberSerializer VERSION_SERIALIZER = DeweyNumber.DeweyNumberSerializer.INSTANCE;
-	private static final NodeId.NodeIdSerializer NODE_ID_SERIALIZER = new NodeId.NodeIdSerializer();
-	private static final EventId.EventIdSerializer EVENT_ID_SERIALIZER = EventId.EventIdSerializer.INSTANCE;
+	public NFAStateSerializer() {
+		this.versionSerializer = DeweyNumber.DeweyNumberSerializer.INSTANCE;
+		this.eventIdSerializer = EventId.EventIdSerializer.INSTANCE;
+		this.nodeIdSerializer = new NodeId.NodeIdSerializer();
+	}
+
+	NFAStateSerializer(
+			final TypeSerializer<DeweyNumber> versionSerializer,
+			final TypeSerializer<NodeId> nodeIdSerializer,
+			final TypeSerializer<EventId> eventIdSerializer) {
+		this.versionSerializer = checkNotNull(versionSerializer);
+		this.nodeIdSerializer = checkNotNull(nodeIdSerializer);
+		this.eventIdSerializer = checkNotNull(eventIdSerializer);
+	}
 
 	@Override
 	public boolean isImmutableType() {
 		return false;
-	}
-
-	@Override
-	public NFAStateSerializer duplicate() {
-		return new NFAStateSerializer();
 	}
 
 	@Override
@@ -130,24 +145,25 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 		return true;
 	}
 
-	// -----------------------------------------------------------------------------------
-
 	@Override
 	public TypeSerializerSnapshot<NFAState> snapshotConfiguration() {
-		return new NFAStateSerializerSnapshot();
+		return new NFAStateSerializerSnapshot(this);
 	}
 
-	private NFAStateSerializer() {
-	}
-
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
+	/*
+		Getters for internal serializers to use in NFAStateSerializerSnapshot.
 	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class NFAStateSerializerSnapshot extends SimpleTypeSerializerSnapshot<NFAState> {
-		public NFAStateSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
+
+	TypeSerializer<DeweyNumber> getVersionSerializer() {
+		return versionSerializer;
+	}
+
+	TypeSerializer<NodeId> getNodeIdSerializer() {
+		return nodeIdSerializer;
+	}
+
+	TypeSerializer<EventId> getEventIdSerializer() {
+		return eventIdSerializer;
 	}
 
 	/*
@@ -177,16 +193,16 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 			DataOutputView target) throws IOException {
 
 		StringValue.writeString(computationState.getCurrentStateName(), target);
-		NODE_ID_SERIALIZER.serialize(computationState.getPreviousBufferEntry(), target);
-		VERSION_SERIALIZER.serialize(computationState.getVersion(), target);
+		nodeIdSerializer.serialize(computationState.getPreviousBufferEntry(), target);
+		versionSerializer.serialize(computationState.getVersion(), target);
 		target.writeLong(computationState.getStartTimestamp());
 		serializeStartEvent(computationState.getStartEventID(), target);
 	}
 
 	private ComputationState deserializeSingleComputationState(DataInputView source) throws IOException {
 		String stateName = StringValue.readString(source);
-		NodeId prevState = NODE_ID_SERIALIZER.deserialize(source);
-		DeweyNumber version = VERSION_SERIALIZER.deserialize(source);
+		NodeId prevState = nodeIdSerializer.deserialize(source);
+		DeweyNumber version = versionSerializer.deserialize(source);
 		long startTimestamp = source.readLong();
 
 		EventId startEventId = deserializeStartEvent(source);
@@ -200,10 +216,10 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 
 	private void copySingleComputationState(DataInputView source, DataOutputView target) throws IOException {
 		StringValue.copyString(source, target);
-		NodeId prevState = NODE_ID_SERIALIZER.deserialize(source);
-		NODE_ID_SERIALIZER.serialize(prevState, target);
-		DeweyNumber version = VERSION_SERIALIZER.deserialize(source);
-		VERSION_SERIALIZER.serialize(version, target);
+		NodeId prevState = nodeIdSerializer.deserialize(source);
+		nodeIdSerializer.serialize(prevState, target);
+		DeweyNumber version = versionSerializer.deserialize(source);
+		versionSerializer.serialize(version, target);
 		long startTimestamp = source.readLong();
 		target.writeLong(startTimestamp);
 
@@ -213,7 +229,7 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 	private void serializeStartEvent(EventId startEventID, DataOutputView target) throws IOException {
 		if (startEventID != null) {
 			target.writeByte(1);
-			EVENT_ID_SERIALIZER.serialize(startEventID, target);
+			eventIdSerializer.serialize(startEventID, target);
 		} else {
 			target.writeByte(0);
 		}
@@ -223,7 +239,7 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 		byte isNull = source.readByte();
 		EventId startEventId = null;
 		if (isNull == 1) {
-			startEventId = EVENT_ID_SERIALIZER.deserialize(source);
+			startEventId = eventIdSerializer.deserialize(source);
 		}
 		return startEventId;
 	}
@@ -233,8 +249,23 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 		target.writeByte(isNull);
 
 		if (isNull == 1) {
-			EventId startEventId = EVENT_ID_SERIALIZER.deserialize(source);
-			EVENT_ID_SERIALIZER.serialize(startEventId, target);
+			EventId startEventId = eventIdSerializer.deserialize(source);
+			eventIdSerializer.serialize(startEventId, target);
+		}
+	}
+
+	/*
+	* Backwards compatible deserializing of NFAStateSerializer.
+	*/
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+
+		// the nested serializer will be null if this was read from a savepoint taken with versions
+		// lower than Flink 1.7; in this case, we explicitly create instance for the nested serializer.
+		if (versionSerializer == null || nodeIdSerializer == null || eventIdSerializer == null) {
+			this.versionSerializer = DeweyNumber.DeweyNumberSerializer.INSTANCE;
+			this.eventIdSerializer = EventId.EventIdSerializer.INSTANCE;
+			this.nodeIdSerializer = new NodeId.NodeIdSerializer();
 		}
 	}
 }
