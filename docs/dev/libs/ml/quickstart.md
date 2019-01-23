@@ -153,6 +153,8 @@ A conversion can be done using a simple normalizer mapping function:
  
 {% highlight scala %}
 
+import org.apache.flink.ml.math.Vector
+
 def normalizer : LabeledVector => LabeledVector = { 
     lv => LabeledVector(if (lv.label > 0.0) 1.0 else -1.0, lv.vector)
 }

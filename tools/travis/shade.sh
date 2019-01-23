@@ -156,6 +156,11 @@ check_shaded_artifacts_s3_fs() {
 org.apache.flink.fs.s3${VARIANT}.S3FileSystemFactory
 org.apache.flink.fs.s3${VARIANT}.S3AFileSystemFactory
 EOF
+	elif [ "${VARIANT}" == "presto" ]; then
+		read -r -d '' EXPECTED_FS_SERVICE_FILE_CLASSES <<EOF
+org.apache.flink.fs.s3${VARIANT}.S3FileSystemFactory
+org.apache.flink.fs.s3${VARIANT}.S3PFileSystemFactory
+EOF
 	fi
 
 	if [ "${FS_SERVICE_FILE_CLASSES}" != "${EXPECTED_FS_SERVICE_FILE_CLASSES}" ]; then

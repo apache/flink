@@ -20,6 +20,7 @@ package org.apache.flink.table.api.stream.table.stringexpr
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.java.{Tumble => JTumble}
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMergeAndReset}
 import org.apache.flink.table.utils.TableTestBase
@@ -128,4 +129,50 @@ class AggregateStringExpressionTest extends TableTestBase {
 
     verifyTableEquals(resJava, resScala)
   }
+
+  @Test
+  def testProctimeRename(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]('int, 'long, 'string, 'p.proctime as 'proctime)
+
+    // Expression / Scala API
+    val resScala = t
+      .window(Tumble over 50.milli on 'proctime as 'w1)
+      .groupBy('w1, 'string)
+      .select('w1.proctime as 'proctime, 'w1.start as 'start, 'w1.end as 'end, 'string, 'int.count)
+
+    // String / Java API
+    val resJava = t
+      .window(JTumble.over("50.milli").on("proctime").as("w1"))
+      .groupBy("w1, string")
+      .select("w1.proctime as proctime, w1.start as start, w1.end as end, string, int.count")
+
+    verifyTableEquals(resJava, resScala)
+  }
+
+  @Test
+  def testRowtimeRename(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[TestPojo]('int, 'long.rowtime as 'rowtime, 'string)
+
+    // Expression / Scala API
+    val resScala = t
+      .window(Tumble over 50.milli on 'rowtime as 'w1)
+      .groupBy('w1, 'string)
+      .select('w1.rowtime as 'rowtime, 'string, 'int.count)
+
+    // String / Java API
+    val resJava = t
+      .window(JTumble.over("50.milli").on("rowtime").as("w1"))
+      .groupBy("w1, string")
+      .select("w1.rowtime as rowtime, string, int.count")
+
+    verifyTableEquals(resJava, resScala)
+  }
+}
+
+class TestPojo() {
+  var int: Int = _
+  var long: Long = _
+  var string: String = _
 }

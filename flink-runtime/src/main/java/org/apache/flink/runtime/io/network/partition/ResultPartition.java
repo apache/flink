@@ -187,12 +187,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		checkState(this.bufferPool == null, "Bug in result partition setup logic: Already registered buffer pool.");
 
 		this.bufferPool = checkNotNull(bufferPool);
-
-		// If the partition type is back pressure-free, we register with the buffer pool for
-		// callbacks to release memory.
-		if (!partitionType.hasBackPressure()) {
-			bufferPool.setBufferPoolOwner(this);
-		}
 	}
 
 	public JobID getJobId() {

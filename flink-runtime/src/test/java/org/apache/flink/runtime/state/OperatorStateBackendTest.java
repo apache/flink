@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -33,6 +34,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend.PartitionableListState;
@@ -41,7 +43,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 import org.apache.flink.testutils.ArtificialCNFExceptionThrowingClassLoader;
-import org.apache.flink.util.FutureUtil;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
@@ -250,7 +252,7 @@ public class OperatorStateBackendTest {
 		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4096);
 		RunnableFuture<SnapshotResult<OperatorStateHandle>> runnableFuture =
 			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
-		FutureUtil.runIfNotDoneAndGet(runnableFuture);
+		FutureUtils.runIfNotDoneAndGet(runnableFuture);
 
 		// make sure that the copy method has been called
 		assertTrue(copyCounter.get() > 0);
@@ -350,7 +352,7 @@ public class OperatorStateBackendTest {
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot<Integer> snapshotConfiguration() {
+		public TypeSerializerSnapshot<Integer> snapshotConfiguration() {
 			return IntSerializer.INSTANCE.snapshotConfiguration();
 		}
 
@@ -372,7 +374,7 @@ public class OperatorStateBackendTest {
 		RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
 				operatorStateBackend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtil.runIfNotDoneAndGet(snapshot);
+		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtils.runIfNotDoneAndGet(snapshot);
 		OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 		assertNull(stateHandle);
 	}
@@ -402,7 +404,7 @@ public class OperatorStateBackendTest {
 			RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
 					operatorStateBackend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-			SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtil.runIfNotDoneAndGet(snapshot);
+			SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtils.runIfNotDoneAndGet(snapshot);
 			stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 			assertNotNull(stateHandle);
 
@@ -420,7 +422,7 @@ public class OperatorStateBackendTest {
 			expected.remove(1);
 
 			snapshot = operatorStateBackend.snapshot(1L, 1L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
-			snapshotResult = FutureUtil.runIfNotDoneAndGet(snapshot);
+			snapshotResult = FutureUtils.runIfNotDoneAndGet(snapshot);
 
 			stateHandle.discardState();
 			stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
@@ -438,7 +440,7 @@ public class OperatorStateBackendTest {
 			expected.clear();
 
 			snapshot = operatorStateBackend.snapshot(2L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
-			snapshotResult = FutureUtil.runIfNotDoneAndGet(snapshot);
+			snapshotResult = FutureUtils.runIfNotDoneAndGet(snapshot);
 			if (stateHandle != null) {
 				stateHandle.discardState();
 			}
@@ -507,7 +509,7 @@ public class OperatorStateBackendTest {
 		RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
 			operatorStateBackend.snapshot(1L, 1L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtil.runIfNotDoneAndGet(snapshot);
+		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtils.runIfNotDoneAndGet(snapshot);
 		OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 
 		try {
@@ -871,7 +873,7 @@ public class OperatorStateBackendTest {
 		RunnableFuture<SnapshotResult<OperatorStateHandle>> runnableFuture =
 			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtil.runIfNotDoneAndGet(runnableFuture);
+		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtils.runIfNotDoneAndGet(runnableFuture);
 		OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 
 		try {
@@ -889,8 +891,8 @@ public class OperatorStateBackendTest {
 			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
 
 			fail("The operator state restore should have failed if the previous state serializer could not be loaded.");
-		} catch (IOException expected) {
-			Assert.assertTrue(expected.getMessage().contains("Unable to restore operator state"));
+		} catch (Exception expected) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(expected, ClassNotFoundException.class).isPresent());
 		} finally {
 			stateHandle.discardState();
 		}

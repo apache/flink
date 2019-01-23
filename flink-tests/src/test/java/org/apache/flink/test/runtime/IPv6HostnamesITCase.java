@@ -22,14 +22,13 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.NetUtils;
@@ -60,7 +59,7 @@ import static org.junit.Assert.fail;
 public class IPv6HostnamesITCase extends TestLogger {
 
 	@Rule
-	public final MiniClusterResource miniClusterResource = new MiniClusterResource(
+	public final MiniClusterWithClientResource miniClusterResource = new MiniClusterWithClientResource(
 		new MiniClusterResourceConfiguration.Builder()
 			.setConfiguration(getConfiguration())
 			.setNumberTaskManagers(2)
@@ -77,7 +76,7 @@ public class IPv6HostnamesITCase extends TestLogger {
 
 		Configuration config = new Configuration();
 		config.setString(JobManagerOptions.ADDRESS, addressString);
-		config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, addressString);
+		config.setString(TaskManagerOptions.HOST, addressString);
 		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "16m");
 		return config;
 	}

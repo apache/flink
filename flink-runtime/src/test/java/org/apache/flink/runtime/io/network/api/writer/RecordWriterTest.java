@@ -198,19 +198,19 @@ public class RecordWriterTest {
 	 */
 	@Test
 	public void testBroadcastEventNoRecords() throws Exception {
-		int numChannels = 4;
+		int numberOfChannels = 4;
 		int bufferSize = 32;
 
 		@SuppressWarnings("unchecked")
-		Queue<BufferConsumer>[] queues = new Queue[numChannels];
-		for (int i = 0; i < numChannels; i++) {
+		Queue<BufferConsumer>[] queues = new Queue[numberOfChannels];
+		for (int i = 0; i < numberOfChannels; i++) {
 			queues[i] = new ArrayDeque<>();
 		}
 
 		TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, bufferSize);
 
 		ResultPartitionWriter partitionWriter = new CollectingPartitionWriter(queues, bufferProvider);
-		RecordWriter<ByteArrayIO> writer = new RecordWriter<>(partitionWriter, new RoundRobin<ByteArrayIO>());
+		RecordWriter<ByteArrayIO> writer = new RecordWriter<>(partitionWriter, new RoundRobinChannelSelector<>());
 		CheckpointBarrier barrier = new CheckpointBarrier(Integer.MAX_VALUE + 919192L, Integer.MAX_VALUE + 18828228L, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		// No records emitted yet, broadcast should not request a buffer
@@ -218,7 +218,7 @@ public class RecordWriterTest {
 
 		assertEquals(0, bufferProvider.getNumberOfCreatedBuffers());
 
-		for (int i = 0; i < numChannels; i++) {
+		for (int i = 0; i < numberOfChannels; i++) {
 			assertEquals(1, queues[i].size());
 			BufferOrEvent boe = parseBuffer(queues[i].remove(), i);
 			assertTrue(boe.isEvent());
@@ -234,20 +234,20 @@ public class RecordWriterTest {
 	@Test
 	public void testBroadcastEventMixedRecords() throws Exception {
 		Random rand = new XORShiftRandom();
-		int numChannels = 4;
+		int numberOfChannels = 4;
 		int bufferSize = 32;
 		int lenBytes = 4; // serialized length
 
 		@SuppressWarnings("unchecked")
-		Queue<BufferConsumer>[] queues = new Queue[numChannels];
-		for (int i = 0; i < numChannels; i++) {
+		Queue<BufferConsumer>[] queues = new Queue[numberOfChannels];
+		for (int i = 0; i < numberOfChannels; i++) {
 			queues[i] = new ArrayDeque<>();
 		}
 
 		TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, bufferSize);
 
 		ResultPartitionWriter partitionWriter = new CollectingPartitionWriter(queues, bufferProvider);
-		RecordWriter<ByteArrayIO> writer = new RecordWriter<>(partitionWriter, new RoundRobin<ByteArrayIO>());
+		RecordWriter<ByteArrayIO> writer = new RecordWriter<>(partitionWriter, new RoundRobinChannelSelector<>());
 		CheckpointBarrier barrier = new CheckpointBarrier(Integer.MAX_VALUE + 1292L, Integer.MAX_VALUE + 199L, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		// Emit records on some channels first (requesting buffers), then
@@ -290,7 +290,7 @@ public class RecordWriterTest {
 		assertEquals(1, queues[3].size()); // 0 buffers + 1 event
 
 		// every queue's last element should be the event
-		for (int i = 0; i < numChannels; i++) {
+		for (int i = 0; i < numberOfChannels; i++) {
 			boe = parseBuffer(queues[i].remove(), i);
 			assertTrue(boe.isEvent());
 			assertEquals(barrier, boe.getEvent());
@@ -413,22 +413,22 @@ public class RecordWriterTest {
 	 * @param isBroadcastEmit whether using {@link RecordWriter#broadcastEmit(IOReadableWritable)} or not
 	 */
 	private void emitRecordWithBroadcastPartitionerOrBroadcastEmitRecord(boolean isBroadcastEmit) throws Exception {
-		final int numChannels = 4;
+		final int numberOfChannels = 4;
 		final int bufferSize = 32;
 		final int numValues = 8;
 		final int serializationLength = 4;
 
 		@SuppressWarnings("unchecked")
-		final Queue<BufferConsumer>[] queues = new Queue[numChannels];
-		for (int i = 0; i < numChannels; i++) {
+		final Queue<BufferConsumer>[] queues = new Queue[numberOfChannels];
+		for (int i = 0; i < numberOfChannels; i++) {
 			queues[i] = new ArrayDeque<>();
 		}
 
 		final TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, bufferSize);
 		final ResultPartitionWriter partitionWriter = new CollectingPartitionWriter(queues, bufferProvider);
+		final ChannelSelector selector = new Broadcast<>();
 		final RecordWriter<SerializationTestType> writer = isBroadcastEmit ?
-			new RecordWriter<>(partitionWriter) :
-			new RecordWriter<>(partitionWriter, new Broadcast<>());
+			new RecordWriter<>(partitionWriter) : new RecordWriter<>(partitionWriter, selector);
 		final RecordDeserializer<SerializationTestType> deserializer = new SpillingAdaptiveSpanningRecordDeserializer<>(
 			new String[]{ tempFolder.getRoot().getAbsolutePath() });
 
@@ -445,7 +445,7 @@ public class RecordWriterTest {
 		}
 
 		final int requiredBuffers = numValues / (bufferSize / (4 + serializationLength));
-		for (int i = 0; i < numChannels; i++) {
+		for (int i = 0; i < numberOfChannels; i++) {
 			assertEquals(requiredBuffers, queues[i].size());
 
 			final ArrayDeque<SerializationTestType> expectedRecords = serializedRecords.clone();
@@ -594,33 +594,26 @@ public class RecordWriterTest {
 	}
 
 	/**
-	 * RoundRobin channel selector starting at 0 ({@link RoundRobinChannelSelector} starts at 1).
-	 */
-	private static class RoundRobin<T extends IOReadableWritable> implements ChannelSelector<T> {
-
-		private int[] nextChannel = new int[] { -1 };
-
-		@Override
-		public int[] selectChannels(final T record, final int numberOfOutputChannels) {
-			nextChannel[0] = (nextChannel[0] + 1) % numberOfOutputChannels;
-			return nextChannel;
-		}
-	}
-
-	/**
 	 * Broadcast channel selector that selects all the output channels.
 	 */
 	private static class Broadcast<T extends IOReadableWritable> implements ChannelSelector<T> {
 
 		private int[] returnChannel;
 
+		private int numberOfChannels;
+
 		@Override
-		public int[] selectChannels(final T record, final int numberOfOutputChannels) {
-			if (returnChannel != null && returnChannel.length == numberOfOutputChannels) {
+		public void setup(int numberOfChannels) {
+			this.numberOfChannels = numberOfChannels;
+		}
+
+		@Override
+		public int[] selectChannels(final T record) {
+			if (returnChannel != null && returnChannel.length == numberOfChannels) {
 				return returnChannel;
 			} else {
-				this.returnChannel = new int[numberOfOutputChannels];
-				for (int i = 0; i < numberOfOutputChannels; i++) {
+				this.returnChannel = new int[numberOfChannels];
+				for (int i = 0; i < numberOfChannels; i++) {
 					returnChannel[i] = i;
 				}
 				return returnChannel;

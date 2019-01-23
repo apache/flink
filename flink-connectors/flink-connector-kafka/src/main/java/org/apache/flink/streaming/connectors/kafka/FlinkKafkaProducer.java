@@ -45,6 +45,7 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartiti
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -676,6 +677,9 @@ public class FlinkKafkaProducer<IN>
 		}
 		// make sure we propagate pending errors
 		checkErroneous();
+		pendingTransactions().forEach(transaction ->
+			IOUtils.closeQuietly(transaction.getValue().producer)
+		);
 	}
 
 	// ------------------- Logic for handling checkpoint flushing -------------------------- //
@@ -694,7 +698,7 @@ public class FlinkKafkaProducer<IN>
 				if (currentTransaction != null && currentTransaction.producer != null) {
 					return new FlinkKafkaProducer.KafkaTransactionState(currentTransaction.producer);
 				}
-				return new FlinkKafkaProducer.KafkaTransactionState(initProducer(true));
+				return new FlinkKafkaProducer.KafkaTransactionState(initNonTransactionalProducer(true));
 			default:
 				throw new UnsupportedOperationException("Not implemented semantic");
 		}
@@ -717,73 +721,49 @@ public class FlinkKafkaProducer<IN>
 
 	@Override
 	protected void commit(FlinkKafkaProducer.KafkaTransactionState transaction) {
-		switch (semantic) {
-			case EXACTLY_ONCE:
+		if (transaction.isTransactional()) {
+			try {
 				transaction.producer.commitTransaction();
+			} finally {
 				recycleTransactionalProducer(transaction.producer);
-				break;
-			case AT_LEAST_ONCE:
-			case NONE:
-				break;
-			default:
-				throw new UnsupportedOperationException("Not implemented semantic");
+			}
 		}
 	}
 
 	@Override
 	protected void recoverAndCommit(FlinkKafkaProducer.KafkaTransactionState transaction) {
-		switch (semantic) {
-			case EXACTLY_ONCE:
-				try (FlinkKafkaInternalProducer<byte[], byte[]> producer =
+		if (transaction.isTransactional()) {
+			try (
+				FlinkKafkaInternalProducer<byte[], byte[]> producer =
 					initTransactionalProducer(transaction.transactionalId, false)) {
-					producer.resumeTransaction(transaction.producerId, transaction.epoch);
-					producer.commitTransaction();
-				}
-				catch (InvalidTxnStateException | ProducerFencedException ex) {
-					// That means we have committed this transaction before.
-					LOG.warn("Encountered error {} while recovering transaction {}. " +
-							"Presumably this transaction has been already committed before",
-						ex,
-						transaction);
-				}
-				break;
-			case AT_LEAST_ONCE:
-			case NONE:
-				break;
-			default:
-				throw new UnsupportedOperationException("Not implemented semantic");
+				producer.resumeTransaction(transaction.producerId, transaction.epoch);
+				producer.commitTransaction();
+			} catch (InvalidTxnStateException | ProducerFencedException ex) {
+				// That means we have committed this transaction before.
+				LOG.warn("Encountered error {} while recovering transaction {}. " +
+						"Presumably this transaction has been already committed before",
+					ex,
+					transaction);
+			}
 		}
 	}
 
 	@Override
 	protected void abort(FlinkKafkaProducer.KafkaTransactionState transaction) {
-		switch (semantic) {
-			case EXACTLY_ONCE:
-				transaction.producer.abortTransaction();
-				recycleTransactionalProducer(transaction.producer);
-				break;
-			case AT_LEAST_ONCE:
-			case NONE:
-				break;
-			default:
-				throw new UnsupportedOperationException("Not implemented semantic");
+		if (transaction.isTransactional()) {
+			transaction.producer.abortTransaction();
+			recycleTransactionalProducer(transaction.producer);
 		}
 	}
 
 	@Override
 	protected void recoverAndAbort(FlinkKafkaProducer.KafkaTransactionState transaction) {
-		switch (semantic) {
-			case EXACTLY_ONCE:
-				try (FlinkKafkaInternalProducer<byte[], byte[]> producer =
+		if (transaction.isTransactional()) {
+			try (
+				FlinkKafkaInternalProducer<byte[], byte[]> producer =
 					initTransactionalProducer(transaction.transactionalId, false)) {
-					producer.initTransactions();
-				}
-				break;
-			case AT_LEAST_ONCE:
-			case NONE:
-				break;
-			default:
-				throw new UnsupportedOperationException("Not implemented semantic");
+				producer.initTransactions();
+			}
 		}
 	}
 
@@ -898,7 +878,7 @@ public class FlinkKafkaProducer<IN>
 		LOG.info("Recovered transactionalIds {}", getUserContext().get().transactionalIds);
 	}
 
-	protected FlinkKafkaInternalProducer createProducer() {
+	protected FlinkKafkaInternalProducer<byte[], byte[]> createProducer() {
 		return new FlinkKafkaInternalProducer<>(this.producerConfig);
 	}
 
@@ -914,9 +894,7 @@ public class FlinkKafkaProducer<IN>
 
 	private void resetAvailableTransactionalIdsPool(Collection<String> transactionalIds) {
 		availableTransactionalIds.clear();
-		for (String transactionalId : transactionalIds) {
-			availableTransactionalIds.add(transactionalId);
-		}
+		availableTransactionalIds.addAll(transactionalIds);
 	}
 
 	// ----------------------------------- Utilities --------------------------
@@ -963,6 +941,11 @@ public class FlinkKafkaProducer<IN>
 
 	private FlinkKafkaInternalProducer<byte[], byte[]> initTransactionalProducer(String transactionalId, boolean registerMetrics) {
 		producerConfig.put("transactional.id", transactionalId);
+		return initProducer(registerMetrics);
+	}
+
+	private FlinkKafkaInternalProducer<byte[], byte[]> initNonTransactionalProducer(boolean registerMetrics) {
+		producerConfig.remove("transactional.id");
 		return initProducer(registerMetrics);
 	}
 
@@ -1084,7 +1067,7 @@ public class FlinkKafkaProducer<IN>
 		}
 
 		KafkaTransactionState(
-			String transactionalId,
+			@Nullable String transactionalId,
 			long producerId,
 			short epoch,
 			FlinkKafkaInternalProducer<byte[], byte[]> producer) {
@@ -1092,6 +1075,10 @@ public class FlinkKafkaProducer<IN>
 			this.producerId = producerId;
 			this.epoch = epoch;
 			this.producer = producer;
+		}
+
+		boolean isTransactional() {
+			return transactionalId != null;
 		}
 
 		@Override

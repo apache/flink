@@ -159,6 +159,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/** Determines if a task fails or not if there is an error in writing its checkpoint data. Default: true */
 	private boolean failTaskOnCheckpointError = true;
 
+	/** The default input dependency constraint to schedule tasks. */
+	private InputDependencyConstraint defaultInputDependencyConstraint = InputDependencyConstraint.ANY;
+
 	// ------------------------------- User code values --------------------------------------------
 
 	private GlobalJobParameters globalJobParameters;
@@ -519,6 +522,32 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
+	 * Sets the default input dependency constraint for vertex scheduling. It indicates when a task
+	 * should be scheduled considering its inputs status.
+	 *
+	 * <p>The default constraint is {@link InputDependencyConstraint#ANY}.
+	 *
+	 * @param inputDependencyConstraint The input dependency constraint.
+	 */
+	@PublicEvolving
+	public void setDefaultInputDependencyConstraint(InputDependencyConstraint inputDependencyConstraint) {
+		this.defaultInputDependencyConstraint = inputDependencyConstraint;
+	}
+
+	/**
+	 * Gets the default input dependency constraint for vertex scheduling. It indicates when a task
+	 * should be scheduled considering its inputs status.
+	 *
+	 * <p>The default constraint is {@link InputDependencyConstraint#ANY}.
+	 *
+	 * @return The input dependency constraint of this job.
+	 */
+	@PublicEvolving
+	public InputDependencyConstraint getDefaultInputDependencyConstraint() {
+		return defaultInputDependencyConstraint;
+	}
+
+	/**
 	 * Force TypeExtractor to use Kryo serializer for POJOS even though we could analyze as POJO.
 	 * In some cases this might be preferable. For example, when using interfaces
 	 * with subclasses that cannot be analyzed as POJO.
@@ -554,7 +583,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * is used, Flink will throw an {@code UnsupportedOperationException} whenever it encounters
 	 * a data type that would go through Kryo for serialization.
 	 *
-	 * <p>Disabling generic types can be helpful to eagerly find and eliminate teh use of types
+	 * <p>Disabling generic types can be helpful to eagerly find and eliminate the use of types
 	 * that would go through Kryo serialization during runtime. Rather than checking types
 	 * individually, using this option will throw exceptions eagerly in the places where generic
 	 * types are used.
@@ -918,7 +947,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				registeredKryoTypes.equals(other.registeredKryoTypes) &&
 				registeredPojoTypes.equals(other.registeredPojoTypes) &&
 				taskCancellationIntervalMillis == other.taskCancellationIntervalMillis &&
-				useSnapshotCompression == other.useSnapshotCompression;
+				useSnapshotCompression == other.useSnapshotCompression &&
+				defaultInputDependencyConstraint == other.defaultInputDependencyConstraint;
 
 		} else {
 			return false;
@@ -946,7 +976,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			registeredKryoTypes,
 			registeredPojoTypes,
 			taskCancellationIntervalMillis,
-			useSnapshotCompression);
+			useSnapshotCompression,
+			defaultInputDependencyConstraint);
 	}
 
 	public boolean canEqual(Object obj) {

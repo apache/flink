@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,20 +18,15 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -51,7 +46,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -132,28 +126,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		// before checking any strings outputted by the CLI, first give it time to return
 		clusterRunner.join();
 
-		if (!isNewMode) {
-			checkForLogString("The Flink YARN client has been started in detached mode");
-
-			// in legacy mode we have to wait until the TMs are up until we can submit the job
-			LOG.info("Waiting until two containers are running");
-			// wait until two containers are running
-			while (getRunningContainers() < 2) {
-				sleep(500);
-			}
-
-			// additional sleep for the JM/TM to start and establish connection
-			long startTime = System.nanoTime();
-			while (System.nanoTime() - startTime < TimeUnit.NANOSECONDS.convert(10, TimeUnit.SECONDS) &&
-				!(verifyStringsInNamedLogFiles(
-					new String[]{"YARN Application Master started"}, "jobmanager.log") &&
-					verifyStringsInNamedLogFiles(
-						new String[]{"Starting TaskManager actor"}, "taskmanager.log"))) {
-				LOG.info("Still waiting for JM/TM to initialize...");
-				sleep(500);
-			}
-		}
-
 		// actually run a program, otherwise we wouldn't necessarily see any TaskManagers
 		// be brought up
 		Runner jobRunner = startWithArgs(new String[]{"run",
@@ -163,14 +135,12 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 		jobRunner.join();
 
-		if (isNewMode) {
-			// in "new" mode we can only wait after the job is submitted, because TMs
-			// are spun up lazily
-			LOG.info("Waiting until two containers are running");
-			// wait until two containers are running
-			while (getRunningContainers() < 2) {
-				sleep(500);
-			}
+		// in "new" mode we can only wait after the job is submitted, because TMs
+		// are spun up lazily
+		LOG.info("Waiting until two containers are running");
+		// wait until two containers are running
+		while (getRunningContainers() < 2) {
+			sleep(500);
 		}
 
 		// make sure we have two TMs running in either mode
@@ -293,71 +263,5 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Finished testfullAlloc()");
 		checkForLogString("There is not enough memory available in the YARN cluster. The TaskManager(s) require 3840MB each. NodeManagers available: [4096, 4096]\n" +
 				"After allocating the JobManager (512MB) and (1/2) TaskManagers, the following NodeManagers are available: [3584, 256]");
-	}
-
-	/**
-	 * Test the YARN Java API.
-	 */
-	@Test
-	public void testJavaAPI() throws Exception {
-		final int waitTime = 15;
-		LOG.info("Starting testJavaAPI()");
-
-		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
-		Configuration configuration = GlobalConfiguration.loadConfiguration();
-
-		try (final AbstractYarnClusterDescriptor clusterDescriptor = new LegacyYarnClusterDescriptor(
-			configuration,
-			getYarnConfiguration(),
-			confDirPath,
-			getYarnClient(),
-			true)) {
-			Assert.assertNotNull("unable to get yarn client", clusterDescriptor);
-			clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-			clusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
-
-			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-				.setMasterMemoryMB(768)
-				.setTaskManagerMemoryMB(1024)
-				.setNumberTaskManagers(1)
-				.setSlotsPerTaskManager(1)
-				.createClusterSpecification();
-			// deploy
-			ClusterClient<ApplicationId> yarnClusterClient = null;
-			try {
-				yarnClusterClient = clusterDescriptor.deploySessionCluster(clusterSpecification);
-
-				GetClusterStatusResponse expectedStatus = new GetClusterStatusResponse(1, 1);
-				for (int second = 0; second < waitTime * 2; second++) { // run "forever"
-					try {
-						Thread.sleep(1000);
-					} catch (InterruptedException e) {
-						LOG.warn("Interrupted", e);
-					}
-					GetClusterStatusResponse status = yarnClusterClient.getClusterStatus();
-					if (status != null && status.equals(expectedStatus)) {
-						LOG.info("ClusterClient reached status " + status);
-						break; // all good, cluster started
-					}
-					if (second > waitTime) {
-						// we waited for 15 seconds. cluster didn't come up correctly
-						Assert.fail("The custer didn't start after " + waitTime + " seconds");
-					}
-				}
-
-				// use the cluster
-				Assert.assertNotNull(yarnClusterClient.getClusterConnectionInfo());
-				Assert.assertNotNull(yarnClusterClient.getWebInterfaceURL());
-				LOG.info("All tests passed.");
-			} finally {
-				if (yarnClusterClient != null) {
-					// shutdown cluster
-					LOG.info("Shutting down the Flink Yarn application.");
-					yarnClusterClient.shutDownCluster();
-					yarnClusterClient.shutdown();
-				}
-			}
-		}
-		LOG.info("Finished testJavaAPI()");
 	}
 }

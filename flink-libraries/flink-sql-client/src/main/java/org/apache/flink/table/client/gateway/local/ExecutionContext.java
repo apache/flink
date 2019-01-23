@@ -41,19 +41,20 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.BatchQueryConfig;
 import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.StreamQueryConfig;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.client.config.Deployment;
 import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.config.Execution;
-import org.apache.flink.table.client.config.Sink;
-import org.apache.flink.table.client.config.Source;
-import org.apache.flink.table.client.config.SourceSink;
+import org.apache.flink.table.client.config.entries.DeploymentEntry;
+import org.apache.flink.table.client.config.entries.ExecutionEntry;
+import org.apache.flink.table.client.config.entries.SinkTableEntry;
+import org.apache.flink.table.client.config.entries.SourceSinkTableEntry;
+import org.apache.flink.table.client.config.entries.SourceTableEntry;
+import org.apache.flink.table.client.config.entries.TemporalTableEntry;
+import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.BatchTableSinkFactory;
 import org.apache.flink.table.factories.BatchTableSourceFactory;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
@@ -115,23 +116,19 @@ public class ExecutionContext<T> {
 		// create table sources & sinks.
 		tableSources = new HashMap<>();
 		tableSinks = new HashMap<>();
-		mergedEnv.getTables().forEach((name, descriptor) -> {
-			final DescriptorProperties properties = new DescriptorProperties(true);
-			descriptor.addProperties(properties);
-			final Map<String, String> propertyMap = properties.asMap();
-
-			if (descriptor instanceof Source || descriptor instanceof SourceSink) {
-				tableSources.put(name, createTableSource(mergedEnv.getExecution(), propertyMap, classLoader));
+		mergedEnv.getTables().forEach((name, entry) -> {
+			if (entry instanceof SourceTableEntry || entry instanceof SourceSinkTableEntry) {
+				tableSources.put(name, createTableSource(mergedEnv.getExecution(), entry.asMap(), classLoader));
 			}
-			if (descriptor instanceof Sink || descriptor instanceof SourceSink) {
-				tableSinks.put(name, createTableSink(mergedEnv.getExecution(), propertyMap, classLoader));
+			if (entry instanceof SinkTableEntry || entry instanceof SourceSinkTableEntry) {
+				tableSinks.put(name, createTableSink(mergedEnv.getExecution(), entry.asMap(), classLoader));
 			}
 		});
 
 		// create user-defined functions
 		functions = new HashMap<>();
-		mergedEnv.getFunctions().forEach((name, descriptor) -> {
-			final UserDefinedFunction function = FunctionService.createFunction(descriptor, classLoader);
+		mergedEnv.getFunctions().forEach((name, entry) -> {
+			final UserDefinedFunction function = FunctionService.createFunction(entry.getDescriptor(), classLoader, false);
 			functions.put(name, function);
 		});
 
@@ -199,7 +196,7 @@ public class ExecutionContext<T> {
 
 	// --------------------------------------------------------------------------------------------
 
-	private static CommandLine createCommandLine(Deployment deployment, Options commandLineOptions) {
+	private static CommandLine createCommandLine(DeploymentEntry deployment, Options commandLineOptions) {
 		try {
 			return deployment.getCommandLine(commandLineOptions);
 		} catch (Exception e) {
@@ -233,7 +230,7 @@ public class ExecutionContext<T> {
 		}
 	}
 
-	private static TableSource<?> createTableSource(Execution execution, Map<String, String> sourceProperties, ClassLoader classLoader) {
+	private static TableSource<?> createTableSource(ExecutionEntry execution, Map<String, String> sourceProperties, ClassLoader classLoader) {
 		if (execution.isStreamingExecution()) {
 			final StreamTableSourceFactory<?> factory = (StreamTableSourceFactory<?>)
 				TableFactoryService.find(StreamTableSourceFactory.class, sourceProperties, classLoader);
@@ -246,7 +243,7 @@ public class ExecutionContext<T> {
 		throw new SqlExecutionException("Unsupported execution type for sources.");
 	}
 
-	private static TableSink<?> createTableSink(Execution execution, Map<String, String> sinkProperties, ClassLoader classLoader) {
+	private static TableSink<?> createTableSink(ExecutionEntry execution, Map<String, String> sinkProperties, ClassLoader classLoader) {
 		if (execution.isStreamingExecution()) {
 			final StreamTableSinkFactory<?> factory = (StreamTableSinkFactory<?>)
 				TableFactoryService.find(StreamTableSinkFactory.class, sinkProperties, classLoader);
@@ -297,43 +294,18 @@ public class ExecutionContext<T> {
 			tableSinks.forEach(tableEnv::registerTableSink);
 
 			// register user-defined functions
-			if (tableEnv instanceof StreamTableEnvironment) {
-				StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
-				functions.forEach((k, v) -> {
-					if (v instanceof ScalarFunction) {
-						streamTableEnvironment.registerFunction(k, (ScalarFunction) v);
-					} else if (v instanceof AggregateFunction) {
-						streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
-					} else if (v instanceof TableFunction) {
-						streamTableEnvironment.registerFunction(k, (TableFunction<?>) v);
-					} else {
-						throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
-					}
-				});
-			} else {
-				BatchTableEnvironment batchTableEnvironment = (BatchTableEnvironment) tableEnv;
-				functions.forEach((k, v) -> {
-					if (v instanceof ScalarFunction) {
-						batchTableEnvironment.registerFunction(k, (ScalarFunction) v);
-					} else if (v instanceof AggregateFunction) {
-						batchTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
-					} else if (v instanceof TableFunction) {
-						batchTableEnvironment.registerFunction(k, (TableFunction<?>) v);
-					} else {
-						throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
-					}
-				});
-			}
+			registerFunctions();
 
-			// register views
-			mergedEnv.getViews().forEach((name, query) -> {
-				// if registering a view fails at this point
+			// register views and temporal tables in specified order
+			mergedEnv.getTables().forEach((name, entry) -> {
+				// if registering a view fails at this point,
 				// it means that it accesses tables that are not available anymore
-				try {
-					tableEnv.registerTable(name, tableEnv.sqlQuery(query));
-				} catch (ValidationException e) {
-					throw new SqlExecutionException(
-						"Invalid view '" + name + "' with query:\n" + query + "\nCause: " + e.getMessage());
+				if (entry instanceof ViewEntry) {
+					final ViewEntry viewEntry = (ViewEntry) entry;
+					registerView(viewEntry);
+				} else if (entry instanceof TemporalTableEntry) {
+					final TemporalTableEntry temporalTableEntry = (TemporalTableEntry) entry;
+					registerTemporalTable(temporalTableEntry);
 				}
 			});
 		}
@@ -414,6 +386,66 @@ public class ExecutionContext<T> {
 				return config;
 			} else {
 				return new BatchQueryConfig();
+			}
+		}
+
+		private void registerFunctions() {
+			if (tableEnv instanceof StreamTableEnvironment) {
+				StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
+				functions.forEach((k, v) -> {
+					if (v instanceof ScalarFunction) {
+						streamTableEnvironment.registerFunction(k, (ScalarFunction) v);
+					} else if (v instanceof AggregateFunction) {
+						streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
+					} else if (v instanceof TableFunction) {
+						streamTableEnvironment.registerFunction(k, (TableFunction<?>) v);
+					} else {
+						throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
+					}
+				});
+			} else {
+				BatchTableEnvironment batchTableEnvironment = (BatchTableEnvironment) tableEnv;
+				functions.forEach((k, v) -> {
+					if (v instanceof ScalarFunction) {
+						batchTableEnvironment.registerFunction(k, (ScalarFunction) v);
+					} else if (v instanceof AggregateFunction) {
+						batchTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
+					} else if (v instanceof TableFunction) {
+						batchTableEnvironment.registerFunction(k, (TableFunction<?>) v);
+					} else {
+						throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
+					}
+				});
+			}
+		}
+
+		private void registerView(ViewEntry viewEntry) {
+			try {
+				tableEnv.registerTable(viewEntry.getName(), tableEnv.sqlQuery(viewEntry.getQuery()));
+			} catch (Exception e) {
+				throw new SqlExecutionException(
+					"Invalid view '" + viewEntry.getName() + "' with query:\n" + viewEntry.getQuery()
+						+ "\nCause: " + e.getMessage());
+			}
+		}
+
+		private void registerTemporalTable(TemporalTableEntry temporalTableEntry) {
+			try {
+				final Table table = tableEnv.scan(temporalTableEntry.getHistoryTable());
+				final TableFunction<?> function = table.createTemporalTableFunction(
+					temporalTableEntry.getTimeAttribute(),
+					String.join(",", temporalTableEntry.getPrimaryKeyFields()));
+				if (tableEnv instanceof StreamTableEnvironment) {
+					StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
+					streamTableEnvironment.registerFunction(temporalTableEntry.getName(), function);
+				} else {
+					BatchTableEnvironment batchTableEnvironment = (BatchTableEnvironment) tableEnv;
+					batchTableEnvironment.registerFunction(temporalTableEntry.getName(), function);
+				}
+			} catch (Exception e) {
+				throw new SqlExecutionException(
+					"Invalid temporal table '" + temporalTableEntry.getName() + "' over table '" +
+						temporalTableEntry.getHistoryTable() + ".\nCause: " + e.getMessage());
 			}
 		}
 	}

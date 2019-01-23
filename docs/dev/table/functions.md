@@ -1200,6 +1200,18 @@ SIN(numeric)
     <tr>
       <td>
         {% highlight text %}
+SINH(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic sine of <i>numeric</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 COS(numeric)
 {% endhighlight %}
       </td>
@@ -1216,6 +1228,18 @@ TAN(numeric)
       </td>
       <td>
         <p>Returns the tangent of <i>numeric</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+TANH(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic tangent of <i>numeric</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -1647,6 +1671,18 @@ NUMERIC.sin()
     <tr>
       <td>
         {% highlight java %}
+NUMERIC.sinh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic sine of <i>NUMERIC</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 NUMERIC.cos()
 {% endhighlight %}
       </td>
@@ -1663,6 +1699,18 @@ NUMERIC.tan()
       </td>
       <td>
         <p>Returns the tangent of <i>NUMERIC</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.tanh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic tangent of <i>NUMERIC</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -2095,6 +2143,18 @@ NUMERIC.sin()
     <tr>
       <td>
         {% highlight scala %}
+NUMERIC.sinh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic sine of <i>NUMERIC</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
 NUMERIC.cos()
 {% endhighlight %}
       </td>
@@ -2111,6 +2171,18 @@ NUMERIC.tan()
       </td>
       <td>
         <p>Returns the tangent of <i>NUMERIC</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.tanh()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hyperbolic tangent of <i>NUMERIC</i>.</p> 
+        <p>The return type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
 
@@ -3415,7 +3487,7 @@ DATE_FORMAT(timestamp, string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that formats <i>timestamp</i> with a specified format <i>string</i>. The format specification is given in the <a href="#date-format-specifiers">Date Format Specifier table</a>.</p>
+        <p><span class="label label-danger">Attention</span> This function has serious bugs and should not be used for now. Please implement a custom UDF instead or use EXTRACT as a workaround.</p>
       </td>
     </tr>
 
@@ -3501,7 +3573,18 @@ NUMERIC.years
         <p>Creates an interval of months for <i>NUMERIC</i> years.</p>
       </td>
     </tr>
-
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.quarter
+NUMERIC.quarters
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of months for <i>NUMERIC</i> quarters.</p>
+        <p>E.g., <code>2.quarters</code> returns 6.</p>
+      </td>
+    </tr>
     <tr>
       <td>
         {% highlight java %}
@@ -3514,6 +3597,19 @@ NUMERIC.months
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.week
+NUMERIC.weeks
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of milliseconds for <i>NUMERIC</i> weeks.</p>
+        <p>E.g., <code>2.weeks</code> returns 1209600000.</p>
+      </td>
+    </tr>
+    
     <tr>
       <td>
         {% highlight java %}
@@ -3684,8 +3780,7 @@ dateFormat(TIMESTAMP, STRING)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that formats <i>TIMESTAMP</i> with a specified format <i>STRING</i>. The format specification is given in the <a href="#date-format-specifiers">Date Format Specifier table</a>.</p>
-        <p>E.g., <code>dateFormat(ts, '%Y, %d %M')</code> results in strings formatted as "2017, 05 May".</p>
+        <p><span class="label label-danger">Attention</span> This function has serious bugs and should not be used for now. Please implement a custom UDF instead or use extract() as a workaround.</p>
       </td>
     </tr>
 
@@ -3763,6 +3858,19 @@ NUMERIC.years
     <tr>
       <td>
         {% highlight scala %}
+NUMERIC.quarter
+NUMERIC.quarters
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of months for <i>NUMERIC</i> quarters.</p>
+        <p>E.g., <code>2.quarters</code> returns 6.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
 NUMERIC.month
 NUMERIC.months
 {% endhighlight %}
@@ -3772,6 +3880,19 @@ NUMERIC.months
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.week
+NUMERIC.weeks
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of milliseconds for <i>NUMERIC</i> weeks.</p>
+        <p>E.g., <code>2.weeks</code> returns 1209600000.</p>
+      </td>
+    </tr>
+    
     <tr>
       <td>
         {% highlight scala %}
@@ -3942,8 +4063,7 @@ dateFormat(TIMESTAMP, STRING)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that formats <i>TIMESTAMP</i> with a specified format <i>STRING</i>. The format specification is given in the <a href="#date-format-specifiers">Date Format Specifier table</a>.</p>
-        <p>E.g., <code>dateFormat('ts, "%Y, %d %M")</code> results in strings formatted as "2017, 05 May".</p>
+        <p><span class="label label-danger">Attention</span> This function has serious bugs and should not be used for now. Please implement a custom UDF instead or use extract() as a workaround.</p>
       </td>
     </tr>
 
@@ -4114,7 +4234,7 @@ CAST(value AS type)
       </td>
       <td>
         <p>Returns a new <i>value</i> being cast to type <i>type</i>. See the supported types <a href="sql.html#data-types">here</a>.</p>
-        <p>E.g., <code>CAST('42' AS INT)</code> returns 42.</p>
+        <p>E.g., <code>CAST('42' AS INT)</code> returns 42; <code>CAST(NULL AS VARCHAR)</code> returns NULL of type VARCHAR.</p>
       </td>
     </tr>
   </tbody>
@@ -4139,7 +4259,7 @@ ANY.cast(TYPE)
       </td>
       <td>
         <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="tableApi.html#data-types">here</a>.</p>
-        <p>E.g., <code>'42'.cast(INT)</code> returns 42.</p>
+        <p>E.g., <code>'42'.cast(INT)</code> returns 42; <code>Null(STRING)</code> returns NULL of type STRING.</p>
       </td>
     </tr>
     </tbody>
@@ -4164,7 +4284,7 @@ ANY.cast(TYPE)
       </td>
       <td>
         <p>Returns a new <i>ANY</i> being cast to type <i>TYPE</i>. See the supported types <a href="tableApi.html#data-types">here</a>.</p>
-        <p>E.g., <code>"42".cast(Types.INT)</code> returns 42.</p>
+        <p>E.g., <code>"42".cast(Types.INT)</code> returns 42; <code>Null(Types.STRING)</code> returns NULL of type STRING.</p>
       </td>
     </tr>
   </tbody>

@@ -303,7 +303,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
     case expr ~ _ ~ (MONTHS.key | MONTH.key) => toMonthInterval(expr, 1)
 
-    case expr ~ _ ~ (WEEKS.key | WEEKS.key) => toMilliInterval(expr, 7 * MILLIS_PER_DAY)
+    case expr ~ _ ~ (WEEKS.key | WEEK.key) => toMilliInterval(expr, 7 * MILLIS_PER_DAY)
 
     case expr ~ _ ~ (DAYS.key | DAY.key) => toMilliInterval(expr, MILLIS_PER_DAY)
 
@@ -355,7 +355,9 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     // expression with distinct suffix modifier
     suffixDistinct |
     // function call must always be at the end
-    suffixFunctionCall | suffixFunctionCallOneArg
+    suffixFunctionCall | suffixFunctionCallOneArg |
+    // rowtime or proctime
+    timeIndicator
 
   // prefix operators
 
@@ -455,7 +457,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // suffix/prefix composite
 
-  lazy val composite: PackratParser[Expression] = over | nullLiteral | suffixed | prefixed | atom |
+  lazy val composite: PackratParser[Expression] = over | suffixed | nullLiteral | prefixed | atom |
     failure("Composite expression expected.")
 
   // unary ops
@@ -525,15 +527,13 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val timeIndicator: PackratParser[Expression] = proctime | rowtime
 
-  lazy val proctime: PackratParser[Expression] =
-    (aliasMapping | "(" ~> aliasMapping <~ ")" | fieldReference) ~ "." ~ PROCTIME ^^ {
-      case f ~ _ ~ _ => ProctimeAttribute(f)
-    }
+  lazy val proctime: PackratParser[Expression] = fieldReference ~ "." ~ PROCTIME ^^ {
+    case f ~ _ ~ _ => ProctimeAttribute(f)
+  }
 
-  lazy val rowtime: PackratParser[Expression] =
-    (aliasMapping | "(" ~> aliasMapping <~ ")" | fieldReference) ~ "." ~ ROWTIME ^^ {
-      case f ~ _ ~ _ => RowtimeAttribute(f)
-    }
+  lazy val rowtime: PackratParser[Expression] = fieldReference ~ "." ~ ROWTIME ^^ {
+    case f ~ _ ~ _ => RowtimeAttribute(f)
+  }
 
   // alias
 
@@ -547,7 +547,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       case e ~ _ ~ name => Alias(e, name.name)
   }
 
-  lazy val expression: PackratParser[Expression] = timeIndicator | overConstant | alias |
+  lazy val expression: PackratParser[Expression] = overConstant | alias |
     failure("Invalid expression.")
 
   lazy val expressionList: Parser[List[Expression]] = rep1sep(expression, ",")

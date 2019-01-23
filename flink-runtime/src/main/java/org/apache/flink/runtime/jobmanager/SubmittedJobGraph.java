@@ -34,7 +34,7 @@ public class SubmittedJobGraph implements Serializable {
 
 	private static final long serialVersionUID = 2836099271734771825L;
 
-	/** The submitted {@link JobGraph} */
+	/** The submitted {@link JobGraph}. */
 	private final JobGraph jobGraph;
 
 	/** The {@link JobInfo}. */
@@ -44,8 +44,20 @@ public class SubmittedJobGraph implements Serializable {
 	 * Creates a {@link SubmittedJobGraph}.
 	 *
 	 * @param jobGraph The submitted {@link JobGraph}
-	 * @param jobInfo  The {@link JobInfo}
 	 */
+	public SubmittedJobGraph(JobGraph jobGraph) {
+		this(jobGraph, null);
+	}
+
+	/**
+	 * Creates a {@link SubmittedJobGraph}.
+	 *
+	 * @param jobGraph The submitted {@link JobGraph}
+	 * @param jobInfo  The {@link JobInfo}
+	 *
+	 * @deprecated FLIP-6 code should use {@link #SubmittedJobGraph(JobGraph)}
+	 */
+	@Deprecated
 	public SubmittedJobGraph(JobGraph jobGraph, @Nullable JobInfo jobInfo) {
 		this.jobGraph = checkNotNull(jobGraph, "Job graph");
 		this.jobInfo = jobInfo;
@@ -67,7 +79,10 @@ public class SubmittedJobGraph implements Serializable {
 
 	/**
 	 * Returns the {@link JobInfo} of the client who submitted the {@link JobGraph}.
+	 *
+	 * @deprecated FLIP-6 code should not use this method because it will always return null.
 	 */
+	@Deprecated
 	public JobInfo getJobInfo() throws Exception {
 		return jobInfo;
 	}

@@ -91,7 +91,6 @@ public class RestServerSSLAuthITCase extends TestLogger {
 
 			RestfulGateway restfulGateway = TestingRestfulGateway.newBuilder().build();
 			RestServerEndpointITCase.TestVersionHandler testVersionHandler = new RestServerEndpointITCase.TestVersionHandler(
-				CompletableFuture.completedFuture("http://localhost:1234"),
 				() -> CompletableFuture.completedFuture(restfulGateway),
 				RpcUtils.INF_TIMEOUT);
 

@@ -93,9 +93,9 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	public Map<String, String> requiredContext() {
 		Map<String, String> context = new HashMap<>();
 		context.put(UPDATE_MODE(), UPDATE_MODE_VALUE_APPEND()); // append mode
-		context.put(CONNECTOR_TYPE(), CONNECTOR_TYPE_VALUE_KAFKA); // kafka
-		context.put(CONNECTOR_VERSION(), kafkaVersion()); // version
-		context.put(CONNECTOR_PROPERTY_VERSION(), "1"); // backwards compatibility
+		context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_KAFKA); // kafka
+		context.put(CONNECTOR_VERSION, kafkaVersion()); // version
+		context.put(CONNECTOR_PROPERTY_VERSION, "1"); // backwards compatibility
 		return context;
 	}
 
@@ -131,7 +131,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_DELAY());
 
 		// format wildcard
-		properties.add(FORMAT() + ".*");
+		properties.add(FORMAT + ".*");
 
 		return properties;
 	}
@@ -335,7 +335,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 					case CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM:
 						final Class<? extends FlinkKafkaPartitioner> partitionerClass =
 							descriptorProperties.getClass(CONNECTOR_SINK_PARTITIONER_CLASS, FlinkKafkaPartitioner.class);
-						return Optional.of(InstantiationUtil.instantiate(partitionerClass));
+						return Optional.of((FlinkKafkaPartitioner<Row>) InstantiationUtil.instantiate(partitionerClass));
 					default:
 						throw new TableException("Unsupported sink partitioner. Validator should have checked that.");
 				}
@@ -346,7 +346,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		final Map<String, String> fieldMapping = SchemaValidator.deriveFieldMapping(
 			descriptorProperties,
 			Optional.of(schema.toRowType())); // until FLINK-9870 is fixed we assume that the table schema is the output type
-		return fieldMapping.size() != schema.getColumnNames().length ||
+		return fieldMapping.size() != schema.getFieldNames().length ||
 			!fieldMapping.entrySet().stream().allMatch(mapping -> mapping.getKey().equals(mapping.getValue()));
 	}
 

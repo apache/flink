@@ -44,7 +44,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An implementation of the {@link HighAvailabilityServices} using Apache ZooKeeper.
- * The services store data in ZooKeeper's nodes as illustrated by teh following tree structure:
+ * The services store data in ZooKeeper's nodes as illustrated by the following tree structure:
  * 
  * <pre>
  * /flink

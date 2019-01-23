@@ -41,7 +41,6 @@ public class JarPlanHandlerParameterTest extends JarHandlerParameterTest<JarPlan
 	public static void setup() throws Exception {
 		init();
 		handler = new JarPlanHandler(
-			localAddressFuture,
 			gatewayRetriever,
 			timeout,
 			responseHeaders,

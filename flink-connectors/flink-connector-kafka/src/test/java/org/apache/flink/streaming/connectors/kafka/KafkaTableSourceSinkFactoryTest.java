@@ -40,7 +40,7 @@ public class KafkaTableSourceSinkFactoryTest extends KafkaTableSourceSinkFactory
 
 	@Override
 	protected String getKafkaVersion() {
-		return KafkaValidator.CONNECTOR_VERSION_VALUE_20;
+		return KafkaValidator.CONNECTOR_VERSION_VALUE_UNIVERSAL;
 	}
 
 	@Override

@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
+
 import java.io.IOException;
 
 /**
@@ -48,13 +49,13 @@ public class BackwardsCompatibleSerializerSnapshot<T> implements TypeSerializerS
 	}
 
 	@Override
-	public void write(DataOutputView out) throws IOException {
+	public void writeSnapshot(DataOutputView out) throws IOException {
 		throw new UnsupportedOperationException(
 			"This is a dummy config snapshot used only for backwards compatibility.");
 	}
 
 	@Override
-	public void read(int version, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+	public void readSnapshot(int version, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
 		throw new UnsupportedOperationException(
 			"This is a dummy config snapshot used only for backwards compatibility.");
 	}
@@ -71,7 +72,7 @@ public class BackwardsCompatibleSerializerSnapshot<T> implements TypeSerializerS
 	}
 
 	@Override
-	public <NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS> resolveSchemaCompatibility(NS newSerializer) {
+	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
 		// if there is no configuration snapshot to check against,
 		// then we can only assume that the new serializer is compatible as is
 		return TypeSerializerSchemaCompatibility.compatibleAsIs();

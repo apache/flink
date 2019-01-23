@@ -87,7 +87,9 @@ class TemporalTableJoinTest extends TableTestBase {
 
     val ratesHistory = util.addTable[(Timestamp, String, String, Int, Int)](
       "RatesHistory", 'rowtime.rowtime, 'comment, 'currency, 'rate, 'secondary_key)
-    val rates = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
+    val rates = ratesHistory
+      .filter('rate > 110L)
+      .createTemporalTableFunction('rowtime, 'currency)
     util.addFunction("Rates", rates)
 
     val result = orders
@@ -163,10 +165,10 @@ class TemporalTableJoinTest extends TableTestBase {
       if (proctime) "proctime" else "rowtime",
       rates.getTimeAttribute.asInstanceOf[ResolvedFieldReference].name)
     assertArrayEquals(
-      expectedSchema.getColumnNames.asInstanceOf[Array[Object]],
+      expectedSchema.getFieldNames.asInstanceOf[Array[Object]],
       rates.getResultType.getFieldNames.asInstanceOf[Array[Object]])
     assertArrayEquals(
-      expectedSchema.getTypes.asInstanceOf[Array[Object]],
+      expectedSchema.getFieldTypes.asInstanceOf[Array[Object]],
       rates.getResultType.getFieldTypes.asInstanceOf[Array[Object]])
   }
 }
@@ -226,7 +228,8 @@ object TemporalTableJoinTest {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(2),
-            term("select", "rowtime, currency, rate, secondary_key")
+            term("select", "rowtime, currency, rate, secondary_key"),
+            term("where", ">(rate, 110)")
           ),
           term("where",
             "AND(" +

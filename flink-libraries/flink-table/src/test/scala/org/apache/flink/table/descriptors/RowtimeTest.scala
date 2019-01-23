@@ -124,7 +124,7 @@ object RowtimeTest {
       argumentFieldTypes(0) match {
         case Types.SQL_TIMESTAMP =>
         case _ =>
-          throw ValidationException(
+          throw new ValidationException(
             s"Field 'ts' must be of type Timestamp but is of type ${argumentFieldTypes(0)}.")
       }
     }

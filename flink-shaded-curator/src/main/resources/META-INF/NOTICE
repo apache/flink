@@ -1,0 +1,12 @@
+flink-shaded-curator
+Copyright 2014-2018 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.google.guava:guava:16.0.1
+- org.apache.curator:curator-client:2.12.0
+- org.apache.curator:curator-framework:2.12.0
+- org.apache.curator:curator-recipes:2.12.0

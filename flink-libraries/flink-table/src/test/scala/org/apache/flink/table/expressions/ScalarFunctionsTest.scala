@@ -645,6 +645,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "'foobar'.regexpReplace('oo|ar', f33)",
       "REGEXP_REPLACE('foobar', 'oo|ar', f33)",
       "null")
+
+    // This test was added for the null literal problem in string expression parsing (FLINK-10463).
+    testAllApis(
+      Null(Types.STRING).regexpReplace("oo|ar", 'f33),
+      "Null(STRING).regexpReplace('oo|ar', f33)",
+      "REGEXP_REPLACE(CAST(NULL AS VARCHAR), 'oo|ar', f33)",
+      "null")
   }
 
   @Test
@@ -1406,6 +1413,45 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testSinh(): Unit = {
+    testAllApis(
+      0.sinh(),
+      "0.sinh()",
+      "SINH(0)",
+      math.sinh(0).toString)
+
+    testAllApis(
+      -1.sinh(),
+      "-1.sinh()",
+      "SINH(-1)",
+      math.sinh(-1).toString)
+
+    testAllApis(
+      'f4.sinh(),
+      "f4.sinh",
+      "SINH(f4)",
+      math.sinh(44L).toString)
+
+    testAllApis(
+      'f6.sinh(),
+      "f6.sinh",
+      "SINH(f6)",
+      math.sinh(4.6D).toString)
+
+    testAllApis(
+      'f7.sinh(),
+      "f7.sinh",
+      "SINH(f7)",
+      math.sinh(3).toString)
+
+    testAllApis(
+      'f22.sinh(),
+      "f22.sinh",
+      "SINH(f22)",
+      math.sinh(2.0).toString)
+  }
+
+  @Test
   def testTan(): Unit = {
     testAllApis(
       'f2.tan(),
@@ -1442,6 +1488,45 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "tan(f15)",
       "TAN(f15)",
       math.tan(-1231.1231231321321321111).toString)
+  }
+
+  @Test
+  def testTanh(): Unit = {
+    testAllApis(
+      0.tanh(),
+      "0.tanh()",
+      "TANH(0)",
+      math.tanh(0).toString)
+
+    testAllApis(
+      -1.tanh(),
+      "-1.tanh()",
+      "TANH(-1)",
+      math.tanh(-1).toString)
+
+    testAllApis(
+      'f4.tanh(),
+      "f4.tanh",
+      "TANH(f4)",
+      math.tanh(44L).toString)
+
+    testAllApis(
+      'f6.tanh(),
+      "f6.tanh",
+      "TANH(f6)",
+      math.tanh(4.6D).toString)
+
+    testAllApis(
+      'f7.tanh(),
+      "f7.tanh",
+      "TANH(f7)",
+      math.tanh(3).toString)
+
+    testAllApis(
+      'f22.tanh(),
+      "f22.tanh",
+      "TANH(f22)",
+      math.tanh(2.0).toString)
   }
 
   @Test
@@ -2618,16 +2703,72 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "null")
 
     testAllApis(
-      "2016-06-15".toDate + 1.day,
-      "'2016-06-15'.toDate + 1.day",
-      "TIMESTAMPADD(DAY, 1, DATE '2016-06-15')",
-      "2016-06-16")
-
-    testAllApis(
       Null(Types.SQL_TIMESTAMP) + 3.months,
       "Null(SQL_TIMESTAMP) + 3.months",
       "TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))",
       "null")
+
+    // TIMESTAMPADD with DATE returns a TIMESTAMP value for sub-day intervals.
+    testAllApis("2016-06-15".toDate + 1.month,
+      "'2016-06-15'.toDate + 1.month",
+      "timestampadd(MONTH, 1, date '2016-06-15')",
+      "2016-07-15")
+
+    testAllApis("2016-06-15".toDate + 1.day,
+      "'2016-06-15'.toDate + 1.day",
+      "timestampadd(DAY, 1, date '2016-06-15')",
+      "2016-06-16")
+
+    testAllApis("2016-06-15".toTimestamp - 1.hour,
+      "'2016-06-15'.toTimestamp - 1.hour",
+      "timestampadd(HOUR, -1, date '2016-06-15')",
+      "2016-06-14 23:00:00.0")
+
+    testAllApis("2016-06-15".toTimestamp + 1.minute,
+      "'2016-06-15'.toTimestamp + 1.minute",
+      "timestampadd(MINUTE, 1, date '2016-06-15')",
+      "2016-06-15 00:01:00.0")
+
+    testAllApis("2016-06-15".toTimestamp - 1.second,
+      "'2016-06-15'.toTimestamp - 1.second",
+      "timestampadd(SQL_TSI_SECOND, -1, date '2016-06-15')",
+      "2016-06-14 23:59:59.0")
+
+    testAllApis("2016-06-15".toTimestamp + 1.second,
+      "'2016-06-15'.toTimestamp + 1.second",
+      "timestampadd(SECOND, 1, date '2016-06-15')",
+      "2016-06-15 00:00:01.0")
+
+    testAllApis(Null(Types.SQL_TIMESTAMP) + 1.second,
+      "Null(SQL_TIMESTAMP) + 1.second",
+      "timestampadd(SECOND, 1, cast(null as date))",
+      "null")
+
+    testAllApis(Null(Types.SQL_TIMESTAMP) + 1.day,
+      "Null(SQL_TIMESTAMP) + 1.day",
+      "timestampadd(DAY, 1, cast(null as date))",
+      "null")
+
+    // Round to the last day of previous month
+    testAllApis("2016-05-31".toDate + 1.month,
+      "'2016-05-31'.toDate + 1.month",
+      "timestampadd(MONTH, 1, date '2016-05-31')",
+      "2016-06-30")
+
+    testAllApis("2016-01-31".toDate + 5.month,
+      "'2016-01-31'.toDate + 5.month",
+      "timestampadd(MONTH, 5, date '2016-01-31')",
+      "2016-06-30")
+
+    testAllApis("2016-03-31".toDate - 1.month,
+      "'2016-03-31'.toDate - 1.month",
+      "timestampadd(MONTH, -1, date '2016-03-31')",
+      "2016-02-29")
+
+    testAllApis("2016-03-31".toDate - 1.week,
+      "'2016-03-31'.toDate - 1.week",
+      "timestampadd(WEEK, -1, date '2016-03-31')",
+      "2016-03-24")
   }
 
   // ----------------------------------------------------------------------------------------------

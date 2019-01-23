@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.util.FutureUtil;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.LambdaUtil;
 
 import org.slf4j.Logger;
@@ -73,7 +73,7 @@ public class StateUtil {
 
 				try {
 					// We attempt to get a result, in case the future completed before cancellation.
-					StateObject stateObject = FutureUtil.runIfNotDoneAndGet(stateFuture);
+					StateObject stateObject = FutureUtils.runIfNotDoneAndGet(stateFuture);
 
 					if (null != stateObject) {
 						stateObject.discardState();

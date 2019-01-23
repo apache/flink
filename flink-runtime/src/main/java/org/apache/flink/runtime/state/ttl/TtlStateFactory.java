@@ -188,15 +188,17 @@ public class TtlStateFactory<N, SV, S extends State, IS extends S> {
 		}
 	}
 
-	/** Serializer for user state value with TTL. */
-	private static class TtlSerializer<T> extends CompositeSerializer<TtlValue<T>> {
+	/**
+	 * Serializer for user state value with TTL. Visibility is public for usage with external tools.
+	 */
+	public static class TtlSerializer<T> extends CompositeSerializer<TtlValue<T>> {
 		private static final long serialVersionUID = 131020282727167064L;
 
-		TtlSerializer(TypeSerializer<T> userValueSerializer) {
+		public TtlSerializer(TypeSerializer<T> userValueSerializer) {
 			super(true, LongSerializer.INSTANCE, userValueSerializer);
 		}
 
-		TtlSerializer(PrecomputedParameters precomputed, TypeSerializer<?> ... fieldSerializers) {
+		public TtlSerializer(PrecomputedParameters precomputed, TypeSerializer<?> ... fieldSerializers) {
 			super(precomputed, fieldSerializers);
 		}
 
@@ -224,7 +226,7 @@ public class TtlStateFactory<N, SV, S extends State, IS extends S> {
 			TypeSerializer<?> ... originalSerializers) {
 			Preconditions.checkNotNull(originalSerializers);
 			Preconditions.checkArgument(originalSerializers.length == 2);
-			return new TtlSerializer<>(precomputed, (TypeSerializer<T>) originalSerializers[1]);
+			return new TtlSerializer<>(precomputed, originalSerializers);
 		}
 	}
 }

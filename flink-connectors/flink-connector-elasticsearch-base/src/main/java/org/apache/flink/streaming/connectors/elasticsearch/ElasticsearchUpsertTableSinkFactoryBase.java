@@ -102,9 +102,9 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 	@Override
 	public Map<String, String> requiredContext() {
 		final Map<String, String> context = new HashMap<>();
-		context.put(CONNECTOR_TYPE(), CONNECTOR_TYPE_VALUE_ELASTICSEARCH);
-		context.put(CONNECTOR_VERSION(), elasticsearchVersion());
-		context.put(CONNECTOR_PROPERTY_VERSION(), "1");
+		context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_ELASTICSEARCH);
+		context.put(CONNECTOR_VERSION, elasticsearchVersion());
+		context.put(CONNECTOR_PROPERTY_VERSION, "1");
 		return context;
 	}
 
@@ -140,7 +140,7 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 		properties.add(SCHEMA() + ".#." + SCHEMA_NAME());
 
 		// format wildcard
-		properties.add(FORMAT() + ".*");
+		properties.add(FORMAT + ".*");
 
 		return properties;
 	}
@@ -210,7 +210,7 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 	}
 
 	private SerializationSchema<Row> getSerializationSchema(Map<String, String> properties) {
-		final String formatType = properties.get(FORMAT_TYPE());
+		final String formatType = properties.get(FORMAT_TYPE);
 		// we could have added this check to the table factory context
 		// but this approach allows to throw more helpful error messages
 		// if the supported format has not been added

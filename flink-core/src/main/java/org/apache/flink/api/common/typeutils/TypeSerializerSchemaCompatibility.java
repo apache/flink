@@ -27,20 +27,18 @@ import javax.annotation.Nullable;
  * A {@code TypeSerializerSchemaCompatibility} represents information about whether or not a {@link TypeSerializer}
  * can be safely used to read data written by a previous type serializer.
  *
- * <p>Typically, the compatibility of the new serializer is resolved by checking it against the snapshotted
- * {@link TypeSerializerConfigSnapshot} of the previous serializer. Depending on the type of the
+ * <p>Typically, the compatibility of the new serializer is resolved by checking the serializer against the
+ * {@link TypeSerializerSnapshot} of the previous serializer. Depending on the type of the
  * resolved compatibility result, migration (i.e., reading bytes with the previous serializer and then writing
  * it again with the new serializer) may be required before the new serializer can be used.
  *
  * @param <T> the type of data serialized by the serializer that was being checked.
  *
- * @param <NS> the type of serializer that was being checked.
- *
  * @see TypeSerializer
- * @see TypeSerializerConfigSnapshot#resolveSchemaCompatibility(TypeSerializer)
+ * @see TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer)
  */
 @PublicEvolving
-public class TypeSerializerSchemaCompatibility<T, NS extends TypeSerializer<T>> {
+public class TypeSerializerSchemaCompatibility<T> {
 
 	/**
 	 * Enum for the type of the compatibility.
@@ -59,6 +57,12 @@ public class TypeSerializerSchemaCompatibility<T, NS extends TypeSerializer<T>> 
 		COMPATIBLE_AFTER_MIGRATION,
 
 		/**
+		 * This indicates that a reconfigured version of the new serializer
+		 * is compatible, and should be used instead of the original new serializer.
+		 */
+		COMPATIBLE_WITH_RECONFIGURED_SERIALIZER,
+
+		/**
 		 * This indicates that the new serializer is incompatible, even with migration.
 		 * This normally implies that the deserialized Java class can not be commonly recognized
 		 * by the previous and new serializer.
@@ -71,13 +75,15 @@ public class TypeSerializerSchemaCompatibility<T, NS extends TypeSerializer<T>> 
 	 */
 	private final Type resultType;
 
+	private final TypeSerializer<T> reconfiguredNewSerializer;
+
 	/**
 	 * Returns a result that indicates that the new serializer is compatible and no migration is required.
 	 * The new serializer can continued to be used as is.
 	 *
 	 * @return a result that indicates migration is not required for the new serializer.
 	 */
-	public static <T, NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS> compatibleAsIs() {
+	public static <T> TypeSerializerSchemaCompatibility<T> compatibleAsIs() {
 		return new TypeSerializerSchemaCompatibility<>(Type.COMPATIBLE_AS_IS, null);
 	}
 
@@ -87,8 +93,22 @@ public class TypeSerializerSchemaCompatibility<T, NS extends TypeSerializer<T>> 
 	 *
 	 * @return a result that indicates that the new serializer can be used after migrating the written bytes.
 	 */
-	public static <T, NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS> compatibleAfterMigration() {
+	public static <T> TypeSerializerSchemaCompatibility<T> compatibleAfterMigration() {
 		return new TypeSerializerSchemaCompatibility<>(Type.COMPATIBLE_AFTER_MIGRATION, null);
+	}
+
+	/**
+	 * Returns a result that indicates a reconfigured version of the new serializer is compatible, and should be
+	 * used instead of the original new serializer.
+	 *
+	 * @param reconfiguredSerializer the reconfigured version of the new serializer.
+	 * @return a result that indicates a reconfigured version of the new serializer is compatible, and should be
+	 *         used instead of the original new serializer.
+	 */
+	public static <T> TypeSerializerSchemaCompatibility<T> compatibleWithReconfiguredSerializer(TypeSerializer<T> reconfiguredSerializer) {
+		return new TypeSerializerSchemaCompatibility<>(
+			Type.COMPATIBLE_WITH_RECONFIGURED_SERIALIZER,
+			Preconditions.checkNotNull(reconfiguredSerializer));
 	}
 
 	/**
@@ -101,12 +121,13 @@ public class TypeSerializerSchemaCompatibility<T, NS extends TypeSerializer<T>> 
 	 *
 	 * @return a result that indicates incompatibility between the new and previous serializer.
 	 */
-	public static <T, NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS> incompatible() {
+	public static <T> TypeSerializerSchemaCompatibility<T> incompatible() {
 		return new TypeSerializerSchemaCompatibility<>(Type.INCOMPATIBLE, null);
 	}
 
-	private TypeSerializerSchemaCompatibility(Type resultType, @Nullable NS reconfiguredNewSerializer) {
+	private TypeSerializerSchemaCompatibility(Type resultType, @Nullable TypeSerializer<T> reconfiguredNewSerializer) {
 		this.resultType = Preconditions.checkNotNull(resultType);
+		this.reconfiguredNewSerializer = reconfiguredNewSerializer;
 	}
 
 	/**
@@ -125,6 +146,27 @@ public class TypeSerializerSchemaCompatibility<T, NS extends TypeSerializer<T>> 
 	 */
 	public boolean isCompatibleAfterMigration() {
 		return resultType == Type.COMPATIBLE_AFTER_MIGRATION;
+	}
+
+	/**
+	 * Returns whether or not the type of the compatibility is {@link Type#COMPATIBLE_WITH_RECONFIGURED_SERIALIZER}.
+	 *
+	 * @return whether or not the type of the compatibility is {@link Type#COMPATIBLE_WITH_RECONFIGURED_SERIALIZER}.
+	 */
+	public boolean isCompatibleWithReconfiguredSerializer() {
+		return resultType == Type.COMPATIBLE_WITH_RECONFIGURED_SERIALIZER;
+	}
+
+	/**
+	 * Gets the reconfigured serializer. This throws an exception if
+	 * {@link #isCompatibleWithReconfiguredSerializer()} is {@code false}.
+	 */
+	public TypeSerializer<T> getReconfiguredSerializer() {
+		Preconditions.checkState(
+			isCompatibleWithReconfiguredSerializer(),
+			"It is only possible to get a reconfigured serializer if the compatibility type is %s, but the type is %s",
+			Type.COMPATIBLE_WITH_RECONFIGURED_SERIALIZER, resultType);
+		return reconfiguredNewSerializer;
 	}
 
 	/**

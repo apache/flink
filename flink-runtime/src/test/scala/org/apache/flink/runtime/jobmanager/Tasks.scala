@@ -24,7 +24,6 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriter
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
 import org.apache.flink.types.IntValue
 
-
 object Tasks {
 
   class Sender(environment: Environment)
@@ -197,24 +196,6 @@ object Tasks {
     }
   }
 
-  class SometimesExceptionSender(environment: Environment)
-    extends AbstractInvokable(environment) {
-
-    override def invoke(): Unit = {
-      // this only works if the TaskManager runs in the same JVM as the test case
-      if(SometimesExceptionSender.failingSenders.contains(this.getIndexInSubtaskGroup)){
-        throw new Exception("Test exception")
-      }else{
-        val o = new Object()
-        o.synchronized(o.wait())
-      }
-    }
-  }
-
-  object SometimesExceptionSender {
-    var failingSenders = Set[Int](0)
-  }
-
   class ExceptionReceiver(environment: Environment)
     extends AbstractInvokable(environment) {
 
@@ -229,24 +210,6 @@ object Tasks {
 
     override def invoke(): Unit = {
     }
-  }
-
-  class SometimesInstantiationErrorSender(environment: Environment)
-    extends AbstractInvokable(environment) {
-
-    // this only works if the TaskManager runs in the same JVM as the test case
-    if(SometimesInstantiationErrorSender.failingSenders.contains(this.getIndexInSubtaskGroup)){
-      throw new RuntimeException("Test exception in constructor")
-    }
-
-    override def invoke(): Unit = {
-      val o = new Object()
-      o.synchronized(o.wait())
-    }
-  }
-
-  object SometimesInstantiationErrorSender {
-    var failingSenders = Set[Int](0)
   }
 
   class BlockingReceiver(environment: Environment)

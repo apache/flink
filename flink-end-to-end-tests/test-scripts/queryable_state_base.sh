@@ -24,6 +24,7 @@ function link_queryable_state_lib {
         echo "Failed to move flink-queryable-state-runtime from opt/ to lib/. Exiting"
         exit 1
     fi
+    set_conf "queryable-state.enable" "true"
 }
 
 function unlink_queryable_state_lib {

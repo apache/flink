@@ -21,7 +21,7 @@ package org.apache.flink.table.descriptors
 /**
   * A trait for descriptors that allow to define a format and schema.
   */
-trait SchematicDescriptor[D <: SchematicDescriptor[D]] extends TableDescriptor {
+trait SchematicDescriptor[D <: SchematicDescriptor[D]] extends Descriptor {
 
   /**
     * Specifies the format that defines how to read data from a connector.

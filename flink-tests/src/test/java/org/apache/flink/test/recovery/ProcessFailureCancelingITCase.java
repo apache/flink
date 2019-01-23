@@ -32,8 +32,10 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -55,6 +57,7 @@ import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.runtime.webmonitor.retriever.impl.VoidMetricQueryServiceRetriever;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
@@ -114,6 +117,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
 		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
+		config.setInteger(RestOptions.PORT, 0);
 
 		final RpcService rpcService = AkkaRpcServiceUtils.createRpcService("localhost", 0, config);
 		final int jobManagerPort = rpcService.getPort();
@@ -151,6 +155,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 				new HeartbeatServices(100L, 1000L),
 				NoOpMetricRegistry.INSTANCE,
 				new MemoryArchivedExecutionGraphStore(),
+				VoidMetricQueryServiceRetriever.INSTANCE,
 				fatalErrorHandler);
 
 			final Map<String, String> keyValues = config.toMap();
@@ -262,14 +267,14 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 				clusterClient.shutdown();
 			}
 			if (dispatcherResourceManagerComponent != null) {
-				dispatcherResourceManagerComponent.close();
+				dispatcherResourceManagerComponent.deregisterApplicationAndClose(ApplicationStatus.SUCCEEDED, null);
 			}
 
 			haServices.closeAndCleanupAllData();
 
 			fatalErrorHandler.rethrowError();
 
-			RpcUtils.terminateRpcService(rpcService, Time.seconds(10L));
+			RpcUtils.terminateRpcService(rpcService, Time.seconds(100L));
 		}
 	}
 
@@ -291,7 +296,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 	}
 
 	private void waitUntilAllSlotsAreUsed(DispatcherGateway dispatcherGateway, Time timeout) throws ExecutionException, InterruptedException {
-		FutureUtils.retrySuccesfulWithDelay(
+		FutureUtils.retrySuccessfulWithDelay(
 			() -> dispatcherGateway.requestClusterOverview(timeout),
 			Time.milliseconds(50L),
 			Deadline.fromNow(Duration.ofMillis(timeout.toMilliseconds())),
@@ -303,7 +308,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 	}
 
 	private Collection<JobID> waitForRunningJobs(ClusterClient<?> clusterClient, Time timeout) throws ExecutionException, InterruptedException {
-		return FutureUtils.retrySuccesfulWithDelay(
+		return FutureUtils.retrySuccessfulWithDelay(
 				CheckedSupplier.unchecked(clusterClient::listJobs),
 				Time.milliseconds(50L),
 				Deadline.fromNow(Duration.ofMillis(timeout.toMilliseconds())),

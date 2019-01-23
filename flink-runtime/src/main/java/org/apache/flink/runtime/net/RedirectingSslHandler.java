@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.net;
 
+import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.rest.handler.util.HandlerRedirectUtils;
 import org.apache.flink.runtime.rest.handler.util.KeepAliveWrite;
 
@@ -55,15 +56,15 @@ public class RedirectingSslHandler extends ByteToMessageDecoder {
 
 	@Nonnull private final String confRedirectBaseUrl;
 	@Nonnull private final CompletableFuture<String> redirectBaseUrl;
-	@Nonnull private final SSLEngineFactory sslEngineFactory;
+	@Nonnull private final SSLHandlerFactory sslHandlerFactory;
 
 	public RedirectingSslHandler(
 		@Nonnull String confRedirectHost,
 		@Nonnull CompletableFuture<String> redirectBaseUrl,
-		@Nonnull SSLEngineFactory sslEngineFactory) {
+		@Nonnull SSLHandlerFactory sslHandlerFactory) {
 		this.confRedirectBaseUrl = "https://" + confRedirectHost + ":";
 		this.redirectBaseUrl = redirectBaseUrl;
-		this.sslEngineFactory = sslEngineFactory;
+		this.sslHandlerFactory = sslHandlerFactory;
 	}
 
 	@Override
@@ -77,7 +78,7 @@ public class RedirectingSslHandler extends ByteToMessageDecoder {
 	}
 
 	private void handleSsl(ChannelHandlerContext context) {
-		SslHandler sslHandler = new SslHandler(sslEngineFactory.createSSLEngine());
+		SslHandler sslHandler = sslHandlerFactory.createNettySSLHandler();
 		try {
 			context.pipeline().replace(this, SSL_HANDLER_NAME, sslHandler);
 		} catch (Throwable t) {

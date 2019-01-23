@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-libraries</artifactId>
-		<version>1.7-SNAPSHOT</version>
+		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -61,6 +61,12 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -72,19 +78,14 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- Used for base64 encoding of UDFs -->
-		<dependency>
-			<groupId>commons-codec</groupId>
-			<artifactId>commons-codec</artifactId>
-		</dependency>
-
 		<!-- Used for code generation -->
 		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-lang3</artifactId>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-cep_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
-		<!-- Used for code generation -->
 		<dependency>
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>janino</artifactId>
@@ -140,6 +141,14 @@ under the License.
 		</dependency>
 
 		<!-- test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -258,11 +267,9 @@ under the License.
 									<include>com.google.guava:guava</include>
 									<include>net.hydromatic:*</include>
 									<include>com.esri.geometry:*</include>
-									<include>commons-lang:*</include>
 
 									<!-- flink-table dependencies -->
-									<include>commons-codec:*</include>
-									<include>org.apache.commons:commons-lang3</include>
+									<include>org.apache.flink:flink-table-common</include>
 									<include>org.codehaus.janino:*</include>
 									<include>joda-time:*</include>
 								</includes>
@@ -298,12 +305,6 @@ under the License.
 									<pattern>org.codehaus</pattern>
 									<shadedPattern>org.apache.flink.table.shaded.org.codehaus</shadedPattern>
 								</relocation>-->
-
-								<!-- commons-codec, commons-lang3, and commons-lang (from Calcite) -->
-								<relocation>
-									<pattern>org.apache.commons</pattern>
-									<shadedPattern>org.apache.flink.table.shaded.org.apache.commons</shadedPattern>
-								</relocation>
 							</relocations>
 						</configuration>
 					</execution>

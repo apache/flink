@@ -340,6 +340,14 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		initializeState(operatorStateHandles, null);
 	}
 
+	public void initializeState(String operatorStateSnapshotPath) throws Exception {
+		initializeState(OperatorSnapshotUtil.readStateHandle(operatorStateSnapshotPath));
+	}
+
+	public void initializeEmptyState() throws Exception {
+		initializeState((OperatorSubtaskState) null);
+	}
+
 	/**
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#initializeState()}.
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, StreamConfig, Output)}
@@ -485,7 +493,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	 */
 	public void open() throws Exception {
 		if (!initializeCalled) {
-			initializeState(null);
+			initializeEmptyState();
 		}
 		operator.open();
 	}

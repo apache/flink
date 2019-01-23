@@ -46,23 +46,23 @@ class LiteralValueValidator(keyPrefix: String) extends HierarchyDescriptorValida
 
     val typeKey = s"$keyPrefix${LiteralValueValidator.TYPE}"
 
-    properties.validateType(typeKey, isOptional = true, requireRow = false)
+    properties.validateType(typeKey, true, false)
 
     // explicit type
     if (properties.containsKey(typeKey)) {
       val valueKey = s"$keyPrefix${LiteralValueValidator.VALUE}"
       val typeInfo = properties.getType(typeKey)
       typeInfo match {
-        case Types.DECIMAL => properties.validateBigDecimal(valueKey, isOptional = false)
-        case Types.BOOLEAN => properties.validateBoolean(valueKey, isOptional = false)
-        case Types.BYTE => properties.validateByte(valueKey, isOptional = false)
-        case Types.DOUBLE => properties.validateDouble(valueKey, isOptional = false)
-        case Types.FLOAT => properties.validateFloat(valueKey, isOptional = false)
-        case Types.INT => properties.validateInt(valueKey, isOptional = false)
-        case Types.LONG => properties.validateLong(valueKey, isOptional = false)
-        case Types.SHORT => properties.validateShort(valueKey, isOptional = false)
-        case Types.STRING => properties.validateString(valueKey, isOptional = false)
-        case _ => throw TableException(s"Unsupported type '$typeInfo'.")
+        case Types.DECIMAL => properties.validateBigDecimal(valueKey, false)
+        case Types.BOOLEAN => properties.validateBoolean(valueKey, false)
+        case Types.BYTE => properties.validateByte(valueKey, false)
+        case Types.DOUBLE => properties.validateDouble(valueKey, false)
+        case Types.FLOAT => properties.validateFloat(valueKey, false)
+        case Types.INT => properties.validateInt(valueKey, false)
+        case Types.LONG => properties.validateLong(valueKey, false)
+        case Types.SHORT => properties.validateShort(valueKey, false)
+        case Types.STRING => properties.validateString(valueKey, false)
+        case _ => throw new TableException(s"Unsupported type '$typeInfo'.")
       }
     }
     // implicit type
@@ -72,7 +72,7 @@ class LiteralValueValidator(keyPrefix: String) extends HierarchyDescriptorValida
         throw new ValidationException(
           "Literal values with implicit type must not exist in the top level of a hierarchy.")
       }
-      properties.validateString(keyPrefix.substring(0, keyPrefix.length - 1), isOptional = false)
+      properties.validateString(keyPrefix.substring(0, keyPrefix.length - 1), false)
     }
   }
 }
@@ -107,7 +107,7 @@ object LiteralValueValidator {
         case Types.LONG => properties.getLong(valueKey)
         case Types.SHORT => properties.getShort(valueKey)
         case Types.STRING => properties.getString(valueKey)
-        case _ => throw TableException(s"Unsupported type '${typeInfo.getTypeClass}'.")
+        case _ => throw new TableException(s"Unsupported type '${typeInfo.getTypeClass}'.")
       }
     }
     // implicit type

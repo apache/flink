@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-import org.apache.flink.runtime.jobmaster.SlotContext;
+import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import javax.annotation.Nonnull;
@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
@@ -54,11 +55,26 @@ public class LocationPreferenceSchedulingStrategy implements SchedulingStrategy 
 	@Override
 	public <IN, OUT> OUT findMatchWithLocality(
 			@Nonnull SlotProfile slotProfile,
-			@Nonnull Stream<IN> candidates,
-			@Nonnull Function<IN, SlotContext> contextExtractor,
+			@Nonnull Supplier<Stream<IN>> candidates,
+			@Nonnull Function<IN, SlotInfo> contextExtractor,
 			@Nonnull Predicate<IN> additionalRequirementsFilter,
 			@Nonnull BiFunction<IN, Locality, OUT> resultProducer) {
 
+		return doFindMatchWithLocality(
+			slotProfile,
+			candidates.get(),
+			contextExtractor,
+			additionalRequirementsFilter,
+			resultProducer);
+	}
+
+	@Nullable
+	protected  <IN, OUT> OUT doFindMatchWithLocality(
+		@Nonnull SlotProfile slotProfile,
+		@Nonnull Stream<IN> candidates,
+		@Nonnull Function<IN, SlotInfo> contextExtractor,
+		@Nonnull Predicate<IN> additionalRequirementsFilter,
+		@Nonnull BiFunction<IN, Locality, OUT> resultProducer) {
 		Collection<TaskManagerLocation> locationPreferences = slotProfile.getPreferredLocations();
 
 		// if we have no location preferences, we can only filter by the additional requirements.
@@ -88,7 +104,7 @@ public class LocationPreferenceSchedulingStrategy implements SchedulingStrategy 
 		while (iterator.hasNext()) {
 			IN candidate = iterator.next();
 			if (additionalRequirementsFilter.test(candidate)) {
-				SlotContext slotContext = contextExtractor.apply(candidate);
+				SlotInfo slotContext = contextExtractor.apply(candidate);
 
 				// this gets candidate is local-weigh
 				Integer localWeigh = preferredResourceIDs.getOrDefault(slotContext.getTaskManagerLocation().getResourceID(), 0);

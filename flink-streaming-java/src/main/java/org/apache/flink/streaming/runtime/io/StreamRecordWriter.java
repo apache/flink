@@ -36,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 @Internal
 public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWriter<T> {
 
-	/** Default name for teh output flush thread, if no name with a task reference is given. */
+	/** Default name for the output flush thread, if no name with a task reference is given. */
 	private static final String DEFAULT_OUTPUT_FLUSH_THREAD_NAME = "OutputFlusher";
 
 

@@ -622,34 +622,6 @@ An example for such a list would be `host=localhost,job_name=MyJob,task_name=MyT
 
 The domain thus identifies a metric class, while the key-property list identifies one (or multiple) instances of that metric.
 
-### Ganglia (org.apache.flink.metrics.ganglia.GangliaReporter)
-
-In order to use this reporter you must copy `/opt/flink-metrics-ganglia-{{site.version}}.jar` into the `/lib` folder
-of your Flink distribution.
-
-Parameters:
-
-- `host` - the gmond host address configured under `udp_recv_channel.bind` in `gmond.conf`
-- `port` - the gmond port configured under `udp_recv_channel.port` in `gmond.conf`
-- `tmax` - soft limit for how long an old metric should be retained
-- `dmax` - hard limit for how long an old metric should be retained
-- `ttl` - time-to-live for transmitted UDP packets
-- `addressingMode` - UDP addressing mode to use (UNICAST/MULTICAST)
-
-Example configuration:
-
-{% highlight yaml %}
-
-metrics.reporter.gang.class: org.apache.flink.metrics.ganglia.GangliaReporter
-metrics.reporter.gang.host: localhost
-metrics.reporter.gang.port: 8649
-metrics.reporter.gang.tmax: 60
-metrics.reporter.gang.dmax: 0
-metrics.reporter.gang.ttl: 1
-metrics.reporter.gang.addressingMode: MULTICAST
-
-{% endhighlight %}
-
 ### Graphite (org.apache.flink.metrics.graphite.GraphiteReporter)
 
 In order to use this reporter you must copy `/opt/flink-metrics-graphite-{{site.version}}.jar` into the `/lib` folder
@@ -674,12 +646,13 @@ metrics.reporter.grph.protocol: TCP
 
 ### Prometheus (org.apache.flink.metrics.prometheus.PrometheusReporter)
 
-In order to use this reporter you must copy `/opt/flink-metrics-prometheus-{{site.version}}.jar` into the `/lib` folder
+In order to use this reporter you must copy `/opt/flink-metrics-prometheus{{site.scala_version_suffix}}-{{site.version}}.jar` into the `/lib` folder
 of your Flink distribution.
 
 Parameters:
 
 - `port` - (optional) the port the Prometheus exporter listens on, defaults to [9249](https://github.com/prometheus/prometheus/wiki/Default-port-allocations). In order to be able to run several instances of the reporter on one host (e.g. when one TaskManager is colocated with the JobManager) it is advisable to use a port range like `9250-9260`.
+- `filterLabelValueCharacters` - (optional) Specifies whether to filter label value characters. If enabled, all characters not matching \[a-zA-Z0-9:_\] will be removed, otherwise no characters will be removed. Before disabling this option please ensure that your label values meet the [Prometheus requirements](https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels).
 
 Example configuration:
 
@@ -1204,6 +1177,9 @@ Thus, in order to infer the metric identifier:
     </tr>
   </tbody>
 </table>
+
+### RocksDB
+Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{ site.baseurl }}/ops/config.html#rocksdb-native-metrics)
 
 ### IO
 <table class="table table-bordered">

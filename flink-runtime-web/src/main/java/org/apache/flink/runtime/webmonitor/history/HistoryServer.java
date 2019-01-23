@@ -26,7 +26,7 @@ import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.history.FsJobArchivist;
-import org.apache.flink.runtime.net.SSLEngineFactory;
+import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
 import org.apache.flink.runtime.rest.handler.router.Router;
@@ -45,6 +45,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -92,7 +94,8 @@ public class HistoryServer {
 
 	private final HistoryServerArchiveFetcher archiveFetcher;
 
-	private final SSLEngineFactory serverSSLFactory;
+	@Nullable
+	private final SSLHandlerFactory serverSSLFactory;
 	private WebFrontendBootstrap netty;
 
 	private final Object startupShutdownLock = new Object();

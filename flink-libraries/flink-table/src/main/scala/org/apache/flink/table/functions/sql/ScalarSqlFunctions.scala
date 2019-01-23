@@ -34,12 +34,28 @@ object ScalarSqlFunctions {
     OperandTypes.NILADIC,
     SqlFunctionCategory.NUMERIC)
 
+  val TANH = new SqlFunction(
+    "TANH",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.DOUBLE_NULLABLE,
+    null,
+    OperandTypes.NUMERIC,
+    SqlFunctionCategory.NUMERIC)
+
   val BIN = new SqlFunction(
     "BIN",
     SqlKind.OTHER_FUNCTION,
     ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
     InferTypes.RETURN_TYPE,
     OperandTypes.family(SqlTypeFamily.INTEGER),
+    SqlFunctionCategory.NUMERIC)
+
+  val SINH = new SqlFunction(
+    "SINH",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.DOUBLE_NULLABLE,
+    null,
+    OperandTypes.NUMERIC,
     SqlFunctionCategory.NUMERIC)
 
   val HEX = new SqlFunction(

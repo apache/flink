@@ -1,7 +1,7 @@
 ---
 title: "Query Configuration"
 nav-parent_id: streaming_tableapi
-nav-pos: 5
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

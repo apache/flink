@@ -18,15 +18,20 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import static org.apache.flink.table.descriptors.DescriptorProperties.noValidation;
+
 /**
  * The validator for {@link Elasticsearch}.
  */
+@Internal
 public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 
 	public static final String CONNECTOR_TYPE_VALUE_ELASTICSEARCH = "elasticsearch";
@@ -61,7 +66,7 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 	@Override
 	public void validate(DescriptorProperties properties) {
 		super.validate(properties);
-		properties.validateValue(CONNECTOR_TYPE(), CONNECTOR_TYPE_VALUE_ELASTICSEARCH, false);
+		properties.validateValue(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_ELASTICSEARCH, false);
 		validateVersion(properties);
 		validateHosts(properties);
 		validateGeneralProperties(properties);
@@ -72,21 +77,16 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 
 	private void validateVersion(DescriptorProperties properties) {
 		properties.validateEnumValues(
-			CONNECTOR_VERSION(),
+			CONNECTOR_VERSION,
 			false,
 			Collections.singletonList(CONNECTOR_VERSION_VALUE_6));
 	}
 
 	private void validateHosts(DescriptorProperties properties) {
 		final Map<String, Consumer<String>> hostsValidators = new HashMap<>();
-		hostsValidators.put(
-			CONNECTOR_HOSTS_HOSTNAME,
-			(prefix) -> properties.validateString(prefix + CONNECTOR_HOSTS_HOSTNAME, false, 1));
-		hostsValidators.put(
-			CONNECTOR_HOSTS_PORT,
-			(prefix) -> properties.validateInt(prefix + CONNECTOR_HOSTS_PORT, false, 0, 65535));
-		hostsValidators.put(CONNECTOR_HOSTS_PROTOCOL,
-			(prefix) -> properties.validateString(prefix + CONNECTOR_HOSTS_PROTOCOL, false, 1));
+		hostsValidators.put(CONNECTOR_HOSTS_HOSTNAME, (key) -> properties.validateString(key, false, 1));
+		hostsValidators.put(CONNECTOR_HOSTS_PORT, (key) -> properties.validateInt(key, false, 0, 65535));
+		hostsValidators.put(CONNECTOR_HOSTS_PROTOCOL, (key) -> properties.validateString(key, false, 1));
 		properties.validateFixedIndexedProperties(CONNECTOR_HOSTS, false, hostsValidators);
 	}
 
@@ -99,11 +99,11 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 
 	private void validateFailureHandler(DescriptorProperties properties) {
 		final Map<String, Consumer<String>> failureHandlerValidators = new HashMap<>();
-		failureHandlerValidators.put(CONNECTOR_FAILURE_HANDLER_VALUE_FAIL, properties.noValidation());
-		failureHandlerValidators.put(CONNECTOR_FAILURE_HANDLER_VALUE_IGNORE, properties.noValidation());
-		failureHandlerValidators.put(CONNECTOR_FAILURE_HANDLER_VALUE_RETRY, properties.noValidation());
+		failureHandlerValidators.put(CONNECTOR_FAILURE_HANDLER_VALUE_FAIL, noValidation());
+		failureHandlerValidators.put(CONNECTOR_FAILURE_HANDLER_VALUE_IGNORE, noValidation());
+		failureHandlerValidators.put(CONNECTOR_FAILURE_HANDLER_VALUE_RETRY, noValidation());
 		failureHandlerValidators.put(CONNECTOR_FAILURE_HANDLER_VALUE_CUSTOM,
-			prefix -> properties.validateString(CONNECTOR_FAILURE_HANDLER_CLASS, false, 1));
+			key -> properties.validateString(CONNECTOR_FAILURE_HANDLER_CLASS, false, 1));
 		properties.validateEnum(CONNECTOR_FAILURE_HANDLER, true, failureHandlerValidators);
 	}
 

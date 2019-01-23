@@ -22,7 +22,9 @@ import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
+import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 
 import org.apache.curator.framework.CuratorFramework;
@@ -67,10 +69,14 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
 	@Override
 	protected ZooKeeperCompletedCheckpointStore createCompletedCheckpoints(int maxNumberOfCheckpointsToRetain) throws Exception {
-		return new ZooKeeperCompletedCheckpointStore(maxNumberOfCheckpointsToRetain,
+		final ZooKeeperStateHandleStore<CompletedCheckpoint> checkpointsInZooKeeper = ZooKeeperUtils.createZooKeeperStateHandleStore(
 			ZOOKEEPER.getClient(),
 			CHECKPOINT_PATH,
-			new HeapStateStorageHelper(),
+			new TestingRetrievableStateStorageHelper<>());
+
+		return new ZooKeeperCompletedCheckpointStore(
+			maxNumberOfCheckpointsToRetain,
+			checkpointsInZooKeeper,
 			Executors.directExecutor());
 	}
 

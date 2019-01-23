@@ -53,10 +53,8 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	@Override
 	protected void init() {
-		// does not hold any resources, so no initialization needed
-
 		// we check if the source is actually inducing the checkpoints, rather
-		// than the trigger ch
+		// than the trigger
 		SourceFunction<?> source = headOperator.getUserFunction();
 		if (source instanceof ExternallyInducedSource) {
 			externallyInducedCheckpoints = true;

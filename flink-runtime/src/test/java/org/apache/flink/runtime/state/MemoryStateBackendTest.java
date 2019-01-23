@@ -27,18 +27,18 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.testutils.ArtificialCNFExceptionThrowingClassLoader;
-import org.apache.flink.util.FutureUtil;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.concurrent.RunnableFuture;
@@ -121,7 +121,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 		RunnableFuture<SnapshotResult<OperatorStateHandle>> runnableFuture =
 			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtil.runIfNotDoneAndGet(runnableFuture);
+		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtils.runIfNotDoneAndGet(runnableFuture);
 		OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 
 		try {
@@ -141,8 +141,8 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
 
 			fail("The operator state restore should have failed if the previous state serializer could not be loaded.");
-		} catch (IOException expected) {
-			Assert.assertTrue(expected.getMessage().contains("Unable to restore operator state"));
+		} catch (Exception expected) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(expected, ClassNotFoundException.class).isPresent());
 		} finally {
 			stateHandle.discardState();
 		}
@@ -194,8 +194,8 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 						Collections.singleton(StringSerializer.class.getName()))));
 
 			fail("The keyed state restore should have failed if the previous state serializer could not be loaded.");
-		} catch (IOException expected) {
-			Assert.assertTrue(expected.getMessage().contains("Unable to restore keyed state"));
+		} catch (Exception expected) {
+			Assert.assertTrue(ExceptionUtils.findThrowable(expected, ClassNotFoundException.class).isPresent());
 		}
 	}
 

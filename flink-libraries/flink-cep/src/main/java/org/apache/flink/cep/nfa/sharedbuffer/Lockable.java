@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -25,7 +26,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -109,8 +109,10 @@ public final class Lockable<T> {
 		}
 
 		@Override
-		public TypeSerializer<Lockable<E>> duplicate() {
-			return new LockableTypeSerializer<>(elementSerializer);
+		public LockableTypeSerializer<E> duplicate() {
+			TypeSerializer<E> elementSerializerCopy = elementSerializer.duplicate();
+			return elementSerializerCopy == elementSerializer ?
+				this : new LockableTypeSerializer<>(elementSerializerCopy);
 		}
 
 		@Override
@@ -120,7 +122,7 @@ public final class Lockable<T> {
 
 		@Override
 		public Lockable<E> copy(Lockable<E> from) {
-			return new Lockable<E>(elementSerializer.copy(from.element), from.refCounter);
+			return new Lockable<>(elementSerializer.copy(from.element), from.refCounter);
 		}
 
 		@Override
@@ -184,40 +186,30 @@ public final class Lockable<T> {
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot<Lockable<E>> snapshotConfiguration() {
-			return new LockableSerializerConfigSnapshot<>(elementSerializer);
+		public TypeSerializerSnapshot<Lockable<E>> snapshotConfiguration() {
+			return new LockableTypeSerializerSnapshot<>(this);
 		}
 
+		/**
+		 * This cannot be removed until {@link TypeSerializerConfigSnapshot} is no longer supported.
+		 */
 		@Override
 		public CompatibilityResult<Lockable<E>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-			if (configSnapshot instanceof LockableSerializerConfigSnapshot) {
-				@SuppressWarnings("unchecked")
-				LockableSerializerConfigSnapshot<E> snapshot = (LockableSerializerConfigSnapshot<E>) configSnapshot;
+			// backwards compatibility path
+			CompatibilityResult<E> inputCompatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
+				configSnapshot.restoreSerializer(),
+				UnloadableDummyTypeSerializer.class,
+				configSnapshot,
+				elementSerializer);
 
-				Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> nestedSerializerAndConfig =
-					snapshot.getSingleNestedSerializerAndConfig();
+			return (inputCompatibilityResult.isRequiresMigration())
+				? CompatibilityResult.requiresMigration()
+				: CompatibilityResult.compatible();
+		}
 
-				CompatibilityResult<E> inputCompatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
-					nestedSerializerAndConfig.f1.restoreSerializer(),
-					UnloadableDummyTypeSerializer.class,
-					nestedSerializerAndConfig.f1,
-					elementSerializer);
-
-				return (inputCompatibilityResult.isRequiresMigration())
-					? CompatibilityResult.requiresMigration()
-					: CompatibilityResult.compatible();
-			} else {
-				// backwards compatibility path
-				CompatibilityResult<E> inputCompatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
-					configSnapshot.restoreSerializer(),
-					UnloadableDummyTypeSerializer.class,
-					configSnapshot,
-					elementSerializer);
-
-				return (inputCompatibilityResult.isRequiresMigration())
-					? CompatibilityResult.requiresMigration()
-					: CompatibilityResult.compatible();
-			}
+		@VisibleForTesting
+		TypeSerializer<E> getElementSerializer() {
+			return elementSerializer;
 		}
 	}
 }

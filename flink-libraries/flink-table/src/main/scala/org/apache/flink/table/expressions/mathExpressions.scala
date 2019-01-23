@@ -165,6 +165,20 @@ case class Power(left: Expression, right: Expression) extends BinaryExpression w
   }
 }
 
+case class Sinh(child: Expression) extends UnaryExpression {
+
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO;
+
+  override private[flink] def validateInput(): ValidationResult =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "Sinh")
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder) = {
+    relBuilder.call(ScalarSqlFunctions.SINH, child.toRexNode)
+  }
+
+  override def toString = s"sinh($child)"
+}
+
 case class Sqrt(child: Expression) extends UnaryExpression with InputTypeSpec {
   override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
 
@@ -215,6 +229,20 @@ case class Tan(child: Expression) extends UnaryExpression {
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.TAN, child.toRexNode)
   }
+}
+
+case class Tanh(child: Expression) extends UnaryExpression {
+
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder) = {
+    relBuilder.call(ScalarSqlFunctions.TANH, child.toRexNode)
+  }
+
+  override private[flink] def validateInput(): ValidationResult =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "Tanh")
+
+  override def toString = s"tanh($child)"
 }
 
 case class Cot(child: Expression) extends UnaryExpression {

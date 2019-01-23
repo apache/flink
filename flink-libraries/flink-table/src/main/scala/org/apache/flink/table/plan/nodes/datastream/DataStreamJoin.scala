@@ -109,7 +109,7 @@ class DataStreamJoin(
     val joinTranslator = createTranslator(tableEnv)
 
     val joinOpName = joinToString(getRowType, joinCondition, joinType, getExpressionString)
-    val coProcessFunction = joinTranslator.getCoProcessFunction(
+    val joinOperator = joinTranslator.getJoinOperator(
       joinType,
       schema.fieldNames,
       ruleDescription,
@@ -118,9 +118,10 @@ class DataStreamJoin(
       .keyBy(
         joinTranslator.getLeftKeySelector(),
         joinTranslator.getRightKeySelector())
-      .process(coProcessFunction)
-      .name(joinOpName)
-      .returns(CRowTypeInfo(schema.typeInfo))
+      .transform(
+        joinOpName,
+        CRowTypeInfo(schema.typeInfo),
+        joinOperator)
   }
 
   private def validateKeyTypes(): Unit = {
@@ -133,7 +134,7 @@ class DataStreamJoin(
       val rightKeyType = rightFields.get(pair.target).getType.getSqlTypeName
       // check if keys are compatible
       if (leftKeyType != rightKeyType) {
-        throw TableException(
+        throw new TableException(
           "Equality join predicate on incompatible types.\n" +
             s"\tLeft: $left,\n" +
             s"\tRight: $right,\n" +

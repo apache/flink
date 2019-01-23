@@ -24,16 +24,13 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.io.GenericInputSplit;
-import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
-import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -52,44 +49,13 @@ public class RemoteEnvironmentITCase extends TestLogger {
 
 	private static final int USER_DOP = 2;
 
-	private static final String INVALID_STARTUP_TIMEOUT = "0.001 ms";
-
 	private static final String VALID_STARTUP_TIMEOUT = "100 s";
 
-	private static Configuration configuration;
-
-	private static AutoCloseableAsync resource;
-
-	private static String hostname;
-
-	private static int port;
-
-	@BeforeClass
-	public static void setupCluster() throws Exception {
-		configuration = new Configuration();
-
-		configuration.setInteger(WebOptions.PORT, 0);
-		final MiniCluster miniCluster = new MiniCluster(
-			new MiniClusterConfiguration.Builder()
-				.setConfiguration(configuration)
-				.setNumSlotsPerTaskManager(TM_SLOTS)
-				.build());
-
-		miniCluster.start();
-
-		final URI uri = miniCluster.getRestAddress();
-		hostname = uri.getHost();
-		port = uri.getPort();
-
-		configuration.setInteger(WebOptions.PORT, port);
-
-		resource = miniCluster;
-	}
-
-	@AfterClass
-	public static void tearDownCluster() throws Exception {
-		resource.close();
-	}
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResourceConfiguration.Builder()
+			.setNumberSlotsPerTaskManager(TM_SLOTS)
+			.build());
 
 	/**
 	 * Ensure that the program parallelism can be set even if the configuration is supplied.
@@ -98,6 +64,10 @@ public class RemoteEnvironmentITCase extends TestLogger {
 	public void testUserSpecificParallelism() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(AkkaOptions.STARTUP_TIMEOUT, VALID_STARTUP_TIMEOUT);
+
+		final URI restAddress = MINI_CLUSTER_RESOURCE.getMiniCluster().getRestAddress();
+		final String hostname = restAddress.getHost();
+		final int port = restAddress.getPort();
 
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 				hostname,

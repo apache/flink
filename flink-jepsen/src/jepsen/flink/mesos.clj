@@ -68,7 +68,8 @@
                         (str "--log_dir=" log-dir)
                         (str "--master=" (zookeeper-uri test zk-namespace))
                         (str "--recovery_timeout=30secs")
-                        (str "--work_dir=" slave-dir)]))
+                        (str "--work_dir=" slave-dir)
+                        (str "--resources='cpus:8'")]))
 
 (defn create-mesos-master-supervised-service!
   [test node]

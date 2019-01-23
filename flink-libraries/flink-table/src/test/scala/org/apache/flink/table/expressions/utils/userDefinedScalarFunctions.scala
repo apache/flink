@@ -290,6 +290,9 @@ object Func19 extends ScalarFunction {
 
 }
 
+/**
+  * A scalar function that always returns TRUE if opened correctly.
+  */
 class Func20 extends ScalarFunction {
 
   private var permitted: Boolean = false
@@ -307,6 +310,26 @@ class Func20 extends ScalarFunction {
   }
 }
 
+object Func21 extends ScalarFunction {
+  def eval(p: People): String = {
+    p.name
+  }
+
+  def eval(p: Student): String = {
+    "student#" + p.name
+  }
+}
+
+object Func22 extends ScalarFunction {
+  def eval(a: Array[People]): String = {
+    a.head.name
+  }
+
+  def eval(a: Array[Student]): String = {
+    "student#" + a.head.name
+  }
+}
+
 class SplitUDF(deterministic: Boolean) extends ScalarFunction {
   def eval(x: String, sep: String, index: Int): String = {
     val splits = StringUtils.splitByWholeSeparator(x, sep)
@@ -318,3 +341,9 @@ class SplitUDF(deterministic: Boolean) extends ScalarFunction {
   }
   override def isDeterministic: Boolean = deterministic
 }
+
+class People(val name: String)
+
+class Student(name: String) extends People(name)
+
+class GraduatedStudent(name: String) extends Student(name)

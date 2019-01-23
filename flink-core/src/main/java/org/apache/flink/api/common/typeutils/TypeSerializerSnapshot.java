@@ -25,7 +25,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import java.io.IOException;
 
 /**
- * A {@code TypeSerializerSnapshot} is a point-in-time view of a {@link TypeSerializer's} configuration.
+ * A {@code TypeSerializerSnapshot} is a point-in-time view of a {@link TypeSerializer}'s configuration.
  * The configuration snapshot of a serializer is persisted within checkpoints
  * as a single source of meta information about the schema of serialized data in the checkpoint.
  * This serves three purposes:
@@ -40,7 +40,7 @@ import java.io.IOException;
  *   This is performed by providing the new serializer to the correspondibng serializer configuration
  *   snapshots in checkpoints.</li>
  *
- *   <li><strong>Factory for a read serializer when schema conversion is required:<strong> in the case that new
+ *   <li><strong>Factory for a read serializer when schema conversion is required:</strong> in the case that new
  *   serializers are not compatible to read previous data, a schema conversion process executed across all data
  *   is required before the new serializer can be continued to be used. This conversion process requires a compatible
  *   read serializer to restore serialized bytes as objects, and then written back again using the new serializer.
@@ -86,9 +86,9 @@ public interface TypeSerializerSnapshot<T> {
 	 *
 	 * @param out the {@link DataOutputView} to write the snapshot to.
 	 *
-	 * @throws IOException
+	 * @throws IOException Thrown if the snapshot data could not be written.
 	 */
-	void write(DataOutputView out) throws IOException;
+	void writeSnapshot(DataOutputView out) throws IOException;
 
 	/**
 	 * Reads the serializer snapshot from the provided {@link DataInputView}.
@@ -100,9 +100,9 @@ public interface TypeSerializerSnapshot<T> {
 	 * @param in the {@link DataInputView} to read the snapshot from.
 	 * @param userCodeClassLoader the user code classloader
 	 *
-	 * @throws IOException
+	 * * @throws IOException Thrown if the snapshot data could be read or parsed.
 	 */
-	void read(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException;
+	void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException;
 
 	/**
 	 * Recreates a serializer instance from this snapshot. The returned
@@ -114,14 +114,52 @@ public interface TypeSerializerSnapshot<T> {
 	TypeSerializer<T> restoreSerializer();
 
 	/**
-	 * Checks a new serializer's compatibility to read data written by the prior
-	 * serializer.
+	 * Checks a new serializer's compatibility to read data written by the prior serializer.
+	 *
+	 * <p>When a checkpoint/savepoint is restored, this method checks whether the serialization
+	 * format of the data in the checkpoint/savepoint is compatible for the format of the serializer used by the
+	 * program that restores the checkpoint/savepoint. The outcome can be that the serialization format is
+	 * compatible, that the program's serializer needs to reconfigure itself (meaning to incorporate some
+	 * information from the TypeSerializerSnapshot to be compatible), that the format is outright incompatible,
+	 * or that a migration needed. In the latter case, the TypeSerializerSnapshot produces a serializer to
+	 * deserialize the data, and the restoring program's serializer re-serializes the data, thus converting
+	 * the format during the restore operation.
 	 *
 	 * @param newSerializer the new serializer to check.
-	 * @param <NS> the type of the new serializer
 	 *
 	 * @return the serializer compatibility result.
 	 */
-	<NS extends TypeSerializer<T>> TypeSerializerSchemaCompatibility<T, NS> resolveSchemaCompatibility(NS newSerializer);
+	TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer);
 
+	// ------------------------------------------------------------------------
+	//  read / write utilities
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Writes the given snapshot to the out stream. One should always use this method to write
+	 * snapshots out, rather than directly calling {@link #writeSnapshot(DataOutputView)}.
+	 *
+	 * <p>The snapshot written with this method can be read via {@link #readVersionedSnapshot(DataInputView, ClassLoader)}.
+	 */
+	static void writeVersionedSnapshot(DataOutputView out, TypeSerializerSnapshot<?> snapshot) throws IOException {
+		out.writeUTF(snapshot.getClass().getName());
+		out.writeInt(snapshot.getCurrentVersion());
+		snapshot.writeSnapshot(out);
+	}
+
+
+	/**
+	 * Reads a snapshot from the stream, performing resolving
+	 *
+	 * <p>This method reads snapshots written by {@link #writeVersionedSnapshot(DataOutputView, TypeSerializerSnapshot)}.
+	 */
+	static <T> TypeSerializerSnapshot<T> readVersionedSnapshot(DataInputView in, ClassLoader cl) throws IOException {
+		final TypeSerializerSnapshot<T> snapshot =
+				TypeSerializerSnapshotSerializationUtil.readAndInstantiateSnapshotClass(in, cl);
+
+		final int version = in.readInt();
+		snapshot.readSnapshot(version, in, cl);
+
+		return snapshot;
+	}
 }

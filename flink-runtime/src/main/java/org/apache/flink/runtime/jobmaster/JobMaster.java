@@ -679,24 +679,22 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				try {
 					checkpointCoordinator.receiveAcknowledgeMessage(ackMessage);
 				} catch (Throwable t) {
-					log.warn("Error while processing checkpoint acknowledgement message");
+					log.warn("Error while processing checkpoint acknowledgement message", t);
 				}
 			});
 		} else {
-			log.error("Received AcknowledgeCheckpoint message for job {} with no CheckpointCoordinator",
-					jobGraph.getJobID());
+			String errorMessage = "Received AcknowledgeCheckpoint message for job {} with no CheckpointCoordinator";
+			if (executionGraph.getState() == JobStatus.RUNNING) {
+				log.error(errorMessage, jobGraph.getJobID());
+			} else {
+				log.debug(errorMessage, jobGraph.getJobID());
+			}
 		}
 	}
 
 	// TODO: This method needs a leader session ID
 	@Override
-	public void declineCheckpoint(
-			final JobID jobID,
-			final ExecutionAttemptID executionAttemptID,
-			final long checkpointID,
-			final Throwable reason) {
-		final DeclineCheckpoint decline = new DeclineCheckpoint(
-				jobID, executionAttemptID, checkpointID, reason);
+	public void declineCheckpoint(DeclineCheckpoint decline) {
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
 
 		if (checkpointCoordinator != null) {
@@ -708,8 +706,12 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				}
 			});
 		} else {
-			log.error("Received DeclineCheckpoint message for job {} with no CheckpointCoordinator",
-					jobGraph.getJobID());
+			String errorMessage = "Received DeclineCheckpoint message for job {} with no CheckpointCoordinator";
+			if (executionGraph.getState() == JobStatus.RUNNING) {
+				log.error(errorMessage, jobGraph.getJobID());
+			} else {
+				log.debug(errorMessage, jobGraph.getJobID());
+			}
 		}
 	}
 
@@ -962,19 +964,18 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		return checkpointCoordinator
 			.triggerSavepoint(System.currentTimeMillis(), targetDirectory)
 			.thenApply(CompletedCheckpoint::getExternalPointer)
-			.thenApplyAsync(path -> {
-				if (cancelJob) {
+			.handleAsync((path, throwable) -> {
+				if (throwable != null) {
+					if (cancelJob) {
+						startCheckpointScheduler(checkpointCoordinator);
+					}
+					throw new CompletionException(throwable);
+				} else if (cancelJob) {
 					log.info("Savepoint stored in {}. Now cancelling {}.", path, jobGraph.getJobID());
 					cancel(timeout);
 				}
 				return path;
-			}, getMainThreadExecutor())
-			.exceptionally(throwable -> {
-				if (cancelJob) {
-					startCheckpointScheduler(checkpointCoordinator);
-				}
-				throw new CompletionException(throwable);
-			});
+			}, getMainThreadExecutor());
 	}
 
 	private void startCheckpointScheduler(final CheckpointCoordinator checkpointCoordinator) {

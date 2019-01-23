@@ -105,8 +105,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -243,7 +245,7 @@ public class YarnResourceManagerTest extends TestLogger {
 		final HardwareDescription hardwareDescription = new HardwareDescription(1, 2L, 3L, 4L);
 
 		// domain objects for test purposes
-		final ResourceProfile resourceProfile1 = new ResourceProfile(1.0, 200);
+		final ResourceProfile resourceProfile1 = ResourceProfile.UNKNOWN;
 
 		public ContainerId task = ContainerId.newInstance(
 				ApplicationAttemptId.newInstance(ApplicationId.newInstance(1L, 0), 0), 1);
@@ -351,7 +353,7 @@ public class YarnResourceManagerTest extends TestLogger {
 		}
 	}
 
-	private static Container mockContainer(String host, int port, int containerId) {
+	private static Container mockContainer(String host, int port, int containerId, Resource resource) {
 		Container mockContainer = mock(Container.class);
 
 		NodeId mockNodeId = NodeId.newInstance(host, port);
@@ -365,7 +367,7 @@ public class YarnResourceManagerTest extends TestLogger {
 
 		when(mockContainer.getId()).thenReturn(mockContainerId);
 		when(mockContainer.getNodeId()).thenReturn(mockNodeId);
-		when(mockContainer.getResource()).thenReturn(Resource.newInstance(200, 1));
+		when(mockContainer.getResource()).thenReturn(resource);
 		when(mockContainer.getPriority()).thenReturn(Priority.UNDEFINED);
 
 		return mockContainer;
@@ -397,7 +399,10 @@ public class YarnResourceManagerTest extends TestLogger {
 				registerSlotRequestFuture.get();
 
 				// Callback from YARN when container is allocated.
-				Container testingContainer = mockContainer("container", 1234, 1);
+				Container testingContainer = mockContainer("container", 1234, 1, resourceManager.getContainerResource());
+
+				doReturn(Collections.singletonList(Collections.singletonList(resourceManager.getContainerRequest())))
+					.when(mockResourceManagerClient).getMatchingRequests(any(Priority.class), anyString(), any(Resource.class));
 
 				resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
 				verify(mockResourceManagerClient).addContainerRequest(any(AMRMClient.ContainerRequest.class));
@@ -492,10 +497,14 @@ public class YarnResourceManagerTest extends TestLogger {
 				registerSlotRequestFuture.get();
 
 				// Callback from YARN when container is allocated.
-				Container testingContainer = mockContainer("container", 1234, 1);
+				Container testingContainer = mockContainer("container", 1234, 1, resourceManager.getContainerResource());
+
+				doReturn(Collections.singletonList(Collections.singletonList(resourceManager.getContainerRequest())))
+					.when(mockResourceManagerClient).getMatchingRequests(any(Priority.class), anyString(), any(Resource.class));
 
 				resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
 				verify(mockResourceManagerClient).addContainerRequest(any(AMRMClient.ContainerRequest.class));
+				verify(mockResourceManagerClient).removeContainerRequest(any(AMRMClient.ContainerRequest.class));
 				verify(mockNMClient).startContainer(eq(testingContainer), any(ContainerLaunchContext.class));
 
 				// Callback from YARN when container is Completed, pending request can not be fulfilled by pending

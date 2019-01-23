@@ -24,6 +24,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -63,6 +64,18 @@ abstract class SkipToElementStrategy extends AfterMatchSkipStrategy {
 			} else {
 				pruningId = max(pruningId, pruningPattern.get(getIndex(pruningPattern.size())));
 			}
+
+			if (shouldThrowException) {
+				EventId startEvent = resultMap.values()
+					.stream()
+					.flatMap(Collection::stream)
+					.min(EventId::compareTo)
+					.orElseThrow(() -> new IllegalStateException("Cannot prune based on empty match"));
+
+				if (pruningId != null && pruningId.equals(startEvent)) {
+					throw new FlinkRuntimeException("Could not skip to first element of a match.");
+				}
+			}
 		}
 
 		return pruningId;
@@ -86,4 +99,22 @@ abstract class SkipToElementStrategy extends AfterMatchSkipStrategy {
 	 * {@link NoSkipStrategy} will be used
 	 */
 	public abstract SkipToElementStrategy throwExceptionOnMiss();
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		SkipToElementStrategy that = (SkipToElementStrategy) o;
+		return shouldThrowException == that.shouldThrowException &&
+			Objects.equals(patternName, that.patternName);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(patternName, shouldThrowException);
+	}
 }

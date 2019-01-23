@@ -53,8 +53,8 @@ public class KeyedCoProcessOperator<K, IN1, IN2, OUT>
 
 	private transient OnTimerContextImpl<IN1, IN2, OUT> onTimerContext;
 
-	public KeyedCoProcessOperator(CoProcessFunction<IN1, IN2, OUT> flatMapper) {
-		super(flatMapper);
+	public KeyedCoProcessOperator(CoProcessFunction<IN1, IN2, OUT> coProcessFunction) {
+		super(coProcessFunction);
 	}
 
 	@Override

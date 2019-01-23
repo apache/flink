@@ -473,7 +473,7 @@ public class AllWindowedStream<T, W extends Window> {
 		}
 
 		return aggregate(function, new PassThroughAllWindowFunction<W, R>(),
-				accumulatorType, resultType, resultType);
+				accumulatorType, resultType);
 	}
 
 	/**
@@ -510,7 +510,7 @@ public class AllWindowedStream<T, W extends Window> {
 
 		TypeInformation<R> resultType = getAllWindowFunctionReturnType(windowFunction, aggResultType);
 
-		return aggregate(aggFunction, windowFunction, accumulatorType, aggResultType, resultType);
+		return aggregate(aggFunction, windowFunction, accumulatorType, resultType);
 	}
 
 	private static <IN, OUT> TypeInformation<OUT> getAllWindowFunctionReturnType(
@@ -566,13 +566,11 @@ public class AllWindowedStream<T, W extends Window> {
 			AggregateFunction<T, ACC, V> aggregateFunction,
 			AllWindowFunction<V, R, W> windowFunction,
 			TypeInformation<ACC> accumulatorType,
-			TypeInformation<V> aggregateResultType,
 			TypeInformation<R> resultType) {
 
 		checkNotNull(aggregateFunction, "aggregateFunction");
 		checkNotNull(windowFunction, "windowFunction");
 		checkNotNull(accumulatorType, "accumulatorType");
-		checkNotNull(aggregateResultType, "aggregateResultType");
 		checkNotNull(resultType, "resultType");
 
 		if (aggregateFunction instanceof RichFunction) {
@@ -857,7 +855,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @param resultType Type information for the result type of the window function
 	 * @return The data stream that is the result of applying the window function to the window.
 	 *
-	 * @deprecated use {@link #aggregate(AggregateFunction, AllWindowFunction, TypeInformation, TypeInformation, TypeInformation)} instead
+	 * @deprecated use {@link #aggregate(AggregateFunction, AllWindowFunction, TypeInformation, TypeInformation)} instead
 	 */
 	@PublicEvolving
 	@Deprecated

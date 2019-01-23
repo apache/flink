@@ -20,6 +20,7 @@ package org.apache.flink.api.scala.extensions.impl.acceptPartialFunctions
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{DataSet, GroupedDataSet}
+import org.apache.flink.util.Collector
 
 import scala.reflect.ClassTag
 
@@ -53,7 +54,7 @@ class OnDataSet[T](ds: DataSet[T]) {
   @PublicEvolving
   def mapPartitionWith[R: TypeInformation: ClassTag](fun: Stream[T] => R): DataSet[R] =
     ds.mapPartition {
-      (it, out) =>
+      (it: Iterator[T], out: Collector[R]) =>
         out.collect(fun(it.toStream))
     }
 
@@ -100,7 +101,7 @@ class OnDataSet[T](ds: DataSet[T]) {
   @PublicEvolving
   def reduceGroupWith[R: TypeInformation: ClassTag](fun: Stream[T] => R): DataSet[R] =
     ds.reduceGroup {
-      (it, out) =>
+      (it: Iterator[T], out: Collector[R]) =>
         out.collect(fun(it.toStream))
     }
 

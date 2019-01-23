@@ -68,7 +68,6 @@ class TestingDispatcher extends Dispatcher {
 			archivedExecutionGraphStore,
 			jobManagerRunnerFactory,
 			fatalErrorHandler,
-			null,
 			VoidHistoryServerArchivist.INSTANCE);
 	}
 

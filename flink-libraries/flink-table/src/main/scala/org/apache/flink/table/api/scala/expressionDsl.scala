@@ -28,7 +28,7 @@ import org.apache.flink.table.api.Table
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions.TimePointUnit.TimePointUnit
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{AggregateFunction, DistinctAggregateFunction}
+import org.apache.flink.table.functions.{AggregateFunction, DistinctAggregateFunction, ScalarFunction}
 
 import scala.language.implicitConversions
 
@@ -358,6 +358,11 @@ trait ImplicitExpressionOperations {
   def floor() = Floor(expr)
 
   /**
+    * Calculates the hyperbolic sine of a given value.
+    */
+  def sinh() = Sinh(expr)
+
+  /**
     * Calculates the smallest integer greater than or equal to a given number.
     */
   def ceil() = Ceil(expr)
@@ -396,6 +401,11 @@ trait ImplicitExpressionOperations {
     * Calculates the arc tangent of a given number.
     */
   def atan() = Atan(expr)
+
+  /**
+    * Calculates the hyperbolic tangent of a given number.
+    */
+  def tanh() = Tanh(expr)
 
   /**
     * Converts numeric from radians to degrees.
@@ -1009,6 +1019,12 @@ trait ImplicitExpressionConversions {
   implicit class LiteralSqlTimestampExpression(sqlTimestamp: Timestamp)
       extends ImplicitExpressionOperations {
     def expr = Literal(sqlTimestamp)
+  }
+
+  implicit class ScalarFunctionCallExpression(val s: ScalarFunction) {
+    def apply(params: Expression*): Expression = {
+      ScalarFunctionCall(s, params)
+    }
   }
 
   implicit def symbol2FieldExpression(sym: Symbol): Expression = UnresolvedFieldReference(sym.name)

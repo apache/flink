@@ -27,6 +27,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 
 /**
  * Factory for the {@link DispatcherResourceManagerComponent}.
@@ -41,5 +42,6 @@ public interface DispatcherResourceManagerComponentFactory<T extends Dispatcher>
 		HeartbeatServices heartbeatServices,
 		MetricRegistry metricRegistry,
 		ArchivedExecutionGraphStore archivedExecutionGraphStore,
+		MetricQueryServiceRetriever metricQueryServiceRetriever,
 		FatalErrorHandler fatalErrorHandler) throws Exception;
 }

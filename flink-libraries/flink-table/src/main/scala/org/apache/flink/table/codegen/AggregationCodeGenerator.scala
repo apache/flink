@@ -19,26 +19,26 @@ package org.apache.flink.table.codegen
 
 import java.lang.reflect.Modifier
 import java.lang.{Iterable => JIterable}
+import java.util.{List => JList}
 
 import org.apache.calcite.rex.RexLiteral
-import org.apache.commons.codec.binary.Base64
 import org.apache.flink.api.common.state.{ListStateDescriptor, MapStateDescriptor, State, StateDescriptor}
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractionUtils.{extractTypeArgument, getRawClass}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.dataview._
 import org.apache.flink.table.codegen.CodeGenUtils.{newName, reflectiveFieldWriteAccess}
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.dataview.{MapViewTypeInfo, StateListView, StateMapView}
+import org.apache.flink.table.dataview.{StateListView, StateMapView}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.aggfunctions.DistinctAccumulator
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
 import org.apache.flink.table.runtime.aggregate.{GeneratedAggregations, SingleElementIterable}
+import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
-import org.apache.flink.util.InstantiationUtil
 
+import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 /**
@@ -78,7 +78,8 @@ class AggregationCodeGenerator(
     * @param aggregates  All aggregate functions
     * @param aggFields   Indexes of the input fields for all aggregate functions
     * @param aggMapping  The mapping of aggregates to output fields
-    * @param isDistinctAggs The flag array indicating whether it is distinct aggregate.
+    * @param distinctAccMapping The mapping of the distinct accumulator index to the
+    *                           corresponding aggregates.
     * @param isStateBackedDataViews a flag to indicate if distinct filter uses state backend.
     * @param partialResults A flag defining whether final or partial results (accumulators) are set
     *                       to the output row.
@@ -99,7 +100,7 @@ class AggregationCodeGenerator(
       aggregates: Array[AggregateFunction[_ <: Any, _ <: Any]],
       aggFields: Array[Array[Int]],
       aggMapping: Array[Int],
-      isDistinctAggs: Array[Boolean],
+      distinctAccMapping: Array[(Integer, JList[Integer])],
       isStateBackedDataViews: Boolean,
       partialResults: Boolean,
       fwdMapping: Array[Int],
@@ -143,6 +144,35 @@ class AggregationCodeGenerator(
       fields.mkString(", ")
     }
 
+    // get parameter lists for distinct acc, constant fields are not necessary
+    val parametersCodeForDistinctAcc = aggFields.map { inFields =>
+      val fields = inFields.filter(i => i > -1 && i < physicalInputTypes.length).map { f =>
+        // index to input field
+        s"(${CodeGenUtils.boxedTypeTermForTypeInfo(physicalInputTypes(f))}) input.getField($f)"
+      }
+
+      fields.mkString(", ")
+    }
+
+    val parametersCodeForDistinctMerge = aggFields.map { inFields =>
+      // transform inFields to pairs of (inField, index in acc) firstly,
+      // e.g. (4, 2, 3, 2) will be transformed to ((4,2), (2,0), (3,1), (2,0))
+      val fields = inFields.filter(_ > -1).groupBy(identity).toSeq.sortBy(_._1).zipWithIndex
+        .flatMap { case (a, i) => a._2.map((_, i)) }
+        .map { case (f, i) =>
+          // index to constant
+          if (f >= physicalInputTypes.length) {
+            constantFields(f - physicalInputTypes.length)
+          }
+          // index to input field
+          else {
+            s"(${CodeGenUtils.boxedTypeTermForTypeInfo(physicalInputTypes(f))}) k.getField($i)"
+          }
+        }
+
+      fields.mkString(", ")
+    }
+
     // get method signatures
     val classes = UserDefinedFunctionUtils.typeInfoToClass(physicalInputTypes)
     val constantClasses = UserDefinedFunctionUtils.typeInfoToClass(constantTypes)
@@ -160,30 +190,11 @@ class AggregationCodeGenerator(
     }
 
     // get distinct filter of acc fields for each aggregate functions
-    val distinctAccType = s"${classOf[DistinctAccumulator[_]].getName}"
+    val distinctAccType = s"${classOf[DistinctAccumulator].getName}"
 
-    // preparing MapViewSpecs for distinct value maps
-    val distinctAggs: Array[Seq[DataViewSpec[_]]] = isDistinctAggs.zipWithIndex.map {
-      case (isDistinctAgg, idx) if isDistinctAgg =>
+    val distinctAccCount = distinctAccMapping.count(_._1 >= 0)
 
-        // get types of agg function arguments
-        val argTypes: Array[TypeInformation[_]] = aggFields(idx)
-          .map(physicalInputTypes(_))
-        // create type for MapView
-        val mapViewTypeInfo = new MapViewTypeInfo(
-          new RowTypeInfo(argTypes:_*),
-          BasicTypeInfo.LONG_TYPE_INFO)
-        // create MapViewSpec for distinct value map
-        Seq(
-          MapViewSpec(
-            "distinctAgg" + idx,
-            classOf[DistinctAccumulator[_]].getDeclaredField("distinctValueMap"),
-            mapViewTypeInfo)
-        )
-      case _ => Seq()
-    }
-
-    if (isDistinctAggs.contains(true) && partialResults && isStateBackedDataViews) {
+    if (distinctAccCount > 0 && partialResults && isStateBackedDataViews) {
       // should not happen, but add an error message just in case.
       throw new CodeGenException(
         s"Cannot emit partial results if DISTINCT values are tracked in state-backed maps. " +
@@ -252,31 +263,13 @@ class AggregationCodeGenerator(
       * aggregation functions.
       */
     def addAccumulatorDataViews(): Unit = {
-      if (isStateBackedDataViews) {
-        // create MapStates for distinct value maps
-        val descMapping: Map[String, StateDescriptor[_, _]] = distinctAggs
-          .flatMap(specs => specs.map(s => (s.stateId, s.toStateDescriptor)))
-          .toMap[String, StateDescriptor[_ <: State, _]]
-
-        for (i <- aggs.indices) yield {
-          for (spec <- distinctAggs(i)) {
-            // Check if stat descriptor exists.
-            val desc: StateDescriptor[_, _] = descMapping.getOrElse(spec.stateId,
-              throw new CodeGenException(
-                s"Can not find DataView for distinct filter in accumulator by id: ${spec.stateId}"))
-
-            addReusableDataView(spec, desc, i)
-          }
-        }
-      }
-
       if (accConfig.isDefined) {
         // create state handles for DataView backed accumulator fields.
         val descMapping: Map[String, StateDescriptor[_, _]] = accConfig.get
           .flatMap(specs => specs.map(s => (s.stateId, s.toStateDescriptor)))
           .toMap[String, StateDescriptor[_ <: State, _]]
 
-        for (i <- aggs.indices) yield {
+        for (i <- 0 until aggs.length + distinctAccCount) yield {
           for (spec <- accConfig.get(i)) yield {
             // Check if stat descriptor exists.
             val desc: StateDescriptor[_, _] = descMapping.getOrElse(spec.stateId,
@@ -315,7 +308,7 @@ class AggregationCodeGenerator(
       val dataViewTypeTerm = dataViewField.getType.getCanonicalName
 
       // define the DataView variables
-      val serializedData = serializeStateDescriptor(desc)
+      val serializedData = EncodingUtils.encodeObjectToString(desc)
       val dataViewFieldTerm = createDataViewTerm(aggIndex, dataViewField.getName)
       val field =
         s"""
@@ -329,9 +322,10 @@ class AggregationCodeGenerator(
       val descDeserializeCode =
         s"""
            |    $descClassQualifier $descFieldTerm = ($descClassQualifier)
-           |      org.apache.flink.util.InstantiationUtil.deserializeObject(
-           |      org.apache.commons.codec.binary.Base64.decodeBase64("$serializedData"),
-           |      $contextTerm.getUserCodeClassLoader());
+           |      ${classOf[EncodingUtils].getCanonicalName}.decodeStringToObject(
+           |        "$serializedData",
+           |        $descClassQualifier.class,
+           |        $contextTerm.getUserCodeClassLoader());
            |""".stripMargin
       val createDataView = if (dataViewField.getType == classOf[MapView[_, _]]) {
         s"""
@@ -358,14 +352,6 @@ class AggregationCodeGenerator(
            |    $dataViewFieldTerm.clear();
            |""".stripMargin
       reusableCleanupStatements.add(cleanup)
-    }
-
-    def genDistinctDataViewFieldSetter(str: String, i: Int): String = {
-      if (isStateBackedDataViews && distinctAggs(i).nonEmpty) {
-        genDataViewFieldSetter(distinctAggs(i), str, i)
-      } else {
-        ""
-      }
     }
 
     def genAccDataViewFieldSetter(str: String, i: Int): String = {
@@ -414,38 +400,55 @@ class AggregationCodeGenerator(
            |    org.apache.flink.types.Row output) throws Exception """.stripMargin
 
       val setAggs: String = {
-        for (i <- aggs.indices) yield
-
+        for ((i, aggIndexes) <- distinctAccMapping) yield {
           if (partialResults) {
-            j"""
-               |    output.setField(
-               |      ${aggMapping(i)},
-               |      (${accTypes(i)}) accs.getField($i));""".stripMargin
-          } else {
-            val setAccOutput =
+            def setAggs(aggIndexes: JList[Integer]) = {
+              for (i <- aggIndexes) yield {
+                j"""
+                   |output.setField(
+                   |  ${aggMapping(i)},
+                   |  (${accTypes(i)}) accs.getField($i));
+                 """.stripMargin
+              }
+            }.mkString("\n")
+
+            if (i >= 0) {
               j"""
-                 |    ${genAccDataViewFieldSetter(s"acc$i", i)}
                  |    output.setField(
                  |      ${aggMapping(i)},
-                 |      baseClass$i.getValue(acc$i));
+                 |      ($distinctAccType) accs.getField($i));
+                 |    ${setAggs(aggIndexes)}
                  """.stripMargin
-            if (isDistinctAggs(i)) {
+            } else {
+              j"""
+                 |    ${setAggs(aggIndexes)}
+                 """.stripMargin
+            }
+          } else {
+            def setAggs(aggIndexes: JList[Integer]) = {
+              for (i <- aggIndexes) yield {
+                val setAccOutput =
+                  j"""
+                     |${genAccDataViewFieldSetter(s"acc$i", i)}
+                     |output.setField(
+                     |  ${aggMapping(i)},
+                     |  baseClass$i.getValue(acc$i));
+                     """.stripMargin
+
                 j"""
-                   |    org.apache.flink.table.functions.AggregateFunction baseClass$i =
-                   |      (org.apache.flink.table.functions.AggregateFunction) ${aggs(i)};
-                   |    $distinctAccType distinctAcc$i = ($distinctAccType) accs.getField($i);
-                   |    ${accTypes(i)} acc$i = (${accTypes(i)}) distinctAcc$i.getRealAcc();
-                   |    $setAccOutput
-                   """.stripMargin
-              } else {
-                j"""
-                   |    org.apache.flink.table.functions.AggregateFunction baseClass$i =
-                   |      (org.apache.flink.table.functions.AggregateFunction) ${aggs(i)};
-                   |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
-                   |    $setAccOutput
+                   |org.apache.flink.table.functions.AggregateFunction baseClass$i =
+                   |  (org.apache.flink.table.functions.AggregateFunction) ${aggs(i)};
+                   |${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
+                   |$setAccOutput
                    """.stripMargin
               }
-            }
+            }.mkString("\n")
+
+            j"""
+               |    ${setAggs(aggIndexes)}
+               """.stripMargin
+          }
+        }
       }.mkString("\n")
 
       j"""
@@ -463,27 +466,30 @@ class AggregationCodeGenerator(
            |    org.apache.flink.types.Row input) throws Exception """.stripMargin
 
       val accumulate: String = {
-        for (i <- aggs.indices) yield {
-          val accumulateAcc =
+        def accumulateAcc(aggIndexes: JList[Integer]) = {
+          for (i <- aggIndexes) yield {
             j"""
-               |      ${genAccDataViewFieldSetter(s"acc$i", i)}
-               |      ${aggs(i)}.accumulate(acc$i
-               |        ${if (!parametersCode(i).isEmpty) "," else ""} ${parametersCode(i)});
+               |${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
+               |${genAccDataViewFieldSetter(s"acc$i", i)}
+               |${aggs(i)}.accumulate(acc$i
+               |  ${if (!parametersCode(i).isEmpty) "," else ""} ${parametersCode(i)});
                """.stripMargin
-          if (isDistinctAggs(i)) {
+          }
+        }.mkString("\n")
+
+        for ((i, aggIndexes) <- distinctAccMapping) yield {
+          if (i >= 0) {
             j"""
                |    $distinctAccType distinctAcc$i = ($distinctAccType) accs.getField($i);
-               |    ${genDistinctDataViewFieldSetter(s"distinctAcc$i", i)}
-               |    if (distinctAcc$i.add(
-               |        ${classOf[Row].getCanonicalName}.of(${parametersCode(i)}))) {
-               |      ${accTypes(i)} acc$i = (${accTypes(i)}) distinctAcc$i.getRealAcc();
-               |      $accumulateAcc
+               |    ${genAccDataViewFieldSetter(s"distinctAcc$i", i)}
+               |    if (distinctAcc$i.add(${classOf[Row].getCanonicalName}.of(
+               |        ${parametersCodeForDistinctAcc(aggIndexes.get(0))}))) {
+               |      ${accumulateAcc(aggIndexes)}
                |    }
                """.stripMargin
           } else {
             j"""
-               |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
-               |    $accumulateAcc
+               |    ${accumulateAcc(aggIndexes)}
                """.stripMargin
           }
         }
@@ -503,27 +509,30 @@ class AggregationCodeGenerator(
            |    org.apache.flink.types.Row input) throws Exception """.stripMargin
 
       val retract: String = {
-        for (i <- aggs.indices) yield {
-          val retractAcc =
+        def retractAcc(aggIndexes: JList[Integer]) = {
+          for (i <- aggIndexes) yield {
             j"""
-               |    ${genAccDataViewFieldSetter(s"acc$i", i)}
-               |    ${aggs(i)}.retract(
-               |      acc$i ${if (!parametersCode(i).isEmpty) "," else ""} ${parametersCode(i)});
+               |${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
+               |${genAccDataViewFieldSetter(s"acc$i", i)}
+               |${aggs(i)}.retract(acc$i
+               |  ${if (!parametersCode(i).isEmpty) "," else ""} ${parametersCode(i)});
                """.stripMargin
-          if (isDistinctAggs(i)) {
+          }
+        }.mkString("\n")
+
+        for ((i, aggIndexes) <- distinctAccMapping) yield {
+          if (i >= 0) {
             j"""
                |    $distinctAccType distinctAcc$i = ($distinctAccType) accs.getField($i);
-               |    ${genDistinctDataViewFieldSetter(s"distinctAcc$i", i)}
-               |    if (distinctAcc$i.remove(
-               |        ${classOf[Row].getCanonicalName}.of(${parametersCode(i)}))) {
-               |      ${accTypes(i)} acc$i = (${accTypes(i)}) distinctAcc$i.getRealAcc();
-               |      $retractAcc
+               |    ${genAccDataViewFieldSetter(s"distinctAcc$i", i)}
+               |    if (distinctAcc$i.remove(${classOf[Row].getCanonicalName}.of(
+               |        ${parametersCodeForDistinctAcc(aggIndexes.get(0))}))) {
+               |      ${retractAcc(aggIndexes)}
                |    }
                """.stripMargin
           } else {
             j"""
-               |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
-               |    $retractAcc
+               |    ${retractAcc(aggIndexes)}
                """.stripMargin
           }
         }
@@ -550,26 +559,34 @@ class AggregationCodeGenerator(
       val init: String =
         j"""
            |      org.apache.flink.types.Row accs =
-           |          new org.apache.flink.types.Row(${aggs.length});"""
+           |          new org.apache.flink.types.Row(${aggs.length + distinctAccCount});"""
         .stripMargin
       val create: String = {
-        for (i <- aggs.indices) yield {
-          if (isDistinctAggs(i)) {
+        def createAcc(aggIndexes: JList[Integer]) = {
+          for (i <- aggIndexes) yield {
             j"""
-               |    ${accTypes(i)} acc$i = (${accTypes(i)}) ${aggs(i)}.createAccumulator();
+               |${accTypes(i)} acc$i = (${accTypes(i)}) ${aggs(i)}.createAccumulator();
+               |accs.setField(
+               |  $i,
+               |  acc$i);
+               """.stripMargin
+          }
+        }.mkString("\n")
+
+        for ((i, aggIndexes) <- distinctAccMapping) yield {
+          if (i >= 0) {
+            j"""
                |    $distinctAccType distinctAcc$i = ($distinctAccType)
-               |      new ${classOf[DistinctAccumulator[_]].getCanonicalName} (acc$i);
+               |      new ${classOf[DistinctAccumulator].getCanonicalName}();
                |    accs.setField(
                |      $i,
-               |      distinctAcc$i);"""
-              .stripMargin
+               |      distinctAcc$i);
+               |    ${createAcc(aggIndexes)}
+               """.stripMargin
           } else {
             j"""
-               |    ${accTypes(i)} acc$i = (${accTypes(i)}) ${aggs(i)}.createAccumulator();
-               |    accs.setField(
-               |      $i,
-               |      acc$i);"""
-              .stripMargin
+               |    ${createAcc(aggIndexes)}
+               """.stripMargin
           }
         }
       }.mkString("\n")
@@ -618,8 +635,7 @@ class AggregationCodeGenerator(
     }
 
     def genMergeAccumulatorsPair: String = {
-
-      val mapping = mergeMapping.getOrElse(aggs.indices.toArray)
+      val mapping = mergeMapping.getOrElse((0 until aggs.length + distinctAccCount).toArray)
 
       val sig: String =
         j"""
@@ -628,14 +644,35 @@ class AggregationCodeGenerator(
            |    org.apache.flink.types.Row b)
            """.stripMargin
       val merge: String = {
-        for (i <- aggs.indices) yield {
-          if (isDistinctAggs(i)) {
+        def accumulateAcc(aggIndexes: JList[Integer]) = {
+          for (i <- aggIndexes) yield {
+            j"""
+               |${accTypes(i)} aAcc$i = (${accTypes(i)}) a.getField($i);
+               |${aggs(i)}.accumulate(aAcc$i, ${parametersCodeForDistinctMerge(i)});
+               |a.setField($i, aAcc$i);
+               """.stripMargin
+          }
+        }.mkString("\n")
+
+        def mergeAcc(aggIndexes: JList[Integer]) = {
+          for (i <- aggIndexes) yield {
+            j"""
+               |${accTypes(i)} aAcc$i = (${accTypes(i)}) a.getField($i);
+               |${accTypes(i)} bAcc$i = (${accTypes(i)}) b.getField(${mapping(i)});
+               |accIt$i.setElement(bAcc$i);
+               |${aggs(i)}.merge(aAcc$i, accIt$i);
+               |a.setField($i, aAcc$i);
+               """.stripMargin
+          }
+        }.mkString("\n")
+
+        for ((i, aggIndexes) <- distinctAccMapping) yield {
+          if (i >= 0) {
             j"""
                |    $distinctAccType aDistinctAcc$i = ($distinctAccType) a.getField($i);
                |    $distinctAccType bDistinctAcc$i = ($distinctAccType) b.getField(${mapping(i)});
                |    java.util.Iterator<java.util.Map.Entry> mergeIt$i =
                |        bDistinctAcc$i.elements().iterator();
-               |    ${accTypes(i)} aAcc$i = (${accTypes(i)}) aDistinctAcc$i.getRealAcc();
                |
                |    while (mergeIt$i.hasNext()) {
                |      java.util.Map.Entry entry = (java.util.Map.Entry) mergeIt$i.next();
@@ -643,18 +680,14 @@ class AggregationCodeGenerator(
                |          (${classOf[Row].getCanonicalName}) entry.getKey();
                |      Long v = (Long) entry.getValue();
                |      if (aDistinctAcc$i.add(k, v)) {
-               |        ${aggs(i)}.accumulate(aAcc$i, k);
+               |        ${accumulateAcc(aggIndexes)}
                |      }
                |    }
                |    a.setField($i, aDistinctAcc$i);
                """.stripMargin
           } else {
             j"""
-               |    ${accTypes(i)} aAcc$i = (${accTypes(i)}) a.getField($i);
-               |    ${accTypes(i)} bAcc$i = (${accTypes(i)}) b.getField(${mapping(i)});
-               |    accIt$i.setElement(bAcc$i);
-               |    ${aggs(i)}.merge(aAcc$i, accIt$i);
-               |    a.setField($i, aAcc$i);
+               |    ${mergeAcc(aggIndexes)}
                """.stripMargin
           }
         }
@@ -701,20 +734,28 @@ class AggregationCodeGenerator(
            |    org.apache.flink.types.Row accs) throws Exception """.stripMargin
 
       val reset: String = {
-        for (i <- aggs.indices) yield {
-          if (isDistinctAggs(i)) {
+        def resetAcc(aggIndexes: JList[Integer]) = {
+          for (i <- aggIndexes) yield {
+            j"""
+               |${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
+               |${genAccDataViewFieldSetter(s"acc$i", i)}
+               |${aggs(i)}.resetAccumulator(acc$i);
+               """.stripMargin
+          }
+        }.mkString("\n")
+
+        for ((i, aggIndexes) <- distinctAccMapping) yield {
+          if (i >= 0) {
             j"""
                |    $distinctAccType distinctAcc$i = ($distinctAccType) accs.getField($i);
-               |    ${genDistinctDataViewFieldSetter(s"distinctAcc$i", i)}
-               |    ${accTypes(i)} acc$i = (${accTypes(i)}) distinctAcc$i.getRealAcc();
-               |    ${genAccDataViewFieldSetter(s"acc$i", i)}
+               |    ${genAccDataViewFieldSetter(s"distinctAcc$i", i)}
                |    distinctAcc$i.reset();
-               |    ${aggs(i)}.resetAccumulator(acc$i);""".stripMargin
+               |    ${resetAcc(aggIndexes)}
+               """.stripMargin
           } else {
             j"""
-               |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
-               |    ${genAccDataViewFieldSetter(s"acc$i", i)}
-               |    ${aggs(i)}.resetAccumulator(acc$i);""".stripMargin
+               |    ${resetAcc(aggIndexes)}
+               """.stripMargin
           }
         }
       }.mkString("\n")
@@ -769,11 +810,5 @@ class AggregationCodeGenerator(
          """.stripMargin
 
     GeneratedAggregationsFunction(funcName, funcCode)
-  }
-
-  @throws[Exception]
-  def serializeStateDescriptor(stateDescriptor: StateDescriptor[_, _]): String = {
-    val byteArray = InstantiationUtil.serializeObject(stateDescriptor)
-    Base64.encodeBase64URLSafeString(byteArray)
   }
 }

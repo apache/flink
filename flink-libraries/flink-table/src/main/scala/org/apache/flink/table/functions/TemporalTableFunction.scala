@@ -65,7 +65,7 @@ class TemporalTableFunction private(
 }
 
 object TemporalTableFunction {
-  def create(
+  private[flink] def create(
       table: Table,
       timeAttribute: Expression,
       primaryKey: String): TemporalTableFunction = {
@@ -74,7 +74,7 @@ object TemporalTableFunction {
       timeAttribute,
       primaryKey,
       new RowTypeInfo(
-        table.getSchema.getTypes,
-        table.getSchema.getColumnNames))
+        table.getSchema.getFieldTypes,
+        table.getSchema.getFieldNames))
   }
 }

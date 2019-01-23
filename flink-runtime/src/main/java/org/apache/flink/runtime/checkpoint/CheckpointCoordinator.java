@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineException;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -1249,11 +1250,14 @@ public class CheckpointCoordinator {
 
 		final long checkpointId = pendingCheckpoint.getCheckpointId();
 
-		final String reason = (cause != null) ? cause.getMessage() : "";
+		LOG.info("Discarding checkpoint {} of job {}.", checkpointId, job, cause);
 
-		LOG.info("Discarding checkpoint {} of job {} because: {}", checkpointId, job, reason);
+		if (cause == null || cause instanceof CheckpointDeclineException) {
+			pendingCheckpoint.abortDeclined();
+		} else {
+			pendingCheckpoint.abortError(cause);
+		}
 
-		pendingCheckpoint.abortDeclined();
 		rememberRecentCheckpointId(checkpointId);
 
 		// we don't have to schedule another "dissolving" checkpoint any more because the

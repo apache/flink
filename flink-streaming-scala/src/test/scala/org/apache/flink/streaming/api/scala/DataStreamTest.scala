@@ -60,7 +60,7 @@ class DataStreamTest extends AbstractTestBase {
 
     val dataStream2 = env.generateSequence(0, 0).name("testSource2")
       .keyBy(x=>x)
-      .reduce((x, y) => 0)
+      .reduce((x, y) => 0L)
       .name("testReduce")
     assert("testReduce" == dataStream2.getName)
 

@@ -70,7 +70,7 @@ DataStream<Integer> greenStream = ...
 orangeStream.join(greenStream)
     .where(<KeySelector>)
     .equalTo(<KeySelector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(2)))
+    .window(TumblingEventTimeWindows.of(Time.milliseconds(2)))
     .apply (new JoinFunction<Integer, Integer, String> (){
         @Override
         public String join(Integer first, Integer second) {
@@ -101,7 +101,7 @@ orangeStream.join(greenStream)
 </div>
 
 ## Sliding Window Join
-When performing a sliding window join, all elements with a common key and common sliding window are joined are pairwise combinations and passed on to the `JoinFunction` or `FlatJoinFunction`. Elements of one stream that do not have elements from the other stream in the current sliding window are not emitted! Note that some elements might be joined in one sliding window but not in another!
+When performing a sliding window join, all elements with a common key and common sliding window are joined as pairwise combinations and passed on to the `JoinFunction` or `FlatJoinFunction`. Elements of one stream that do not have elements from the other stream in the current sliding window are not emitted! Note that some elements might be joined in one sliding window but not in another!
 
 <img src="{{ site.baseurl }}/fig/sliding-window-join.svg" class="center" style="width: 80%;" />
 
@@ -280,3 +280,5 @@ orangeStream
 
 </div>
 </div>
+
+{% top %}

@@ -35,7 +35,6 @@ public class JobMetricsHandlerTest extends MetricsHandlerTestBase<JobMetricsHand
 	@Override
 	JobMetricsHandler getMetricsHandler() {
 		return new JobMetricsHandler(
-			TEST_REST_ADDRESS,
 			leaderRetriever,
 			TIMEOUT,
 			TEST_HEADERS,

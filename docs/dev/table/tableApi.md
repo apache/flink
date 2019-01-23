@@ -59,7 +59,7 @@ Table counts = orders
         .select("a, b.count as cnt");
 
 // conversion to DataSet
-DataSet<Row> result = tableEnv.toDataSet(counts, Row.class);
+DataSet<Row> result = tEnv.toDataSet(counts, Row.class);
 result.print();
 {% endhighlight %}
 
@@ -109,7 +109,7 @@ Table orders = tEnv.scan("Orders"); // schema (a, b, c, rowtime)
 
 Table result = orders
         .filter("a.isNotNull && b.isNotNull && c.isNotNull")
-        .select("a.lowerCase(), b, rowtime")
+        .select("a.lowerCase() as a, b, rowtime")
         .window(Tumble.over("1.hour").on("rowtime").as("hourlyWindow"))
         .groupBy("hourlyWindow, a")
         .select("a, hourlyWindow.end as hour, b.avg as avgBillingAmount");
@@ -128,7 +128,7 @@ val orders: Table = tEnv.scan("Orders") // schema (a, b, c, rowtime)
 
 val result: Table = orders
         .filter('a.isNotNull && 'b.isNotNull && 'c.isNotNull)
-        .select('a.lowerCase(), 'b, 'rowtime)
+        .select('a.lowerCase() as 'a, 'b, 'rowtime)
         .window(Tumble over 1.hour on 'rowtime as 'hourlyWindow)
         .groupBy('hourlyWindow, 'a)
         .select('a, 'hourlyWindow.end as 'hour, 'b.avg as 'avgBillingAmount)
@@ -1317,7 +1317,7 @@ val table = input
 </div>
 </div>
 
-Window properties such as the start, end, or rowtime timestamp of a time window can be added in the select statement as a property of the window alias as `w.start`, `w.end`, and `w.rowtime`, respectively. The window start and rowtime timestamps are the inclusive lower and uppper window boundaries. In contrast, the window end timestamp is the exclusive upper window boundary. For example a tumbling window of 30 minutes that starts at 2pm would have `14:00:00.000` as start timestamp, `14:29:59.999` as rowtime timestamp, and `14:30:00.000` as end timestamp.
+Window properties such as the start, end, or rowtime timestamp of a time window can be added in the select statement as a property of the window alias as `w.start`, `w.end`, and `w.rowtime`, respectively. The window start and rowtime timestamps are the inclusive lower and upper window boundaries. In contrast, the window end timestamp is the exclusive upper window boundary. For example a tumbling window of 30 minutes that starts at 2pm would have `14:00:00.000` as start timestamp, `14:29:59.999` as rowtime timestamp, and `14:30:00.000` as end timestamp.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1571,13 +1571,15 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
     </tr>
     <tr>
       <td><code>preceding</code></td>
-      <td>Required</td>
+      <td>Optional</td>
       <td>
         <p>Defines the interval of rows that are included in the window and precede the current row. The interval can either be specified as time or row-count interval.</p>
 
         <p><a href="tableApi.html#bounded-over-windows">Bounded over windows</a> are specified with the size of the interval, e.g., <code>10.minutes</code> for a time interval or <code>10.rows</code> for a row-count interval.</p>
 
         <p><a href="tableApi.html#unbounded-over-windows">Unbounded over windows</a> are specified using a constant, i.e., <code>UNBOUNDED_RANGE</code> for a time interval or <code>UNBOUNDED_ROW</code> for a row-count interval. Unbounded over windows start with the first row of a partition.</p>
+        
+        <p>If the <code>preceding</code> clause is omitted, <code>UNBOUNDED_RANGE</code> and <code>CURRENT_RANGE</code> are used as the default <code>preceding</code> and <code>following</code> for the window.</p>
       </td>
     </tr>
     <tr>
@@ -1726,7 +1728,7 @@ This is the EBNF grammar for expressions:
 
 expressionList = expression , { "," , expression } ;
 
-expression = timeIndicator | overConstant | alias ;
+expression = overConstant | alias ;
 
 alias = logic | ( logic , "as" , fieldReference ) | ( logic , "as" , "(" , fieldReference , { "," , fieldReference } , ")" ) ;
 
@@ -1738,11 +1740,13 @@ term = product , [ ( "+" | "-" ) , product ] ;
 
 product = unary , [ ( "*" | "/" | "%") , unary ] ;
 
-unary = [ "!" | "-" ] , composite ;
+unary = [ "!" | "-" | "+" ] , composite ;
 
-composite = over | nullLiteral | suffixed | atom ;
+composite = over | suffixed | nullLiteral | prefixed | atom ;
 
-suffixed = interval | cast | as | if | functionCall ;
+suffixed = interval | suffixAs | suffixCast | suffixIf | suffixDistinct | suffixFunctionCall | timeIndicator ;
+
+prefixed = prefixAs | prefixCast | prefixIf | prefixDistinct | prefixFunctionCall ;
 
 interval = timeInterval | rowInterval ;
 
@@ -1750,15 +1754,27 @@ timeInterval = composite , "." , ("year" | "years" | "quarter" | "quarters" | "m
 
 rowInterval = composite , "." , "rows" ;
 
-cast = composite , ".cast(" , dataType , ")" ;
+suffixCast = composite , ".cast(" , dataType , ")" ;
+
+prefixCast = "cast(" , expression , dataType , ")" ;
 
 dataType = "BYTE" | "SHORT" | "INT" | "LONG" | "FLOAT" | "DOUBLE" | "BOOLEAN" | "STRING" | "DECIMAL" | "SQL_DATE" | "SQL_TIME" | "SQL_TIMESTAMP" | "INTERVAL_MONTHS" | "INTERVAL_MILLIS" | ( "MAP" , "(" , dataType , "," , dataType , ")" ) | ( "PRIMITIVE_ARRAY" , "(" , dataType , ")" ) | ( "OBJECT_ARRAY" , "(" , dataType , ")" ) ;
 
-as = composite , ".as(" , fieldReference , ")" ;
+suffixAs = composite , ".as(" , fieldReference , ")" ;
 
-if = composite , ".?(" , expression , "," , expression , ")" ;
+prefixAs = "as(" , expression, fieldReference , ")" ;
 
-functionCall = composite , "." , functionIdentifier , [ "(" , [ expression , { "," , expression } ] , ")" ] ;
+suffixIf = composite , ".?(" , expression , "," , expression , ")" ;
+
+prefixIf = "?(" , expression , "," , expression , "," , expression , ")" ;
+
+suffixDistinct = composite , "distinct.()" ;
+
+prefixDistinct = functionIdentifier , ".distinct" , [ "(" , [ expression , { "," , expression } ] , ")" ] ;
+
+suffixFunctionCall = composite , "." , functionIdentifier , [ "(" , [ expression , { "," , expression } ] , ")" ] ;
+
+prefixFunctionCall = functionIdentifier , [ "(" , [ expression , { "," , expression } ] , ")" ] ;
 
 atom = ( "(" , expression , ")" ) | literal | fieldReference ;
 

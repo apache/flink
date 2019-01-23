@@ -24,10 +24,10 @@ import java.util.Optional
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{TableException, TableSchema, ValidationException}
-import org.apache.flink.table.descriptors.DescriptorProperties.{toJava, toScala}
 import org.apache.flink.table.descriptors.RowtimeValidator._
 import org.apache.flink.table.descriptors.SchemaValidator._
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor
+import org.apache.flink.table.util.JavaScalaConversionUtil.{toJava, toScala}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -54,11 +54,11 @@ class SchemaValidator(
 
     for (i <- 0 until Math.max(names.size, types.size)) {
       properties
-        .validateString(s"$SCHEMA.$i.$SCHEMA_NAME", isOptional = false, minLen = 1)
+        .validateString(s"$SCHEMA.$i.$SCHEMA_NAME", false, 1)
       properties
-        .validateType(s"$SCHEMA.$i.$SCHEMA_TYPE", requireRow = false, isOptional = false)
+        .validateType(s"$SCHEMA.$i.$SCHEMA_TYPE", false, false)
       properties
-        .validateString(s"$SCHEMA.$i.$SCHEMA_FROM", isOptional = true, minLen = 1)
+        .validateString(s"$SCHEMA.$i.$SCHEMA_FROM", true, 1)
       // either proctime or rowtime
       val proctime = s"$SCHEMA.$i.$SCHEMA_PROCTIME"
       val rowtime = s"$SCHEMA.$i.$ROWTIME"
@@ -73,7 +73,7 @@ class SchemaValidator(
           throw new ValidationException("A proctime attribute must only be defined once.")
         }
         // check proctime
-        properties.validateBoolean(proctime, isOptional = false)
+        properties.validateBoolean(proctime, false)
         proctimeFound = properties.getBoolean(proctime)
         // no rowtime
         properties.validatePrefixExclusion(rowtime)
@@ -190,7 +190,7 @@ object SchemaValidator {
 
     val schema = properties.getTableSchema(SCHEMA)
 
-    schema.getColumnNames.zip(schema.getTypes).zipWithIndex.foreach { case ((n, t), i) =>
+    schema.getFieldNames.zip(schema.getFieldTypes).zipWithIndex.foreach { case ((n, t), i) =>
       val isProctime = properties
         .getOptionalBoolean(s"$SCHEMA.$i.$SCHEMA_PROCTIME")
         .orElse(false)
@@ -247,7 +247,7 @@ object SchemaValidator {
     columnNames.foreach(name => mapping.put(name, name))
 
     // add all schema fields first for implicit mappings
-    schema.getColumnNames.foreach { name =>
+    schema.getFieldNames.foreach { name =>
       mapping.put(name, name)
     }
 
@@ -281,37 +281,5 @@ object SchemaValidator {
     }
 
     mapping.toMap.asJava
-  }
-
-  /**
-    * Finds the fields that can be used for a format schema (without time attributes).
-    */
-  def deriveFormatFields(properties: DescriptorProperties): TableSchema = {
-
-    val builder = TableSchema.builder()
-
-    val schema = properties.getTableSchema(SCHEMA)
-
-    schema.getColumnNames.zip(schema.getTypes).zipWithIndex.foreach { case ((n, t), i) =>
-      val isProctime = properties
-        .getOptionalBoolean(s"$SCHEMA.$i.$SCHEMA_PROCTIME")
-        .orElse(false)
-      val tsType = s"$SCHEMA.$i.$ROWTIME_TIMESTAMPS_TYPE"
-      val isRowtime = properties.containsKey(tsType)
-      if (!isProctime && !isRowtime) {
-        // check for a aliasing
-        val fieldName = properties.getOptionalString(s"$SCHEMA.$i.$SCHEMA_FROM")
-          .orElse(n)
-        builder.field(fieldName, t)
-      }
-      // only use the rowtime attribute if it references a field
-      else if (isRowtime &&
-          properties.getString(tsType) == ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD) {
-        val field = properties.getString(s"$SCHEMA.$i.$ROWTIME_TIMESTAMPS_FROM")
-        builder.field(field, t)
-      }
-    }
-
-    builder.build()
   }
 }

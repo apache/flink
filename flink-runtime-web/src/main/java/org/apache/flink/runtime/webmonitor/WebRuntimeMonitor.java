@@ -20,17 +20,19 @@ package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTrackerImpl;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.StackTraceSampleCoordinator;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
@@ -100,7 +102,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 	private final ScheduledFuture<?> executionGraphCleanupTask;
 
 	private AtomicBoolean cleanedUp = new AtomicBoolean();
-
 
 	private MetricFetcher metricFetcher;
 
@@ -181,7 +182,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		// --------------------------------------------------------------------
 
 		// Config to enable https access to the web-ui
-		final SSLEngineFactory sslFactory;
+		final SSLHandlerFactory sslFactory;
 		final boolean enableSSL = SSLUtils.isRestSSLEnabled(config) && config.getBoolean(WebOptions.SSL_ENABLED);
 		if (enableSSL) {
 			LOG.info("Enabling ssl for the web frontend");
@@ -193,7 +194,12 @@ public class WebRuntimeMonitor implements WebMonitor {
 		} else {
 			sslFactory = null;
 		}
-		metricFetcher = new MetricFetcher(retriever, queryServiceRetriever, scheduledExecutor, timeout);
+		metricFetcher = new MetricFetcherImpl<>(
+			retriever,
+			queryServiceRetriever,
+			scheduledExecutor,
+			timeout,
+			MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
 
 		Router router = new Router();
 

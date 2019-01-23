@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -253,6 +254,11 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 	@Override
 	public BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers) throws IOException {
+		return createBufferPool(numRequiredBuffers, maxUsedBuffers, Optional.empty());
+	}
+
+	@Override
+	public BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers, Optional<BufferPoolOwner> owner) throws IOException {
 		// It is necessary to use a separate lock from the one used for buffer
 		// requests to ensure deadlock freedom for failure cases.
 		synchronized (factoryLock) {
@@ -281,7 +287,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 			// We are good to go, create a new buffer pool and redistribute
 			// non-fixed size buffers.
 			LocalBufferPool localBufferPool =
-				new LocalBufferPool(this, numRequiredBuffers, maxUsedBuffers);
+				new LocalBufferPool(this, numRequiredBuffers, maxUsedBuffers, owner);
 
 			allBufferPools.add(localBufferPool);
 

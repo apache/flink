@@ -142,7 +142,7 @@ is available in a `RichFunction` has these methods for accessing state:
 * `ValueState<T> getState(ValueStateDescriptor<T>)`
 * `ReducingState<T> getReducingState(ReducingStateDescriptor<T>)`
 * `ListState<T> getListState(ListStateDescriptor<T>)`
-* `AggregatingState<IN, OUT> getAggregatingState(AggregatingState<IN, OUT>)`
+* `AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT>)`
 * `FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC>)`
 * `MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV>)`
 
@@ -475,7 +475,7 @@ public class BufferingSink
     }
 
     @Override
-    public void invoke(Tuple2<String, Integer> value) throws Exception {
+    public void invoke(Tuple2<String, Integer> value, Context contex) throws Exception {
         bufferedElements.add(value);
         if (bufferedElements.size() == threshold) {
             for (Tuple2<String, Integer> element: bufferedElements) {
@@ -523,7 +523,7 @@ class BufferingSink(threshold: Int = 0)
 
   private val bufferedElements = ListBuffer[(String, Int)]()
 
-  override def invoke(value: (String, Int)): Unit = {
+  override def invoke(value: (String, Int), context: Context): Unit = {
     bufferedElements += value
     if (bufferedElements.size == threshold) {
       for (element <- bufferedElements) {
@@ -640,7 +640,7 @@ public static class CounterSource
         implements ListCheckpointed<Long> {
 
     /**  current offset for exactly once semantics */
-    private Long offset;
+    private Long offset = 0L;
 
     /** flag for job cancellation */
     private volatile boolean isRunning = true;

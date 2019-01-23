@@ -47,6 +47,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
+import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -250,7 +251,7 @@ public class TaskTest extends TestLogger {
 	public void testExecutionFailsInNetworkRegistration() throws Exception {
 		// mock a network manager that rejects registration
 		final ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
-		final ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
+		final ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 		final PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
 		final TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 
@@ -571,7 +572,7 @@ public class TaskTest extends TestLogger {
 		final PartitionProducerStateChecker partitionChecker = mock(PartitionProducerStateChecker.class);
 		final TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 
-		final ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
+		final ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 		final NetworkEnvironment network = mock(NetworkEnvironment.class);
 		when(network.getResultPartitionManager()).thenReturn(mock(ResultPartitionManager.class));
 		when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
@@ -941,7 +942,7 @@ public class TaskTest extends TestLogger {
 			libraryCacheManager = mock(LibraryCacheManager.class);
 			when(libraryCacheManager.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
 
-			consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
+			consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 			partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
 
 			final ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);

@@ -18,15 +18,18 @@
 
 package org.apache.flink.table.validate
 
-import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes, SqlTypeTransforms}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable, ReflectiveSqlOperatorTable}
 import org.apache.calcite.sql._
 import org.apache.flink.table.api._
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.mutable
@@ -64,7 +67,7 @@ class FunctionCatalog {
     */
   def lookupFunction(name: String, children: Seq[Expression]): Expression = {
     val funcClass = functionBuilders
-      .getOrElse(name.toLowerCase, throw ValidationException(s"Undefined function: $name"))
+      .getOrElse(name.toLowerCase, throw new ValidationException(s"Undefined function: $name"))
 
     // Instantiate a function using the provided `children`
     funcClass match {
@@ -73,7 +76,7 @@ class FunctionCatalog {
       case sf if classOf[ScalarFunction].isAssignableFrom(sf) =>
         val scalarSqlFunction = sqlFunctions
           .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[ScalarSqlFunction])
-          .getOrElse(throw ValidationException(s"Undefined scalar function: $name"))
+          .getOrElse(throw new ValidationException(s"Undefined scalar function: $name"))
           .asInstanceOf[ScalarSqlFunction]
         ScalarFunctionCall(scalarSqlFunction.getScalarFunction, children)
 
@@ -81,7 +84,7 @@ class FunctionCatalog {
       case tf if classOf[TableFunction[_]].isAssignableFrom(tf) =>
         val tableSqlFunction = sqlFunctions
           .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[TableSqlFunction])
-          .getOrElse(throw ValidationException(s"Undefined table function: $name"))
+          .getOrElse(throw new ValidationException(s"Undefined table function: $name"))
           .asInstanceOf[TableSqlFunction]
         val typeInfo = tableSqlFunction.getRowTypeInfo
         val function = tableSqlFunction.getTableFunction
@@ -91,7 +94,7 @@ class FunctionCatalog {
       case af if classOf[AggregateFunction[_, _]].isAssignableFrom(af) =>
         val aggregateFunction = sqlFunctions
           .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[AggSqlFunction])
-          .getOrElse(throw ValidationException(s"Undefined table function: $name"))
+          .getOrElse(throw new ValidationException(s"Undefined table function: $name"))
           .asInstanceOf[AggSqlFunction]
         val function = aggregateFunction.getFunction
         val returnType = aggregateFunction.returnType
@@ -121,16 +124,16 @@ class FunctionCatalog {
                   case Success(ctor) =>
                     Try(ctor.newInstance(children: _*).asInstanceOf[Expression]) match {
                       case Success(expr) => expr
-                      case Failure(exception) => throw ValidationException(exception.getMessage)
+                      case Failure(exception) => throw new ValidationException(exception.getMessage)
                     }
                   case Failure(_) =>
-                    throw ValidationException(
+                    throw new ValidationException(
                       s"Invalid number of arguments for function $funcClass")
                 }
             }
         }
       case _ =>
-        throw ValidationException("Unsupported function.")
+        throw new ValidationException("Unsupported function.")
     }
   }
 
@@ -231,7 +234,9 @@ object FunctionCatalog {
     "minusPrefix" -> classOf[UnaryMinus],
     "sin" -> classOf[Sin],
     "cos" -> classOf[Cos],
+    "sinh" -> classOf[Sinh],
     "tan" -> classOf[Tan],
+    "tanh" -> classOf[Tanh],
     "cot" -> classOf[Cot],
     "asin" -> classOf[Asin],
     "acos" -> classOf[Acos],
@@ -432,6 +437,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.SIN,
     SqlStdOperatorTable.COS,
     SqlStdOperatorTable.TAN,
+    ScalarSqlFunctions.TANH,
     SqlStdOperatorTable.COT,
     SqlStdOperatorTable.ASIN,
     SqlStdOperatorTable.ACOS,
@@ -458,6 +464,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.RPAD,
     ScalarSqlFunctions.MD5,
     ScalarSqlFunctions.SHA1,
+    ScalarSqlFunctions.SINH,
     ScalarSqlFunctions.SHA224,
     ScalarSqlFunctions.SHA256,
     ScalarSqlFunctions.SHA384,
@@ -471,6 +478,15 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.RTRIM,
     ScalarSqlFunctions.REPEAT,
     ScalarSqlFunctions.REGEXP_REPLACE,
+
+    // MATCH_RECOGNIZE
+    SqlStdOperatorTable.FIRST,
+    SqlStdOperatorTable.LAST,
+    SqlStdOperatorTable.PREV,
+    SqlStdOperatorTable.FINAL,
+    SqlStdOperatorTable.RUNNING,
+    BasicOperatorTable.MATCH_PROCTIME,
+    BasicOperatorTable.MATCH_ROWTIME,
 
     // EXTENSIONS
     BasicOperatorTable.TUMBLE,
@@ -577,5 +593,44 @@ object BasicOperatorTable {
       SqlFunctionCategory.SYSTEM)
   val SESSION_PROCTIME: SqlGroupedWindowFunction =
     SESSION.auxiliary("SESSION_PROCTIME", SqlKind.OTHER_FUNCTION)
+
+  private val RowTimeTypeInference = new TimeIndicatorReturnType(true)
+
+  private val ProcTimeTypeInference = new TimeIndicatorReturnType(false)
+
+  private class TimeIndicatorReturnType(isRowTime: Boolean) extends SqlReturnTypeInference {
+    override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
+      val flinkTypeFactory = opBinding.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+      if (isRowTime) {
+        flinkTypeFactory.createRowtimeIndicatorType()
+      } else {
+        flinkTypeFactory.createProctimeIndicatorType()
+      }
+    }
+  }
+
+  val MATCH_ROWTIME: SqlFunction =
+    new SqlFunction(
+      "MATCH_ROWTIME",
+      SqlKind.OTHER_FUNCTION,
+      RowTimeTypeInference,
+      null,
+      OperandTypes.NILADIC,
+      SqlFunctionCategory.MATCH_RECOGNIZE
+    ) {
+      override def isDeterministic: Boolean = true
+    }
+
+  val MATCH_PROCTIME: SqlFunction =
+    new SqlFunction(
+      "MATCH_PROCTIME",
+      SqlKind.OTHER_FUNCTION,
+      ProcTimeTypeInference,
+      null,
+      OperandTypes.NILADIC,
+      SqlFunctionCategory.MATCH_RECOGNIZE
+    ) {
+      override def isDeterministic: Boolean = false
+    }
 
 }

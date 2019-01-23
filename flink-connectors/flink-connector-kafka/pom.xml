@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<artifactId>flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.7-SNAPSHOT</version>
+		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -36,7 +36,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<kafka.version>2.0.0</kafka.version>
+		<kafka.version>2.0.1</kafka.version>
 	</properties>
 
 	<dependencies>
@@ -51,6 +51,10 @@ under the License.
 				<exclusion>
 					<groupId>org.apache.kafka</groupId>
 					<artifactId>kafka_${scala.binary.version}</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.kafka</groupId>
+					<artifactId>kafka-clients</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -81,22 +85,6 @@ under the License.
 			<optional>true</optional>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-avro</artifactId>
-			<version>${project.version}</version>
-			<!-- Projects depending on this project, won't depend on flink-avro. -->
-			<optional>true</optional>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-json</artifactId>
-			<version>${project.version}</version>
-			<!-- Projects depending on this project, won't depend on flink-json. -->
-			<optional>true</optional>
-		</dependency>
-
 		<!-- test dependencies -->
 
 		<dependency>
@@ -105,23 +93,6 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
-		</dependency>
-
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-avro</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-json</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
 		</dependency>
 
 		<dependency>
@@ -136,28 +107,6 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka-base_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-			<exclusions>
-				<!-- exclude Kafka dependencies -->
-				<exclusion>
-					<groupId>org.apache.kafka</groupId>
-					<artifactId>kafka_${scala.binary.version}</artifactId>
-				</exclusion>
-			</exclusions>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka-base_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<exclusions>
-				<!-- exclude Kafka dependencies -->
-				<exclusion>
-					<groupId>org.apache.kafka</groupId>
-					<artifactId>kafka_${scala.binary.version}</artifactId>
-				</exclusion>
-			</exclusions>
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -201,7 +150,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-metrics-jmx</artifactId>
+			<artifactId>flink-metrics-jmx_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -215,58 +164,6 @@ under the License.
 		</dependency>
 
 	</dependencies>
-
-	<profiles>
-		<!-- Create SQL Client uber jars by default -->
-		<profile>
-			<id>sql-jars</id>
-			<activation>
-				<property>
-					<name>!skipSqlJars</name>
-				</property>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-shade-plugin</artifactId>
-						<executions>
-							<execution>
-								<phase>package</phase>
-								<goals>
-									<goal>shade</goal>
-								</goals>
-								<configuration>
-									<shadedArtifactAttached>true</shadedArtifactAttached>
-									<shadedClassifierName>sql-jar</shadedClassifierName>
-									<artifactSet>
-										<includes combine.children="append">
-											<include>org.apache.kafka:*</include>
-											<include>org.apache.flink:flink-connector-kafka-base_${scala.binary.version}</include>
-										</includes>
-									</artifactSet>
-									<filters>
-										<filter>
-											<artifact>*:*</artifact>
-											<excludes>
-												<exclude>kafka/kafka-version.properties</exclude>
-											</excludes>
-										</filter>
-									</filters>
-									<relocations>
-										<relocation>
-											<pattern>org.apache.kafka</pattern>
-											<shadedPattern>org.apache.flink.kafka.shaded.org.apache.kafka</shadedPattern>
-										</relocation>
-									</relocations>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
 
 	<build>
 		<plugins>

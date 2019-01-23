@@ -28,8 +28,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 /**
  * Tests for the {@link RefCountedFile}.
@@ -49,7 +51,9 @@ public class RefCountedFileTest {
 
 		fileUnderTest.release();
 
-		Assert.assertEquals(0L, Files.list(temporaryFolder.getRoot().toPath()).count());
+		try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
+			Assert.assertEquals(0L, files.count());
+		}
 	}
 
 	@Test
@@ -76,7 +80,9 @@ public class RefCountedFileTest {
 
 		fileUnderTest.release();
 		// the file is deleted now
-		Assert.assertEquals(0L, Files.list(temporaryFolder.getRoot().toPath()).count());
+		try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
+			Assert.assertEquals(0L, files.count());
+		}
 	}
 
 	@Test
@@ -111,7 +117,9 @@ public class RefCountedFileTest {
 	// ------------------------------------- Utilities -------------------------------------
 
 	private void verifyTheFileIsStillThere() throws IOException {
-		Assert.assertEquals(1L, Files.list(temporaryFolder.getRoot().toPath()).count());
+		try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
+			Assert.assertEquals(1L, files.count());
+		}
 	}
 
 	private RefCountedFile getClosedRefCountedFileWithContent(String content) throws IOException {

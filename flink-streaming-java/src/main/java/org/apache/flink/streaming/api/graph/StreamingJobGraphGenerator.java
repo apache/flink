@@ -404,6 +404,9 @@ public class StreamingJobGraphGenerator {
 			LOG.debug("Parallelism set: {} for {}", parallelism, streamNodeId);
 		}
 
+		// TODO: inherit InputDependencyConstraint from the head operator
+		jobVertex.setInputDependencyConstraint(streamGraph.getExecutionConfig().getDefaultInputDependencyConstraint());
+
 		jobVertices.put(streamNodeId, jobVertex);
 		builtVertices.add(streamNodeId);
 		jobGraph.addVertex(jobVertex);
@@ -517,8 +520,8 @@ public class StreamingJobGraphGenerator {
 	}
 
 	public static boolean isChainable(StreamEdge edge, StreamGraph streamGraph) {
-		StreamNode upStreamVertex = edge.getSourceVertex();
-		StreamNode downStreamVertex = edge.getTargetVertex();
+		StreamNode upStreamVertex = streamGraph.getSourceVertex(edge);
+		StreamNode downStreamVertex = streamGraph.getTargetVertex(edge);
 
 		StreamOperator<?> headOperator = upStreamVertex.getOperator();
 		StreamOperator<?> outOperator = downStreamVertex.getOperator();

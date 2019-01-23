@@ -130,9 +130,6 @@ class TableDescriptorTest extends TableTestBase {
       expectedCommonProperties
     }
 
-    val actualProperties = new DescriptorProperties(true)
-    descriptor.addProperties(actualProperties)
-
-    assertEquals(expectedProperties.toMap.asJava, actualProperties.asMap)
+    assertEquals(expectedProperties.toMap.asJava, descriptor.toProperties)
   }
 }
