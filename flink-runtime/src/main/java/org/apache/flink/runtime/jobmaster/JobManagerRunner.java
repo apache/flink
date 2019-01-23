@@ -100,7 +100,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	 * thrown and not reported to the given {@code FatalErrorHandler}.
 	 *
 	 * @throws Exception Thrown if the runner cannot be set up, because either one of the
-	 *                   required services could not be started, ot the Job could not be initialized.
+	 *                   required services could not be started, or the Job could not be initialized.
 	 */
 	public JobManagerRunner(
 			final ResourceID resourceId,
