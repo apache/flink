@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.stream.sql
 
 import java.sql.Timestamp
-import java.time.{ZoneId, ZonedDateTime}
 import java.util.TimeZone
 
 import org.apache.flink.api.common.time.Time
@@ -59,7 +58,8 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     data.+=((8, "c"))
     data.+=((9, "h"))
 
-    val t = env.fromCollection(data).toTable(tEnv,'id, 'name, 'proctime.proctime)
+    val t = env.fromCollection(data)
+      .toTableFromAppendStream(tEnv,'id, 'name, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery =
@@ -106,7 +106,8 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     data.+=((8, "c", null))
     data.+=((9, null, null))
 
-    val t = env.fromCollection(data).toTable(tEnv,'id, 'name, 'nullField, 'proctime.proctime)
+    val t = env.fromCollection(data)
+      .toTableFromAppendStream(tEnv,'id, 'name, 'nullField, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery =
@@ -157,7 +158,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     data.+=((9, "f", "key", "second_key"))
 
     val t = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'name, 'key1, 'key2, 'proctime.proctime)
+      .toTableFromAppendStream(tEnv, 'id, 'name, 'key1, 'key2, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery =
@@ -219,7 +220,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     )
 
     val t = env.addSource(new EventTimeSourceFunction[(Int, Int, String, Int)](data))
-      .toTable(tEnv, 'secondaryOrder, 'ternaryOrder, 'name, 'id,'tstamp.rowtime)
+      .toTableFromAppendStream(tEnv,'secondaryOrder, 'ternaryOrder, 'name, 'id,'tstamp.rowtime)
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery =
@@ -276,7 +277,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
 
     val t = env.fromCollection(data)
       .assignAscendingTimestamps(e => e._2)
-      .toTable(tEnv, 'symbol, 'tstamp.rowtime, 'price, 'tax)
+      .toTableFromAppendStream(tEnv, 'symbol, 'tstamp.rowtime, 'price, 'tax)
     tEnv.registerTable("Ticker", t)
 
     val sqlQuery =
@@ -331,7 +332,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
 
     val tickerEvents = env.fromCollection(data)
       .assignAscendingTimestamps(tickerEvent => tickerEvent._2)
-      .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
+      .toTableFromAppendStream(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
 
     tEnv.registerTable("Ticker", tickerEvents)
 
@@ -386,7 +387,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     data.+=(("ACME", 8L, 25, 8))
 
     val t = env.fromCollection(data)
-      .toTable(tEnv, 'symbol, 'tstamp, 'price, 'tax, 'proctime.proctime)
+      .toTableFromAppendStream(tEnv, 'symbol, 'tstamp, 'price, 'tax, 'proctime.proctime)
     tEnv.registerTable("Ticker", t)
 
     val sqlQuery =
@@ -436,7 +437,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     data.+=((8, "ACME", 8L, 20))
 
     val t = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'symbol, 'tstamp, 'price, 'proctime.proctime)
+      .toTableFromAppendStream(tEnv, 'id, 'symbol, 'tstamp, 'price, 'proctime.proctime)
     tEnv.registerTable("Ticker", t)
 
     val sqlQuery =
@@ -493,7 +494,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     data.+=(("ACME", 4L, 20, 4))
 
     val t = env.fromCollection(data)
-      .toTable(tEnv, 'symbol, 'tstamp, 'price, 'tax, 'proctime.proctime)
+      .toTableFromAppendStream(tEnv, 'symbol, 'tstamp, 'price, 'tax, 'proctime.proctime)
     tEnv.registerTable("Ticker", t)
 
     val sqlQuery =
@@ -659,7 +660,8 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     val data = new mutable.MutableList[(Int, String)]
     data.+=((1, "a"))
 
-    val t = env.fromCollection(data).toTable(tEnv,'id, 'name, 'proctime.proctime)
+    val t = env.fromCollection(data)
+      .toTableFromAppendStream(tEnv,'id, 'name, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery =

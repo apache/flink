@@ -45,7 +45,7 @@ class CorrelateITCase extends AbstractTestBase {
 
   @Test
   def testCrossJoin(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTableFromAppendStream(tEnv).as('a, 'b, 'c)
     val func0 = new TableFunc0
     val pojoFunc0 = new PojoTableFunc()
 
@@ -66,7 +66,7 @@ class CorrelateITCase extends AbstractTestBase {
 
   @Test
   def testLeftOuterJoinWithoutPredicates(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTableFromAppendStream(tEnv).as('a, 'b, 'c)
     val func0 = new TableFunc0
 
     val result = t
@@ -88,7 +88,7 @@ class CorrelateITCase extends AbstractTestBase {
     */
   @Test (expected = classOf[ValidationException])
   def testLeftOuterJoinWithPredicates(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTableFromAppendStream(tEnv).as('a, 'b, 'c)
     val func0 = new TableFunc0
 
     val result = t
@@ -106,7 +106,7 @@ class CorrelateITCase extends AbstractTestBase {
 
   @Test
   def testUserDefinedTableFunctionWithScalarFunction(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTableFromAppendStream(tEnv).as('a, 'b, 'c)
     val func0 = new TableFunc0
 
     val result = t
@@ -130,7 +130,7 @@ class CorrelateITCase extends AbstractTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val result = StreamTestData.getSmall3TupleDataStream(env)
-      .toTable(tEnv, 'a, 'b, 'c)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
       .join(tableFunc1('c) as 's)
       .select('a, 's)
 
@@ -154,7 +154,7 @@ class CorrelateITCase extends AbstractTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val result = StreamTestData.getSmall3TupleDataStream(env)
-      .toTable(tEnv, 'a, 'b, 'c)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
       .join(tableFunc1(richFunc2('c)) as 's)
       .select('a, 's)
 
@@ -174,7 +174,7 @@ class CorrelateITCase extends AbstractTestBase {
 
   @Test
   def testTableFunctionConstructorWithParams(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTableFromAppendStream(tEnv).as('a, 'b, 'c)
     val config = Map("key1" -> "value1", "key2" -> "value2")
     val func30 = new TableFunc3(null)
     val func31 = new TableFunc3("OneConf_")
@@ -209,7 +209,7 @@ class CorrelateITCase extends AbstractTestBase {
     tEnv.registerFunction("VarArgsFunc0", varArgsFunc0)
 
     val result = testData(env)
-      .toTable(tEnv, 'a, 'b, 'c)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
       .select('c)
       .join(varArgsFunc0("1", "2", 'c))
 
@@ -241,7 +241,7 @@ class CorrelateITCase extends AbstractTestBase {
     )
 
     val rowType = Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
-    val in = env.fromElements(row, row)(rowType).toTable(tEnv).as('a, 'b, 'c)
+    val in = env.fromElements(row, row)(rowType).toTableFromAppendStream(tEnv).as('a, 'b, 'c)
 
     val tableFunc5 = new TableFunc5()
     val result = in
@@ -259,7 +259,7 @@ class CorrelateITCase extends AbstractTestBase {
 
   @Test
   def testTableFunctionCollectorOpenClose(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTableFromAppendStream(tEnv).as('a, 'b, 'c)
     val func0 = new TableFunc0
     val func20 = new Func20
 
@@ -286,7 +286,7 @@ class CorrelateITCase extends AbstractTestBase {
 
   @Test
   def testTableFunctionCollectorInit(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTableFromAppendStream(tEnv).as('a, 'b, 'c)
     val func0 = new TableFunc0
 
     // this case will generate 'timestamp' member field and 'DateFormatter'

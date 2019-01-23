@@ -40,7 +40,8 @@ class CalcITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).select('_1, '_2, '_3)
+    val ds = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv).select('_1, '_2, '_3)
 
     val results = ds.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
@@ -59,7 +60,8 @@ class CalcITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.getSmallNestedTupleDataStream(env).toTable(tEnv).select('*)
+    val ds = StreamTestData.getSmallNestedTupleDataStream(env)
+      .toTableFromAppendStream(tEnv).select('*)
 
     val results = ds.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
@@ -75,7 +77,8 @@ class CalcITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).select('_1)
+    val ds = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv).select('_1)
 
     val results = ds.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
@@ -92,7 +95,8 @@ class CalcITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.get3TupleDataStream(env).toTable(tEnv)
+    val ds = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv)
       .select('_1 as 'a, '_2 as 'b, '_1 as 'c)
       .select('a, 'b)
 
@@ -113,7 +117,8 @@ class CalcITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
       .select('a, 'b, 'c)
 
     val results = ds.toAppendStream[Row]
@@ -136,7 +141,8 @@ class CalcITCase extends AbstractTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
 
     val filterDs = ds.filter('a === 3)
     val results = filterDs.toAppendStream[Row]
@@ -156,7 +162,8 @@ class CalcITCase extends AbstractTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
 
     val filterDs = ds.filter( Literal(false) )
     val results = filterDs.toAppendStream[Row]
@@ -175,7 +182,8 @@ class CalcITCase extends AbstractTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
 
     val filterDs = ds.filter( Literal(true) )
     val results = filterDs.toAppendStream[Row]
@@ -198,7 +206,8 @@ class CalcITCase extends AbstractTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
 
     val filterDs = ds.filter( 'a % 2 === 0 )
       .where("b = 3 || b = 4 || b = 5")
@@ -221,7 +230,8 @@ class CalcITCase extends AbstractTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
 
     val filterDs = ds.filter( 'a % 2 !== 0)
       .where("b != 1 && b != 2 && b != 3")
@@ -245,7 +255,7 @@ class CalcITCase extends AbstractTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val result = StreamTestData.get3TupleDataStream(env)
-      .toTable(tEnv, 'a, 'b, 'c)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
       .where("RichFunc2(c)='ABC#Hello'")
       .select('c)
 
@@ -268,7 +278,7 @@ class CalcITCase extends AbstractTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val result = StreamTestData.get3TupleDataStream(env)
-      .toTable(tEnv, 'a, 'b, 'c)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
       .where("RichFunc2(c)='Abc#Hello' || RichFunc1(a)=3 && b=2")
       .select('c)
 
@@ -293,7 +303,7 @@ class CalcITCase extends AbstractTestBase {
     testData.+=((3, 2L, "Anna#44"))
     testData.+=((4, 3L, "nosharp"))
 
-    val t = env.fromCollection(testData).toTable(tEnv).as('a, 'b, 'c)
+    val t = env.fromCollection(testData).toTableFromAppendStream(tEnv).as('a, 'b, 'c)
     val func0 = new Func13("default")
     val func1 = new Func13("Sunny")
     val func2 = new Func13("kevin2")
@@ -319,7 +329,7 @@ class CalcITCase extends AbstractTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
     val ds = StreamTestData.get3TupleDataStream(env)
-      .toTable(tEnv)
+      .toTableFromAppendStream(tEnv)
       .select(map('_1, '_3))
 
     val results = ds.toAppendStream[Row]

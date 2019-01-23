@@ -58,10 +58,10 @@ class SetOperatorsITCase extends StreamingWithStateTestBase {
     )
 
     tEnv.registerTable("tableA",
-      env.fromCollection(dataA).toTable(tEnv).as('a, 'b, 'c))
+      env.fromCollection(dataA).toTableFromAppendStream(tEnv).as('a, 'b, 'c))
 
     tEnv.registerTable("tableB",
-      env.fromCollection(dataB).toTable(tEnv).as('x, 'y))
+      env.fromCollection(dataB).toTableFromAppendStream(tEnv).as('x, 'y))
 
     val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
@@ -107,13 +107,13 @@ class SetOperatorsITCase extends StreamingWithStateTestBase {
     )
 
     tEnv.registerTable("tableA",
-      env.fromCollection(dataA).toTable(tEnv).as('a, 'b, 'c))
+      env.fromCollection(dataA).toTableFromAppendStream(tEnv).as('a, 'b, 'c))
 
     tEnv.registerTable("tableB",
-      env.fromCollection(dataB).toTable(tEnv).as('x, 'y))
+      env.fromCollection(dataB).toTableFromAppendStream(tEnv).as('x, 'y))
 
     tEnv.registerTable("tableC",
-      env.fromCollection(dataC).toTable(tEnv).as('w, 'z))
+      env.fromCollection(dataC).toTableFromAppendStream(tEnv).as('w, 'z))
 
     val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
@@ -152,10 +152,10 @@ class SetOperatorsITCase extends StreamingWithStateTestBase {
     )
 
     tEnv.registerTable("tableA",
-      env.fromCollection(dataA).toTable(tEnv).as('a, 'b, 'c))
+      env.fromCollection(dataA).toTableFromAppendStream(tEnv).as('a, 'b, 'c))
 
     tEnv.registerTable("tableB",
-      env.fromCollection(dataB).toTable(tEnv).as('x, 'y))
+      env.fromCollection(dataB).toTableFromAppendStream(tEnv).as('x, 'y))
 
     val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)

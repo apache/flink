@@ -51,7 +51,36 @@ class DataStreamConversions[T](dataStream: DataStream[T], inputType: TypeInforma
     * @param fields The field names of the new [[Table]] (optional).
     * @return The resulting [[Table]].
     */
+  @deprecated("In order to make it more explicit, use toTableFromAppendStream instead.")
   def toTable(tableEnv: StreamTableEnvironment, fields: Expression*): Table = {
+    if (fields.isEmpty) {
+      tableEnv.fromAppendStream(dataStream)
+    } else {
+      tableEnv.fromAppendStream(dataStream, fields:_*)
+    }
+  }
+
+  /**
+    * Converts the append [[DataStream]] into a [[Table]].
+    *
+    * The field name of the new [[Table]] can be specified like this:
+    *
+    * {{{
+    *   val env = StreamExecutionEnvironment.getExecutionEnvironment
+    *   val tEnv = TableEnvironment.getTableEnvironment(env)
+    *
+    *   val stream: DataStream[(String, Int)] = ...
+    *   val table = stream.toTableFromAppendStream(tEnv, 'name, 'amount)
+    * }}}
+    *
+    * If not explicitly specified, field names are automatically extracted from the type of
+    * the [[DataStream]].
+    *
+    * @param tableEnv The [[StreamTableEnvironment]] in which the new [[Table]] is created.
+    * @param fields The field names of the new [[Table]] (optional).
+    * @return The resulting [[Table]].
+    */
+  def toTableFromAppendStream(tableEnv: StreamTableEnvironment, fields: Expression*): Table = {
     if (fields.isEmpty) {
       tableEnv.fromAppendStream(dataStream)
     } else {

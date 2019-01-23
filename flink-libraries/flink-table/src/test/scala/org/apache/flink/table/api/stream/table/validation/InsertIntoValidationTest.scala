@@ -33,7 +33,8 @@ class InsertIntoValidationTest {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("sourceTable", t)
 
     val fieldNames = Array("d", "f")
@@ -52,7 +53,8 @@ class InsertIntoValidationTest {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("sourceTable", t)
 
     val fieldNames = Array("d", "e", "f")

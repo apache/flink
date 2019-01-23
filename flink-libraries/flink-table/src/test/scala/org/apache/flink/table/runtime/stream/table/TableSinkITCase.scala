@@ -63,7 +63,7 @@ class TableSinkITCase extends AbstractTestBase {
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
     tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
 
-    input.toTable(tEnv, 'a, 'b, 'c, 't.rowtime)
+    input.toTableFromAppendStream(tEnv, 'a, 'b, 'c, 't.rowtime)
       .where('a < 3 || 'a > 19)
       .select('c, 't, 'b)
       .insertInto("targetTable")
@@ -102,7 +102,7 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._2)
       .map(x => x).setParallelism(4) // increase DOP to 4
 
-    input.toTable(tEnv, 'a, 'b.rowtime, 'c)
+    input.toTableFromAppendStream(tEnv, 'a, 'b.rowtime, 'c)
       .where('a < 5 || 'a > 17)
       .select('c, 'b)
       .insertInto("csvSink")
@@ -131,7 +131,7 @@ class TableSinkITCase extends AbstractTestBase {
 
     val t = StreamTestData.get3TupleDataStream(env)
         .assignAscendingTimestamps(_._1.toLong)
-        .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+        .toTableFromAppendStream(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     tEnv.registerTableSink(
       "appendSink",
@@ -164,8 +164,10 @@ class TableSinkITCase extends AbstractTestBase {
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     tEnv.registerTableSink(
       "appendSink",
@@ -193,7 +195,7 @@ class TableSinkITCase extends AbstractTestBase {
 
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
-      .toTable(tEnv, 'id, 'num, 'text)
+      .toTableFromAppendStream(tEnv, 'id, 'num, 'text)
 
     tEnv.registerTableSink(
       "retractSink",
@@ -231,7 +233,7 @@ class TableSinkITCase extends AbstractTestBase {
 
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
-      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+      .toTableFromAppendStream(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     tEnv.registerTableSink(
       "retractSink",
@@ -272,7 +274,7 @@ class TableSinkITCase extends AbstractTestBase {
 
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
-      .toTable(tEnv, 'id, 'num, 'text)
+      .toTableFromAppendStream(tEnv, 'id, 'num, 'text)
 
     tEnv.registerTableSink(
       "upsertSink",
@@ -313,7 +315,7 @@ class TableSinkITCase extends AbstractTestBase {
 
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
-      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+      .toTableFromAppendStream(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     tEnv.registerTableSink(
       "upsertSink",
@@ -357,7 +359,7 @@ class TableSinkITCase extends AbstractTestBase {
 
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
-      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+      .toTableFromAppendStream(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     tEnv.registerTableSink(
       "upsertSink",
@@ -402,7 +404,7 @@ class TableSinkITCase extends AbstractTestBase {
 
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
-      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+      .toTableFromAppendStream(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     tEnv.registerTableSink(
       "upsertSink",
@@ -446,7 +448,7 @@ class TableSinkITCase extends AbstractTestBase {
 
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
-      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+      .toTableFromAppendStream(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     tEnv.registerTableSink(
       "upsertSink",
@@ -491,7 +493,7 @@ class TableSinkITCase extends AbstractTestBase {
 
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
-      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+      .toTableFromAppendStream(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     val r = t
       .window(Tumble over 5.milli on 'rowtime as 'w)
@@ -538,7 +540,7 @@ class TableSinkITCase extends AbstractTestBase {
 
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
-      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+      .toTableFromAppendStream(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     val r = t
       .window(Tumble over 5.milli on 'rowtime as 'w)
@@ -585,7 +587,7 @@ class TableSinkITCase extends AbstractTestBase {
 
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
-      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+      .toTableFromAppendStream(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     val r = t
       .window(Tumble over 5.milli on 'rowtime as 'w)
@@ -604,7 +606,7 @@ class TableSinkITCase extends AbstractTestBase {
 
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
-      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+      .toTableFromAppendStream(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     val r = t
       .window(Tumble over 5.milli on 'rowtime as 'w)

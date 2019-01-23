@@ -61,7 +61,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     StreamITCase.testResults = mutable.MutableList()
     StreamITCase.clear
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    val table = stream.toTableFromAppendStream(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     val countFun = new CountAggFunction
     val weightAvgFun = new WeightedAvg
     val countDist = new CountDistinct
@@ -107,7 +107,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     StreamITCase.testResults = mutable.MutableList()
     StreamITCase.clear
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    val table = stream.toTableFromAppendStream(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     val weightAvgFun = new WeightedAvg
 
     val windowedTable = table
@@ -154,7 +154,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     )
     val table = env
       .addSource(new RowTimeSourceFunction[(Int, Long, String)](data))
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
     val countFun = new CountAggFunction
     val weightAvgFun = new WeightedAvg
     val plusOne = new JavaFunc0
@@ -229,7 +229,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     val countDist = new CountDistinctWithRetractAndReset
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
+    val table = stream.toTableFromAppendStream(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
 
     val windowedTable = table
       .window(Over partitionBy 'a orderBy 'proctime preceding 4.rows following CURRENT_ROW as 'w)
@@ -292,7 +292,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val countDist = new CountDistinctWithRetractAndReset
     val table = env.addSource[(Long, Int, String)](
       new RowTimeSourceFunction[(Long, Int, String)](data))
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     val windowedTable = table
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
@@ -356,7 +356,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val countDist = new CountDistinctWithRetractAndReset
     val table = env.addSource[(Long, Int, String)](
       new RowTimeSourceFunction[(Long, Int, String)](data))
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     val windowedTable = table
       .window(

@@ -72,7 +72,7 @@ class GroupWindowITCase extends AbstractTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'proctime.proctime)
+    val table = stream.toTableFromAppendStream(tEnv, 'long, 'int, 'string, 'proctime.proctime)
 
     val countFun = new CountAggFunction
     val weightAvgFun = new WeightedAvg
@@ -120,7 +120,7 @@ class GroupWindowITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(sessionWindowTestdata)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](10L))
-    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
+    val table = stream.toTableFromAppendStream(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
 
     val windowedTable = table
       .window(Session withGap 5.milli on 'rowtime as 'w)
@@ -145,7 +145,7 @@ class GroupWindowITCase extends AbstractTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'proctime.proctime)
+    val table = stream.toTableFromAppendStream(tEnv, 'long, 'int, 'string, 'proctime.proctime)
     val countFun = new CountAggFunction
     val weightAvgFun = new WeightedAvg
     val countDistinct = new CountDistinct
@@ -176,7 +176,7 @@ class GroupWindowITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](0L))
-    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
+    val table = stream.toTableFromAppendStream(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
     val countFun = new CountAggFunction
     val weightAvgFun = new WeightedAvg
     val countDistinct = new CountDistinct
@@ -215,7 +215,8 @@ class GroupWindowITCase extends AbstractTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'int2, 'int3, 'proctime.proctime)
+    val table = stream
+      .toTableFromAppendStream(tEnv, 'long, 'int, 'string, 'int2, 'int3, 'proctime.proctime)
 
     val weightAvgFun = new WeightedAvg
     val countDistinct = new CountDistinct
@@ -249,7 +250,8 @@ class GroupWindowITCase extends AbstractTestBase {
       .fromCollection(data2)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
-    val table = stream.toTable(tEnv, 'long.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    val table = stream
+      .toTableFromAppendStream(tEnv, 'long.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 5.milli every 2.milli on 'long as 'w)
@@ -288,7 +290,8 @@ class GroupWindowITCase extends AbstractTestBase {
       .fromCollection(data2)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
-    val table = stream.toTable(tEnv, 'long.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    val table = stream
+      .toTableFromAppendStream(tEnv, 'long.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 10.milli every 5.milli on 'long as 'w)
@@ -328,7 +331,8 @@ class GroupWindowITCase extends AbstractTestBase {
       .fromCollection(data2)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
-    val table = stream.toTable(tEnv, 'long.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    val table = stream.
+      toTableFromAppendStream(tEnv, 'long.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 5.milli every 4.milli on 'long as 'w)
@@ -365,7 +369,8 @@ class GroupWindowITCase extends AbstractTestBase {
       .fromCollection(data2)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
-    val table = stream.toTable(tEnv, 'long.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    val table = stream.
+      toTableFromAppendStream(tEnv, 'long.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 5.milli every 10.milli on 'long as 'w)
@@ -396,7 +401,8 @@ class GroupWindowITCase extends AbstractTestBase {
       .fromCollection(data2)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
-    val table = stream.toTable(tEnv, 'long.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    val table = stream.
+      toTableFromAppendStream(tEnv, 'long.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
       .window(Slide over 3.milli every 10.milli on 'long as 'w)
@@ -426,7 +432,7 @@ class GroupWindowITCase extends AbstractTestBase {
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
       .map(t => (t._2, t._6))
-    val table = stream.toTable(tEnv, 'int, 'string, 'rowtime.rowtime)
+    val table = stream.toTableFromAppendStream(tEnv, 'int, 'string, 'rowtime.rowtime)
 
     val windowedTable = table
       .window(Slide over 3.milli every 10.milli on 'rowtime as 'w)

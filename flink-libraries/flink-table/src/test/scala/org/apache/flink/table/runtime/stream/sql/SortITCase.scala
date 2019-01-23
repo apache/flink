@@ -82,7 +82,7 @@ class SortITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
 
     val t1 = env.addSource(new EventTimeSourceFunction[(Long, Int, String)](data))
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
       
     tEnv.registerTable("T1", t1)
 
@@ -117,7 +117,7 @@ class SortITCase extends StreamingWithStateTestBase {
 
     val t = StreamTestData.getSmall3TupleDataStream(env)
       .assignAscendingTimestamps(x => x._2)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
     tEnv.registerTable("sourceTable", t)
 
     val fieldNames = Array("d", "e", "f", "t")

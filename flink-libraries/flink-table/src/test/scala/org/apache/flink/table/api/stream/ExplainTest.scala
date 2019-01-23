@@ -36,7 +36,7 @@ class ExplainTest extends AbstractTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     val table = env.fromElements((1, "hello"))
-      .toTable(tEnv, 'a, 'b)
+      .toTableFromAppendStream(tEnv, 'a, 'b)
       .filter("a % 2 = 0")
 
     val result = replaceString(tEnv.explain(table))
@@ -52,8 +52,8 @@ class ExplainTest extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
-    val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
+    val table1 = env.fromElements((1, "hello")).toTableFromAppendStream(tEnv, 'count, 'word)
+    val table2 = env.fromElements((1, "hello")).toTableFromAppendStream(tEnv, 'count, 'word)
     val table = table1.unionAll(table2)
 
     val result = replaceString(tEnv.explain(table))

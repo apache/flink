@@ -34,7 +34,8 @@ class TableSinkValidationTest extends TableTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'id, 'num, 'text)
+    val t = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'id, 'num, 'text)
     tEnv.registerTableSink("testSink", new TestAppendSink)
 
     t.groupBy('text)
@@ -53,7 +54,7 @@ class TableSinkValidationTest extends TableTestBase {
 
     val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
-      .toTable(tEnv, 'id, 'num, 'text)
+      .toTableFromAppendStream(tEnv, 'id, 'num, 'text)
     tEnv.registerTableSink("testSink", new TestUpsertSink(Array("len", "cTrue"), false))
 
     t.select('id, 'num, 'text.charLength() as 'len, ('id > 0) as 'cTrue)
@@ -70,8 +71,10 @@ class TableSinkValidationTest extends TableTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
     tEnv.registerTableSink("testSink", new TestAppendSink)
 
     ds1.leftOuterJoin(ds2, 'a === 'd && 'b === 'h)

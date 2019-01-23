@@ -76,10 +76,10 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
 
     val orders = env
       .fromCollection(ordersData)
-      .toTable(tEnv, 'amount, 'currency, 'proctime.proctime)
+      .toTableFromAppendStream(tEnv, 'amount, 'currency, 'proctime.proctime)
     val ratesHistory = env
       .fromCollection(ratesHistoryData)
-      .toTable(tEnv, 'currency, 'rate, 'proctime.proctime)
+      .toTableFromAppendStream(tEnv, 'currency, 'rate, 'proctime.proctime)
 
     tEnv.registerTable("Orders", orders)
     tEnv.registerTable("RatesHistory", ratesHistory)
@@ -132,11 +132,11 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
     val orders = env
       .fromCollection(ordersData)
       .assignTimestampsAndWatermarks(new TimestampExtractor[Long, String]())
-      .toTable(tEnv, 'amount, 'currency, 'rowtime.rowtime)
+      .toTableFromAppendStream(tEnv, 'amount, 'currency, 'rowtime.rowtime)
     val ratesHistory = env
       .fromCollection(ratesHistoryData)
       .assignTimestampsAndWatermarks(new TimestampExtractor[String, Long]())
-      .toTable(tEnv, 'currency, 'rate, 'rowtime.rowtime)
+      .toTableFromAppendStream(tEnv, 'currency, 'rate, 'rowtime.rowtime)
 
     tEnv.registerTable("Orders", orders)
     tEnv.registerTable("RatesHistory", ratesHistory)

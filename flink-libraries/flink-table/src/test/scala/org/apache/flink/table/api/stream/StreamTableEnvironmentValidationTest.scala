@@ -132,7 +132,7 @@ class StreamTableEnvironmentValidationTest extends TableTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    stream.toTableFromAppendStream(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
   }
 
   // ----------------------------------------------------------------------------------------------

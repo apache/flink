@@ -38,8 +38,10 @@ class SetOperatorsValidationTest extends TableTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     StreamITCase.testResults = mutable.MutableList()
-    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'd, 'c, 'e)
 
     val unionDs = ds1.unionAll(ds2)
 
@@ -56,8 +58,10 @@ class SetOperatorsValidationTest extends TableTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     StreamITCase.testResults = mutable.MutableList()
-    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c, 'd, 'e)
       .select('a, 'b, 'c)
 
     val unionDs = ds1.unionAll(ds2)
@@ -75,8 +79,10 @@ class SetOperatorsValidationTest extends TableTestBase {
     val tEnv1 = TableEnvironment.getTableEnvironment(env)
     val tEnv2 = TableEnvironment.getTableEnvironment(env)
 
-    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv1, 'a, 'b, 'c)
-    val ds2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv2, 'a, 'b, 'c)
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv1, 'a, 'b, 'c)
+    val ds2 = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv2, 'a, 'b, 'c)
 
     // Must fail. Tables are bound to different TableEnvironments.
     ds1.unionAll(ds2)

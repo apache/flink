@@ -76,8 +76,8 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val leftTable = env.fromCollection(data1).toTable(tEnv, 'a, 'b)
-    val rightTable = env.fromCollection(data2).toTable(tEnv, 'bb, 'c)
+    val leftTable = env.fromCollection(data1).toTableFromAppendStream(tEnv, 'a, 'b)
+    val rightTable = env.fromCollection(data2).toTableFromAppendStream(tEnv, 'bb, 'c)
 
     tEnv.registerTableSink(
       "upsertSink",
@@ -140,8 +140,8 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val leftTable = env.fromCollection(data1).toTable(tEnv, 'a, 'b)
-    val rightTable = env.fromCollection(data2).toTable(tEnv, 'bb, 'c, 'd)
+    val leftTable = env.fromCollection(data1).toTableFromAppendStream(tEnv, 'a, 'b)
+    val rightTable = env.fromCollection(data2).toTableFromAppendStream(tEnv, 'bb, 'c, 'd)
 
     tEnv.registerTableSink(
       "retractSink",
@@ -192,8 +192,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     val stream2 = env
       .fromCollection(data2)
 
-    val table1 = stream1.toTable(tEnv, 'long_l, 'int_l, 'string_l, 'proctime_l.proctime)
-    val table2 = stream2.toTable(tEnv, 'long_r, 'int_r, 'string_r)
+    val table1 = stream1
+      .toTableFromAppendStream(tEnv, 'long_l, 'int_l, 'string_l, 'proctime_l.proctime)
+    val table2 = stream2
+      .toTableFromAppendStream(tEnv, 'long_r, 'int_r, 'string_r)
     val countFun = new CountAggFunction
     val weightAvgFun = new WeightedAvg
     val countDistinct = new CountDistinct
@@ -223,8 +225,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val testOpenCall = new Func20
 
@@ -247,8 +251,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.join(ds2).where('b === 'e && 'b < 2).select('c, 'g)
 
@@ -266,8 +272,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.join(ds2).where('b === 'e && 'a < 6).select('c, 'g)
 
@@ -287,8 +295,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.join(ds2).where('b === 'e && 'a < 6 && 'h < 'b).select('c, 'g)
 
@@ -307,8 +317,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.join(ds2).filter('a === 'd && 'b === 'h).select('c, 'g)
 
@@ -330,8 +342,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.join(ds2).where('a === 'd).select('g.count)
 
@@ -351,8 +365,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.join(ds2)
       .where('a === 'd)
@@ -374,9 +390,12 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
-    val ds3 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'j, 'k, 'l)
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds3 = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'j, 'k, 'l)
 
     val joinT = ds1.join(ds2)
       .where(Literal(true))
@@ -399,8 +418,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.join(ds2).filter('a === 'd && ('b === 'e || 'b === 'e - 10)).select('c, 'g)
 
@@ -419,8 +440,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.join(ds2).filter('b === 'h + 1 && 'a - 1 === 'd + 2).select('c, 'g)
 
@@ -440,9 +463,11 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds1 = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
       .select(('a === 21) ? (Null(Types.INT), 'a) as 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
       .select(('e === 15) ? (Null(Types.INT), 'd) as 'd,  'e, 'f, 'g, 'h)
 
     val joinT = ds1.leftOuterJoin(ds2, 'a === 'd && 'b === 'h).select('c, 'g)
@@ -468,8 +493,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.leftOuterJoin(ds2, 'a === 'd && 'b <= 'h).select('c, 'g)
 
@@ -494,8 +521,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.leftOuterJoin(ds2, 'a === 'd && 'b === 2).select('c, 'g)
 
@@ -519,8 +548,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
-    val ds2 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds1 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds2 = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
     val leftT = ds1.groupBy('e).select('e, 'd.count as 'd)
     val rightT = ds2.groupBy('b).select('b, 'a.count as 'a)
 
@@ -541,8 +572,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.rightOuterJoin(ds2, 'a === 'd && 'b === 'h).select('c, 'g)
 
@@ -564,8 +597,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds2 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds1 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds2 = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds1 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.rightOuterJoin(ds2, 'a === 'd && 'b <= 'h).select('c, 'g)
 
@@ -589,8 +624,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds2 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds1 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds2 = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds1 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.rightOuterJoin(ds2, 'a === 'd && 'b === 2).select('c, 'g)
 
@@ -614,8 +651,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.fullOuterJoin(ds2, 'a === 'd && 'b === 'h).select('c, 'g)
 
@@ -642,8 +681,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.fullOuterJoin(ds2, 'a === 'd && 'b <= 'h).select('c, 'g)
 
@@ -672,8 +713,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamTestData.get3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val joinT = ds1.fullOuterJoin(ds2, 'a === 'd && 'b >= 2 && 'h === 1).select('c, 'g)
 

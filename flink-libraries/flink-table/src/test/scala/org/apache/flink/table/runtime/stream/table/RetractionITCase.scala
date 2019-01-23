@@ -55,7 +55,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
     env.setStateBackend(getStateBackend)
 
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'word, 'num)
+    val table = stream.toTableFromAppendStream(tEnv, 'word, 'num)
     val resultTable = table
       .groupBy('word)
       .select('num.sum as 'count)
@@ -79,7 +79,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
     env.setStateBackend(getStateBackend)
 
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'word, 'num)
+    val table = stream.toTableFromAppendStream(tEnv, 'word, 'num)
     val resultTable = table
       .groupBy('word)
       .select('word as 'word, 'num.sum as 'cnt)
@@ -104,7 +104,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
     env.setStateBackend(getStateBackend)
 
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'word, 'num)
+    val table = stream.toTableFromAppendStream(tEnv, 'word, 'num)
     val resultTable = table
       .select('num.sum as 'count)
       .groupBy('count)
@@ -145,7 +145,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
     env.setParallelism(1)
 
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'pk, 'value)
+    val table = stream.toTableFromAppendStream(tEnv, 'pk, 'value)
     val resultTable = table
       .groupBy('pk)
       .select('pk as 'pk, 'value.sum as 'sum)
@@ -173,7 +173,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
     val func0 = new TableFunc0
 
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'word, 'num)
+    val table = stream.toTableFromAppendStream(tEnv, 'word, 'num)
     val resultTable = table
       .groupBy('word)
       .select('word as 'word, 'num.sum as 'cnt)

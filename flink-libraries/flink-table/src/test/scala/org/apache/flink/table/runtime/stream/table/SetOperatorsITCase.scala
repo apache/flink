@@ -39,8 +39,10 @@ class SetOperatorsITCase extends AbstractTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     StreamITCase.testResults = mutable.MutableList()
-    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f)
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'd, 'e, 'f)
 
     val unionDs = ds1.unionAll(ds2).select('c)
 
@@ -59,8 +61,10 @@ class SetOperatorsITCase extends AbstractTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     StreamITCase.testResults = mutable.MutableList()
-    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env)
+      .toTableFromAppendStream(tEnv, 'a, 'b, 'd, 'c, 'e)
 
     val unionDs = ds1.unionAll(ds2.select('a, 'b, 'c)).filter('b < 2).select('c)
 
@@ -78,8 +82,10 @@ class SetOperatorsITCase extends AbstractTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     StreamITCase.testResults = mutable.MutableList()
-    val s1 = env.fromElements((1, new NonPojo), (2, new NonPojo)).toTable(tEnv, 'a, 'b)
-    val s2 = env.fromElements((3, new NonPojo), (4, new NonPojo)).toTable(tEnv, 'a, 'b)
+    val s1 = env.fromElements((1, new NonPojo), (2, new NonPojo))
+      .toTableFromAppendStream(tEnv, 'a, 'b)
+    val s2 = env.fromElements((3, new NonPojo), (4, new NonPojo))
+      .toTableFromAppendStream(tEnv, 'a, 'b)
 
     val result = s1.unionAll(s2).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
@@ -96,9 +102,9 @@ class SetOperatorsITCase extends AbstractTestBase {
 
     StreamITCase.testResults = mutable.MutableList()
     val s1 = env.fromElements((1, (1, "a")), (2, (2, "b")))
-      .toTable(tEnv, 'a, 'b)
+      .toTableFromAppendStream(tEnv, 'a, 'b)
     val s2 = env.fromElements(((3, "c"), 3), ((4, "d"), 4))
-      .toTable(tEnv, 'a, 'b)
+      .toTableFromAppendStream(tEnv, 'a, 'b)
 
     val result = s1.unionAll(s2.select('b, 'a)).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
@@ -127,9 +133,9 @@ class SetOperatorsITCase extends AbstractTestBase {
       (4, "hello")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
+    val tableA = env.fromCollection(dataA).toTableFromAppendStream(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
+    val tableB = env.fromCollection(dataB).toTableFromAppendStream(tEnv, 'x, 'y)
 
     val result = tableA.where('a.in(tableB.select('x)))
 
@@ -166,9 +172,9 @@ class SetOperatorsITCase extends AbstractTestBase {
       (-1, "Hanoi-1")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv,'a, 'b, 'c)
+    val tableA = env.fromCollection(dataA).toTableFromAppendStream(tEnv,'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv,'x, 'y)
+    val tableB = env.fromCollection(dataB).toTableFromAppendStream(tEnv,'x, 'y)
 
     val result = tableA
       .where('a.in(tableB.where('y.like("%Hanoi%")).groupBy('y).select('x.sum)))
@@ -209,11 +215,11 @@ class SetOperatorsITCase extends AbstractTestBase {
       (2L, "Cool")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv,'a, 'b, 'c)
+    val tableA = env.fromCollection(dataA).toTableFromAppendStream(tEnv,'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv,'x, 'y)
+    val tableB = env.fromCollection(dataB).toTableFromAppendStream(tEnv,'x, 'y)
 
-    val tableC = env.fromCollection(dataC).toTable(tEnv,'w, 'z)
+    val tableC = env.fromCollection(dataC).toTableFromAppendStream(tEnv,'w, 'z)
 
     val result = tableA
       .where('a.in(tableB.select('x)) && 'b.in(tableC.select('w)))

@@ -68,7 +68,7 @@ class TimeAttributesITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(Seq(1L, 2L, 3L, 4L, 7L, 8L, 16L))
       .assignTimestampsAndWatermarks(new AtomicTimestampWithEqualWatermark())
-    val table = stream.toTable(
+    val table = stream.toTableFromAppendStream(
       tEnv, 'rowtime.rowtime, 'proctime.proctime)
 
     val t = table
@@ -100,7 +100,7 @@ class TimeAttributesITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(Seq(1L, 2L, 3L, 4L, 7L, 8L, 16L))
       .assignTimestampsAndWatermarks(new AtomicTimestampWithEqualWatermark())
-    val table = stream.toTable(
+    val table = stream.toTableFromAppendStream(
       tEnv, 'l, 'rowtime.rowtime, 'proctime.proctime)
 
     val t = table
@@ -132,7 +132,7 @@ class TimeAttributesITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(
+    val table = stream.toTableFromAppendStream(
       tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'proctime.proctime)
 
     val t = table.select('rowtime.cast(Types.STRING))
@@ -162,7 +162,8 @@ class TimeAttributesITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    val table = stream
+      .toTableFromAppendStream(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
 
     val t = table
       .filter('rowtime.cast(Types.LONG) > 4)
@@ -196,7 +197,7 @@ class TimeAttributesITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    stream.toTableFromAppendStream(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
       .filter('rowtime.cast(Types.LONG) > 4)
       .select(
         'rowtime,
@@ -223,7 +224,7 @@ class TimeAttributesITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(
+    val table = stream.toTableFromAppendStream(
       tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'proctime.proctime)
     val func = new TableFunc
 
@@ -261,7 +262,7 @@ class TimeAttributesITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(
+    val table = stream.toTableFromAppendStream(
       tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'proctime.proctime)
     val func = new TableFunc
 
@@ -292,7 +293,7 @@ class TimeAttributesITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(
+    val table = stream.toTableFromAppendStream(
       tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
 
     val t = table.unionAll(table).select('rowtime)
@@ -329,7 +330,8 @@ class TimeAttributesITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    val table = stream
+      .toTableFromAppendStream(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
     tEnv.registerTable("MyTable", table)
 
     val t = tEnv.sqlQuery("SELECT COUNT(`rowtime`) FROM MyTable " +
@@ -358,7 +360,8 @@ class TimeAttributesITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    val table = stream
+      .toTableFromAppendStream(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
 
     val t = table
       .window(Tumble over 2.millis on 'rowtime as 'w)
@@ -391,7 +394,8 @@ class TimeAttributesITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    val table = stream
+      .toTableFromAppendStream(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
 
     val window1 = tEnv.sqlQuery(
       s"""SELECT
@@ -430,7 +434,8 @@ class TimeAttributesITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    val table = stream
+      .toTableFromAppendStream(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
 
     val window = tEnv.sqlQuery(
       s"""SELECT
@@ -469,7 +474,8 @@ class TimeAttributesITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(tEnv, 'rowtime1.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    val table = stream
+      .toTableFromAppendStream(tEnv, 'rowtime1.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
 
     val window = tEnv.sqlQuery(
       s"""SELECT
@@ -508,7 +514,8 @@ class TimeAttributesITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    val table = stream
+      .toTableFromAppendStream(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
     tEnv.registerTable("T1", table)
     val querySql = "select rowtime as ts, string as msg from T1"
 
@@ -549,20 +556,21 @@ class TimeAttributesITCase extends AbstractTestBase {
       .fromElements(p1, p2)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermarkPojo)
     // use aliases, swap all attributes, and skip b2
-    val table = stream.toTable(tEnv, 'b.rowtime as 'b, 'c as 'c, 'a as 'a)
+    val table = stream.toTableFromAppendStream(tEnv, 'b.rowtime as 'b, 'c as 'c, 'a as 'a)
     // no aliases, no swapping
-    val table2 = stream.toTable(tEnv, 'a, 'b.rowtime, 'c)
+    val table2 = stream.toTableFromAppendStream(tEnv, 'a, 'b.rowtime, 'c)
     // use proctime, no skipping
-    val table3 = stream.toTable(tEnv, 'a, 'b.rowtime, 'c, 'b2, 'proctime.proctime)
+    val table3 = stream
+      .toTableFromAppendStream(tEnv, 'a, 'b.rowtime, 'c, 'b2, 'proctime.proctime)
 
     // Java expressions
 
     // use aliases, swap all attributes, and skip b2
-    val table4 = stream.toTable(
+    val table4 = stream.toTableFromAppendStream(
       tEnv,
       ExpressionParser.parseExpressionList("b.rowtime as b, c as c, a as a"): _*)
     // no aliases, no swapping
-    val table5 = stream.toTable(
+    val table5 = stream.toTableFromAppendStream(
       tEnv,
       ExpressionParser.parseExpressionList("a, b.rowtime, c"): _*)
 
@@ -644,7 +652,8 @@ class TimeAttributesITCase extends AbstractTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
-    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    val table = stream
+      .toTableFromAppendStream(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
     tEnv.registerTable("MyTable", table)
 
     val t = tEnv.sqlQuery("SELECT TUMBLE_ROWTIME(rowtime, INTERVAL '0.003' SECOND) FROM MyTable " +
@@ -679,7 +688,7 @@ class TimeAttributesITCase extends AbstractTestBase {
 
     val t = env.fromCollection(data)
       .assignAscendingTimestamps(e => e._2.toInstant.toEpochMilli)
-      .toTable(tEnv, 'symbol, 'tstamp.rowtime, 'price)
+      .toTableFromAppendStream(tEnv, 'symbol, 'tstamp.rowtime, 'price)
     tEnv.registerTable("Ticker", t)
 
     val sqlQuery =
