@@ -16,61 +16,46 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime
+package org.apache.flink.table.runtime.conversion
 
 import org.apache.flink.api.common.functions.util.FunctionUtils
+import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
-import org.apache.flink.util.Collector
 
 /**
-  * ProcessRunner with [[CRow]] output.
+  * MapRunner with [[CRow]] input.
   */
-class CRowOutputProcessRunner(
+class CRowToExternalTypeMapRunner[OUT](
     name: String,
     code: String,
-    @transient var returnType: TypeInformation[CRow])
-  extends ProcessFunction[Any, CRow]
-  with ResultTypeQueryable[CRow]
-  with Compiler[ProcessFunction[Any, Row]]
+    @transient var returnType: TypeInformation[OUT])
+  extends RichMapFunction[CRow, OUT]
+  with ResultTypeQueryable[OUT]
+  with Compiler[MapFunction[Row, OUT]]
   with Logging {
 
-  private var function: ProcessFunction[Any, Row] = _
-  private var cRowWrapper: CRowWrappingCollector = _
+  private var function: MapFunction[Row, OUT] = _
 
   override def open(parameters: Configuration): Unit = {
-    LOG.debug(s"Compiling ProcessFunction: $name \n\n Code:\n$code")
+    LOG.debug(s"Compiling MapFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
-    LOG.debug("Instantiating ProcessFunction.")
+    LOG.debug("Instantiating MapFunction.")
     function = clazz.newInstance()
     FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
     FunctionUtils.openFunction(function, parameters)
-
-    this.cRowWrapper = new CRowWrappingCollector()
-    this.cRowWrapper.setChange(true)
   }
 
-  override def processElement(
-      in: Any,
-      ctx: ProcessFunction[Any, CRow]#Context,
-      out: Collector[CRow]): Unit = {
-
-    // remove timestamp from stream record
-    val tc = out.asInstanceOf[TimestampedCollector[_]]
-    tc.eraseTimestamp()
-
-    cRowWrapper.out = out
-    function.processElement(in, ctx.asInstanceOf[ProcessFunction[Any, Row]#Context], cRowWrapper)
+  override def map(in: CRow): OUT = {
+    function.map(in.row)
   }
 
-  override def getProducedType: TypeInformation[CRow] = returnType
+  override def getProducedType: TypeInformation[OUT] = returnType
 
   override def close(): Unit = {
     FunctionUtils.closeFunction(function)

@@ -47,7 +47,7 @@ import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.runtime.conversion._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
-import org.apache.flink.table.runtime.{CRowMapRunner, OutputRowtimeProcessFunction}
+import org.apache.flink.table.runtime.OutputRowtimeProcessFunction
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceUtil}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
@@ -426,7 +426,7 @@ abstract class StreamTableEnvironment(
     converterFunction match {
 
       case Some(func) =>
-        new CRowMapRunner[OUT](func.name, func.code, func.returnType)
+        new CRowToExternalTypeMapRunner[OUT](func.name, func.code, func.returnType)
 
       case _ =>
         new CRowToRowMapFunction().asInstanceOf[MapFunction[CRow, OUT]]

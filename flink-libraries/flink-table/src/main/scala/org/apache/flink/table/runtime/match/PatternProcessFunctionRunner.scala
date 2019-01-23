@@ -25,7 +25,7 @@ import org.apache.flink.cep.functions.PatternProcessFunction
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.codegen.Compiler
-import org.apache.flink.table.runtime.CRowWrappingCollector
+import org.apache.flink.table.runtime.conversion.CRowWrappingCollector
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row

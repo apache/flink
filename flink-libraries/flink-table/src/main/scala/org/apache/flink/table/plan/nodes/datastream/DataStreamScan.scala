@@ -25,7 +25,7 @@ import org.apache.calcite.rex.RexNode
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
 import org.apache.flink.table.expressions.Cast
-import org.apache.flink.table.plan.schema.{DataStreamTable, RowSchema}
+import org.apache.flink.table.plan.schema.{AppendStreamTable, DataStreamTable, RowSchema, UpsertStreamTable}
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
@@ -68,7 +68,11 @@ abstract class DataStreamScan(
       }
 
     // convert DataStream
-    convertToInternalRow(schema, inputDataStream, fieldIdxs, config, rowtimeExpr)
+    dataStreamTable match {
+      case _: AppendStreamTable[_] =>
+        convertToInternalRow(schema, inputDataStream, fieldIdxs, config, rowtimeExpr)
+      case _: UpsertStreamTable[_] =>
+        convertUpsertToInternalRow(schema, inputDataStream, fieldIdxs, config, rowtimeExpr)
+    }
   }
-
 }

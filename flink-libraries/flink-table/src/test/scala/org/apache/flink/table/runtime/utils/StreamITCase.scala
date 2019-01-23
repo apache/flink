@@ -28,6 +28,9 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import java.lang.{Boolean => JBool}
+
 object StreamITCase {
 
   var testResults: mutable.MutableList[String] = mutable.MutableList.empty[String]
@@ -41,6 +44,11 @@ object StreamITCase {
   def compareWithList(expected: java.util.List[String]): Unit = {
     Collections.sort(expected)
     assertEquals(expected.asScala, StreamITCase.testResults.sorted)
+  }
+
+  def compareRetractWithList(expected: java.util.List[String]): Unit = {
+    Collections.sort(expected)
+    assertEquals(expected.asScala, StreamITCase.retractedResults.sorted)
   }
 
   final class StringSink[T] extends RichSinkFunction[T]() {
@@ -59,11 +67,39 @@ object StreamITCase {
     }
   }
 
+  final class JRetractMessagesSink extends RichSinkFunction[JTuple2[JBool, Row]]() {
+    def invoke(v: JTuple2[JBool, Row]) {
+      testResults.synchronized {
+        testResults += (if (v.f0) "+" else "-") + v.f1
+      }
+    }
+  }
+
   final class RetractingSink() extends RichSinkFunction[(Boolean, Row)] {
     override def invoke(v: (Boolean, Row)) {
       retractedResults.synchronized {
         val value = v._2.toString
         if (v._1) {
+          retractedResults += value
+        } else {
+          val idx = retractedResults.indexOf(value)
+          if (idx >= 0) {
+            retractedResults.remove(idx)
+          } else {
+            throw new RuntimeException("Tried to retract a value that wasn't added first. " +
+              "This is probably an incorrectly implemented test. " +
+              "Try to set the parallelism of the sink to 1.")
+          }
+        }
+      }
+    }
+  }
+
+  final class JRetractingSink() extends RichSinkFunction[JTuple2[JBool, Row]] {
+    def invoke(v: JTuple2[JBool, Row]) {
+      retractedResults.synchronized {
+        val value = v.f1.toString
+        if (v.f0) {
           retractedResults += value
         } else {
           val idx = retractedResults.indexOf(value)

@@ -16,79 +16,63 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime
+package org.apache.flink.table.runtime.conversion
 
 import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.codegen.Compiler
-import org.apache.flink.table.runtime.conversion.CRowWrappingCollector
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 /**
-  * A CorrelateProcessRunner with [[CRow]] input and [[CRow]] output.
+  * ProcessRunner with [[CRow]] output.
   */
-class CRowCorrelateProcessRunner(
-    processName: String,
-    processCode: String,
-    collectorName: String,
-    collectorCode: String,
+class ExternalTypeToCRowProcessRunner(
+    name: String,
+    code: String,
     @transient var returnType: TypeInformation[CRow])
-  extends ProcessFunction[CRow, CRow]
+  extends ProcessFunction[Any, CRow]
   with ResultTypeQueryable[CRow]
-  with Compiler[Any]
+  with Compiler[ProcessFunction[Any, Row]]
   with Logging {
 
-  private var function: ProcessFunction[Row, Row] = _
-  private var collector: TableFunctionCollector[_] = _
+  private var function: ProcessFunction[Any, Row] = _
   private var cRowWrapper: CRowWrappingCollector = _
 
   override def open(parameters: Configuration): Unit = {
-    LOG.debug(s"Compiling TableFunctionCollector: $collectorName \n\n Code:\n$collectorCode")
-    val clazz = compile(getRuntimeContext.getUserCodeClassLoader, collectorName, collectorCode)
-    LOG.debug("Instantiating TableFunctionCollector.")
-    collector = clazz.newInstance().asInstanceOf[TableFunctionCollector[_]]
-    this.cRowWrapper = new CRowWrappingCollector()
-
-    LOG.debug(s"Compiling ProcessFunction: $processName \n\n Code:\n$processCode")
-    val processClazz = compile(getRuntimeContext.getUserCodeClassLoader, processName, processCode)
-    val constructor = processClazz.getConstructor(classOf[TableFunctionCollector[_]])
+    LOG.debug(s"Compiling ProcessFunction: $name \n\n Code:\n$code")
+    val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
     LOG.debug("Instantiating ProcessFunction.")
-    function = constructor.newInstance(collector).asInstanceOf[ProcessFunction[Row, Row]]
-    FunctionUtils.setFunctionRuntimeContext(collector, getRuntimeContext)
+    function = clazz.newInstance()
     FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
-    FunctionUtils.openFunction(collector, parameters)
     FunctionUtils.openFunction(function, parameters)
+
+    this.cRowWrapper = new CRowWrappingCollector()
+    this.cRowWrapper.setChange(true)
   }
 
   override def processElement(
-      in: CRow,
-      ctx: ProcessFunction[CRow, CRow]#Context,
-      out: Collector[CRow])
-    : Unit = {
+      in: Any,
+      ctx: ProcessFunction[Any, CRow]#Context,
+      out: Collector[CRow]): Unit = {
+
+    // remove timestamp from stream record
+    val tc = out.asInstanceOf[TimestampedCollector[_]]
+    tc.eraseTimestamp()
 
     cRowWrapper.out = out
-    cRowWrapper.setChange(in.change)
-
-    collector.setCollector(cRowWrapper)
-    collector.setInput(in.row)
-    collector.reset()
-
-    function.processElement(
-      in.row,
-      ctx.asInstanceOf[ProcessFunction[Row, Row]#Context],
-      cRowWrapper)
+    function.processElement(in, ctx.asInstanceOf[ProcessFunction[Any, Row]#Context], cRowWrapper)
   }
 
   override def getProducedType: TypeInformation[CRow] = returnType
 
   override def close(): Unit = {
-    FunctionUtils.closeFunction(collector)
     FunctionUtils.closeFunction(function)
   }
 }

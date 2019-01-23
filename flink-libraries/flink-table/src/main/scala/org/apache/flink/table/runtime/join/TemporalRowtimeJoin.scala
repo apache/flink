@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.operators._
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.Compiler
-import org.apache.flink.table.runtime.CRowWrappingCollector
+import org.apache.flink.table.runtime.conversion.CRowWrappingCollector
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.table.util.Logging

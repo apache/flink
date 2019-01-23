@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime
+package org.apache.flink.table.runtime.conversion
 
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row

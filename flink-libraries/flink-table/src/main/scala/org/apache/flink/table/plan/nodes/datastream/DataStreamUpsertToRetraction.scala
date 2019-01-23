@@ -22,10 +22,15 @@ import java.util
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.flink.api.java.functions.NullByteKeySelector
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
+import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.runtime.{CRowKeySelector, UpsertToRetractionProcessFunction}
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.util.Preconditions.checkState
 
 import scala.collection.JavaConversions._
 
@@ -78,7 +83,35 @@ class DataStreamUpsertToRetraction(
       tableEnv: StreamTableEnvironment,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
-    // todo: return inputDS for plan test. The detailed code will be ready in the next commit
-    throw new NotImplementedError
+    val inputDS =
+      getInput.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
+    val outRowType = CRowTypeInfo(schema.typeInfo)
+
+    checkState(DataStreamRetractionRules.isAccRetract(this))
+
+    val processFunction = new UpsertToRetractionProcessFunction(
+      schema.typeInfo.asInstanceOf[RowTypeInfo],
+      queryConfig
+    )
+
+    if (keyIndexes.nonEmpty) {
+      // upsert with keys
+      inputDS
+        .keyBy(new CRowKeySelector(keyIndexes, inputSchema.projectedTypeInfo(keyIndexes)))
+        .process(processFunction)
+        .returns(outRowType)
+        .name(this.toString)
+        .asInstanceOf[DataStream[CRow]]
+    } else {
+      // upsert without key -> single row table
+      inputDS
+        .keyBy(new NullByteKeySelector[CRow])
+        .process(processFunction)
+        .setParallelism(1)
+        .setMaxParallelism(1)
+        .returns(outRowType)
+        .name(this.toString)
+        .asInstanceOf[DataStream[CRow]]
+    }
   }
 }

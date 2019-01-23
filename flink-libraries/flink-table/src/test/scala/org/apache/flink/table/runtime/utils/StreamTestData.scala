@@ -95,4 +95,32 @@ object StreamTestData {
     data.+=(((3, 3), "three"))
     env.fromCollection(data)
   }
+
+  def get3TupleUpsertStream(env: StreamExecutionEnvironment):
+  DataStream[(Boolean, (Int, Long, String))] = {
+    val data = new mutable.MutableList[(Boolean, (Int, Long, String))]
+    // false as a delete message, true as an add message
+    data.+=((false, (1, 1L, "Hi")))
+    data.+=((true, (2, 2L, "Hello")))
+    data.+=((false, (3, 2L, "Hello world")))
+    data.+=((true, (4, 3L, "Hello world, how are you?")))
+    data.+=((true, (5, 3L, "I am fine.")))
+    data.+=((true, (6, 3L, "Luke Skywalker")))
+    data.+=((true, (7, 4L, "Comment#1")))
+    data.+=((true, (8, 4L, "Comment#2")))
+    data.+=((true, (9, 4L, "Comment#3")))
+    data.+=((false, (10, 4L, "Comment#4")))
+    data.+=((true, (11, 5L, "Comment#5")))
+    data.+=((true, (12, 5L, "Comment#6")))
+    data.+=((true, (13, 5L, "Comment#7")))
+    data.+=((true, (14, 5L, "Comment#8")))
+    data.+=((true, (15, 5L, "Comment#9")))
+    data.+=((true, (16, 6L, "Comment#10")))
+    data.+=((true, (17, 6L, "Comment#11")))
+    data.+=((true, (18, 6L, "Comment#12")))
+    data.+=((true, (19, 6L, "Comment#13")))
+    data.+=((true, (20, 6L, "Comment#14")))
+    data.+=((true, (21, 6L, "Comment#15")))
+    env.fromCollection(data)
+  }
 }

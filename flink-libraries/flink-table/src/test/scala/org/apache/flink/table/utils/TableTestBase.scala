@@ -293,7 +293,8 @@ case class StreamTableTestUtil() extends TableTestUtil {
     table
   }
 
-  def addJavaTable[T](typeInfo: TypeInformation[T], name: String, fields: String): Table = {
+  def addJavaTable[T](
+      typeInfo: TypeInformation[T], name: String, fields: String): Table = {
     val stream = javaEnv.addSource(new EmptySource[T], typeInfo)
     val table = javaTableEnv.fromAppendStream(stream, fields)
     javaTableEnv.registerTable(name, table)
