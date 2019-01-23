@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.failover;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -33,8 +34,12 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -54,6 +59,10 @@ public class RestartIndividualStrategy extends FailoverStrategy {
 
 	private final SimpleCounter numTaskFailures;
 
+	/** This field exists only for testing purposes and should be null in production code. */
+	@Nullable
+	private final Executor testExecutor;
+
 	/**
 	 * Creates a new failover strategy that recovers from failures by restarting only the failed task
 	 * of the execution graph.
@@ -61,8 +70,14 @@ public class RestartIndividualStrategy extends FailoverStrategy {
 	 * @param executionGraph The execution graph to handle.
 	 */
 	public RestartIndividualStrategy(ExecutionGraph executionGraph) {
+		this(executionGraph, null);
+	}
+
+	@VisibleForTesting
+	public RestartIndividualStrategy(ExecutionGraph executionGraph, @Nullable Executor testExecutor) {
 		this.executionGraph = checkNotNull(executionGraph);
 		this.numTaskFailures = new SimpleCounter();
+		this.testExecutor = testExecutor;
 	}
 
 	// ------------------------------------------------------------------------
@@ -94,20 +109,26 @@ public class RestartIndividualStrategy extends FailoverStrategy {
 		final ExecutionVertex vertexToRecover = taskExecution.getVertex(); 
 		final long globalModVersion = taskExecution.getGlobalModVersion();
 
-		terminationFuture.thenAccept(
-			(ExecutionState value) -> {
-				try {
-					long createTimestamp = System.currentTimeMillis();
-					Execution newExecution = vertexToRecover.resetForNewExecution(createTimestamp, globalModVersion);
-					newExecution.scheduleForExecution();
-				}
-				catch (GlobalModVersionMismatch e) {
-					// this happens if a concurrent global recovery happens. simply do nothing.
-				} catch (Exception e) {
-					executionGraph.failGlobal(
-						new Exception("Error during fine grained recovery - triggering full recovery", e));
-				}
-			});
+		Consumer<ExecutionState> restartProcedure = (ExecutionState value) -> {
+			try {
+				long createTimestamp = System.currentTimeMillis();
+				Execution newExecution = vertexToRecover.resetForNewExecution(createTimestamp, globalModVersion);
+				newExecution.scheduleForExecution();
+			} catch (GlobalModVersionMismatch e) {
+				// this happens if a concurrent global recovery happens. simply do nothing.
+			} catch (Exception e) {
+				executionGraph.failGlobal(
+					new Exception("Error during fine grained recovery - triggering full recovery", e));
+			}
+		};
+
+		if (testExecutor == null) {
+			// production branch
+			terminationFuture.thenAccept(restartProcedure);
+		} else {
+			// for testing, see IndividualRestartsConcurrencyTest
+			terminationFuture.thenAcceptAsync(restartProcedure, testExecutor);
+		}
 	}
 
 	@Override

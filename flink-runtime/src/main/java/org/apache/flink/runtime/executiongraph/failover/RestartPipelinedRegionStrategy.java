@@ -31,11 +31,14 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -55,15 +58,25 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 	/** Fast lookup from vertex to failover region */
 	private final HashMap<ExecutionVertex, FailoverRegion> vertexToRegion;
 
+	/** This field exists only for testing purposes and should be null in production code. */
+	@Nullable
+	private final Executor testExecutor;
+
 	/**
 	 * Creates a new failover strategy to restart pipelined regions that works on the given
-	 * execution graph..
+	 * execution graph.
 	 * 
 	 * @param executionGraph The execution graph on which this FailoverStrategy will work
 	 */
 	public RestartPipelinedRegionStrategy(ExecutionGraph executionGraph) {
+		this(executionGraph, null);
+	}
+
+	@VisibleForTesting
+	public RestartPipelinedRegionStrategy(ExecutionGraph executionGraph, @Nullable Executor testExecutor) {
 		this.executionGraph = checkNotNull(executionGraph);
 		this.vertexToRegion = new HashMap<>();
+		this.testExecutor = testExecutor;
 	}
 
 	// ------------------------------------------------------------------------
@@ -193,7 +206,7 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 				distinctRegions.size(), executionGraph.getJobName(), executionGraph.getJobID());
 
 		for (List<ExecutionVertex> region : distinctRegions.keySet()) {
-			final FailoverRegion failoverRegion = new FailoverRegion(executionGraph, region);
+			final FailoverRegion failoverRegion = new FailoverRegion(executionGraph, region, testExecutor);
 			for (ExecutionVertex ev : region) {
 				this.vertexToRegion.put(ev, failoverRegion);
 			}
@@ -214,7 +227,7 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 			allVertices.addAll(Arrays.asList(ejv.getTaskVertices()));
 		}
 
-		final FailoverRegion singleRegion = new FailoverRegion(executionGraph, allVertices);
+		final FailoverRegion singleRegion = new FailoverRegion(executionGraph, allVertices,testExecutor);
 		for (ExecutionVertex ev : allVertices) {
 			vertexToRegion.put(ev, singleRegion);
 		}

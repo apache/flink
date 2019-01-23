@@ -37,12 +37,12 @@ import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -51,7 +51,6 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -82,8 +81,9 @@ import static org.mockito.Mockito.when;
  * <p>This test must be in the package it resides in, because it uses package-private methods
  * from the ExecutionGraph classes.
  */
-@Ignore
 public class IndividualRestartsConcurrencyTest extends TestLogger {
+
+	private final ComponentMainThreadTestExecutor testMainThread = new ComponentMainThreadTestExecutor();
 
 	/**
 	 * Tests that a cancellation concurrent to a local failover leads to a properly
@@ -103,7 +103,8 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = 2;
 
-		final ManuallyTriggeredDirectExecutor executor = new ManuallyTriggeredDirectExecutor();
+		final ManuallyTriggeredDirectExecutor executor =
+			new ManuallyTriggeredDirectExecutor(testMainThread.getMainThreadExecutor());
 
 		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
 
@@ -113,15 +114,18 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 				slotProvider,
 				2);
 
+		graph.start(testMainThread.getMainThreadExecutor());
+
 		final ExecutionJobVertex ejv = graph.getVerticesTopologically().iterator().next();
 		final ExecutionVertex vertex1 = ejv.getTaskVertices()[0];
 		final ExecutionVertex vertex2 = ejv.getTaskVertices()[1];
 
-		graph.scheduleForExecution();
+		testMainThread.execute(graph::scheduleForExecution);
+
 		assertEquals(JobStatus.RUNNING, graph.getState());
 
 		// let one of the vertices fail - that triggers a local recovery action
-		vertex1.getCurrentExecutionAttempt().failAsync(new Exception("test failure"));
+		testMainThread.execute(() -> vertex1.getCurrentExecutionAttempt().failSync(new Exception("test failure")));
 		assertEquals(ExecutionState.FAILED, vertex1.getCurrentExecutionAttempt().getState());
 
 		// graph should still be running and the failover recovery action should be queued
@@ -129,7 +133,7 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 		assertEquals(1, executor.numQueuedRunnables());
 
 		// now cancel the job
-		graph.cancel();
+		testMainThread.execute(graph::cancel);
 
 		assertEquals(JobStatus.CANCELLING, graph.getState());
 		assertEquals(ExecutionState.FAILED, vertex1.getCurrentExecutionAttempt().getState());
@@ -139,7 +143,7 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 		executor.trigger();
 
 		// now report that cancelling is complete for the other vertex
-		vertex2.getCurrentExecutionAttempt().cancelingComplete();
+		testMainThread.execute(() -> vertex2.getCurrentExecutionAttempt().cancelingComplete());
 
 		assertEquals(JobStatus.CANCELED, graph.getTerminationFuture().get());
 		assertTrue(vertex1.getCurrentExecutionAttempt().getState().isTerminal());
@@ -167,7 +171,8 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = 2;
 
-		final ManuallyTriggeredDirectExecutor executor = new ManuallyTriggeredDirectExecutor();
+		final ManuallyTriggeredDirectExecutor executor =
+			new ManuallyTriggeredDirectExecutor(testMainThread.getMainThreadExecutor());
 
 		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
 
@@ -177,15 +182,17 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 				slotProvider,
 				2);
 
+		graph.start(testMainThread.getMainThreadExecutor());
+
 		final ExecutionJobVertex ejv = graph.getVerticesTopologically().iterator().next();
 		final ExecutionVertex vertex1 = ejv.getTaskVertices()[0];
 		final ExecutionVertex vertex2 = ejv.getTaskVertices()[1];
 
-		graph.scheduleForExecution();
+		testMainThread.execute(graph::scheduleForExecution);
 		assertEquals(JobStatus.RUNNING, graph.getState());
 
 		// let one of the vertices fail - that triggers a local recovery action
-		vertex1.getCurrentExecutionAttempt().failAsync(new Exception("test failure"));
+		testMainThread.execute(() -> vertex1.getCurrentExecutionAttempt().failSync(new Exception("test failure")));
 		assertEquals(ExecutionState.FAILED, vertex1.getCurrentExecutionAttempt().getState());
 
 		// graph should still be running and the failover recovery action should be queued
@@ -193,7 +200,7 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 		assertEquals(1, executor.numQueuedRunnables());
 
 		// now cancel the job
-		graph.failGlobal(new Exception("test exception"));
+		testMainThread.execute(() -> graph.failGlobal(new Exception("test exception")));
 
 		assertEquals(JobStatus.FAILING, graph.getState());
 		assertEquals(ExecutionState.FAILED, vertex1.getCurrentExecutionAttempt().getState());
@@ -203,9 +210,10 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 		executor.trigger();
 
 		// now report that cancelling is complete for the other vertex
-		vertex2.getCurrentExecutionAttempt().cancelingComplete();
+		testMainThread.execute(() -> vertex2.getCurrentExecutionAttempt().cancelingComplete());
 
-		assertEquals(JobStatus.FAILED, graph.getState());
+		waitUntilJobStatus (graph, JobStatus.FAILED, 1000L);
+
 		assertTrue(vertex1.getCurrentExecutionAttempt().getState().isTerminal());
 		assertTrue(vertex2.getCurrentExecutionAttempt().getState().isTerminal());
 
@@ -230,7 +238,8 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = 2;
 
-		final ManuallyTriggeredDirectExecutor executor = new ManuallyTriggeredDirectExecutor();
+		final ManuallyTriggeredDirectExecutor executor =
+			new ManuallyTriggeredDirectExecutor(testMainThread.getMainThreadExecutor());
 
 		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
 
@@ -241,15 +250,17 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 				slotProvider,
 				2);
 
+		graph.start(testMainThread.getMainThreadExecutor());
+
 		final ExecutionJobVertex ejv = graph.getVerticesTopologically().iterator().next();
 		final ExecutionVertex vertex1 = ejv.getTaskVertices()[0];
 		final ExecutionVertex vertex2 = ejv.getTaskVertices()[1];
 
-		graph.scheduleForExecution();
+		testMainThread.execute(graph::scheduleForExecution);
 		assertEquals(JobStatus.RUNNING, graph.getState());
 
 		// let one of the vertices fail - that triggers a local recovery action
-		vertex2.getCurrentExecutionAttempt().failAsync(new Exception("test failure"));
+		testMainThread.execute(() -> vertex2.getCurrentExecutionAttempt().failSync(new Exception("test failure")));
 		assertEquals(ExecutionState.FAILED, vertex2.getCurrentExecutionAttempt().getState());
 
 		// graph should still be running and the failover recovery action should be queued
@@ -257,14 +268,14 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 		assertEquals(1, executor.numQueuedRunnables());
 
 		// now cancel the job
-		graph.failGlobal(new Exception("test exception"));
+		testMainThread.execute(() -> graph.failGlobal(new Exception("test exception")));
 
 		assertEquals(JobStatus.FAILING, graph.getState());
 		assertEquals(ExecutionState.FAILED, vertex2.getCurrentExecutionAttempt().getState());
 		assertEquals(ExecutionState.CANCELING, vertex1.getCurrentExecutionAttempt().getState());
 
 		// now report that cancelling is complete for the other vertex
-		vertex1.getCurrentExecutionAttempt().cancelingComplete();
+		testMainThread.execute(() -> vertex1.getCurrentExecutionAttempt().cancelingComplete());
 
 		waitUntilJobStatus(graph, JobStatus.RUNNING, 1000);
 		assertEquals(JobStatus.RUNNING, graph.getState());
@@ -307,7 +318,8 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 		when(taskManagerGateway.cancelTask(any(ExecutionAttemptID.class), any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 
 		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism, taskManagerGateway);
-		final ManuallyTriggeredDirectExecutor executor = new ManuallyTriggeredDirectExecutor();
+		final ManuallyTriggeredDirectExecutor executor =
+			new ManuallyTriggeredDirectExecutor(testMainThread.getMainThreadExecutor());
 
 		final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration = new CheckpointCoordinatorConfiguration(
 			10L,
@@ -322,6 +334,8 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 			new IndividualFailoverWithCustomExecutor(executor),
 			slotProvider,
 			parallelism);
+
+		graph.start(testMainThread.getMainThreadExecutor());
 
 		final List<ExecutionJobVertex> allVertices = new ArrayList<>(graph.getAllVertices().values());
 
@@ -352,14 +366,14 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 		final ExecutionVertex vertex1 = ejv.getTaskVertices()[0];
 		final ExecutionVertex vertex2 = ejv.getTaskVertices()[1];
 
-		graph.scheduleForExecution();
+		testMainThread.execute(graph::scheduleForExecution);
 		assertEquals(JobStatus.RUNNING, graph.getState());
 
 		verify(taskManagerGateway, timeout(verifyTimeout).times(parallelism)).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 
 		// switch all executions to running
 		for (ExecutionVertex executionVertex : graph.getAllExecutionVertices()) {
-			executionVertex.getCurrentExecutionAttempt().switchToRunning();
+			testMainThread.execute(() -> executionVertex.getCurrentExecutionAttempt().switchToRunning());
 		}
 
 		// wait for a first checkpoint to be triggered
@@ -395,7 +409,7 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 		}
 
 		// let one of the vertices fail - this should trigger the failing of not acknowledged pending checkpoints
-		vertex1.getCurrentExecutionAttempt().failAsync(new Exception("test failure"));
+		testMainThread.execute(() -> vertex1.getCurrentExecutionAttempt().failSync(new Exception("test failure")));
 
 		for (PendingCheckpoint pendingCheckpoint : oldPendingCheckpoints.values()) {
 			if (pendingCheckpoint.getCheckpointId() == checkpointToAcknowledge) {
@@ -460,7 +474,7 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 
 		@Override
 		public FailoverStrategy create(ExecutionGraph executionGraph) {
-			return new RestartIndividualStrategy(executionGraph);
+			return new RestartIndividualStrategy(executionGraph, executor);
 		}
 	}
 

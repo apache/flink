@@ -30,15 +30,14 @@ import org.apache.flink.runtime.executiongraph.failover.RestartPipelinedRegionSt
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.concurrent.Executor;
@@ -55,8 +54,9 @@ import static org.junit.Assert.assertTrue;
  * <p>This test must be in the package it resides in, because it uses package-private methods
  * from the ExecutionGraph classes.
  */
-@Ignore
 public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
+
+	private final ComponentMainThreadTestExecutor testMainThread = new ComponentMainThreadTestExecutor();
 
 	/**
 	 * Tests that a cancellation concurrent to a local failover leads to a properly
@@ -76,7 +76,8 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = 2;
 
-		final ManuallyTriggeredDirectExecutor executor = new ManuallyTriggeredDirectExecutor();
+		final ManuallyTriggeredDirectExecutor executor =
+			new ManuallyTriggeredDirectExecutor(testMainThread.getMainThreadExecutor());
 
 		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
 
@@ -87,15 +88,17 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 				slotProvider,
 				2);
 
+		graph.start(testMainThread.getMainThreadExecutor());
+
 		final ExecutionJobVertex ejv = graph.getVerticesTopologically().iterator().next();
 		final ExecutionVertex vertex1 = ejv.getTaskVertices()[0];
 		final ExecutionVertex vertex2 = ejv.getTaskVertices()[1];
 
-		graph.scheduleForExecution();
+		testMainThread.execute(graph::scheduleForExecution);
 		assertEquals(JobStatus.RUNNING, graph.getState());
 
 		// let one of the vertices fail - that triggers a local recovery action
-		vertex1.getCurrentExecutionAttempt().failAsync(new Exception("test failure"));
+		testMainThread.execute(() -> vertex1.getCurrentExecutionAttempt().failSync(new Exception("test failure")));
 		assertEquals(ExecutionState.FAILED, vertex1.getCurrentExecutionAttempt().getState());
 
 		// graph should still be running and the failover recovery action should be queued
@@ -103,7 +106,7 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		assertEquals(1, executor.numQueuedRunnables());
 
 		// now cancel the job
-		graph.cancel();
+		testMainThread.execute(graph::cancel);
 
 		assertEquals(JobStatus.CANCELLING, graph.getState());
 		assertEquals(ExecutionState.FAILED, vertex1.getCurrentExecutionAttempt().getState());
@@ -113,7 +116,7 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		executor.trigger();
 
 		// now report that cancelling is complete for the other vertex
-		vertex2.getCurrentExecutionAttempt().cancelingComplete();
+		testMainThread.execute(() -> vertex2.getCurrentExecutionAttempt().cancelingComplete());
 
 		assertEquals(JobStatus.CANCELED, graph.getTerminationFuture().get());
 		assertTrue(vertex1.getCurrentExecutionAttempt().getState().isTerminal());
@@ -141,7 +144,8 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = 2;
 
-		final ManuallyTriggeredDirectExecutor executor = new ManuallyTriggeredDirectExecutor();
+		final ManuallyTriggeredDirectExecutor executor =
+			new ManuallyTriggeredDirectExecutor(testMainThread.getMainThreadExecutor());
 
 		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
 
@@ -152,15 +156,17 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 				slotProvider,
 				2);
 
+		graph.start(testMainThread.getMainThreadExecutor());
+
 		final ExecutionJobVertex ejv = graph.getVerticesTopologically().iterator().next();
 		final ExecutionVertex vertex1 = ejv.getTaskVertices()[0];
 		final ExecutionVertex vertex2 = ejv.getTaskVertices()[1];
 
-		graph.scheduleForExecution();
+		testMainThread.execute(graph::scheduleForExecution);
 		assertEquals(JobStatus.RUNNING, graph.getState());
 
 		// let one of the vertices fail - that triggers a local recovery action
-		vertex1.getCurrentExecutionAttempt().failAsync(new Exception("test failure"));
+		testMainThread.execute(() -> vertex1.getCurrentExecutionAttempt().failSync(new Exception("test failure")));
 		assertEquals(ExecutionState.FAILED, vertex1.getCurrentExecutionAttempt().getState());
 
 		// graph should still be running and the failover recovery action should be queued
@@ -168,7 +174,7 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		assertEquals(1, executor.numQueuedRunnables());
 
 		// now cancel the job
-		graph.failGlobal(new SuppressRestartsException(new Exception("test exception")));
+		testMainThread.execute(() -> graph.failGlobal(new SuppressRestartsException(new Exception("test exception"))));
 
 		assertEquals(JobStatus.FAILING, graph.getState());
 		assertEquals(ExecutionState.FAILED, vertex1.getCurrentExecutionAttempt().getState());
@@ -178,9 +184,9 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		executor.trigger();
 
 		// now report that cancelling is complete for the other vertex
-		vertex2.getCurrentExecutionAttempt().cancelingComplete();
+		testMainThread.execute(() -> vertex2.getCurrentExecutionAttempt().cancelingComplete());
 
-		assertEquals(JobStatus.FAILED, graph.getState());
+		waitUntilJobStatus(graph, JobStatus.FAILED, 1000L);
 		assertTrue(vertex1.getCurrentExecutionAttempt().getState().isTerminal());
 		assertTrue(vertex2.getCurrentExecutionAttempt().getState().isTerminal());
 
@@ -205,7 +211,8 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = 2;
 
-		final ManuallyTriggeredDirectExecutor executor = new ManuallyTriggeredDirectExecutor();
+		final ManuallyTriggeredDirectExecutor executor =
+			new ManuallyTriggeredDirectExecutor(testMainThread.getMainThreadExecutor());
 
 		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
 
@@ -217,16 +224,18 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 				2);
 		RestartPipelinedRegionStrategy strategy = (RestartPipelinedRegionStrategy)graph.getFailoverStrategy();
 
+		graph.start(testMainThread.getMainThreadExecutor());
+
 		final ExecutionJobVertex ejv = graph.getVerticesTopologically().iterator().next();
 		final ExecutionVertex vertex1 = ejv.getTaskVertices()[0];
 		final ExecutionVertex vertex2 = ejv.getTaskVertices()[1];
 
-		graph.scheduleForExecution();
+		testMainThread.execute(graph::scheduleForExecution);
 		assertEquals(JobStatus.RUNNING, graph.getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(vertex1).getState());
 
 		// let one of the vertices fail - that triggers a local recovery action
-		vertex2.getCurrentExecutionAttempt().failAsync(new Exception("test failure"));
+		testMainThread.execute(() -> vertex2.getCurrentExecutionAttempt().failSync(new Exception("test failure")));
 		assertEquals(ExecutionState.FAILED, vertex2.getCurrentExecutionAttempt().getState());
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(vertex2).getState());
 
@@ -235,14 +244,14 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		assertEquals(1, executor.numQueuedRunnables());
 
 		// now cancel the job
-		graph.failGlobal(new Exception("test exception"));
+		testMainThread.execute(() -> graph.failGlobal(new Exception("test exception")));
 
 		assertEquals(JobStatus.FAILING, graph.getState());
 		assertEquals(ExecutionState.FAILED, vertex2.getCurrentExecutionAttempt().getState());
 		assertEquals(ExecutionState.CANCELING, vertex1.getCurrentExecutionAttempt().getState());
 
 		// now report that cancelling is complete for the other vertex
-		vertex1.getCurrentExecutionAttempt().cancelingComplete();
+		testMainThread.execute(() -> vertex1.getCurrentExecutionAttempt().cancelingComplete());
 
 		waitUntilJobStatus(graph, JobStatus.RUNNING, 1000);
 		assertEquals(JobStatus.RUNNING, graph.getState());
@@ -272,7 +281,7 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		assertEquals(0, slotProvider.getNumberOfAvailableSlots());
 
 		// validate that a task failure then can be handled by the local recovery
-		vertex2.getCurrentExecutionAttempt().failAsync(new Exception("test failure"));
+		testMainThread.execute(() -> vertex2.getCurrentExecutionAttempt().failSync(new Exception("test failure")));
 		assertEquals(1, executor.numQueuedRunnables());
 
 		// let the local recovery action continue - this should recover the vertex2
@@ -347,7 +356,7 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 
 		@Override
 		public FailoverStrategy create(ExecutionGraph executionGraph) {
-			return new RestartPipelinedRegionStrategy(executionGraph);
+			return new RestartPipelinedRegionStrategy(executionGraph, executor);
 		}
 	}
 }

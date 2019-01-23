@@ -21,6 +21,7 @@ package org.apache.flink.core.testutils;
 import javax.annotation.Nonnull;
 
 import java.util.ArrayDeque;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -32,7 +33,7 @@ import java.util.concurrent.Executor;
  */
 public class ManuallyTriggeredDirectExecutor implements Executor {
 
-	private final Executor executorDelegate;
+	protected final Executor executorDelegate;
 	private final ArrayDeque<Runnable> queuedRunnables = new ArrayDeque<>();
 
 	public ManuallyTriggeredDirectExecutor(Executor executorDelegate) {
@@ -62,7 +63,11 @@ public class ManuallyTriggeredDirectExecutor implements Executor {
 		}
 
 		if (next != null) {
-			executorDelegate.execute(next);
+			try {
+				CompletableFuture.runAsync(next, executorDelegate).get();
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
 		}
 		else {
 			throw new IllegalStateException("No runnable available");
