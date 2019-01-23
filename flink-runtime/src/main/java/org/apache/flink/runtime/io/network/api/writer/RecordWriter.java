@@ -30,11 +30,15 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.XORShiftRandom;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.Optional;
 import java.util.Random;
 
 import static org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.SerializationResult;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -52,7 +56,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class RecordWriter<T extends IOReadableWritable> {
 
-	protected final ResultPartitionWriter targetPartition;
+	private static final Logger LOG = LoggerFactory.getLogger(RecordWriter.class);
+
+	private final ResultPartitionWriter targetPartition;
 
 	private final ChannelSelector<T> channelSelector;
 
@@ -66,11 +72,20 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	private final Random rng = new XORShiftRandom();
 
-	private final boolean flushAlways;
-
 	private Counter numBytesOut = new SimpleCounter();
 
 	private Counter numBuffersOut = new SimpleCounter();
+
+	private final boolean flushAlways;
+
+	/** Default name for teh output flush thread, if no name with a task reference is given. */
+	private static final String DEFAULT_OUTPUT_FLUSH_THREAD_NAME = "OutputFlusher";
+
+	/** The thread that periodically flushes the output, to give an upper latency bound. */
+	private final Optional<OutputFlusher> outputFlusher;
+
+	/** To avoid synchronization overhead on the critical path, best-effort error tracking is enough here.*/
+	private Throwable flusherException;
 
 	public RecordWriter(ResultPartitionWriter writer) {
 		this(writer, new RoundRobinChannelSelector<T>());
@@ -78,11 +93,14 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	@SuppressWarnings("unchecked")
 	public RecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector) {
-		this(writer, channelSelector, false);
+		this(writer, channelSelector, -1, null);
 	}
 
-	public RecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector, boolean flushAlways) {
-		this.flushAlways = flushAlways;
+	public RecordWriter(
+			ResultPartitionWriter writer,
+			ChannelSelector<T> channelSelector,
+			long timeout,
+			String taskName) {
 		this.targetPartition = writer;
 		this.channelSelector = channelSelector;
 		this.numberOfChannels = writer.getNumberOfSubpartitions();
@@ -95,9 +113,23 @@ public class RecordWriter<T extends IOReadableWritable> {
 			broadcastChannels[i] = i;
 			bufferBuilders[i] = Optional.empty();
 		}
+
+		checkArgument(timeout >= -1);
+		this.flushAlways = (timeout == 0);
+		if (timeout == -1 || timeout == 0) {
+			outputFlusher = Optional.empty();
+		} else {
+			String threadName = taskName == null ?
+				DEFAULT_OUTPUT_FLUSH_THREAD_NAME :
+				DEFAULT_OUTPUT_FLUSH_THREAD_NAME + " for " + taskName;
+
+			outputFlusher = Optional.of(new OutputFlusher(threadName, timeout));
+			outputFlusher.get().start();
+		}
 	}
 
 	public void emit(T record) throws IOException, InterruptedException {
+		checkErroneous();
 		emit(record, channelSelector.selectChannels(record));
 	}
 
@@ -106,6 +138,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 	 * the {@link ChannelSelector}.
 	 */
 	public void broadcastEmit(T record) throws IOException, InterruptedException {
+		checkErroneous();
 		emit(record, broadcastChannels);
 	}
 
@@ -113,8 +146,8 @@ public class RecordWriter<T extends IOReadableWritable> {
 	 * This is used to send LatencyMarks to a random target channel.
 	 */
 	public void randomEmit(T record) throws IOException, InterruptedException {
+		checkErroneous();
 		serializer.serializeRecord(record);
-
 		if (copyFromSerializerToTargetChannel(rng.nextInt(numberOfChannels))) {
 			serializer.prune();
 		}
@@ -243,6 +276,91 @@ public class RecordWriter<T extends IOReadableWritable> {
 		if (bufferBuilders[targetChannel].isPresent()) {
 			bufferBuilders[targetChannel].get().finish();
 			bufferBuilders[targetChannel] = Optional.empty();
+		}
+	}
+
+	/**
+	 * Closes the writer. This stops the flushing thread (if there is one).
+	 */
+	public void close() {
+		clearBuffers();
+		// make sure we terminate the thread in any case
+		if (outputFlusher.isPresent()) {
+			outputFlusher.get().terminate();
+			try {
+				outputFlusher.get().join();
+			} catch (InterruptedException e) {
+				// ignore on close
+				// restore interrupt flag to fast exit further blocking calls
+				Thread.currentThread().interrupt();
+			}
+		}
+	}
+
+	/**
+	 * Notifies the writer that the output flusher thread encountered an exception.
+	 *
+	 * @param t The exception to report.
+	 */
+	private void notifyFlusherException(Throwable t) {
+		if (flusherException == null) {
+			LOG.error("An exception happened while flushing the outputs", t);
+			flusherException = t;
+		}
+	}
+
+	private void checkErroneous() throws IOException {
+		if (flusherException != null) {
+			throw new IOException("An exception happened while flushing the outputs", flusherException);
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+
+	/**
+	 * A dedicated thread that periodically flushes the output buffers, to set upper latency bounds.
+	 *
+	 * <p>The thread is daemonic, because it is only a utility thread.
+	 */
+	private class OutputFlusher extends Thread {
+
+		private final long timeout;
+
+		private volatile boolean running = true;
+
+		OutputFlusher(String name, long timeout) {
+			super(name);
+			setDaemon(true);
+			this.timeout = timeout;
+		}
+
+		public void terminate() {
+			running = false;
+			interrupt();
+		}
+
+		@Override
+		public void run() {
+			try {
+				while (running) {
+					try {
+						Thread.sleep(timeout);
+					} catch (InterruptedException e) {
+						// propagate this if we are still running, because it should not happen
+						// in that case
+						if (running) {
+							throw new Exception(e);
+						}
+					}
+
+					// any errors here should let the thread come to a halt and be
+					// recognized by the writer
+					flushAll();
+				}
+			} catch (Throwable t) {
+				notifyFlusherException(t);
+			}
 		}
 	}
 }
