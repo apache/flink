@@ -578,7 +578,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   /**
     * Replaces a registered Table with another Table under the same name.
-    * We use this method to replace a [[org.apache.flink.table.plan.schema.DataStreamTable]]
+    * We use this method to replace a [[org.apache.flink.table.plan.schema.AppendStreamTable]]
     * with a [[org.apache.calcite.schema.TranslatableTable]].
     *
     * @param name Name of the table to replace.

@@ -54,9 +54,9 @@ object StreamSQLExample {
       Order(4L, "beer", 1)))
 
     // convert DataStream to Table
-    var tableA = tEnv.fromDataStream(orderA, 'user, 'product, 'amount)
+    var tableA = tEnv.fromAppendStream(orderA, 'user, 'product, 'amount)
     // register DataStream as Table
-    tEnv.registerDataStream("OrderB", orderB, 'user, 'product, 'amount)
+    tEnv.registerAppendStream("OrderB", orderB, 'user, 'product, 'amount)
 
     // union the two tables
     val result = tEnv.sqlQuery(

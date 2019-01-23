@@ -53,9 +53,9 @@ class DataStreamConversions[T](dataStream: DataStream[T], inputType: TypeInforma
     */
   def toTable(tableEnv: StreamTableEnvironment, fields: Expression*): Table = {
     if (fields.isEmpty) {
-      tableEnv.fromDataStream(dataStream)
+      tableEnv.fromAppendStream(dataStream)
     } else {
-      tableEnv.fromDataStream(dataStream, fields:_*)
+      tableEnv.fromAppendStream(dataStream, fields:_*)
     }
   }
 

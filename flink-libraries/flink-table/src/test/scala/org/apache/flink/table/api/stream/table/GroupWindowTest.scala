@@ -50,7 +50,7 @@ class GroupWindowTest extends TableTestBase {
           "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "string", "int", "proctime")
           ),
           term("groupBy", "string"),
@@ -90,7 +90,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "string", "int", "proctime")
       ),
       term("groupBy", "string"),
@@ -120,7 +120,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "string", "int", "proctime")
       ),
       term("groupBy", "string"),
@@ -145,7 +145,7 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamGroupWindowAggregate",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("groupBy", "string"),
       term(
         "window",
@@ -173,7 +173,7 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamGroupWindowAggregate",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("groupBy", "string"),
       term(
         "window",
@@ -201,7 +201,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "string", "int", "proctime")
       ),
       term("groupBy", "string"),
@@ -232,7 +232,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "string", "int", "proctime")
       ),
       term("groupBy", "string"),
@@ -263,7 +263,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "string", "int", "rowtime")
       ),
       term("groupBy", "string"),
@@ -287,7 +287,7 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamGroupWindowAggregate",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("groupBy", "string"),
       term(
         "window",
@@ -316,7 +316,7 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamGroupWindowAggregate",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("groupBy", "string"),
       term("window", SlidingGroupWindow(WindowReference("w"), 'rowtime, 8.milli, 10.milli)),
       term("select", "string", "myWeightedAvg(long, int) AS TMP_0")
@@ -337,7 +337,7 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamGroupWindowAggregate",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("groupBy", "string"),
       term("window", SessionGroupWindow(WindowReference("w"), 'long, 7.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
@@ -360,7 +360,7 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamGroupWindowAggregate",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("groupBy", "string"),
       term("window", SessionGroupWindow(WindowReference("w"), 'rowtime, 7.milli)),
       term("select", "string", "myWeightedAvg(long, int) AS TMP_0")
@@ -383,7 +383,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "string", "int", "proctime")
       ),
       term("groupBy", "string"),
@@ -413,7 +413,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "int", "proctime")
       ),
       term(
@@ -442,7 +442,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "int", "rowtime")
       ),
       term("window", TumblingGroupWindow(WindowReference("w"), 'rowtime, 5.milli)),
@@ -467,7 +467,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "int", "long")
       ),
       term(
@@ -496,7 +496,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "int", "proctime")
       ),
       term(
@@ -526,7 +526,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "int", "proctime")
       ),
       term(
@@ -556,7 +556,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "int", "rowtime")
       ),
       term("window", SlidingGroupWindow(WindowReference("w"), 'rowtime, 8.milli, 10.milli)),
@@ -581,7 +581,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "int", "long")
       ),
       term("window", SlidingGroupWindow(WindowReference("w"), 'long, 8.milli, 10.milli)),
@@ -605,7 +605,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "int", "long")
       ),
       term(
@@ -634,7 +634,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "string", "int", "rowtime")
       ),
       term("groupBy", "string"),
@@ -672,7 +672,7 @@ class GroupWindowTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamGroupWindowAggregate",
-          streamTableNode(0),
+          AppendTableNode(0),
           term("groupBy", "string, int2, int3"),
           term("window", SlidingGroupWindow(WindowReference("w"), 'proctime,  2.rows, 1.rows)),
           term(
@@ -702,7 +702,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "string", "int", "rowtime")
       ),
       term("groupBy", "string"),
@@ -731,7 +731,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamCalc",
       unaryNode(
         "DataStreamGroupWindowAggregate",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("groupBy", "string"),
         term("window", SessionGroupWindow(WindowReference("w"), 'long, 3.milli)),
         term("select",
@@ -761,7 +761,7 @@ class GroupWindowTest extends TableTestBase {
       "DataStreamCalc",
       unaryNode(
         "DataStreamGroupWindowAggregate",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("groupBy", "string"),
         term("window", TumblingGroupWindow(WindowReference("w"), 'long, 5.millis)),
         term("select",
@@ -800,7 +800,7 @@ class GroupWindowTest extends TableTestBase {
           "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "c", "rowtime",
               "*(c, c) AS $f2", "*(c, c) AS $f3", "*(c, c) AS $f4", "*(c, c) AS $f5")
           ),

@@ -26,11 +26,11 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.AggFunctionCall
 import org.apache.flink.table.functions.AggregateFunction
-import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}
+import org.apache.flink.table.utils.TableTestUtil.{AppendTableNode, term, unaryNode}
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.types.Row
 import org.junit.Assert.{assertEquals, assertTrue}
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 class AggregateTest extends TableTestBase {
 
@@ -49,7 +49,7 @@ class AggregateTest extends TableTestBase {
           "DataStreamGroupAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "b", "a")
           ),
           term("groupBy", "b"),

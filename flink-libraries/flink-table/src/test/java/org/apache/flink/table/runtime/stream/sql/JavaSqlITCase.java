@@ -64,7 +64,7 @@ public class JavaSqlITCase extends AbstractTestBase {
 
 		DataStream<Row> ds = env.fromCollection(data).returns(typeInfo);
 
-		Table in = tableEnv.fromDataStream(ds, "a,b,c");
+		Table in = tableEnv.fromAppendStream(ds, "a,b,c");
 		tableEnv.registerTable("MyTableRow", in);
 
 		String sqlQuery = "SELECT a,c FROM MyTableRow";
@@ -89,7 +89,7 @@ public class JavaSqlITCase extends AbstractTestBase {
 		StreamITCase.clear();
 
 		DataStream<Tuple3<Integer, Long, String>> ds = JavaStreamTestData.getSmall3TupleDataSet(env);
-		Table in = tableEnv.fromDataStream(ds, "a,b,c");
+		Table in = tableEnv.fromAppendStream(ds, "a,b,c");
 		tableEnv.registerTable("MyTable", in);
 
 		String sqlQuery = "SELECT * FROM MyTable";
@@ -114,7 +114,7 @@ public class JavaSqlITCase extends AbstractTestBase {
 		StreamITCase.clear();
 
 		DataStream<Tuple5<Integer, Long, Integer, String, Long>> ds = JavaStreamTestData.get5TupleDataStream(env);
-		tableEnv.registerDataStream("MyTable", ds, "a, b, c, d, e");
+		tableEnv.registerAppendStream("MyTable", ds, "a, b, c, d, e");
 
 		String sqlQuery = "SELECT a, b, e FROM MyTable WHERE c < 4";
 		Table result = tableEnv.sqlQuery(sqlQuery);
@@ -139,11 +139,11 @@ public class JavaSqlITCase extends AbstractTestBase {
 		StreamITCase.clear();
 
 		DataStream<Tuple3<Integer, Long, String>> ds1 = JavaStreamTestData.getSmall3TupleDataSet(env);
-		Table t1 = tableEnv.fromDataStream(ds1, "a,b,c");
+		Table t1 = tableEnv.fromAppendStream(ds1, "a,b,c");
 		tableEnv.registerTable("T1", t1);
 
 		DataStream<Tuple5<Integer, Long, Integer, String, Long>> ds2 = JavaStreamTestData.get5TupleDataStream(env);
-		tableEnv.registerDataStream("T2", ds2, "a, b, d, c, e");
+		tableEnv.registerAppendStream("T2", ds2, "a, b, d, c, e");
 
 		String sqlQuery = "SELECT * FROM T1 " +
 							"UNION ALL " +

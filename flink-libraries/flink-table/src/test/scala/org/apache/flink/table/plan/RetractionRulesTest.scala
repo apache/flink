@@ -42,7 +42,7 @@ class RetractionRulesTest extends TableTestBase {
 
     val resultTable = table.select('word, 'number)
 
-    val expected = s"DataStreamScan(false, Acc)"
+    val expected = s"AppendStreamScan(false, Acc)"
 
     util.verifyTableTrait(resultTable, expected)
   }
@@ -63,7 +63,7 @@ class RetractionRulesTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamGroupAggregate",
-          "DataStreamScan(true, Acc)",
+          "AppendStreamScan(true, Acc)",
           s"$defaultStatus"
         ),
         s"$defaultStatus"
@@ -92,7 +92,7 @@ class RetractionRulesTest extends TableTestBase {
           "DataStreamCalc",
           unaryNode(
             "DataStreamGroupAggregate",
-            "DataStreamScan(true, Acc)",
+            "AppendStreamScan(true, Acc)",
             "true, AccRetract"
           ),
           "true, AccRetract"
@@ -120,7 +120,7 @@ class RetractionRulesTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamGroupWindowAggregate",
-          "DataStreamScan(true, Acc)",
+          "AppendStreamScan(true, Acc)",
           s"$defaultStatus"
         ),
         s"$defaultStatus"
@@ -153,7 +153,7 @@ class RetractionRulesTest extends TableTestBase {
             "DataStreamCalc",
             unaryNode(
               "DataStreamGroupAggregate",
-              "DataStreamScan(true, Acc)",
+              "AppendStreamScan(true, Acc)",
               "true, AccRetract"
             ),
             "true, AccRetract"
@@ -185,7 +185,7 @@ class RetractionRulesTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamOverAggregate",
-          "DataStreamScan(true, Acc)",
+          "AppendStreamScan(true, Acc)",
           s"$defaultStatus"
         ),
         s"$defaultStatus"
@@ -220,7 +220,7 @@ class RetractionRulesTest extends TableTestBase {
             "DataStreamCalc",
             unaryNode(
               "DataStreamGroupAggregate",
-              "DataStreamScan(true, Acc)",
+              "AppendStreamScan(true, Acc)",
               "true, AccRetract"
             ),
             "true, AccRetract"
@@ -257,14 +257,14 @@ class RetractionRulesTest extends TableTestBase {
             "DataStreamCalc",
             unaryNode(
               "DataStreamGroupAggregate",
-              "DataStreamScan(true, Acc)",
+              "AppendStreamScan(true, Acc)",
               "true, AccRetract"
             ),
             "true, AccRetract"
           ),
           unaryNode(
             "DataStreamCalc",
-            "DataStreamScan(true, Acc)",
+            "AppendStreamScan(true, Acc)",
             "true, Acc"
           ),
           "true, AccRetract"
@@ -297,10 +297,10 @@ class RetractionRulesTest extends TableTestBase {
           "DataStreamJoin",
           unaryNode(
             "DataStreamGroupAggregate",
-            "DataStreamScan(true, Acc)",
+            "AppendStreamScan(true, Acc)",
             "true, AccRetract"
           ),
-          "DataStreamScan(true, Acc)",
+          "AppendStreamScan(true, Acc)",
           "false, AccRetract"
         ),
         "false, AccRetract"
@@ -324,8 +324,8 @@ class RetractionRulesTest extends TableTestBase {
         "DataStreamCalc",
         binaryNode(
           "DataStreamJoin",
-          "DataStreamScan(true, Acc)",
-          "DataStreamScan(true, Acc)",
+          "AppendStreamScan(true, Acc)",
+          "AppendStreamScan(true, Acc)",
           "false, Acc"
         ),
         "false, Acc"
@@ -348,8 +348,8 @@ class RetractionRulesTest extends TableTestBase {
         "DataStreamCalc",
         binaryNode(
           "DataStreamJoin",
-          "DataStreamScan(true, Acc)",
-          "DataStreamScan(true, Acc)",
+          "AppendStreamScan(true, Acc)",
+          "AppendStreamScan(true, Acc)",
           "false, AccRetract"
         ),
         "false, AccRetract"
@@ -377,8 +377,8 @@ class RetractionRulesTest extends TableTestBase {
           "DataStreamCalc",
           binaryNode(
             "DataStreamJoin",
-            "DataStreamScan(true, Acc)",
-            "DataStreamScan(true, Acc)",
+            "AppendStreamScan(true, Acc)",
+            "AppendStreamScan(true, Acc)",
             "true, AccRetract"
           ),
           "true, AccRetract"
@@ -403,8 +403,8 @@ class RetractionRulesTest extends TableTestBase {
         "DataStreamCalc",
         binaryNode(
           "DataStreamJoin",
-          "DataStreamScan(true, Acc)",
-          "DataStreamScan(true, Acc)",
+          "AppendStreamScan(true, Acc)",
+          "AppendStreamScan(true, Acc)",
           "false, AccRetract"
         ),
         "false, AccRetract"
@@ -432,8 +432,8 @@ class RetractionRulesTest extends TableTestBase {
           "DataStreamCalc",
           binaryNode(
             "DataStreamJoin",
-            "DataStreamScan(true, Acc)",
-            "DataStreamScan(true, Acc)",
+            "AppendStreamScan(true, Acc)",
+            "AppendStreamScan(true, Acc)",
             "true, AccRetract"
           ),
           "true, AccRetract"
@@ -458,8 +458,8 @@ class RetractionRulesTest extends TableTestBase {
         "DataStreamCalc",
         binaryNode(
           "DataStreamJoin",
-          "DataStreamScan(true, Acc)",
-          "DataStreamScan(true, Acc)",
+          "AppendStreamScan(true, Acc)",
+          "AppendStreamScan(true, Acc)",
           "false, AccRetract"
         ),
         "false, AccRetract"
@@ -487,8 +487,8 @@ class RetractionRulesTest extends TableTestBase {
           "DataStreamCalc",
           binaryNode(
             "DataStreamJoin",
-            "DataStreamScan(true, Acc)",
-            "DataStreamScan(true, Acc)",
+            "AppendStreamScan(true, Acc)",
+            "AppendStreamScan(true, Acc)",
             "true, AccRetract"
           ),
           "true, AccRetract"

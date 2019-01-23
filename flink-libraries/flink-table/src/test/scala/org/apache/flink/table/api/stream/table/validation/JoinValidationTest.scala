@@ -38,7 +38,7 @@ class JoinValidationTest extends TableTestBase {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
     val tenv = TableEnvironment.getTableEnvironment(env)
     val ds = env.fromElements(new WithoutEqualsHashCode) // no equals/hashCode
-    val t = tenv.fromDataStream(ds)
+    val t = tenv.fromAppendStream(ds)
 
     val left = t.select('f0 as 'l)
     val right = t.select('f0 as 'r)
@@ -209,8 +209,8 @@ class JoinValidationTest extends TableTestBase {
     val tEnv2 = TableEnvironment.getTableEnvironment(env)
     val ds1 = StreamTestData.get3TupleDataStream(env)
     val ds2 = StreamTestData.get5TupleDataStream(env)
-    val in1 = tEnv1.fromDataStream(ds1, 'a, 'b, 'c)
-    val in2 = tEnv2.fromDataStream(ds2, 'd, 'e, 'f, 'g, 'c)
+    val in1 = tEnv1.fromAppendStream(ds1, 'a, 'b, 'c)
+    val in2 = tEnv2.fromAppendStream(ds2, 'd, 'e, 'f, 'g, 'c)
 
     // Must fail. Tables are bound to different TableEnvironments.
     in1.join(in2).where('b === 'e).select('c, 'g)
@@ -223,8 +223,8 @@ class JoinValidationTest extends TableTestBase {
     val tEnv2 = TableEnvironment.getTableEnvironment(env)
     val ds1 = StreamTestData.get3TupleDataStream(env)
     val ds2 = StreamTestData.get5TupleDataStream(env)
-    val in1 = tEnv1.fromDataStream(ds1, 'a, 'b, 'c)
-    val in2 = tEnv2.fromDataStream(ds2, 'd, 'e, 'f, 'g, 'c)
+    val in1 = tEnv1.fromAppendStream(ds1, 'a, 'b, 'c)
+    val in2 = tEnv2.fromAppendStream(ds2, 'd, 'e, 'f, 'g, 'c)
     // Must fail. Tables are bound to different TableEnvironments.
     in1.join(in2).where("a === d").select("g.count")
   }

@@ -47,7 +47,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("select", "FLOOR(CAST(rowtime)", "FLAG(DAY)) AS rowtime"),
       term("where", ">(long, 0)")
     )
@@ -64,7 +64,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("select", "rowtime", "long", "int",
         "PROCTIME(proctime) AS proctime")
     )
@@ -83,7 +83,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("select", "rowtime"),
       term("where", ">(CAST(rowtime), 1990-12-02 12:11:11)")
     )
@@ -106,7 +106,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
         "DataStreamGroupAggregate",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          AppendTableNode(0),
           term("select", "long", "CAST(rowtime) AS rowtime")
         ),
         term("groupBy", "rowtime"),
@@ -133,7 +133,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
         "DataStreamGroupAggregate",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          AppendTableNode(0),
           term("select", "CAST(rowtime) AS rowtime", "long")
         ),
         term("groupBy", "long"),
@@ -157,7 +157,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
       "DataStreamCalc",
       unaryNode(
         "DataStreamCorrelate",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("invocation",
           s"${func.functionIdentifier}(CAST($$0):TIMESTAMP(3) NOT NULL, PROCTIME($$3), '')"),
         term("correlate", s"table(TableFunc(CAST(rowtime), PROCTIME(proctime), ''))"),
@@ -186,7 +186,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
       "DataStreamCalc",
       unaryNode(
         "DataStreamGroupWindowAggregate",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("groupBy", "long"),
         term(
           "window",
@@ -213,12 +213,12 @@ class TimeIndicatorConversionTest extends TableTestBase {
       "DataStreamUnion",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "rowtime")
       ),
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "rowtime")
       ),
       term("all", "true"),
@@ -249,7 +249,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
           "DataStreamCalc",
           unaryNode(
             "DataStreamGroupWindowAggregate",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("groupBy", "long"),
             term(
               "window",
@@ -289,7 +289,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
         "DataStreamGroupAggregate",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          AppendTableNode(0),
           term("select", "PROCTIME(proctime) AS proctime", "long")
         ),
         term("groupBy", "proctime"),
@@ -314,7 +314,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
         "DataStreamGroupAggregate",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          AppendTableNode(0),
           term("select", "long", "PROCTIME(proctime) AS proctime")
         ),
         term("groupBy", "long"),
@@ -340,7 +340,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
       "DataStreamCalc",
       unaryNode(
         "DataStreamGroupWindowAggregate",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("groupBy", "long"),
         term(
           "window",
@@ -376,7 +376,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
         "DataStreamGroupWindowAggregate",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          AppendTableNode(0),
           term("select", "long", "rowtime", "CAST(rowtime) AS rowtime0")
         ),
         term("groupBy", "long"),
@@ -536,7 +536,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamMatch",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("partitionBy", "symbol"),
       term("orderBy", "rowtime ASC"),
       term("measures",
@@ -587,7 +587,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
       "DataStreamCalc",
       unaryNode(
         "DataStreamMatch",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("partitionBy", "symbol"),
         term("orderBy", "rowtime ASC"),
         term("measures",

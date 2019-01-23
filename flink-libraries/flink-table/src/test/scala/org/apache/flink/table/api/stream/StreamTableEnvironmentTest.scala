@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment =>
 import org.apache.flink.table.api.java.{StreamTableEnvironment => JStreamTableEnv}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableEnvironment, Types}
-import org.apache.flink.table.utils.TableTestUtil.{binaryNode, streamTableNode, term, unaryNode}
+import org.apache.flink.table.utils.TableTestUtil.{binaryNode, AppendTableNode, term, unaryNode}
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
 import org.mockito.Mockito.{mock, when}
@@ -45,7 +45,7 @@ class StreamTableEnvironmentTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("select", "a, b, c"),
       term("where", ">(b, 12)"))
 
@@ -58,8 +58,8 @@ class StreamTableEnvironmentTest extends TableTestBase {
 
     val expected2 = binaryNode(
       "DataStreamUnion",
-      streamTableNode(1),
-      streamTableNode(0),
+      AppendTableNode(1),
+      AppendTableNode(0),
       term("all", "true"),
       term("union all", "d, e, f"))
 
@@ -143,31 +143,31 @@ class StreamTableEnvironmentTest extends TableTestBase {
   @Test
   def testProctimeAttributeParsed(): Unit = {
     val (jTEnv, ds) = prepareSchemaExpressionParser
-    jTEnv.fromDataStream(ds, "a, b, c, d, e, pt.proctime")
+    jTEnv.fromAppendStream(ds, "a, b, c, d, e, pt.proctime")
   }
 
   @Test
   def testReplacingRowtimeAttributeParsed(): Unit = {
     val (jTEnv, ds) = prepareSchemaExpressionParser
-    jTEnv.fromDataStream(ds, "a.rowtime, b, c, d, e")
+    jTEnv.fromAppendStream(ds, "a.rowtime, b, c, d, e")
   }
 
   @Test
   def testAppedingRowtimeAttributeParsed(): Unit = {
     val (jTEnv, ds) = prepareSchemaExpressionParser
-    jTEnv.fromDataStream(ds, "a, b, c, d, e, rt.rowtime")
+    jTEnv.fromAppendStream(ds, "a, b, c, d, e, rt.rowtime")
   }
 
   @Test
   def testRowtimeAndProctimeAttributeParsed1(): Unit = {
     val (jTEnv, ds) = prepareSchemaExpressionParser
-    jTEnv.fromDataStream(ds, "a, b, c, d, e, pt.proctime, rt.rowtime")
+    jTEnv.fromAppendStream(ds, "a, b, c, d, e, pt.proctime, rt.rowtime")
   }
 
   @Test
   def testRowtimeAndProctimeAttributeParsed2(): Unit = {
     val (jTEnv, ds) = prepareSchemaExpressionParser
-    jTEnv.fromDataStream(ds, "rt.rowtime, b, c, d, e, pt.proctime")
+    jTEnv.fromAppendStream(ds, "rt.rowtime, b, c, d, e, pt.proctime")
   }
 
   private def prepareSchemaExpressionParser:

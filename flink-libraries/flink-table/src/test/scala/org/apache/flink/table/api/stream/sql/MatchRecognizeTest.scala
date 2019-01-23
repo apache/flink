@@ -45,7 +45,7 @@ class MatchRecognizeTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamMatch",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("orderBy", "proctime ASC"),
       term("measures", "FINAL(A.a) AS aa"),
       term("rowsPerMatch", "ONE ROW PER MATCH"),

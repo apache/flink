@@ -505,14 +505,14 @@ abstract class StreamTableEnvironment(
   }
 
   /**
-    * Registers a [[DataStream]] as a table under a given name in the [[TableEnvironment]]'s
+    * Registers an append [[DataStream]] as a table under a given name in the [[TableEnvironment]]'s
     * catalog.
     *
     * @param name The name under which the table is registered in the catalog.
     * @param dataStream The [[DataStream]] to register as table in the catalog.
     * @tparam T the type of the [[DataStream]].
     */
-  protected def registerDataStreamInternal[T](
+  protected def registerAppendStreamInternal[T](
     name: String,
     dataStream: DataStream[T]): Unit = {
 
@@ -526,15 +526,15 @@ abstract class StreamTableEnvironment(
   }
 
   /**
-    * Registers a [[DataStream]] as a table under a given name with field names as specified by
-    * field expressions in the [[TableEnvironment]]'s catalog.
+    * Registers an append [[DataStream]] as a table under a given name with field names as specified
+    * by field expressions in the [[TableEnvironment]]'s catalog.
     *
     * @param name The name under which the table is registered in the catalog.
     * @param dataStream The [[DataStream]] to register as table in the catalog.
     * @param fields The field expressions to define the field names of the table.
     * @tparam T The type of the [[DataStream]].
     */
-  protected def registerDataStreamInternal[T](
+  protected def registerAppendStreamInternal[T](
       name: String,
       dataStream: DataStream[T],
       fields: Array[Expression])

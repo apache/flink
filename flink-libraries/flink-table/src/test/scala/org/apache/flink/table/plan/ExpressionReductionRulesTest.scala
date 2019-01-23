@@ -249,7 +249,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("select",
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
@@ -294,7 +294,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("select",
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
@@ -326,7 +326,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("select", "a", "b", "c"),
       term("where", ">(a, 8)")
     )
@@ -353,7 +353,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("select",
         "13 AS _c0",
         "'b' AS _c1",
@@ -389,7 +389,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("select",
         "13 AS _c0",
         "'b' AS _c1",
@@ -416,7 +416,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("select", "a", "b", "c"),
       term("where", ">(a, 8)")
     )
@@ -437,7 +437,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
     val sqlQuery = "SELECT a FROM NewTable"
 
     // 1+1 should be normalized to 2
-    val expected = unaryNode("DataStreamCalc", streamTableNode(0), term("select", "+(2, a) AS a"))
+    val expected = unaryNode("DataStreamCalc", AppendTableNode(0), term("select", "+(2, a) AS a"))
 
     util.verifySql(sqlQuery, expected)
   }
@@ -472,7 +472,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
       .where("d.isNull")
       .select('a, 'b, 'c)
 
-    val expected: String = streamTableNode(0)
+    val expected: String = AppendTableNode(0)
 
     util.verifyTable(result, expected)
   }
@@ -489,7 +489,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("select", "a", "b", "c"),
       term("where", s"IS NULL(NonDeterministicNullFunc$$())")
     )

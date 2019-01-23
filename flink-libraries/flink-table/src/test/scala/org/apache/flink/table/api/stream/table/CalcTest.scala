@@ -48,7 +48,7 @@ class CalcTest extends TableTestBase {
         "DataStreamGroupWindowAggregate",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          AppendTableNode(0),
           term("select", "c", "a", "rowtime", "UPPER(c) AS $f3")
         ),
         term("window",
@@ -78,7 +78,7 @@ class CalcTest extends TableTestBase {
           "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "c", "a", "b", "rowtime", "UPPER(c) AS $f4")
           ),
           term("groupBy", "b"),
@@ -106,7 +106,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("select", "a", "b"),
       term("where", "AND(AND(>(a, 0), <(b, 2)), =(MOD(a, 2), 1))")
     )
@@ -123,7 +123,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("select", "a", "b", "c"),
       term("where", s"AND(IN(b, ${(1 to 30).mkString(", ")}), =(c, 'xx'))")
     )
@@ -140,7 +140,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      AppendTableNode(0),
       term("select", "a", "b", "c"),
       term("where", s"OR(NOT IN(b, ${(1 to 30).mkString(", ")}), <>(c, 'xx'))")
     )

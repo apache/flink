@@ -41,7 +41,7 @@ class DistinctAggregateTest extends TableTestBase {
         "DataStreamGroupAggregate",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          AppendTableNode(0),
           term("select", "a, b, c")
         ),
         term("groupBy", "a, b, c"),
@@ -62,7 +62,7 @@ class DistinctAggregateTest extends TableTestBase {
         "DataStreamGroupAggregate",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          AppendTableNode(0),
           term("select", "a")
         ),
         term("groupBy", "a"),
@@ -83,7 +83,7 @@ class DistinctAggregateTest extends TableTestBase {
         "DataStreamGroupAggregate",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
+          AppendTableNode(0),
           term("select", "c", "a", "b")
         ),
         term("groupBy", "c"),
@@ -104,7 +104,7 @@ class DistinctAggregateTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "rowtime", "a")
       ),
       term("window", TumblingGroupWindow('w$, 'rowtime, 900000.millis)),
@@ -126,7 +126,7 @@ class DistinctAggregateTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "rowtime", "a")
       ),
       term("window", SlidingGroupWindow('w$, 'rowtime, 3600000.millis, 900000.millis)),
@@ -149,7 +149,7 @@ class DistinctAggregateTest extends TableTestBase {
       "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "a", "rowtime", "c")
       ),
       term("groupBy", "a"),

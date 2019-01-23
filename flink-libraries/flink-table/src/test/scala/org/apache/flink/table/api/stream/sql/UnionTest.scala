@@ -38,12 +38,12 @@ class UnionTest extends TableTestBase {
       "DataStreamUnion",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "a")
       ),
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "CASE(>(c, 0), b, null) AS EXPR$0")
       ),
       term("all", "true"),
@@ -68,12 +68,12 @@ class UnionTest extends TableTestBase {
       "DataStreamUnion",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "a")
       ),
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        AppendTableNode(0),
         term("select", "b")
       ),
       term("all", "true"),

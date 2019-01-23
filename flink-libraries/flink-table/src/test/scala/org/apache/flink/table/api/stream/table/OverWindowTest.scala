@@ -52,7 +52,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "b", "c", "proctime")
           ),
           term("partitionBy", "b"),
@@ -88,7 +88,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "b", "c", "proctime")
           ),
           term("partitionBy", "b"),
@@ -117,7 +117,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "c", "proctime")
           ),
           term("partitionBy", "a"),
@@ -150,7 +150,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "c", "proctime")
           ),
           term("orderBy", "proctime"),
@@ -176,7 +176,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "c", "proctime")
           ),
           term("orderBy", "proctime"),
@@ -210,7 +210,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "c", "proctime")
           ),
           term("partitionBy", "c"),
@@ -252,7 +252,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "c", "proctime")
           ),
           term("partitionBy", "c"),
@@ -282,7 +282,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "c", "proctime")
           ),
           term("orderBy", "proctime"),
@@ -321,7 +321,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "c", "proctime")
           ),
           term("orderBy", "proctime"),
@@ -350,7 +350,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "b", "c", "rowtime")
           ),
           term("partitionBy", "b"),
@@ -382,7 +382,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "c", "rowtime")
           ),
           term("partitionBy", "a"),
@@ -416,7 +416,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "c", "rowtime")
           ),
           term("orderBy", "rowtime"),
@@ -442,7 +442,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "c", "rowtime")
           ),
           term("orderBy", "rowtime"),
@@ -477,7 +477,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "c", "rowtime")
           ),
           term("partitionBy", "c"),
@@ -520,7 +520,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "c", "rowtime")
           ),
           term("partitionBy", "c"),
@@ -550,7 +550,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "c", "rowtime")
           ),
           term("orderBy", "rowtime"),
@@ -589,7 +589,7 @@ class OverWindowTest extends TableTestBase {
           "DataStreamOverAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            AppendTableNode(0),
             term("select", "a", "c", "rowtime")
           ),
           term("orderBy", "rowtime"),

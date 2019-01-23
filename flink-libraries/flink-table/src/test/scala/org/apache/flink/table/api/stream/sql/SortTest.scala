@@ -39,7 +39,7 @@ class SortTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         unaryNode("DataStreamSort",
-          streamTableNode(0),
+          AppendTableNode(0),
           term("orderBy", "proctime ASC", "c ASC")),
         term("select", "a", "PROCTIME(proctime) AS proctime", "c"))
 
@@ -55,7 +55,7 @@ class SortTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         unaryNode("DataStreamSort",
-          streamTableNode(0),
+          AppendTableNode(0),
           term("orderBy", "rowtime ASC, c ASC")),
         term("select", "a", "rowtime", "c"))
        

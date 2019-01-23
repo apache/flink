@@ -179,8 +179,8 @@ object TemporalTableJoinTest {
       "DataStreamCalc",
       binaryNode(
         "DataStreamTemporalTableJoin",
-        streamTableNode(0),
-        streamTableNode(1),
+        AppendTableNode(0),
+        AppendTableNode(1),
         term("where",
           "AND(" +
             s"${TEMPORAL_JOIN_CONDITION.getName}(o_rowtime, rowtime, currency), " +
@@ -197,10 +197,10 @@ object TemporalTableJoinTest {
       "DataStreamCalc",
       binaryNode(
         "DataStreamTemporalTableJoin",
-        streamTableNode(2),
+        AppendTableNode(2),
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(3),
+          AppendTableNode(3),
           term("select", "currency, rate")),
         term("where",
           "AND(" +
@@ -222,12 +222,12 @@ object TemporalTableJoinTest {
           "DataStreamTemporalTableJoin",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(1),
+            AppendTableNode(1),
             term("select", "o_rowtime, o_amount, o_currency, o_secondary_key")
           ),
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(2),
+            AppendTableNode(2),
             term("select", "rowtime, currency, rate, secondary_key"),
             term("where", ">(rate, 110)")
           ),
@@ -248,7 +248,7 @@ object TemporalTableJoinTest {
         ),
         term("select", "*(o_amount, rate) AS rate", "secondary_key")
       ),
-      streamTableNode(0),
+      AppendTableNode(0),
       term("where", "=(t3_secondary_key, secondary_key)"),
       term("join", "rate, secondary_key, t3_comment, t3_secondary_key"),
       term("joinType", "InnerJoin")
@@ -260,10 +260,10 @@ object TemporalTableJoinTest {
       "DataStreamCalc",
       binaryNode(
         "DataStreamTemporalTableJoin",
-        streamTableNode(0),
+        AppendTableNode(0),
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(1),
+          AppendTableNode(1),
           term("select", "currency", "*(rate, 2) AS rate", "rowtime"),
           term("where", ">(rate, 100)")),
         term("where",
