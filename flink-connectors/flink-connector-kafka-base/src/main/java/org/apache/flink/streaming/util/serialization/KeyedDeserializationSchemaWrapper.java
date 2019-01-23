@@ -21,7 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
-import java.io.IOException;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 /**
  * A simple wrapper for using the DeserializationSchema with the KeyedDeserializationSchema
@@ -40,7 +40,7 @@ public class KeyedDeserializationSchemaWrapper<T> implements KeyedDeserializatio
 	}
 
 	@Override
-	public T deserialize(Record record) throws IOException {
+	public T deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
 		return deserializationSchema.deserialize(record.value());
 	}
 

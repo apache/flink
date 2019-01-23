@@ -28,6 +28,8 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+
 import java.io.IOException;
 
 /**
@@ -96,7 +98,7 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 	// ------------------------------------------------------------------------
 
 	@Override
-	public Tuple2<K, V> deserialize(Record record) throws IOException {
+	public Tuple2<K, V> deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
 		K key = null;
 		V value = null;
 

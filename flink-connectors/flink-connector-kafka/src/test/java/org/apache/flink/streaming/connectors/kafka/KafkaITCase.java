@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -32,6 +31,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSink;
@@ -42,8 +42,14 @@ import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableListMultimap;
 import org.apache.flink.shaded.guava18.com.google.common.primitives.Longs;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -51,10 +57,7 @@ import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.AbstractMap;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -350,7 +353,7 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 		}
 
 		@Override
-		public Long deserialize(Record record) throws IOException {
+		public Long deserialize(ConsumerRecord<byte[], byte[]> record) throws IOException {
 			cnt++;
 			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(record.value()));
 			Long e = ser.deserialize(in);
@@ -399,7 +402,7 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 		});
 
 		FlinkKafkaProducer<Long> producer = new FlinkKafkaProducer<>(topic,
-			new TestHeadersKeyedSerializationSchema(topic), standardProps, Optional.empty());
+			new ValidatingTestHeadersKeyedSerializationSchema(topic), standardProps, Optional.empty());
 		testSequence.addSink(producer).setParallelism(3);
 		env.execute("Produce some data");
 
@@ -412,7 +415,7 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 
 		FlinkKafkaConsumer<TestHeadersElement> kafkaSource = new FlinkKafkaConsumer<>(topic, new TestHeadersKeyedDeserializationSchema(testSequenceLength), standardProps);
 
-		env.addSource(kafkaSource).addSink(new TestHeadersElementValid());
+		env.addSource(kafkaSource).addSink(new DiscardingSink<>());
 		env.execute("Consume again");
 
 		deleteTestTopic(topic);
@@ -421,7 +424,7 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 	/**
 	 * Element consisting of key, value and headers represented as list of tuples: key, list of Bytes.
 	 */
-	public static class TestHeadersElement extends Tuple3<Long, Byte, List<Tuple2<String, List<Byte>>>> {
+	public static class TestHeadersElement extends Tuple2<Long, Byte> {
 
 	}
 
@@ -430,62 +433,26 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 	 * @param element - sequence element
 	 * @return headers
 	 */
-	private static Iterable<Map.Entry<String, byte[]>> headersFor(Long element) {
+	private static Headers headersFor(Long element) {
 		final long x = element;
-		return Arrays.asList(
-			new AbstractMap.SimpleImmutableEntry<>("low", new byte[]{
+		return new RecordHeaders(Arrays.asList(
+			new RecordHeader("low", new byte[]{
 				(byte) ((x >>> 8) & 0xFF),
 				(byte) ((x) & 0xFF)
 			}),
-			new AbstractMap.SimpleImmutableEntry<>("low", new byte[]{
+			new RecordHeader("low", new byte[]{
 				(byte) ((x >>> 24) & 0xFF),
 				(byte) ((x >>> 16) & 0xFF)
 			}),
-			new AbstractMap.SimpleImmutableEntry<>("high", new byte[]{
+			new RecordHeader("high", new byte[]{
 				(byte) ((x >>> 40) & 0xFF),
 				(byte) ((x >>> 32) & 0xFF)
 			}),
-			new AbstractMap.SimpleImmutableEntry<>("high", new byte[]{
+			new RecordHeader("high", new byte[]{
 				(byte) ((x >>> 56) & 0xFF),
 				(byte) ((x >>> 48) & 0xFF)
 			})
-		);
-	}
-
-	/**
-	 * Convert headers into list of tuples representation. List of tuples is more convenient to use in
-	 * assert expressions, because they have equals
-	 * @param headers - headers
-	 * @return list of tuples(string, list of Bytes)
-	 */
-	private static List<Tuple2<String, List<Byte>>> headersAsList(Iterable<Map.Entry<String, byte[]>> headers) {
-		List<Tuple2<String, List<Byte>>> r = new ArrayList<>();
-		for (Map.Entry<String, byte[]> entry: headers) {
-			final Tuple2<String, List<Byte>> t = new Tuple2<>();
-			t.f0 = entry.getKey();
-			t.f1 = new ArrayList<>(entry.getValue().length);
-			for (byte b: entry.getValue()) {
-				t.f1.add(b);
-			}
-			r.add(t);
-		}
-		return r;
-	}
-
-	/**
-	 * Sink consuming TestHeadersElement, while consuming sink generates headers using
-	 * message value and validates that headers generated from message
-	 * are equal to headers in element, which were read from Kafka.
-	 */
-	private static class TestHeadersElementValid implements SinkFunction<TestHeadersElement> {
-		private static final long serialVersionUID = 1L;
-		@Override
-		public void invoke(TestHeadersElement value, Context context) throws Exception {
-			// calculate Headers from message
-			final Iterable<Map.Entry<String, byte[]>> headers = headersFor(value.f0);
-			final List<Tuple2<String, List<Byte>>> expected = headersAsList(headers);
-			assertEquals(expected, value.f2);
-		}
+		));
 	}
 
 	/**
@@ -493,10 +460,10 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 	 * low 32-bit integer is also stored as two "low" headers with 16-bit parts as headers values,
 	 * and similar high 32-bit integer is stored as two "high" headers, each 16-bit part is "high" header value.
 	 */
-	private static class TestHeadersKeyedSerializationSchema implements KeyedSerializationSchema<Long> {
+	private static class ValidatingTestHeadersKeyedSerializationSchema implements KeyedSerializationSchema<Long> {
 		private final String topic;
 
-		TestHeadersKeyedSerializationSchema(String topic) {
+		ValidatingTestHeadersKeyedSerializationSchema(String topic) {
 			this.topic = Objects.requireNonNull(topic);
 		}
 
@@ -517,7 +484,11 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 
 		@Override
 		public Iterable<Map.Entry<String, byte[]>> headers(Long element) {
-			return headersFor(element);
+			final ImmutableListMultimap.Builder<String, byte[]> m = ImmutableListMultimap.builder();
+			for (Header header : headersFor(element)) {
+				m.put(header.key(), header.value());
+			}
+			return m.build().entries();
 		}
 	}
 
@@ -542,11 +513,12 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 		}
 
 		@Override
-		public TestHeadersElement deserialize(Record record) {
+		public TestHeadersElement deserialize(ConsumerRecord<byte[], byte[]> record) {
 			final TestHeadersElement element = new TestHeadersElement();
 			element.f0 = Longs.fromByteArray(record.value());
 			element.f1 = record.key()[0];
-			element.f2 = headersAsList(record.headers());
+			final Headers expectedHeaders = headersFor(element.f0);
+			assertEquals(expectedHeaders, record.headers());
 			return element;
 		}
 	}

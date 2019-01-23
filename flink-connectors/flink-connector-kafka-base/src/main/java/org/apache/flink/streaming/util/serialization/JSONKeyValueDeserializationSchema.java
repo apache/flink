@@ -24,7 +24,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
-import java.io.IOException;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import static org.apache.flink.api.java.typeutils.TypeExtractor.getForClass;
 
@@ -51,7 +51,7 @@ public class JSONKeyValueDeserializationSchema implements KeyedDeserializationSc
 	}
 
 	@Override
-	public ObjectNode deserialize(Record record) throws IOException {
+	public ObjectNode deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
 		if (mapper == null) {
 			mapper = new ObjectMapper();
 		}

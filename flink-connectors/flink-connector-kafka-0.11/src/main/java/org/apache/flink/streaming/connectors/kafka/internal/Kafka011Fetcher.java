@@ -28,8 +28,6 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-
 import java.util.Map;
 import java.util.Properties;
 
@@ -65,11 +63,6 @@ public class Kafka011Fetcher<T> extends Kafka010Fetcher<T> {
 			userCodeClassLoader, taskNameWithSubtasks,
 			deserializer, kafkaProperties,
 			pollTimeout, subtaskMetricGroup, consumerMetricGroup, useMetrics);
-	}
-
-	@Override
-	protected KeyedDeserializationSchema.Record createRecord(ConsumerRecord<byte[], byte[]> consumerRecord) {
-		return new Kafka011ConsumerRecord(consumerRecord);
 	}
 
 	@Override

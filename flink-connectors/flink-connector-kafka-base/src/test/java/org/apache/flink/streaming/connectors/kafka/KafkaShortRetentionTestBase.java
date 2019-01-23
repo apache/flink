@@ -35,6 +35,7 @@ import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.InstantiationUtil;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -42,7 +43,6 @@ import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Properties;
 
@@ -193,7 +193,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		long nextExpected = 0;
 
 		@Override
-		public String deserialize(Record record) throws IOException {
+		public String deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
 			final long offset = record.offset();
 			if (offset != nextExpected) {
 				numJumps++;

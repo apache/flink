@@ -39,6 +39,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -328,7 +329,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		}
 
 		@Override
-		public Long deserialize(Record record) throws IOException {
+		public Long deserialize(ConsumerRecord<byte[], byte[]> record) throws IOException {
 			cnt++;
 			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(record.value()));
 			Long e = ser.deserialize(in);

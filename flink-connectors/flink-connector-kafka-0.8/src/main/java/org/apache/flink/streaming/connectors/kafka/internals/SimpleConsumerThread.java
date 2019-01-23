@@ -32,6 +32,7 @@ import kafka.javaapi.OffsetResponse;
 import kafka.javaapi.consumer.SimpleConsumer;
 import kafka.javaapi.message.ByteBufferMessageSet;
 import kafka.message.MessageAndOffset;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -371,7 +372,9 @@ class SimpleConsumerThread<T> extends Thread {
 							}
 
 							final T value = deserializer.deserialize(
-								new Kafka08ConsumerRecord(keyBytes, valueBytes, currentPartition, offset));
+								new ConsumerRecord<>(
+									currentPartition.getTopic(),
+									currentPartition.getPartition(), keyBytes, valueBytes, offset));
 
 							if (deserializer.isEndOfStream(value)) {
 								// remove partition from subscribed partitions.

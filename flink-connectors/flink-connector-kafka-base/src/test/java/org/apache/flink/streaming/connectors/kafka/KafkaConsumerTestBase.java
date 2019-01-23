@@ -80,6 +80,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import kafka.server.KafkaServer;
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.junit.Assert;
@@ -2204,7 +2205,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 
 		@Override
-		public Tuple3<Integer, Integer, String> deserialize(Record record) throws IOException {
+		public Tuple3<Integer, Integer, String> deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
 			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(record.value()));
 			Tuple2<Integer, Integer> t2 = ts.deserialize(in);
 			return new Tuple3<>(t2.f0, t2.f1, record.topic());

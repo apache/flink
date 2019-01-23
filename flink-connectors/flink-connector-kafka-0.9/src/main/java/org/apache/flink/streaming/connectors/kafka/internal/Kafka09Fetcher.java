@@ -140,7 +140,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 					for (ConsumerRecord<byte[], byte[]> record : partitionRecords) {
 
-						final T value = deserializer.deserialize(createRecord(record));
+						final T value = deserializer.deserialize(record);
 
 						if (deserializer.isEndOfStream(value)) {
 							// end of stream signaled
@@ -203,10 +203,6 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 	protected KafkaConsumerCallBridge09 createCallBridge() {
 		return new KafkaConsumerCallBridge09();
-	}
-
-	protected KeyedDeserializationSchema.Record createRecord(ConsumerRecord<byte[], byte[]> consumerRecord) {
-		return new Kafka09ConsumerRecord(consumerRecord);
 	}
 
 	// ------------------------------------------------------------------------

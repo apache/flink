@@ -137,8 +137,7 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 						records.records(partition.getKafkaPartitionHandle());
 
 					for (ConsumerRecord<byte[], byte[]> record : partitionRecords) {
-						final T value = deserializer.deserialize(
-							createRecord(record));
+						final T value = deserializer.deserialize(record);
 
 						if (deserializer.isEndOfStream(value)) {
 							// end of stream signaled
@@ -230,7 +229,4 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		consumerThread.setOffsetsToCommit(offsetsToCommit, commitCallback);
 	}
 
-	private KeyedDeserializationSchema.Record createRecord(ConsumerRecord<byte[], byte[]> consumerRecord) {
-		return new KafkaConsumerRecord(consumerRecord);
-	}
 }
