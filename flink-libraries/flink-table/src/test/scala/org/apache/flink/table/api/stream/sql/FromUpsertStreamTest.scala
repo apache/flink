@@ -52,7 +52,7 @@ class FromUpsertStreamTest extends TableTestBase {
   }
 
   @Test
-  def testMaterializeTimeIndicator() = {
+  def testMaterializeTimeIndicatorAndCalcUpsertToRetractionTranspose() = {
     streamUtil.addTableFromUpsert[(Boolean, (Int, String, Long))](
       "MyTable", 'a, 'b.key, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
@@ -60,19 +60,36 @@ class FromUpsertStreamTest extends TableTestBase {
 
     val expected =
       unaryNode(
+        "DataStreamUpsertToRetraction",
+        unaryNode(
+          "DataStreamCalc",
+          UpsertTableNode(0),
+          term("select", "b AS b1", "c", "PROCTIME(proctime) AS proctime1",
+            "CAST(rowtime) AS rowtime1")
+        ),
+        term("keys", "b1"),
+        term("select", "b1", "c", "proctime1", "rowtime1")
+      )
+    streamUtil.verifySql(sql, expected, true)
+  }
+
+  @Test
+  def testCalcCannotTransposeUpsertToRetraction() = {
+    streamUtil.addTableFromUpsert[(Boolean, (Int, String, Long))]("MyTable", 'a, 'b.key, 'c)
+
+    val sql = "SELECT a, c FROM MyTable"
+
+    val expected =
+      unaryNode(
         "DataStreamCalc",
         unaryNode(
           "DataStreamUpsertToRetraction",
-          unaryNode(
-            "DataStreamCalc",
-            UpsertTableNode(0),
-            term("select", "a", "b", "c", "PROCTIME(proctime) AS proctime",
-              "CAST(rowtime) AS rowtime")
-          ),
+          UpsertTableNode(0),
           term("keys", "b"),
-          term("select", "a", "b", "c", "proctime", "rowtime")
+          term("select", "a", "b", "c")
         ),
-        term("select", "b AS b1", "c", "proctime AS proctime1", "rowtime AS rowtime1"))
+        term("select", "a", "c")
+      )
     streamUtil.verifySql(sql, expected, true)
   }
 
@@ -83,11 +100,11 @@ class FromUpsertStreamTest extends TableTestBase {
 
     val expected =
       unaryNode(
-        "DataStreamCalc",
+        "DataStreamUpsertToRetraction",
         unaryNode(
-          "DataStreamUpsertToRetraction",
+          "DataStreamCalc",
           UpsertTableNode(0),
-          term("select", "a", "b", "c")
+          term("select", "a", "b")
         ),
         term("select", "a", "b")
       )
@@ -105,14 +122,14 @@ class FromUpsertStreamTest extends TableTestBase {
 
     val expected =
       unaryNode(
-        "DataStreamCalc",
+        "DataStreamUpsertToRetraction",
         unaryNode(
-          "DataStreamUpsertToRetraction",
+          "DataStreamCalc",
           UpsertTableNode(0),
-          term("keys", "b"),
-          term("select", "a", "b", "c")
+          term("select", "a", "b AS bb")
         ),
-        term("select", "a", "b AS bb")
+        term("keys", "bb"),
+        term("select", "a", "bb")
       )
 
     streamUtil.verifyJavaSql(sql, expected, true)

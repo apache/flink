@@ -119,6 +119,7 @@ object FlinkRuleSets {
     // scan optimization
     PushProjectIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoTableSourceScanRule.INSTANCE,
+    CalcUpsertToRetractionTransposeRule.INSTANCE,
 
     // unnest rule
     LogicalUnnestRule.INSTANCE,

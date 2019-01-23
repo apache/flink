@@ -19,8 +19,10 @@
 package org.apache.flink.table.plan.nodes
 
 import org.apache.calcite.plan.{RelOptCost, RelOptPlanner}
+import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.metadata.RelMdUtil
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlKind
 import org.apache.flink.api.common.functions.Function
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
@@ -28,8 +30,37 @@ import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 trait CommonCalc {
+
+  /**
+    * Returns empty if output field is not forwarded from the input for the calc.
+    */
+  private[flink] def getInputFromOutputName(calc: Calc, outputFieldName: String): Option[String] = {
+
+    class SimpleInputRefVisitor extends RexVisitorImpl[Unit](false) {
+      var inputName: Option[String] = None
+
+      override def visitInputRef(inputRef: RexInputRef): Unit =
+        inputName = Some(calc.getInput.getRowType.getFieldNames.get(inputRef.getIndex))
+
+      override def visitCall(call: RexCall): Unit = {
+        call.getKind match {
+          case SqlKind.AS => call.getOperands.get(0).accept(this)
+          case _ => // ignore
+        }
+      }
+    }
+
+    val visitor = new SimpleInputRefVisitor
+    calc.getProgram.getNamedProjects
+      .filter(_.right == outputFieldName)
+      .foreach(expressionAndName =>
+        calc.getProgram.expandLocalRef(expressionAndName.left).accept(visitor))
+
+    visitor.inputName
+  }
 
   private[flink] def generateFunction[T <: Function](
       generator: FunctionCodeGenerator,
