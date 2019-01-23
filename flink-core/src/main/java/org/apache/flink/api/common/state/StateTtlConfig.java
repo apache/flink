@@ -23,6 +23,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.EnumMap;
@@ -220,13 +221,12 @@ public class StateTtlConfig implements Serializable {
 		public Builder cleanupFullSnapshot() {
 			cleanupStrategies.strategies.put(
 				CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT,
-				new CleanupStrategies.CleanupStrategy() {
-					private static final long serialVersionUID = 1373998465131443873L;
-				});
+				new CleanupStrategies.EmptyCleanupStrategy());
 			return this;
 		}
 
-		/** Cleanup expired state incrementally cleanup local state.
+		/**
+		 * Cleanup expired state incrementally cleanup local state.
 		 *
 		 * <p>Upon every state access this cleanup strategy checks a bunch of state keys for expiration
 		 * and cleans up expired ones. It keeps a lazy iterator through all keys with relaxed consistency
@@ -238,7 +238,16 @@ public class StateTtlConfig implements Serializable {
 		 * they all will be iterated for every record to check if there is something to cleanup.
 		 *
 		 * <p>Note: if no access happens to this state or no records are processed
-		 * in case of {@code runCleanupForEveryRecord}, expired state will persist..
+		 * in case of {@code runCleanupForEveryRecord}, expired state will persist.
+		 *
+		 * <p>Note: Time spent for the incremental cleanup increases record processing latency.
+		 *
+		 * <p>Note: At the moment incremental cleanup is implemented only for Heap state backend.
+		 * Setting it for RocksDB will have no effect.
+		 *
+		 * <p>Note: If heap state backend is used with synchronous snapshotting, the global iterator keeps a copy of all keys
+		 * while iterating because of its specific implementation which does not support concurrent modifications.
+		 * Enabling of this feature will increase memory consumption then. Asynchronous snapshotting does not have this problem.
 		 *
 		 * @param cleanupSize max number of keys pulled from queue for clean up upon state touch for any key
 		 * @param runCleanupForEveryRecord run incremental cleanup per each processed record
@@ -295,12 +304,17 @@ public class StateTtlConfig implements Serializable {
 
 		}
 
+		static class EmptyCleanupStrategy implements CleanupStrategy {
+			private static final long serialVersionUID = 1373998465131443873L;
+		}
+
 		final EnumMap<Strategies, CleanupStrategy> strategies = new EnumMap<>(Strategies.class);
 
 		public boolean inFullSnapshot() {
 			return strategies.containsKey(Strategies.FULL_STATE_SCAN_SNAPSHOT);
 		}
 
+		@Nullable
 		public IncrementalCleanupStrategy getIncrementalCleanupStrategy() {
 			return (IncrementalCleanupStrategy) strategies.get(Strategies.INCREMENTAL_CLEANUP);
 		}

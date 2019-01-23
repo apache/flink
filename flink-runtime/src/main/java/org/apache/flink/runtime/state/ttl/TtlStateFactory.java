@@ -39,6 +39,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -66,19 +67,25 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 
 	private final Map<Class<? extends StateDescriptor>, SupplierWithException<IS, Exception>> stateFactories;
 
+	@Nonnull
 	private final TypeSerializer<N> namespaceSerializer;
+	@Nonnull
 	private final StateDescriptor<S, SV> stateDesc;
+	@Nonnull
 	private final KeyedStateBackend<K> stateBackend;
+	@Nonnull
 	private final StateTtlConfig ttlConfig;
+	@Nonnull
 	private final TtlTimeProvider timeProvider;
 	private final long ttl;
+	@Nullable
 	private final TtlIncrementalCleanup<K, N, TTLSV> incrementalCleanup;
 
 	private TtlStateFactory(
-		TypeSerializer<N> namespaceSerializer,
-		StateDescriptor<S, SV> stateDesc,
-		KeyedStateBackend<K> stateBackend,
-		TtlTimeProvider timeProvider) {
+		@Nonnull TypeSerializer<N> namespaceSerializer,
+		@Nonnull StateDescriptor<S, SV> stateDesc,
+		@Nonnull KeyedStateBackend<K> stateBackend,
+		@Nonnull TtlTimeProvider timeProvider) {
 		this.namespaceSerializer = namespaceSerializer;
 		this.stateDesc = stateDesc;
 		this.stateBackend = stateBackend;
@@ -183,31 +190,36 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 			namespaceSerializer, ttlDescriptor, getSnapshotTransformFactory());
 		return new TtlStateContext<>(
 			originalState, ttlConfig, timeProvider, (TypeSerializer<V>) stateDesc.getSerializer(),
-			getTtlIncrementalCleanupCallback((InternalKvState<?, ?, ?>) originalState));
+			registerTtlIncrementalCleanupCallback((InternalKvState<?, ?, ?>) originalState));
 	}
 
 	private TtlIncrementalCleanup<K, N, TTLSV> getTtlIncrementalCleanup() {
 		StateTtlConfig.IncrementalCleanupStrategy config =
 			ttlConfig.getCleanupStrategies().getIncrementalCleanupStrategy();
-		TtlIncrementalCleanup<K, N, TTLSV> incrementalCleanup = null;
-		if (config != null) {
-			incrementalCleanup = new TtlIncrementalCleanup<>(config.getCleanupSize());
-			if (config.runCleanupForEveryRecord()) {
-				TtlIncrementalCleanup<K, N, TTLSV> finalIncrementalCleanup = incrementalCleanup;
-				stateBackend.registerKeySelectionListener(stub -> finalIncrementalCleanup.stateAccessed());
-			}
-		}
-		return incrementalCleanup;
+		return config != null ? new TtlIncrementalCleanup<>(config.getCleanupSize()) : null;
 	}
 
-	private Runnable getTtlIncrementalCleanupCallback(InternalKvState<?, ?, ?> originalState) {
-		boolean stateIteratorNotSupported = true;
+	private Runnable registerTtlIncrementalCleanupCallback(InternalKvState<?, ?, ?> originalState) {
+		StateTtlConfig.IncrementalCleanupStrategy config =
+			ttlConfig.getCleanupStrategies().getIncrementalCleanupStrategy();
+		boolean cleanupConfigured = config != null && incrementalCleanup != null;
+		boolean isCleanupActive = cleanupConfigured &&
+			isStateIteratorSupported(originalState, incrementalCleanup.getCleanupSize());
+		Runnable callback = isCleanupActive ? incrementalCleanup::stateAccessed : () -> { };
+		if (isCleanupActive && config.runCleanupForEveryRecord()) {
+			stateBackend.registerKeySelectionListener(stub -> callback.run());
+		}
+		return callback;
+	}
+
+	private boolean isStateIteratorSupported(InternalKvState<?, ?, ?> originalState, int size) {
+		boolean stateIteratorSupported = false;
 		try {
-			stateIteratorNotSupported = originalState.getStateIncrementalVisitor(incrementalCleanup.getCleanupSize()) == null;
+			stateIteratorSupported = originalState.getStateIncrementalVisitor(size) != null;
 		} catch (Throwable t) {
 			// ignore
 		}
-		return incrementalCleanup == null || stateIteratorNotSupported ? () -> { } : incrementalCleanup::stateAccessed;
+		return stateIteratorSupported;
 	}
 
 	private StateSnapshotTransformFactory<?> getSnapshotTransformFactory() {

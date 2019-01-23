@@ -55,7 +55,10 @@ public class DataStreamStateTTLTestProgram {
 		final MonotonicTTLTimeProvider ttlTimeProvider = setBackendWithCustomTTLTimeProvider(env);
 
 		TtlTestConfig config = TtlTestConfig.fromArgs(pt);
-		StateTtlConfig ttlConfig = StateTtlConfig.newBuilder(config.ttl).build();
+		StateTtlConfig ttlConfig = StateTtlConfig.newBuilder(config.ttl)
+			.cleanupIncrementally(5, true)
+			.cleanupFullSnapshot()
+			.build();
 
 		env
 			.addSource(new TtlStateUpdateSource(config.keySpace, config.sleepAfterElements, config.sleepTime))

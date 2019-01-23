@@ -435,7 +435,7 @@ The second parameter defines whether to trigger cleanup additionally per each re
 **Notes:**
 - If no access happens to the state or no records are processed, expired state will persist.
 - Time spent for the incremental cleanup increases record processing latency.
-- At the moment incremental cleanup is implemented only for Heap state backend.
+- At the moment incremental cleanup is implemented only for Heap state backend. Setting it for RocksDB will have no effect.
 - If heap state backend is used with synchronous snapshotting, the global iterator keeps a copy of all keys 
 while iterating because of its specific implementation which does not support concurrent modifications. 
 Enabling of this feature will increase memory consumption then. Asynchronous snapshotting does not have this problem.
