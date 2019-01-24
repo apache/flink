@@ -76,6 +76,9 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	 */
 	private final AtomicBoolean isReleased = new AtomicBoolean();
 
+	/** Flag indicating whether the partition request client of this channel has been closed. */
+	private final AtomicBoolean isClientClosed = new AtomicBoolean();
+
 	/** Client to establish a (possibly shared) TCP connection and request the partition. */
 	private volatile PartitionRequestClient partitionRequestClient;
 
@@ -278,12 +281,14 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 	@Override
 	protected void releaseRemoteClient() throws IOException {
-		// The released flag has to be set before closing the connection to ensure that
-		// buffers received concurrently with closing are properly recycled.
-		if (partitionRequestClient != null) {
-			partitionRequestClient.close(this);
-		} else {
-			connectionManager.closeOpenChannelConnections(connectionId);
+		if (isClientClosed.compareAndSet(false, true)) {
+			// The released flag has to be set before closing the connection to ensure that
+			// buffers received concurrently with closing are properly recycled.
+			if (partitionRequestClient != null) {
+				partitionRequestClient.close(this);
+			} else {
+				connectionManager.closeOpenChannelConnections(connectionId);
+			}
 		}
 	}
 

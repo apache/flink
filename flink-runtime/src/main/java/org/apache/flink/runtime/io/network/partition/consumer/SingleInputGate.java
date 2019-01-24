@@ -652,10 +652,12 @@ public class SingleInputGate implements InputGate {
 		return inputChannels;
 	}
 
-	public void finallyReleaseAllInputChannels(boolean notifyConsumed) {
+	public void finallyReleaseAllInputChannels(boolean isFinish, boolean notifyConsumed) {
 		for (InputChannel inputChannel : inputChannels.values()) {
 			try {
-				inputChannel.notifySubpartitionConsumed(notifyConsumed);
+				if (isFinish) {
+					inputChannel.notifySubpartitionConsumed(notifyConsumed);
+				}
 				inputChannel.releaseRemoteClient();
 			} catch (IOException e) {
 				e.printStackTrace();

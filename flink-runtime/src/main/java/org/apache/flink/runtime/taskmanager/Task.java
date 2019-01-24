@@ -806,10 +806,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				// to the invokable and its structures in cases where this Task object is still referenced
 				this.invokable = null;
 
-				if (executionState.equals(ExecutionState.FINISHED)) {
-					for (SingleInputGate inputGate : inputGates) {
-						inputGate.finallyReleaseAllInputChannels(true);
-					}
+				for (SingleInputGate inputGate : inputGates) {
+					inputGate.finallyReleaseAllInputChannels(executionState.equals(ExecutionState.FINISHED), true);
 				}
 
 				// stop the async dispatcher.

@@ -430,7 +430,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertFalse(bufferConsumer.isRecycled());
 
 		// Spill now
-		// buffer consumers are not remove from buffers, thus spill 5
+		// buffer consumers are not remove from buffers when getNextBuffer, thus spill 5
 		assertEquals(5, partition.releaseMemory());
 		assertFalse(bufferConsumer.isRecycled()); // still one in the reader!
 		// still same statistics:
