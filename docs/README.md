@@ -12,11 +12,11 @@ dependencies are installed locally when you build the documentation through the
 `build_docs.sh` script. If you want to install the software manually, use Ruby's
 Bundler Gem to install all dependencies:
 
-    gem install bundler
+    gem install bundler -v 1.16.1
     bundle install
 
-Note that in Ubuntu based systems, it may be necessary to install the `ruby-dev`
-via apt to build native code.
+Note that in Ubuntu based systems, it may be necessary to install the following
+packages: `rubygems ruby-dev libssl-dev build-essential`.
 
 # Using Dockerized Jekyll
 
@@ -29,7 +29,8 @@ cd flink/docs/docker
 ```
 
 It takes a few moment to build the image for the first time, but will be a second from the second time.
-The run.sh command brings you in a bash session where you can run following doc commands.
+The run.sh command brings you in a bash session where you run the `./build_docs.sh` script mentioned above.
+
 
 # Build
 
