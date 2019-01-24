@@ -54,9 +54,6 @@ import java.util.concurrent.TimeUnit;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link RestServerEndpointConfiguration}.
@@ -143,8 +140,9 @@ public class RestServerEndpointConfigurationTest extends TestLogger {
 			RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
 
 			final String restAddress = "http://localhost:1234";
-			RestfulGateway mockRestfulGateway = mock(RestfulGateway.class);
-			when(mockRestfulGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(restAddress));
+			RestfulGateway mockRestfulGateway = TestingRestfulGateway.newBuilder()
+				.setAddress("http://localhost:1234")
+				.build();
 
 			final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
 				CompletableFuture.completedFuture(mockRestfulGateway);
@@ -155,7 +153,6 @@ public class RestServerEndpointConfigurationTest extends TestLogger {
 				RpcUtils.INF_TIMEOUT);
 
 			RestServerEndpointITCase.TestVersionHandler testVersionHandler = new RestServerEndpointITCase.TestVersionHandler(
-				CompletableFuture.completedFuture(restAddress),
 				mockGatewayRetriever,
 				RpcUtils.INF_TIMEOUT);
 
@@ -215,8 +212,9 @@ public class RestServerEndpointConfigurationTest extends TestLogger {
 			RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
 
 			final String restAddress = "http://localhost:1234";
-			RestfulGateway mockRestfulGateway = mock(RestfulGateway.class);
-			when(mockRestfulGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(restAddress));
+			RestfulGateway mockRestfulGateway = TestingRestfulGateway.newBuilder()
+				.setAddress("http://localhost:1234")
+				.build();
 
 			final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
 				CompletableFuture.completedFuture(mockRestfulGateway);
@@ -227,7 +225,6 @@ public class RestServerEndpointConfigurationTest extends TestLogger {
 				RpcUtils.INF_TIMEOUT);
 
 			RestServerEndpointITCase.TestVersionHandler testVersionHandler = new RestServerEndpointITCase.TestVersionHandler(
-				CompletableFuture.completedFuture(restAddress),
 				mockGatewayRetriever,
 				RpcUtils.INF_TIMEOUT);
 
@@ -278,9 +275,10 @@ public class RestServerEndpointConfigurationTest extends TestLogger {
 
 			RestServerEndpointConfiguration restServerConfig = RestServerEndpointConfiguration.fromConfiguration(serverConfig);
 
-			RestfulGateway restfulGateway = TestingRestfulGateway.newBuilder().build();
+			RestfulGateway restfulGateway = TestingRestfulGateway.newBuilder()
+				.setAddress("http://localhost:1234")
+				.build();
 			RestServerEndpointITCase.TestVersionHandler testVersionHandler = new RestServerEndpointITCase.TestVersionHandler(
-				CompletableFuture.completedFuture("http://localhost:1234"),
 				() -> CompletableFuture.completedFuture(restfulGateway),
 				RpcUtils.INF_TIMEOUT);
 
