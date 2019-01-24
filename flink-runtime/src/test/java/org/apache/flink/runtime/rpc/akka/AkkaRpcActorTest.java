@@ -51,6 +51,9 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link AkkaRpcActor}.
+ */
 public class AkkaRpcActorTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
@@ -60,7 +63,6 @@ public class AkkaRpcActorTest extends TestLogger {
 	private static Time timeout = Time.milliseconds(10000L);
 
 	private static AkkaRpcService akkaRpcService;
-
 
 	@BeforeClass
 	public static void setup() {
@@ -304,7 +306,7 @@ public class AkkaRpcActorTest extends TestLogger {
 
 	static class DummyRpcEndpoint extends TestRpcEndpoint implements DummyRpcGateway {
 
-		private volatile int _foobar = 42;
+		private volatile int foobar = 42;
 
 		protected DummyRpcEndpoint(RpcService rpcService) {
 			super(rpcService);
@@ -312,11 +314,11 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		@Override
 		public CompletableFuture<Integer> foobar() {
-			return CompletableFuture.completedFuture(_foobar);
+			return CompletableFuture.completedFuture(foobar);
 		}
 
 		public void setFoobar(int value) {
-			_foobar = value;
+			foobar = value;
 		}
 	}
 
