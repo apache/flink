@@ -33,6 +33,7 @@ import org.apache.flink.runtime.rpc.messages.LocalRpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RemoteRpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RunAsync;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
@@ -51,6 +52,7 @@ import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -208,12 +210,12 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 			result = null;
 		} else {
 			// execute an asynchronous call
-			CompletableFuture resultFuture = ask(rpcInvocation, futureTimeout);
+			CompletableFuture<?> resultFuture = ask(rpcInvocation, futureTimeout);
 
-			CompletableFuture completableFuture = resultFuture.thenApply((Object o) -> {
+			CompletableFuture<?> completableFuture = resultFuture.thenApply((Object o) -> {
 				if (o instanceof SerializedValue) {
 					try {
-						return  ((SerializedValue) o).deserializeValue(getClass().getClassLoader());
+						return  ((SerializedValue<?>) o).deserializeValue(getClass().getClassLoader());
 					} catch (IOException | ClassNotFoundException e) {
 						throw new CompletionException(
 							new RpcException("Could not deserialize the serialized payload of RPC method : "
@@ -224,10 +226,14 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 				}
 			});
 
-			if (!Objects.equals(returnType, CompletableFuture.class)) {
-				result = completableFuture.get(futureTimeout.getSize(), futureTimeout.getUnit());
-			} else {
+			if (Objects.equals(returnType, CompletableFuture.class)) {
 				result = completableFuture;
+			} else {
+				try {
+					result = completableFuture.get(futureTimeout.getSize(), futureTimeout.getUnit());
+				} catch (ExecutionException ee) {
+					throw new RpcException("Failure while obtaining synchronous RPC result.", ExceptionUtils.stripExecutionException(ee));
+				}
 			}
 		}
 

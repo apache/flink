@@ -20,28 +20,39 @@ package org.apache.flink.runtime.rpc.akka;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+
+import javax.annotation.Nonnull;
+
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Configuration object for {@link AkkaRpcService}.
+ * Configuration for the {@link AkkaRpcService}.
  */
 public class AkkaRpcServiceConfiguration {
 
-	private final Time timeout;
-	private final long maximumFramesize;
+	@Nonnull
 	private final Configuration configuration;
 
-	public AkkaRpcServiceConfiguration(Time timeout, long maximumFramesize, Configuration configuration) {
-		checkNotNull(timeout);
-		checkArgument(maximumFramesize > 0, "Maximum framesize must be positive.");
+	@Nonnull
+	private final Time timeout;
+
+	private final long maximumFramesize;
+
+	public AkkaRpcServiceConfiguration(@Nonnull Configuration configuration, @Nonnull Time timeout, long maximumFramesize) {
+		checkArgument(maximumFramesize > 0L, "Maximum framesize must be positive.");
+		this.configuration = configuration;
 		this.timeout = timeout;
 		this.maximumFramesize = maximumFramesize;
-		this.configuration = configuration;
 	}
 
+	@Nonnull
+	public Configuration getConfiguration() {
+		return configuration;
+	}
+
+	@Nonnull
 	public Time getTimeout() {
 		return timeout;
 	}
@@ -50,17 +61,13 @@ public class AkkaRpcServiceConfiguration {
 		return maximumFramesize;
 	}
 
-	public Configuration getConfiguration() {
-		return configuration;
-	}
-
 	public static AkkaRpcServiceConfiguration fromConfiguration(Configuration configuration) {
-		FiniteDuration duration = AkkaUtils.getTimeout(configuration);
-		Time timeout = Time.of(duration.length(), duration.unit());
+		final FiniteDuration duration = AkkaUtils.getTimeout(configuration);
+		final Time timeout = Time.of(duration.length(), duration.unit());
 
-		long maximumFramesize = AkkaRpcServiceUtils.extractMaximumFramesize(configuration);
+		final long maximumFramesize = AkkaRpcServiceUtils.extractMaximumFramesize(configuration);
 
-		return new AkkaRpcServiceConfiguration(timeout, maximumFramesize, configuration);
+		return new AkkaRpcServiceConfiguration(configuration, timeout, maximumFramesize);
 	}
 
 	public static AkkaRpcServiceConfiguration defaultConfiguration() {

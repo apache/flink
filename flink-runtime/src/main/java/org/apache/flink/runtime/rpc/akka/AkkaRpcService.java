@@ -204,7 +204,7 @@ public class AkkaRpcService implements RpcService {
 				configuration.getMaximumFramesize());
 		} else {
 			akkaRpcActorProps = Props.create(
-				getAkkaRpcActorClass(),
+				AkkaRpcActor.class,
 				rpcEndpoint,
 				terminationFuture,
 				getVersion(),
@@ -388,10 +388,6 @@ public class AkkaRpcService implements RpcService {
 		Future<T> scalaFuture = Futures.<T>future(callable, actorSystem.dispatcher());
 
 		return FutureUtils.toJava(scalaFuture);
-	}
-
-	protected Class getAkkaRpcActorClass() {
-		return AkkaRpcActor.class;
 	}
 
 	// ---------------------------------------------------------------------------------------

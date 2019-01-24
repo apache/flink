@@ -266,7 +266,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 						return;
 					}
 
-					boolean remoteSender = isRemoteSender();
+					final boolean isRemoteSender = isRemoteSender();
 					final String methodName = rpcMethod.getName();
 
 					if (result instanceof CompletableFuture) {
@@ -278,32 +278,32 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 								if (throwable != null) {
 									promise.failure(throwable);
 								} else {
-									if (!remoteSender) {
-										promise.success(value);
-									} else {
-										Either<SerializedValue, AkkaRpcException> serializedResult =
-											serializeRemoteResultAndVerifySize(value, methodName);
+									if (isRemoteSender) {
+										Either<SerializedValue<?>, AkkaRpcException> serializedResult = serializeRemoteResultAndVerifySize(value, methodName);
+
 										if (serializedResult.isLeft()) {
 											promise.success(serializedResult.left());
 										} else {
 											promise.failure(serializedResult.right());
 										}
+									} else {
+										promise.success(value);
 									}
 								}
 							});
 
 						Patterns.pipe(promise.future(), getContext().dispatcher()).to(getSender());
 					} else {
-						if (!remoteSender) {
-							getSender().tell(result, getSelf());
-						} else {
-							Either<SerializedValue, AkkaRpcException> serializedResult =
-								serializeRemoteResultAndVerifySize(result, methodName);
+						if (isRemoteSender) {
+							Either<SerializedValue<?>, AkkaRpcException> serializedResult = serializeRemoteResultAndVerifySize(result, methodName);
+
 							if (serializedResult.isLeft()) {
 								getSender().tell(new Status.Success(serializedResult.left()), getSelf());
 							} else {
 								getSender().tell(new Status.Failure(serializedResult.right()), getSelf());
 							}
+						} else {
+							getSender().tell(new Status.Success(result), getSelf());
 						}
 					}
 				}
@@ -315,14 +315,13 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 		}
 	}
 
-	protected boolean isRemoteSender() {
+	private boolean isRemoteSender() {
 		return !getSender().path().address().hasLocalScope();
 	}
 
-	private Either<SerializedValue, AkkaRpcException> serializeRemoteResultAndVerifySize(
-		Object result, String methodName) {
+	private Either<SerializedValue<?>, AkkaRpcException> serializeRemoteResultAndVerifySize(Object result, String methodName) {
 		try {
-			SerializedValue serializedResult = new SerializedValue(result);
+			SerializedValue<?> serializedResult = new SerializedValue<>(result);
 
 			long resultSize = serializedResult.getByteArray().length;
 			if (resultSize > maximumFramesize) {
@@ -334,7 +333,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 			}
 		} catch (IOException e) {
 			return Either.Right(new AkkaRpcException(
-				"Failed to serialize the result for RPC call : " + methodName + ".", e));
+				"Failed to serialize the result for RPC call : " + methodName + '.', e));
 		}
 	}
 
