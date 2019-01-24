@@ -544,7 +544,7 @@ public abstract class YarnTestBase extends TestLogger {
 		}
 		System.setProperty("user.home", homeDir.getAbsolutePath());
 		String uberjarStartLoc = "..";
-		LOG.info("Trying to locate uberjar in {}", new File(uberjarStartLoc));
+		LOG.info("Trying to locate uberjar in {}", new File(uberjarStartLoc).getAbsolutePath());
 		flinkUberjar = findFile(uberjarStartLoc, new RootDirFilenameFilter());
 		Assert.assertNotNull("Flink uberjar not found", flinkUberjar);
 		String flinkDistRootDir = flinkUberjar.getParentFile().getParent();
