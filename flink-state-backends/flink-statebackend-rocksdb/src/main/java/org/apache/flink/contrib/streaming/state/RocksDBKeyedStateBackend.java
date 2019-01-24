@@ -555,8 +555,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@VisibleForTesting
-	void initializeSnapshotStrategy(
-		@Nullable RocksDBIncrementalRestoreOperation<K> incrementalRestoreOperation) throws IOException {
+	void initializeSnapshotStrategy(@Nullable RocksDBIncrementalRestoreOperation<K> incrementalRestoreOperation) {
 
 		this.savepointSnapshotStrategy =
 			new RocksFullSnapshotStrategy<>(

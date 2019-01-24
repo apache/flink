@@ -285,7 +285,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			@Nonnull CheckpointStreamFactory checkpointStreamFactory,
 			@Nonnull SnapshotDirectory localBackupDirectory,
 			@Nullable Set<StateHandleID> baseSstFiles,
-			@Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) throws IOException {
+			@Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) {
 
 			this.checkpointStreamFactory = checkpointStreamFactory;
 			this.baseSstFiles = baseSstFiles;

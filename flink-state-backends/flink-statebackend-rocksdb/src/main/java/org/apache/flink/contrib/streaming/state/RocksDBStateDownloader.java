@@ -38,7 +38,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
- * Help class for downloading RocksDBState.
+ * Help class for downloading RocksDB state files.
  */
 public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
 	public RocksDBStateDownloader(int restoringThreadNum) {

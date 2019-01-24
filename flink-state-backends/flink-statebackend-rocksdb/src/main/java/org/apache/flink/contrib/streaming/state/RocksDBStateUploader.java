@@ -42,7 +42,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 
 /**
- * Help class for uploading RocksDB state.
+ * Help class for uploading RocksDB state files.
  */
 public class RocksDBStateUploader extends RocksDBStateDataTransfer {
 	private final int readBufferSize = 16 * 1024;
