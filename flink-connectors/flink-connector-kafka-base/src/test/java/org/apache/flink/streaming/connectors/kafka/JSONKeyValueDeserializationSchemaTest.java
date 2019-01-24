@@ -26,6 +26,9 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Assert;
 import org.junit.Test;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 /**
  * Tests for the{@link JSONKeyValueDeserializationSchema}.
  */
@@ -67,9 +70,20 @@ public class JSONKeyValueDeserializationSchemaTest {
 		Assert.assertEquals("world", deserializedValue.get("value").get("word").asText());
 	}
 
-	private static ConsumerRecord<byte[], byte[]> newConsumerRecord(byte[] serializedKey, byte[] serializedValue) {
-		final ConsumerRecord<byte[], byte[]> record = new ConsumerRecord<byte[], byte[]>(
-			"", 0, serializedKey, serializedValue, 0L);
+	private static ConsumerRecord<byte[], byte[]> newConsumerRecord(
+		byte[] serializedKey, byte[] serializedValue) {
+		return newConsumerRecord("", 0, 0L, serializedKey, serializedValue);
+	}
+
+	private static ConsumerRecord<byte[], byte[]> newConsumerRecord(
+		String topic, int partition, long offset, byte[] serializedKey, byte[] serializedValue) {
+
+		final ConsumerRecord<byte[], byte[]> record = mock(ConsumerRecord.class);
+		when(record.topic()).thenReturn(topic);
+		when(record.key()).thenReturn(serializedKey);
+		when(record.value()).thenReturn(serializedValue);
+		when(record.partition()).thenReturn(partition);
+		when(record.offset()).thenReturn(offset);
 		return record;
 	}
 
@@ -102,8 +116,8 @@ public class JSONKeyValueDeserializationSchemaTest {
 		byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
 
 		JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(true);
-		final ConsumerRecord<byte[], byte[]> consumerRecord = new ConsumerRecord<byte[], byte[]>(
-			"topic#1", 3, serializedKey, serializedValue, 4L);
+		final ConsumerRecord<byte[], byte[]> consumerRecord = newConsumerRecord(
+			"topic#1", 3, 4L, serializedKey, serializedValue);
 		ObjectNode deserializedValue = schema.deserialize(consumerRecord);
 
 		Assert.assertEquals(4, deserializedValue.get("key").get("index").asInt());

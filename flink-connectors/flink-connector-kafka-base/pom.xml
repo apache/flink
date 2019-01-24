@@ -35,9 +35,11 @@ under the License.
 
 	<packaging>jar</packaging>
 
-	<!-- Allow users to pass custom connector versions -->
 	<properties>
+		<!-- Allow users to pass custom connector versions -->
 		<kafka.version>0.10.2.1</kafka.version>
+
+		<mockito.version>2.21.0</mockito.version>
 	</properties>
 
 	<dependencies>
@@ -204,6 +206,15 @@ under the License.
 			<version>${minikdc.version}</version>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<version>${mockito.version}</version>
+			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
+
 
 	</dependencies>
 
