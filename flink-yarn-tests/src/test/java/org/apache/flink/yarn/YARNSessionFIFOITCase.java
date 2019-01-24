@@ -98,6 +98,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		args.add("-t");
 		args.add(flinkLibFolder.getAbsolutePath());
 
+		args.add("-t");
+		args.add(flinkShadedHadoopDir.getAbsolutePath());
+
 		args.add("-n");
 		args.add("1");
 
@@ -228,7 +231,10 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	public void testResourceComputation() throws IOException {
 		addTestAppender(AbstractYarnClusterDescriptor.class, Level.WARN);
 		LOG.info("Starting testResourceComputation()");
-		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
+		runWithArgs(new String[]{
+				"-j", flinkUberjar.getAbsolutePath(),
+				"-t", flinkLibFolder.getAbsolutePath(),
+				"-t", flinkShadedHadoopDir.getAbsolutePath(),
 				"-n", "5",
 				"-jm", "256m",
 				"-tm", "1585m"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
@@ -256,7 +262,10 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	public void testfullAlloc() throws IOException {
 		addTestAppender(AbstractYarnClusterDescriptor.class, Level.WARN);
 		LOG.info("Starting testfullAlloc()");
-		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
+		runWithArgs(new String[]{
+				"-j", flinkUberjar.getAbsolutePath(),
+				"-t", flinkLibFolder.getAbsolutePath(),
+				"-t", flinkShadedHadoopDir.getAbsolutePath(),
 				"-n", "2",
 				"-jm", "256m",
 				"-tm", "3840m"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
