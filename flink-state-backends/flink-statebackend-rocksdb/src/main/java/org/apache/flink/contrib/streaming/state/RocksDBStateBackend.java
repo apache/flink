@@ -712,7 +712,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	/**
 	 * Sets the number of threads used to transfer files while snapshotting/restoring.
 	 *
-	 * @param numberOfTransferingThreads The number of threads used to download files from DFS while restoring.
+	 * @param numberOfTransferingThreads The number of threads used to transfer files while snapshotting/restoring.
 	 */
 	public void setNumberOfTransferingThreads(int numberOfTransferingThreads) {
 		Preconditions.checkArgument(numberOfTransferingThreads > 0,

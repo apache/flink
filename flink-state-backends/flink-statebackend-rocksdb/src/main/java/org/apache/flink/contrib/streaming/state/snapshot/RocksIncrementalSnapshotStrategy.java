@@ -106,7 +106,11 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 	private long lastCompletedCheckpointId;
 
 	/** The help class used to upload state files. */
-	private final RocksDBStateUploader stateUploader;
+	private RocksDBStateUploader stateUploader;
+
+	private final int numberOfTransferingThreads;
+
+	private final CloseableRegistry cancelStreamRegistry;
 
 	public RocksIncrementalSnapshotStrategy(
 		@Nonnull RocksDB db,
@@ -121,7 +125,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		@Nonnull UUID backendUID,
 		@Nonnull SortedMap<Long, Set<StateHandleID>> materializedSstFiles,
 		long lastCompletedCheckpointId,
-		int numberOfTransferingThreads) throws IOException {
+		int numberOfTransferingThreads) {
 
 		super(
 			DESCRIPTION,
@@ -138,8 +142,8 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		this.backendUID = backendUID;
 		this.materializedSstFiles = materializedSstFiles;
 		this.lastCompletedCheckpointId = lastCompletedCheckpointId;
-		this.stateUploader = new RocksDBStateUploader(numberOfTransferingThreads);
-		cancelStreamRegistry.registerCloseable(stateUploader);
+		this.numberOfTransferingThreads = numberOfTransferingThreads;
+		this.cancelStreamRegistry = cancelStreamRegistry;
 	}
 
 	@Nonnull
@@ -286,13 +290,16 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			@Nonnull CheckpointStreamFactory checkpointStreamFactory,
 			@Nonnull SnapshotDirectory localBackupDirectory,
 			@Nullable Set<StateHandleID> baseSstFiles,
-			@Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) {
+			@Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) throws IOException {
 
 			this.checkpointStreamFactory = checkpointStreamFactory;
 			this.baseSstFiles = baseSstFiles;
 			this.checkpointId = checkpointId;
 			this.localBackupDirectory = localBackupDirectory;
 			this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
+
+			stateUploader = new RocksDBStateUploader(numberOfTransferingThreads, snapshotCloseableRegistry);
+			cancelStreamRegistry.registerCloseable(stateUploader);
 		}
 
 		@Override
@@ -420,14 +427,8 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			if (fileStatuses != null) {
 				createUploadFilePaths(fileStatuses, sstFiles, sstFilePaths, miscFilePaths);
 
-				sstFiles.putAll(stateUploader.uploadFilesToCheckpointFs(
-					sstFilePaths,
-					checkpointStreamFactory,
-					getSnapshotCloseableRegistry()));
-				miscFiles.putAll(stateUploader.uploadFilesToCheckpointFs(
-					miscFilePaths,
-					checkpointStreamFactory,
-					getSnapshotCloseableRegistry()));
+				sstFiles.putAll(stateUploader.uploadFilesToCheckpointFs(sstFilePaths, checkpointStreamFactory));
+				miscFiles.putAll(stateUploader.uploadFilesToCheckpointFs(miscFilePaths, checkpointStreamFactory));
 			}
 		}
 
@@ -474,7 +475,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 						CheckpointedStateScope.EXCLUSIVE,
 						checkpointStreamFactory);
 
-			registerCloseableForCancellation(streamWithResultProvider);
+			snapshotCloseableRegistry.registerCloseable(streamWithResultProvider);
 
 			try {
 				//no need for compression scheme support because sst-files are already compressed
@@ -489,7 +490,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 
 				serializationProxy.write(out);
 
-				if (unregisterCloseableFromCancellation(streamWithResultProvider)) {
+				if (snapshotCloseableRegistry.unregisterCloseable(streamWithResultProvider)) {
 					SnapshotResult<StreamStateHandle> result =
 						streamWithResultProvider.closeAndFinalizeCheckpointStreamResult();
 					streamWithResultProvider = null;
@@ -499,7 +500,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 				}
 			} finally {
 				if (streamWithResultProvider != null) {
-					if (unregisterCloseableFromCancellation(streamWithResultProvider)) {
+					if (snapshotCloseableRegistry.unregisterCloseable(streamWithResultProvider)) {
 						IOUtils.closeQuietly(streamWithResultProvider);
 					}
 				}

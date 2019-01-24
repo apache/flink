@@ -88,8 +88,8 @@ public class RocksDBStateDownloaderTest extends TestLogger {
 				stateHandles,
 				stateHandle);
 
-		try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(5)) {
-			rocksDBStateDownloader.transferAllStateDataToDirectory(incrementalKeyedStateHandle, new Path(temporaryFolder.newFolder().toURI()), new CloseableRegistry());
+		try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(5, new CloseableRegistry())) {
+			rocksDBStateDownloader.transferAllStateDataToDirectory(incrementalKeyedStateHandle, new Path(temporaryFolder.newFolder().toURI()));
 			fail();
 		} catch (Exception e) {
 			assertEquals(expectedException, e);
@@ -131,8 +131,8 @@ public class RocksDBStateDownloaderTest extends TestLogger {
 				handles.get(0));
 
 		Path dstPath = new Path(temporaryFolder.newFolder().toURI());
-		try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(5)) {
-			rocksDBStateDownloader.transferAllStateDataToDirectory(incrementalKeyedStateHandle, dstPath, new CloseableRegistry());
+		try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(5, new CloseableRegistry())) {
+			rocksDBStateDownloader.transferAllStateDataToDirectory(incrementalKeyedStateHandle, dstPath);
 		}
 
 		for (int i = 0; i < contentNum; ++i) {

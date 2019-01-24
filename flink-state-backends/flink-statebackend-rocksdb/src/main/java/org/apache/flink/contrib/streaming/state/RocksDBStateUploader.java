@@ -44,11 +44,11 @@ import java.util.function.Supplier;
 /**
  * Help class for uploading RocksDB state.
  */
-public class RocksDBStateUploader extends RocksDBStateDownloader {
+public class RocksDBStateUploader extends RocksDBStateDataTransfer {
 	private final int readBufferSize = 16 * 1024;
 
-	public RocksDBStateUploader(int numberOfSnapshottingThreads) {
-		super(numberOfSnapshottingThreads);
+	public RocksDBStateUploader(int numberOfSnapshottingThreads, CloseableRegistry closeableRegistry) {
+		super(numberOfSnapshottingThreads, closeableRegistry);
 	}
 
 	/**
@@ -56,22 +56,17 @@ public class RocksDBStateUploader extends RocksDBStateDownloader {
 	 *
 	 * @param files The files will be uploaded to checkpoint filesystem.
 	 * @param checkpointStreamFactory The checkpoint streamFactory used to create outputstream.
-	 * @param closeableRegistry Which all the inputStream/outputStream will be registered and unregistered.
 	 *
 	 * @throws Exception Thrown if can not upload all the files.
 	 */
 	public Map<StateHandleID, StreamStateHandle> uploadFilesToCheckpointFs(
 		@Nonnull Map<StateHandleID, Path> files,
-		CheckpointStreamFactory checkpointStreamFactory,
-		CloseableRegistry closeableRegistry) throws Exception {
+		CheckpointStreamFactory checkpointStreamFactory) throws Exception {
 
 		Map<StateHandleID, StreamStateHandle> handles = new HashMap<>();
 
 		Map<StateHandleID, CompletableFuture<StreamStateHandle>> futures =
-			createUploadFutures(
-				files,
-				checkpointStreamFactory,
-				closeableRegistry);
+			createUploadFutures(files, checkpointStreamFactory);
 
 		try {
 			FutureUtils.waitForAll(futures.values()).get();
@@ -94,13 +89,12 @@ public class RocksDBStateUploader extends RocksDBStateDownloader {
 
 	private Map<StateHandleID, CompletableFuture<StreamStateHandle>> createUploadFutures(
 		Map<StateHandleID, Path> files,
-		CheckpointStreamFactory checkpointStreamFactory,
-		CloseableRegistry closeableRegistry) {
+		CheckpointStreamFactory checkpointStreamFactory) {
 		Map<StateHandleID, CompletableFuture<StreamStateHandle>> futures = new HashMap<>(files.size());
 
 		for (Map.Entry<StateHandleID, Path> entry : files.entrySet()) {
 			final Supplier<StreamStateHandle> supplier =
-				CheckedSupplier.unchecked(() -> uploadLocalFileToCheckpointFs(entry.getValue(), checkpointStreamFactory, closeableRegistry));
+				CheckedSupplier.unchecked(() -> uploadLocalFileToCheckpointFs(entry.getValue(), checkpointStreamFactory));
 			futures.put(entry.getKey(), CompletableFuture.supplyAsync(supplier, executorService));
 		}
 
@@ -109,8 +103,7 @@ public class RocksDBStateUploader extends RocksDBStateDownloader {
 
 	private StreamStateHandle uploadLocalFileToCheckpointFs(
 		Path filePath,
-		CheckpointStreamFactory checkpointStreamFactory,
-		CloseableRegistry closeableRegistry) throws IOException {
+		CheckpointStreamFactory checkpointStreamFactory) throws IOException {
 		FSDataInputStream inputStream = null;
 		CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
 

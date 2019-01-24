@@ -41,8 +41,8 @@ import java.util.concurrent.ExecutionException;
  * Help class for downloading RocksDBState.
  */
 public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
-	public RocksDBStateDownloader(int restoringThreadNum) {
-		super(restoringThreadNum);
+	public RocksDBStateDownloader(int restoringThreadNum, CloseableRegistry closeableRegistry) {
+		super(restoringThreadNum, closeableRegistry);
 	}
 
 	/**
@@ -50,22 +50,18 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
 	 *
 	 * @param restoreStateHandle Handles used to retrieve the state data.
 	 * @param dest The target directory which the state data will be stored.
-	 * @param closeableRegistry Which all the inputStream/outputStream will be registered and unregistered.
 	 *
 	 * @throws Exception Thrown if can not transfer all the state data.
 	 */
-	public void transferAllStateDataToDirectory(
-		IncrementalKeyedStateHandle restoreStateHandle,
-		Path dest,
-		CloseableRegistry closeableRegistry) throws Exception {
+	public void transferAllStateDataToDirectory(IncrementalKeyedStateHandle restoreStateHandle, Path dest) throws Exception {
 
 		final Map<StateHandleID, StreamStateHandle> sstFiles =
 			restoreStateHandle.getSharedState();
 		final Map<StateHandleID, StreamStateHandle> miscFiles =
 			restoreStateHandle.getPrivateState();
 
-		downloadDataForAllStateHandles(sstFiles, dest, closeableRegistry);
-		downloadDataForAllStateHandles(miscFiles, dest, closeableRegistry);
+		downloadDataForAllStateHandles(sstFiles, dest);
+		downloadDataForAllStateHandles(miscFiles, dest);
 	}
 
 	/**
@@ -74,11 +70,10 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
 	 */
 	private void downloadDataForAllStateHandles(
 		Map<StateHandleID, StreamStateHandle> stateHandleMap,
-		Path restoreInstancePath,
-		CloseableRegistry closeableRegistry) throws Exception {
+		Path restoreInstancePath) throws Exception {
 
 		try {
-			List<Runnable> runnables = createDownloadRunnables(stateHandleMap, restoreInstancePath, closeableRegistry);
+			List<Runnable> runnables = createDownloadRunnables(stateHandleMap, restoreInstancePath);
 			List<CompletableFuture<Void>> futures = new ArrayList<>(runnables.size());
 			for (Runnable runnable : runnables) {
 				futures.add(CompletableFuture.runAsync(runnable, executorService));
@@ -97,8 +92,7 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
 
 	private List<Runnable> createDownloadRunnables(
 		Map<StateHandleID, StreamStateHandle> stateHandleMap,
-		Path restoreInstancePath,
-		CloseableRegistry closeableRegistry) {
+		Path restoreInstancePath) {
 		List<Runnable> runnables = new ArrayList<>(stateHandleMap.size());
 		for (Map.Entry<StateHandleID, StreamStateHandle> entry : stateHandleMap.entrySet()) {
 			StateHandleID stateHandleID = entry.getKey();
@@ -107,7 +101,7 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
 			Path path = new Path(restoreInstancePath, stateHandleID.toString());
 
 			runnables.add(ThrowingRunnable.unchecked(
-				() -> downloadDataForStateHandle(path, remoteFileHandle, closeableRegistry)));
+				() -> downloadDataForStateHandle(path, remoteFileHandle)));
 		}
 		return runnables;
 	}
@@ -115,10 +109,7 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
 	/**
 	 * Copies the file from a single state handle to the given path.
 	 */
-	private void downloadDataForStateHandle(
-		Path restoreFilePath,
-		StreamStateHandle remoteFileHandle,
-		CloseableRegistry closeableRegistry) throws IOException {
+	private void downloadDataForStateHandle(Path restoreFilePath, StreamStateHandle remoteFileHandle) throws IOException {
 
 		FSDataInputStream inputStream = null;
 		FSDataOutputStream outputStream = null;

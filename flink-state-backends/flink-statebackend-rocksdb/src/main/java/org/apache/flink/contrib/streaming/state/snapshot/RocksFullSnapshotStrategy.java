@@ -219,10 +219,10 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 			final CheckpointStreamWithResultProvider checkpointStreamWithResultProvider =
 				checkpointStreamSupplier.get();
 
-			registerCloseableForCancellation(checkpointStreamWithResultProvider);
+			snapshotCloseableRegistry.registerCloseable(checkpointStreamWithResultProvider);
 			writeSnapshotToOutputStream(checkpointStreamWithResultProvider, keyGroupRangeOffsets);
 
-			if (unregisterCloseableFromCancellation(checkpointStreamWithResultProvider)) {
+			if (snapshotCloseableRegistry.unregisterCloseable(checkpointStreamWithResultProvider)) {
 				return CheckpointStreamWithResultProvider.toKeyedStateHandleSnapshotResult(
 					checkpointStreamWithResultProvider.closeAndFinalizeCheckpointStreamResult(),
 					keyGroupRangeOffsets);

@@ -516,10 +516,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		LOG.info("Initializing RocksDB keyed state backend.");
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Restoring snapshot from state handles: {}, will use {} thread(s) to download files from DFS.", restoreState, numberOfTransferingThreads);
-		}
-
 		// clear all meta data
 		kvStateInformation.clear();
 
@@ -920,8 +916,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					IncrementalKeyedStateHandle restoreStateHandle = (IncrementalKeyedStateHandle) rawStateHandle;
 
 					// read state data.
-					try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(stateBackend.numberOfTransferingThreads)) {
-						rocksDBStateDownloader.transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath, stateBackend.cancelStreamRegistry);
+					try (RocksDBStateDownloader rocksDBStateDownloader =
+						new RocksDBStateDownloader(stateBackend.numberOfTransferingThreads, stateBackend.cancelStreamRegistry)) {
+						rocksDBStateDownloader.transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath);
 					}
 
 					stateMetaInfoSnapshots = readMetaData(restoreStateHandle.getMetaStateHandle());
@@ -1075,8 +1072,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			IncrementalKeyedStateHandle restoreStateHandle,
 			Path temporaryRestoreInstancePath) throws Exception {
 
-			try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(stateBackend.numberOfTransferingThreads)) {
-				rocksDBStateDownloader.transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath, stateBackend.cancelStreamRegistry);
+			try (RocksDBStateDownloader rocksDBStateDownloader =
+				new RocksDBStateDownloader(stateBackend.numberOfTransferingThreads, stateBackend.cancelStreamRegistry)) {
+				rocksDBStateDownloader.transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath);
 			}
 
 			// read meta data
