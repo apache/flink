@@ -106,10 +106,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 	private long lastCompletedCheckpointId;
 
 	/** The help class used to upload state files. */
-	private RocksDBStateUploader stateUploader;
-
-	/** The number of treads will used to transfer state files. */
-	private final int numberOfTransferingThreads;
+	private final RocksDBStateUploader stateUploader;
 
 	public RocksIncrementalSnapshotStrategy(
 		@Nonnull RocksDB db,
@@ -141,7 +138,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		this.backendUID = backendUID;
 		this.materializedSstFiles = materializedSstFiles;
 		this.lastCompletedCheckpointId = lastCompletedCheckpointId;
-		this.numberOfTransferingThreads = numberOfTransferingThreads;
+		this.stateUploader = new RocksDBStateUploader(numberOfTransferingThreads);
 	}
 
 	@Nonnull
@@ -295,9 +292,6 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			this.checkpointId = checkpointId;
 			this.localBackupDirectory = localBackupDirectory;
 			this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
-
-			stateUploader = new RocksDBStateUploader(numberOfTransferingThreads, snapshotCloseableRegistry);
-			cancelStreamRegistry.registerCloseable(stateUploader);
 		}
 
 		@Override
@@ -425,8 +419,14 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			if (fileStatuses != null) {
 				createUploadFilePaths(fileStatuses, sstFiles, sstFilePaths, miscFilePaths);
 
-				sstFiles.putAll(stateUploader.uploadFilesToCheckpointFs(sstFilePaths, checkpointStreamFactory));
-				miscFiles.putAll(stateUploader.uploadFilesToCheckpointFs(miscFilePaths, checkpointStreamFactory));
+				sstFiles.putAll(stateUploader.uploadFilesToCheckpointFs(
+					sstFilePaths,
+					checkpointStreamFactory,
+					snapshotCloseableRegistry));
+				miscFiles.putAll(stateUploader.uploadFilesToCheckpointFs(
+					miscFilePaths,
+					checkpointStreamFactory,
+					snapshotCloseableRegistry));
 			}
 		}
 

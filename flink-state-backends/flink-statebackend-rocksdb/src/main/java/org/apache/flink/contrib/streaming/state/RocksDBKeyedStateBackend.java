@@ -917,8 +917,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 					// read state data.
 					try (RocksDBStateDownloader rocksDBStateDownloader =
-						new RocksDBStateDownloader(stateBackend.numberOfTransferingThreads, stateBackend.cancelStreamRegistry)) {
-						rocksDBStateDownloader.transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath);
+						new RocksDBStateDownloader(stateBackend.numberOfTransferingThreads)) {
+						rocksDBStateDownloader.transferAllStateDataToDirectory(
+							restoreStateHandle,
+							temporaryRestoreInstancePath,
+							stateBackend.cancelStreamRegistry);
 					}
 
 					stateMetaInfoSnapshots = readMetaData(restoreStateHandle.getMetaStateHandle());
@@ -1073,8 +1076,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			Path temporaryRestoreInstancePath) throws Exception {
 
 			try (RocksDBStateDownloader rocksDBStateDownloader =
-				new RocksDBStateDownloader(stateBackend.numberOfTransferingThreads, stateBackend.cancelStreamRegistry)) {
-				rocksDBStateDownloader.transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath);
+				new RocksDBStateDownloader(stateBackend.numberOfTransferingThreads)) {
+				rocksDBStateDownloader.transferAllStateDataToDirectory(
+					restoreStateHandle,
+					temporaryRestoreInstancePath,
+					stateBackend.cancelStreamRegistry);
 			}
 
 			// read meta data

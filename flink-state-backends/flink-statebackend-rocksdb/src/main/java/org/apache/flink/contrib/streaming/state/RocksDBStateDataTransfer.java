@@ -17,8 +17,6 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.flink.core.fs.CloseableRegistry;
-
 import java.io.Closeable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,15 +30,12 @@ class RocksDBStateDataTransfer implements Closeable {
 
 	protected final ExecutorService executorService;
 
-	protected final CloseableRegistry closeableRegistry;
-
-	RocksDBStateDataTransfer(int threadNum, CloseableRegistry closeableRegistry) {
+	RocksDBStateDataTransfer(int threadNum) {
 		if (threadNum > 1) {
 			executorService = Executors.newFixedThreadPool(threadNum);
 		} else {
 			executorService = newDirectExecutorService();
 		}
-		this.closeableRegistry = closeableRegistry;
 	}
 
 	@Override

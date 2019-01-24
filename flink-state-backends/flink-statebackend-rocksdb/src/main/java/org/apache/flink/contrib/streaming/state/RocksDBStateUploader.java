@@ -47,8 +47,8 @@ import java.util.function.Supplier;
 public class RocksDBStateUploader extends RocksDBStateDataTransfer {
 	private final int readBufferSize = 16 * 1024;
 
-	public RocksDBStateUploader(int numberOfSnapshottingThreads, CloseableRegistry closeableRegistry) {
-		super(numberOfSnapshottingThreads, closeableRegistry);
+	public RocksDBStateUploader(int numberOfSnapshottingThreads) {
+		super(numberOfSnapshottingThreads);
 	}
 
 	/**
@@ -61,12 +61,13 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
 	 */
 	public Map<StateHandleID, StreamStateHandle> uploadFilesToCheckpointFs(
 		@Nonnull Map<StateHandleID, Path> files,
-		CheckpointStreamFactory checkpointStreamFactory) throws Exception {
+		CheckpointStreamFactory checkpointStreamFactory,
+		CloseableRegistry closeableRegistry) throws Exception {
 
 		Map<StateHandleID, StreamStateHandle> handles = new HashMap<>();
 
 		Map<StateHandleID, CompletableFuture<StreamStateHandle>> futures =
-			createUploadFutures(files, checkpointStreamFactory);
+			createUploadFutures(files, checkpointStreamFactory, closeableRegistry);
 
 		try {
 			FutureUtils.waitForAll(futures.values()).get();
@@ -89,12 +90,13 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
 
 	private Map<StateHandleID, CompletableFuture<StreamStateHandle>> createUploadFutures(
 		Map<StateHandleID, Path> files,
-		CheckpointStreamFactory checkpointStreamFactory) {
+		CheckpointStreamFactory checkpointStreamFactory,
+		CloseableRegistry closeableRegistry) {
 		Map<StateHandleID, CompletableFuture<StreamStateHandle>> futures = new HashMap<>(files.size());
 
 		for (Map.Entry<StateHandleID, Path> entry : files.entrySet()) {
 			final Supplier<StreamStateHandle> supplier =
-				CheckedSupplier.unchecked(() -> uploadLocalFileToCheckpointFs(entry.getValue(), checkpointStreamFactory));
+				CheckedSupplier.unchecked(() -> uploadLocalFileToCheckpointFs(entry.getValue(), checkpointStreamFactory, closeableRegistry));
 			futures.put(entry.getKey(), CompletableFuture.supplyAsync(supplier, executorService));
 		}
 
@@ -103,7 +105,8 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
 
 	private StreamStateHandle uploadLocalFileToCheckpointFs(
 		Path filePath,
-		CheckpointStreamFactory checkpointStreamFactory) throws IOException {
+		CheckpointStreamFactory checkpointStreamFactory,
+		CloseableRegistry closeableRegistry) throws IOException {
 		FSDataInputStream inputStream = null;
 		CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
 
