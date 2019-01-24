@@ -124,7 +124,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	/** This determines if incremental checkpointing is enabled. */
 	private final TernaryBoolean enableIncrementalCheckpointing;
 
-	/** Thread number used to transfer(download&upload) state, default value: 1. */
+	/** Thread number used to transfer (download and upload) state, default value: 1. */
 	private int numberOfTransferingThreads;
 
 	/** This determines the type of priority queue state. */

@@ -108,9 +108,8 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 	/** The help class used to upload state files. */
 	private RocksDBStateUploader stateUploader;
 
+	/** The number of treads will used to transfer state files. */
 	private final int numberOfTransferingThreads;
-
-	private final CloseableRegistry cancelStreamRegistry;
 
 	public RocksIncrementalSnapshotStrategy(
 		@Nonnull RocksDB db,
@@ -143,7 +142,6 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		this.materializedSstFiles = materializedSstFiles;
 		this.lastCompletedCheckpointId = lastCompletedCheckpointId;
 		this.numberOfTransferingThreads = numberOfTransferingThreads;
-		this.cancelStreamRegistry = cancelStreamRegistry;
 	}
 
 	@Nonnull

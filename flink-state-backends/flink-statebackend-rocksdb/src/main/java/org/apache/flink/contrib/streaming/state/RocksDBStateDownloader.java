@@ -142,4 +142,3 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
 		}
 	}
 }
-
