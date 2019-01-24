@@ -31,6 +31,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.metrics.JobMetricsHeaders;
@@ -42,7 +43,8 @@ import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 import org.apache.flink.yarn.testjob.YarnTestJob;
 import org.apache.flink.yarn.util.YarnTestUtils;
 
-import com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -59,6 +61,7 @@ import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Cont
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -76,6 +79,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -101,6 +105,9 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	private static TestingServer zkServer;
 	private static String storageDir;
 
+	private YarnTestJob.StopJobSignal stopJobSignal;
+	private JobGraph job;
+
 	@BeforeClass
 	public static void setup() throws Exception {
 		zkServer = new TestingServer();
@@ -122,6 +129,23 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		}
 	}
 
+	@Before
+	public void setUp() throws Exception {
+		initJobGraph();
+	}
+
+	private JobGraph initJobGraph() throws IOException {
+		stopJobSignal = YarnTestJob.StopJobSignal.usingMarkerFile(FOLDER.newFile().toPath());
+		job = YarnTestJob.stoppableJob(stopJobSignal);
+		final File testingJar =
+			YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-yarn-tests"));
+
+		assertThat(testingJar, notNullValue());
+
+		job.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
+		return job;
+	}
+
 	/**
 	 * Tests that Yarn will restart a killed {@link YarnSessionClusterEntrypoint} which will then resume
 	 * a persisted {@link JobGraph}.
@@ -136,10 +160,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		final RestClusterClient<ApplicationId> restClusterClient = deploySessionCluster(yarnClusterDescriptor);
 
 		try {
-			final JobGraph job = createJobGraph();
-
-			final JobID jobId = submitJob(restClusterClient, job);
-
+			final JobID jobId = submitJob(restClusterClient);
 			final ApplicationId id = restClusterClient.getClusterId();
 
 			waitUntilJobIsRunning(restClusterClient, jobId);
@@ -147,7 +168,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 			killApplicationMaster(yarnClusterDescriptor.getYarnSessionClusterEntrypoint());
 			waitForApplicationAttempt(id, 2);
 
-			waitUntilJobIsRunning(restClusterClient, jobId);
+			waitForJobTermination(restClusterClient, jobId);
 
 			killApplicationAndWait(id);
 		} finally {
@@ -160,15 +181,15 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		final YarnClusterDescriptor yarnClusterDescriptor = setupYarnClusterDescriptor();
 		final RestClusterClient<ApplicationId> restClusterClient = deploySessionCluster(yarnClusterDescriptor);
 		try {
-			final JobID jobId = submitJob(restClusterClient, createJobGraph());
-			final ApplicationId id = restClusterClient.getClusterId();
+			final JobID jobId = submitJob(restClusterClient);
 			waitUntilJobIsRunning(restClusterClient, jobId);
 
 			stopTaskManagerContainer();
-			waitUntilJobIsRestarted(restClusterClient,jobId, 1);
-			waitUntilJobIsRunning(restClusterClient, jobId);
+			waitUntilJobIsRestarted(restClusterClient, jobId, 1);
 
-			killApplicationAndWait(id);
+			waitForJobTermination(restClusterClient, jobId);
+
+			killApplicationAndWait(restClusterClient.getClusterId());
 		} finally {
 			restClusterClient.shutdown();
 		}
@@ -231,6 +252,14 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 			Deadline.fromNow(TIMEOUT));
 	}
 
+	private void waitForJobTermination(
+		final RestClusterClient<ApplicationId> restClusterClient,
+		final JobID jobId) throws Exception {
+		stopJobSignal.signal();
+		final CompletableFuture<JobResult> jobResult = restClusterClient.requestJobResult(jobId);
+		jobResult.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+	}
+
 	@Nonnull
 	private YarnClusterDescriptor setupYarnClusterDescriptor() {
 		final Configuration flinkConfiguration = new Configuration();
@@ -262,8 +291,9 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		return (RestClusterClient<ApplicationId>) yarnClusterClient;
 	}
 
-	private JobID submitJob(RestClusterClient<ApplicationId> restClusterClient, JobGraph job) throws InterruptedException, java.util.concurrent.ExecutionException {
-		final CompletableFuture<JobSubmissionResult> jobSubmissionResultCompletableFuture = restClusterClient.submitJob(job);
+	private JobID submitJob(RestClusterClient<ApplicationId> restClusterClient) throws InterruptedException, java.util.concurrent.ExecutionException {
+		final CompletableFuture<JobSubmissionResult> jobSubmissionResultCompletableFuture =
+			restClusterClient.submitJob(job);
 
 		final JobSubmissionResult jobSubmissionResult = jobSubmissionResultCompletableFuture.get();
 		return jobSubmissionResult.getJobID();
@@ -272,18 +302,6 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	private void killApplicationMaster(final String processName) throws IOException, InterruptedException {
 		final Process exec = Runtime.getRuntime().exec("pkill -f " + processName);
 		assertThat(exec.waitFor(), is(0));
-	}
-
-	@Nonnull
-	private JobGraph createJobGraph() {
-		final JobGraph job = YarnTestJob.createJob();
-		final File testingJar =
-			YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-yarn-tests"));
-
-		assertThat(testingJar, notNullValue());
-
-		job.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
-		return job;
 	}
 
 	private static void waitUntilJobIsRunning(RestClusterClient<ApplicationId> restClusterClient, JobID jobId) throws Exception {
