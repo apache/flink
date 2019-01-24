@@ -150,7 +150,7 @@ spec:
         ports:
         - containerPort: 6121
           name: data
-        - containerPort: 6122
+        - containerPort: 6123
           name: rpc
         - containerPort: 6125
           name: query
