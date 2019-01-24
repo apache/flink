@@ -18,14 +18,10 @@
 
 package org.apache.flink.runtime.deployment;
 
-import org.apache.flink.runtime.io.network.ConnectionID;
-
-import java.io.Serializable;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
 /**
- * Location of a result partition from the perspective of the consuming task.
+ * Location type of a result partition from the perspective of the consuming task.
  *
  * <p>The location indicates both the instance, on which the partition is produced and the state of
  * the producing task. There are three possibilities:
@@ -45,58 +41,26 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * to have registered the partition after its state has switched to running.
  * </ol>
  */
-public class ResultPartitionLocation implements Serializable {
+public enum LocationType {
 
-	private static final long serialVersionUID = -6354238166937194463L;
-	/** The type of location for the result partition. */
-	private final LocationType locationType;
-
-	/** The connection ID of a remote result partition. */
-	private final ConnectionID connectionId;
-
-	private enum LocationType {
-		LOCAL,
-		REMOTE,
-		UNKNOWN
-	}
-
-	private ResultPartitionLocation(LocationType locationType, ConnectionID connectionId) {
-		this.locationType = checkNotNull(locationType);
-		this.connectionId = connectionId;
-	}
-
-	public static ResultPartitionLocation createRemote(ConnectionID connectionId) {
-		return new ResultPartitionLocation(LocationType.REMOTE, checkNotNull(connectionId));
-	}
-
-	public static ResultPartitionLocation createLocal() {
-		return new ResultPartitionLocation(LocationType.LOCAL, null);
-	}
-
-	public static ResultPartitionLocation createUnknown() {
-		return new ResultPartitionLocation(LocationType.UNKNOWN, null);
-	}
+	LOCAL,
+	REMOTE,
+	UNKNOWN;
 
 	// ------------------------------------------------------------------------
 
-	public boolean isLocal() {
-		return locationType == LocationType.LOCAL;
-	}
+	/**
+	 * Creates the location type based on the container IDs of producer and consumer.
+	 */
+	public static LocationType getLocationType(ResourceID producerLocation, ResourceID consumerLocation) {
+		final LocationType locationType;
 
-	public boolean isRemote() {
-		return locationType == LocationType.REMOTE;
-	}
+		if (producerLocation.equals(consumerLocation)) {
+			locationType = LocationType.LOCAL;
+		} else {
+			locationType = LocationType.REMOTE;
+		}
 
-	public boolean isUnknown() {
-		return locationType == LocationType.UNKNOWN;
-	}
-
-	public ConnectionID getConnectionId() {
-		return connectionId;
-	}
-
-	@Override
-	public String toString() {
-		return "ResultPartitionLocation [" + locationType + (isRemote() ? " [" + connectionId + "]]" : "]");
+		return locationType;
 	}
 }

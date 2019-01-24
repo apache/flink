@@ -31,7 +31,9 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.PartitionShuffleDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.ShuffleDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SimpleSlot;
@@ -703,8 +705,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 	}
 
-	public void cachePartitionInfo(PartialInputChannelDeploymentDescriptor partitionInfo){
-		getCurrentExecutionAttempt().cachePartitionInfo(partitionInfo);
+	void cachePartitionInfo(PartialInputChannelDeploymentDescriptor partitionInfo){
+		currentExecution.cachePartitionInfo(partitionInfo);
 	}
 
 	void sendPartitionInfos() {
@@ -794,7 +796,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 	}
 
-	/**TaskDeploymentDescriptorTest.java
+	/**
 	 * Creates a task deployment descriptor to deploy a subtask to the given target slot.
 	 * TODO: This should actually be in the EXECUTION
 	 */
@@ -813,23 +815,27 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		boolean lazyScheduling = getExecutionGraph().getScheduleMode().allowLazyDeployment();
 
 		for (IntermediateResultPartition partition : resultPartitions.values()) {
-
 			List<List<ExecutionEdge>> consumers = partition.getConsumers();
-
+			int maxParallelism;
 			if (consumers.isEmpty()) {
 				//TODO this case only exists for test, currently there has to be exactly one consumer in real jobs!
-				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(
-						partition,
-						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM));
+				maxParallelism = KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
 			} else {
 				Preconditions.checkState(1 == consumers.size(),
-						"Only one consumer supported in the current implementation! Found: " + consumers.size());
+					"Only one consumer supported in the current implementation! Found: " + consumers.size());
 
 				List<ExecutionEdge> consumer = consumers.get(0);
 				ExecutionJobVertex vertex = consumer.get(0).getTarget().getJobVertex();
-				int maxParallelism = vertex.getMaxParallelism();
-				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(partition, maxParallelism));
+				maxParallelism = vertex.getMaxParallelism();
 			}
+
+			PartitionShuffleDescriptor psd = PartitionShuffleDescriptor.from(targetSlot, executionId, partition, maxParallelism);
+
+			producedPartitions.add(ResultPartitionDeploymentDescriptor.fromShuffleDescriptor(psd));
+			getCurrentExecutionAttempt().cachePartitionShuffleDescriptor(partition.getIntermediateResult().getId(), psd);
+
+			ShuffleDeploymentDescriptor sdd = getExecutionGraph().getShuffleMaster().registerPartitionProducer(psd);
+			getCurrentExecutionAttempt().cacheShuffleDeploymentDescriptor(partition.getIntermediateResult().getId(), sdd);
 		}
 
 		for (ExecutionEdge[] edges : inputEdges) {
@@ -842,7 +848,6 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			// need to request the one matching our sub task index.
 			// TODO Refactor after removing the consumers from the intermediate result partitions
 			int numConsumerEdges = edges[0].getSource().getConsumers().get(0).size();
-
 			int queueToRequest = subTaskIndex % numConsumerEdges;
 
 			IntermediateResult consumedIntermediateResult = edges[0].getSource().getIntermediateResult();

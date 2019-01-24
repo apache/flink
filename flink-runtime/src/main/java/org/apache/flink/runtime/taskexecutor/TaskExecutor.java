@@ -624,10 +624,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		if (task != null) {
 			for (final PartitionInfo partitionInfo: partitionInfos) {
-				IntermediateDataSetID intermediateResultPartitionID = partitionInfo.getIntermediateDataSetID();
-
-				final SingleInputGate singleInputGate = task.getInputGateById(intermediateResultPartitionID);
-
+				IntermediateDataSetID resultId = partitionInfo.getResultId();
+				final SingleInputGate singleInputGate = task.getInputGateById(resultId);
 				if (singleInputGate != null) {
 					// Run asynchronously because it might be blocking
 					getRpcService().execute(
@@ -647,8 +645,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 						});
 				} else {
 					return FutureUtils.completedExceptionally(
-						new PartitionException("No reader with ID " + intermediateResultPartitionID +
-							" for task " + executionAttemptID + " was found."));
+						new PartitionException("No reader with ID " + resultId + " for task " + executionAttemptID + " was found."));
 				}
 			}
 

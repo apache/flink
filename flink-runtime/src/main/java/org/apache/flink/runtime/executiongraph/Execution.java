@@ -28,18 +28,13 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.ResultPartitionLocation;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.*;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
-import org.apache.flink.runtime.io.network.ConnectionID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -71,6 +66,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
@@ -147,6 +143,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	private final Time rpcTimeout;
 
 	private final ConcurrentLinkedQueue<PartialInputChannelDeploymentDescriptor> partialInputChannelDeploymentDescriptors;
+	private final ConcurrentHashMap<IntermediateDataSetID, PartitionShuffleDescriptor> paritionShuffleDescriptors;
+	private final ConcurrentHashMap<IntermediateDataSetID, ShuffleDeploymentDescriptor> shuffleDeploymentDescriptors;
 
 	/** A future that completes once the Execution reaches a terminal ExecutionState. */
 	private final CompletableFuture<ExecutionState> terminalStateFuture;
@@ -218,6 +216,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		markTimestamp(ExecutionState.CREATED, startTimestamp);
 
 		this.partialInputChannelDeploymentDescriptors = new ConcurrentLinkedQueue<>();
+		this.paritionShuffleDescriptors = new ConcurrentHashMap<>();
+		this.shuffleDeploymentDescriptors = new ConcurrentHashMap<>();
 		this.terminalStateFuture = new CompletableFuture<>();
 		this.releaseFuture = new CompletableFuture<>();
 		this.taskManagerLocationFuture = new CompletableFuture<>();
@@ -751,22 +751,21 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 		for (ExecutionEdge edge : allConsumers.get(0)) {
 			final ExecutionVertex consumerVertex = edge.getTarget();
-
 			final Execution consumer = consumerVertex.getCurrentExecutionAttempt();
 			final ExecutionState consumerState = consumer.getState();
 
 			final IntermediateResultPartition partition = edge.getSource();
+			final IntermediateDataSetID resultId = partition.getIntermediateResult().getId();
+			final Execution producer = partition.getProducer().getCurrentExecutionAttempt();
 
 			// ----------------------------------------------------------------
 			// Consumer is created => try to deploy and cache input channel
 			// descriptors if there is a deployment race
 			// ----------------------------------------------------------------
 			if (consumerState == CREATED) {
-				final Execution partitionExecution = partition.getProducer()
-						.getCurrentExecutionAttempt();
-
-				consumerVertex.cachePartitionInfo(PartialInputChannelDeploymentDescriptor.fromEdge(
-						partition, partitionExecution));
+				consumerVertex.cachePartitionInfo(PartialInputChannelDeploymentDescriptor.fromShuffleDescriptor(
+					producer.getPartitionShuffleDescriptor(resultId),
+					producer.getShuffleDeploymentDescriptor(resultId)));
 
 				// When deploying a consuming task, its task deployment descriptor will contain all
 				// deployment information available at the respective time. It is possible that some
@@ -798,54 +797,27 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			else {
 				if (consumerState == RUNNING) {
 					final LogicalSlot consumerSlot = consumer.getAssignedResource();
-
 					if (consumerSlot == null) {
 						// The consumer has been reset concurrently
 						continue;
 					}
 
-					final TaskManagerLocation partitionTaskManagerLocation = partition.getProducer()
-							.getCurrentAssignedResource().getTaskManagerLocation();
-					final ResourceID partitionTaskManager = partitionTaskManagerLocation.getResourceID();
+					final InputChannelDeploymentDescriptor icdd = InputChannelDeploymentDescriptor.fromShuffleDescriptor(
+						producer.getPartitionShuffleDescriptor(resultId),
+						producer.getShuffleDeploymentDescriptor(resultId),
+						consumerSlot.getTaskManagerLocation().getResourceID()
+					);
 
-					final ResourceID consumerTaskManager = consumerSlot.getTaskManagerLocation().getResourceID();
-
-					final ResultPartitionID partitionId = new ResultPartitionID(partition.getPartitionId(), attemptId);
-
-					final ResultPartitionLocation partitionLocation;
-
-					if (consumerTaskManager.equals(partitionTaskManager)) {
-						// Consuming task is deployed to the same instance as the partition => local
-						partitionLocation = ResultPartitionLocation.createLocal();
-					}
-					else {
-						// Different instances => remote
-						final ConnectionID connectionId = new ConnectionID(
-								partitionTaskManagerLocation,
-								partition.getIntermediateResult().getConnectionIndex());
-
-						partitionLocation = ResultPartitionLocation.createRemote(connectionId);
-					}
-
-					final InputChannelDeploymentDescriptor descriptor = new InputChannelDeploymentDescriptor(
-							partitionId, partitionLocation);
-
-					consumer.sendUpdatePartitionInfoRpcCall(
-						Collections.singleton(
-							new PartitionInfo(
-								partition.getIntermediateResult().getId(),
-								descriptor)));
+					consumer.sendUpdatePartitionInfoRpcCall(Collections.singleton(new PartitionInfo(resultId, icdd)));
 				}
 				// ----------------------------------------------------------------
 				// Consumer is scheduled or deploying => cache input channel
 				// deployment descriptors and send update message later
 				// ----------------------------------------------------------------
 				else if (consumerState == SCHEDULED || consumerState == DEPLOYING) {
-					final Execution partitionExecution = partition.getProducer()
-							.getCurrentExecutionAttempt();
-
-					consumerVertex.cachePartitionInfo(PartialInputChannelDeploymentDescriptor
-							.fromEdge(partition, partitionExecution));
+					consumerVertex.cachePartitionInfo(PartialInputChannelDeploymentDescriptor.fromShuffleDescriptor(
+						producer.getPartitionShuffleDescriptor(resultId),
+						producer.getShuffleDeploymentDescriptor(resultId)));
 
 					// double check to resolve race conditions
 					if (consumerVertex.getExecutionState() == RUNNING) {
@@ -1081,7 +1053,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				partitionInfos.add(
 					new PartitionInfo(
 						partialInputChannelDeploymentDescriptor.getResultId(),
-						partialInputChannelDeploymentDescriptor.createInputChannelDeploymentDescriptor(this)));
+						partialInputChannelDeploymentDescriptor.createInputChannelDeploymentDescriptor(
+							getAssignedResourceLocation().getResourceID())));
 			}
 
 			sendUpdatePartitionInfoRpcCall(partitionInfos);
@@ -1291,6 +1264,22 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			// no assigned resource --> we can directly complete the release future
 			releaseFuture.complete(null);
 		}
+	}
+
+	void cachePartitionShuffleDescriptor(IntermediateDataSetID resultId, PartitionShuffleDescriptor psd) {
+		paritionShuffleDescriptors.put(resultId, psd);
+	}
+
+	public PartitionShuffleDescriptor getPartitionShuffleDescriptor(IntermediateDataSetID resultId) {
+		return paritionShuffleDescriptors.get(resultId);
+	}
+
+	void cacheShuffleDeploymentDescriptor(IntermediateDataSetID resultId, ShuffleDeploymentDescriptor sdd) {
+		shuffleDeploymentDescriptors.put(resultId, sdd);
+	}
+
+	public ShuffleDeploymentDescriptor getShuffleDeploymentDescriptor(IntermediateDataSetID resultId) {
+		return shuffleDeploymentDescriptors.get(resultId);
 	}
 
 	// --------------------------------------------------------------------------------------------

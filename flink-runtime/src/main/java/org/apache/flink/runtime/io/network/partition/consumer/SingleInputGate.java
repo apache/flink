@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.ResultPartitionLocation;
+import org.apache.flink.runtime.deployment.LocationType;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -350,13 +350,13 @@ public class SingleInputGate implements InputGate {
 
 				InputChannel newChannel;
 
-				ResultPartitionLocation partitionLocation = icdd.getConsumedPartitionLocation();
+				LocationType locationType = icdd.getConsumedPartitionLocation();
 
-				if (partitionLocation.isLocal()) {
+				if (locationType == LocationType.LOCAL) {
 					newChannel = unknownChannel.toLocalInputChannel();
 				}
-				else if (partitionLocation.isRemote()) {
-					newChannel = unknownChannel.toRemoteInputChannel(partitionLocation.getConnectionId());
+				else if (locationType == LocationType.REMOTE) {
+					newChannel = unknownChannel.toRemoteInputChannel(icdd.getConnectionId());
 
 					if (this.isCreditBased) {
 						checkState(this.networkBufferPool != null, "Bug in input gate setup logic: " +
@@ -688,9 +688,9 @@ public class SingleInputGate implements InputGate {
 
 		for (int i = 0; i < inputChannels.length; i++) {
 			final ResultPartitionID partitionId = icdd[i].getConsumedPartitionId();
-			final ResultPartitionLocation partitionLocation = icdd[i].getConsumedPartitionLocation();
+			final LocationType locationType = icdd[i].getConsumedPartitionLocation();
 
-			if (partitionLocation.isLocal()) {
+			if (locationType == LocationType.LOCAL) {
 				inputChannels[i] = new LocalInputChannel(inputGate, i, partitionId,
 					networkEnvironment.getResultPartitionManager(),
 					networkEnvironment.getTaskEventDispatcher(),
@@ -701,9 +701,9 @@ public class SingleInputGate implements InputGate {
 
 				numLocalChannels++;
 			}
-			else if (partitionLocation.isRemote()) {
+			else if (locationType == LocationType.REMOTE) {
 				inputChannels[i] = new RemoteInputChannel(inputGate, i, partitionId,
-					partitionLocation.getConnectionId(),
+					icdd[i].getConnectionId(),
 					networkEnvironment.getConnectionManager(),
 					networkEnvironment.getPartitionRequestInitialBackoff(),
 					networkEnvironment.getPartitionRequestMaxBackoff(),
@@ -712,7 +712,7 @@ public class SingleInputGate implements InputGate {
 
 				numRemoteChannels++;
 			}
-			else if (partitionLocation.isUnknown()) {
+			else if (locationType == LocationType.UNKNOWN) {
 				inputChannels[i] = new UnknownInputChannel(inputGate, i, partitionId,
 					networkEnvironment.getResultPartitionManager(),
 					networkEnvironment.getTaskEventDispatcher(),

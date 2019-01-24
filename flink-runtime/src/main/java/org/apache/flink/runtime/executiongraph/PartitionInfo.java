@@ -20,7 +20,8 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.util.Preconditions;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 import java.io.Serializable;
 
@@ -33,16 +34,19 @@ public class PartitionInfo implements Serializable {
 
 	private static final long serialVersionUID = 1724490660830968430L;
 
-	private final IntermediateDataSetID intermediateDataSetID;
+	private final IntermediateDataSetID resultId;
 	private final InputChannelDeploymentDescriptor inputChannelDeploymentDescriptor;
 
-	public PartitionInfo(IntermediateDataSetID intermediateResultPartitionID, InputChannelDeploymentDescriptor inputChannelDeploymentDescriptor) {
-		this.intermediateDataSetID = Preconditions.checkNotNull(intermediateResultPartitionID);
-		this.inputChannelDeploymentDescriptor = Preconditions.checkNotNull(inputChannelDeploymentDescriptor);
+	public PartitionInfo(
+			IntermediateDataSetID resultId,
+			InputChannelDeploymentDescriptor inputChannelDeploymentDescriptor) {
+
+		this.resultId = checkNotNull(resultId);
+		this.inputChannelDeploymentDescriptor = checkNotNull(inputChannelDeploymentDescriptor);
 	}
 
-	public IntermediateDataSetID getIntermediateDataSetID() {
-		return intermediateDataSetID;
+	public IntermediateDataSetID getResultId() {
+		return resultId;
 	}
 
 	public InputChannelDeploymentDescriptor getInputChannelDeploymentDescriptor() {

@@ -48,7 +48,6 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -123,71 +122,10 @@ public class TaskDeploymentDescriptorTest extends TestLogger {
 		assertThat(actualSerializedJobInformation, is(serializedJobInformation));
 
 		try {
-			final JobID jobID = new JobID();
-			final JobVertexID vertexID = new JobVertexID();
-			final ExecutionAttemptID execId = new ExecutionAttemptID();
-			final AllocationID allocationId = new AllocationID();
-			final String jobName = "job name";
-			final String taskName = "task name";
-			final int numberOfKeyGroups = 1;
-			final int indexInSubtaskGroup = 0;
-			final int currentNumberOfSubtasks = 1;
-			final int attemptNumber = 0;
-			final Configuration jobConfiguration = new Configuration();
-			final Configuration taskConfiguration = new Configuration();
-			final Class<? extends AbstractInvokable> invokableClass = BatchTask.class;
-			final List<ResultPartitionDeploymentDescriptor> producedResults = new ArrayList<ResultPartitionDeploymentDescriptor>(0);
-			final List<InputGateDeploymentDescriptor> inputGates = new ArrayList<InputGateDeploymentDescriptor>(0);
-			final List<PermanentBlobKey> requiredJars = new ArrayList<>(0);
-			final List<URL> requiredClasspaths = new ArrayList<>(0);
-			final SerializedValue<ExecutionConfig> executionConfig = new SerializedValue<>(new ExecutionConfig());
-			final SerializedValue<JobInformation> serializedJobInformation = new SerializedValue<>(new JobInformation(
-				jobID, jobName, executionConfig, jobConfiguration, requiredJars, requiredClasspaths));
-			final SerializedValue<TaskInformation> serializedJobVertexInformation = new SerializedValue<>(new TaskInformation(
-				vertexID, taskName, currentNumberOfSubtasks, numberOfKeyGroups, invokableClass.getName(), taskConfiguration));
-			final int targetSlotNumber = 47;
-			final TaskStateSnapshot taskStateHandles = new TaskStateSnapshot();
-			final JobManagerTaskRestore taskRestore = new JobManagerTaskRestore(1L, taskStateHandles);
-
-			final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(
-				jobID,
-				new TaskDeploymentDescriptor.NonOffloaded<>(serializedJobInformation),
-				new TaskDeploymentDescriptor.NonOffloaded<>(serializedJobVertexInformation),
-				execId,
-				allocationId,
-				indexInSubtaskGroup,
-				attemptNumber,
-				targetSlotNumber,
-				taskRestore,
-				producedResults,
-				inputGates,
-				true);
-
-			final TaskDeploymentDescriptor copy = CommonTestUtils.createCopySerializable(orig);
-
-			assertFalse(orig.getSerializedJobInformation() == copy.getSerializedJobInformation());
-			assertFalse(orig.getSerializedTaskInformation() == copy.getSerializedTaskInformation());
-			assertFalse(orig.getExecutionAttemptId() == copy.getExecutionAttemptId());
-			assertFalse(orig.getTaskRestore() == copy.getTaskRestore());
-			assertFalse(orig.getProducedPartitions() == copy.getProducedPartitions());
-			assertFalse(orig.getInputGates() == copy.getInputGates());
-
-			assertEquals(orig.getSerializedJobInformation(), copy.getSerializedJobInformation());
-			assertEquals(orig.getSerializedTaskInformation(), copy.getSerializedTaskInformation());
-			assertEquals(orig.getExecutionAttemptId(), copy.getExecutionAttemptId());
-			assertEquals(orig.getAllocationId(), copy.getAllocationId());
-			assertEquals(orig.getSubtaskIndex(), copy.getSubtaskIndex());
-			assertEquals(orig.getAttemptNumber(), copy.getAttemptNumber());
-			assertEquals(orig.getTargetSlotNumber(), copy.getTargetSlotNumber());
-			assertEquals(orig.getTaskRestore().getRestoreCheckpointId(), copy.getTaskRestore().getRestoreCheckpointId());
-			assertEquals(orig.getTaskRestore().getTaskStateSnapshot(), copy.getTaskRestore().getTaskStateSnapshot());
-			assertEquals(orig.getProducedPartitions(), copy.getProducedPartitions());
-			assertEquals(orig.getInputGates(), copy.getInputGates());
-			assertTrue(copy.sendScheduleOrUpdateConsumersMessage());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+			taskDeploymentDescriptor.getSerializedTaskInformation();
+			fail("Expected to fail since the task information should be offloaded.");
+		} catch (IllegalStateException expected) {
+			// expected
 		}
 	}
 

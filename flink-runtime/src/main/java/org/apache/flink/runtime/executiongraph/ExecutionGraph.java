@@ -44,6 +44,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.deployment.DefaultShuffleMaster;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
@@ -614,6 +615,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	public SlotProvider getSlotProvider() {
 		return slotProvider;
+	}
+
+	public DefaultShuffleMaster getShuffleMaster() {
+		return new DefaultShuffleMaster();
 	}
 
 	public Either<SerializedValue<JobInformation>, PermanentBlobKey> getJobInformationOrBlobKey() {

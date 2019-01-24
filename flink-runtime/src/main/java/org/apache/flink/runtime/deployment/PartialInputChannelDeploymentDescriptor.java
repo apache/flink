@@ -18,13 +18,12 @@
 
 package org.apache.flink.runtime.deployment;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.executiongraph.IntermediateResult;
-import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -37,28 +36,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class PartialInputChannelDeploymentDescriptor {
 
-	/** The result ID identifies the input gate to update. */
-	private final IntermediateDataSetID resultId;
+	private final PartitionShuffleDescriptor psd;
 
-	/** The partition ID identifies the input channel to update. */
-	private final ResultPartitionID partitionID;
+	private final ShuffleDeploymentDescriptor sdd;
 
-	/** The partition connection info. */
-	private final TaskManagerLocation partitionTaskManagerLocation;
-
-	/** The partition connection index. */
-	private final int partitionConnectionIndex;
-
-	public PartialInputChannelDeploymentDescriptor(
-			IntermediateDataSetID resultId,
-			ResultPartitionID partitionID,
-			TaskManagerLocation partitionTaskManagerLocation,
-			int partitionConnectionIndex) {
-
-		this.resultId = checkNotNull(resultId);
-		this.partitionID = checkNotNull(partitionID);
-		this.partitionTaskManagerLocation = checkNotNull(partitionTaskManagerLocation);
-		this.partitionConnectionIndex = partitionConnectionIndex;
+	public PartialInputChannelDeploymentDescriptor(PartitionShuffleDescriptor psd, ShuffleDeploymentDescriptor sdd) {
+		this.psd = checkNotNull(psd);
+		this.sdd = checkNotNull(sdd);
 	}
 
 	/**
@@ -66,48 +50,27 @@ public class PartialInputChannelDeploymentDescriptor {
 	 *
 	 * @see InputChannelDeploymentDescriptor
 	 */
-	public InputChannelDeploymentDescriptor createInputChannelDeploymentDescriptor(Execution consumerExecution) {
-		checkNotNull(consumerExecution, "consumerExecution");
+	public InputChannelDeploymentDescriptor createInputChannelDeploymentDescriptor(ResourceID consumerResourceId) {
+		final LocationType locationType = LocationType.getLocationType(psd.getProducerResourceId(), consumerResourceId);
 
-		TaskManagerLocation consumerLocation = consumerExecution.getAssignedResourceLocation();
-		checkNotNull(consumerLocation, "Consumer connection info null");
-
-		final ResultPartitionLocation partitionLocation;
-
-		if (consumerLocation.equals(partitionTaskManagerLocation)) {
-			partitionLocation = ResultPartitionLocation.createLocal();
-		}
-		else {
-			partitionLocation = ResultPartitionLocation.createRemote(
-					new ConnectionID(partitionTaskManagerLocation, partitionConnectionIndex));
-		}
-
-		return new InputChannelDeploymentDescriptor(partitionID, partitionLocation);
+		return new InputChannelDeploymentDescriptor(
+			new ResultPartitionID(psd.getPartitionId(), psd.getProducerExecutionId()),
+			locationType,
+			Optional.of(sdd.getConnectionId()));
 	}
 
 	public IntermediateDataSetID getResultId() {
-		return resultId;
+		return psd.getResultId();
 	}
 
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a partial input channel for the given partition and producing task.
+	 * Creates a partial channel deployment descriptor based on cached partition and shuffle descriptors.
 	 */
-	public static PartialInputChannelDeploymentDescriptor fromEdge(
-			IntermediateResultPartition partition,
-			Execution producer) {
-
-		final ResultPartitionID partitionId = new ResultPartitionID(
-				partition.getPartitionId(), producer.getAttemptId());
-
-		final IntermediateResult result = partition.getIntermediateResult();
-
-		final IntermediateDataSetID resultId = result.getId();
-		final TaskManagerLocation partitionConnectionInfo = producer.getAssignedResourceLocation();
-		final int partitionConnectionIndex = result.getConnectionIndex();
-
-		return new PartialInputChannelDeploymentDescriptor(
-				resultId, partitionId, partitionConnectionInfo, partitionConnectionIndex);
+	public static PartialInputChannelDeploymentDescriptor fromShuffleDescriptor(
+			PartitionShuffleDescriptor psd,
+			ShuffleDeploymentDescriptor sdd) {
+		return new PartialInputChannelDeploymentDescriptor(psd, sdd);
 	}
 }

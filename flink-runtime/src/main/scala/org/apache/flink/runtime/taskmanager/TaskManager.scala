@@ -1289,7 +1289,7 @@ class TaskManager(
 
         val errors: Iterable[String] = partitionInfos.asScala.flatMap { info =>
 
-          val resultID = info.getIntermediateDataSetID
+          val resultID = info.getResultId
           val partitionInfo = info.getInputChannelDeploymentDescriptor
           val reader = task.getInputGateById(resultID)
 
