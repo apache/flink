@@ -19,22 +19,29 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.rest.RestClient;
+import org.apache.flink.runtime.rest.RestClientConfiguration;
+import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
+import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfo;
+import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoEntry;
+import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoHeaders;
+import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
-import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.flink.shaded.guava18.com.google.common.net.HostAndPort;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -47,6 +54,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.apache.log4j.Level;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -66,9 +74,13 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -77,7 +89,6 @@ import static org.apache.flink.yarn.UtilsTest.checkForLogString;
 import static org.apache.flink.yarn.util.YarnTestUtils.getTestJarPath;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
@@ -89,14 +100,43 @@ import static org.junit.Assume.assumeTrue;
 public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	private static final Logger LOG = LoggerFactory.getLogger(YARNSessionCapacitySchedulerITCase.class);
 
+	/**
+	 * RestClient to query Flink cluster.
+	 */
+	private static RestClient restClient;
+
+	/**
+	 * ExecutorService for {@link RestClient}.
+	 * @see #restClient
+	 */
+	private static ExecutorService restClientExecutor;
+
 	@BeforeClass
-	public static void setup() {
+	public static void setup() throws Exception {
 		YARN_CONFIGURATION.setClass(YarnConfiguration.RM_SCHEDULER, CapacityScheduler.class, ResourceScheduler.class);
 		YARN_CONFIGURATION.set("yarn.scheduler.capacity.root.queues", "default,qa-team");
 		YARN_CONFIGURATION.setInt("yarn.scheduler.capacity.root.default.capacity", 40);
 		YARN_CONFIGURATION.setInt("yarn.scheduler.capacity.root.qa-team.capacity", 60);
 		YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-capacityscheduler");
 		startYARNWithConfig(YARN_CONFIGURATION);
+
+		restClientExecutor = Executors.newSingleThreadExecutor();
+		restClient = new RestClient(RestClientConfiguration.fromConfiguration(new Configuration()), restClientExecutor);
+	}
+
+	@AfterClass
+	public static void tearDown() throws Exception {
+		try {
+			YarnTestBase.teardown();
+		} finally {
+			if (restClient != null) {
+				restClient.shutdown(Time.seconds(5));
+			}
+
+			if (restClientExecutor != null) {
+				restClientExecutor.shutdownNow();
+			}
+		}
 	}
 
 	/**
@@ -215,27 +255,26 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			RunTypes.YARN_SESSION);
 
 		final String logs = outContent.toString();
-		final String hostname = parseJobManagerHostname(logs);
-		LOG.info("Extracted hostname: {}", hostname);
-
-		final ApplicationReport applicationReport = getOnlyApplicationReport();
-		final String restApiBaseUrl = normalizeTrackingUrl(applicationReport.getTrackingUrl());
-		LOG.info("Got application URL from YARN {}", restApiBaseUrl);
+		final HostAndPort hostAndPort = parseJobManagerHostname(logs);
+		final String host = hostAndPort.getHostText();
+		final int port = hostAndPort.getPort();
+		LOG.info("Extracted hostname:port: {}", host, port);
 
 		submitJob("WindowJoin.jar");
-		waitForTaskManagerRegistration(restApiBaseUrl, Duration.ofMillis(30_000));
 
 		//
 		// Assert that custom YARN application name "customName" is set
 		//
+		final ApplicationReport applicationReport = getOnlyApplicationReport();
 		assertEquals("customName", applicationReport.getName());
 
 		//
 		// Assert the number of TaskManager slots are set
 		//
-		assertNumberOfSlotsPerTask(restApiBaseUrl, 3);
+		waitForTaskManagerRegistration(host, port, Duration.ofMillis(30_000));
+		assertNumberOfSlotsPerTask(host, port, 3);
 
-		final Map<String, String> flinkConfig = getFlinkConfig(restApiBaseUrl);
+		final Map<String, String> flinkConfig = getFlinkConfig(host, port);
 
 		//
 		// Assert dynamic properties
@@ -251,24 +290,27 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		//
 		// FLINK-1902: check if jobmanager hostname is shown in web interface
 		//
-		assertThat(flinkConfig, hasEntry(JobManagerOptions.ADDRESS.key(), hostname));
+		assertThat(flinkConfig, hasEntry(JobManagerOptions.ADDRESS.key(), host));
 
 		yarnSessionClusterRunner.sendStop();
 		yarnSessionClusterRunner.join();
 	}
 
-	private static String parseJobManagerHostname(final String logs) {
+	private static HostAndPort parseJobManagerHostname(final String logs) {
 		final Pattern p = Pattern.compile("Flink JobManager is now running on ([a-zA-Z0-9.-]+):([0-9]+)");
 		final Matcher matches = p.matcher(logs);
 		String hostname = null;
+		String port = null;
 
 		while (matches.find()) {
 			hostname = matches.group(1).toLowerCase();
+			port = matches.group(2);
 		}
 
-		assertNotNull("hostname not found in log", hostname);
+		checkState(hostname != null, "hostname not found in log");
+		checkState(port != null, "port not found in log");
 
-		return hostname;
+		return HostAndPort.fromParts(hostname, Integer.parseInt(port));
 	}
 
 	private ApplicationReport getOnlyApplicationReport() throws IOException, YarnException {
@@ -280,17 +322,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		return apps.get(0);
 	}
 
-	private static String normalizeTrackingUrl(final String trackingUrl) {
-		String url = trackingUrl;
-		if (!url.endsWith("/")) {
-			url += "/";
-		}
-		if (!url.startsWith("http://")) {
-			url = "http://" + url;
-		}
-		return url;
-	}
-
 	private void submitJob(final String jobFileName) throws IOException, InterruptedException {
 		Runner jobRunner = startWithArgs(new String[]{"run",
 				"--detached", getTestJarPath(jobFileName).getAbsolutePath()},
@@ -298,36 +329,56 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		jobRunner.join();
 	}
 
-	private static void waitForTaskManagerRegistration(final String url, final Duration waitDuration) throws Exception {
-		waitUntilCondition(() -> getNumberOfTaskManagers(url) > 0, Deadline.fromNow(waitDuration));
+	private static void waitForTaskManagerRegistration(
+			final String host,
+			final int port,
+			final Duration waitDuration) throws Exception {
+		waitUntilCondition(() -> getNumberOfTaskManagers(host, port) > 0, Deadline.fromNow(waitDuration));
 	}
 
-	private static void assertNumberOfSlotsPerTask(final String url, final int slotsNumber) throws Exception {
+	private static void assertNumberOfSlotsPerTask(
+			final String host,
+			final int port,
+			final int slotsNumber) throws Exception {
 		try {
-			waitUntilCondition(() -> getNumberOfSlotsPerTaskManager(url) == slotsNumber, Deadline.fromNow(Duration.ofSeconds(30)));
+			waitUntilCondition(() -> getNumberOfSlotsPerTaskManager(host, port) == slotsNumber, Deadline.fromNow(Duration.ofSeconds(30)));
 		} catch (final TimeoutException e) {
-			final int currentNumberOfSlots = getNumberOfSlotsPerTaskManager(url);
+			final int currentNumberOfSlots = getNumberOfSlotsPerTaskManager(host, port);
 			fail(String.format("Expected slots per TM to be %d, was: %d", slotsNumber, currentNumberOfSlots));
 		}
 	}
 
-	private static int getNumberOfTaskManagers(final String url) throws Exception {
-		String response = TestBaseUtils.getFromHTTP(url + "taskmanagers/");
-		JsonNode parsedTMs = new ObjectMapper().readTree(response);
-		ArrayNode taskManagers = (ArrayNode) parsedTMs.get("taskmanagers");
-		return taskManagers == null ? 0 : taskManagers.size();
+	private static int getNumberOfTaskManagers(final String host, final int port) throws Exception {
+		final ClusterOverviewWithVersion clusterOverviewWithVersion = restClient.sendRequest(
+			host,
+			port,
+			ClusterOverviewHeaders.getInstance()).get(30_000, TimeUnit.MILLISECONDS);
+
+		return clusterOverviewWithVersion.getNumTaskManagersConnected();
 	}
 
-	private static int getNumberOfSlotsPerTaskManager(final String url) throws Exception {
-		String response = TestBaseUtils.getFromHTTP(url + "taskmanagers/");
-		JsonNode parsedTMs = new ObjectMapper().readTree(response);
-		ArrayNode taskManagers = (ArrayNode) parsedTMs.get("taskmanagers");
-		return taskManagers.get(0).get("slotsNumber").asInt();
+	private static int getNumberOfSlotsPerTaskManager(final String host, final int port) throws Exception {
+		final TaskManagersInfo taskManagersInfo = restClient.sendRequest(
+			host,
+			port,
+			TaskManagersHeaders.getInstance()).get();
+
+		return taskManagersInfo.getTaskManagerInfos()
+			.stream()
+			.map(TaskManagerInfo::getNumberSlots)
+			.findFirst()
+			.orElse(0);
 	}
 
-	private static Map<String, String> getFlinkConfig(final String url) throws Exception {
-		String jsonConfig = TestBaseUtils.getFromHTTP(url + "jobmanager/config");
-		return WebMonitorUtils.fromKeyValueJsonArray(jsonConfig);
+	private static Map<String, String> getFlinkConfig(final String host, final int port) throws Exception {
+		final ClusterConfigurationInfo clusterConfigurationInfoEntries = restClient.sendRequest(
+			host,
+			port,
+			ClusterConfigurationInfoHeaders.getInstance()).get();
+
+		return clusterConfigurationInfoEntries.stream().collect(Collectors.toMap(
+			ClusterConfigurationInfoEntry::getKey,
+			ClusterConfigurationInfoEntry::getValue));
 	}
 
 	/**

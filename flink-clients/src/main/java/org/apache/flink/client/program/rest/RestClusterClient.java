@@ -702,7 +702,8 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 		return sendRequest(messageHeaders, EmptyMessageParameters.getInstance(), EmptyRequestBody.getInstance());
 	}
 
-	private <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P>
+	@VisibleForTesting
+	public <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P>
 			sendRequest(M messageHeaders, U messageParameters, R request) {
 		return sendRetriableRequest(
 			messageHeaders, messageParameters, request, isConnectionProblemOrServiceUnavailable());

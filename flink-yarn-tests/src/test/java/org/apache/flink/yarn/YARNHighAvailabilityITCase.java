@@ -31,13 +31,18 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
+import org.apache.flink.runtime.rest.messages.job.metrics.JobMetricsHeaders;
+import org.apache.flink.runtime.rest.messages.job.metrics.JobMetricsMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.metrics.Metric;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 import org.apache.flink.yarn.testjob.YarnTestJob;
 import org.apache.flink.yarn.util.YarnTestUtils;
 
+import com.google.common.collect.Iterables;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -64,9 +69,11 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
@@ -126,36 +133,45 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 			OperatingSystem.isLinux() || OperatingSystem.isMac() || OperatingSystem.isFreeBSD() || OperatingSystem.isSolaris());
 
 		final YarnClusterDescriptor yarnClusterDescriptor = setupYarnClusterDescriptor();
-
 		final RestClusterClient<ApplicationId> restClusterClient = deploySessionCluster(yarnClusterDescriptor);
 
-		final JobGraph job = createJobGraph();
+		try {
+			final JobGraph job = createJobGraph();
 
-		final JobID jobId = submitJob(restClusterClient, job);
+			final JobID jobId = submitJob(restClusterClient, job);
 
-		final ApplicationId id = restClusterClient.getClusterId();
+			final ApplicationId id = restClusterClient.getClusterId();
 
-		waitUntilJobIsRunning(restClusterClient, jobId);
+			waitUntilJobIsRunning(restClusterClient, jobId);
 
-		killApplicationMaster(yarnClusterDescriptor.getYarnSessionClusterEntrypoint());
-		waitForApplicationAttempt(id, 2);
+			killApplicationMaster(yarnClusterDescriptor.getYarnSessionClusterEntrypoint());
+			waitForApplicationAttempt(id, 2);
 
-		waitUntilJobIsRunning(restClusterClient, jobId);
+			waitUntilJobIsRunning(restClusterClient, jobId);
 
-		killApplicationAndWait(id);
+			killApplicationAndWait(id);
+		} finally {
+			restClusterClient.shutdown();
+		}
 	}
 
 	@Test
 	public void testJobRecoversAfterKillingTaskManager() throws Exception {
-		final RestClusterClient<ApplicationId> restClusterClient = deploySessionCluster(setupYarnClusterDescriptor());
-		final JobID jobId = submitJob(restClusterClient, createJobGraph());
-		final ApplicationId id = restClusterClient.getClusterId();
-		waitUntilJobIsRunning(restClusterClient, jobId);
+		final YarnClusterDescriptor yarnClusterDescriptor = setupYarnClusterDescriptor();
+		final RestClusterClient<ApplicationId> restClusterClient = deploySessionCluster(yarnClusterDescriptor);
+		try {
+			final JobID jobId = submitJob(restClusterClient, createJobGraph());
+			final ApplicationId id = restClusterClient.getClusterId();
+			waitUntilJobIsRunning(restClusterClient, jobId);
 
-		stopTaskManagerContainer();
-		waitUntilJobIsRunning(restClusterClient, jobId);
+			stopTaskManagerContainer();
+			waitUntilJobIsRestarted(restClusterClient,jobId, 1);
+			waitUntilJobIsRunning(restClusterClient, jobId);
 
-		killApplicationAndWait(id);
+			killApplicationAndWait(id);
+		} finally {
+			restClusterClient.shutdown();
+		}
 	}
 
 	private void waitForApplicationAttempt(final ApplicationId applicationId, final int attemptId) throws Exception {
@@ -270,7 +286,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		return job;
 	}
 
-	private void waitUntilJobIsRunning(RestClusterClient<ApplicationId> restClusterClient, JobID jobId) throws Exception {
+	private static void waitUntilJobIsRunning(RestClusterClient<ApplicationId> restClusterClient, JobID jobId) throws Exception {
 		waitUntilCondition(
 			() -> {
 				final JobDetailsInfo jobDetails = restClusterClient.getJobDetails(jobId).get();
@@ -290,4 +306,41 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		return executionState -> executionState == ExecutionState.RUNNING;
 	}
 
+	private static void waitUntilJobIsRestarted(
+		final RestClusterClient<ApplicationId> restClusterClient,
+		final JobID jobId,
+		final int expectedFullRestarts) throws Exception {
+		waitUntilCondition(
+			() -> getJobFullRestarts(restClusterClient, jobId) >= expectedFullRestarts,
+			Deadline.fromNow(TIMEOUT));
+	}
+
+	private static int getJobFullRestarts(
+		final RestClusterClient<ApplicationId> restClusterClient,
+		final JobID jobId) throws Exception {
+
+		return getJobMetric(restClusterClient, jobId, "fullRestarts")
+			.map(Metric::getValue)
+			.map(Integer::parseInt)
+			.orElse(0);
+	}
+
+	private static Optional<Metric> getJobMetric(
+		final RestClusterClient<ApplicationId> restClusterClient,
+		final JobID jobId,
+		final String metricName) throws Exception {
+
+		final JobMetricsMessageParameters messageParameters = new JobMetricsMessageParameters();
+		messageParameters.jobPathParameter.resolve(jobId);
+		messageParameters.metricsFilterParameter.resolveFromString(metricName);
+
+		final Collection<Metric> metrics = restClusterClient.sendRequest(
+			JobMetricsHeaders.getInstance(),
+			messageParameters,
+			EmptyRequestBody.getInstance()).get().getMetrics();
+
+		final Metric metric = Iterables.getOnlyElement(metrics, null);
+		checkState(metric == null || metric.getId().equals(metricName));
+		return Optional.ofNullable(metric);
+	}
 }
