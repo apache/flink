@@ -45,7 +45,7 @@ import java.util.function.Supplier;
  * Help class for uploading RocksDB state files.
  */
 public class RocksDBStateUploader extends RocksDBStateDataTransfer {
-	private final int readBufferSize = 16 * 1024;
+	private static final int READ_BUFFER_SIZE = 16 * 1024;
 
 	public RocksDBStateUploader(int numberOfSnapshottingThreads) {
 		super(numberOfSnapshottingThreads);
@@ -111,7 +111,7 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
 		CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
 
 		try {
-			final byte[] buffer = new byte[readBufferSize];
+			final byte[] buffer = new byte[READ_BUFFER_SIZE];
 
 			FileSystem backupFileSystem = filePath.getFileSystem();
 			inputStream = backupFileSystem.open(filePath);
