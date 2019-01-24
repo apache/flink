@@ -108,15 +108,16 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 		final Path prometheusBinary = prometheusBinDir.resolve("prometheus");
 		Files.createDirectory(tmpPrometheusDir);
 
+		LOG.info("Downloading Prometheus.");
 		runBlocking(
-			"Download of Prometheus",
 			Duration.ofMinutes(5),
 			CommandLineWrapper
 				.wget("https://github.com/prometheus/prometheus/releases/download/v" + PROMETHEUS_VERSION + '/' + prometheusArchive.getFileName())
 				.targetDir(tmpPrometheusDir)
 				.build());
 
-		runBlocking("Extraction of Prometheus archive",
+		LOG.info("Unpacking Prometheus.");
+		runBlocking(
 			CommandLineWrapper
 				.tar(prometheusArchive)
 				.extract()
@@ -124,7 +125,8 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 				.targetDir(tmpPrometheusDir)
 				.build());
 
-		runBlocking("Set Prometheus scrape interval",
+		LOG.info("Setting Prometheus scrape interval.");
+		runBlocking(
 			CommandLineWrapper
 				.sed("s/\\(scrape_interval:\\).*/\\1 1s/", prometheusConfig)
 				.inPlace()
@@ -141,14 +143,15 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 			.map(port -> "'localhost:" + port + "'")
 			.collect(Collectors.joining(", "));
 
-		runBlocking("Set Prometheus scrape targets to (" + scrapeTargets + ")",
+		LOG.info("Setting Prometheus scrape targets to {}.", scrapeTargets);
+		runBlocking(
 			CommandLineWrapper
 				.sed("s/\\(targets:\\).*/\\1 [" + scrapeTargets + "]/", prometheusConfig)
 				.inPlace()
 				.build());
 
+		LOG.info("Starting Prometheus server.");
 		try (AutoClosableProcess prometheus = runNonBlocking(
-			"Start Prometheus server",
 			prometheusBinary.toAbsolutePath().toString(),
 			"--config.file=" + prometheusConfig.toAbsolutePath(),
 			"--storage.tsdb.path=" + prometheusBinDir.resolve("data").toAbsolutePath())) {

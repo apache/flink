@@ -20,9 +20,6 @@ package org.apache.flink.tests.util;
 
 import org.apache.flink.util.Preconditions;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -33,8 +30,6 @@ import java.util.concurrent.TimeoutException;
  */
 public class AutoClosableProcess implements AutoCloseable {
 
-	private static final Logger LOG = LoggerFactory.getLogger(AutoClosableProcess.class);
-
 	private final Process process;
 
 	public AutoClosableProcess(final Process process) {
@@ -42,35 +37,40 @@ public class AutoClosableProcess implements AutoCloseable {
 		this.process = process;
 	}
 
-	public static AutoClosableProcess runNonBlocking(String step, String... commands) throws IOException {
-		LOG.info("Step Started: " + step);
-		Process process = new ProcessBuilder()
-			.command(commands)
-			.inheritIO()
-			.start();
-		return new AutoClosableProcess(process);
+	public Process getProcess() {
+		return process;
 	}
 
-	public static void runBlocking(String step, String... commands) throws IOException {
-		runBlocking(step, Duration.ofSeconds(30), commands);
+	public static AutoClosableProcess runNonBlocking(String... commands) throws IOException {
+		return runNonBlocking(commands);
 	}
 
-	public static void runBlocking(String step, Duration timeout, String... commands) throws IOException {
-		LOG.info("Step started: " + step);
-		Process process = new ProcessBuilder()
-			.command(commands)
-			.inheritIO()
-			.start();
+	public static Process runBlocking(String... commands) throws IOException {
+		return runBlocking(Duration.ofSeconds(30), commands);
+	}
+
+	public static Process runBlocking(Duration timeout, String... commands) throws IOException {
+		final Process process = createProcess(commands);
 
 		try (AutoClosableProcess autoProcess = new AutoClosableProcess(process)) {
 			final boolean success = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
 			if (!success) {
-				throw new TimeoutException();
+				throw new TimeoutException("Process exceeded timeout of " + timeout.getSeconds() + "seconds.");
+			}
+			if (process.exitValue() != 0) {
+				throw new RuntimeException("Process execution failed due error.");
 			}
 		} catch (TimeoutException | InterruptedException e) {
-			throw new RuntimeException(step + " failed due to timeout.");
+			throw new RuntimeException("Process failed due to timeout.");
 		}
-		LOG.info("Step complete: " + step);
+		return process;
+	}
+
+	private static Process createProcess(String... commands) throws IOException {
+		final ProcessBuilder processBuilder = new ProcessBuilder();
+		processBuilder.command(commands);
+		processBuilder.inheritIO();
+		return processBuilder.start();
 	}
 
 	@Override

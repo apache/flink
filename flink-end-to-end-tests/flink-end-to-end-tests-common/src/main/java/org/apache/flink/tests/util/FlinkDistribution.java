@@ -125,7 +125,8 @@ public final class FlinkDistribution extends ExternalResource {
 	}
 
 	public void startFlinkCluster() throws IOException {
-		AutoClosableProcess.runBlocking("Start Flink cluster", bin.resolve("start-cluster.sh").toAbsolutePath().toString());
+		LOG.info("Starting Flink cluster.");
+		AutoClosableProcess.runBlocking(bin.resolve("start-cluster.sh").toAbsolutePath().toString());
 
 		final OkHttpClient client = new OkHttpClient();
 
@@ -163,7 +164,8 @@ public final class FlinkDistribution extends ExternalResource {
 	}
 
 	public void stopFlinkCluster() throws IOException {
-		AutoClosableProcess.runBlocking("Stop Flink Cluster", bin.resolve("stop-cluster.sh").toAbsolutePath().toString());
+		LOG.info("Stopping Flink cluster.");
+		AutoClosableProcess.runBlocking(bin.resolve("stop-cluster.sh").toAbsolutePath().toString());
 	}
 
 	public void copyOptJarsToLib(String jarNamePrefix) throws FileNotFoundException, IOException {
