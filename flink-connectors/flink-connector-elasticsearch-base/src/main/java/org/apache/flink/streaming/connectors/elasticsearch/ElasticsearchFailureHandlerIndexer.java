@@ -21,7 +21,6 @@ package org.apache.flink.streaming.connectors.elasticsearch;
 import org.apache.flink.annotation.Internal;
 
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
@@ -32,8 +31,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Implementation of a {@link RequestIndexer}, using a {@link BulkProcessor}.
- * {@link ActionRequest ActionRequests} will be buffered before sending a bulk request to the Elasticsearch cluster.
+ * Implementation of a {@link RequestIndexer}, using a {@link BulkRequest}.
+ * {@link ActionRequest ActionRequests} will be buffered before re-sending a bulk request to the Elasticsearch cluster.
  */
 
 @Internal

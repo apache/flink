@@ -23,11 +23,13 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
 import org.apache.flink.streaming.connectors.elasticsearch6.ElasticsearchSink;
 import org.apache.flink.util.Collector;
 
 import org.apache.http.HttpHost;
+import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Requests;
@@ -77,6 +79,26 @@ public class Elasticsearch6SinkExample {
 				indexer.add(createUpdateRequest(element, parameterTool));
 			});
 
+		esSinkBuilder.setFailureHandler(new ActionRequestFailureHandler() {
+
+			@Override
+			public void onFailure(ActionRequest action, Throwable failure, int restStatusCode, RequestIndexer indexer)
+					throws Throwable {
+				IndexRequest tmpRequest = Requests.indexRequest()
+						.index(parameterTool.getRequired("index"))
+						.type(parameterTool.getRequired("type"))
+						.id("message #15debug")
+						.source("data", "message #15debug");
+				indexer.add(tmpRequest);
+				IndexRequest tmpRequest1 = Requests.indexRequest()
+						.index(parameterTool.getRequired("index"))
+						.type(parameterTool.getRequired("type"))
+						.id("message #15debug2")
+						.source("data", "message #15debug2");
+				indexer.add(tmpRequest1);
+			}
+		});
+
 		// this instructs the sink to emit after every element, otherwise they would be buffered
 		esSinkBuilder.setBulkFlushMaxActions(1);
 
@@ -89,11 +111,19 @@ public class Elasticsearch6SinkExample {
 		Map<String, Object> json = new HashMap<>();
 		json.put("data", element);
 
-		return Requests.indexRequest()
-			.index(parameterTool.getRequired("index"))
-			.type(parameterTool.getRequired("type"))
-			.id(element)
-			.source(json);
+		if (element.startsWith("message #15")) {
+			return Requests.indexRequest()
+				.index(" :ind: ind : ")
+				.type(" :type: type : ")
+				.id(element)
+				.source("{data>\n<+++> :dw : dw : ", "whatisyourname");
+		} else {
+			return Requests.indexRequest()
+				.index(parameterTool.getRequired("index"))
+				.type(parameterTool.getRequired("type"))
+				.id(element)
+				.source(json);
+		}
 	}
 
 	private static UpdateRequest createUpdateRequest(Tuple2<String, String> element, ParameterTool parameterTool) {
