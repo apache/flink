@@ -46,12 +46,12 @@ public class ClassLoaderUtilsTest {
 	public void testWithURLClassLoader() {
 		File validJar = null;
 		File invalidJar = null;
-		
+
 		try {
 			// file with jar contents
 			validJar = File.createTempFile("flink-url-test", ".tmp");
 			createValidJar(validJar);
-			
+
 			// validate that the JAR is correct and the test setup is not broken
 			JarFile jarFile = null;
 			try {
@@ -65,24 +65,23 @@ public class ClassLoaderUtilsTest {
 					jarFile.close();
 				}
 			}
-			
+
 			// file with some random contents
 			invalidJar = File.createTempFile("flink-url-test", ".tmp");
 			try (FileOutputStream invalidout = new FileOutputStream(invalidJar)) {
 				invalidout.write(new byte[] { -1, 1, -2, 3, -3, 4, });
 			}
-			
+
 			// non existing file
 			File nonExisting = File.createTempFile("flink-url-test", ".tmp");
 			assertTrue("Cannot create and delete temp file", nonExisting.delete());
-			
-			
+
 			// create a URL classloader with
 			// - a HTTP URL
 			// - a file URL for an existing jar file
 			// - a file URL for an existing file that is not a jar file
 			// - a file URL for a non-existing file
-			
+
 			URL[] urls = {
 				new URL("http", "localhost", 26712, "/some/file/path"),
 				new URL("file", null, validJar.getAbsolutePath()),
@@ -92,7 +91,7 @@ public class ClassLoaderUtilsTest {
 
 			URLClassLoader loader = new URLClassLoader(urls, getClass().getClassLoader());
 			String info = ClassLoaderUtil.getUserCodeClassLoaderInfo(loader);
-			
+
 			assertTrue(info.indexOf("/some/file/path") > 0);
 			assertTrue(info.indexOf(validJar.getAbsolutePath() + "' (valid") > 0);
 			assertTrue(info.indexOf(invalidJar.getAbsolutePath() + "' (invalid JAR") > 0);
@@ -133,7 +132,7 @@ public class ClassLoaderUtilsTest {
 		}
 		jarOutputStream.closeEntry();
 	}
-	
+
 	@Test
 	public void testWithAppClassLoader() {
 		try {
@@ -145,7 +144,7 @@ public class ClassLoaderUtilsTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testInvalidClassLoaders() {
 		try {
