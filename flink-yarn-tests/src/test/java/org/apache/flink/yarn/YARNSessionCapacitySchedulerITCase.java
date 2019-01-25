@@ -56,6 +56,7 @@ import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -110,6 +111,9 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 * @see #restClient
 	 */
 	private static ExecutorService restClientExecutor;
+
+	/** Toggles checking for prohibited strings in logs after the test has run. */
+	private boolean checkForProhibitedLogContents = true;
 
 	@BeforeClass
 	public static void setup() throws Exception {
@@ -243,6 +247,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 */
 	@Test(timeout = 100_000)
 	public void testVCoresAreSetCorrectlyAndJobManagerHostnameAreShownInWebInterfaceAndDynamicPropertiesAndYarnApplicationNameAndTaskManagerSlots() throws Exception {
+		checkForProhibitedLogContents = false;
 		final Runner yarnSessionClusterRunner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 				"-jm", "768m",
 				"-tm", "1024m",
@@ -648,6 +653,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
 	@After
 	public void checkForProhibitedLogContents() {
-		ensureNoProhibitedStringInLogFiles(PROHIBITED_STRINGS, WHITELISTED_STRINGS);
+		if (checkForProhibitedLogContents) {
+			ensureNoProhibitedStringInLogFiles(PROHIBITED_STRINGS, WHITELISTED_STRINGS);
+		}
 	}
 }

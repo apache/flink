@@ -55,8 +55,8 @@ public class YarnTestJob {
 
 		private final String stopJobMarkerFile;
 
-		public static StopJobSignal usingMarkerFile(final Path markerFile) {
-			return new StopJobSignal(markerFile.toString());
+		public static StopJobSignal usingMarkerFile(final Path stopJobMarkerFile) {
+			return new StopJobSignal(stopJobMarkerFile.toString());
 		}
 
 		private StopJobSignal(final String stopJobMarkerFile) {

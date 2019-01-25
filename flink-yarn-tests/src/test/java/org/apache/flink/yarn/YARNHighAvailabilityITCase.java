@@ -134,7 +134,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		initJobGraph();
 	}
 
-	private JobGraph initJobGraph() throws IOException {
+	private void initJobGraph() throws IOException {
 		stopJobSignal = YarnTestJob.StopJobSignal.usingMarkerFile(FOLDER.newFile().toPath());
 		job = YarnTestJob.stoppableJob(stopJobSignal);
 		final File testingJar =
@@ -143,7 +143,6 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		assertThat(testingJar, notNullValue());
 
 		job.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
-		return job;
 	}
 
 	/**
@@ -253,8 +252,8 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	}
 
 	private void waitForJobTermination(
-		final RestClusterClient<ApplicationId> restClusterClient,
-		final JobID jobId) throws Exception {
+			final RestClusterClient<ApplicationId> restClusterClient,
+			final JobID jobId) throws Exception {
 		stopJobSignal.signal();
 		final CompletableFuture<JobResult> jobResult = restClusterClient.requestJobResult(jobId);
 		jobResult.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
