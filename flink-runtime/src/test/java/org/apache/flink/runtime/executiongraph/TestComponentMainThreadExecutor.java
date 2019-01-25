@@ -56,7 +56,7 @@ public class TestComponentMainThreadExecutor extends ComponentMainThreadExecutor
 	 * Creates a test executor that delegates to the given {@link ScheduledExecutorService}. The given executor must
 	 * execute all submissions with the same thread.
 	 */
-	public static TestComponentMainThreadExecutor forSingeThreadExecutor(
+	public static TestComponentMainThreadExecutor forSingleThreadExecutor(
 		@Nonnull ScheduledExecutorService singleThreadExecutor) {
 		try {
 			Thread thread = CompletableFuture.supplyAsync(Thread::currentThread, singleThreadExecutor).get();

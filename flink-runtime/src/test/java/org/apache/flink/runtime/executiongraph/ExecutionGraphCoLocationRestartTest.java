@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.util.FlinkException;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.function.Predicate;
@@ -49,10 +50,15 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 
 	private static final int NUM_TASKS = 31;
 
+	@ClassRule
+	public static final ComponentMainThreadTestExecutor.Resource EXECUTOR_RESOURCE =
+		new ComponentMainThreadTestExecutor.Resource();
+
+	private final ComponentMainThreadTestExecutor testMainThreadUtil =
+		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
+
 	@Test
 	public void testConstraintsAfterRestart() throws Exception {
-
-		ComponentMainThreadTestExecutor testMainThreadUtil = new ComponentMainThreadTestExecutor();
 
 		final long timeout = 5000L;
 
@@ -75,18 +81,18 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 			groupVertex,
 			groupVertex2);
 
+		// enable the queued scheduling for the slot pool
+		eg.setQueuedSchedulingAllowed(true);
 		eg.start(testMainThreadUtil.getMainThreadExecutor());
 
-		Predicate<Execution> isDeploying = ExecutionGraphTestUtils.isInExecutionState(ExecutionState.DEPLOYING);
 		testMainThreadUtil.execute(() -> {
-			// enable the queued scheduling for the slot pool
-			eg.setQueuedSchedulingAllowed(true);
 
 			assertEquals(JobStatus.CREATED, eg.getState());
 
 			eg.scheduleForExecution();
 		});
 
+		Predicate<Execution> isDeploying = ExecutionGraphTestUtils.isInExecutionState(ExecutionState.DEPLOYING);
 		ExecutionGraphTestUtils.waitForAllExecutionsPredicate(
 			eg,
 			isDeploying,

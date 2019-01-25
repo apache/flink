@@ -836,7 +836,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		LOG.debug("Attaching {} topologically sorted vertices to existing job graph with {} " +
 				"vertices and {} intermediate results.",
-			topologiallySorted.size(), tasks.size(), intermediateResults.size());
+			topologiallySorted.size(),
+			tasks.size(),
+			intermediateResults.size());
 
 		final ArrayList<ExecutionJobVertex> newExecJobVertices = new ArrayList<>(topologiallySorted.size());
 		final long createTimestamp = System.currentTimeMillis();
@@ -907,9 +909,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 			if (state == JobStatus.RUNNING && currentGlobalModVersion == globalModVersion) {
 				schedulingFuture = newSchedulingFuture;
-				FutureUtils.whenCompleteAsyncIfNotDone(
-					newSchedulingFuture,
-					getJobMasterMainThreadExecutor(),
+				newSchedulingFuture.whenComplete(
 					(Void ignored, Throwable throwable) -> {
 						if (throwable != null && !(throwable instanceof CancellationException)) {
 							// only fail if the scheduling future was not canceled
@@ -986,9 +986,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		// the future fails once one slot future fails.
 		final ConjunctFuture<Collection<Execution>> allAllocationsFuture = FutureUtils.combineAll(allAllocationFutures);
 
-		return FutureUtils.thenAcceptAsyncIfNotDone(
-			allAllocationsFuture,
-			getJobMasterMainThreadExecutor(),
+		return allAllocationsFuture.thenAccept(
 			(Collection<Execution> executionsToDeploy) -> {
 				for (Execution execution : executionsToDeploy) {
 					try {
@@ -1050,7 +1048,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 					// we build a future that is complete once all vertices have reached a terminal state
 					final ConjunctFuture<Void> allTerminal = FutureUtils.waitForAll(futures);
-					allTerminal.whenCompleteAsync(
+					allTerminal.whenComplete(
 						(Void value, Throwable throwable) -> {
 							if (throwable != null) {
 								transitionState(
@@ -1064,7 +1062,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 								// restarts, so we need to pass a proper restart global version here
 								allVerticesInTerminalState(globalVersionForRestart);
 							}
-						}, getJobMasterMainThreadExecutor());
+						});
 
 					return;
 				}
@@ -1151,9 +1149,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 				final ConjunctFuture<Void> jobVerticesTerminationFuture = FutureUtils.waitForAll(executionJobVertexTerminationFutures);
 
-				FutureUtils.whenCompleteAsyncIfNotDone(
-					jobVerticesTerminationFuture,
-					jobMasterMainThreadExecutor,
+				jobVerticesTerminationFuture.whenComplete(
 					(Void ignored, Throwable throwable) -> {
 						if (throwable != null) {
 							LOG.debug("Flink could not properly clean up resource after suspension.", throwable);
@@ -1215,9 +1211,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				}
 
 				final ConjunctFuture<Void> allTerminal = FutureUtils.waitForAll(futures);
-				FutureUtils.whenCompleteAsyncIfNotDone(
-					allTerminal,
-					jobMasterMainThreadExecutor,
+				allTerminal.whenComplete(
 					(Void ignored, Throwable throwable) -> {
 						if (throwable != null) {
 							transitionState(
@@ -1330,9 +1324,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 */
 	@Override
 	public ArchivedExecutionConfig getArchivedExecutionConfig() {
-
-		assertRunningInJobMasterMainThread();
-
 		// create a summary of all relevant data accessed in the web interface's JobConfigHandler
 		try {
 			ExecutionConfig executionConfig = jobInformation.getSerializedExecutionConfig().deserializeValue(userClassLoader);
@@ -1524,7 +1515,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * @return true if the operation could be executed; false if a concurrent job status change occurred
 	 */
 	private boolean tryRestartOrFail(long globalModVersionForRestart) {
-
 		JobStatus currentState = state;
 
 		if (currentState == JobStatus.FAILING || currentState == JobStatus.RESTARTING) {
@@ -1846,7 +1836,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		}
 	}
 
-	public void assertRunningInJobMasterMainThread() {
+	void assertRunningInJobMasterMainThread() {
 		if (!(jobMasterMainThreadExecutor instanceof ComponentMainThreadExecutor.DummyComponentMainThreadExecutor)) {
 			jobMasterMainThreadExecutor.assertRunningInMainThread();
 		}

@@ -33,6 +33,7 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.Function;
 
 /**
  * Implementation of the {@link LogicalSlot} which is used by the {@link SlotPool}.
@@ -174,22 +175,25 @@ public class SingleLogicalSlot implements LogicalSlot, AllocatedSlot.Payload {
 	}
 
 	private void returnSlotToOwner(CompletableFuture<?> terminalStateFuture) {
-		terminalStateFuture.handle((Object ignored, Throwable throwable) -> {
-			if (state == State.RELEASING) {
-				return slotOwner.returnAllocatedSlot(this);
-			} else {
-				return CompletableFuture.completedFuture(true);
-			}
-		}).whenComplete( //TODO this could be inside the job master main thread, should be inside slot pool main thread
-			(Object ignored, Throwable throwable) -> {
-				markReleased();
-
-				if (throwable != null) {
-					releaseFuture.completeExceptionally(throwable);
+		terminalStateFuture
+			.handle((Object ignored, Throwable throwable) -> {
+				if (state == State.RELEASING) {
+					return slotOwner.returnAllocatedSlot(this);
 				} else {
-					releaseFuture.complete(null);
+					return CompletableFuture.completedFuture(true);
 				}
-			});
+			})
+			.thenCompose(Function.identity())
+			.whenComplete( //TODO this could be inside the job master main thread, should be inside slot pool main thread
+				(Object ignored, Throwable throwable) -> {
+					markReleased();
+
+					if (throwable != null) {
+						releaseFuture.completeExceptionally(throwable);
+					} else {
+						releaseFuture.complete(null);
+					}
+				});
 	}
 
 	private void markReleased() {

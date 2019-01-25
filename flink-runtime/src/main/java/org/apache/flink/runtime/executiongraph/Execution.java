@@ -443,9 +443,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					new IllegalArgumentException("The slot allocation future has not been completed yet."));
 			}
 
-			// Normal completion of this future always happens in the main thread, but we need to complete async for the
-			// exceptional cases that can complete in a different thread, e.g. a timeout.
-			deploymentFuture.whenCompleteAsync(
+			deploymentFuture.whenComplete(
 				(Void ignored, Throwable failure) -> {
 					if (failure != null) {
 						final Throwable stripCompletionException = ExceptionUtils.stripCompletionException(failure);
@@ -460,7 +458,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 						}
 						markFailed(schedulingFailureCause);
 					}
-				}, mainThreadExecutor);
+				});
 
 			return deploymentFuture;
 		} catch (IllegalExecutionStateException e) {
@@ -527,7 +525,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
 
 			final CompletableFuture<LogicalSlot> logicalSlotFuture =
-				FutureUtils.composeAsyncIfNotDone(
+				FutureUtils.thenComposeAsyncIfNotDone(
 					preferredLocationsFuture,
 					mainThreadExecutor,
 					(Collection<TaskManagerLocation> preferredLocations) ->
@@ -543,7 +541,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 							allocationTimeout));
 
 			// register call back to cancel slot request in case that the execution gets canceled
-			releaseFuture.whenCompleteAsync(
+			releaseFuture.whenComplete(
 				(Object ignored, Throwable throwable) -> {
 					if (logicalSlotFuture.cancel(false)) {
 						slotProvider.cancelSlotRequest(
@@ -551,12 +549,18 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 							slotSharingGroupId,
 							new FlinkException("Execution " + this + " was released."));
 					}
-				}, mainThreadExecutor);
+				});
 
-			return FutureUtils.applyAsyncIfNotDone(
+			// This forces calls to the slot pool back into the main thread, for normal and exceptional completion
+			return FutureUtils.handleAsyncIfNotDone(
 				logicalSlotFuture,
 				mainThreadExecutor,
-				(LogicalSlot logicalSlot) -> {
+				(LogicalSlot logicalSlot, Throwable failure) -> {
+
+					if (failure != null) {
+						throw new CompletionException(failure);
+					}
+
 					if (tryAssignResource(logicalSlot)) {
 						return this;
 					} else {
@@ -640,20 +644,23 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			ComponentMainThreadExecutor jobMasterMainThreadExecutor =
 				vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
 
-			FutureUtils.whenCompleteAsyncIfNotDone(submitResultFuture, jobMasterMainThreadExecutor, (ack, failure) -> {
-				// only respond to the failure case
-				if (failure != null) {
-					if (failure instanceof TimeoutException) {
-						String taskname = vertex.getTaskNameWithSubtaskIndex() + " (" + attemptId + ')';
+			FutureUtils.whenCompleteAsyncIfNotDone(
+				submitResultFuture,
+				jobMasterMainThreadExecutor,
+				(ack, failure) -> {
+					// only respond to the failure case
+					if (failure != null) {
+						if (failure instanceof TimeoutException) {
+							String taskname = vertex.getTaskNameWithSubtaskIndex() + " (" + attemptId + ')';
 
-						markFailed(new Exception(
-							"Cannot deploy task " + taskname + " - TaskManager (" + getAssignedResourceLocation()
-								+ ") not responding after a rpcTimeout of " + rpcTimeout, failure));
-					} else {
-						markFailed(failure);
+							markFailed(new Exception(
+								"Cannot deploy task " + taskname + " - TaskManager (" + getAssignedResourceLocation()
+									+ ") not responding after a rpcTimeout of " + rpcTimeout, failure));
+						} else {
+							markFailed(failure);
+						}
 					}
-				}
-			});
+				});
 		}
 		catch (Throwable t) {
 			markFailed(t);
@@ -1251,19 +1258,20 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 		if (slot != null) {
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
+			final ComponentMainThreadExecutor jobMasterMainThreadExecutor =
+				getVertex().getExecutionGraph().getJobMasterMainThreadExecutor();
 
 			CompletableFuture<Acknowledge> cancelResultFuture = FutureUtils.retry(
 				() -> taskManagerGateway.cancelTask(attemptId, rpcTimeout),
 				NUM_CANCEL_CALL_TRIES,
-				executor);
+				jobMasterMainThreadExecutor);
 
-			cancelResultFuture.whenCompleteAsync(
+			cancelResultFuture.whenComplete(
 				(ack, failure) -> {
 					if (failure != null) {
 						failSync(new Exception("Task could not be canceled.", failure));
 					}
-				},
-				getVertex().getExecutionGraph().getJobMasterMainThreadExecutor());
+				});
 		}
 	}
 
@@ -1316,7 +1324,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		assertRunningInJobMasterMainThread();
 
 		final LogicalSlot slot = assignedResource;
-
 
 		if (slot != null) {
 			ComponentMainThreadExecutor jobMasterMainThreadExecutor =

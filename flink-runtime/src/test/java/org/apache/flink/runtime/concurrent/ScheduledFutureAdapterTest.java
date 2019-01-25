@@ -18,95 +18,60 @@
 
 package org.apache.flink.runtime.concurrent;
 
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.util.concurrent.Delayed;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static org.powermock.api.mockito.PowerMockito.spy;
 
 /**
  * Unit tests for {@link ScheduledFutureAdapter}.
  */
-public class ScheduledFutureAdapterTest {
+public class ScheduledFutureAdapterTest extends TestLogger {
 
-	private ScheduledFutureAdapter objectUnderTest;
-	private Future<Integer> innerDelegate;
-	private AtomicBoolean resultCancel;
-	private AtomicBoolean resultIsCancelled;
-	private AtomicBoolean resultIsDone;
+	private ScheduledFutureAdapter<Integer> objectUnderTest;
+	private TestFuture innerDelegate;
 
 	@Before
 	public void before() throws Exception {
-		this.resultCancel = new AtomicBoolean(false);
-		this.resultIsCancelled = new AtomicBoolean(false);
-		this.resultIsDone = new AtomicBoolean(false);
-
-		this.innerDelegate = spy(new Future<Integer>() {
-			@Override
-			public boolean cancel(boolean mayInterruptIfRunning) {
-				return resultCancel.get();
-			}
-
-			@Override
-			public boolean isCancelled() {
-				return resultIsCancelled.get();
-			}
-
-			@Override
-			public boolean isDone() {
-				return resultIsDone.get();
-			}
-
-			@Override
-			public Integer get() {
-				return 4711;
-			}
-
-			@Override
-			public Integer get(long timeout, TimeUnit unit) {
-				return 4711;
-			}
-		});
-
+		this.innerDelegate = new TestFuture();
 		this.objectUnderTest = new ScheduledFutureAdapter<>(innerDelegate, 4200L, TimeUnit.MILLISECONDS);
 	}
 
 	@Test
 	public void testForwardedMethods() throws Exception {
 
-		Assert.assertEquals(4711, objectUnderTest.get());
-		Mockito.verify(innerDelegate).get();
+		Assert.assertEquals((Integer) 4711, objectUnderTest.get());
+		Assert.assertEquals(1, innerDelegate.getGetInvocationCount());
 
-		Assert.assertEquals(4711, objectUnderTest.get(42L, TimeUnit.SECONDS));
-		Mockito.verify(innerDelegate).get(42L, TimeUnit.SECONDS);
+		Assert.assertEquals((Integer) 4711, objectUnderTest.get(42L, TimeUnit.SECONDS));
+		Assert.assertEquals(1, innerDelegate.getGetTimeoutInvocationCount());
 
-		Assert.assertEquals(resultCancel.get(), objectUnderTest.cancel(true));
-		Mockito.verify(innerDelegate, Mockito.times(1)).cancel(true);
+		Assert.assertEquals(innerDelegate.isCancelExpected(), objectUnderTest.cancel(true));
+		Assert.assertEquals(1, innerDelegate.getCancelInvocationCount());
 
-		resultCancel.set(!resultCancel.get());
-		Assert.assertEquals(resultCancel.get(), objectUnderTest.cancel(true));
-		Mockito.verify(innerDelegate, Mockito.times(2)).cancel(true);
+		innerDelegate.setCancelResult(!innerDelegate.isCancelExpected());
+		Assert.assertEquals(innerDelegate.isCancelExpected(), objectUnderTest.cancel(true));
+		Assert.assertEquals(2, innerDelegate.getCancelInvocationCount());
 
-		Assert.assertEquals(resultIsCancelled.get(), objectUnderTest.isCancelled());
-		Mockito.verify(innerDelegate, Mockito.times(1)).isCancelled();
+		Assert.assertEquals(innerDelegate.isCancelledExpected(), objectUnderTest.isCancelled());
+		Assert.assertEquals(1, innerDelegate.getIsCancelledInvocationCount());
 
-		resultIsCancelled.set(!resultIsCancelled.get());
-		Assert.assertEquals(resultIsCancelled.get(), objectUnderTest.isCancelled());
-		Mockito.verify(innerDelegate, Mockito.times(2)).isCancelled();
+		innerDelegate.setIsCancelledResult(!innerDelegate.isCancelledExpected());
+		Assert.assertEquals(innerDelegate.isCancelledExpected(), objectUnderTest.isCancelled());
+		Assert.assertEquals(2, innerDelegate.getIsCancelledInvocationCount());
 
-		Assert.assertEquals(resultIsDone.get(), objectUnderTest.isDone());
-		Mockito.verify(innerDelegate, Mockito.times(1)).isDone();
+		Assert.assertEquals(innerDelegate.isDoneExpected(), objectUnderTest.isDone());
+		Assert.assertEquals(1, innerDelegate.getIsDoneInvocationCount());
 
-		resultIsDone.set(!resultIsDone.get());
-		Assert.assertEquals(resultIsDone.get(), objectUnderTest.isDone());
-		Mockito.verify(innerDelegate, Mockito.times(2)).isDone();
+		innerDelegate.setIsDoneExpected(!innerDelegate.isDoneExpected());
+		Assert.assertEquals(innerDelegate.isDoneExpected(), objectUnderTest.isDone());
+		Assert.assertEquals(2, innerDelegate.getIsDoneInvocationCount());
 	}
 
 	@Test
@@ -136,4 +101,94 @@ public class ScheduledFutureAdapterTest {
 		Assert.assertEquals(1, Integer.signum(objectUnderTest.compareTo(delayed)));
 	}
 
+
+	/**
+	 * Implementation of {@link Future} for the unit tests in this class.
+	 */
+	static class TestFuture implements Future<Integer> {
+
+		private boolean cancelExpected = false;
+		private boolean isCancelledExpected = false;
+		private boolean isDoneExpected = false;
+
+		private int cancelInvocationCount = 0;
+		private int isCancelledInvocationCount = 0;
+		private int isDoneInvocationCount = 0;
+		private int getInvocationCount = 0;
+		private int getTimeoutInvocationCount = 0;
+
+		@Override
+		public boolean cancel(boolean mayInterruptIfRunning) {
+			++cancelInvocationCount;
+			return cancelExpected;
+		}
+
+		@Override
+		public boolean isCancelled() {
+			++isCancelledInvocationCount;
+			return isCancelledExpected;
+		}
+
+		@Override
+		public boolean isDone() {
+			++isDoneInvocationCount;
+			return isDoneExpected;
+		}
+
+		@Override
+		public Integer get() {
+			++getInvocationCount;
+			return 4711;
+		}
+
+		@Override
+		public Integer get(long timeout, TimeUnit unit) {
+			++getTimeoutInvocationCount;
+			return 4711;
+		}
+
+		boolean isCancelExpected() {
+			return cancelExpected;
+		}
+
+		boolean isCancelledExpected() {
+			return isCancelledExpected;
+		}
+
+		boolean isDoneExpected() {
+			return isDoneExpected;
+		}
+
+		void setCancelResult(boolean resultCancel) {
+			this.cancelExpected = resultCancel;
+		}
+
+		void setIsCancelledResult(boolean resultIsCancelled) {
+			this.isCancelledExpected = resultIsCancelled;
+		}
+
+		void setIsDoneExpected(boolean resultIsDone) {
+			this.isDoneExpected = resultIsDone;
+		}
+
+		int getCancelInvocationCount() {
+			return cancelInvocationCount;
+		}
+
+		int getIsCancelledInvocationCount() {
+			return isCancelledInvocationCount;
+		}
+
+		int getIsDoneInvocationCount() {
+			return isDoneInvocationCount;
+		}
+
+		int getGetInvocationCount() {
+			return getInvocationCount;
+		}
+
+		int getGetTimeoutInvocationCount() {
+			return getTimeoutInvocationCount;
+		}
+	}
 }

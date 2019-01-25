@@ -64,6 +64,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.After;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -109,7 +110,13 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	private static final int NUM_TASKS = 31;
 
 	private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
-	private final ComponentMainThreadTestExecutor testMainThread = new ComponentMainThreadTestExecutor();
+
+	@ClassRule
+	public static final ComponentMainThreadTestExecutor.Resource EXECUTOR_RESOURCE =
+		new ComponentMainThreadTestExecutor.Resource();
+
+	private final ComponentMainThreadTestExecutor testMainThread =
+		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
 
 	@After
 	public void shutdown() {

@@ -61,10 +61,14 @@ public final class MainThreadValidatorUtil {
 	public static boolean isRunningInExpectedThread(@Nullable Thread expected) {
 		Thread actual = Thread.currentThread();
 		if (expected != actual) {
-			log.warn("Violation of main thread constraint detected: expected <{}> but running in <{}>.",
+
+			String violationMsg = "Violation of main thread constraint detected: expected <"
+				+ expected + "> but running in <" + actual + ">.";
+
+			log.warn(violationMsg,
 				expected,
 				actual,
-				new Exception());
+				new Exception(violationMsg));
 
 			return false;
 		}

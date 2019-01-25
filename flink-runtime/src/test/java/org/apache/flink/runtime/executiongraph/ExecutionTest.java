@@ -41,6 +41,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -69,6 +70,13 @@ import static org.junit.Assert.assertTrue;
  * Tests for the {@link Execution}.
  */
 public class ExecutionTest extends TestLogger {
+
+	@ClassRule
+	public static final ComponentMainThreadTestExecutor.Resource EXECUTOR_RESOURCE =
+		new ComponentMainThreadTestExecutor.Resource();
+
+	private final ComponentMainThreadTestExecutor testMainThreadUtil =
+		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
 
 	/**
 	 * Tests that slots are released if we cannot assign the allocated resource to the
@@ -428,8 +436,6 @@ public class ExecutionTest extends TestLogger {
 
 	@Test
 	public void testEagerSchedulingFailureReturnsSlot() throws Exception {
-
-		ComponentMainThreadTestExecutor testMainThreadUtil = new ComponentMainThreadTestExecutor();
 
 		final JobVertex jobVertex = createNoOpJobVertex();
 		final JobVertexID jobVertexId = jobVertex.getID();

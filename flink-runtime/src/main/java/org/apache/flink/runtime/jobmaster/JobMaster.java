@@ -1006,6 +1006,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private Acknowledge startJobExecution(JobMasterId newJobMasterId) throws Exception {
 
+		validateRunsInMainThread();
+
 		checkNotNull(newJobMasterId, "The new JobMasterId must not be null.");
 
 		if (Objects.equals(getFencingToken(), newJobMasterId)) {
@@ -1104,23 +1106,24 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private void resetAndScheduleExecutionGraph() throws Exception {
 		validateRunsInMainThread();
-		MainThreadExecutor mainThreadExecutor = getMainThreadExecutor();
+
+		final CompletableFuture<Void> executionGraphAssignedFuture;
+
 		if (executionGraph.getState() == JobStatus.CREATED) {
-			scheduleExecutionGraph();
+			executionGraphAssignedFuture = CompletableFuture.completedFuture(null);
 		} else {
 			suspendAndClearExecutionGraphFields(new FlinkException("ExecutionGraph is being reset in order to be rescheduled."));
 			final JobManagerJobMetricGroup newJobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
 			final ExecutionGraph newExecutionGraph = createAndRestoreExecutionGraph(newJobManagerJobMetricGroup);
 
-			executionGraph.getTerminationFuture()
-				.handleAsync(
-					(JobStatus ignored, Throwable throwable) -> {
-						assignExecutionGraph(newExecutionGraph, newJobManagerJobMetricGroup);
-						return null;
-					},
-					mainThreadExecutor)
-				.thenRun(this::scheduleExecutionGraph);
+			executionGraphAssignedFuture = executionGraph.getTerminationFuture().handle(
+				(JobStatus ignored, Throwable throwable) -> {
+					assignExecutionGraph(newExecutionGraph, newJobManagerJobMetricGroup);
+					return null;
+				});
 		}
+
+		executionGraphAssignedFuture.thenRun(this::scheduleExecutionGraph);
 	}
 
 	private void scheduleExecutionGraph() {

@@ -38,6 +38,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.concurrent.Executor;
@@ -56,7 +57,12 @@ import static org.junit.Assert.assertTrue;
  */
 public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 
-	private final ComponentMainThreadTestExecutor testMainThread = new ComponentMainThreadTestExecutor();
+	@ClassRule
+	public static final ComponentMainThreadTestExecutor.Resource EXECUTOR_RESOURCE =
+		new ComponentMainThreadTestExecutor.Resource();
+
+	private final ComponentMainThreadTestExecutor testMainThread =
+		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
 
 	/**
 	 * Tests that a cancellation concurrent to a local failover leads to a properly

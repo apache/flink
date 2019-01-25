@@ -35,6 +35,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -52,7 +53,12 @@ import static org.junit.Assert.assertTrue;
  */
 public class ExecutionVertexInputConstraintTest extends TestLogger {
 
-	private final ComponentMainThreadTestExecutor testMainThreadUtil = new ComponentMainThreadTestExecutor();
+	@ClassRule
+	public static final ComponentMainThreadTestExecutor.Resource EXECUTOR_RESOURCE =
+		new ComponentMainThreadTestExecutor.Resource();
+
+	private final ComponentMainThreadTestExecutor testMainThreadUtil =
+		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
 
 	@Test
 	public void testInputConsumable() throws Exception {

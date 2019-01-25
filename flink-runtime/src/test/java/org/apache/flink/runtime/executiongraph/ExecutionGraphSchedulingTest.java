@@ -58,6 +58,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.mockito.verification.Timeout;
 
@@ -97,7 +98,13 @@ import static org.mockito.Mockito.when;
 public class ExecutionGraphSchedulingTest extends TestLogger {
 
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-	private final ComponentMainThreadTestExecutor testMainThread = new ComponentMainThreadTestExecutor();
+
+	@ClassRule
+	public static final ComponentMainThreadTestExecutor.Resource EXECUTOR_RESOURCE =
+		new ComponentMainThreadTestExecutor.Resource();
+
+	private final ComponentMainThreadTestExecutor testMainThread =
+		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
 
 	@After
 	public void shutdown() {

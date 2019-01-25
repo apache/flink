@@ -816,7 +816,7 @@ public class FutureUtils {
 	 * @param <OUT> type of the output future.
 	 * @return a completable future that is applying the given function to the input future.
 	 */
-	public static <IN, OUT> CompletableFuture<OUT> applyAsyncIfNotDone(
+	public static <IN, OUT> CompletableFuture<OUT> thenApplyAsyncIfNotDone(
 		CompletableFuture<IN> completableFuture,
 		Executor executor,
 		Function<? super IN, ? extends OUT> applyFun) {
@@ -837,7 +837,7 @@ public class FutureUtils {
 	 * @param <OUT> type of the output future.
 	 * @return a completable future that is a composition of the input future and the function.
 	 */
-	public static <IN, OUT> CompletableFuture<OUT> composeAsyncIfNotDone(
+	public static <IN, OUT> CompletableFuture<OUT> thenComposeAsyncIfNotDone(
 		CompletableFuture<IN> completableFuture,
 		Executor executor,
 		Function<? super IN, ? extends CompletionStage<OUT>> composeFun) {
@@ -885,6 +885,27 @@ public class FutureUtils {
 		return completableFuture.isDone() ?
 			completableFuture.thenAccept(consumer) :
 			completableFuture.thenAcceptAsync(consumer, executor);
+	}
+
+	/**
+	 * This function takes a {@link CompletableFuture} and a handler function for the result of this future. If the
+	 * input future is already done, this function returns {@link CompletableFuture#handle(BiFunction)}. Otherwise,
+	 * the return value is {@link CompletableFuture#handleAsync(BiFunction, Executor)} with the given executor.
+	 *
+	 * @param completableFuture the completable future for which we want to call #handle.
+	 * @param executor the executor to run the handle function if the future is not yet done.
+	 * @param handler the handler function to call when the future is completed.
+	 * @param <IN> type of the handler input argument.
+	 * @param <OUT> type of the handler return value.
+	 * @return the new completion stage.
+	 */
+	public static <IN, OUT> CompletableFuture<OUT> handleAsyncIfNotDone(
+		CompletableFuture<IN> completableFuture,
+		Executor executor,
+		BiFunction<? super IN, Throwable, ? extends OUT> handler) {
+		return completableFuture.isDone() ?
+			completableFuture.handle(handler) :
+			completableFuture.handleAsync(handler, executor);
 	}
 
 	/**

@@ -279,7 +279,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			assertEquals(testError, vertex.getFailureCause());
 
 //			queue.triggerNextAction();
-			queue.triggerNextAction();
+//			queue.triggerNextAction();
 
 			Assert.assertTrue(queue.isEmpty());
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
@@ -330,7 +330,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 
 			cancel1.run();
 			// execute the FutureUtils.retry loop (will complete immediately)
-			queue.triggerNextAction();
+//			queue.triggerNextAction();
 //			// execute the exceptionallyAsync call in Execution#sendRpcCall which won't don anything
 //			queue.triggerNextAction();
 

@@ -577,9 +577,18 @@ public class FutureUtilsTest extends TestLogger {
 	}
 
 	@Test
+	public void testHandleAsyncIfNotDone() {
+		testFutureContinuation((CompletableFuture<?> future, Executor executor) ->
+			FutureUtils.handleAsyncIfNotDone(
+				future,
+				executor,
+				(o, t) -> null));
+	}
+
+	@Test
 	public void testApplyAsyncIfNotDone() {
 		testFutureContinuation((CompletableFuture<?> future, Executor executor) ->
-			FutureUtils.applyAsyncIfNotDone(
+			FutureUtils.thenApplyAsyncIfNotDone(
 				future,
 				executor,
 				o -> null));
@@ -588,7 +597,7 @@ public class FutureUtilsTest extends TestLogger {
 	@Test
 	public void testComposeAsyncIfNotDone() {
 		testFutureContinuation((CompletableFuture<?> future, Executor executor) ->
-			FutureUtils.composeAsyncIfNotDone(
+			FutureUtils.thenComposeAsyncIfNotDone(
 				future,
 				executor,
 				o -> null));

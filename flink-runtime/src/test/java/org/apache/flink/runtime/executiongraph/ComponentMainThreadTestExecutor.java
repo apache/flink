@@ -18,14 +18,18 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
+
+import org.junit.rules.ExternalResource;
 
 import javax.annotation.Nonnull;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Util to run test calls with a provided main thread executor.
@@ -36,10 +40,6 @@ public class ComponentMainThreadTestExecutor {
 	@Nonnull
 	private final TestComponentMainThreadExecutor mainThreadExecutor;
 
-	public ComponentMainThreadTestExecutor() {
-		this(TestComponentMainThreadExecutor.forSingeThreadExecutor(Executors.newSingleThreadScheduledExecutor()));
-	}
-
 	public ComponentMainThreadTestExecutor(@Nonnull TestComponentMainThreadExecutor mainThreadExecutor) {
 		this.mainThreadExecutor = mainThreadExecutor;
 	}
@@ -49,17 +49,10 @@ public class ComponentMainThreadTestExecutor {
 	 * This method blocks until the execution is complete.
 	 */
 	public <U> U execute(@Nonnull SupplierWithException<U, Throwable> supplierWithException) {
-		try {
-			return CompletableFuture.supplyAsync(() -> {
-				try {
-					return supplierWithException.get();
-				} catch (Throwable e) {
-					throw new CompletionException(e);
-				}
-			}, mainThreadExecutor).get();
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+		return CompletableFuture.supplyAsync(
+			FunctionUtils.uncheckedSupplier(supplierWithException),
+			mainThreadExecutor)
+			.join();
 	}
 
 	/**
@@ -75,5 +68,37 @@ public class ComponentMainThreadTestExecutor {
 	@Nonnull
 	public TestComponentMainThreadExecutor getMainThreadExecutor() {
 		return mainThreadExecutor;
+	}
+
+	/**
+	 * Test resource for convenience.
+	 */
+	public static class Resource extends ExternalResource {
+
+		private ComponentMainThreadTestExecutor componentMainThreadTestExecutor;
+		private ScheduledExecutorService innerExecutorService;
+
+		@Override
+		protected void before() throws Throwable {
+			this.innerExecutorService = Executors.newSingleThreadScheduledExecutor();
+			this.componentMainThreadTestExecutor =
+				new ComponentMainThreadTestExecutor(
+					TestComponentMainThreadExecutor.forSingleThreadExecutor(innerExecutorService));
+		}
+
+		@Override
+		protected void after() {
+			this.innerExecutorService.shutdown();
+			this.innerExecutorService.shutdownNow();
+			try {
+				this.innerExecutorService.awaitTermination(5000, TimeUnit.MILLISECONDS);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+		}
+
+		public ComponentMainThreadTestExecutor getComponentMainThreadTestExecutor() {
+			return componentMainThreadTestExecutor;
+		}
 	}
 }

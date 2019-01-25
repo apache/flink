@@ -37,6 +37,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -52,7 +53,12 @@ import static org.junit.Assert.assertTrue;
 
 public class ExecutionGraphMetricsTest extends TestLogger {
 
-	private final ComponentMainThreadTestExecutor testMainThread = new ComponentMainThreadTestExecutor();
+	@ClassRule
+	public static final ComponentMainThreadTestExecutor.Resource EXECUTOR_RESOURCE =
+		new ComponentMainThreadTestExecutor.Resource();
+
+	private final ComponentMainThreadTestExecutor testMainThread =
+		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
 
 	/**
 	 * This test tests that the restarting time metric correctly displays restarting times.

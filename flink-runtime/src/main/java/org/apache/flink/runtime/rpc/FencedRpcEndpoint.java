@@ -58,7 +58,8 @@ public abstract class FencedRpcEndpoint<F extends Serializable> extends RpcEndpo
 		this.fencedMainThreadExecutor = new MainThreadExecutor(
 			getRpcService().fenceRpcServer(
 				rpcServer,
-				null), this::validateRunsInMainThread);
+				null),
+			this::validateRunsInMainThread);
 	}
 
 	protected FencedRpcEndpoint(RpcService rpcService) {

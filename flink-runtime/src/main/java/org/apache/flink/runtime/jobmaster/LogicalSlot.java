@@ -154,6 +154,7 @@ public interface LogicalSlot {
 
 		/**
 		 * Fail the payload with the given cause.
+		 * TODO this method can be removed again once the slot pool runs in the JM main thread as well.
 		 *
 		 * @param cause of the failure
 		 */
