@@ -1019,6 +1019,21 @@ abstract class CodeGenerator(
       case ScalarSqlFunctions.CONCAT_WS =>
         generateConcatWs(operands)
 
+      case ScalarSqlFunctions.SHIFT_LEFT =>
+        val left = operands.head
+        val right = operands(1)
+        generateArithmeticOperator("<<", nullCheck, resultType, left, right, config)
+
+      case ScalarSqlFunctions.SHIFT_RIGHT =>
+        val left = operands.head
+        val right = operands(1)
+        generateArithmeticOperator(">>", nullCheck, resultType, left, right, config)
+
+      case ScalarSqlFunctions.SHIFT_RIGHT_UNSIGNED =>
+        val left = operands.head
+        val right = operands(1)
+        generateArithmeticOperator(">>>", nullCheck, resultType, left, right, config)
+
       case StreamRecordTimestampSqlFunction =>
         generateStreamRecordRowtimeAccess()
 

@@ -1098,6 +1098,43 @@ MOD(numeric1, numeric2)
     <tr>
       <td>
         {% highlight text %}
+SHIFT_LEFT(numeric1, numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric1</i> shifted left of <i>numeric2</i>. The result is <i>numeric1</i> << <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SHIFT_RIGHT(numeric1, numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric1</i> shifted right of <i>numeric2</i>. The result is <i>numeric1</i> >> <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SHIFT_RIGHT_UNSIGNED(numeric1, numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns unsigned <i>numeric1</i> shifted right of <i>numeric2</i>. The result is <i>numeric1</i> >>> <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
+      </td>
+    </tr>
+
+
+    <tr>
+      <td>
+        {% highlight text %}
 SQRT(numeric)
 {% endhighlight %}
       </td>
@@ -1570,6 +1607,43 @@ NUMERIC1 % NUMERIC2
     <tr>
       <td>
         {% highlight java %}
+numeric1.shiftLeft(numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric1</i> shifted left of <i>numeric2</i>. The result is <i>numeric1</i> << <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+numeric1.shiftRight(numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric1</i> shifted right of <i>numeric2</i>. The result is <i>numeric1</i> >> <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+numeric1.shiftRightUnsigned(numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns unsigned <i>numeric1</i> shifted right of <i>numeric2</i>. The result is <i>numeric1</i> >>> <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
+      </td>
+    </tr>
+
+
+    <tr>
+      <td>
+        {% highlight java %}
 NUMERIC.sqrt()
 {% endhighlight %}
       </td>
@@ -2038,6 +2112,43 @@ NUMERIC1 % NUMERIC2
         <p>Returns the remainder (modulus) of <i>NUMERIC1</i> divided by <i>NUMERIC2</i>. The result is negative only if <i>numeric1</i> is negative.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+numeric1.shiftLeft(numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric1</i> shifted left of <i>numeric2</i>. The result is <i>numeric1</i> << <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+numeric1.shiftRight(numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric1</i> shifted right of <i>numeric2</i>. The result is <i>numeric1</i> >> <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+numeric1.shiftRightUnsigned(numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns unsigned <i>numeric1</i> shifted right of <i>numeric2</i>. The result is <i>numeric1</i> >>> <i>numeric2</i> </p>
+        <p>The return type is the same as <i>numeric1</i>. The semantic of the operation is the same as equivalent java operation and casts the result to the return type.</p>
+      </td>
+    </tr>
+
 
     <tr>
       <td>

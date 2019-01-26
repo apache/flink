@@ -276,4 +276,28 @@ object ScalarSqlFunctions {
     OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
     SqlFunctionCategory.STRING)
 
+  val SHIFT_LEFT = new SqlFunction(
+    "SHIFT_LEFT",
+    SqlKind.OTHER,
+    ReturnTypes.ARG0_NULLABLE,
+    null,
+    OperandTypes.family(SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER),
+    SqlFunctionCategory.NUMERIC)
+
+  val SHIFT_RIGHT = new SqlFunction(
+    "SHIFT_RIGHT",
+    SqlKind.OTHER,
+    ReturnTypes.ARG0_NULLABLE,
+    null,
+    OperandTypes.family(SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER),
+    SqlFunctionCategory.NUMERIC)
+
+  val SHIFT_RIGHT_UNSIGNED = new SqlFunction(
+    "SHIFT_RIGHT_UNSIGNED",
+    SqlKind.OTHER,
+    ReturnTypes.ARG0_NULLABLE,
+    null,
+    OperandTypes.family(SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER),
+    SqlFunctionCategory.NUMERIC)
+
 }

@@ -493,3 +493,42 @@ case class UUID() extends LeafExpression {
     relBuilder.call(ScalarSqlFunctions.UUID)
   }
 }
+
+case class ShiftLeft(left: Expression, right: Expression) extends BinaryArithmetic  {
+  override def toString: String = s"shiftLeft($left,$right)"
+
+  private[flink] val sqlOperator = ScalarSqlFunctions.SHIFT_LEFT
+
+  override private[flink] def resultType: TypeInformation[_] = left.resultType
+
+  override private[flink] def validateInput() = {
+    TypeCheckUtils.assertIntegerFamilyExpr(left.resultType, "shiftleft")
+    TypeCheckUtils.assertIntegerFamilyExpr(right.resultType, "shiftleft")
+  }
+}
+
+case class ShiftRight(left: Expression, right: Expression) extends BinaryArithmetic  {
+  override def toString: String = s"shiftRight($left,$right)"
+
+  private[flink] val sqlOperator = ScalarSqlFunctions.SHIFT_RIGHT
+
+  override private[flink] def resultType: TypeInformation[_] = left.resultType
+
+  override private[flink] def validateInput() = {
+    TypeCheckUtils.assertIntegerFamilyExpr(left.resultType, "shiftright")
+    TypeCheckUtils.assertIntegerFamilyExpr(right.resultType, "shiftright")
+  }
+}
+
+case class ShiftRightUnsigned(left: Expression, right: Expression) extends BinaryArithmetic  {
+  override def toString: String = s"shiftRightUnsigned($left,$right)"
+
+  private[flink] val sqlOperator = ScalarSqlFunctions.SHIFT_RIGHT_UNSIGNED
+
+  override private[flink] def resultType: TypeInformation[_] = left.resultType
+
+  override private[flink] def validateInput() = {
+    TypeCheckUtils.assertIntegerFamilyExpr(left.resultType, "shiftrightunsigned")
+    TypeCheckUtils.assertIntegerFamilyExpr(right.resultType, "shiftrightunsigned")
+  }
+}
