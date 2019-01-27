@@ -30,7 +30,7 @@ import java.util.Map;
 /**
  * Implementation of tensorflow (bundled) model for testing.
  */
-public class SimpleTensorflowBundleModel extends TensorflowBundleModel {
+public class SimpleTensorflowBundleModel extends TensorflowBundleModel<Double, Double> {
 
 	/**
 	 * Creates a new tensorflow (bundled) model.
@@ -47,7 +47,7 @@ public class SimpleTensorflowBundleModel extends TensorflowBundleModel {
 	 * @param input object to score.
 	 */
 	@Override
-	public Object score(Object input) {
+	public Double score(Double input) {
         // Just for test
 		return null;
 	}

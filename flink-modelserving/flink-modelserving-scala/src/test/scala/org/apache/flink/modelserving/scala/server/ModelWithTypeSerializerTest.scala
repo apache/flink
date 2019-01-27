@@ -31,7 +31,7 @@ import java.nio.file.{Files, Paths}
 /**
   * Tests for the {@link ModelWithTypeSerializer}.
   */
-class ModelWithTypeSerializerTest extends SerializerTestBase[ModelWithType]{
+class ModelWithTypeSerializerTest extends SerializerTestBase[ModelWithType[Double, Double]]{
 
   private val tfmodeloptimized = "model/TF/optimized/optimized_WineQuality.pb"
   private val tfmodelsaved = "model/TF/saved/"
@@ -40,30 +40,32 @@ class ModelWithTypeSerializerTest extends SerializerTestBase[ModelWithType]{
 
   ModelToServe.setResolver(new SimpleFactoryResolver)
 
-  override protected def createSerializer(): TypeSerializer[ModelWithType] =
-    new ModelWithTypeSerializer
+  override protected def createSerializer(): TypeSerializer[ModelWithType[Double, Double]] =
+    new ModelWithTypeSerializer[Double, Double]
 
   override protected def getLength: Int = -1
 
-  override protected def getTypeClass: Class[ModelWithType] = classOf[ModelWithType]
+  override protected def getTypeClass: Class[ModelWithType[Double, Double]] =
+    classOf[ModelWithType[Double, Double]]
 
-  override protected def getTestData: Array[ModelWithType] = {
+  override protected def getTestData: Array[ModelWithType[Double,Double]] = {
 
     // Get TF Optimized model from file
     var model = getModel(tfmodeloptimized)
-    val tfoptimized = ModelToServe.restore(ModelDescriptor.ModelType.TENSORFLOW.value, model)
+    val tfoptimized = ModelToServe.restore[Double, Double](
+      ModelDescriptor.ModelType.TENSORFLOW.value, model)
     // Get TF bundled model location
     val classLoader = getClass.getClassLoader
     val file = new File(classLoader.getResource(tfmodelsaved).getFile)
     val location = file.getPath
     // Create model from location
-    val tfbundled = ModelToServe.restore(ModelDescriptor.ModelType.TENSORFLOWSAVED.value,
-      location.getBytes)
+    val tfbundled = ModelToServe.restore[Double, Double](
+      ModelDescriptor.ModelType.TENSORFLOWSAVED.value, location.getBytes)
 
-    Array[ModelWithType](
-      new ModelWithType(false, dataType, Option.empty),
-      new ModelWithType(false, dataType, tfoptimized),
-      new ModelWithType(false, dataType, tfbundled))
+    Array[ModelWithType[Double,Double]](
+      new ModelWithType[Double, Double](false, dataType, None),
+      new ModelWithType[Double, Double](false, dataType, tfoptimized),
+      new ModelWithType[Double, Double](false, dataType, tfbundled))
   }
 
   private def getModel(fileName: String) : Array[Byte] = {

@@ -38,7 +38,7 @@ import java.util.Optional;
 /**
  * Data Processer (keyed) - the main implementation, that brings together model and data to process (based on key).
  */
-public class DataProcessorKeyed extends CoProcessFunction<DataToServe, ModelToServe, ServingResult> {
+public class DataProcessorKeyed<RECORD, RESULT> extends CoProcessFunction<DataToServe<RECORD>, ModelToServe, ServingResult<RESULT>> {
 
     // In Flink class instance is created not for key, but rater key groups
     // https://ci.apache.org/projects/flink/flink-docs-release-1.6/dev/stream/state/state.html#keyed-state-and-operator-state
@@ -49,9 +49,9 @@ public class DataProcessorKeyed extends CoProcessFunction<DataToServe, ModelToSe
     // new model state
 	ValueState<ModelToServeStats> newModelState;
     // Current model
-	ValueState<Model> currentModel;
+	ValueState<Model<RECORD, RESULT>> currentModel;
     // New model
-	ValueState<Model> newModel;
+	ValueState<Model<RECORD, RESULT>> newModel;
 
 	/**
 	 * Open execution. Called when an instance is created.
@@ -74,13 +74,13 @@ public class DataProcessorKeyed extends CoProcessFunction<DataToServe, ModelToSe
         // Created new Model state
 		newModelState = getRuntimeContext().getState(newModelStateDesc);
         // Current model descriptor
-		ValueStateDescriptor<Model> currentModelDesc = new ValueStateDescriptor<>(
+		ValueStateDescriptor<Model<RECORD, RESULT>> currentModelDesc = new ValueStateDescriptor<>(
 			"currentModel",         // state name
 			new ModelTypeSerializer()); // type information
         // Create current model
 		currentModel = getRuntimeContext().getState(currentModelDesc);
         // New model descriptor
-		ValueStateDescriptor<Model> newModelDesc = new ValueStateDescriptor<>(
+		ValueStateDescriptor<Model<RECORD, RESULT>> newModelDesc = new ValueStateDescriptor<>(
 			"newModel",         // state name
 			new ModelTypeSerializer()); // type information
         // Create new model
@@ -94,7 +94,7 @@ public class DataProcessorKeyed extends CoProcessFunction<DataToServe, ModelToSe
 	 * @param out result's collector.
 	 */
 	@Override
-	public void processElement1(DataToServe value, Context ctx, Collector<ServingResult> out) throws Exception {
+	public void processElement1(DataToServe<RECORD> value, Context ctx, Collector<ServingResult<RESULT>> out) throws Exception {
 
         // See if we have update for the model
 		if (newModel.value() != null){
@@ -127,9 +127,9 @@ public class DataProcessorKeyed extends CoProcessFunction<DataToServe, ModelToSe
 	 * @param out result's collector.
 	 */
 	@Override
-	public void processElement2(ModelToServe model, Context ctx, Collector<ServingResult> out) throws Exception {
+	public void processElement2(ModelToServe model, Context ctx, Collector<ServingResult<RESULT>> out) throws Exception {
 		System.out.println("New model - " + model);
-		Optional<Model> m = DataConverter.toModel(model);                  // Create a new model
+		Optional<Model<RECORD, RESULT>> m = DataConverter.toModel(model);    // Create a new model
 		if (m.isPresent()) {
             // Update new state
 			newModelState.update(new ModelToServeStats(model));

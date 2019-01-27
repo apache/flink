@@ -21,12 +21,12 @@ package org.apache.flink.modelserving.java.model;
 /**
  * Representation of the model serving result.
  */
-public class ServingResult {
+public class ServingResult<RESULT> {
 
 	// Serving duration
 	private long duration;
 	// Serving result
-	private Object result;
+	private RESULT result;
 
 	/**
 	 * Create Serving result.
@@ -34,7 +34,7 @@ public class ServingResult {
 	 * @param duration Execution time.
 	 * @param result Execution result.
 	 */
-	public ServingResult(long duration, Object result){
+	public ServingResult(long duration, RESULT result){
 		this.duration = duration;
 		this.result = result;
 	}
@@ -53,7 +53,7 @@ public class ServingResult {
 	 *
 	 * @return execution result.
 	 */
-	public Object getResult() {
+	public RESULT getResult() {
 		return result;
 	}
 

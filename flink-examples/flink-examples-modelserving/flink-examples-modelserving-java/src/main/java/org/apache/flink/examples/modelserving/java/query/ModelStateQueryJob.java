@@ -32,6 +32,6 @@ public class ModelStateQueryJob {
 	 *  Make sure that the jobID is set correctly
 	 */
 	public static void main(String[] args) throws Exception {
-		new ModelStateQuery().query("1401f69f7e9c12dcbc1918caf8e7f2b6", Arrays.asList("wine"));
+		new ModelStateQuery().query("ddf50f87a4a372954194e7562794570b", Arrays.asList("wine"));
 	}
 }

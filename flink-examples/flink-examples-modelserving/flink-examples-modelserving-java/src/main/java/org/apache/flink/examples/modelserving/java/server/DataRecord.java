@@ -26,7 +26,7 @@ import java.util.Optional;
 /**
  * Implementation of container for wine data.
  */
-public class DataRecord implements DataToServe {
+public class DataRecord implements DataToServe<Winerecord.WineRecord> {
 
 	private Winerecord.WineRecord record;
 
@@ -56,7 +56,7 @@ public class DataRecord implements DataToServe {
 	 * @return wine record.
 	 */
 	@Override
-	public Object getRecord() {
+	public Winerecord.WineRecord getRecord() {
 		return record;
 	}
 
@@ -66,7 +66,7 @@ public class DataRecord implements DataToServe {
 	 * @param binary byte array.
 	 * @return wine record.
 	 */
-	public static Optional<DataToServe> convertData(byte[] binary){
+	public static Optional<DataToServe<Winerecord.WineRecord>> convertData(byte[] binary){
 		try {
             // Unmarshall record
 			return Optional.of(new DataRecord(Winerecord.WineRecord.parseFrom(binary)));

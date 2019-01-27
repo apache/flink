@@ -24,7 +24,7 @@ import org.apache.flink.annotation.Public
   * Base interface for the data to serve.
   */
 @Public
-trait DataToServe {
+trait DataToServe[RECORD] {
   /**
     * Get data type.
     *
@@ -37,5 +37,5 @@ trait DataToServe {
     *
     * @return record.
     */
-  def getRecord : AnyVal
+  def getRecord : RECORD
 }

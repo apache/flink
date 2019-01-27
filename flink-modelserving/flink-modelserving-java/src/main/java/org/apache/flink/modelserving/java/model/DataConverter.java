@@ -29,7 +29,7 @@ import java.util.Optional;
 public class DataConverter {
 
 	// Model factories converter
-	private static ModelFacroriesResolver resolver = null;
+	private static ModelFacroriesResolver<?, ?> resolver = null;
 
 	/**
 	 * Default data converter constructor (private).
@@ -42,7 +42,7 @@ public class DataConverter {
 	 *
 	 * @param res model factories resolver.
 	 */
-	public static void setResolver(ModelFacroriesResolver res){
+	public static <RECORD, RESULT> void setResolver(ModelFacroriesResolver<RECORD, RESULT> res){
 		resolver = res;
 	}
 
@@ -94,7 +94,7 @@ public class DataConverter {
 	 * @return model's copy.
 	 */
 	// Deep copy of model
-	public static Model copy(Model model) {
+	public static <RECORD, RESULT> Model<RECORD, RESULT> copy(Model<RECORD, RESULT> model) {
 		if (!validateResolver()) {
 			return null;
 		}
@@ -102,7 +102,8 @@ public class DataConverter {
 			return null;
 		}
 		else {
-			ModelFactory factory = resolver.getFactory((int) model.getType());
+			ModelFactory<RECORD, RESULT> factory =
+				(ModelFactory<RECORD, RESULT>) resolver.getFactory((int) model.getType());
 			if (factory != null) {
 				byte[] bytes = model.getBytes();
 				return factory.restore(Arrays.copyOf(bytes, bytes.length));
@@ -118,11 +119,11 @@ public class DataConverter {
 	 * @param content model's content (byte array).
 	 * @return model.
 	 */
-	public static Model restore(int t, byte[] content){
+	public static <RECORD, RESULT> Model<RECORD, RESULT> restore(int t, byte[] content){
 		if (!validateResolver()) {
 			return null;
 		}
-		ModelFactory factory = resolver.getFactory(t);
+		ModelFactory<RECORD, RESULT> factory = (ModelFactory<RECORD, RESULT>) resolver.getFactory(t);
 		if (factory != null) {
 			return factory.restore(content);
 		}
@@ -135,11 +136,12 @@ public class DataConverter {
 	 * @param model ModelToServe.
 	 * @return model.
 	 */
-	public static Optional<Model> toModel(ModelToServe model){
+	public static <RECORD, RESULT> Optional<Model<RECORD, RESULT>> toModel(ModelToServe model){
 		if (!validateResolver()) {
 			return Optional.empty();
 		}
-		ModelFactory factory = resolver.getFactory(model.getModelType().getNumber());
+		ModelFactory<RECORD, RESULT> factory =
+			(ModelFactory<RECORD, RESULT>) resolver.getFactory(model.getModelType().getNumber());
 		if (factory != null) {
 			return factory.create(model);
 		}

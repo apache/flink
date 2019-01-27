@@ -20,6 +20,7 @@ package org.apache.flink.examples.modelserving.java.server;
 
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -28,8 +29,10 @@ import org.apache.flink.examples.modelserving.java.model.WineFactoryResolver;
 import org.apache.flink.modelserving.java.model.DataConverter;
 import org.apache.flink.modelserving.java.model.DataToServe;
 import org.apache.flink.modelserving.java.model.ModelToServe;
+import org.apache.flink.modelserving.java.model.ServingResult;
 import org.apache.flink.modelserving.java.server.keyed.DataProcessorKeyed;
 import org.apache.flink.modelserving.java.server.typeschema.ByteArraySchema;
+import org.apache.flink.modelserving.wine.Winerecord;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -168,23 +171,24 @@ public class ModelServingKeyedJob {
 				}
 			}).returns(ModelToServe.class)
 			.keyBy(model -> model.getDataType());
-		DataStream<DataToServe> data = dataStream
-			.flatMap((byte[] value, Collector<DataToServe> out) -> {
-				Optional<DataToServe> record = DataRecord.convertData(value);
+		DataStream<DataToServe<Winerecord.WineRecord>> data = dataStream
+			.flatMap((byte[] value, Collector<DataToServe<Winerecord.WineRecord>> out) -> {
+				Optional<DataToServe<Winerecord.WineRecord>> record = DataRecord.convertData(value);
 				if (record.isPresent()){
 					out.collect(record.get());
 				} else {
 					System.out.println("Failed to convert data input");
 				}
-			}).returns(DataToServe.class)
+			}).returns(new TypeHint<DataToServe<Winerecord.WineRecord>>() {})
 			.keyBy(record -> record.getType());
 		// Merge streams
 		data
 			.connect(models)
-			.process(new DataProcessorKeyed())
+			.process(new DataProcessorKeyed<Winerecord.WineRecord, Double>())
+			.returns(new TypeHint<ServingResult<Double>>() {})
 			.map(result -> {
 				System.out.println(result);
 				return result;
-			});
+			}).returns(new TypeHint<ServingResult<Double>>() {});
 	}
 }

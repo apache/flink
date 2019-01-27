@@ -23,7 +23,7 @@ import java.util.Optional;
 /**
  * Implementation of tensorflow (optimized) model factory.
  */
-public class SimpleTensorflowModelFactory implements ModelFactory {
+public class SimpleTensorflowModelFactory implements ModelFactory<Double, Double> {
 
 	private static SimpleTensorflowModelFactory instance = null;
 
@@ -39,7 +39,7 @@ public class SimpleTensorflowModelFactory implements ModelFactory {
 	 * @return model
 	 */
 	@Override
-	public Optional<Model> create(ModelToServe descriptor) {
+	public Optional<Model<Double, Double>> create(ModelToServe descriptor) {
 		try {
 			return Optional.of(new SimpleTensorflowModel(descriptor.getModelData()));
 		}

@@ -25,16 +25,15 @@ import org.apache.flink.annotation.Public;
  * base on a model type. Currently the following types are defined:
  *         TENSORFLOW  = 0;
  *         TENSORFLOWSAVED  = 1;
- *         PMML = 2;
  * Additional types can be defined as required
  */
 @Public
-public interface ModelFacroriesResolver {
+public interface ModelFacroriesResolver<RECORD, RESULT> {
 	/**
 	 * Get factory base on factory type.
 	 * @param type
 	 *            Factory type
 	 * @return Model Factory
 	 */
-	ModelFactory getFactory(int type);
+	ModelFactory<RECORD, RESULT> getFactory(int type);
 }

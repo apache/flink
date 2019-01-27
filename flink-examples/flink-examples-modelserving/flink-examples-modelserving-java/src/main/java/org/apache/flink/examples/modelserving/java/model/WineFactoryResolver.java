@@ -21,6 +21,7 @@ package org.apache.flink.examples.modelserving.java.model;
 import org.apache.flink.model.Modeldescriptor;
 import org.apache.flink.modelserving.java.model.ModelFacroriesResolver;
 import org.apache.flink.modelserving.java.model.ModelFactory;
+import org.apache.flink.modelserving.wine.Winerecord;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,7 +29,7 @@ import java.util.Map;
 /**
  * Implementation of Factory resolver for testing.
  */
-public class WineFactoryResolver implements ModelFacroriesResolver {
+public class WineFactoryResolver implements ModelFacroriesResolver<Winerecord.WineRecord, Double> {
 
 	private static final Map<Integer, ModelFactory> factories = new HashMap<Integer, ModelFactory>(){
 		{
@@ -44,7 +45,7 @@ public class WineFactoryResolver implements ModelFacroriesResolver {
 	 * @return model factory.
 	 */
 	@Override
-	public ModelFactory getFactory(int type) {
+	public ModelFactory<Winerecord.WineRecord, Double> getFactory(int type) {
 		return factories.get(type);
 	}
 }

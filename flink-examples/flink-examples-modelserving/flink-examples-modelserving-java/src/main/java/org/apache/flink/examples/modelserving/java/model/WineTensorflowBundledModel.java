@@ -28,7 +28,7 @@ import org.tensorflow.Tensor;
 /**
  * Implementation of PMML model for testing.
  */
-public class WineTensorflowBundledModel extends TensorflowBundleModel {
+public class WineTensorflowBundledModel extends TensorflowBundleModel<Winerecord.WineRecord, Double> {
 
 	/**
 	 * Creates a new tensorflow (bundled) model.
@@ -45,23 +45,24 @@ public class WineTensorflowBundledModel extends TensorflowBundleModel {
 	 * @param input object to score.
 	 */
 	@Override
-	public Object score(Object input) {
+	public Double score(Winerecord.WineRecord input) {
 		// Build input tensor
-		Tensor modelInput = WineTensorflowModelFactory.toTensor((Winerecord.WineRecord) input);
+		Tensor modelInput = WineTensorflowModelFactory.toTensor(input);
 		// Serve using tensorflow APIs
 		TSignature signature = signatures.entrySet().iterator().next().getValue();
 		TField tinput = signature.getInputs().entrySet().iterator().next().getValue();
 		TField toutput = signature.getOutputs().entrySet().iterator().next().getValue();
 		Tensor result = session.runner().feed(tinput.getName(), modelInput).fetch(toutput.getName()).run().get(0);
 		// process result
-		long[] rshape = result.shape();
-		float[][] matrix = new float[(int) rshape[0]][(int) rshape[1]];
-		result.copyTo(matrix);
+		long[] resultshape = result.shape();
+		float[][] resulttensor = new float[(int) resultshape[0]][(int) resultshape[1]];
+		result.copyTo(resulttensor);
 		int sresult = 0;
-		float probability = matrix[0][0];
-		for (int i = 1; i < (int) rshape[1]; i++){
-			if (matrix[0][1] > probability){
-				sresult = 1;
+		float probability = resulttensor[0][0];
+		for (int i = 1; i < (int) resultshape[1]; i++){
+			if (resulttensor[0][i] > probability){
+				sresult = i;
+				probability = resulttensor[0][i];
 			}
 		}
 		return (double) sresult;

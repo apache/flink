@@ -36,7 +36,7 @@ import java.util.Optional;
 /**
  * Tests for the {@link ModelWithTypeSerializer}.
  */
-public class ModelWithTypeSerializerTest extends SerializerTestBase<ModelWithType> {
+public class ModelWithTypeSerializerTest extends SerializerTestBase<ModelWithType<Double, Double>> {
 
 	private static String tfmodeloptimized = "model/TF/optimized/optimized_WineQuality.pb";
 	private static String tfmodelsaved = "model/TF/saved/";
@@ -52,8 +52,9 @@ public class ModelWithTypeSerializerTest extends SerializerTestBase<ModelWithTyp
 	}
 
 	@Override
-	protected TypeSerializer<ModelWithType> createSerializer() {
-		return new ModelWithTypeSerializer();
+	protected TypeSerializer<ModelWithType<Double, Double>> createSerializer() {
+
+		return new ModelWithTypeSerializer<>();
 	}
 
 	@Override
@@ -62,22 +63,24 @@ public class ModelWithTypeSerializerTest extends SerializerTestBase<ModelWithTyp
 	}
 
 	@Override
-	protected Class<ModelWithType> getTypeClass() {
-		return ModelWithType.class;
+	@SuppressWarnings("unchecked")
+	protected Class<ModelWithType<Double, Double>> getTypeClass() {
+
+		return (Class<ModelWithType<Double, Double>>) ((Object) ModelWithType.class);
 	}
 
 	@Override
-	protected ModelWithType[] getTestData() {
+	protected ModelWithType<Double, Double>[] getTestData() {
         // Get TF Optimized model from file
 		byte[] model = getModel(tfmodeloptimized);
         // Create model from binary
-		Model tfoptimized = DataConverter.restore(Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOW.getNumber(), model);
+		Model<Double, Double> tfoptimized = DataConverter.restore(Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOW.getNumber(), model);
         // Get TF bundled model location
 		ClassLoader classLoader = getTypeClass().getClassLoader();
 		File file = new File(classLoader.getResource(tfmodelsaved).getFile());
 		String location = file.getPath();
         // Create model from location
-		Model tfbundled = DataConverter.restore(Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOWSAVED.getNumber(), location.getBytes());
+		Model<Double, Double> tfbundled = DataConverter.restore(Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOWSAVED.getNumber(), location.getBytes());
 		return new ModelWithType[]{
 			new ModelWithType(false, dataType, Optional.empty()),
 			new ModelWithType(false, dataType, Optional.of(tfoptimized)),

@@ -34,13 +34,13 @@ import java.nio.file.Paths;
 /**
  * Tests for the {@link ModelTypeSerializer}.
  */
-public class ModelTypeSerializerTest extends SerializerTestBase<Model>{
+public class ModelTypeSerializerTest extends SerializerTestBase<Model<Double, Double>>{
 
 	private static String tfmodeloptimized = "model/TF/optimized/optimized_WineQuality.pb";
 	private static String tfmodelsaved = "model/TF/saved/";
 	private static String pmmlmodel = "model/PMML/winequalityDecisionTreeClassification.pmml";
 
-	private static byte[] defaultdata = new byte[0];
+	private static final byte[] defaultdata = new byte[0];
 
 	@BeforeClass
 	public static void oneTimeSetUp() {
@@ -49,8 +49,8 @@ public class ModelTypeSerializerTest extends SerializerTestBase<Model>{
 	}
 
 	@Override
-	protected TypeSerializer<Model> createSerializer() {
-		return new ModelTypeSerializer();
+	protected TypeSerializer<Model<Double, Double>> createSerializer() {
+		return new ModelTypeSerializer<>();
 	}
 
 	@Override
@@ -59,16 +59,17 @@ public class ModelTypeSerializerTest extends SerializerTestBase<Model>{
 	}
 
 	@Override
-	protected Class<Model> getTypeClass() {
-		return Model.class;
+	@SuppressWarnings("unchecked")
+	protected Class<Model<Double, Double>> getTypeClass() {
+		return (Class<Model<Double, Double>>) ((Object) Model.class);
 	}
 
 	@Override
-	protected Model[] getTestData() {
+	protected Model<Double, Double>[] getTestData() {
         // Get PMML model from File
 		byte[] model = getModel(pmmlmodel);
         // Create model from binary
-		Model pmml = DataConverter.restore(Modeldescriptor.ModelDescriptor.ModelType.PMML.getNumber(), model);
+		Model<Double, Double> pmml = DataConverter.restore(Modeldescriptor.ModelDescriptor.ModelType.PMML.getNumber(), model);
         // Get TF Optimized model from file
 		model = getModel(tfmodeloptimized);
         // Create model from binary
@@ -78,7 +79,7 @@ public class ModelTypeSerializerTest extends SerializerTestBase<Model>{
 		File file = new File(classLoader.getResource(tfmodelsaved).getFile());
 		String location = file.getPath();
         // Create model from location
-		Model tfbundled = DataConverter.restore(Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOWSAVED.getNumber(), location.getBytes());
+		Model<Double, Double> tfbundled = DataConverter.restore(Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOWSAVED.getNumber(), location.getBytes());
 		return new Model[]{null, pmml, tfoptimized, tfbundled};
 	}
 

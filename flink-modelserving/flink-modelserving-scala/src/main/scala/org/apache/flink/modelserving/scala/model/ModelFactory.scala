@@ -24,7 +24,7 @@ import org.apache.flink.annotation.Public
   * Base interface for ModelFactory.
   */
 @Public
-trait ModelFactory {
+trait ModelFactory[RECORD, RESULT] {
   /**
     * Creates model based on internal representation.
     *
@@ -32,7 +32,7 @@ trait ModelFactory {
     * Internal representation of model
     * @return model (optional).
     */
-  def create(input : ModelToServe) : Option[Model]
+  def create(input : ModelToServe) : Option[Model[RECORD, RESULT]]
 
   /**
     * Restore model from bytes.
@@ -41,5 +41,5 @@ trait ModelFactory {
     * Binary representation of the model
     * @return model.
     */
-  def restore(bytes : Array[Byte]) : Model
+  def restore(bytes : Array[Byte]) : Model[RECORD, RESULT]
 }

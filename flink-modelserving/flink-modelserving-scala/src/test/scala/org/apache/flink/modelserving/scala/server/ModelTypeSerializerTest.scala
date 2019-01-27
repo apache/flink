@@ -29,34 +29,37 @@ import java.nio.file.{Files, Paths}
 /**
   * Tests for the {@link ModelTypeSerializer}.
   */
-class ModelTypeSerializerTest extends SerializerTestBase[Option[Model]] {
+class ModelTypeSerializerTest extends SerializerTestBase[Option[Model[Double, Double]]] {
 
   private val tfmodeloptimized = "model/TF/optimized/optimized_WineQuality.pb"
   private val tfmodelsaved = "model/TF/saved/"
 
   ModelToServe.setResolver(new SimpleFactoryResolver)
 
-  override protected def createSerializer() = new ModelTypeSerializer
+  override protected def createSerializer() : ModelTypeSerializer[Double, Double] =
+    new ModelTypeSerializer[Double, Double]
 
   override protected def getLength: Int = -1
 
-  override protected def getTypeClass: Class[Option[Model]] = classOf[Option[Model]]
+  override protected def getTypeClass: Class[Option[Model[Double, Double]]] =
+    classOf[Option[Model[Double, Double]]]
 
-  override protected def getTestData: Array[Option[Model]] = {
+  override protected def getTestData: Array[Option[Model[Double, Double]]] = {
     // Get TF Optimized model from file
     var model = getModel(tfmodeloptimized)
-    val tfoptimized = ModelToServe.restore(ModelDescriptor.ModelType.TENSORFLOW.value, model)
+    val tfoptimized = ModelToServe.restore[Double, Double](
+      ModelDescriptor.ModelType.TENSORFLOW.value, model)
     // Get TF bundled model location
     val classLoader = getClass.getClassLoader
     val file = new File(classLoader.getResource(tfmodelsaved).getFile)
     val location = file.getPath
     // Create model from location
-    val tfbundled = ModelToServe.restore(ModelDescriptor.ModelType.TENSORFLOWSAVED.value,
-      location.getBytes)
-    Array[Option[Model]](Option.empty, tfoptimized, tfbundled)
+    val tfbundled = ModelToServe.restore[Double, Double](
+      ModelDescriptor.ModelType.TENSORFLOWSAVED.value, location.getBytes)
+    Array[Option[Model[Double, Double]]](Option.empty, tfoptimized, tfbundled)
   }
 
-  private def getModel(fileName: String) = {
+  private def getModel(fileName: String) : Array[Byte] = {
     val classLoader = getClass.getClassLoader
     val file = new File(classLoader.getResource(fileName).getFile)
     Files.readAllBytes(Paths.get(file.getPath))

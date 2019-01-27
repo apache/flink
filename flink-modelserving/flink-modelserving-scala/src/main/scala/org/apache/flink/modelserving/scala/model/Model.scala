@@ -25,14 +25,14 @@ import org.apache.flink.annotation.Public
   * Every concrete model implementation has to implement this interface
   */
 @Public
-abstract class Model {
+trait Model[RECORD, RESULT] {
   /**
     * Score data using model.
     *
     * @param input
     * Input data to score
     */
-  def score(input : AnyVal) : AnyVal
+  def score(input : RECORD) : RESULT
 
   /**
     * Clean up model data.

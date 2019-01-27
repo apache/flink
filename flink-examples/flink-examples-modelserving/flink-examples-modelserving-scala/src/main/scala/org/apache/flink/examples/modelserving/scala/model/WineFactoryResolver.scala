@@ -20,16 +20,17 @@ package org.apache.flink.examples.modelserving.scala.model
 
 import org.apache.flink.model.modeldescriptor.ModelDescriptor
 import org.apache.flink.modelserving.scala.model.{ModelFactory, ModelFactoryResolver}
+import org.apache.flink.modelserving.wine.winerecord.WineRecord
 
 /**
   * Implementation of Factory resolver for testing.
   */
-object WineFactoryResolver extends ModelFactoryResolver{
+object WineFactoryResolver extends ModelFactoryResolver[WineRecord, Double]{
 
   private val factories = Map(
     ModelDescriptor.ModelType.TENSORFLOWSAVED.value -> WineTensorFlowBundledModel,
     ModelDescriptor.ModelType.TENSORFLOW.value -> WineTensorFlowModel)
 
-  override def getFactory(`type`: Int): Option[ModelFactory] =
+  override def getFactory(`type`: Int): Option[ModelFactory[WineRecord, Double]] =
     factories.get(`type`)
 }

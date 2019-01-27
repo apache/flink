@@ -32,7 +32,7 @@ import java.io.IOException;
  * Type serializer snapshot for model - used by Flink checkpointing.
  * See https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/common/typeutils/SimpleTypeSerializerSnapshot.java
  */
-public class ModelSerializerConfigSnapshot extends SimpleTypeSerializerSnapshot<Model> {
+public class ModelSerializerConfigSnapshot<RECORD, RESULT> extends SimpleTypeSerializerSnapshot<Model<RECORD, RESULT>> {
 
     // Version
 	private static final int VERSION = 1;
@@ -80,7 +80,7 @@ public class ModelSerializerConfigSnapshot extends SimpleTypeSerializerSnapshot<
 	 * @return type serializer.
 	 */
 	@Override
-	public TypeSerializer<Model> restoreSerializer() {
+	public TypeSerializer<Model<RECORD, RESULT>> restoreSerializer() {
 		return InstantiationUtil.instantiate(serializerClass);
 	}
 
@@ -90,7 +90,7 @@ public class ModelSerializerConfigSnapshot extends SimpleTypeSerializerSnapshot<
 	 * @return compatibility resilt.
 	 */
 	@Override
-	public TypeSerializerSchemaCompatibility<Model> resolveSchemaCompatibility(TypeSerializer<Model> newSerializer) {
+	public TypeSerializerSchemaCompatibility<Model<RECORD, RESULT>> resolveSchemaCompatibility(TypeSerializer<Model<RECORD, RESULT>> newSerializer) {
 		return newSerializer.getClass() == serializerClass ?
 			TypeSerializerSchemaCompatibility.compatibleAsIs() :
 			TypeSerializerSchemaCompatibility.incompatible();

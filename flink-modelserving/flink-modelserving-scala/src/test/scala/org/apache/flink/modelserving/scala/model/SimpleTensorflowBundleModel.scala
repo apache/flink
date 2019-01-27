@@ -22,14 +22,14 @@ import org.apache.flink.modelserving.scala.model.tensorflow.{Signature, TensorFl
 import org.tensorflow.{Graph, Session}
 
 class SimpleTensorflowBundleModel(inputStream: Array[Byte])
-  extends TensorFlowBundleModel(inputStream) {
+  extends TensorFlowBundleModel[Double, Double](inputStream) {
 
   /**
     * Score data.
     *
     * @param input object to score.
     */
-  override def score(input: AnyVal): AnyVal = null.asInstanceOf[AnyVal]
+  override def score(input: Double): Double = .0
 
   // Getters for testing
   /**
@@ -64,7 +64,7 @@ class SimpleTensorflowBundleModel(inputStream: Array[Byte])
 /**
   * Implementation of tensorflow (optimized) model factory.
   */
-object SimpleTensorflowBundleModel extends  ModelFactory {
+object SimpleTensorflowBundleModel extends  ModelFactory[Double, Double] {
 
   /**
     * Creates a new tensorflow (bundled) model.
@@ -72,7 +72,7 @@ object SimpleTensorflowBundleModel extends  ModelFactory {
     * @param descriptor model to serve representation of tensorflow model.
     * @return model
     */
-  override def create(input: ModelToServe): Option[Model] = try
+  override def create(input: ModelToServe): Option[Model[Double, Double]] = try
     Some(new SimpleTensorflowBundleModel(input.location.getBytes()))
   catch {
     case t: Throwable => None

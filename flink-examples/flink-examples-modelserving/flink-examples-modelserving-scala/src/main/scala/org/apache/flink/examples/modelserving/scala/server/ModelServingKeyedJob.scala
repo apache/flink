@@ -25,7 +25,9 @@ import org.apache.flink.examples.modelserving.scala.model.WineFactoryResolver
 import org.apache.flink.modelserving.scala.model.{DataToServe, ModelToServe}
 import org.apache.flink.modelserving.scala.server.keyed.DataProcessorKeyed
 import org.apache.flink.modelserving.scala.server.typeschema.ByteArraySchema
-import org.apache.flink.configuration.{Configuration, JobManagerOptions, QueryableStateOptions, TaskManagerOptions}
+import org.apache.flink.configuration.{Configuration, JobManagerOptions,
+  QueryableStateOptions, TaskManagerOptions}
+import org.apache.flink.modelserving.wine.winerecord.WineRecord
 import org.apache.flink.runtime.concurrent.Executors
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
@@ -171,13 +173,13 @@ object ModelServingKeyedJob {
       .keyBy(_.dataType)
     // Read data from streams
     val data = dataStream.map(DataRecord.fromByteArray(_))
-      .flatMap(BadDataHandler[DataToServe])
+      .flatMap(BadDataHandler[DataToServe[WineRecord]])
       .keyBy(_.getType)
 
     // Merge streams
     data
       .connect(models)
-      .process(DataProcessorKeyed())
+      .process(DataProcessorKeyed[WineRecord, Double]())
       .map(result =>
         println(s"Model serving in ${result.duration} ms, with result ${result.result}"))
   }

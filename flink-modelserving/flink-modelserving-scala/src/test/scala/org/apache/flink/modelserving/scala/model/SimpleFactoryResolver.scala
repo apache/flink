@@ -23,7 +23,7 @@ import org.apache.flink.model.modeldescriptor.ModelDescriptor
 /**
   * Implementation of Factory resolver for testing.
   */
-class SimpleFactoryResolver extends ModelFactoryResolver{
+class SimpleFactoryResolver extends ModelFactoryResolver[Double, Double]{
 
   private val factories = Map(
     ModelDescriptor.ModelType.TENSORFLOW.value -> SimpleTensorflowModel,
@@ -36,5 +36,5 @@ class SimpleFactoryResolver extends ModelFactoryResolver{
     * @param type model type.
     * @return model factory.
     */
-  override def getFactory(`type`: Int): Option[ModelFactory] = factories.get(`type`)
+  override def getFactory(`type`: Int): Option[ModelFactory[Double, Double]] = factories.get(`type`)
 }

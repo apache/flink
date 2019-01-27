@@ -64,7 +64,7 @@ class ModelToServeTest {
     // validate it
     validateModelToServe(result, Some(model), Option.empty, ModelDescriptor.ModelType.TENSORFLOW)
     // Build TF model
-    val tf = ModelToServe.toModel(result.get)
+    val tf = ModelToServe.toModel[Double, Double](result.get)
     // Validate
     assertTrue("TF Model created correctly", tf.isDefined)
     valdateTFModel(tf.get)
@@ -72,7 +72,8 @@ class ModelToServeTest {
     val copyDirect = ModelToServe.copy(tf)
     assertEquals("Copy equal to source", tf.get, copyDirect.get)
     // Create model from binary
-    val direct = ModelToServe.restore(ModelDescriptor.ModelType.TENSORFLOW.value, model)
+    val direct = ModelToServe.restore[Double, Double](
+      ModelDescriptor.ModelType.TENSORFLOW.value, model)
     // Validate it
     valdateTFModel(direct.get)
   }
@@ -87,7 +88,7 @@ class ModelToServeTest {
     // validate it
     validateModelToServe(result, Some(model), Option.empty, ModelDescriptor.ModelType.TENSORFLOW)
     // Build TF model
-    val tf = ModelToServe.toModel(result.get)
+    val tf = ModelToServe.toModel[Double, Double](result.get)
     // Validate
     assertTrue("TF Model is not created", tf.isEmpty)
   }
@@ -107,7 +108,7 @@ class ModelToServeTest {
     validateModelToServe(result, Option.empty, Some(model),
       ModelDescriptor.ModelType.TENSORFLOWSAVED)
     // Build TF model
-    val tf = ModelToServe.toModel(result.get)
+    val tf = ModelToServe.toModel[Double, Double](result.get)
 
     // Validate
     assertTrue("TF Model created correctly",tf.isDefined)
@@ -119,8 +120,8 @@ class ModelToServeTest {
     assertEquals("Copy equal to source", tf.get, copyDirect.get)
 
     // Create model from binary
-    val direct = ModelToServe.restore(ModelDescriptor.ModelType.TENSORFLOWSAVED.value,
-      model.getBytes)
+    val direct = ModelToServe.restore[Double, Double](
+      ModelDescriptor.ModelType.TENSORFLOWSAVED.value, model.getBytes)
 
     // Validate it
     valdateTFBundleModel(direct.get)
@@ -144,14 +145,14 @@ class ModelToServeTest {
     assertTrue("TF Model is not created",tf.isEmpty)
   }
 
-  private def valdateTFModel(tf: Model): Unit = {
+  private def valdateTFModel(tf: Model[Double, Double]): Unit = {
     assertTrue(tf.isInstanceOf[SimpleTensorflowModel])
     val tfModel = tf.asInstanceOf[SimpleTensorflowModel]
     assertNotEquals("Graph created", null, tfModel.getGrapth)
     assertNotEquals("Session created",null, tfModel.getSession)
   }
 
-  private def valdateTFBundleModel(tf: Model): Unit = {
+  private def valdateTFBundleModel(tf: Model[Double, Double]): Unit = {
     assertTrue(tf.isInstanceOf[SimpleTensorflowBundleModel])
     val tfModel = tf.asInstanceOf[SimpleTensorflowBundleModel]
     assertNotEquals("Graph created",null, tfModel.getGraph)

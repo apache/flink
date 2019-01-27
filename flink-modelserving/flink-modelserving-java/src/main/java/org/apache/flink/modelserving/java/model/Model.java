@@ -27,13 +27,13 @@ import java.io.Serializable;
  * Every concrete model implementation has to implement this interface
  */
 @Public
-public interface Model extends Serializable {
+public interface Model<RECORD, RESULT> extends Serializable {
 	/**
 	 * Score data using model.
 	 * @param input
 	 *            Input data to score
 	 */
-	Object score(Object input);
+	RESULT score(RECORD input);
 
 	/**
 	 * Clean up model data.

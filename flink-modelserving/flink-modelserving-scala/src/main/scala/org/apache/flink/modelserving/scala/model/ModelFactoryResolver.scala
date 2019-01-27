@@ -25,11 +25,10 @@ import org.apache.flink.annotation.Public
   * model factory base on a model type. Currently the following types are defined:
   * TENSORFLOW  = 0;
   * TENSORFLOWSAVED  = 1;
-  * PMML = 2;
   * Additional types can be defined as required
   */
 @Public
-trait ModelFactoryResolver {
+trait ModelFactoryResolver[RECORD, RESULT] {
   /**
     * Get factory base on factory type.
     *
@@ -37,5 +36,5 @@ trait ModelFactoryResolver {
     * Factory type
     * @return Model Factory
     */
-  def getFactory(`type` : Int) : Option[ModelFactory]
+  def getFactory(`type` : Int) : Option[ModelFactory[RECORD, RESULT]]
 }

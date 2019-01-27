@@ -27,7 +27,8 @@ import org.tensorflow.Tensor
 /**
   * Implementation of tensorflow model (optimized) for wine.
   */
-class WineTensorFlowModel(inputStream: Array[Byte]) extends TensorFlowModel(inputStream){
+class WineTensorFlowModel(inputStream: Array[Byte])
+  extends TensorFlowModel[WineRecord, Double](inputStream){
 
   import WineTensorFlowModel._
 
@@ -36,28 +37,28 @@ class WineTensorFlowModel(inputStream: Array[Byte]) extends TensorFlowModel(inpu
     *
     * @param input object to score.
     */
-  override def score(input: AnyVal): AnyVal = {
+  override def score(input: WineRecord): Double = {
 
     // Create input tensor
-    val modelInput  = toTensor(input.asInstanceOf[WineRecord])
+    val modelInput  = toTensor(input)
     // Serve model using tensorflow APIs
-    val result = session.runner.feed("dense_1_input", modelInput).fetch("dense_3/Sigmoid").run().
-      get(0)
+    val result = session.runner.feed("dense_1_input", modelInput).fetch("dense_3/Sigmoid").
+      run().get(0)
     // Get result shape
-    val rshape = result.shape
-    // Map output tensor to shape
-    var rMatrix = Array.ofDim[Float](rshape(0).asInstanceOf[Int], rshape(1).asInstanceOf[Int])
-    result.copyTo(rMatrix)
+    val resultshape = result.shape
+    // get result tensor
+    var resultensor = Array.ofDim[Float](
+      resultshape(0).asInstanceOf[Int], resultshape(1).asInstanceOf[Int])
+    result.copyTo(resultensor)
     // Get result
-    var value = (0, rMatrix(0)(0))
-    rMatrix(0).indices.maxBy(rMatrix(0)).toDouble
+    resultensor(0).indices.maxBy(resultensor(0)).toDouble
   }
 }
 
 /**
   * Implementation of tensorflow (optimized) model factory for wine.
   */
-object WineTensorFlowModel extends  ModelFactory {
+object WineTensorFlowModel extends  ModelFactory[WineRecord, Double] {
 
   /**
     * Convert wine record into input tensor for serving.
@@ -88,7 +89,7 @@ object WineTensorFlowModel extends  ModelFactory {
     * @param descriptor model to serve representation of tensorflow model.
     * @return model
     */
-  override def create(input: ModelToServe): Option[Model] = try
+  override def create(input: ModelToServe): Option[Model[WineRecord, Double]] = try
     Some(new WineTensorFlowModel(input.model))
   catch {
     case t: Throwable => None

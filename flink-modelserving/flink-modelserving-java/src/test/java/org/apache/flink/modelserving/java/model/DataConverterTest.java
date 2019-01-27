@@ -84,7 +84,7 @@ public class DataConverterTest {
         // validate it
 		validateModelToServe(result, model, null, Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOW);
         // Build TF model
-		Optional<Model> tf = DataConverter.toModel(result.get());
+		Optional<Model<Double, Double>> tf = DataConverter.toModel(result.get());
         // Validate
 		assertTrue("TF Model created", tf.isPresent());
 		valdateTFModel(tf.get());
@@ -93,7 +93,7 @@ public class DataConverterTest {
         // Validate
 		assertEquals("Copy equal to source", tf.get(), copyDirect);
         // Create model from binary
-		Model direct = DataConverter.restore(Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOW.getNumber(), model);
+		Model<Double, Double> direct = DataConverter.restore(Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOW.getNumber(), model);
         // Validate it
 		valdateTFModel(direct);
 	}
@@ -109,7 +109,7 @@ public class DataConverterTest {
         // validate it
 		validateModelToServe(result, model, null, Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOW);
         // Build TF model
-		Optional<Model> tf = DataConverter.toModel(result.get());
+		Optional<Model<Double, Double>> tf = DataConverter.toModel(result.get());
         // Validate
 		assertFalse("TF Model created", tf.isPresent());
 	}
@@ -127,7 +127,7 @@ public class DataConverterTest {
         // validate it
 		validateModelToServe(result, null, model, Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOWSAVED);
         // Build TF model
-		Optional<Model> tf = DataConverter.toModel(result.get());
+		Optional<Model<Double, Double>> tf = DataConverter.toModel(result.get());
         // Validate
 		assertTrue("TF Model created", tf.isPresent());
 		valdateTFBundleModel(tf.get());
@@ -137,7 +137,7 @@ public class DataConverterTest {
 		assertEquals("Copy equal to source", tf.get(), copyDirect);
 		valdateTFBundleModel(copyDirect);
         // Create model from binary
-		Model direct = DataConverter.restore(Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOWSAVED.getNumber(), model.getBytes());
+		Model<Double, Double> direct = DataConverter.restore(Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOWSAVED.getNumber(), model.getBytes());
         // Validate it
 		valdateTFBundleModel(direct);
 	}
@@ -152,19 +152,19 @@ public class DataConverterTest {
         // validate it
 		validateModelToServe(result, null, model, Modeldescriptor.ModelDescriptor.ModelType.TENSORFLOWSAVED);
         // Build TF model
-		Optional<Model> tf = DataConverter.toModel(result.get());
+		Optional<Model<Double, Double>> tf = DataConverter.toModel(result.get());
         // Validate
 		assertFalse("TF Model is not created", tf.isPresent());
 	}
 
-	private void valdateTFModel(Model tf) {
+	private void valdateTFModel(Model<Double, Double> tf) {
 		assertTrue(tf instanceof SimpleTensorflowModel);
 		SimpleTensorflowModel tfModel = (SimpleTensorflowModel) tf;
 		assertNotEquals("Graph is created", null, tfModel.getGrapth());
 		assertNotEquals("Session is created", null, tfModel.getSession());
 	}
 
-	private void valdateTFBundleModel(Model tf) {
+	private void valdateTFBundleModel(Model<Double, Double> tf) {
 		assertTrue(tf instanceof SimpleTensorflowBundleModel);
 		SimpleTensorflowBundleModel tfModel = (SimpleTensorflowBundleModel) tf;
 		assertNotEquals("Graph is created", null, tfModel.getGraph());

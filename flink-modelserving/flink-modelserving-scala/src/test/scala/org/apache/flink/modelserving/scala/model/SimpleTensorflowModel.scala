@@ -24,14 +24,15 @@ import org.tensorflow.{Graph, Session}
 /**
   * Implementation of tensorflow model (optimized) for testing.
   */
-class SimpleTensorflowModel (inputStream: Array[Byte]) extends TensorFlowModel(inputStream){
+class SimpleTensorflowModel (inputStream: Array[Byte])
+  extends TensorFlowModel[Double, Double](inputStream){
 
   /**
     * Score data.
     *
     * @param input object to score.
     */
-  override def score(input: AnyVal): AnyVal = null.asInstanceOf[AnyVal]
+  override def score(input: Double): Double = .0
 
   // Getters for validatio
   /**
@@ -52,7 +53,7 @@ class SimpleTensorflowModel (inputStream: Array[Byte]) extends TensorFlowModel(i
 /**
   * Implementation of tensorflow (optimized) model factory.
   */
-object SimpleTensorflowModel extends  ModelFactory {
+object SimpleTensorflowModel extends  ModelFactory[Double, Double] {
 
   /**
     * Creates a new tensorflow (optimized) model.
@@ -60,7 +61,7 @@ object SimpleTensorflowModel extends  ModelFactory {
     * @param descriptor model to serve representation of tensorflow model.
     * @return model
     */
-  override def create(input: ModelToServe): Option[Model] = try
+  override def create(input: ModelToServe): Option[Model[Double, Double]] = try
     Some(new SimpleTensorflowModel(input.model))
   catch {
     case t: Throwable => None

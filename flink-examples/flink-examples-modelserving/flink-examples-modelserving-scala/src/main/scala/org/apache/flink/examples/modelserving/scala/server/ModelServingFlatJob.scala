@@ -26,6 +26,7 @@ import org.apache.flink.examples.modelserving.configuration.ModelServingConfigur
 import org.apache.flink.examples.modelserving.scala.model.WineFactoryResolver
 import org.apache.flink.configuration.{Configuration, JobManagerOptions, TaskManagerOptions}
 import org.apache.flink.modelserving.scala.server.partitioned.DataProcessorMap
+import org.apache.flink.modelserving.wine.winerecord.WineRecord
 import org.apache.flink.runtime.concurrent.Executors
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
@@ -154,12 +155,12 @@ object ModelServingFlatJob {
       .broadcast
     // Read data from streams
     val data = dataStream.map(DataRecord.fromByteArray(_))
-      .flatMap(BadDataHandler[DataToServe])
+      .flatMap(BadDataHandler[DataToServe[WineRecord]])
 
     // Merge streams
     data
       .connect(models)
-      .flatMap(DataProcessorMap())
+      .flatMap(DataProcessorMap[WineRecord, Double]())
       .map(result =>
         println(s"Model serving in ${result.duration} ms, with result ${result.result}"))
   }

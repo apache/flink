@@ -30,7 +30,7 @@ import java.io.IOException;
 /**
  * Type serializer for model - used by Flink checkpointing.
  */
-public class ModelTypeSerializer extends TypeSerializer<Model> {
+public class ModelTypeSerializer<RECORD, RESULT> extends TypeSerializer<Model<RECORD, RESULT>> {
 
 	/**
 	 * Create model instatnce.
@@ -56,8 +56,8 @@ public class ModelTypeSerializer extends TypeSerializer<Model> {
 	 * @return duplicate of serializer.
 	 */
 	@Override
-	public TypeSerializer<Model> duplicate() {
-		return new ModelTypeSerializer();
+	public TypeSerializer<Model<RECORD, RESULT>> duplicate() {
+		return new ModelTypeSerializer<RECORD, RESULT>();
 	}
 
 	/**
@@ -102,8 +102,8 @@ public class ModelTypeSerializer extends TypeSerializer<Model> {
 	 * @return snapshot's configuration.
 	 */
 	@Override
-	public TypeSerializerSnapshot<Model> snapshotConfiguration() {
-		return new ModelSerializerConfigSnapshot();
+	public TypeSerializerSnapshot<Model<RECORD, RESULT>> snapshotConfiguration() {
+		return new ModelSerializerConfigSnapshot<RECORD, RESULT>();
 	}
 
 	/**

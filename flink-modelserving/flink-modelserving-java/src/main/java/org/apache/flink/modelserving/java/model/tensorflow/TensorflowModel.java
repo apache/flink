@@ -31,7 +31,7 @@ import java.util.Arrays;
  * Base class for tensorflow (optimized) model processing.
  */
 @Public
-public abstract class TensorflowModel implements Model {
+public abstract class TensorflowModel<RECORD, RESULT> implements Model<RECORD, RESULT> {
 	// Tensorflow graph
 	protected Graph graph = new Graph();
 	// Tensorflow session

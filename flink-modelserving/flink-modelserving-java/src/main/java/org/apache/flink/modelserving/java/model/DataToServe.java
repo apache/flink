@@ -24,7 +24,7 @@ import org.apache.flink.annotation.Public;
  * Base interface for the data to serve.
  */
 @Public
-public interface DataToServe {
+public interface DataToServe<RECORD> {
 	/**
 	 * Get data type.
 	 *
@@ -37,5 +37,5 @@ public interface DataToServe {
 	 *
 	 * @return record.
 	 */
-	Object getRecord();
+	RECORD getRecord();
 }

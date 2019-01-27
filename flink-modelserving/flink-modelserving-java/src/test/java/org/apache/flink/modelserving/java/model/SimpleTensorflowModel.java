@@ -26,7 +26,7 @@ import org.tensorflow.Session;
 /**
  * Implementation of tensorflow (optimized) model for testing.
  */
-public class SimpleTensorflowModel extends TensorflowModel {
+public class SimpleTensorflowModel extends TensorflowModel<Double, Double> {
 
 	/**
 	 * Creates a new tensorflow (optimized) model.
@@ -43,7 +43,7 @@ public class SimpleTensorflowModel extends TensorflowModel {
 	 * @param input object to score.
 	 */
 	@Override
-	public Object score(Object input) {
+	public Double score(Double input) {
         // Just for test
 		return null;
 	}

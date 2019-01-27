@@ -47,7 +47,7 @@ import java.util.Map;
  * some kind of shared storage, for example S3, Minio, GKS, etc.
  */
 @Public
-public abstract class TensorflowBundleModel implements Model {
+public abstract class TensorflowBundleModel<RECORD, RESULT> implements Model<RECORD, RESULT> {
 
 	// Tensorflow graph
 	protected Graph graph;

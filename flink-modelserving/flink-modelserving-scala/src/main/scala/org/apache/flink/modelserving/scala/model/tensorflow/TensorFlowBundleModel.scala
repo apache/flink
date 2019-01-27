@@ -40,7 +40,8 @@ import scala.collection.JavaConverters._
   * implementation will use some kind of shared storage, for example S3, Minio, GKS, etc.
   */
 @Public
-abstract class TensorFlowBundleModel(inputStream : Array[Byte]) extends Model {
+abstract class TensorFlowBundleModel[RECORD,RESULT](inputStream : Array[Byte])
+  extends Model[RECORD,RESULT] {
 
   /**
     * Creates a new tensorflow (optimized) model.
@@ -102,7 +103,7 @@ abstract class TensorFlowBundleModel(inputStream : Array[Byte]) extends Model {
     * @return boolean specifying whether models are the same.
     */
   override def equals(obj: Any): Boolean = obj match {
-    case tfModel: TensorFlowBundleModel =>
+    case tfModel: TensorFlowBundleModel[RECORD, RESULT] =>
       tfModel.toBytes.toList == inputStream.toList
     case _ => false
   }

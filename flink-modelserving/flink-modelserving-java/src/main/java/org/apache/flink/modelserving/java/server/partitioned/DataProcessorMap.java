@@ -42,15 +42,15 @@ import java.util.Optional;
  * Data Processer (map) - the main implementation, that brings together model and data to process.
  * Model is distributed to all instances, while data is send to arbitrary one.
  */
-public class DataProcessorMap extends RichCoFlatMapFunction<DataToServe, ModelToServe, ServingResult> implements CheckpointedFunction {
+public class DataProcessorMap<RECORD, RESULT> extends RichCoFlatMapFunction<DataToServe<RECORD>, ModelToServe, ServingResult<RESULT>> implements CheckpointedFunction {
 
     // Current models
-	Map<String, Model> currentModels = new HashMap<>();
+	Map<String, Model<RECORD, RESULT>> currentModels = new HashMap<>();
     // New models
-	Map<String, Model> newModels = new HashMap<>();
+	Map<String, Model<RECORD, RESULT>> newModels = new HashMap<>();
 
     // Checkpointing state
-	private transient ListState<ModelWithType> checkpointedState = null;
+	private transient ListState<ModelWithType<RECORD, RESULT>> checkpointedState = null;
 
 	/**
 	 * Create snapshot execution state.
@@ -61,10 +61,10 @@ public class DataProcessorMap extends RichCoFlatMapFunction<DataToServe, ModelTo
         // Clear checkponting state
 		checkpointedState.clear();
         // Copy current state
-		for (Map.Entry<String, Model> entry : currentModels.entrySet()){
+		for (Map.Entry<String, Model<RECORD, RESULT>> entry : currentModels.entrySet()){
 			checkpointedState.add(new ModelWithType(true, entry.getKey(), Optional.of(entry.getValue())));
 		}
-		for (Map.Entry<String, Model> entry : newModels.entrySet()){
+		for (Map.Entry<String, Model<RECORD, RESULT>> entry : newModels.entrySet()){
 			checkpointedState.add(new ModelWithType(false, entry.getKey(), Optional.of(entry.getValue())));
 		}
 	}
@@ -76,13 +76,13 @@ public class DataProcessorMap extends RichCoFlatMapFunction<DataToServe, ModelTo
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
         // Descriptor
-		ListStateDescriptor<ModelWithType> descriptor = new ListStateDescriptor<>("modelState", new ModelWithTypeSerializer());
+		ListStateDescriptor<ModelWithType<RECORD, RESULT>> descriptor = new ListStateDescriptor<>("modelState", new ModelWithTypeSerializer<RECORD, RESULT>());
         // Read checkpoint
 		checkpointedState = context.getOperatorStateStore().getListState (descriptor);
 		if (context.isRestored()) {                 // If restored
-			Iterator<ModelWithType> iterator = checkpointedState.get().iterator();
+			Iterator<ModelWithType<RECORD, RESULT>> iterator = checkpointedState.get().iterator();
 			while (iterator.hasNext()){              // For every restored
-				ModelWithType current = iterator.next();
+				ModelWithType<RECORD, RESULT> current = iterator.next();
 				if (current.getModel().isPresent()){ // It contains model
 					// Update both current and new model
 					if (current.isCurrent()){
@@ -102,7 +102,7 @@ public class DataProcessorMap extends RichCoFlatMapFunction<DataToServe, ModelTo
 	 * @param out result's collector.
 	 */
 	@Override
-	public void flatMap1(DataToServe record, Collector<ServingResult> out) throws Exception {
+	public void flatMap1(DataToServe<RECORD> record, Collector<ServingResult<RESULT>> out) throws Exception {
         // See if we need to update
 		if (newModels.containsKey(record.getType())){
             // If there is currently model of this type in use?
@@ -129,10 +129,10 @@ public class DataProcessorMap extends RichCoFlatMapFunction<DataToServe, ModelTo
 	 * @param out result's collector.
 	 */
 	@Override
-	public void flatMap2(ModelToServe model, Collector<ServingResult> out) throws Exception {
+	public void flatMap2(ModelToServe model, Collector<ServingResult<RESULT>> out) throws Exception {
 		System.out.println("New model - " + model);
         // Create model
-		Optional<Model> m = DataConverter.toModel(model);
+		Optional<Model<RECORD, RESULT>> m = DataConverter.toModel(model);
 		if (m.isPresent()) {               // If creation successful
 			// Update new model
 			newModels.put(model.getDataType(), m.get());

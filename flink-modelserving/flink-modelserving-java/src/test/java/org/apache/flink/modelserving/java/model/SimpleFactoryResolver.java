@@ -26,7 +26,7 @@ import java.util.Map;
 /**
  * Implementation of Factory resolver for testing.
  */
-public class SimpleFactoryResolver implements ModelFacroriesResolver {
+public class SimpleFactoryResolver implements ModelFacroriesResolver<Double, Double> {
 
 	private static final Map<Integer, ModelFactory> factories = new HashMap<Integer, ModelFactory>(){
 		{
@@ -42,7 +42,7 @@ public class SimpleFactoryResolver implements ModelFacroriesResolver {
 	 * @return model factory.
 	 */
 	@Override
-	public ModelFactory getFactory(int type) {
+	public ModelFactory<Double, Double> getFactory(int type) {
 		return factories.get(type);
 	}
 }

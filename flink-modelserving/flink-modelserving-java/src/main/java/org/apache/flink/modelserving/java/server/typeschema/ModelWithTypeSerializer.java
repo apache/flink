@@ -32,15 +32,16 @@ import java.util.Optional;
 /**
  * Type serializer for model with type - used by Flink checkpointing.
  */
-public class ModelWithTypeSerializer extends TypeSerializer<ModelWithType> {
+public class ModelWithTypeSerializer<RECORD, RESULT> extends TypeSerializer<ModelWithType<RECORD, RESULT>> {
 
 	/**
 	 * Create model with state instatnce.
 	 * @return model's instance.
 	 */
 	@Override
-	public ModelWithType createInstance() {
-		return new ModelWithType();
+	public ModelWithType<RECORD, RESULT> createInstance() {
+
+		return new ModelWithType<RECORD, RESULT>();
 	}
 
 	/**
@@ -50,6 +51,7 @@ public class ModelWithTypeSerializer extends TypeSerializer<ModelWithType> {
 	 */
 	@Override
 	public boolean canEqual(Object obj) {
+
 		return obj instanceof ModelWithTypeSerializer;
 	}
 
@@ -58,8 +60,9 @@ public class ModelWithTypeSerializer extends TypeSerializer<ModelWithType> {
 	 * @return duplicate of serializer.
 	 */
 	@Override
-	public TypeSerializer<ModelWithType> duplicate() {
-		return new ModelWithTypeSerializer();
+	public TypeSerializer<ModelWithType<RECORD, RESULT>> duplicate() {
+
+		return new ModelWithTypeSerializer<RECORD, RESULT>();
 	}
 
 	/**
@@ -68,7 +71,8 @@ public class ModelWithTypeSerializer extends TypeSerializer<ModelWithType> {
 	 * @param target output.
 	 */
 	@Override
-	public void serialize(ModelWithType model, DataOutputView target) throws IOException {
+	public void serialize(ModelWithType<RECORD, RESULT> model, DataOutputView target)
+		throws IOException {
 		target.writeBoolean(model.isCurrent());
 		target.writeUTF(model.getDataType());
 		if (model.getModel().isPresent()) {
@@ -106,8 +110,8 @@ public class ModelWithTypeSerializer extends TypeSerializer<ModelWithType> {
 	 * @return snapshot's configuration.
 	 */
 	@Override
-	public TypeSerializerSnapshot<ModelWithType> snapshotConfiguration() {
-		return new ModelWithTypeSerializerConfigSnapshot();
+	public TypeSerializerSnapshot<ModelWithType<RECORD, RESULT>> snapshotConfiguration() {
+		return new ModelWithTypeSerializerConfigSnapshot<RECORD, RESULT>();
 	}
 
 	/**
@@ -135,8 +139,8 @@ public class ModelWithTypeSerializer extends TypeSerializer<ModelWithType> {
 	 * @return model's with state copy.
 	 */
 	@Override
-	public ModelWithType copy(ModelWithType from) {
-		Model model = DataConverter.copy(from.getModel().orElse(null));
+	public ModelWithType<RECORD, RESULT> copy(ModelWithType<RECORD, RESULT> from) {
+		Model<RECORD, RESULT> model = DataConverter.copy(from.getModel().orElse(null));
 		return new ModelWithType(from.isCurrent(), from.getDataType(),
 			(model == null) ? Optional.empty() : Optional.of(model));
 	}

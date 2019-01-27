@@ -26,14 +26,14 @@ import java.util.Optional;
  * Base interface for ModelFactory.
  */
 @Public
-public interface ModelFactory {
+public interface ModelFactory<RECORD, RESULT> {
 	/**
 	 * Creates model based on internal representation.
 	 * @param descriptor
 	 *            Internal representation of model
 	 * @return model (optional).
 	 */
-	Optional<Model> create(ModelToServe descriptor);
+	Optional<Model<RECORD, RESULT>> create(ModelToServe descriptor);
 
 	/**
 	 * Restore model from bytes.
@@ -41,5 +41,5 @@ public interface ModelFactory {
 	 *            Binary representation of the model
 	 * @return model.
 	 */
-	Model restore(byte[] bytes);
+	Model<RECORD, RESULT> restore(byte[] bytes);
 }

@@ -33,12 +33,12 @@ object DataRecord {
     * @param message byte message
     * @return data record.
     */
-  def fromByteArray(message: Array[Byte]): Try[DataToServe] = Try {
+  def fromByteArray(message: Array[Byte]): Try[DataToServe[WineRecord]] = Try {
     DataRecord(WineRecord.parseFrom(message))
   }
 }
 
-case class DataRecord(record : WineRecord) extends DataToServe{
+case class DataRecord(record : WineRecord) extends DataToServe[WineRecord]{
   /**
     * Get type.
     *
@@ -51,5 +51,5 @@ case class DataRecord(record : WineRecord) extends DataToServe{
     *
     * @return data record.
     */
-  def getRecord : AnyVal = record.asInstanceOf[AnyVal]
+  def getRecord : WineRecord = record
 }

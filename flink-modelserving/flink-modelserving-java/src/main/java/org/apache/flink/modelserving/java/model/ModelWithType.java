@@ -23,14 +23,14 @@ import java.util.Optional;
 /**
  * Representation of the model serving statistics.
  */
-public class ModelWithType {
+public class ModelWithType<RECORD, RESULT> {
 
 	// Is model current
 	private boolean current;
 	// Model data type
 	private String dataType;
-	// MOdel
-	private Optional<Model> model;
+	// Model
+	private Optional<Model<RECORD, RESULT>> model;
 
 	/**
 	 * Model with type default constructor.
@@ -48,7 +48,7 @@ public class ModelWithType {
 	 * @param dataType Model data type.
 	 * @param model model itself.
 	 */
-	public ModelWithType(boolean current, String dataType, Optional<Model> model){
+	public ModelWithType(boolean current, String dataType, Optional<Model<RECORD, RESULT>> model){
 		this.current = current;
 		this.dataType = dataType;
 		this.model = model;
@@ -64,15 +64,6 @@ public class ModelWithType {
 	}
 
 	/**
-	 * Set current model state.
-	 *
-	 * @param current current model state.
-	 */
-	public void setCurrent(boolean current) {
-		this.current = current;
-	}
-
-	/**
 	 * Get model's data type.
 	 *
 	 * @return model's data type.
@@ -82,20 +73,11 @@ public class ModelWithType {
 	}
 
 	/**
-	 * Set model data type.
-	 *
-	 * @param dataType model data type.
-	 */
-	public void setDataType(String dataType) {
-		this.dataType = dataType;
-	}
-
-	/**
 	 * Get model.
 	 *
 	 * @return model.
 	 */
-	public Optional<Model> getModel() {
+	public Optional<Model<RECORD, RESULT>> getModel() {
 		return model;
 	}
 
@@ -104,7 +86,7 @@ public class ModelWithType {
 	 *
 	 * @param model model.
 	 */
-	public void setModel(Optional<Model> model) {
+	public void setModel(Optional<Model<RECORD, RESULT>> model) {
 		this.model = model;
 	}
 

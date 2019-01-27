@@ -30,7 +30,7 @@ import java.util.Optional;
 /**
  * Implementation of tensorflow (optimized) model factory.
  */
-public class WineTensorflowModelFactory implements ModelFactory {
+public class WineTensorflowModelFactory implements ModelFactory<Winerecord.WineRecord, Double> {
 
 	private static WineTensorflowModelFactory instance = null;
 
@@ -46,7 +46,7 @@ public class WineTensorflowModelFactory implements ModelFactory {
 	 * @return model
 	 */
 	@Override
-	public Optional<Model> create(ModelToServe descriptor) {
+	public Optional<Model<Winerecord.WineRecord, Double>> create(ModelToServe descriptor) {
 		try {
 			return Optional.of(new WineTensorflowModel(descriptor.getModelData()));
 		}
@@ -64,7 +64,7 @@ public class WineTensorflowModelFactory implements ModelFactory {
 	 * @return model
 	 */
 	@Override
-	public Model restore(byte[] bytes) {
+	public Model<Winerecord.WineRecord, Double> restore(byte[] bytes) {
 		try {
 			return new WineTensorflowModel(bytes);
 		}
@@ -103,7 +103,7 @@ public class WineTensorflowModelFactory implements ModelFactory {
 	 *
 	 * @return model factory
 	 */
-	public static ModelFactory getInstance(){
+	public static ModelFactory<Winerecord.WineRecord, Double> getInstance(){
 		if (instance == null) {
 			instance = new WineTensorflowModelFactory();
 		}

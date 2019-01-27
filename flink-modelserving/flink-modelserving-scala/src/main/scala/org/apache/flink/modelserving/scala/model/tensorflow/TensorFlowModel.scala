@@ -27,7 +27,8 @@ import org.tensorflow.{Graph, Session}
   * Base class for tensorflow (optimized) model processing.
   */
 @Public
-abstract class TensorFlowModel(inputStream : Array[Byte]) extends Model {
+abstract class TensorFlowModel[RECORD, RESULT](inputStream : Array[Byte])
+  extends Model[RECORD, RESULT] {
 
   /**
     * Creates a new tensorflow (optimized) model.
@@ -79,7 +80,7 @@ abstract class TensorFlowModel(inputStream : Array[Byte]) extends Model {
     * @return boolean specifying whether models are the same.
     */
   override def equals(obj: Any): Boolean = obj match {
-    case tfModel: TensorFlowModel =>
+    case tfModel: TensorFlowModel[RECORD, RESULT] =>
       tfModel.toBytes.toList == inputStream.toList
     case _ => false
   }

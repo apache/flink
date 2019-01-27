@@ -26,7 +26,7 @@ import org.tensorflow.Tensor;
 /**
  * Implementation of tensorflow (optimized) model for testing.
  */
-public class WineTensorflowModel extends TensorflowModel {
+public class WineTensorflowModel extends TensorflowModel<Winerecord.WineRecord, Double> {
 
 	/**
 	 * Creates a new tensorflow (optimized) model.
@@ -43,23 +43,24 @@ public class WineTensorflowModel extends TensorflowModel {
 	 * @param input object to score.
 	 */
 	@Override
-	public Object score(Object input) {
+	public Double score(Winerecord.WineRecord input) {
 		// Build input tensor
-		Tensor modelInput = WineTensorflowModelFactory.toTensor((Winerecord.WineRecord) input);
+		Tensor modelInput = WineTensorflowModelFactory.toTensor(input);
 		// Serve using tensorflow APIs
 		Tensor result = session.runner().feed("dense_1_input", modelInput).fetch("dense_3/Sigmoid").run().get(0);
 		// Convert result
-		long[] rshape = result.shape();
-		float[][] rMatrix = new float[(int) rshape[0]][(int) rshape[1]];
-		result.copyTo(rMatrix);
-		Intermediate value = new Intermediate(0, rMatrix[0][0]);
-		for (int i = 1; i < rshape[1]; i++){
-			if (rMatrix[0][i] > value.getValue()) {
-				value.setIndex(i);
-				value.setValue(rMatrix[0][i]);
+		long[] resultshape = result.shape();
+		float[][] resulttensor = new float[(int) resultshape[0]][(int) resultshape[1]];
+		result.copyTo(resulttensor);
+		int sresult = 0;
+		float probability = resulttensor[0][0];
+		for (int i = 1; i < (int) resultshape[1]; i++){
+			if (resulttensor[0][i] > probability){
+				sresult = i;
+				probability = resulttensor[0][i];
 			}
 		}
-		return (double) value.getIndex();
+		return (double) sresult;
 	}
 
 	/**

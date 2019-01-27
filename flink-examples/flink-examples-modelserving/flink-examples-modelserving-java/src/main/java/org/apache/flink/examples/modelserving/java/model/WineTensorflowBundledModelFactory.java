@@ -21,13 +21,14 @@ package org.apache.flink.examples.modelserving.java.model;
 import org.apache.flink.modelserving.java.model.Model;
 import org.apache.flink.modelserving.java.model.ModelFactory;
 import org.apache.flink.modelserving.java.model.ModelToServe;
+import org.apache.flink.modelserving.wine.Winerecord;
 
 import java.util.Optional;
 
 /**
  * Implementation of tensorflow (bundled) model factory.
  */
-public class WineTensorflowBundledModelFactory implements ModelFactory {
+public class WineTensorflowBundledModelFactory implements ModelFactory<Winerecord.WineRecord, Double> {
 
 	private static ModelFactory instance = null;
 
@@ -43,7 +44,7 @@ public class WineTensorflowBundledModelFactory implements ModelFactory {
 	 * @return model
 	 */
 	@Override
-	public Optional<Model> create(ModelToServe descriptor) {
+	public Optional<Model<Winerecord.WineRecord, Double>> create(ModelToServe descriptor) {
 		try {
 			return Optional.of(new WineTensorflowBundledModel(descriptor.getModelDataLocation().getBytes()));
 		}
@@ -61,7 +62,7 @@ public class WineTensorflowBundledModelFactory implements ModelFactory {
 	 * @return model
 	 */
 	@Override
-	public Model restore(byte[] bytes) {
+	public Model<Winerecord.WineRecord, Double> restore(byte[] bytes) {
 		try {
 			return new WineTensorflowBundledModel(bytes);
 		}
@@ -77,7 +78,7 @@ public class WineTensorflowBundledModelFactory implements ModelFactory {
 	 *
 	 * @return model factory
 	 */
-	public static ModelFactory getInstance(){
+	public static ModelFactory<Winerecord.WineRecord, Double> getInstance(){
 		if (instance == null) {
 			instance = new WineTensorflowBundledModelFactory();
 		}
