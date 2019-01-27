@@ -210,7 +210,7 @@ public final class InstantiationUtil {
 
 			final Class localClass = resolveClass(streamClassDescriptor);
 			final String name = localClass.getName();
-			if (scalaSerializerClassnames.contains(name) || scalaTypes.contains(name) || isAnonymousClass(localClass)) {
+			if (scalaSerializerClassnames.contains(name) || scalaTypes.contains(name) || isAnonymousClass(localClass) || isAvroSerializer(name)) {
 				final ObjectStreamClass localClassDescriptor = ObjectStreamClass.lookup(localClass);
 				if (localClassDescriptor != null
 					&& localClassDescriptor.getSerialVersionUID() != streamClassDescriptor.getSerialVersionUID()) {
@@ -223,6 +223,7 @@ public final class InstantiationUtil {
 
 			return streamClassDescriptor;
 		}
+
 	}
 
 	private static boolean isAnonymousClass(Class clazz) {
@@ -240,6 +241,10 @@ public final class InstantiationUtil {
 		} catch (InternalError e) {
 			return false;
 		}
+	}
+
+	private static boolean isAvroSerializer(String name) {
+		return "org.apache.flink.formats.avro.typeutils.AvroSerializer".equals(name);
 	}
 
 	/**
