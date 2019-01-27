@@ -50,6 +50,10 @@ final class SerializableAvroSchema implements Serializable {
 		return schema;
 	}
 
+	void setSchema(Schema schema) {
+		this.schema = schema;
+	}
+
 	private void writeObject(ObjectOutputStream oos) throws IOException {
 		if (schema == null) {
 			oos.writeBoolean(false);
