@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.CoreMatchers;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
@@ -89,9 +90,11 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 		TypeSerializer<ElementT> serializer = snapshot.restoreSerializer();
 
 		DataInputView input = dataUnderTest();
+
+		final Matcher<ElementT> matcher = testSpecification.testDataElementMatcher;
 		for (int i = 0; i < testSpecification.testDataCount; i++) {
 			final ElementT result = serializer.deserialize(input);
-			assertThat(result, notNullValue());
+			assertThat(result, matcher);
 		}
 	}
 
@@ -205,6 +208,9 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 		private int testDataCount;
 
 		@SuppressWarnings("unchecked")
+		private Matcher<T> testDataElementMatcher = (Matcher<T>)notNullValue();
+
+		@SuppressWarnings("unchecked")
 		public static <T> TestSpecification<T> builder(
 			String name,
 			Class<? extends TypeSerializer> serializerClass,
@@ -250,6 +256,11 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 		public TestSpecification<T> withTestData(String testDataLocation, int testDataCount) {
 			this.testDataLocation = testDataLocation;
 			this.testDataCount = testDataCount;
+			return this;
+		}
+
+		public TestSpecification<T> withTestDataMatcher(Matcher<T> matcher) {
+			testDataElementMatcher = matcher;
 			return this;
 		}
 
@@ -337,6 +348,45 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 						.withTestData(
 							String.format(DEFAULT_TEST_DATA_FILENAME_FORMAT, testVersion, name),
 							DEFAULT_TEST_DATA_COUNT)
+				);
+			}
+		}
+
+		/**
+		 * Adds a test specification to be tested for all specified test versions.
+		 *
+		 * <p>This method adds the specification with pre-defined snapshot and data filenames,
+		 * with the format "flink-&lt;testVersion&gt;-&lt;specName&gt;-&lt;data/snapshot&gt;",
+		 * and each specification's test data count is assumed to always be 10.
+		 *
+		 * @param name test specification name.
+		 * @param serializerClass class of the current serializer.
+		 * @param snapshotClass class of the current serializer snapshot class.
+		 * @param serializerProvider provider for an instance of the current serializer.
+		 * @param elementMatcher an {@code hamcrest} matcher to match test data.
+		 *
+		 * @param <T> type of the test data.
+		 */
+		public <T> void add(
+			String name,
+			Class<? extends TypeSerializer> serializerClass,
+			Class<? extends TypeSerializerSnapshot> snapshotClass,
+			Supplier<? extends TypeSerializer<T>> serializerProvider,
+			Matcher<T> elementMatcher)  {
+			for (MigrationVersion testVersion : testVersions) {
+				testSpecifications.add(
+					TestSpecification.<T>builder(
+						getSpecNameForVersion(name, testVersion),
+						serializerClass,
+						snapshotClass,
+						testVersion)
+						.withNewSerializerProvider(serializerProvider)
+						.withSnapshotDataLocation(
+							String.format(DEFAULT_SNAPSHOT_FILENAME_FORMAT, testVersion, name))
+						.withTestData(
+							String.format(DEFAULT_TEST_DATA_FILENAME_FORMAT, testVersion, name),
+							DEFAULT_TEST_DATA_COUNT)
+					.withTestDataMatcher(elementMatcher)
 				);
 			}
 		}
