@@ -10,7 +10,7 @@
         <tr>
             <td><h5>jobmanager.archive.fs.dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td>Dictionary for JobManager to store the archives of completed jobs.</td>
+            <td></td>
         </tr>
         <tr>
             <td><h5>jobmanager.execution.attempts-history-size</h5></td>
@@ -18,9 +18,39 @@
             <td>The maximum number of prior execution attempts kept in history.</td>
         </tr>
         <tr>
-            <td><h5>jobmanager.heap.size</h5></td>
-            <td style="word-wrap: break-word;">"1024m"</td>
-            <td>JVM heap size for the JobManager.</td>
+            <td><h5>jobmanager.execution.failover-strategy</h5></td>
+            <td style="word-wrap: break-word;">"full"</td>
+            <td>The strategy to handle task failures. 'full' failover strategy will restart all tasks in the job. 'region' failover strategy will restart the tasks in the same region with the failed task. Regions are PIPELINED connected task groups in a job.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.execution.failover-strategy.region.attempts</h5></td>
+            <td style="word-wrap: break-word;">100</td>
+            <td>The maximum number that a region can attempt to restart before triggering job failures. This only works with 'region' failover strategy.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.execution.graph-manager-plugin</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>The class name of the graph manager plugin.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.failover.operation-log-flush-interval</h5></td>
+            <td style="word-wrap: break-word;">3000</td>
+            <td>The operation log store flush interval in ms.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.failover.operation-log-store</h5></td>
+            <td style="word-wrap: break-word;">"none"</td>
+            <td>The operation log store type for job master failover.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.failover.reconcile-timeout</h5></td>
+            <td style="word-wrap: break-word;">60</td>
+            <td>The timeout for job master to reconcile with task executors for recovering the execution status.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.heap.mb</h5></td>
+            <td style="word-wrap: break-word;">1024</td>
+            <td>JVM heap size (in megabytes) for the JobManager.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.resourcemanager.reconnect-interval</h5></td>
@@ -38,6 +68,11 @@
             <td>The config parameter defining the network port to connect to for communication with the job manager. Like jobmanager.rpc.address, this value is only interpreted in setups where a single JobManager with static name/address and port exists (simple standalone setups, or container setups with dynamic service name resolution). This config option is not used in many high-availability setups, when a leader-election service (like ZooKeeper) is used to elect and discover the JobManager leader from potentially multiple standby JobManagers.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.update-partition-info.send-interval</h5></td>
+            <td style="word-wrap: break-word;">10</td>
+            <td>The interval of send update-partition-info message.</td>
+        </tr>
+        <tr>
             <td><h5>jobstore.cache-size</h5></td>
             <td style="word-wrap: break-word;">52428800</td>
             <td>The job store cache size in bytes which is used to keep completed jobs in memory.</td>
@@ -46,6 +81,11 @@
             <td><h5>jobstore.expiration-time</h5></td>
             <td style="word-wrap: break-word;">3600</td>
             <td>The time in seconds after which a completed job expires and is purged from the job store.</td>
+        </tr>
+        <tr>
+            <td><h5>slot.enable-shared-slot</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Whether to enable slot sharing group when allocating slots in Slot Pool.</td>
         </tr>
         <tr>
             <td><h5>slot.idle.timeout</h5></td>

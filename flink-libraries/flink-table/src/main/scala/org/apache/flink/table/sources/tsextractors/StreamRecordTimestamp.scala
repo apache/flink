@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.sources.tsextractors
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.expressions.{Expression, ResolvedFieldReference}
+import org.apache.flink.table.api.types.{DataTypes, DecimalType, InternalType}
+import org.apache.flink.table.expressions._
 
 /**
   * Extracts the timestamp of a StreamRecord into a rowtime attribute.
@@ -34,13 +34,19 @@ final class StreamRecordTimestamp extends TimestampExtractor {
 
   /** No validation required. */
   @throws[ValidationException]
-  override def validateArgumentFields(physicalFieldTypes: Array[TypeInformation[_]]): Unit = { }
+  override def validateArgumentFields(physicalFieldTypes: Array[InternalType]): Unit = { }
 
   /**
     * Returns an [[Expression]] that extracts the timestamp of a StreamRecord.
     */
   override def getExpression(fieldAccesses: Array[ResolvedFieldReference]): Expression = {
-    org.apache.flink.table.expressions.StreamRecordTimestamp()
+    Cast(
+      Div(
+        org.apache.flink.table.expressions.StreamRecordTimestamp(),
+        Literal(new java.math.BigDecimal(1000), DecimalType.SYSTEM_DEFAULT)
+      ),
+      DataTypes.TIMESTAMP)
+
   }
 
   override def equals(obj: Any): Boolean = obj match {

@@ -19,9 +19,13 @@
 package org.apache.flink.runtime.clusterframework.types;
 
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.resources.CommonExtendedResource;
+import org.apache.flink.api.common.resources.GPUResource;
+import org.apache.flink.api.common.resources.Resource;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -67,6 +71,21 @@ public class ResourceProfileTest {
 		assertFalse(rp1.isMatching(ResourceProfile.fromResourceSpec(rs1, 0)));
 		assertTrue(ResourceProfile.fromResourceSpec(rs1, 0).isMatching(ResourceProfile.fromResourceSpec(rs2, 0)));
 		assertFalse(ResourceProfile.fromResourceSpec(rs2, 0).isMatching(ResourceProfile.fromResourceSpec(rs1, 0)));
+
+		assertEquals(0, rp5.getManagedMemoryInMB());
+		assertEquals(0, rp5.getFloatingManagedMemoryInMB());
+
+		ResourceSpec rs3 = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				addExtendedResource(new CommonExtendedResource(ResourceSpec.FLOATING_MANAGED_MEMORY_NAME, 200)).
+				build();
+		ResourceSpec rs4 = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				addExtendedResource(new CommonExtendedResource(ResourceSpec.FLOATING_MANAGED_MEMORY_NAME, 400)).
+				build();
+		assertTrue(ResourceProfile.fromResourceSpec(rs3, 0).isMatching(ResourceProfile.fromResourceSpec(rs4, 0)));
 	}
 
 	@Test
@@ -144,5 +163,189 @@ public class ResourceProfileTest {
 		assertEquals(150, rp.getMemoryInMB());
 		assertEquals(100, rp.getOperatorsMemoryInMB());
 		assertEquals(1.6, rp.getExtendedResources().get(ResourceSpec.GPU_NAME).getValue(), 0.000001);
+	}
+
+	@Test
+	public void testMinus() {
+		ResourceProfile rs1 = new ResourceProfile(
+			3,
+			300,
+			302,
+			303,
+			304,
+			new HashMap<String, Resource>() {{
+				this.put("extend_1", new GPUResource(305));
+				this.put("extend_2", new GPUResource(306));
+			}}
+		);
+
+		ResourceProfile rs2 = new ResourceProfile(
+			3,
+			200,
+			202,
+			203,
+			204,
+			new HashMap<String, Resource>() {{
+				this.put("extend_1", new GPUResource(205));
+			}}
+		);
+
+		ResourceProfile result = rs1.minus(rs2);
+		assertEquals(result, new ResourceProfile(
+			0,
+			100,
+			100,
+			100,
+			100,
+			new HashMap<String, Resource>() {{
+				this.put("extend_1", new GPUResource(100));
+				// Should be ignored.
+				this.put("extend_2", new GPUResource(306));
+			}})
+		);
+	}
+
+	@Test
+	public void testMinusWithUnknownExtendedResource() {
+		ResourceProfile rs1 = new ResourceProfile(
+			3,
+			300,
+			302,
+			303,
+			304,
+			new HashMap<String, Resource>() {{
+				this.put("extend_1", new GPUResource(305));
+				this.put("extend_2", new GPUResource(306));
+			}}
+		);
+
+		ResourceProfile rs2 = new ResourceProfile(
+			3,
+			200,
+			202,
+			203,
+			204,
+			new HashMap<String, Resource>() {{
+				this.put("extend_1", new GPUResource(205));
+				this.put("extend_3", new GPUResource(105));
+			}}
+		);
+
+		boolean exceptionCaught = false;
+		try {
+			ResourceProfile result = rs1.minus(rs2);
+		} catch (IllegalArgumentException e) {
+			exceptionCaught = true;
+		}
+
+		assertTrue("Minus with non-existent extended resource should cause IllegalArgumentException",
+			exceptionCaught);
+	}
+
+	@Test
+	public void testMerge() {
+		ResourceProfile rs1 = new ResourceProfile(
+			3,
+			300,
+			301,
+			302,
+			303,
+			new HashMap<String, Resource>() {{
+				this.put("extend_1", new GPUResource(305));
+				this.put("extend_2", new GPUResource(306));
+			}});
+
+		ResourceProfile rs2 = new ResourceProfile(
+			2,
+			200,
+			201,
+			202,
+			203,
+			new HashMap<String, Resource>() {{
+				this.put("extend_1", new GPUResource(225));
+				this.put("extend_3", new GPUResource(321));
+			}}
+		);
+
+		ResourceProfile result = rs1.merge(rs2);
+		assertEquals(result, new ResourceProfile(
+			5,
+			500,
+			502,
+			504,
+			506,
+			new HashMap<String, Resource>() {{
+				this.put("extend_1", new GPUResource(530));
+				this.put("extend_2", new GPUResource(306));
+				this.put("extend_3", new GPUResource(321));
+			}})
+		);
+	}
+
+	@Test
+	public void testAddTo() {
+		ResourceProfile rs1 = new ResourceProfile(
+			3,
+			300,
+			301,
+			302,
+			303,
+			new HashMap<String, Resource>() {{
+				this.put("extend_1", new GPUResource(305));
+				this.put("extend_2", new GPUResource(306));
+			}});
+
+		ResourceProfile rs2 = new ResourceProfile(
+			2,
+			200,
+			201,
+			202,
+			203,
+			new HashMap<String, Resource>() {{
+				this.put("extend_1", new GPUResource(225));
+				this.put("extend_3", new GPUResource(321));
+			}}
+		);
+
+		rs1.addTo(rs2);
+		assertEquals(new ResourceProfile(
+			5,
+			500,
+			502,
+			504,
+			506,
+			new HashMap<String, Resource>() {{
+				this.put("extend_1", new GPUResource(530));
+				this.put("extend_2", new GPUResource(306));
+				this.put("extend_3", new GPUResource(321));
+			}}), rs1
+		);
+	}
+
+	@Test
+	public void testMultiply() {
+		ResourceProfile rs1 = new ResourceProfile(
+			3,
+			300,
+			301,
+			302,
+			303,
+			new HashMap<String, Resource>() {{
+				this.put("extend_1", new GPUResource(305));
+				this.put("extend_2", new GPUResource(306));
+			}});
+
+		ResourceProfile result = rs1.multiply(4);
+		assertEquals(new ResourceProfile(
+			3 * 4,
+			300 * 4,
+			301 * 4,
+			302 * 4,
+			303 * 4,
+			new HashMap<String, Resource>() {{
+				this.put("extend_1", new GPUResource(305 * 4));
+				this.put("extend_2", new GPUResource(306 * 4));
+			}}), result
+		);
 	}
 }

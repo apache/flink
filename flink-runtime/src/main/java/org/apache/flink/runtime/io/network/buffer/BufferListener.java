@@ -23,20 +23,19 @@ package org.apache.flink.runtime.io.network.buffer;
  * notification or to be notified repeatedly.
  */
 public interface BufferListener {
-
 	/**
 	 * Status of the notification result from the buffer listener.
 	 */
 	enum NotificationResult {
-		BUFFER_NOT_USED(false, false),
-		BUFFER_USED_NO_NEED_MORE(true, false),
+		NONE(false, false),
+		BUFFER_USED_FINISHED(true, false),
 		BUFFER_USED_NEED_MORE(true, true);
 
-		private final boolean isBufferUsed;
+		private final boolean bufferUsed;
 		private final boolean needsMoreBuffers;
 
-		NotificationResult(boolean isBufferUsed, boolean needsMoreBuffers) {
-			this.isBufferUsed = isBufferUsed;
+		NotificationResult(boolean bufferUsed, boolean needsMoreBuffers) {
+			this.bufferUsed = bufferUsed;
 			this.needsMoreBuffers = needsMoreBuffers;
 		}
 
@@ -45,8 +44,8 @@ public interface BufferListener {
 		 *
 		 * @return <tt>true</tt> if the notified buffer is accepted.
 		 */
-		boolean isBufferUsed() {
-			return isBufferUsed;
+		boolean bufferUsed() {
+			return bufferUsed;
 		}
 
 		/**
@@ -61,15 +60,6 @@ public interface BufferListener {
 
 	/**
 	 * Notification callback if a buffer is recycled and becomes available in buffer pool.
-	 *
-	 * <p>Note: responsibility on recycling the given buffer is transferred to this implementation,
-	 * including any errors that lead to exceptions being thrown!
-	 *
-	 * <p><strong>BEWARE:</strong> since this may be called from outside the thread that relies on
-	 * the listener's logic, any exception that occurs with this handler should be forwarded to the
-	 * responsible thread for handling and otherwise ignored in the processing of this method. The
-	 * buffer pool forwards any {@link Throwable} from here upwards to a potentially unrelated call
-	 * stack!
 	 *
 	 * @param buffer buffer that becomes available in buffer pool.
 	 * @return NotificationResult if the listener wants to be notified next time.

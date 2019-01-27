@@ -23,7 +23,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.types.Row;
+import org.apache.flink.connectors.hbase.table.HBaseTableSchema;
+import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
@@ -46,9 +48,9 @@ import java.sql.Time;
 import java.sql.Timestamp;
 
 /**
- * {@link InputFormat} subclass that wraps the access for HTables. Returns the result as {@link Row}
+ * {@link InputFormat} subclass that wraps the access for HTables. Returns the result as {@link GenericRow}
  */
-public class HBaseRowInputFormat extends AbstractTableInputFormat<Row> implements ResultTypeQueryable<Row> {
+public class HBaseRowInputFormat extends AbstractTableInputFormat<GenericRow> implements ResultTypeQueryable<GenericRow> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -66,9 +68,9 @@ public class HBaseRowInputFormat extends AbstractTableInputFormat<Row> implement
 	private int[][] types;
 
 	// row which is returned
-	private Row resultRow;
+	private GenericRow resultRow;
 	// nested family rows
-	private Row[] familyRows;
+	private GenericRow[] familyRows;
 
 	public HBaseRowInputFormat(org.apache.hadoop.conf.Configuration conf, String tableName, HBaseTableSchema schema) {
 		this.tableName = tableName;
@@ -104,11 +106,11 @@ public class HBaseRowInputFormat extends AbstractTableInputFormat<Row> implement
 		}
 
 		// prepare output rows
-		this.resultRow = new Row(families.length);
-		this.familyRows = new Row[families.length];
+		this.resultRow = new GenericRow(families.length);
+		this.familyRows = new GenericRow[families.length];
 		for (int f = 0; f < families.length; f++) {
-			this.familyRows[f] = new Row(qualifiers[f].length);
-			this.resultRow.setField(f, this.familyRows[f]);
+			this.familyRows[f] = new GenericRow(qualifiers[f].length);
+			this.resultRow.update(f, this.familyRows[f]);
 		}
 
 		this.stringCharset = Charset.forName(schema.getStringCharset());
@@ -133,11 +135,11 @@ public class HBaseRowInputFormat extends AbstractTableInputFormat<Row> implement
 	}
 
 	@Override
-	protected Row mapResultToOutType(Result res) {
+	protected GenericRow mapResultToOutType(Result res) {
 		for (int f = 0; f < this.families.length; f++) {
 			// get family key
 			byte[] familyKey = families[f];
-			Row familyRow = familyRows[f];
+			GenericRow familyRow = familyRows[f];
 			for (int q = 0; q < this.qualifiers[f].length; q++) {
 				// get quantifier key
 				byte[] qualifier = qualifiers[f][q];
@@ -146,12 +148,12 @@ public class HBaseRowInputFormat extends AbstractTableInputFormat<Row> implement
 				// read value
 				byte[] value = res.getValue(familyKey, qualifier);
 				if (value != null) {
-					familyRow.setField(q, deserialize(value, typeIdx));
+					familyRow.update(q, deserialize(value, typeIdx));
 				} else {
-					familyRow.setField(q, null);
+					familyRow.update(q, null);
 				}
 			}
-			resultRow.setField(f, familyRow);
+			resultRow.update(f, familyRow);
 		}
 		return resultRow;
 	}
@@ -175,7 +177,7 @@ public class HBaseRowInputFormat extends AbstractTableInputFormat<Row> implement
 	}
 
 	@Override
-	public TypeInformation<Row> getProducedType() {
+	public TypeInformation<GenericRow> getProducedType() {
 		// split the fieldNames
 		String[] famNames = schema.getFamilyNames();
 		TypeInformation<?>[] typeInfos = new TypeInformation[famNames.length];
@@ -184,7 +186,7 @@ public class HBaseRowInputFormat extends AbstractTableInputFormat<Row> implement
 			typeInfos[i] = new RowTypeInfo(schema.getQualifierTypes(family), schema.getQualifierNames(family));
 			i++;
 		}
-		return new RowTypeInfo(typeInfos, famNames);
+		return (TypeInformation) new BaseRowTypeInfo(typeInfos, famNames);
 	}
 
 	private Object deserialize(byte[] value, int typeIdx) {

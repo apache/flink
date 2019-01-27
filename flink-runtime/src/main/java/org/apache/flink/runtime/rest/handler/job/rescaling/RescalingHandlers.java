@@ -54,10 +54,12 @@ public class RescalingHandlers extends AbstractAsynchronousOperationHandlers<Asy
 	public class RescalingTriggerHandler extends TriggerHandler<RestfulGateway, EmptyRequestBody, RescalingTriggerMessageParameters> {
 
 		public RescalingTriggerHandler(
+				CompletableFuture<String> localRestAddress,
 				GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 				Time timeout,
 				Map<String, String> responseHeaders) {
 			super(
+				localRestAddress,
 				leaderRetriever,
 				timeout,
 				responseHeaders,
@@ -97,10 +99,12 @@ public class RescalingHandlers extends AbstractAsynchronousOperationHandlers<Asy
 	public class RescalingStatusHandler extends StatusHandler<RestfulGateway, AsynchronousOperationInfo, RescalingStatusMessageParameters> {
 
 		public RescalingStatusHandler(
+			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders) {
 			super(
+				localRestAddress,
 				leaderRetriever,
 				timeout,
 				responseHeaders,

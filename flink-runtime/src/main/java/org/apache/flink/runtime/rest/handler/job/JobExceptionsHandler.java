@@ -20,7 +20,9 @@ package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -32,6 +34,7 @@ import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.FixedSortedSet;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
@@ -42,8 +45,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
+import java.util.Comparator;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -51,9 +55,10 @@ import java.util.concurrent.Executor;
  */
 public class JobExceptionsHandler extends AbstractExecutionGraphHandler<JobExceptionsInfo, JobMessageParameters> implements JsonArchivist {
 
-	static final int MAX_NUMBER_EXCEPTION_TO_REPORT = 20;
+	static final int MAX_NUMBER_EXCEPTION_TO_REPORT = 200;
 
 	public JobExceptionsHandler(
+			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
@@ -62,6 +67,7 @@ public class JobExceptionsHandler extends AbstractExecutionGraphHandler<JobExcep
 			Executor executor) {
 
 		super(
+			localRestAddress,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -92,28 +98,68 @@ public class JobExceptionsHandler extends AbstractExecutionGraphHandler<JobExcep
 			rootTimestamp = rootException.getTimestamp();
 		}
 
-		List<JobExceptionsInfo.ExecutionExceptionInfo> taskExceptionList = new ArrayList<>();
+		// TODO: Traversing the execution graph costs too much, rewrite it with other ways.
+		// Use DESC ordering, since we want to keep most recent exceptions.
+		final FixedSortedSet<JobExceptionsInfo.ExecutionExceptionInfo>
+			taskExceptionList = new FixedSortedSet<>(MAX_NUMBER_EXCEPTION_TO_REPORT, Comparator.reverseOrder());
+		int numExceptionsSofar = 0;
 		boolean truncated = false;
-		for (AccessExecutionVertex task : executionGraph.getAllExecutionVertices()) {
-			String t = task.getFailureCauseAsString();
-			if (t != null && !t.equals(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION)) {
-				if (taskExceptionList.size() >= MAX_NUMBER_EXCEPTION_TO_REPORT) {
-					truncated = true;
-					break;
+		for (AccessExecutionJobVertex jobVertex : executionGraph.getVerticesTopologically()) {
+			for (AccessExecutionVertex executionVertex : jobVertex.getTaskVertices()) {
+				// Task can not be null.
+				AccessExecution task = executionVertex.getCurrentExecutionAttempt();
+				JobExceptionsInfo.ExecutionExceptionInfo
+					executionExceptionInfo = generateExecutionExceptionInfo(
+						jobVertex,
+						executionVertex,
+						task);
+				if (executionExceptionInfo != null) {
+					taskExceptionList.add(executionExceptionInfo);
+					numExceptionsSofar++;
 				}
 
-				TaskManagerLocation location = task.getCurrentAssignedResourceLocation();
-				String locationString = location != null ?
-					location.getFQDNHostname() + ':' + location.dataPort() : "(unassigned)";
-				long timestamp = task.getStateTimestamp(ExecutionState.FAILED);
-				taskExceptionList.add(new JobExceptionsInfo.ExecutionExceptionInfo(
-					t,
-					task.getTaskNameWithSubtaskIndex(),
-					locationString,
-					timestamp == 0 ? -1 : timestamp));
+				for (int i = task.getAttemptNumber() - 1; i >= 0; i--) {
+					try {
+						task = executionVertex.getPriorExecutionAttempt(i);
+					} catch (Exception e) {
+						break;
+					}
+					executionExceptionInfo = generateExecutionExceptionInfo(
+						jobVertex,
+						executionVertex,
+						task);
+					if (executionExceptionInfo != null) {
+						taskExceptionList.add(executionExceptionInfo);
+						numExceptionsSofar++;
+					}
+				}
+				if (!truncated && numExceptionsSofar >= MAX_NUMBER_EXCEPTION_TO_REPORT) {
+					truncated = true;
+				}
 			}
 		}
 
-		return new JobExceptionsInfo(rootExceptionMessage, rootTimestamp, taskExceptionList, truncated);
+		return new JobExceptionsInfo(rootExceptionMessage, rootTimestamp, new ArrayList<>(taskExceptionList), truncated);
+	}
+
+	private static JobExceptionsInfo.ExecutionExceptionInfo generateExecutionExceptionInfo(AccessExecutionJobVertex jobVertex, AccessExecutionVertex executionVertex, AccessExecution task) {
+		String t = task != null ? task.getFailureCauseAsString() : null;
+		if (t != null && !t.equals(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION)) {
+			TaskManagerLocation location = task.getAssignedResourceLocation();
+			String locationString = location != null ?
+				location.getFQDNHostname() + ':' + location.dataPort() : "(unassigned)";
+			long timestamp = task.getStateTimestamp(ExecutionState.FAILED);
+
+			return new JobExceptionsInfo.ExecutionExceptionInfo(
+				t,
+				executionVertex.getTaskNameWithSubtaskIndex(),
+				locationString,
+				timestamp == 0 ? -1 : timestamp,
+				jobVertex.getJobVertexId().toString(),
+				task.getParallelSubtaskIndex(),
+				task.getAttemptNumber());
+		} else {
+			return null;
+		}
 	}
 }

@@ -1,0 +1,283 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testDecomposableAggFunctions">
+    <Resource name="sql">
+      <![CDATA[SELECT   VAR_POP(c), VAR_SAMP(c), STDDEV_POP(c), STDDEV_SAMP(c),   TUMBLE_START(rowtime, INTERVAL '15' MINUTE),   TUMBLE_END(rowtime, INTERVAL '15' MINUTE)FROM MyTable GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBLE_START($0)], EXPR$5=[TUMBLE_END($0)])
++- LogicalAggregate(group=[{0}], EXPR$0=[VAR_POP($1)], EXPR$1=[VAR_SAMP($1)], EXPR$2=[STDDEV_POP($1)], EXPR$3=[STDDEV_SAMP($1)])
+   +- LogicalProject($f0=[TUMBLE($3, 900000)], c=[$2])
+      +- LogicalTableScan(table=[[builtin, default, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[CAST(/(-($f0, /(*(CAST($f1), CAST($f1)), $f2)), $f2)) AS EXPR$0, CAST(/(-($f3, /(*(CAST($f1), CAST($f1)), $f2)), CASE(=($f2, 1), null, -($f2, 1)))) AS EXPR$1, CAST(POWER(/(-($f4, /(*(CAST($f1), CAST($f1)), $f2)), $f2), 0.5)) AS EXPR$2, CAST(POWER(/(-($f5, /(*(CAST($f1), CAST($f1)), $f2)), CASE(=($f2, 1), null, -($f2, 1))), 0.5)) AS EXPR$3, CAST(w$start) AS EXPR$4, CAST(w$end) AS EXPR$5])
++- HashWindowAggregate(window=[TumblingGroupWindow('w$, 'rowtime, 900000.millis)], properties=[w$start, w$end, w$rowtime], select=[Final_SUM(sum$0) AS $f0, Final_SUM(sum$1) AS $f1, Final_COUNT(count$2) AS $f2, Final_SUM(sum$3) AS $f3, Final_SUM(sum$4) AS $f4, Final_SUM(sum$5) AS $f5])
+   +- Exchange(distribution=[single])
+      +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, 'rowtime, 900000.millis)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM($f2) AS sum$0, Partial_SUM(c) AS sum$1, Partial_COUNT(c) AS count$2, Partial_SUM($f3) AS sum$3, Partial_SUM($f4) AS sum$4, Partial_SUM($f5) AS sum$5])
+         +- Calc(select=[rowtime, c, *(CAST(c), CAST(c)) AS $f2, *(CAST(c), CAST(c)) AS $f3, *(CAST(c), CAST(c)) AS $f4, *(CAST(c), CAST(c)) AS $f5])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExpressionOnWindowHavingFunction">
+    <Resource name="sql">
+      <![CDATA[SELECT   COUNT(*),   HOP_START(ts, INTERVAL '15' MINUTE, INTERVAL '1' MINUTE) FROM T GROUP BY HOP(ts, INTERVAL '15' MINUTE, INTERVAL '1' MINUTE) HAVING   SUM(a) > 0 AND   QUARTER(HOP_START(ts, INTERVAL '15' MINUTE, INTERVAL '1' MINUTE)) = 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)])
++- LogicalFilter(condition=[AND(>($2, 0), =(EXTRACT(FLAG(QUARTER), HOP_START($0)), 1))])
+   +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], agg#1=[SUM($1)])
+      +- LogicalProject($f0=[HOP($3, 900000, 60000)], a=[$0])
+         +- LogicalTableScan(table=[[builtin, default, T]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0, CAST(w$start) AS EXPR$1], where=[AND(>($f1, 0), =(EXTRACT(FLAG(QUARTER), CAST(w$start)), 1))])
++- HashWindowAggregate(window=[SlidingGroupWindow('w$, 'ts, 60000.millis, 900000.millis)], properties=[w$start, w$end, w$rowtime], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS $f1])
+   +- Exchange(distribution=[single])
+      +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, 'ts, 60000.millis, 900000.millis)], properties=[w$start, w$end, w$rowtime], select=[Partial_COUNT(*) AS count$0, Partial_SUM(a) AS sum$1])
+         +- Calc(select=[ts, a])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiHopWindowsJoin">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM
+ (SELECT
+   HOP_START(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' HOUR) as hs1,
+   HOP_END(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' HOUR) as he1,
+   count(*) as c1,
+   sum(c) as s1
+ FROM MyTable
+ GROUP BY HOP(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' HOUR)) t1
+JOIN
+ (SELECT
+   HOP_START(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' DAY) as hs2,
+   HOP_END(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' DAY) as he2,
+   count(*) as c2,
+   sum(c) as s2
+ FROM MyTable
+ GROUP BY HOP(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' DAY)) t2 ON t1.he1 = t2.he2
+WHERE t1.s1 IS NOT NULL
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(hs1=[$0], he1=[$1], c1=[$2], s1=[$3], hs2=[$4], he2=[$5], c2=[$6], s2=[$7])
++- LogicalFilter(condition=[IS NOT NULL($3)])
+   +- LogicalJoin(condition=[=($1, $5)], joinType=[inner])
+      :- LogicalProject(hs1=[HOP_START($0)], he1=[HOP_END($0)], c1=[$1], s1=[$2])
+      :  +- LogicalAggregate(group=[{0}], c1=[COUNT()], s1=[SUM($1)])
+      :     +- LogicalProject($f0=[HOP($3, 60000, 3600000)], c=[$2])
+      :        +- LogicalTableScan(table=[[builtin, default, MyTable]])
+      +- LogicalProject(hs2=[HOP_START($0)], he2=[HOP_END($0)], c2=[$1], s2=[$2])
+         +- LogicalAggregate(group=[{0}], c2=[COUNT()], s2=[SUM($1)])
+            +- LogicalProject($f0=[HOP($3, 60000, 86400000)], c=[$2])
+               +- LogicalTableScan(table=[[builtin, default, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(where=[=(he1, he2)], join=[hs1, he1, c1, s1, hs2, he2, c2, s2], joinType=[InnerJoin], build=[left], singleRowJoin=[true])
+:- Exchange(distribution=[broadcast])
+:  +- Calc(select=[CAST(w$start) AS hs1, CAST(w$end) AS he1, c1, s1], where=[IS NOT NULL(s1)])
+:     +- HashWindowAggregate(window=[SlidingGroupWindow('w$, 'rowtime, 3600000.millis, 60000.millis)], properties=[w$start, w$end, w$rowtime], select=[Final_COUNT(count$0) AS c1, Final_SUM(sum$1) AS s1])
+:        +- Exchange(distribution=[single])
+:           +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, 'rowtime, 3600000.millis, 60000.millis)], properties=[w$start, w$end, w$rowtime], select=[Partial_COUNT(*) AS count$0, Partial_SUM(c) AS sum$1])
+:              +- Calc(select=[rowtime, c])
+:                 +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c, rowtime])
++- Calc(select=[CAST(w$start) AS hs2, CAST(w$end) AS he2, c2, s2])
+   +- HashWindowAggregate(window=[SlidingGroupWindow('w$, 'rowtime, 86400000.millis, 60000.millis)], properties=[w$start, w$end, w$rowtime], select=[Final_COUNT(count$0) AS c2, Final_SUM(sum$1) AS s2])
+      +- Exchange(distribution=[single])
+         +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, 'rowtime, 86400000.millis, 60000.millis)], properties=[w$start, w$end, w$rowtime], select=[Partial_COUNT(*) AS count$0, Partial_SUM(c) AS sum$1])
+            +- Calc(select=[rowtime, c])
+               +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNonPartitionedHopWindow">
+    <Resource name="sql">
+      <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM T GROUP BY HOP(ts, INTERVAL '15' MINUTE, INTERVAL '90' MINUTE)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(sumA=[$1], cntB=[$2])
++- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
+   +- LogicalProject($f0=[HOP($3, 900000, 5400000)], a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[builtin, default, T]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashWindowAggregate(window=[SlidingGroupWindow('w$, 'ts, 5400000.millis, 900000.millis)], select=[Final_SUM(sum$0) AS sumA, Final_COUNT(count$1) AS cntB])
++- Exchange(distribution=[single])
+   +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, 'ts, 5400000.millis, 900000.millis)], select=[Partial_SUM(a) AS sum$0, Partial_COUNT(b) AS count$1])
+      +- Calc(select=[ts, a, b])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartitionedSessionWindow">
+    <Resource name="sql">
+      <![CDATA[SELECT   c, d,   SESSION_START(ts, INTERVAL '12' HOUR),   SESSION_END(ts, INTERVAL '12' HOUR),   SESSION_ROWTIME(ts, INTERVAL '12' HOUR),   SUM(a) AS sumA,   MIN(b) AS minB FROM T GROUP BY SESSION(ts, INTERVAL '12' HOUR), c, d]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$1], d=[$2], EXPR$2=[SESSION_START($0)], EXPR$3=[SESSION_END($0)], EXPR$4=[SESSION_ROWTIME($0)], sumA=[$3], minB=[$4])
++- LogicalAggregate(group=[{0, 1, 2}], sumA=[SUM($3)], minB=[MIN($4)])
+   +- LogicalProject($f0=[SESSION($4, 43200000)], c=[$2], d=[$3], a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[builtin, default, T]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNonPartitionedSessionWindow">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*) AS cnt FROM T GROUP BY SESSION(ts, INTERVAL '30' MINUTE)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(cnt=[$1])
++- LogicalAggregate(group=[{0}], cnt=[COUNT()])
+   +- LogicalProject($f0=[SESSION($3, 1800000)])
+      +- LogicalTableScan(table=[[builtin, default, T]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNonPartitionedTumbleWindow">
+    <Resource name="sql">
+      <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM T GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(sumA=[$1], cntB=[$2])
++- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
+   +- LogicalProject($f0=[TUMBLE($3, 7200000)], a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[builtin, default, T]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashWindowAggregate(window=[TumblingGroupWindow('w$, 'ts, 7200000.millis)], select=[Final_SUM(sum$0) AS sumA, Final_COUNT(count$1) AS cntB])
++- Exchange(distribution=[single])
+   +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, 'ts, 7200000.millis)], select=[Partial_SUM(a) AS sum$0, Partial_COUNT(b) AS count$1])
+      +- Calc(select=[ts, a, b])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartitionedHopWindow">
+    <Resource name="sql">
+      <![CDATA[SELECT   c,   HOP_END(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR),   HOP_START(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR),   HOP_ROWTIME(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR),   SUM(a) AS sumA,   AVG(b) AS avgB FROM T GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR), d, c]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], EXPR$1=[HOP_END($0)], EXPR$2=[HOP_START($0)], EXPR$3=[HOP_ROWTIME($0)], sumA=[$3], avgB=[$4])
++- LogicalAggregate(group=[{0, 1, 2}], sumA=[SUM($3)], avgB=[AVG($4)])
+   +- LogicalProject($f0=[HOP($4, 3600000, 10800000)], d=[$3], c=[$2], a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[builtin, default, T]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, CAST(w$end) AS EXPR$1, CAST(w$start) AS EXPR$2, CAST(w$rowtime) AS EXPR$3, sumA, avgB])
++- SortWindowAggregate(groupBy=[c, d], window=[SlidingGroupWindow('w$, 'ts, 10800000.millis, 3600000.millis)], properties=[w$start, w$end, w$rowtime], select=[c, d, SUM(a) AS sumA, AVG(b) AS avgB])
+   +- Sort(orderBy=[c ASC, d ASC, ts ASC])
+      +- Exchange(distribution=[hash[c, d]])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c, d, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartitionedTumbleWindow">
+    <Resource name="sql">
+      <![CDATA[SELECT   TUMBLE_START(ts, INTERVAL '4' MINUTE),   TUMBLE_END(ts, INTERVAL '4' MINUTE),   TUMBLE_ROWTIME(ts, INTERVAL '4' MINUTE),   c,   SUM(a) AS sumA,   MIN(b) AS minB FROM T GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[TUMBLE_START($0)], EXPR$1=[TUMBLE_END($0)], EXPR$2=[TUMBLE_ROWTIME($0)], c=[$1], sumA=[$2], minB=[$3])
++- LogicalAggregate(group=[{0, 1}], sumA=[SUM($2)], minB=[MIN($3)])
+   +- LogicalProject($f0=[TUMBLE($3, 240000)], c=[$2], a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[builtin, default, T]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[CAST(w$start) AS EXPR$0, CAST(w$end) AS EXPR$1, CAST(w$rowtime) AS EXPR$2, c, sumA, minB])
++- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, 'ts, 240000.millis)], properties=[w$start, w$end, w$rowtime], select=[c, Final_SUM(sum$0) AS sumA, Final_MIN(min$1) AS minB])
+   +- Exchange(distribution=[hash[c]])
+      +- LocalHashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, 'ts, 240000.millis)], properties=[w$start, w$end, w$rowtime], select=[c, Partial_SUM(a) AS sum$0, Partial_MIN(b) AS min$1])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTumbleWindowWithUdAgg">
+    <Resource name="sql">
+      <![CDATA[SELECT weightedAvg(b, a) AS wAvg FROM T GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(wAvg=[$1])
++- LogicalAggregate(group=[{0}], wAvg=[weightedAvg($1, $2)])
+   +- LogicalProject($f0=[TUMBLE($3, 240000)], b=[$1], a=[$0])
+      +- LogicalTableScan(table=[[builtin, default, T]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortWindowAggregate(window=[TumblingGroupWindow('w$, 'ts, 240000.millis)], select=[Final_weightedAvg(wAvg) AS wAvg])
++- Sort(orderBy=[assignedWindow$ ASC])
+   +- Exchange(distribution=[single])
+      +- LocalSortWindowAggregate(window=[TumblingGroupWindow('w$, 'ts, 240000.millis)], select=[Partial_weightedAvg(b, a) AS wAvg])
+         +- Sort(orderBy=[ts ASC])
+            +- Calc(select=[ts, b, a])
+               +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowEndOnly">
+    <Resource name="sql">
+      <![CDATA[SELECT   TUMBLE_END(ts, INTERVAL '4' MINUTE)FROM T GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[TUMBLE_END($0)])
++- LogicalAggregate(group=[{0, 1}])
+   +- LogicalProject($f0=[TUMBLE($3, 240000)], c=[$2])
+      +- LogicalTableScan(table=[[builtin, default, T]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[CAST(w$end) AS EXPR$0])
++- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, 'ts, 240000.millis)], properties=[w$start, w$end, w$rowtime], select=[c])
+   +- Exchange(distribution=[hash[c]])
+      +- LocalHashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, 'ts, 240000.millis)], properties=[w$start, w$end, w$rowtime], select=[c])
+         +- Calc(select=[ts, c])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c, ts])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

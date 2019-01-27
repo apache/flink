@@ -24,6 +24,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.configuration.Configuration;
@@ -72,26 +73,47 @@ public class LocalEnvironment extends ExecutionEnvironment {
 							"(such as Command Line Client, Scala Shell, or TestEnvironment)");
 		}
 		this.configuration = config == null ? new Configuration() : config;
+		try {
+			startNewSession();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobSubmissionResult executeInternal(String jobName, boolean detached) throws Exception {
 		if (executor == null) {
 			startNewSession();
 		}
 
 		Plan p = createProgramPlan(jobName);
-
 		// Session management is disabled, revert this commit to enable
-		//p.setJobId(jobID);
-		//p.setSessionTimeout(sessionTimeout);
+		p.setJobId(jobID);
+		p.setSessionTimeout(sessionTimeout);
 
-		JobExecutionResult result = executor.executePlan(p);
-
-		this.lastJobExecutionResult = result;
+		JobSubmissionResult result = executor.executePlan(p, detached);
+		if (result.isJobExecutionResult()) {
+			this.lastJobExecutionResult = (JobExecutionResult) result;
+		}
 		return result;
+	}
+
+	@Override
+	public void cancel(JobID jobId) throws Exception {
+		if (executor != null) {
+			this.executor.cancelPlan(jobId);
+		} else {
+			System.out.println("executor is null");
+		}
+	}
+
+	@Override
+	public void stop() throws Exception {
+		if (executor != null) {
+			executor.stop();
+		}
 	}
 
 	@Override

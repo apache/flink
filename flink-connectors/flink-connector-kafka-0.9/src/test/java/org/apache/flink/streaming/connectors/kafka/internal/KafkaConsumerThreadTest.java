@@ -311,6 +311,9 @@ public class KafkaConsumerThreadTest {
 
 		final TestKafkaConsumerThread testThread =
 			new TestKafkaConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover());
+		for (KafkaTopicPartitionState<TopicPartition> oldPartition : oldPartitions) {
+			testThread.getCurrentPartitions().put(oldPartition.getKafkaPartitionHandle(), oldPartition);
+		}
 		testThread.start();
 
 		testThread.startPartitionReassignment();
@@ -401,6 +404,9 @@ public class KafkaConsumerThreadTest {
 
 		final TestKafkaConsumerThread testThread =
 			new TestKafkaConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover());
+		for (KafkaTopicPartitionState<TopicPartition> oldPartition : oldPartitions) {
+			testThread.getCurrentPartitions().put(oldPartition.getKafkaPartitionHandle(), oldPartition);
+		}
 		testThread.start();
 
 		testThread.startPartitionReassignment();
@@ -438,7 +444,7 @@ public class KafkaConsumerThreadTest {
 	 * the reassignment flow.
 	 */
 	@SuppressWarnings("unchecked")
-	@Test(timeout = 10000)
+	@Test
 	public void testReassigningPartitionsWithDefinedOffsetsWhenEarlyWakeup() throws Exception {
 		final String testTopic = "test-topic";
 
@@ -511,7 +517,7 @@ public class KafkaConsumerThreadTest {
 		}
 
 		// the new partitions should have been re-added to the unassigned partitions queue
-		assertEquals(1, unassignedPartitionsQueue.size());
+		assertEquals(1, testThread.getCurrentPartitions().size());
 	}
 
 	/**
@@ -591,7 +597,7 @@ public class KafkaConsumerThreadTest {
 		assertEquals(0, mockConsumerAssignmentsAndPositions.size());
 
 		// the new partitions should have been re-added to the unassigned partitions queue
-		assertEquals(2, unassignedPartitionsQueue.size());
+		assertEquals(2, testThread.getCurrentPartitions().size());
 	}
 
 	/**
@@ -716,7 +722,7 @@ public class KafkaConsumerThreadTest {
 					handover,
 					new Properties(),
 					unassignedPartitionsQueue,
-					new KafkaConsumerCallBridge09(),
+					new KafkaConsumerCallBridge(),
 					"test-kafka-consumer-thread",
 					0,
 					false,
@@ -743,12 +749,12 @@ public class KafkaConsumerThreadTest {
 		}
 
 		@Override
-		KafkaConsumer<byte[], byte[]> getConsumer(Properties kafkaProperties) {
+		public KafkaConsumer<byte[], byte[]> getConsumer() {
 			return mockConsumer;
 		}
 
 		@Override
-		void reassignPartitions(List<KafkaTopicPartitionState<TopicPartition>> newPartitions) throws Exception {
+		void reassignPartitions() throws Exception {
 			// triggers blocking calls on waitPartitionReassignmentInvoked()
 			preReassignmentLatch.trigger();
 
@@ -756,7 +762,7 @@ public class KafkaConsumerThreadTest {
 			startReassignmentLatch.await();
 
 			try {
-				super.reassignPartitions(newPartitions);
+				super.reassignPartitions();
 			} finally {
 				// triggers blocking calls on waitPartitionReassignmentComplete()
 				reassignmentCompleteLatch.trigger();
@@ -797,7 +803,7 @@ public class KafkaConsumerThreadTest {
 			when(mockConsumer.position(any(TopicPartition.class))).thenAnswer(new Answer<Object>() {
 				@Override
 				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-					return mockConsumerAssignmentAndPosition.get(invocationOnMock.getArgument(0));
+					return mockConsumerAssignmentAndPosition.get(invocationOnMock.getArgumentAt(0, TopicPartition.class));
 				}
 			});
 		} else {
@@ -809,7 +815,7 @@ public class KafkaConsumerThreadTest {
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
 				mockConsumerAssignmentAndPosition.clear();
 
-				List<TopicPartition> assignedPartitions = invocationOnMock.getArgument(0);
+				List<TopicPartition> assignedPartitions = invocationOnMock.getArgumentAt(0, List.class);
 				for (TopicPartition assigned : assignedPartitions) {
 					mockConsumerAssignmentAndPosition.put(assigned, null);
 				}
@@ -820,8 +826,8 @@ public class KafkaConsumerThreadTest {
 		doAnswer(new Answer() {
 			@Override
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				TopicPartition partition = invocationOnMock.getArgument(0);
-				long position = invocationOnMock.getArgument(1);
+				TopicPartition partition = invocationOnMock.getArgumentAt(0, TopicPartition.class);
+				long position = invocationOnMock.getArgumentAt(1, long.class);
 
 				if (!mockConsumerAssignmentAndPosition.containsKey(partition)) {
 					throw new Exception("the current mock assignment does not contain partition " + partition);
@@ -835,7 +841,7 @@ public class KafkaConsumerThreadTest {
 		doAnswer(new Answer() {
 			@Override
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				TopicPartition partition = invocationOnMock.getArgument(0);
+				TopicPartition partition = invocationOnMock.getArgumentAt(0, TopicPartition.class);
 
 				if (!mockConsumerAssignmentAndPosition.containsKey(partition)) {
 					throw new Exception("the current mock assignment does not contain partition " + partition);
@@ -854,7 +860,7 @@ public class KafkaConsumerThreadTest {
 		doAnswer(new Answer() {
 			@Override
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				TopicPartition partition = invocationOnMock.getArgument(0);
+				TopicPartition partition = invocationOnMock.getArgumentAt(0, TopicPartition.class);
 
 				if (!mockConsumerAssignmentAndPosition.containsKey(partition)) {
 					throw new Exception("the current mock assignment does not contain partition " + partition);

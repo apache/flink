@@ -1,0 +1,207 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testNestedTablesReductionBatch">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM NewTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalTableScan(table=[[builtin, default, NewTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[+(2, a) AS a])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceCalcExpressionForBatchSQL">
+    <Resource name="sql">
+      <![CDATA[SELECT (3+4)+a, b+(1+2), CASE 11 WHEN 1 THEN 'a' ELSE 'b' END, TRIM(BOTH ' STRING '),  'test' || 'string', NULLIF(1, 1), TIMESTAMP '1990-10-14 23:00:00.123' + INTERVAL '10 00:00:01' DAY TO SECOND, EXTRACT(DAY FROM INTERVAL '19 12:10:10.123' DAY TO SECOND(3)),  1 IS NULL, 'TEST' LIKE '%EST', FLOOR(2.5), 'TEST' IN ('west', 'TEST', 'rest'), CAST(TRUE AS VARCHAR) || 'X'FROM MyTable WHERE a>(1+7)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+(+(3, 4), $0)], EXPR$1=[+($1, +(1, 2))], EXPR$2=[CASE(=(11, 1), 'a', 'b')], EXPR$3=[TRIM(FLAG(BOTH), ' ', ' STRING ')], EXPR$4=[||('test', 'string')], EXPR$5=[CASE(=(1, 1), null, 1)], EXPR$6=[+(1990-10-14 23:00:00.123, 864001000)], EXPR$7=[EXTRACT(FLAG(DAY), 1685410123)], EXPR$8=[false], EXPR$9=[LIKE('TEST', '%EST')], EXPR$10=[FLOOR(2.5)], EXPR$11=[true], EXPR$12=[||(CAST(true):VARCHAR(65536) CHARACTER SET "UTF-16LE" COLLATE "UTF-16LE$en_US$primary" NOT NULL, 'X')])
++- LogicalFilter(condition=[>($0, +(1, 7))])
+   +- LogicalTableScan(table=[[builtin, default, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[+(7, a) AS EXPR$0, +(b, 3) AS EXPR$1, 'b' AS EXPR$2, 'STRING' AS EXPR$3, 'teststring' AS EXPR$4, null AS EXPR$5, 1990-10-24 23:00:01.123 AS EXPR$6, 19 AS EXPR$7, false AS EXPR$8, true AS EXPR$9, 2 AS EXPR$10, true AS EXPR$11, 'trueX' AS EXPR$12], where=[>(a, 8)])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceCalcExpressionForBatchTableAPI">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(_c0=[AS(+(7, 6), '_c0')], _c1=[AS(CASE(=(11, 1), 'a', 'b'), '_c1')], _c2=[AS('STRING', '_c2')], _c3=[AS('teststring', '_c3')], _c4=[AS(+(+(CAST('1990-10-14 23:00:00.123'):TIMESTAMP(3) NOT NULL, 864000000), 1000), '_c4')], _c5=[AS(IS NULL(1), '_c5')], _c6=[AS(LIKE('TEST', '%EST'), '_c6')], _c7=[AS(FLOOR(2.5E0), '_c7')], _c8=[AS(||(CAST(true):VARCHAR(65536) CHARACTER SET "UTF-16LE" COLLATE "UTF-16LE$en_US$primary" NOT NULL, CAST('X'):VARCHAR(65536) CHARACTER SET "UTF-16LE" COLLATE "UTF-16LE$en_US$primary" NOT NULL), '_c8')])
++- LogicalFilter(condition=[>($0, 8)])
+   +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[13 AS _c0, 'b' AS _c1, 'STRING' AS _c2, 'teststring' AS _c3, 1990-10-24 23:00:01.123 AS _c4, false AS _c5, true AS _c6, 2E0 AS _c7, 'trueX' AS _c8], where=[>(a, 8)])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceConstantUdfForBatchSQL">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, c, constant_fun() as f, constant_fun(500) as f500 FROM MyTable WHERE a > constant_fun() AND b < constant_fun(500) AND constant_fun() = 1000]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], f=[constant_fun()], f500=[constant_fun(500)])
++- LogicalFilter(condition=[AND(>($0, constant_fun()), <($1, constant_fun(500)), =(constant_fun(), 1000))])
+   +- LogicalTableScan(table=[[builtin, default, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c, CAST(1000) AS f, CAST(1500) AS f500], where=[AND(>(a, 1000), <(b, 1500))])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceConstantUdfForBatchTableAPI">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], f=[AS(org$apache$flink$table$plan$ConstantFunc$5a26fad18d716041a0b18c33d798679b(), 'f')], f500=[AS(org$apache$flink$table$plan$ConstantFunc$5a26fad18d716041a0b18c33d798679b(500), 'f500')])
++- LogicalFilter(condition=[AND(>($0, org$apache$flink$table$plan$ConstantFunc$5a26fad18d716041a0b18c33d798679b()), <($1, org$apache$flink$table$plan$ConstantFunc$5a26fad18d716041a0b18c33d798679b(500)), =(org$apache$flink$table$plan$ConstantFunc$5a26fad18d716041a0b18c33d798679b(), 1000))])
+   +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c, CAST(1000) AS f, CAST(1500) AS f500], where=[AND(>(a, 1000), <(b, 1500))])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceFilterExpressionForBatchSQL">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a>(1+7)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[>($0, +(1, 7))])
+   +- LogicalTableScan(table=[[builtin, default, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c], where=[>(a, 8)])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceFilterExpressionForBatchTableAPI">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalFilter(condition=[>($0, 8)])
++- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c], where=[>(a, 8)])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceIllegalConstantUdfForBatchSQL">
+    <Resource name="sql">
+      <![CDATA[
+ SELECT a,
+  constant_fun('getMetricGroup') as f1,
+  constant_fun('getCachedFile') as f2,
+  constant_fun('getNumberOfParallelSubtasks') as f3,
+  constant_fun('getIndexOfThisSubtask') as f4,
+  constant_fun('getIntCounter') as f5,
+  constant_fun('getLongCounter') as f6,
+  constant_fun('getDoubleCounter') as f7,
+  constant_fun('getHistogram') as f8
+ FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f1=[constant_fun('getMetricGroup')], f2=[constant_fun('getCachedFile')], f3=[constant_fun('getNumberOfParallelSubtasks')], f4=[constant_fun('getIndexOfThisSubtask')], f5=[constant_fun('getIntCounter')], f6=[constant_fun('getLongCounter')], f7=[constant_fun('getDoubleCounter')], f8=[constant_fun('getHistogram')])
++- LogicalTableScan(table=[[builtin, default, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, CAST(1) AS f1, CAST(2) AS f2, CAST(3) AS f3, CAST(4) AS f4, CAST(5) AS f5, CAST(6) AS f6, CAST(7) AS f7, CAST(8) AS f8])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceIllegalConstantUdfForBatchTableAPI">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], f1=[AS(org$apache$flink$table$plan$IllegalConstantFunc$990d9a6e353c42d46bd9b5f473903ef8('getMetricGroup'), 'f1')], f2=[AS(org$apache$flink$table$plan$IllegalConstantFunc$990d9a6e353c42d46bd9b5f473903ef8('getCachedFile'), 'f2')], f3=[AS(org$apache$flink$table$plan$IllegalConstantFunc$990d9a6e353c42d46bd9b5f473903ef8('getNumberOfParallelSubtasks'), 'f3')], f4=[AS(org$apache$flink$table$plan$IllegalConstantFunc$990d9a6e353c42d46bd9b5f473903ef8('getIndexOfThisSubtask'), 'f4')], f5=[AS(org$apache$flink$table$plan$IllegalConstantFunc$990d9a6e353c42d46bd9b5f473903ef8('getIntCounter'), 'f5')], f6=[AS(org$apache$flink$table$plan$IllegalConstantFunc$990d9a6e353c42d46bd9b5f473903ef8('getLongCounter'), 'f6')], f7=[AS(org$apache$flink$table$plan$IllegalConstantFunc$990d9a6e353c42d46bd9b5f473903ef8('getDoubleCounter'), 'f7')], f8=[AS(org$apache$flink$table$plan$IllegalConstantFunc$990d9a6e353c42d46bd9b5f473903ef8('getHistogram'), 'f8')])
++- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, CAST(1) AS f1, CAST(2) AS f2, CAST(3) AS f3, CAST(4) AS f4, CAST(5) AS f5, CAST(6) AS f6, CAST(7) AS f7, CAST(8) AS f8])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceProjectExpressionForBatchTableAPI">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(_c0=[AS(+(7, 6), '_c0')], _c1=[AS(CASE(=(11, 1), 'a', 'b'), '_c1')], _c2=[AS('STRING', '_c2')], _c3=[AS('teststring', '_c3')], _c4=[AS(+(+(CAST('1990-10-14 23:00:00.123'):TIMESTAMP(3) NOT NULL, 864000000), 1000), '_c4')], _c5=[AS(IS NULL(1), '_c5')], _c6=[AS(LIKE('TEST', '%EST'), '_c6')], _c7=[AS(FLOOR(2.5E0), '_c7')], _c8=[AS(||(CAST(true):VARCHAR(65536) CHARACTER SET "UTF-16LE" COLLATE "UTF-16LE$en_US$primary" NOT NULL, CAST('X'):VARCHAR(65536) CHARACTER SET "UTF-16LE" COLLATE "UTF-16LE$en_US$primary" NOT NULL), '_c8')])
++- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[13 AS _c0, 'b' AS _c1, 'STRING' AS _c2, 'teststring' AS _c3, 1990-10-24 23:00:01.123 AS _c4, false AS _c5, true AS _c6, 2E0 AS _c7, 'trueX' AS _c8])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceProjectExpressionForBatchSQL">
+    <Resource name="sql">
+      <![CDATA[SELECT (3+4)+a, b+(1+2), CASE 11 WHEN 1 THEN 'a' ELSE 'b' END, TRIM(BOTH ' STRING '),  'test' || 'string', NULLIF(1, 1), TIMESTAMP '1990-10-14 23:00:00.123' + INTERVAL '10 00:00:01' DAY TO SECOND, EXTRACT(DAY FROM INTERVAL '19 12:10:10.123' DAY TO SECOND(3)),  1 IS NULL, 'TEST' LIKE '%EST', FLOOR(2.5), 'TEST' IN ('west', 'TEST', 'rest'), CAST(TRUE AS VARCHAR) || 'X'FROM MyTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+(+(3, 4), $0)], EXPR$1=[+($1, +(1, 2))], EXPR$2=[CASE(=(11, 1), 'a', 'b')], EXPR$3=[TRIM(FLAG(BOTH), ' ', ' STRING ')], EXPR$4=[||('test', 'string')], EXPR$5=[CASE(=(1, 1), null, 1)], EXPR$6=[+(1990-10-14 23:00:00.123, 864001000)], EXPR$7=[EXTRACT(FLAG(DAY), 1685410123)], EXPR$8=[false], EXPR$9=[LIKE('TEST', '%EST')], EXPR$10=[FLOOR(2.5)], EXPR$11=[true], EXPR$12=[||(CAST(true):VARCHAR(65536) CHARACTER SET "UTF-16LE" COLLATE "UTF-16LE$en_US$primary" NOT NULL, 'X')])
++- LogicalTableScan(table=[[builtin, default, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[+(7, a) AS EXPR$0, +(b, 3) AS EXPR$1, 'b' AS EXPR$2, 'STRING' AS EXPR$3, 'teststring' AS EXPR$4, null AS EXPR$5, 1990-10-24 23:00:01.123 AS EXPR$6, 19 AS EXPR$7, false AS EXPR$8, true AS EXPR$9, 2 AS EXPR$10, true AS EXPR$11, 'trueX' AS EXPR$12])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

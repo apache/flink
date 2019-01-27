@@ -22,30 +22,25 @@ import java.math.BigDecimal
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment}
-import org.apache.flink.table.functions.aggfunctions.CountAggFunction
-import org.apache.flink.table.runtime.stream.table.GroupWindowITCase._
+import org.apache.flink.table.functions.aggregate.CountAggFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, CountDistinctWithMerge, WeightedAvg, WeightedAvgWithMerge}
-import org.apache.flink.table.runtime.utils.StreamITCase
-import org.apache.flink.test.util.AbstractTestBase
+import org.apache.flink.table.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
+import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.types.Row
 import org.junit.Assert._
-import org.junit.Test
-
-import scala.collection.mutable
+import org.junit.{Before, Test}
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
 /**
   * We only test some aggregations until better testing of constructed DataStream
   * programs is possible.
   */
-class GroupWindowITCase extends AbstractTestBase {
-  private val queryConfig = new StreamQueryConfig()
-  queryConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+@RunWith(classOf[Parameterized])
+class GroupWindowITCase(mode: StateBackendMode)
+  extends StreamingWithStateTestBase(mode) {
 
   val data = List(
     (1L, 1, "Hi"),
@@ -66,32 +61,27 @@ class GroupWindowITCase extends AbstractTestBase {
 
   @Test
   def testProcessingTimeSlidingGroupWindowOverCount(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.testResults = mutable.MutableList()
-
-    val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'proctime.proctime)
+    tEnv.getConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    val stream = failingDataSource(data)
+    val table = stream.toTable(tEnv, 'long, 'int, 'string)
 
     val countFun = new CountAggFunction
     val weightAvgFun = new WeightedAvg
     val countDistinct = new CountDistinct
 
     val windowedTable = table
-      .window(Slide over 2.rows every 1.rows on 'proctime as 'w)
+      .window(Slide over 2.rows every 1.rows on proctime() as 'w)
       .groupBy('w, 'string)
       .select('string, countFun('int), 'int.avg,
         weightAvgFun('long, 'int), weightAvgFun('int, 'int),
         countDistinct('long))
 
-    val results = windowedTable.toAppendStream[Row](queryConfig)
-    results.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq("Hello world,1,3,8,3,1", "Hello world,2,3,12,3,2", "Hello,1,2,2,2,1",
-      "Hello,2,2,3,2,2", "Hi,1,1,1,1,1")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    val expected = Seq(s"Hello world,2,${6.0/2},12,3,2", s"Hello,2,${4.0/2},3,2,2")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
@@ -99,7 +89,7 @@ class GroupWindowITCase extends AbstractTestBase {
     //To verify the "merge" functionality, we create this test with the following characteristics:
     // 1. set the Parallelism to 1, and have the test data out of order
     // 2. create a waterMark with 10ms offset to delay the window emission by 10ms
-    val sessionWindowTestdata = List(
+    val sessionWindowTestData = List(
       (1L, 1, "Hello"),
       (2L, 2, "Hello"),
       (8L, 8, "Hello"),
@@ -107,74 +97,60 @@ class GroupWindowITCase extends AbstractTestBase {
       (4L, 4, "Hello"),
       (16L, 16, "Hello"))
 
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val countFun = new CountAggFunction
     val weightAvgFun = new WeightedAvgWithMerge
     val countDistinct = new CountDistinctWithMerge
 
-    val stream = env
-      .fromCollection(sessionWindowTestdata)
+    val stream = failingDataSource(sessionWindowTestData)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](10L))
     val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
 
     val windowedTable = table
       .window(Session withGap 5.milli on 'rowtime as 'w)
       .groupBy('w, 'string)
-      .select('string, countFun('int), 'int.avg,
+      .select('string, 'w.end, countFun('int), 'int.avg,
         weightAvgFun('long, 'int), weightAvgFun('int, 'int),
         countDistinct('long))
 
-    val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq("Hello World,1,9,9,9,1", "Hello,1,16,16,16,1", "Hello,4,3,5,5,4")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    val expected = Seq(
+      "Hello World,1970-01-01 00:00:00.014,1,9.0,9,9,1",
+      "Hello,1970-01-01 00:00:00.021,1,16.0,16,16,1",
+      s"Hello,1970-01-01 00:00:00.013,4,${15.0/4},5,5,4")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testAllProcessingTimeTumblingGroupWindowOverCount(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.testResults = mutable.MutableList()
-
-    val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'proctime.proctime)
+    tEnv.getConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    val stream = failingDataSource(data)
+    val table = stream.toTable(tEnv, 'long, 'int, 'string)
     val countFun = new CountAggFunction
     val weightAvgFun = new WeightedAvg
     val countDistinct = new CountDistinct
 
     val windowedTable = table
-      .window(Tumble over 2.rows on 'proctime as 'w)
+      .window(Tumble over 2.rows on proctime() as 'w)
       .groupBy('w)
       .select(countFun('string), 'int.avg,
         weightAvgFun('long, 'int), weightAvgFun('int, 'int),
         countDistinct('long)
       )
 
-    val results = windowedTable.toAppendStream[Row](queryConfig)
-    results.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq("2,1,1,1,2", "2,2,6,2,2")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    val expected = Seq(s"2,${3.0/2},1,1,2", s"2,${5.0/2},6,2,2")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testEventTimeTumblingWindow(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.testResults = mutable.MutableList()
-
-    val stream = env
-      .fromCollection(data)
+    val stream = failingDataSource(data)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](0L))
     val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
     val countFun = new CountAggFunction
@@ -188,16 +164,16 @@ class GroupWindowITCase extends AbstractTestBase {
         weightAvgFun('int, 'int), 'int.min, 'int.max, 'int.sum, 'w.start, 'w.end,
         countDistinct('long))
 
-    val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
 
     val expected = Seq(
-      "Hello world,1,3,8,3,3,3,3,1970-01-01 00:00:00.005,1970-01-01 00:00:00.01,1",
-      "Hello world,1,3,16,3,3,3,3,1970-01-01 00:00:00.015,1970-01-01 00:00:00.02,1",
-      "Hello,2,2,3,2,2,2,4,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005,2",
-      "Hi,1,1,1,1,1,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005,1")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+      "Hello world,1,3.0,8,3,3,3,3,1970-01-01 00:00:00.005,1970-01-01 00:00:00.01,1",
+      "Hello world,1,3.0,16,3,3,3,3,1970-01-01 00:00:00.015,1970-01-01 00:00:00.02,1",
+      s"Hello,2,${4.0/2},3,2,2,2,4,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005,2",
+      "Hi,1,1.0,1,1,1,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005,1")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
@@ -209,28 +185,23 @@ class GroupWindowITCase extends AbstractTestBase {
       (8L, 3, "Hello world", 3, 3),
       (16L, 3, "Hello world", 3, 3))
 
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.testResults = mutable.MutableList()
-
-    val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'int2, 'int3, 'proctime.proctime)
+    val stream = failingDataSource(data)
+    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'int2, 'int3)
 
     val weightAvgFun = new WeightedAvg
     val countDistinct = new CountDistinct
 
     val windowedTable = table
-      .window(Slide over 2.rows every 1.rows on 'proctime as 'w)
+      .window(Slide over 2.rows every 1.rows on proctime() as 'w)
       .groupBy('w, 'int2, 'int3, 'string)
       .select(weightAvgFun('long, 'int), countDistinct('long))
 
-    val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq("12,2", "8,1", "2,1", "3,2", "1,1")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    val expected = Seq("12,2", "3,2")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -240,13 +211,7 @@ class GroupWindowITCase extends AbstractTestBase {
   @Test
   def testAllEventTimeSlidingGroupWindowOverTime(): Unit = {
     // please keep this test in sync with the DataSet variant
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.testResults = mutable.MutableList()
-
-    val stream = env
-      .fromCollection(data2)
+    val stream = failingDataSource(data2)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
     val table = stream.toTable(tEnv, 'long.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
@@ -256,8 +221,8 @@ class GroupWindowITCase extends AbstractTestBase {
       .groupBy('w)
       .select('int.count, 'w.start, 'w.end, 'w.rowtime)
 
-    val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -273,19 +238,13 @@ class GroupWindowITCase extends AbstractTestBase {
       "1,1970-01-01 00:00:00.028,1970-01-01 00:00:00.033,1970-01-01 00:00:00.032",
       "1,1970-01-01 00:00:00.03,1970-01-01 00:00:00.035,1970-01-01 00:00:00.034",
       "1,1970-01-01 00:00:00.032,1970-01-01 00:00:00.037,1970-01-01 00:00:00.036")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testEventTimeSlidingGroupWindowOverTimeOverlappingFullPane(): Unit = {
     // please keep this test in sync with the DataSet variant
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.testResults = mutable.MutableList()
-
-    val stream = env
-      .fromCollection(data2)
+    val stream = failingDataSource(data2)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
     val table = stream.toTable(tEnv, 'long.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
@@ -295,8 +254,8 @@ class GroupWindowITCase extends AbstractTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count, 'w.start, 'w.end)
 
-    val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -313,19 +272,13 @@ class GroupWindowITCase extends AbstractTestBase {
       "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.01",
       "null,1,1970-01-01 00:00:00.025,1970-01-01 00:00:00.035",
       "null,1,1970-01-01 00:00:00.03,1970-01-01 00:00:00.04")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testEventTimeSlidingGroupWindowOverTimeOverlappingSplitPane(): Unit = {
     // please keep this test in sync with the DataSet variant
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.testResults = mutable.MutableList()
-
-    val stream = env
-      .fromCollection(data2)
+    val stream = failingDataSource(data2)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
     val table = stream.toTable(tEnv, 'long.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
@@ -335,8 +288,8 @@ class GroupWindowITCase extends AbstractTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count, 'w.start, 'w.end)
 
-    val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -350,19 +303,13 @@ class GroupWindowITCase extends AbstractTestBase {
       "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005",
       "null,1,1970-01-01 00:00:00.028,1970-01-01 00:00:00.033",
       "null,1,1970-01-01 00:00:00.032,1970-01-01 00:00:00.037")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testEventTimeSlidingGroupWindowOverTimeNonOverlappingFullPane(): Unit = {
     // please keep this test in sync with the DataSet variant
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.testResults = mutable.MutableList()
-
-    val stream = env
-      .fromCollection(data2)
+    val stream = failingDataSource(data2)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
     val table = stream.toTable(tEnv, 'long.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
@@ -372,8 +319,8 @@ class GroupWindowITCase extends AbstractTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count, 'w.start, 'w.end)
 
-    val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -381,19 +328,13 @@ class GroupWindowITCase extends AbstractTestBase {
       "Hello,2,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005",
       "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005",
       "null,1,1970-01-01 00:00:00.03,1970-01-01 00:00:00.035")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testEventTimeSlidingGroupWindowOverTimeNonOverlappingSplitPane(): Unit = {
     // please keep this test in sync with the DataSet variant
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.testResults = mutable.MutableList()
-
-    val stream = env
-      .fromCollection(data2)
+    val stream = failingDataSource(data2)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
     val table = stream.toTable(tEnv, 'long.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
@@ -403,26 +344,20 @@ class GroupWindowITCase extends AbstractTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count, 'w.start, 'w.end)
 
-    val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
 
     val expected = Seq(
       "Hallo,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003",
       "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003",
       "null,1,1970-01-01 00:00:00.03,1970-01-01 00:00:00.033")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testEventTimeGroupWindowWithoutExplicitTimeField(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.testResults = mutable.MutableList()
-
-    val stream = env
-      .fromCollection(data2)
+    val stream = failingDataSource(data2)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
       .map(t => (t._2, t._6))
@@ -433,32 +368,13 @@ class GroupWindowITCase extends AbstractTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count, 'w.start, 'w.end)
 
-    val results = windowedTable.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
     val expected = Seq(
       "Hallo,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003",
       "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003",
       "null,1,1970-01-01 00:00:00.03,1970-01-01 00:00:00.033")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
-  }
-}
-
-object GroupWindowITCase {
-
-  class TimestampAndWatermarkWithOffset[T <: Product](
-    offset: Long) extends AssignerWithPunctuatedWatermarks[T] {
-
-    override def checkAndGetNextWatermark(
-        lastElement: T,
-        extractedTimestamp: Long): Watermark = {
-      new Watermark(extractedTimestamp - offset)
-    }
-
-    override def extractTimestamp(
-        element: T,
-        previousElementTimestamp: Long): Long = {
-      element.productElement(0).asInstanceOf[Long]
-    }
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 }

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.ManuallyTriggeredDirectExecutor;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
@@ -29,23 +30,29 @@ import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy.Factory
 import org.apache.flink.runtime.executiongraph.failover.RestartPipelinedRegionStrategy;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.mockito.Mockito;
 
+import java.util.Collections;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitUntilExecutionState;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitUntilJobStatus;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 /**
  * These tests make sure that global failover (restart all) always takes precedence over
@@ -76,7 +83,8 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 
 		final ManuallyTriggeredDirectExecutor executor = new ManuallyTriggeredDirectExecutor();
 
-		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
+		final TaskManagerGateway taskManagerGateway = spy(new SimpleAckingTaskManagerGateway());
+		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism, taskManagerGateway);
 
 		final ExecutionGraph graph = createSampleGraph(
 				jid,
@@ -91,6 +99,9 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 
 		graph.scheduleForExecution();
 		assertEquals(JobStatus.RUNNING, graph.getState());
+
+		verify(taskManagerGateway, Mockito.timeout(2000L).times(graph.getTotalNumberOfVertices()))
+				.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 
 		// let one of the vertices fail - that triggers a local recovery action
 		vertex1.getCurrentExecutionAttempt().fail(new Exception("test failure"));
@@ -141,7 +152,8 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 
 		final ManuallyTriggeredDirectExecutor executor = new ManuallyTriggeredDirectExecutor();
 
-		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
+		final TaskManagerGateway taskManagerGateway = spy(new SimpleAckingTaskManagerGateway());
+		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism, taskManagerGateway);
 
 		final ExecutionGraph graph = createSampleGraph(
 				jid,
@@ -156,6 +168,9 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 
 		graph.scheduleForExecution();
 		assertEquals(JobStatus.RUNNING, graph.getState());
+
+		verify(taskManagerGateway, Mockito.timeout(2000L).times(graph.getTotalNumberOfVertices()))
+				.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 
 		// let one of the vertices fail - that triggers a local recovery action
 		vertex1.getCurrentExecutionAttempt().fail(new Exception("test failure"));
@@ -205,7 +220,8 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 
 		final ManuallyTriggeredDirectExecutor executor = new ManuallyTriggeredDirectExecutor();
 
-		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
+		final TaskManagerGateway taskManagerGateway = spy(new SimpleAckingTaskManagerGateway());
+		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism, taskManagerGateway);
 
 		final ExecutionGraph graph = createSampleGraph(
 				jid,
@@ -213,7 +229,7 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 				new FixedDelayRestartStrategy(2, 0), // twice restart, no delay
 				slotProvider,
 				2);
-		RestartPipelinedRegionStrategy strategy = (RestartPipelinedRegionStrategy)graph.getFailoverStrategy();
+		RestartPipelinedRegionStrategy strategy = (RestartPipelinedRegionStrategy) graph.getFailoverStrategy();
 
 		final ExecutionJobVertex ejv = graph.getVerticesTopologically().iterator().next();
 		final ExecutionVertex vertex1 = ejv.getTaskVertices()[0];
@@ -222,6 +238,8 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		graph.scheduleForExecution();
 		assertEquals(JobStatus.RUNNING, graph.getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(vertex1).getState());
+		verify(taskManagerGateway, Mockito.timeout(2000L).times(graph.getTotalNumberOfVertices()))
+				.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 
 		// let one of the vertices fail - that triggers a local recovery action
 		vertex2.getCurrentExecutionAttempt().fail(new Exception("test failure"));
@@ -305,30 +323,24 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 			SlotProvider slotProvider,
 			int parallelism) throws Exception {
 
-		final JobInformation jobInformation = new DummyJobInformation(
-			jid,
-			"test job");
+		JobVertex jv = new JobVertex("test vertex");
+		jv.setInvokableClass(NoOpInvokable.class);
+		jv.setParallelism(parallelism);
 
 		// build a simple execution graph with on job vertex, parallelism 2
 		final Time timeout = Time.seconds(10L);
-		final ExecutionGraph graph = new ExecutionGraph(
-			jobInformation,
+		final ExecutionGraph graph = ExecutionGraphTestUtils.createExecutionGraphDirectly(
+			new DummyJobInformation(
+				jid,
+				"test job"),
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			timeout,
 			restartStrategy,
 			failoverStrategy,
 			slotProvider,
-			getClass().getClassLoader(),
 			VoidBlobWriter.getInstance(),
-			timeout);
-
-		JobVertex jv = new JobVertex("test vertex");
-		jv.setInvokableClass(NoOpInvokable.class);
-		jv.setParallelism(parallelism);
-
-		JobGraph jg = new JobGraph(jid, "testjob", jv);
-		graph.attachJobGraph(jg.getVerticesSortedTopologicallyFromSources());
+			Collections.singletonList(jv));
 
 		return graph;
 	}
@@ -345,7 +357,7 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 
 		@Override
 		public FailoverStrategy create(ExecutionGraph executionGraph) {
-			return new RestartPipelinedRegionStrategy(executionGraph, executor);
+			return new RestartPipelinedRegionStrategy(executionGraph, executor, 100);
 		}
 	}
 }

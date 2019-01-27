@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.state;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeutils.BytewiseComparator;
 
 /**
  * This interface contains methods for registering keyed state with a managed store.
@@ -282,4 +283,52 @@ public interface KeyedStateStore {
 	 */
 	@PublicEvolving
 	<UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties);
+
+	/**
+	 * Gets a handle to the system's key/value sorted map state. This state is similar to the state
+	 * accessed via {@link #getMapState(MapStateDescriptor)}, but the state is sorted under the given comparator.
+	 *
+	 * <p><b>IMPORTANT:</b> For RocksDBStateBackend, we only support {@link BytewiseComparator}.
+	 * The serialized forms in {@link BytewiseComparator} are identical to that of the values
+	 * only when the numbers to compare are both not negative.
+	 *
+	 * Serializers under {@link org.apache.flink.table.typeutils.ordered} maybe helpful if you want to use SortedMapState.
+	 * </p>
+	 *
+	 * <p>This state is only accessible if the function is executed on a KeyedStream.
+	 *
+	 * <pre>{@code
+	 * DataStream<MyType> stream = ...;
+	 * KeyedStream<MyType> keyedStream = stream.keyBy("id");
+	 *
+	 * keyedStream.map(new RichMapFunction<MyType, List<MyType>>() {
+	 *
+	 *     private SortedMapState<MyType, Long> state;
+	 *
+	 *     public void open(Configuration cfg) {
+	 *         state = getRuntimeContext().getSortedMapState(
+	 *                 new SortedMapStateDescriptor<>("sum", new NaturalComparator<>(), MyType.class, Long.class));
+	 *     }
+	 *
+	 *     public Tuple2<MyType, Long> map(MyType value) {
+	 *         return new Tuple2<>(value, state.get(value));
+	 *     }
+	 * });
+	 *
+	 * }</pre>
+	 *
+	 * @param stateProperties The descriptor defining the properties of the stats.
+	 *
+	 * @param <UK> The type of the user keys stored in the state.
+	 * @param <UV> The type of the user values stored in the state.
+	 *
+	 * @return The partitioned state object.
+	 *
+	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+	 *                                       function (function is not part of a KeyedStream).
+	 */
+	@PublicEvolving
+	default <UK, UV> SortedMapState<UK, UV> getSortedMapState(SortedMapStateDescriptor<UK, UV> stateProperties) {
+		throw new UnsupportedOperationException("This state is only accessible by functions executed on a KeyedStream");
+	}
 }

@@ -17,14 +17,12 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.MessageAcknowledgingSourceBase;
 import org.apache.flink.streaming.api.functions.source.MultipleIdsMessageAcknowledgingSourceBase;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
 import org.apache.flink.util.Preconditions;
 
@@ -77,12 +75,12 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	protected final String queueName;
 	private final boolean usesCorrelationId;
 	protected DeserializationSchema<OUT> schema;
+	protected boolean autoAck = false;
 
 	protected transient Connection connection;
 	protected transient Channel channel;
 	protected transient QueueingConsumer consumer;
 
-	protected transient boolean autoAck;
 
 	private transient volatile boolean running;
 
@@ -117,12 +115,23 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 */
 	public RMQSource(RMQConnectionConfig rmqConnectionConfig,
 					String queueName, boolean usesCorrelationId, DeserializationSchema<OUT> deserializationSchema) {
+		this(rmqConnectionConfig, queueName, usesCorrelationId, deserializationSchema, false);
+	}
+
+	public RMQSource(
+			RMQConnectionConfig rmqConnectionConfig,
+			String queueName,
+			boolean usesCorrelationId,
+			DeserializationSchema<OUT> deserializationSchema,
+			boolean autoAck) {
 		super(String.class);
 		this.rmqConnectionConfig = rmqConnectionConfig;
 		this.queueName = queueName;
 		this.usesCorrelationId = usesCorrelationId;
 		this.schema = deserializationSchema;
+		this.autoAck = autoAck;
 	}
+
 
 	/**
 	 * Initializes the connection to RMQ with a default connection factory. The user may override
@@ -154,14 +163,9 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 			setupQueue();
 			consumer = new QueueingConsumer(channel);
 
-			RuntimeContext runtimeContext = getRuntimeContext();
-			if (runtimeContext instanceof StreamingRuntimeContext
-					&& ((StreamingRuntimeContext) runtimeContext).isCheckpointingEnabled()) {
-				autoAck = false;
+			if (!autoAck) {
 				// enables transaction mode
 				channel.txSelect();
-			} else {
-				autoAck = true;
 			}
 
 			LOG.debug("Starting RabbitMQ source with autoAck status: " + autoAck);

@@ -20,9 +20,10 @@ package org.apache.flink.table.api.validation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.Func0
+import org.apache.flink.table.errorcode.TableErrors
+import org.apache.flink.table.expressions.utils.{Func0, Func9}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.util.TableTestBase
 import org.junit.Test
 
 class UserDefinedFunctionValidationTest extends TableTestBase {
@@ -30,30 +31,45 @@ class UserDefinedFunctionValidationTest extends TableTestBase {
   @Test
   def testScalarFunctionOperandTypeCheck(): Unit = {
     thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "Given parameters of function 'func' do not match any signature. \n" +
+    thrown.expectMessage(TableErrors.prettyPrint(
+      "SQL validation failed:\nGiven parameters of function 'func' do not match any " +
+        "signature. \n" +
         "Actual: (java.lang.String) \n" +
-        "Expected: (int)")
+        "Expected: (int)"))
     val util = streamTestUtil()
     util.addTable[(Int, String)]("t", 'a, 'b)
-    util.tableEnv.registerFunction("func", Func0)
-    util.verifySql("select func(b) from t", "n/a")
+    util.addFunction("func", Func0)
+    util.explainSql("select func(b) from t")
+  }
+
+  @Test
+  def testScalarFunctionUnmatch(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage(TableErrors.prettyPrint(
+      "SQL validation failed:\nGiven parameters of function 'func' do not match any " +
+        "signature. \n" +
+        "Actual: (java.lang.Integer) \n" +
+        "Expected: (int, int, long)"))
+    val util = streamTestUtil()
+    util.addTable[(Int, String)]("t", 'a, 'b)
+    util.addFunction("func", Func9)
+    util.explainSql("select func(a) from t")
   }
 
   @Test
   def testAggregateFunctionOperandTypeCheck(): Unit = {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
-      "Given parameters of function do not match any signature. \n" +
-        "Actual: (java.lang.String, java.lang.Integer) \n" +
-        "Expected: (org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions" +
-        ".Accumulator0, long, int)")
+      TableErrors.prettyPrint(
+        "SQL validation failed:\nGiven parameters of function 'agg' do not match any" +
+          " signature. \nActual: (java.lang.String, java.lang.Integer) \n" +
+          "Expected: (org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions" +
+          ".Accumulator0, long, int)"))
 
     val util = streamTestUtil()
-    val agg = new OverAgg0
     util.addTable[(Int, String)]("t", 'a, 'b)
-    util.tableEnv.registerFunction("agg", agg)
-    util.verifySql("select agg(b, a) from t", "n/a")
+    util.addFunction("agg", new OverAgg0)
+    util.explainSql("select agg(b, a) from t")
   }
 
 }

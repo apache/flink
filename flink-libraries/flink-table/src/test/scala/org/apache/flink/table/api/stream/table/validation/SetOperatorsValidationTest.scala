@@ -22,13 +22,12 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableEnvironment, ValidationException}
-import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.runtime.utils.{StreamTestData, TestingAppendSink}
+import org.apache.flink.table.util.TableTestBase
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-import scala.collection.mutable
 
 class SetOperatorsValidationTest extends TableTestBase {
 
@@ -37,17 +36,16 @@ class SetOperatorsValidationTest extends TableTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    StreamITCase.testResults = mutable.MutableList()
     val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
 
     val unionDs = ds1.unionAll(ds2)
 
-    val results = unionDs.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    unionDs.toAppendStream[Row].addSink(sink)
     env.execute()
 
-    assertEquals(true, StreamITCase.testResults.isEmpty)
+    assertEquals(true, sink.getAppendResults.isEmpty)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -55,18 +53,17 @@ class SetOperatorsValidationTest extends TableTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    StreamITCase.testResults = mutable.MutableList()
     val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .select('a, 'b, 'c)
 
     val unionDs = ds1.unionAll(ds2)
 
-    val results = unionDs.toAppendStream[Row]
-    results.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    unionDs.toAppendStream[Row].addSink(sink)
     env.execute()
 
-    assertEquals(true, StreamITCase.testResults.isEmpty)
+    assertEquals(true, sink.getAppendResults.isEmpty)
   }
 
   @Test(expected = classOf[ValidationException])

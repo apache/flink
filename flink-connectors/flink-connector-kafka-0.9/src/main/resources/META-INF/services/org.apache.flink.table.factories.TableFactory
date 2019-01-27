@@ -14,3 +14,4 @@
 # limitations under the License.
 
 org.apache.flink.streaming.connectors.kafka.Kafka09TableSourceSinkFactory
+org.apache.flink.streaming.connectors.kafka.v2.Kafka09TableFactory

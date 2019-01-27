@@ -18,12 +18,15 @@
 
 package org.apache.flink.table.runtime.utils
 
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
+import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, OneInputStreamOperator}
 import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 
 object TimeTestUtil {
-  
+
   class EventTimeSourceFunction[T](
       dataWithTimestampList: Seq[Either[(Long, T), Long]]) extends SourceFunction[T] {
     override def run(ctx: SourceContext[T]): Unit = {
@@ -34,5 +37,35 @@ object TimeTestUtil {
     }
 
     override def cancel(): Unit = ???
+  }
+
+  class TimestampAndWatermarkWithOffset[T <: Product](
+    offset: Long) extends AssignerWithPunctuatedWatermarks[T] {
+
+    override def checkAndGetNextWatermark(
+        lastElement: T,
+        extractedTimestamp: Long): Watermark = {
+      new Watermark(extractedTimestamp - offset)
+    }
+
+    override def extractTimestamp(
+        element: T,
+        previousElementTimestamp: Long): Long = {
+      element.productElement(0).asInstanceOf[Long]
+    }
+  }
+
+  class EventTimeProcessOperator[T]
+    extends AbstractStreamOperator[T]
+    with OneInputStreamOperator[Either[(Long, T), Long], T] {
+
+    override def processElement(element: StreamRecord[Either[(Long, T), Long]]): Unit = {
+      element.getValue match {
+        case Left(t) => output.collect(new StreamRecord[T](t._2, t._1))
+        case Right(w) => output.emitWatermark(new Watermark(w))
+      }
+    }
+
+    override def endInput(): Unit = {}
   }
 }

@@ -16,21 +16,24 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.testutils;
-
-import java.io.File;
-import java.net.URI;
-import java.net.URISyntaxException;
 
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+
+import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.List;
+import java.util.Map;
 
 /**
  * The mock input split provider implements the {@link InputSplitProvider} interface to serve input splits to the test
  * jobs.
+ *
  * <p>
  * This class is thread-safe.
  * 
@@ -48,7 +51,7 @@ public class MockInputSplitProvider implements InputSplitProvider {
 	private int nextSplit = 0;
 
 	/**
-	 * Generates a set of input splits from an input path
+	 * Generates a set of input splits from an input path.
 	 * 
 	 * @param path
 	 *        the path of the local file to generate the input splits from
@@ -66,7 +69,7 @@ public class MockInputSplitProvider implements InputSplitProvider {
 		} catch (URISyntaxException e) {
 			throw new IllegalArgumentException("Path URI can not be transformed to local path.");
 		}
-		
+
 		final File inFile = new File(localPath);
 
 		final long splitLength = inFile.length() / noSplits;
@@ -82,14 +85,18 @@ public class MockInputSplitProvider implements InputSplitProvider {
 		this.inputSplits = tmp;
 	}
 
-
 	@Override
-	public InputSplit getNextInputSplit(ClassLoader userCodeClassLoader) {
+	public InputSplit getNextInputSplit(OperatorID operatorID, ClassLoader userCodeClassLoader) {
 
 		if (this.nextSplit < this.inputSplits.length) {
 			return this.inputSplits[this.nextSplit++];
 		}
 
+		return null;
+	}
+
+	@Override
+	public Map<OperatorID, List<InputSplit>> getAssignedInputSplits() {
 		return null;
 	}
 }

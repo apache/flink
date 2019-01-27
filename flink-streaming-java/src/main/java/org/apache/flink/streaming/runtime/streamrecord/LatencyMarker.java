@@ -80,7 +80,7 @@ public final class LatencyMarker extends StreamElement {
 		if (markedTime != that.markedTime) {
 			return false;
 		}
-		if (!operatorId.equals(that.operatorId)) {
+		if (operatorId != that.operatorId) {
 			return false;
 		}
 		return subtaskIndex == that.subtaskIndex;

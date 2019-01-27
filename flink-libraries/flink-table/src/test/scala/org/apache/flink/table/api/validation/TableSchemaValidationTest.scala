@@ -17,9 +17,9 @@
  */
 package org.apache.flink.table.api.validation
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.api.{TableException, TableSchema}
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.api.types.DataTypes
+import org.apache.flink.table.util.TableTestBase
 import org.junit.Test
 
 class TableSchemaValidationTest extends TableTestBase {
@@ -28,31 +28,25 @@ class TableSchemaValidationTest extends TableTestBase {
   def testColumnNameAndColumnTypeNotEqual() {
     thrown.expect(classOf[TableException])
     thrown.expectMessage(
-      "Number of field names and field types must be equal.\n" +
-        "Number of names is 3, number of types is 2.\n" +
-        "List of field names: [a, b, c]\n" +
-        "List of field types: [Integer, String]")
+      "Number of column indexes and column names must be equal." +
+        "\nColumn names count is [3]" +
+        "\nColumn types count is [2]" +
+        "\nColumn names: [a, b, c]" +
+        "\nColumn types: [IntType, StringType]")
 
     val fieldNames = Array("a", "b", "c")
-    val typeInfos: Array[TypeInformation[_]] = Array(
-      BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO)
-    new TableSchema(fieldNames, typeInfos)
+    new TableSchema(fieldNames, Array(DataTypes.INT, DataTypes.STRING))
   }
 
   @Test
   def testColumnNamesDuplicate() {
     thrown.expect(classOf[TableException])
     thrown.expectMessage(
-      "Field names must be unique.\n" +
-        "List of duplicate fields: [a]\n" +
-        "List of all fields: [a, a, c]")
+      "Table column names must be unique." +
+        "\nThe duplicate columns are: [a]" +
+        "\nAll column names: [a, a, c]")
 
     val fieldNames = Array("a", "a", "c")
-    val typeInfos: Array[TypeInformation[_]] = Array(
-      BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO)
-    new TableSchema(fieldNames, typeInfos)
+    new TableSchema(fieldNames, Array(DataTypes.INT, DataTypes.INT, DataTypes.STRING))
   }
 }

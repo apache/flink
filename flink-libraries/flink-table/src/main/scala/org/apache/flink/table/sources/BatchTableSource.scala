@@ -18,19 +18,20 @@
 
 package org.apache.flink.table.sources
 
-import org.apache.flink.api.java.{ExecutionEnvironment, DataSet}
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 
-/** Defines an external batch table and provides access to its data.
+/** Defines an external batch exec table and provides access to its data.
   *
-  * @tparam T Type of the [[DataSet]] created by this [[TableSource]].
+  * @tparam T Type of the [[DataStream]] created by this [[TableSource]].
   */
-trait BatchTableSource[T] extends TableSource[T] {
+trait BatchTableSource[T] extends TableSource {
 
   /**
-    * Returns the data of the table as a [[DataSet]].
+    * Returns the data of the table as a [[DataStream]].
     *
     * NOTE: This method is for internal use only for defining a [[TableSource]].
     *       Do not use it in Table API programs.
     */
-  def getDataSet(execEnv: ExecutionEnvironment): DataSet[T]
+  def getBoundedStream(streamEnv: StreamExecutionEnvironment): DataStream[T]
 }

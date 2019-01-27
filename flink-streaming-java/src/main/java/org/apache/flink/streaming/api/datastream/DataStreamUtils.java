@@ -31,6 +31,9 @@ import org.apache.flink.streaming.experimental.CollectSink;
 import org.apache.flink.streaming.experimental.SocketStreamIterator;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -42,6 +45,8 @@ import java.util.Iterator;
  */
 @Experimental
 public final class DataStreamUtils {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(DataStreamUtils.class);
 
 	/**
 	 * Returns an iterator to iterate over the elements of the DataStream.
@@ -79,6 +84,7 @@ public final class DataStreamUtils {
 			}
 		}
 
+		LOGGER.info("Fetching data at " + clientAddress + ":" + iter.getPort());
 		DataStreamSink<OUT> sink = stream.addSink(new CollectSink<OUT>(clientAddress, iter.getPort(), serializer));
 		sink.setParallelism(1); // It would not work if multiple instances would connect to the same port
 

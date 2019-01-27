@@ -159,4 +159,9 @@ public class CassandraRowWriteAheadSink extends GenericWriteAheadSink<Row> {
 			return true;
 		}
 	}
+
+	@Override
+	public void endInput() throws Exception {
+		// do nothing now.
+	}
 }

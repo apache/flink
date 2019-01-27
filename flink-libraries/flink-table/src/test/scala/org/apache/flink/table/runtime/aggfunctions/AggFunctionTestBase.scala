@@ -22,8 +22,8 @@ import java.lang.reflect.Method
 import java.math.BigDecimal
 import java.util.{ArrayList => JArrayList, List => JList}
 
-import org.apache.flink.table.functions.AggregateFunction
-import org.apache.flink.table.functions.aggfunctions.{DecimalAvgAccumulator, DecimalSumWithRetractAccumulator, MaxWithRetractAccumulator, MinWithRetractAccumulator}
+import org.apache.flink.table.api.functions.AggregateFunction
+import org.apache.flink.table.functions.aggregate.DecimalAvgAccumulator
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -137,12 +137,6 @@ abstract class AggFunctionTestBase[T, ACC] {
       case (e: BigDecimal, r: BigDecimal) =>
         // BigDecimal.equals() value and scale but we are only interested in value.
         assert(e.compareTo(r) == 0)
-      case (e: MinWithRetractAccumulator[_], r: MinWithRetractAccumulator[_]) =>
-        assertEquals(e.min, r.min)
-        assertEquals(e.distinctCount, r.distinctCount)
-      case (e: MaxWithRetractAccumulator[_], r: MaxWithRetractAccumulator[_]) =>
-        assertEquals(e.max, r.max)
-        assertEquals(e.distinctCount, r.distinctCount)
       case _ =>
         assertEquals(expected, result)
     }
@@ -152,14 +146,14 @@ abstract class AggFunctionTestBase[T, ACC] {
     val accumulator = aggregator.createAccumulator()
     vals.foreach(
       v =>
-        if (accumulateFunc.getParameterCount == 1) {
-          this.accumulateFunc.invoke(aggregator, accumulator.asInstanceOf[Object])
-        } else {
-          this.accumulateFunc.invoke(
-            aggregator,
-            accumulator.asInstanceOf[Object],
-            v.asInstanceOf[Object])
-        }
+      if(accumulateFunc.getParameterCount == 1){
+        this.accumulateFunc.invoke(aggregator, accumulator.asInstanceOf[Object])
+      }else{
+        this.accumulateFunc.invoke(
+          aggregator,
+          accumulator.asInstanceOf[Object],
+          v.asInstanceOf[Object])
+      }
     )
     accumulator
   }

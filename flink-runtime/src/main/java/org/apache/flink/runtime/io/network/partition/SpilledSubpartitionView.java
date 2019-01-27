@@ -18,14 +18,11 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileReader;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.SynchronousBufferFileReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
-import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.util.event.NotificationListener;
 
@@ -36,8 +33,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -52,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>Reads of the spilled file are done in synchronously.
  */
-class SpilledSubpartitionView implements ResultSubpartitionView, NotificationListener {
+public class SpilledSubpartitionView implements ResultSubpartitionView, NotificationListener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SpilledSubpartitionView.class);
 
@@ -67,7 +62,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	private final BufferFileReader fileReader;
 
 	/** The buffer pool to read data into. */
-	private final SpillReadBufferPool bufferPool;
+	private final FixedLengthBufferPool bufferPool;
 
 	/** Buffer availability listener. */
 	private final BufferAvailabilityListener availabilityListener;
@@ -93,7 +88,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		BufferAvailabilityListener availabilityListener) throws IOException {
 
 		this.parent = checkNotNull(parent);
-		this.bufferPool = new SpillReadBufferPool(2, memorySegmentSize);
+		this.bufferPool = new FixedLengthBufferPool(2, memorySegmentSize, MemoryType.HEAP);
 		this.spillWriter = checkNotNull(spillWriter);
 		this.fileReader = new SynchronousBufferFileReader(spillWriter.getChannelID(), false);
 		checkArgument(numberOfSpilledBuffers >= 0);
@@ -131,24 +126,29 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 			return null;
 		}
 
-		Buffer current;
-		boolean nextBufferIsEvent;
-		synchronized (this) {
-			if (nextBuffer == null) {
-				current = requestAndFillBuffer();
-			} else {
-				current = nextBuffer;
+		try {
+			Buffer current;
+			boolean nextBufferIsEvent;
+			synchronized (this) {
+				if (nextBuffer == null) {
+					current = requestAndFillBuffer();
+				} else {
+					current = nextBuffer;
+				}
+				nextBuffer = requestAndFillBuffer();
+				nextBufferIsEvent = nextBuffer != null && !nextBuffer.isBuffer();
 			}
-			nextBuffer = requestAndFillBuffer();
-			nextBufferIsEvent = nextBuffer != null && !nextBuffer.isBuffer();
-		}
 
-		if (current == null) {
-			return null;
-		}
+			if (current == null) {
+				return null;
+			}
 
-		int newBacklog = parent.decreaseBuffersInBacklog(current);
-		return new BufferAndBacklog(current, newBacklog > 0 || nextBufferIsEvent, newBacklog, nextBufferIsEvent);
+			int newBacklog = parent.decreaseBuffersInBacklog(current);
+			return new BufferAndBacklog(current, newBacklog > 0 || nextBufferIsEvent, newBacklog, nextBufferIsEvent);
+		} catch (Throwable t) {
+			// Mark all data retrieval errors as DataConsumptionException.
+			throw new DataConsumptionException(parent.parent.getPartitionId(), t);
+		}
 	}
 
 	@Nullable
@@ -195,7 +195,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 				}
 			}
 
-			bufferPool.destroy();
+			bufferPool.lazyDestroy();
 		}
 	}
 
@@ -228,76 +228,20 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	}
 
 	@Override
+	public void notifyCreditAdded(int creditDeltas) {
+		// No operations.
+	}
+
+	@Override
 	public Throwable getFailureCause() {
 		return parent.getFailureCause();
 	}
 
 	@Override
 	public String toString() {
-		return String.format("SpilledSubpartitionView(index: %d, buffers: %d) of ResultPartition %s",
+		return String.format("SpilledSubpartitionView(index: %d, buffers: %d) of InternalResultPartition %s",
 			parent.index,
 			numberOfSpilledBuffers,
 			parent.parent.getPartitionId());
-	}
-
-	/**
-	 * A buffer pool to provide buffer to read the file into.
-	 *
-	 * <p>This pool ensures that a consuming input gate makes progress in all cases, even when all
-	 * buffers of the input gate buffer pool have been requested by remote input channels.
-	 */
-	private static class SpillReadBufferPool implements BufferRecycler {
-
-		private final Queue<Buffer> buffers;
-
-		private boolean isDestroyed;
-
-		SpillReadBufferPool(int numberOfBuffers, int memorySegmentSize) {
-			this.buffers = new ArrayDeque<>(numberOfBuffers);
-
-			synchronized (buffers) {
-				for (int i = 0; i < numberOfBuffers; i++) {
-					buffers.add(new NetworkBuffer(MemorySegmentFactory.allocateUnpooledOffHeapMemory(
-						memorySegmentSize, null), this));
-				}
-			}
-		}
-
-		@Override
-		public void recycle(MemorySegment memorySegment) {
-			synchronized (buffers) {
-				if (isDestroyed) {
-					memorySegment.free();
-				} else {
-					buffers.add(new NetworkBuffer(memorySegment, this));
-					buffers.notifyAll();
-				}
-			}
-		}
-
-		private Buffer requestBufferBlocking() throws InterruptedException {
-			synchronized (buffers) {
-				while (true) {
-					if (isDestroyed) {
-						return null;
-					}
-
-					Buffer buffer = buffers.poll();
-
-					if (buffer != null) {
-						return buffer;
-					}
-					// Else: wait for a buffer
-					buffers.wait();
-				}
-			}
-		}
-
-		private void destroy() {
-			synchronized (buffers) {
-				isDestroyed = true;
-				buffers.notifyAll();
-			}
-		}
 	}
 }

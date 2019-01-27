@@ -116,6 +116,18 @@ retrieve an `Iterable` over all currently stored mappings. Mappings are added us
 `putAll(Map<UK, UV>)`. The value associated with a user key can be retrieved using `get(UK)`. The iterable
 views for mappings, keys and values can be retrieved using `entries()`, `keys()` and `values()` respectively.
 
+* `SortedMapState<UK, UV>`: This keeps a list of sorted mappings. You can put key-value pairs into the state and
+retrieve an `Iterable` over all currently stored mappings. Mappings are added using `put(UK, UV)` or `putAll(Map<UK, UV)`.
+The value associated with a user key can be retrieved using `get(UK)`. The iterable views for mappings, keys
+and values can be retrieved using `entries()`, `keys()`, and `values()` respectively. You can retrieve the first and
+last entry of the stored mappings, using `firstEntry()`, and `lastEntry()`, respectively. The head iterable view for mappings,
+tail iterable view and sub iterable view of the current sorted mappings can be retrieved by `headIterator()`,
+`tailIterator()` and `subIterator()`. **Be careful when using SortedMapState. For RocksDBStateBackend, 
+we only support `BytewiseComparator`. The comparison result of `BytewiseComparator` on heap objects is consistent with 
+the comparison result after serializeation. Taking numbers as an example, the comparison result of the serialized forms is 
+consistent with that of the numbers, only when the numbers to compare are both not negative. Serializers under 
+`org.apache.flink.table.typeutils.ordered` would be helpful if you want to use SortedMapState.**
+
 All types of state also have a method `clear()` that clears the state for the currently
 active key, i.e. the key of the input element.
 
@@ -132,7 +144,8 @@ To get a state handle, you have to create a `StateDescriptor`. This holds the na
 that you can reference them), the type of the values that the state holds, and possibly
 a user-specified function, such as a `ReduceFunction`. Depending on what type of state you
 want to retrieve, you create either a `ValueStateDescriptor`, a `ListStateDescriptor`,
-a `ReducingStateDescriptor`, a `FoldingStateDescriptor` or a `MapStateDescriptor`.
+a `ReducingStateDescriptor`, a `FoldingStateDescriptor`, a `AggregatingStateDescriptor`,
+a `MapStateDescriptor` or a `SortedMapStateDescriptor`.
 
 State is accessed using the `RuntimeContext`, so it is only possible in *rich functions*.
 Please see [here]({{ site.baseurl }}/dev/api_concepts.html#rich-functions) for
@@ -142,9 +155,10 @@ is available in a `RichFunction` has these methods for accessing state:
 * `ValueState<T> getState(ValueStateDescriptor<T>)`
 * `ReducingState<T> getReducingState(ReducingStateDescriptor<T>)`
 * `ListState<T> getListState(ListStateDescriptor<T>)`
-* `AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT>)`
+* `AggregatingState<IN, OUT> getAggregatingState(AggregatingState<IN, OUT>)`
 * `FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC>)`
 * `MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV>)`
+* `SortedMapState<UK, UV> getSortedMapState(SortedMapStateDescriptor<UK, UV>)`
 
 This is an example `FlatMapFunction` that shows how all of the parts fit together:
 
@@ -266,135 +280,116 @@ a `ValueState`. Once the count reaches 2 it will emit the average and clear the 
 we start over from `0`. Note that this would keep a different state value for each different input
 key if we had tuples with different values in the first field.
 
-### State Time-To-Live (TTL)
-
-A *time-to-live* (TTL) can be assigned to the keyed state of any type. If a TTL is configured and a
-state value has expired, the stored value will be cleaned up on a best effort basis which is
-discussed in more detail below.
-
-All state collection types support per-entry TTLs. This means that list elements and map entries
-expire independently.
-
-In order to use state TTL one must first build a `StateTtlConfig` configuration object. The TTL 
-functionality can then be enabled in any state descriptor by passing the configuration:
-
+The following example shows how to use SortedMapState's firstEntry to retrieve the first entry of current state.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.time.Time;
+public class CountWindowFirstEntry extends RichFlatMapFunction<Tuple2<Long, Long>, Tuple3<Long, Long, Long>> {
+    /**
+     * The SortedMapState handle. The first field is the user key, the second field a running count.
+     */
+    private transient SortedMapState<Long, Long> state;
 
-StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
-    .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
-    .build();
-    
-ValueStateDescriptor<String> stateDescriptor = new ValueStateDescriptor<>("text state", String.class);
-stateDescriptor.enableTimeToLive(ttlConfig);
+    @Override
+    public void flatMap(
+        Tuple2<Long, Long> input,
+        Collector<Tuple3<Long, Long, Long>> out) throws Exception {
+
+		// access the state
+		Long count = state.get(input.f1);
+		// If it hasn't been used before, it will be null
+		if (count == null) {
+			count = 0L;
+		}
+		// update the state
+		state.put(input.f1, count + 1);
+
+        Map.Entry<Long, Long> firstEntry = state.firstEntry();
+		out.collect(new Tuple3<>(input.f0, firstEntry.getKey(), firstEntry.getValue()));
+	}
+
+	@Override
+	public void open(Configuration config) {
+		SortedMapStateDescriptor<Long, Long> descriptor =
+			new SortedMapStateDescriptor<>(
+				"sortedmapstate", // the state name
+				BytewiseComparator.LONG_INSTANCE,
+				Long.class,
+				Long.class);
+		state = getRuntimeContext().getSortedMapState(descriptor);
+		}
+	}
+
+	public static void main(String[] args) throws Exception {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.fromElements(Tuple2.of(1L, 3L), Tuple2.of(1L, 5L), Tuple2.of(1L, 3L), Tuple2.of(1L, 7L),
+		    Tuple2.of(1L, 4L), Tuple2.of(1L, 2L), Tuple2.of(1L, 2L), Tuple2.of(1L, 1L))
+			.keyBy(0)
+			.flatMap(new CountWindowFirstEntry())
+			.print();
+		// the printed output will be (1, 3, 1), (1, 3, 1), (1, 3, 2), (1, 3, 2), (1, 3, 2),
+		//(1, 2, 1) (1, 2, 2) and (1, 1, 1)
+		env.execute();
+	}
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-import org.apache.flink.api.common.state.StateTtlConfig
-import org.apache.flink.api.common.state.ValueStateDescriptor
-import org.apache.flink.api.common.time.Time
+class CountWindowFirstEntry extends RichFlatMapFunction[(Long, Long), (Long, Long, Long)] {
 
-val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
-    .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
-    .build
-    
-val stateDescriptor = new ValueStateDescriptor[String]("text state", classOf[String])
-stateDescriptor.enableTimeToLive(ttlConfig)
+    private var state: SortedMapState[java.lang.Long, java.lang.Long] = _
+
+    override def flatMap(input: (Long, Long), out: Collector[(Long, Long, Long)]): Unit = {
+
+      // access the state value
+      val tmpCurrentCount = state.get(input._2)
+
+      // If it hasn't been used before, it will be null
+      val count : Long = if (tmpCurrentCount != null) {
+        tmpCurrentCount
+      } else {
+        0L
+      }
+
+      // update the state
+      state.put(input._2, count + 1)
+
+      val entry = state.firstEntry()
+      out.collect((input._1, entry.getKey, entry.getValue))
+    }
+
+    override def open(parameters: Configuration): Unit = {
+      state = getRuntimeContext.getSortedMapState(
+       new SortedMapStateDescriptor[java.lang.Long, java.lang.Long]
+       ("sortedmpastate", BytewiseComparator.LONG_INSTANCE, classOf[java.lang.Long], classOf[java.lang.Long])
+      )
+    }
+  }
+
+object CountWindowFirstEntry extends App {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+
+    env.fromCollection(List[(Long, Long)](
+      (1L, 3L),
+      (1L, 5L),
+      (1L, 3L),
+      (1L, 7L),
+      (1L, 4L),
+      (1L, 2L),
+      (1L, 2L),
+      (1L, 1L)
+    )).keyBy(_._1)
+      .flatMap(new CountWindowFirstEntry())
+      .print()
+    // the printed output will be (1, 3, 1), (1, 3, 1), (1, 3, 2), (1, 3, 2), (1, 3, 2),
+    //(1, 2, 1) (1, 2, 2) and (1, 1, 1)
+
+    env.execute("ExampleManagedState")
+  }
 {% endhighlight %}
 </div>
 </div>
-
-The configuration has several options to consider:
-
-The first parameter of the `newBuilder` method is mandatory, it is the time-to-live value.
-
-The update type configures when the state TTL is refreshed (by default `OnCreateAndWrite`):
-
- - `StateTtlConfig.UpdateType.OnCreateAndWrite` - only on creation and write access
- - `StateTtlConfig.UpdateType.OnReadAndWrite` - also on read access
- 
-The state visibility configures whether the expired value is returned on read access 
-if it is not cleaned up yet (by default `NeverReturnExpired`):
-
- - `StateTtlConfig.StateVisibility.NeverReturnExpired` - expired value is never returned
- - `StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp` - returned if still available
- 
-In case of `NeverReturnExpired`, the expired state behaves as if it does not exist anymore, 
-even if it still has to be removed. The option can be useful for use cases 
-where data has to become unavailable for read access strictly after TTL, 
-e.g. application working with privacy sensitive data.
- 
-Another option `ReturnExpiredIfNotCleanedUp` allows to return the expired state before its cleanup.
-
-**Notes:** 
-
-- The state backends store the timestamp of the last modification along with the user value, 
-which means that enabling this feature increases consumption of state storage. 
-Heap state backend stores an additional Java object with a reference to the user state object 
-and a primitive long value in memory. The RocksDB state backend adds 8 bytes per stored value, list entry or map entry.
-
-- Only TTLs in reference to *processing time* are currently supported.
-
-- Trying to restore state, which was previously configured without TTL, using TTL enabled descriptor or vice versa
-will lead to compatibility failure and `StateMigrationException`.
-
-- The TTL configuration is not part of check- or savepoints but rather a way of how Flink treats it in the currently running job.
-
-- The map state with TTL currently supports null user values only if the user value serializer can handle null values. 
-If the serializer does not support null values, it can be wrapped with `NullableSerializer` at the cost of an extra byte in the serialized form.
-
-#### Cleanup of Expired State
-
-Currently, expired values are only removed when they are read out explicitly, 
-e.g. by calling `ValueState.value()`.
-
-<span class="label label-danger">Attention</span> This means that by default if expired state is not read, 
-it won't be removed, possibly leading to ever growing state. This might change in future releases. 
-
-Additionally, you can activate the cleanup at the moment of taking the full state snapshot which 
-will reduce its size. The local state is not cleaned up under the current implementation 
-but it will not include the removed expired state in case of restoration from the previous snapshot.
-It can be configured in `StateTtlConfig`:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.time.Time;
-
-StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .cleanupFullSnapshot()
-    .build();
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-import org.apache.flink.api.common.state.StateTtlConfig
-import org.apache.flink.api.common.time.Time
-
-val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .cleanupFullSnapshot
-    .build
-{% endhighlight %}
-</div>
-</div>
-
-This option is not applicable for the incremental checkpointing in the RocksDB state backend.
-
-More strategies will be added in the future for cleaning up expired state automatically in the background.
 
 ### State in the Scala DataStream API
 
@@ -475,7 +470,7 @@ public class BufferingSink
     }
 
     @Override
-    public void invoke(Tuple2<String, Integer> value, Context contex) throws Exception {
+    public void invoke(Tuple2<String, Integer> value) throws Exception {
         bufferedElements.add(value);
         if (bufferedElements.size() == threshold) {
             for (Tuple2<String, Integer> element: bufferedElements) {
@@ -523,7 +518,7 @@ class BufferingSink(threshold: Int = 0)
 
   private val bufferedElements = ListBuffer[(String, Int)]()
 
-  override def invoke(value: (String, Int), context: Context): Unit = {
+  override def invoke(value: (String, Int)): Unit = {
     bufferedElements += value
     if (bufferedElements.size == threshold) {
       for (element <- bufferedElements) {
@@ -640,7 +635,7 @@ public static class CounterSource
         implements ListCheckpointed<Long> {
 
     /**  current offset for exactly once semantics */
-    private Long offset = 0L;
+    private Long offset;
 
     /** flag for job cancellation */
     private volatile boolean isRunning = true;

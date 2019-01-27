@@ -90,6 +90,11 @@ public class BackendForTestStream extends MemoryStateBackend {
 		}
 
 		@Override
+		public CompletedCheckpointStorageLocation resolveLatestCheckpoint(String externalPointer) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
 		public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId) throws IOException {
 			throw new UnsupportedOperationException();
 		}
@@ -119,7 +124,7 @@ public class BackendForTestStream extends MemoryStateBackend {
 		}
 
 		@Override
-		public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException {
+		public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointId, CheckpointedStateScope scope) throws IOException {
 			return streamFactory.get();
 		}
 	}

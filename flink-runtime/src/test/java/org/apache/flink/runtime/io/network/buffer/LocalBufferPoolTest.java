@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import org.apache.flink.util.TestLogger;
-
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.junit.After;
@@ -50,20 +48,17 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
-/**
- * Tests for the {@link LocalBufferPool}.
- */
-public class LocalBufferPoolTest extends TestLogger {
+public class LocalBufferPoolTest {
 
-	private static final int numBuffers = 1024;
+	private final static int numBuffers = 1024;
 
-	private static final int memorySegmentSize = 128;
+	private final static int memorySegmentSize = 128;
 
 	private NetworkBufferPool networkBufferPool;
 
 	private BufferPool localBufferPool;
 
-	private static final ExecutorService executor = Executors.newCachedThreadPool();
+	private final static ExecutorService executor = Executors.newCachedThreadPool();
 
 	@Before
 	public void setupLocalBufferPool() {
@@ -417,10 +412,11 @@ public class LocalBufferPoolTest extends TestLogger {
 			public NotificationResult notifyBufferAvailable(Buffer buffer) {
 				int newCount = times.incrementAndGet();
 				buffer.recycleBuffer();
+
 				if (newCount < notificationTimes) {
 					return NotificationResult.BUFFER_USED_NEED_MORE;
 				} else {
-					return NotificationResult.BUFFER_USED_NO_NEED_MORE;
+					return NotificationResult.BUFFER_USED_FINISHED;
 				}
 			}
 

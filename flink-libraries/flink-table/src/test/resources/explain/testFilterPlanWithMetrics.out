@@ -1,0 +1,8 @@
+Stage 7 : Data Sink(Sink: collect)
++- Stage 6 : Operator(SinkConversion to Row , metric={"rowCount":5})
+   +- Stage 5 : Operator(GlobalSortLimit(orderBy: [a ASC], offset: 2, limit: 5) , metric={"rowCount":5})
+      +- Stage 4 : Operator(LocalSortLimit(orderBy: [a ASC], offset: 2, limit: 5) , metric={"rowCount":7})
+         +- Stage 3 : Operator(Calc(where: (a > 0), select: (a, b, c)) , metric={"rowCount":21})
+            +- Stage 2 : Operator(SourceConversion(table:[builtin, default, Table3], fields:(a, b, c)) , metric={"rowCount":21})
+               +- Stage 1 : Data Source(Source: Table3)
+

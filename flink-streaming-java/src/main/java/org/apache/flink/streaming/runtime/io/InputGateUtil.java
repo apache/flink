@@ -33,22 +33,50 @@ import java.util.List;
 @Internal
 public class InputGateUtil {
 
-	public static InputGate createInputGate(Collection<InputGate> inputGates1, Collection<InputGate> inputGates2) {
-		List<InputGate> gates = new ArrayList<InputGate>(inputGates1.size() + inputGates2.size());
-		gates.addAll(inputGates1);
-		gates.addAll(inputGates2);
-		return createInputGate(gates.toArray(new InputGate[gates.size()]));
+	public static InputGate createInputGate(Collection<InputGate>... inputGateGroups) {
+		List<InputGate> gates = new ArrayList<InputGate>();
+		for (Collection<InputGate> inputGates : inputGateGroups) {
+			gates.addAll(inputGates);
+		}
+		return createInputGate(gates.toArray(new InputGate[0]));
 	}
 
-	public static InputGate createInputGate(InputGate[] inputGates) {
-		if (inputGates.length <= 0) {
+	public static InputGate createInputGate(InputGate[]... inputGateGroups) {
+		if (inputGateGroups.length <= 0) {
 			throw new RuntimeException("No such input gate.");
 		}
 
-		if (inputGates.length < 2) {
-			return inputGates[0];
+		if (inputGateGroups.length == 1) {
+			if (inputGateGroups[0].length == 1) {
+				return inputGateGroups[0][0];
+			} else {
+				if (inputGateGroups[0].length <= 0) {
+					throw new RuntimeException("No such input gate.");
+				}
+				return new UnionInputGate(inputGateGroups[0]);
+			}
 		} else {
-			return new UnionInputGate(inputGates);
+			int numGates = 0;
+			for (InputGate[] inputGates : inputGateGroups) {
+				numGates += inputGates.length;
+			}
+			if (numGates <= 0) {
+				throw new RuntimeException("No such input gate.");
+			}
+
+			InputGate[] gates = new InputGate[numGates];
+			int index = 0;
+			for (InputGate[] inputGates : inputGateGroups) {
+				for (InputGate gate : inputGates) {
+					gates[index++] = gate;
+				}
+			}
+
+			if (gates.length == 1) {
+				return gates[0];
+			} else {
+				return new UnionInputGate(gates);
+			}
 		}
 	}
 

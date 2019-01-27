@@ -78,7 +78,7 @@ public class SharedBuffer<V> {
 		this.entries = stateStore.getMapState(
 			new MapStateDescriptor<>(
 				entriesStateName,
-				new NodeId.NodeIdSerializer(),
+				NodeId.NodeIdSerializer.INSTANCE,
 				new Lockable.LockableTypeSerializer<>(new SharedBufferNode.SharedBufferNodeSerializer())));
 
 		this.eventsCount = stateStore.getMapState(

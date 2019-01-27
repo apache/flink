@@ -30,6 +30,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.clients.producer.internals.TransactionalRequestResult;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.Node;
@@ -55,13 +56,13 @@ import java.util.concurrent.TimeUnit;
  * Wrapper around KafkaProducer that allows to resume transactions in case of node failure, which allows to implement
  * two phase commit algorithm for exactly-once semantic FlinkKafkaProducer.
  *
- * <p>For happy path usage is exactly the same as {@link org.apache.kafka.clients.producer.KafkaProducer}. User is
+ * <p>For happy path usage is exactly the same as {@link KafkaProducer}. User is
  * expected to call:
  *
  * <ul>
  *     <li>{@link FlinkKafkaProducer#initTransactions()}</li>
  *     <li>{@link FlinkKafkaProducer#beginTransaction()}</li>
- *     <li>{@link FlinkKafkaProducer#send(org.apache.kafka.clients.producer.ProducerRecord)}</li>
+ *     <li>{@link FlinkKafkaProducer#send(ProducerRecord)}</li>
  *     <li>{@link FlinkKafkaProducer#flush()}</li>
  *     <li>{@link FlinkKafkaProducer#commitTransaction()}</li>
  * </ul>
@@ -74,7 +75,7 @@ import java.util.concurrent.TimeUnit;
  * <ul>
  *     <li>{@link FlinkKafkaProducer#initTransactions()}</li>
  *     <li>{@link FlinkKafkaProducer#beginTransaction()}</li>
- *     <li>{@link FlinkKafkaProducer#send(org.apache.kafka.clients.producer.ProducerRecord)}</li>
+ *     <li>{@link FlinkKafkaProducer#send(ProducerRecord)}</li>
  *     <li>{@link FlinkKafkaProducer#flush()}</li>
  *     <li>{@link FlinkKafkaProducer#getProducerId()}</li>
  *     <li>{@link FlinkKafkaProducer#getEpoch()}</li>
@@ -87,7 +88,7 @@ import java.util.concurrent.TimeUnit;
  * as a way to obtain the producerId and epoch counters. It has to be done, because otherwise
  * {@link FlinkKafkaProducer#initTransactions()} would automatically abort all on going transactions.
  *
- * <p>Second way this implementation differs from the reference {@link org.apache.kafka.clients.producer.KafkaProducer}
+ * <p>Second way this implementation differs from the reference {@link KafkaProducer}
  * is that this one actually flushes new partitions on {@link FlinkKafkaProducer#flush()} instead of on
  * {@link FlinkKafkaProducer#commitTransaction()}.
  *
@@ -98,7 +99,7 @@ import java.util.concurrent.TimeUnit;
  * <p>Those changes are compatible with Kafka's 0.11.0 REST API although it clearly was not the intention of the Kafka's
  * API authors to make them possible.
  *
- * <p>Internally this implementation uses {@link org.apache.kafka.clients.producer.KafkaProducer} and implements
+ * <p>Internally this implementation uses {@link KafkaProducer} and implements
  * required changes via Java Reflection API. It might not be the prettiest solution. An alternative would be to
  * re-implement whole Kafka's 0.11 REST API client on our own.
  */
@@ -113,7 +114,24 @@ public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 
 	public FlinkKafkaProducer(Properties properties) {
 		transactionalId = properties.getProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG);
-		kafkaProducer = new KafkaProducer<>(properties);
+		kafkaProducer = createKafkaProducer(properties);
+	}
+
+	// load KafkaProducer via system classloader instead of application classloader, otherwise we will hit classloading
+	// issue in scala-shell scenario where kafka jar is not shipped with JobGraph, but shipped when starting yarn
+	// container.
+	public static KafkaProducer createKafkaProducer(Properties kafkaProperties) {
+		try {
+			return new KafkaProducer<>(kafkaProperties);
+		} catch (KafkaException e) {
+			ClassLoader original = Thread.currentThread().getContextClassLoader();
+			try {
+				Thread.currentThread().setContextClassLoader(null);
+				return new KafkaProducer<>(kafkaProperties);
+			} finally {
+				Thread.currentThread().setContextClassLoader(original);
+			}
+		}
 	}
 
 	// -------------------------------- Simple proxy method calls --------------------------------
@@ -186,7 +204,7 @@ public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 	/**
 	 * Instead of obtaining producerId and epoch from the transaction coordinator, re-use previously obtained ones,
 	 * so that we can resume transaction after a restart. Implementation of this method is based on
-	 * {@link org.apache.kafka.clients.producer.KafkaProducer#initTransactions}.
+	 * {@link KafkaProducer#initTransactions}.
 	 */
 	public void resumeTransaction(long producerId, short epoch) {
 		Preconditions.checkState(producerId >= 0 && epoch >= 0, "Incorrect values for producerId {} and epoch {}", producerId, epoch);
@@ -210,7 +228,6 @@ public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 		}
 	}
 
-	@Nullable
 	public String getTransactionalId() {
 		return transactionalId;
 	}
@@ -235,7 +252,7 @@ public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 	}
 
 	/**
-	 * Besides committing {@link org.apache.kafka.clients.producer.KafkaProducer#commitTransaction} is also adding new
+	 * Besides committing {@link KafkaProducer#commitTransaction} is also adding new
 	 * partitions to the transaction. flushNewPartitions method is moving this logic to pre-commit/flush, to make
 	 * resumeTransaction simpler. Otherwise resumeTransaction would require to restore state of the not yet added/"in-flight"
 	 * partitions.

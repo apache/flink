@@ -18,11 +18,8 @@
 package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Before;
 
 import static org.junit.Assert.assertEquals;
 
@@ -33,30 +30,11 @@ public abstract class StreamPartitionerTest extends TestLogger {
 
 	protected final StreamPartitioner<Tuple> streamPartitioner = createPartitioner();
 	protected final StreamRecord<Tuple> streamRecord = new StreamRecord<>(null);
-	protected final SerializationDelegate<StreamRecord<Tuple>> serializationDelegate =
-		new SerializationDelegate<>(null);
 
 	abstract StreamPartitioner<Tuple> createPartitioner();
 
-	@Before
-	public void setup() {
-		serializationDelegate.setInstance(streamRecord);
-	}
-
-	protected int selectChannelAndAssertLength() {
-		int[] selectedChannels = streamPartitioner.selectChannels(serializationDelegate);
-		assertEquals(1, selectedChannels.length);
-
-		return selectedChannels[0];
-	}
-
-	protected void assertSelectedChannel(int expectedChannel) {
-		int actualResult = selectChannelAndAssertLength();
+	protected void assertSelectedChannel(int expectedChannel, int numberOfChannels) {
+		int actualResult = streamPartitioner.selectChannel(streamRecord, numberOfChannels);
 		assertEquals(expectedChannel, actualResult);
-	}
-
-	protected void assertSelectedChannelWithSetup(int expectedChannel, int numberOfChannels) {
-		streamPartitioner.setup(numberOfChannels);
-		assertSelectedChannel(expectedChannel);
 	}
 }

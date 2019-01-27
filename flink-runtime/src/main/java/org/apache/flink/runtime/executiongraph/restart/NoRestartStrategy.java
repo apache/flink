@@ -38,10 +38,10 @@ public class NoRestartStrategy implements RestartStrategy {
 	}
 
 	/**
-	 * Creates a NoRestartStrategyFactory instance.
+	 * Creates a NoRestartStrategy instance.
 	 *
 	 * @param configuration Configuration object which is ignored
-	 * @return NoRestartStrategyFactory instance
+	 * @return NoRestartStrategy instance
 	 */
 	public static NoRestartStrategyFactory createFactory(Configuration configuration) {
 		return new NoRestartStrategyFactory();

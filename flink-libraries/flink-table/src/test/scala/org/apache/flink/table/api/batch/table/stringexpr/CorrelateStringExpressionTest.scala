@@ -20,73 +20,71 @@ package org.apache.flink.table.api.batch.table.stringexpr
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Table, Types}
-import org.apache.flink.table.utils.{PojoTableFunc, TableFunc2, _}
-import org.apache.flink.table.utils._
-import org.apache.flink.types.Row
+import org.apache.flink.table.util._
 import org.junit.Test
 
 class CorrelateStringExpressionTest extends TableTestBase {
 
+  private val util = batchTestUtil()
+  private val typeInfo = new RowTypeInfo(Seq(Types.INT, Types.LONG, Types.STRING): _*)
+  private val tab = util.addTable[(Int, Long, String)]("Table1", 'a, 'b, 'c)
+  private val func1 = new TableFunc1
+  util.tableEnv.registerFunction("func1", func1)
+  private val func2 = new TableFunc2
+  util.tableEnv.registerFunction("func2", func2)
+
   @Test
-  def testCorrelateJoins(): Unit = {
-    val util = batchTestUtil()
-
-    val typeInfo = new RowTypeInfo(Seq(Types.INT, Types.LONG, Types.STRING): _*)
-    val sTab = util.addTable[(Int, Long, String)]("Table1", 'a, 'b, 'c)
-    val jTab = util.addJavaTable[Row](typeInfo, "Table2", "a, b, c")
-
+  def testCorrelateJoins1(): Unit = {
     // test cross join
-    val func1 = new TableFunc1
-    util.javaTableEnv.registerFunction("func1", func1)
-    var scalaTable = sTab.join(func1('c) as 's).select('c, 's)
-    var javaTable = jTab.join(new Table(util.javaTableEnv, "func1(c).as(s)")).select("c, s")
-    verifyTableEquals(scalaTable, javaTable)
+    util.verifyPlan(tab.join(func1('c) as 's).select('c, 's))
+  }
 
+  @Test
+  def testCorrelateJoins2(): Unit = {
     // test left outer join
-    scalaTable = sTab.leftOuterJoin(func1('c) as 's).select('c, 's)
-    javaTable = jTab.leftOuterJoin(new Table(util.javaTableEnv, "as(func1(c), s)")).select("c, s")
-    verifyTableEquals(scalaTable, javaTable)
+    util.verifyPlan(tab.leftOuterJoin(func1('c) as 's).select('c, 's))
+  }
 
+  @Test
+  def testCorrelateJoins3(): Unit = {
     // test overloading
-    scalaTable = sTab.join(func1('c, "$") as 's).select('c, 's)
-    javaTable = jTab.join(new Table(util.javaTableEnv, "func1(c, '$') as (s)")).select("c, s")
-    verifyTableEquals(scalaTable, javaTable)
+    util.verifyPlan(tab.join(func1('c, "$") as 's).select('c, 's))
+  }
 
+  @Test
+  def testCorrelateJoins4(): Unit = {
     // test custom result type
-    val func2 = new TableFunc2
-    util.javaTableEnv.registerFunction("func2", func2)
-    scalaTable = sTab.join(func2('c) as('name, 'len)).select('c, 'name, 'len)
-    javaTable = jTab.join(
-      new Table(util.javaTableEnv, "func2(c).as(name, len)")).select("c, name, len")
-    verifyTableEquals(scalaTable, javaTable)
+    util.verifyPlan(tab.join(func2('c) as('name, 'len)).select('c, 'name, 'len))
+  }
 
+  @Test
+  def testCorrelateJoins5(): Unit = {
     // test hierarchy generic type
     val hierarchy = new HierarchyTableFunction
-    util.javaTableEnv.registerFunction("hierarchy", hierarchy)
-    scalaTable = sTab.join(hierarchy('c) as('name, 'adult, 'len)).select('c, 'name, 'len, 'adult)
-    javaTable = jTab.join(new Table(util.javaTableEnv, "AS(hierarchy(c), name, adult, len)"))
-      .select("c, name, len, adult")
-    verifyTableEquals(scalaTable, javaTable)
+    util.tableEnv.registerFunction("hierarchy", hierarchy)
+    util.verifyPlan(tab.join(hierarchy('c) as('name, 'adult, 'len)).select('c, 'name, 'len, 'adult))
+  }
 
+  @Test
+  def testCorrelateJoins6(): Unit = {
     // test pojo type
     val pojo = new PojoTableFunc
-    util.javaTableEnv.registerFunction("pojo", pojo)
-    scalaTable = sTab.join(pojo('c)).select('c, 'name, 'age)
-    javaTable = jTab.join(new Table(util.javaTableEnv, "pojo(c)")).select("c, name, age")
-    verifyTableEquals(scalaTable, javaTable)
+    util.tableEnv.registerFunction("pojo", pojo)
+    util.verifyPlan(tab.join(pojo('c)).select('c, 'name, 'age))
+  }
 
+  @Test
+  def testCorrelateJoins7(): Unit = {
     // test with filter
-    scalaTable = sTab.join(func2('c) as('name, 'len)).select('c, 'name, 'len).filter('len > 2)
-    javaTable = jTab.join(new Table(util.javaTableEnv, "func2(c) as (name, len)"))
-      .select("c, name, len").filter("len > 2")
-    verifyTableEquals(scalaTable, javaTable)
+    util.verifyPlan(tab.join(func2('c) as('name, 'len)).select('c, 'name, 'len).filter('len > 2))
+  }
 
+  @Test
+  def testCorrelateJoins8(): Unit = {
+    // test with filter
     // test with scalar function
-    scalaTable = sTab.join(func1('c.substring(2)) as 's).select('a, 'c, 's)
-    javaTable = jTab.join(
-      new Table(util.javaTableEnv, "func1(substring(c, 2)) as (s)")).select("a, c, s")
-    verifyTableEquals(scalaTable, javaTable)
+    util.verifyPlan(tab.join(func1('c.substring(2)) as 's).select('a, 'c, 's))
   }
 }

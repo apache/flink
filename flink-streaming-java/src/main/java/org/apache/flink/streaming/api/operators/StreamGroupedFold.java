@@ -97,6 +97,11 @@ public class StreamGroupedFold<IN, OUT, KEY>
 	}
 
 	@Override
+	public void endInput() throws Exception {
+
+	}
+
+	@Override
 	public void setOutputType(TypeInformation<OUT> outTypeInfo, ExecutionConfig executionConfig) {
 		outTypeSerializer = outTypeInfo.createSerializer(executionConfig);
 

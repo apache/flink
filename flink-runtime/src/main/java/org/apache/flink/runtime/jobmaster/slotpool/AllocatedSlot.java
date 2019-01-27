@@ -42,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * an AllocatedSlot was allocated to the JobManager as soon as the TaskManager registered at the
  * JobManager. All slots had a default unknown resource profile. 
  */
-class AllocatedSlot implements SlotContext {
+public class AllocatedSlot implements SlotContext {
 
 	/** The ID under which the slot is allocated. Uniquely identifies the slot. */
 	private final AllocationID allocationId;
@@ -92,7 +92,6 @@ class AllocatedSlot implements SlotContext {
 	 * 
 	 * @return The ID under which the slot is allocated
 	 */
-	@Override
 	public AllocationID getAllocationId() {
 		return allocationId;
 	}
@@ -122,7 +121,6 @@ class AllocatedSlot implements SlotContext {
 	 *
 	 * @return The location info of the TaskManager that offers this slot
 	 */
-	@Override
 	public TaskManagerLocation getTaskManagerLocation() {
 		return taskManagerLocation;
 	}
@@ -134,7 +132,6 @@ class AllocatedSlot implements SlotContext {
 	 *
 	 * @return The actor gateway that can be used to send messages to the TaskManager.
 	 */
-	@Override
 	public TaskManagerGateway getTaskManagerGateway() {
 		return taskManagerGateway;
 	}
@@ -145,7 +142,6 @@ class AllocatedSlot implements SlotContext {
 	 *
 	 * @return Physical slot number of the allocated slot
 	 */
-	@Override
 	public int getPhysicalSlotNumber() {
 		return physicalSlotNumber;
 	}

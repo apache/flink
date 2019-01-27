@@ -68,42 +68,80 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 * @return A {@link ParameterTool}
 	 */
 	public static ParameterTool fromArgs(String[] args) {
-		final Map<String, String> map = new HashMap<>(args.length / 2);
+		Map<String, String> map = new HashMap<String, String>(args.length / 2);
 
-		int i = 0;
-		while (i < args.length) {
-			final String key;
+		String key = null;
+		String value = null;
+		boolean expectValue = false;
+		for (String arg : args) {
+			// check for -- argument
+			if (arg.startsWith("--")) {
+				if (expectValue) {
+					// we got into a new key, even though we were a value --> current key is one without value
+					if (value != null) {
+						throw new IllegalStateException("Unexpected state");
+					}
+					map.put(key, NO_VALUE_KEY);
+					// key will be overwritten in the next step
+				}
+				key = arg.substring(2);
+				expectValue = true;
+			} // check for - argument
+			else if (arg.startsWith("-")) {
+				// we are waiting for a value, so this is a - prefixed value (negative number)
+				if (expectValue) {
 
-			if (args[i].startsWith("--")) {
-				key = args[i].substring(2);
-			} else if (args[i].startsWith("-")) {
-				key = args[i].substring(1);
+					if (NumberUtils.isNumber(arg)) {
+						// negative number
+						value = arg;
+						expectValue = false;
+					} else {
+						if (value != null) {
+							throw new IllegalStateException("Unexpected state");
+						}
+						// We waited for a value but found a new key. So the previous key doesnt have a value.
+						map.put(key, NO_VALUE_KEY);
+						key = arg.substring(1);
+						expectValue = true;
+					}
+				} else {
+					// we are not waiting for a value, so its an argument
+					key = arg.substring(1);
+					expectValue = true;
+				}
 			} else {
-				throw new IllegalArgumentException(
-					String.format("Error parsing arguments '%s' on '%s'. Please prefix keys with -- or -.",
-						Arrays.toString(args), args[i]));
+				if (expectValue) {
+					value = arg;
+					expectValue = false;
+				} else {
+					throw new RuntimeException("Error parsing arguments '" + Arrays.toString(args) + "' on '" + arg + "'. Unexpected value. Please prefix values with -- or -.");
+				}
 			}
 
-			if (key.isEmpty()) {
-				throw new IllegalArgumentException(
-					"The input " + Arrays.toString(args) + " contains an empty argument");
+			if (value == null && key == null) {
+				throw new IllegalStateException("Value and key can not be null at the same time");
+			}
+			if (key != null && value == null && !expectValue) {
+				throw new IllegalStateException("Value expected but flag not set");
+			}
+			if (key != null && value != null) {
+				map.put(key, value);
+				key = null;
+				value = null;
+				expectValue = false;
+			}
+			if (key != null && key.length() == 0) {
+				throw new IllegalArgumentException("The input " + Arrays.toString(args) + " contains an empty argument");
 			}
 
-			i += 1; // try to find the value
-
-			if (i >= args.length) {
+			if (key != null && !expectValue) {
 				map.put(key, NO_VALUE_KEY);
-			} else if (NumberUtils.isNumber(args[i])) {
-				map.put(key, args[i]);
-				i += 1;
-			} else if (args[i].startsWith("--") || args[i].startsWith("-")) {
-				// the argument cannot be a negative number because we checked earlier
-				// -> the next argument is a parameter name
-				map.put(key, NO_VALUE_KEY);
-			} else {
-				map.put(key, args[i]);
-				i += 1;
+				key = null;
+				expectValue = false;
 			}
+		}
+		if (key != null) {
+			map.put(key, NO_VALUE_KEY);
 		}
 
 		return fromMap(map);
@@ -459,7 +497,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	// --------------- Internals
 
 	protected void addToDefaults(String key, String value) {
-		final String currentValue = defaultData.get(key);
+		String currentValue = defaultData.get(key);
 		if (currentValue == null) {
 			if (value == null) {
 				value = DEFAULT_UNDEFINED;
@@ -482,7 +520,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 * @return A {@link Configuration}
 	 */
 	public Configuration getConfiguration() {
-		final Configuration conf = new Configuration();
+		Configuration conf = new Configuration();
 		for (Map.Entry<String, String> entry : data.entrySet()) {
 			conf.setString(entry.getKey(), entry.getValue());
 		}
@@ -521,7 +559,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 * @throws IOException If overwrite is not allowed and the file exists
 	 */
 	public void createPropertiesFile(String pathToFile, boolean overwrite) throws IOException {
-		final File file = new File(pathToFile);
+		File file = new File(pathToFile);
 		if (file.exists()) {
 			if (overwrite) {
 				file.delete();
@@ -529,7 +567,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 				throw new RuntimeException("File " + pathToFile + " exists and overwriting is not allowed");
 			}
 		}
-		final Properties defaultProps = new Properties();
+		Properties defaultProps = new Properties();
 		defaultProps.putAll(this.defaultData);
 		try (final OutputStream out = new FileOutputStream(file)) {
 			defaultProps.store(out, "Default file created by Flink's ParameterUtil.createPropertiesFile()");
@@ -550,11 +588,11 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 * @return The Merged {@link ParameterTool}
 	 */
 	public ParameterTool mergeWith(ParameterTool other) {
-		final Map<String, String> resultData = new HashMap<>(data.size() + other.data.size());
+		Map<String, String> resultData = new HashMap<>(data.size() + other.data.size());
 		resultData.putAll(data);
 		resultData.putAll(other.data);
 
-		final ParameterTool ret = new ParameterTool(resultData);
+		ParameterTool ret = new ParameterTool(resultData);
 
 		final HashSet<String> requestedParametersLeft = new HashSet<>(data.keySet());
 		requestedParametersLeft.removeAll(unrequestedParameters);

@@ -1,0 +1,574 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAggregateWithJoin[ALL]">
+    <Resource name="sql">
+      <![CDATA[select c.c_name, sum(l.l_quantity) from customer c, orders o, lineitem l where o.o_orderkey in (  select l_orderkey from lineitem group by l_orderkey having sum(l_quantity) > 300) and c.c_custkey = o.o_custkey and o.o_orderkey = l.l_orderkey group by c.c_name]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[4245948.0], rowcount=[73206.0], isMerge=[true], groupBy=[c_name], select=[c_name, Final_SUM(sum$0) AS EXPR$1])
++- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[4392355.826467467], distribution=[hash[c_name]])
+   +- LocalHashAggregate(resource=[NodeResource{parallelism=800, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[2.5475663793511304E8], rowcount=[4392355.826467467], groupBy=[c_name], select=[c_name, Partial_SUM(l_quantity) AS sum$0])
+      +- Calc(resource=[NodeResource{parallelism=800, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[6.039818105693653E7], select=[c_name, l_quantity])
+         +- HashJoin(shuffleCount=[1], resource=[NodeResource{parallelism=800, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[7.500000000000006E8], rowcount=[6.039818105693653E7], where=[=(o_orderkey, l_orderkey)], join=[c_name, o_orderkey, l_orderkey, l_quantity], joinType=[InnerJoin], build=[left])
+            :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5000000000000013E7], distribution=[hash[o_orderkey]])
+            :  +- Calc(resource=[NodeResource{parallelism=150, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5000000000000013E7], select=[c_name, o_orderkey])
+            :     +- HashJoin(shuffleCount=[1], resource=[NodeResource{parallelism=150, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[4.800000000000004E8], rowcount=[1.5000000000000013E7], where=[=(c_custkey, o_custkey)], join=[c_custkey, c_name, o_orderkey, o_custkey], joinType=[InnerJoin], build=[right])
+            :        :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5E8], distribution=[hash[c_custkey]])
+            :        :  +- Calc(resource=[NodeResource{parallelism=150, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5E8], select=[c_custkey, c_name])
+            :        :     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=150], memCost=[0.0], rowcount=[1.5E8], table=[[builtin, default, customer]], fields=[c_custkey, c_name, c_address, c_nationkey, c_phone, c_acctbal, c_mktsegment, c_comment])
+            :        +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5000000000000013E7], distribution=[hash[o_custkey]])
+            :           +- HashSemiJoin(shuffleCount=[1], resource=[NodeResource{parallelism=800, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[3.5762605056E8], rowcount=[1.5000000000000013E7], where=[=(o_orderkey, l_orderkey)], join=[o_orderkey, o_custkey], joinType=[LeftSemiJoin], build=[right])
+            :              :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5E9], distribution=[hash[o_orderkey]])
+            :              :  +- Calc(resource=[NodeResource{parallelism=1000, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5E9], select=[o_orderkey, o_custkey])
+            :              :     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1000], memCost=[0.0], rowcount=[1.5E9], table=[[builtin, default, orders]], fields=[o_orderkey, o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, o_comment])
+            :              +- Calc(resource=[NodeResource{parallelism=800, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.490108544E7], select=[l_orderkey], where=[>($f1, 300)])
+            :                 +- HashAggregate(resource=[NodeResource{parallelism=800, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=35, preferManagedMem=71, maxManagedMem=470], memCost=[5.960434176E10], rowcount=[1.490108544E9], isMerge=[false], groupBy=[l_orderkey], select=[l_orderkey, SUM(l_quantity) AS $f1])
+            :                    +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[5.999989709E9], distribution=[hash[l_orderkey]])
+            :                       +- Calc(resource=[NodeResource{parallelism=1000, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.999989709E9], select=[l_orderkey, l_quantity])
+            :                          +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1000], memCost=[0.0], rowcount=[5.999989709E9], table=[[builtin, default, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+            +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[5.999989709E9], distribution=[hash[l_orderkey]])
+               +- Calc(resource=[NodeResource{parallelism=1000, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.999989709E9], select=[l_orderkey, l_quantity])
+                  +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1000], memCost=[0.0], rowcount=[5.999989709E9], table=[[builtin, default, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithJoin[NONE]">
+    <Resource name="sql">
+      <![CDATA[select c.c_name, sum(l.l_quantity) from customer c, orders o, lineitem l where o.o_orderkey in (  select l_orderkey from lineitem group by l_orderkey having sum(l_quantity) > 300) and c.c_custkey = o.o_custkey and o.o_orderkey = l.l_orderkey group by c.c_name]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[4245948.0], rowcount=[73206.0], isMerge=[true], groupBy=[c_name], select=[c_name, Final_SUM(sum$0) AS EXPR$1])
++- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[4392355.826467467], distribution=[hash[c_name]])
+   +- LocalHashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[2.5475663793511304E8], rowcount=[4392355.826467467], groupBy=[c_name], select=[c_name, Partial_SUM(l_quantity) AS sum$0])
+      +- Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[6.039818105693653E7], select=[c_name, l_quantity])
+         +- HashJoin(shuffleCount=[1], resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=43, preferManagedMem=47, maxManagedMem=128], memCost=[7.500000000000006E8], rowcount=[6.039818105693653E7], where=[=(o_orderkey, l_orderkey)], join=[c_name, o_orderkey, l_orderkey, l_quantity], joinType=[InnerJoin], build=[left])
+            :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5000000000000013E7], distribution=[hash[o_orderkey]])
+            :  +- Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5000000000000013E7], select=[c_name, o_orderkey])
+            :     +- HashJoin(shuffleCount=[1], resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=43, preferManagedMem=47, maxManagedMem=128], memCost=[4.800000000000004E8], rowcount=[1.5000000000000013E7], where=[=(c_custkey, o_custkey)], join=[c_custkey, c_name, o_orderkey, o_custkey], joinType=[InnerJoin], build=[right])
+            :        :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5E8], distribution=[hash[c_custkey]])
+            :        :  +- Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5E8], select=[c_custkey, c_name])
+            :        :     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=18], memCost=[0.0], rowcount=[1.5E8], table=[[builtin, default, customer]], fields=[c_custkey, c_name, c_address, c_nationkey, c_phone, c_acctbal, c_mktsegment, c_comment])
+            :        +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5000000000000013E7], distribution=[hash[o_custkey]])
+            :           +- HashSemiJoin(shuffleCount=[1], resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=43, preferManagedMem=47, maxManagedMem=128], memCost=[3.5762605056E8], rowcount=[1.5000000000000013E7], where=[=(o_orderkey, l_orderkey)], join=[o_orderkey, o_custkey], joinType=[LeftSemiJoin], build=[right])
+            :              :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5E9], distribution=[hash[o_orderkey]])
+            :              :  +- Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5E9], select=[o_orderkey, o_custkey])
+            :              :     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=18], memCost=[0.0], rowcount=[1.5E9], table=[[builtin, default, orders]], fields=[o_orderkey, o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, o_comment])
+            :              +- Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.490108544E7], select=[l_orderkey], where=[>($f1, 300)])
+            :                 +- HashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[5.960434176E10], rowcount=[1.490108544E9], isMerge=[false], groupBy=[l_orderkey], select=[l_orderkey, SUM(l_quantity) AS $f1])
+            :                    +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[5.999989709E9], distribution=[hash[l_orderkey]])
+            :                       +- Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.999989709E9], select=[l_orderkey, l_quantity])
+            :                          +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=18], memCost=[0.0], rowcount=[5.999989709E9], table=[[builtin, default, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+            +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[5.999989709E9], distribution=[hash[l_orderkey]])
+               +- Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.999989709E9], select=[l_orderkey, l_quantity])
+                  +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=18], memCost=[0.0], rowcount=[5.999989709E9], table=[[builtin, default, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithJoin[ONLY_SOURCE]">
+    <Resource name="sql">
+      <![CDATA[select c.c_name, sum(l.l_quantity) from customer c, orders o, lineitem l where o.o_orderkey in (  select l_orderkey from lineitem group by l_orderkey having sum(l_quantity) > 300) and c.c_custkey = o.o_custkey and o.o_orderkey = l.l_orderkey group by c.c_name]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[4245948.0], rowcount=[73206.0], isMerge=[true], groupBy=[c_name], select=[c_name, Final_SUM(sum$0) AS EXPR$1])
++- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[4392355.826467467], distribution=[hash[c_name]])
+   +- LocalHashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[2.5475663793511304E8], rowcount=[4392355.826467467], groupBy=[c_name], select=[c_name, Partial_SUM(l_quantity) AS sum$0])
+      +- Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[6.039818105693653E7], select=[c_name, l_quantity])
+         +- HashJoin(shuffleCount=[1], resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=43, preferManagedMem=47, maxManagedMem=128], memCost=[7.500000000000006E8], rowcount=[6.039818105693653E7], where=[=(o_orderkey, l_orderkey)], join=[c_name, o_orderkey, l_orderkey, l_quantity], joinType=[InnerJoin], build=[left])
+            :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5000000000000013E7], distribution=[hash[o_orderkey]])
+            :  +- Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5000000000000013E7], select=[c_name, o_orderkey])
+            :     +- HashJoin(shuffleCount=[1], resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=43, preferManagedMem=47, maxManagedMem=128], memCost=[4.800000000000004E8], rowcount=[1.5000000000000013E7], where=[=(c_custkey, o_custkey)], join=[c_custkey, c_name, o_orderkey, o_custkey], joinType=[InnerJoin], build=[right])
+            :        :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5E8], distribution=[hash[c_custkey]])
+            :        :  +- Calc(resource=[NodeResource{parallelism=150, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5E8], select=[c_custkey, c_name])
+            :        :     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=150], memCost=[0.0], rowcount=[1.5E8], table=[[builtin, default, customer]], fields=[c_custkey, c_name, c_address, c_nationkey, c_phone, c_acctbal, c_mktsegment, c_comment])
+            :        +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5000000000000013E7], distribution=[hash[o_custkey]])
+            :           +- HashSemiJoin(shuffleCount=[1], resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=43, preferManagedMem=47, maxManagedMem=128], memCost=[3.5762605056E8], rowcount=[1.5000000000000013E7], where=[=(o_orderkey, l_orderkey)], join=[o_orderkey, o_custkey], joinType=[LeftSemiJoin], build=[right])
+            :              :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5E9], distribution=[hash[o_orderkey]])
+            :              :  +- Calc(resource=[NodeResource{parallelism=1000, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5E9], select=[o_orderkey, o_custkey])
+            :              :     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1000], memCost=[0.0], rowcount=[1.5E9], table=[[builtin, default, orders]], fields=[o_orderkey, o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, o_comment])
+            :              +- Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.490108544E7], select=[l_orderkey], where=[>($f1, 300)])
+            :                 +- HashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[5.960434176E10], rowcount=[1.490108544E9], isMerge=[false], groupBy=[l_orderkey], select=[l_orderkey, SUM(l_quantity) AS $f1])
+            :                    +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[5.999989709E9], distribution=[hash[l_orderkey]])
+            :                       +- Calc(resource=[NodeResource{parallelism=1000, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.999989709E9], select=[l_orderkey, l_quantity])
+            :                          +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1000], memCost=[0.0], rowcount=[5.999989709E9], table=[[builtin, default, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+            +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[5.999989709E9], distribution=[hash[l_orderkey]])
+               +- Calc(resource=[NodeResource{parallelism=1000, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.999989709E9], select=[l_orderkey, l_quantity])
+                  +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1000], memCost=[0.0], rowcount=[5.999989709E9], table=[[builtin, default, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConfigSourceParallelism[ALL]">
+    <Resource name="sql">
+      <![CDATA[SELECT sum(a) as sum_a, c FROM SmallTable3 group by c order by c limit 2]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], select=[sum_a, c])
++- SortLimit(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[16.0], rowcount=[1.0], orderBy=[c ASC], offset=[0], limit=[2], global=[true])
+   +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[single])
+      +- SortLimit(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35], memCost=[16.0], rowcount=[1.0], orderBy=[c ASC], offset=[0], limit=[2], global=[false])
+         +- HashAggregate(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[52.0], rowcount=[1.0], isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a])
+            +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[hash[c]])
+               +- LocalHashAggregate(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[52.0], rowcount=[1.0], groupBy=[c], select=[c, Partial_SUM(a) AS sum$0])
+                  +- Calc(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[10.0], select=[c, a])
+                     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=20], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConfigSourceParallelism[NONE]">
+    <Resource name="sql">
+      <![CDATA[SELECT sum(a) as sum_a, c FROM SmallTable3 group by c order by c limit 2]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], select=[sum_a, c])
++- SortLimit(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[16.0], rowcount=[1.0], orderBy=[c ASC], offset=[0], limit=[2], global=[true])
+   +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[single])
+      +- SortLimit(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[16.0], rowcount=[1.0], orderBy=[c ASC], offset=[0], limit=[2], global=[false])
+         +- HashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[52.0], rowcount=[1.0], isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a])
+            +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[hash[c]])
+               +- LocalHashAggregate(resource=[NodeResource{parallelism=100, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[52.0], rowcount=[1.0], groupBy=[c], select=[c, Partial_SUM(a) AS sum$0])
+                  +- Calc(resource=[NodeResource{parallelism=100, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[10.0], select=[c, a])
+                     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=100], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConfigSourceParallelism[ONLY_SOURCE]">
+    <Resource name="sql">
+      <![CDATA[SELECT sum(a) as sum_a, c FROM SmallTable3 group by c order by c limit 2]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], select=[sum_a, c])
++- SortLimit(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[16.0], rowcount=[1.0], orderBy=[c ASC], offset=[0], limit=[2], global=[true])
+   +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[single])
+      +- SortLimit(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[16.0], rowcount=[1.0], orderBy=[c ASC], offset=[0], limit=[2], global=[false])
+         +- HashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[52.0], rowcount=[1.0], isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a])
+            +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[hash[c]])
+               +- LocalHashAggregate(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[52.0], rowcount=[1.0], groupBy=[c], select=[c, Partial_SUM(a) AS sum$0])
+                  +- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[10.0], select=[c, a])
+                     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEnvParallelism[ALL]">
+    <Resource name="sql">
+      <![CDATA[select c.c_name, sum(l.l_quantity) from customer c, orders o, lineitem l where o.o_orderkey in (  select l_orderkey from lineitem group by l_orderkey having sum(l_quantity) > 300) and c.c_custkey = o.o_custkey and o.o_orderkey = l.l_orderkey group by c.c_name]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[4245948.0], rowcount=[73206.0], isMerge=[true], groupBy=[c_name], select=[c_name, Final_SUM(sum$0) AS EXPR$1])
++- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[4392355.826467467], distribution=[hash[c_name]])
+   +- LocalHashAggregate(resource=[NodeResource{parallelism=800, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[2.5475663793511304E8], rowcount=[4392355.826467467], groupBy=[c_name], select=[c_name, Partial_SUM(l_quantity) AS sum$0])
+      +- Calc(resource=[NodeResource{parallelism=800, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[6.039818105693653E7], select=[c_name, l_quantity])
+         +- HashJoin(shuffleCount=[1], resource=[NodeResource{parallelism=800, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[7.500000000000006E8], rowcount=[6.039818105693653E7], where=[=(o_orderkey, l_orderkey)], join=[c_name, o_orderkey, l_orderkey, l_quantity], joinType=[InnerJoin], build=[left])
+            :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5000000000000013E7], distribution=[hash[o_orderkey]])
+            :  +- Calc(resource=[NodeResource{parallelism=150, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5000000000000013E7], select=[c_name, o_orderkey])
+            :     +- HashJoin(shuffleCount=[1], resource=[NodeResource{parallelism=150, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[4.800000000000004E8], rowcount=[1.5000000000000013E7], where=[=(c_custkey, o_custkey)], join=[c_custkey, c_name, o_orderkey, o_custkey], joinType=[InnerJoin], build=[right])
+            :        :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5E8], distribution=[hash[c_custkey]])
+            :        :  +- Calc(resource=[NodeResource{parallelism=150, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5E8], select=[c_custkey, c_name])
+            :        :     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=150], memCost=[0.0], rowcount=[1.5E8], table=[[builtin, default, customer]], fields=[c_custkey, c_name, c_address, c_nationkey, c_phone, c_acctbal, c_mktsegment, c_comment])
+            :        +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5000000000000013E7], distribution=[hash[o_custkey]])
+            :           +- HashSemiJoin(shuffleCount=[1], resource=[NodeResource{parallelism=800, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[3.5762605056E8], rowcount=[1.5000000000000013E7], where=[=(o_orderkey, l_orderkey)], join=[o_orderkey, o_custkey], joinType=[LeftSemiJoin], build=[right])
+            :              :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5E9], distribution=[hash[o_orderkey]])
+            :              :  +- Calc(resource=[NodeResource{parallelism=1000, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5E9], select=[o_orderkey, o_custkey])
+            :              :     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1000], memCost=[0.0], rowcount=[1.5E9], table=[[builtin, default, orders]], fields=[o_orderkey, o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, o_comment])
+            :              +- Calc(resource=[NodeResource{parallelism=800, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.490108544E7], select=[l_orderkey], where=[>($f1, 300)])
+            :                 +- HashAggregate(resource=[NodeResource{parallelism=800, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=35, preferManagedMem=71, maxManagedMem=470], memCost=[5.960434176E10], rowcount=[1.490108544E9], isMerge=[false], groupBy=[l_orderkey], select=[l_orderkey, SUM(l_quantity) AS $f1])
+            :                    +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[5.999989709E9], distribution=[hash[l_orderkey]])
+            :                       +- Calc(resource=[NodeResource{parallelism=1000, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.999989709E9], select=[l_orderkey, l_quantity])
+            :                          +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1000], memCost=[0.0], rowcount=[5.999989709E9], table=[[builtin, default, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+            +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[5.999989709E9], distribution=[hash[l_orderkey]])
+               +- Calc(resource=[NodeResource{parallelism=1000, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.999989709E9], select=[l_orderkey, l_quantity])
+                  +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1000], memCost=[0.0], rowcount=[5.999989709E9], table=[[builtin, default, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEnvParallelism[NONE]">
+    <Resource name="sql">
+      <![CDATA[select c.c_name, sum(l.l_quantity) from customer c, orders o, lineitem l where o.o_orderkey in (  select l_orderkey from lineitem group by l_orderkey having sum(l_quantity) > 300) and c.c_custkey = o.o_custkey and o.o_orderkey = l.l_orderkey group by c.c_name]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[4245948.0], rowcount=[73206.0], isMerge=[true], groupBy=[c_name], select=[c_name, Final_SUM(sum$0) AS EXPR$1])
++- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[4392355.826467467], distribution=[hash[c_name]])
+   +- LocalHashAggregate(resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[2.5475663793511304E8], rowcount=[4392355.826467467], groupBy=[c_name], select=[c_name, Partial_SUM(l_quantity) AS sum$0])
+      +- Calc(resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[6.039818105693653E7], select=[c_name, l_quantity])
+         +- HashJoin(shuffleCount=[1], resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=43, preferManagedMem=47, maxManagedMem=128], memCost=[7.500000000000006E8], rowcount=[6.039818105693653E7], where=[=(o_orderkey, l_orderkey)], join=[c_name, o_orderkey, l_orderkey, l_quantity], joinType=[InnerJoin], build=[left])
+            :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5000000000000013E7], distribution=[hash[o_orderkey]])
+            :  +- Calc(resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5000000000000013E7], select=[c_name, o_orderkey])
+            :     +- HashJoin(shuffleCount=[1], resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=43, preferManagedMem=47, maxManagedMem=128], memCost=[4.800000000000004E8], rowcount=[1.5000000000000013E7], where=[=(c_custkey, o_custkey)], join=[c_custkey, c_name, o_orderkey, o_custkey], joinType=[InnerJoin], build=[right])
+            :        :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5E8], distribution=[hash[c_custkey]])
+            :        :  +- Calc(resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5E8], select=[c_custkey, c_name])
+            :        :     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=73], memCost=[0.0], rowcount=[1.5E8], table=[[builtin, default, customer]], fields=[c_custkey, c_name, c_address, c_nationkey, c_phone, c_acctbal, c_mktsegment, c_comment])
+            :        +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5000000000000013E7], distribution=[hash[o_custkey]])
+            :           +- HashSemiJoin(shuffleCount=[1], resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=43, preferManagedMem=47, maxManagedMem=128], memCost=[3.5762605056E8], rowcount=[1.5000000000000013E7], where=[=(o_orderkey, l_orderkey)], join=[o_orderkey, o_custkey], joinType=[LeftSemiJoin], build=[right])
+            :              :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5E9], distribution=[hash[o_orderkey]])
+            :              :  +- Calc(resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5E9], select=[o_orderkey, o_custkey])
+            :              :     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=73], memCost=[0.0], rowcount=[1.5E9], table=[[builtin, default, orders]], fields=[o_orderkey, o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, o_comment])
+            :              +- Calc(resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.490108544E7], select=[l_orderkey], where=[>($f1, 300)])
+            :                 +- HashAggregate(resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[5.960434176E10], rowcount=[1.490108544E9], isMerge=[false], groupBy=[l_orderkey], select=[l_orderkey, SUM(l_quantity) AS $f1])
+            :                    +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[5.999989709E9], distribution=[hash[l_orderkey]])
+            :                       +- Calc(resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.999989709E9], select=[l_orderkey, l_quantity])
+            :                          +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=73], memCost=[0.0], rowcount=[5.999989709E9], table=[[builtin, default, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+            +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[5.999989709E9], distribution=[hash[l_orderkey]])
+               +- Calc(resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.999989709E9], select=[l_orderkey, l_quantity])
+                  +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=73], memCost=[0.0], rowcount=[5.999989709E9], table=[[builtin, default, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEnvParallelism[ONLY_SOURCE]">
+    <Resource name="sql">
+      <![CDATA[select c.c_name, sum(l.l_quantity) from customer c, orders o, lineitem l where o.o_orderkey in (  select l_orderkey from lineitem group by l_orderkey having sum(l_quantity) > 300) and c.c_custkey = o.o_custkey and o.o_orderkey = l.l_orderkey group by c.c_name]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[4245948.0], rowcount=[73206.0], isMerge=[true], groupBy=[c_name], select=[c_name, Final_SUM(sum$0) AS EXPR$1])
++- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[4392355.826467467], distribution=[hash[c_name]])
+   +- LocalHashAggregate(resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[2.5475663793511304E8], rowcount=[4392355.826467467], groupBy=[c_name], select=[c_name, Partial_SUM(l_quantity) AS sum$0])
+      +- Calc(resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[6.039818105693653E7], select=[c_name, l_quantity])
+         +- HashJoin(shuffleCount=[1], resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=43, preferManagedMem=47, maxManagedMem=128], memCost=[7.500000000000006E8], rowcount=[6.039818105693653E7], where=[=(o_orderkey, l_orderkey)], join=[c_name, o_orderkey, l_orderkey, l_quantity], joinType=[InnerJoin], build=[left])
+            :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5000000000000013E7], distribution=[hash[o_orderkey]])
+            :  +- Calc(resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5000000000000013E7], select=[c_name, o_orderkey])
+            :     +- HashJoin(shuffleCount=[1], resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=43, preferManagedMem=47, maxManagedMem=128], memCost=[4.800000000000004E8], rowcount=[1.5000000000000013E7], where=[=(c_custkey, o_custkey)], join=[c_custkey, c_name, o_orderkey, o_custkey], joinType=[InnerJoin], build=[right])
+            :        :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5E8], distribution=[hash[c_custkey]])
+            :        :  +- Calc(resource=[NodeResource{parallelism=150, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5E8], select=[c_custkey, c_name])
+            :        :     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=150], memCost=[0.0], rowcount=[1.5E8], table=[[builtin, default, customer]], fields=[c_custkey, c_name, c_address, c_nationkey, c_phone, c_acctbal, c_mktsegment, c_comment])
+            :        +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5000000000000013E7], distribution=[hash[o_custkey]])
+            :           +- HashSemiJoin(shuffleCount=[1], resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=43, preferManagedMem=47, maxManagedMem=128], memCost=[3.5762605056E8], rowcount=[1.5000000000000013E7], where=[=(o_orderkey, l_orderkey)], join=[o_orderkey, o_custkey], joinType=[LeftSemiJoin], build=[right])
+            :              :- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.5E9], distribution=[hash[o_orderkey]])
+            :              :  +- Calc(resource=[NodeResource{parallelism=1000, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.5E9], select=[o_orderkey, o_custkey])
+            :              :     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1000], memCost=[0.0], rowcount=[1.5E9], table=[[builtin, default, orders]], fields=[o_orderkey, o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, o_comment])
+            :              +- Calc(resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.490108544E7], select=[l_orderkey], where=[>($f1, 300)])
+            :                 +- HashAggregate(resource=[NodeResource{parallelism=73, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[5.960434176E10], rowcount=[1.490108544E9], isMerge=[false], groupBy=[l_orderkey], select=[l_orderkey, SUM(l_quantity) AS $f1])
+            :                    +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[5.999989709E9], distribution=[hash[l_orderkey]])
+            :                       +- Calc(resource=[NodeResource{parallelism=1000, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.999989709E9], select=[l_orderkey, l_quantity])
+            :                          +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1000], memCost=[0.0], rowcount=[5.999989709E9], table=[[builtin, default, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+            +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[5.999989709E9], distribution=[hash[l_orderkey]])
+               +- Calc(resource=[NodeResource{parallelism=1000, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.999989709E9], select=[l_orderkey, l_quantity])
+                  +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1000], memCost=[0.0], rowcount=[5.999989709E9], table=[[builtin, default, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLimitPushDown[ALL]">
+    <Resource name="sql">
+      <![CDATA[select * from lineitem limit 1]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Limit(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], offset=[0], limit=[1], global=[true])
++- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[single])
+   +- Limit(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], offset=[0], limit=[1], global=[false])
+      +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1], memCost=[0.0], rowcount=[5.999989709E9], table=[[builtin, default, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLimitPushDown[NONE]">
+    <Resource name="sql">
+      <![CDATA[select * from lineitem limit 1]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Limit(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], offset=[0], limit=[1], global=[true])
++- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[single])
+   +- Limit(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], offset=[0], limit=[1], global=[false])
+      +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1], memCost=[0.0], rowcount=[5.999989709E9], table=[[builtin, default, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLimitPushDown[ONLY_SOURCE]">
+    <Resource name="sql">
+      <![CDATA[select * from lineitem limit 1]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Limit(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], offset=[0], limit=[1], global=[true])
++- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[single])
+   +- Limit(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], offset=[0], limit=[1], global=[false])
+      +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1], memCost=[0.0], rowcount=[5.999989709E9], table=[[builtin, default, lineitem]], fields=[l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRangePartition[ALL]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Table5 where d < 100 order by e]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Sort(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[440.0], rowcount=[5.0], orderBy=[e ASC])
++- Exchange(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.0], distribution=[range[e ASC]])
+   +- Calc(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.0], select=[d, e, f, g, h], where=[<(d, 100)])
+      +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=20], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, Table5]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRangePartition[NONE]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Table5 where d < 100 order by e]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Sort(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=53, preferManagedMem=57, maxManagedMem=57], memCost=[440.0], rowcount=[5.0], orderBy=[e ASC])
++- Exchange(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.0], distribution=[range[e ASC]])
+   +- Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.0], select=[d, e, f, g, h], where=[<(d, 100)])
+      +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=18], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, Table5]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRangePartition[ONLY_SOURCE]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM Table5 where d < 100 order by e]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Sort(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=53, preferManagedMem=57, maxManagedMem=57], memCost=[440.0], rowcount=[5.0], orderBy=[e ASC])
++- Exchange(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.0], distribution=[range[e ASC]])
+   +- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[5.0], select=[d, e, f, g, h], where=[<(d, 100)])
+      +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, Table5]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortLimit[ALL]">
+    <Resource name="sql">
+      <![CDATA[SELECT sum(a) as sum_a, c FROM SmallTable3 group by c order by c limit 2]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], select=[sum_a, c])
++- SortLimit(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[16.0], rowcount=[1.0], orderBy=[c ASC], offset=[0], limit=[2], global=[true])
+   +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[single])
+      +- SortLimit(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35], memCost=[16.0], rowcount=[1.0], orderBy=[c ASC], offset=[0], limit=[2], global=[false])
+         +- HashAggregate(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[52.0], rowcount=[1.0], isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a])
+            +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[hash[c]])
+               +- LocalHashAggregate(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[52.0], rowcount=[1.0], groupBy=[c], select=[c, Partial_SUM(a) AS sum$0])
+                  +- Calc(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[10.0], select=[c, a])
+                     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=20], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSourcePartitionMaxNum[NONE]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM SmallTable3]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=18], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortLimit[NONE]">
+    <Resource name="sql">
+      <![CDATA[SELECT sum(a) as sum_a, c FROM SmallTable3 group by c order by c limit 2]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], select=[sum_a, c])
++- SortLimit(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[16.0], rowcount=[1.0], orderBy=[c ASC], offset=[0], limit=[2], global=[true])
+   +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[single])
+      +- SortLimit(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[16.0], rowcount=[1.0], orderBy=[c ASC], offset=[0], limit=[2], global=[false])
+         +- HashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[52.0], rowcount=[1.0], isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a])
+            +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[hash[c]])
+               +- LocalHashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[52.0], rowcount=[1.0], groupBy=[c], select=[c, Partial_SUM(a) AS sum$0])
+                  +- Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[10.0], select=[c, a])
+                     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=18], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortLimit[ONLY_SOURCE]">
+    <Resource name="sql">
+      <![CDATA[SELECT sum(a) as sum_a, c FROM SmallTable3 group by c order by c limit 2]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], select=[sum_a, c])
++- SortLimit(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[16.0], rowcount=[1.0], orderBy=[c ASC], offset=[0], limit=[2], global=[true])
+   +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[single])
+      +- SortLimit(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[16.0], rowcount=[1.0], orderBy=[c ASC], offset=[0], limit=[2], global=[false])
+         +- HashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[52.0], rowcount=[1.0], isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a])
+            +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[hash[c]])
+               +- LocalHashAggregate(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[52.0], rowcount=[1.0], groupBy=[c], select=[c, Partial_SUM(a) AS sum$0])
+                  +- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[10.0], select=[c, a])
+                     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSourcePartitionMaxNum[ALL]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM SmallTable3]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSourcePartitionMaxNum[ONLY_SOURCE]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM SmallTable3]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubsectionOptimization[ALL]">
+    <Resource name="planAfter">
+      <![CDATA[Calc(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], select=[sum_a], reuse_id=[1])
++- HashAggregate(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[52.0], rowcount=[1.0], isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a])
+   +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[hash[c]])
+      +- LocalHashAggregate(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[52.0], rowcount=[1.0], groupBy=[c], select=[c, Partial_SUM(a) AS sum$0])
+         +- Calc(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[10.0], select=[c, a])
+            +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=20], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+
+Sink(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], fields=[total_sum])
++- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], select=[TMP_0 AS total_sum])
+   +- HashAggregate(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[4.0], rowcount=[1.0], isMerge=[true], select=[Final_SUM(sum$0) AS TMP_0])
+      +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[20.0], distribution=[single])
+         +- LocalHashAggregate(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[4.0], rowcount=[20.0], select=[Partial_SUM(sum_a) AS sum$0])
+            +- Reused(reference_id=[1])
+
+Sink(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], fields=[total_min])
++- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], select=[TMP_1 AS total_min])
+   +- HashAggregate(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[4.0], rowcount=[1.0], isMerge=[true], select=[Final_MIN(min$0) AS TMP_1])
+      +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[20.0], distribution=[single])
+         +- LocalHashAggregate(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[4.0], rowcount=[20.0], select=[Partial_MIN(sum_a) AS min$0])
+            +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubsectionOptimization[NONE]">
+    <Resource name="planAfter">
+      <![CDATA[Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], select=[sum_a], reuse_id=[1])
++- HashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[52.0], rowcount=[1.0], isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a])
+   +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[hash[c]])
+      +- LocalHashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[52.0], rowcount=[1.0], groupBy=[c], select=[c, Partial_SUM(a) AS sum$0])
+         +- Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[10.0], select=[c, a])
+            +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=18], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+
+Sink(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], fields=[total_sum])
++- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], select=[TMP_0 AS total_sum])
+   +- HashAggregate(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[4.0], rowcount=[1.0], isMerge=[true], select=[Final_SUM(sum$0) AS TMP_0])
+      +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[20.0], distribution=[single])
+         +- LocalHashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[4.0], rowcount=[20.0], select=[Partial_SUM(sum_a) AS sum$0])
+            +- Reused(reference_id=[1])
+
+Sink(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], fields=[total_min])
++- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], select=[TMP_1 AS total_min])
+   +- HashAggregate(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[4.0], rowcount=[1.0], isMerge=[true], select=[Final_MIN(min$0) AS TMP_1])
+      +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[20.0], distribution=[single])
+         +- LocalHashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[4.0], rowcount=[20.0], select=[Partial_MIN(sum_a) AS min$0])
+            +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionQuery[NONE]">
+    <Resource name="sql">
+      <![CDATA[SELECT sum(a) as sum_a, g FROM (SELECT a, b, c FROM SmallTable3 UNION ALL SELECT a, b, c FROM Table3), Table5 WHERE b = e group by g]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.7129264753527287], select=[sum_a, g])
++- HashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[89.0721767183419], rowcount=[1.7129264753527287], isMerge=[true], groupBy=[g], select=[g, Final_SUM(sum$0) AS sum_a])
+   +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.7129264753527287], distribution=[hash[g]])
+      +- LocalHashAggregate(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[89.0721767183419], rowcount=[1.7129264753527287], groupBy=[g], select=[g, Partial_SUM(a) AS sum$0])
+         +- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[18.0], select=[g, a])
+            +- HashJoin(shuffleCount=[1074], resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=43, preferManagedMem=47, maxManagedMem=128], memCost=[472560.0], rowcount=[18.0], where=[=(b, e)], join=[a, b, e, g], joinType=[InnerJoin], isBroadcast=[true], build=[right])
+               :- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[110.0], select=[a, b])
+               :  +- Union(resource=[NodeResource{], memCost=[0.0], rowcount=[110.0], all=[true], union=[a, b, c])
+               :     :- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+               :     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1], memCost=[0.0], rowcount=[100.0], table=[[builtin, default, Table3]], fields=[a, b, c])
+               +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[10.0], distribution=[broadcast])
+                  +- Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[10.0], select=[e, g])
+                     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=18], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, Table5]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubsectionOptimization[ONLY_SOURCE]">
+    <Resource name="planAfter">
+      <![CDATA[Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], select=[sum_a], reuse_id=[1])
++- HashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[52.0], rowcount=[1.0], isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a])
+   +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], distribution=[hash[c]])
+      +- LocalHashAggregate(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[52.0], rowcount=[1.0], groupBy=[c], select=[c, Partial_SUM(a) AS sum$0])
+         +- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[10.0], select=[c, a])
+            +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+
+Sink(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], fields=[total_sum])
++- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], select=[TMP_0 AS total_sum])
+   +- HashAggregate(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[4.0], rowcount=[1.0], isMerge=[true], select=[Final_SUM(sum$0) AS TMP_0])
+      +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[20.0], distribution=[single])
+         +- LocalHashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[4.0], rowcount=[20.0], select=[Partial_SUM(sum_a) AS sum$0])
+            +- Reused(reference_id=[1])
+
+Sink(resource=[NodeResource{], memCost=[0.0], rowcount=[1.0], fields=[total_min])
++- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.0], select=[TMP_1 AS total_min])
+   +- HashAggregate(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[4.0], rowcount=[1.0], isMerge=[true], select=[Final_MIN(min$0) AS TMP_1])
+      +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[20.0], distribution=[single])
+         +- LocalHashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[4.0], rowcount=[20.0], select=[Partial_MIN(sum_a) AS min$0])
+            +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionQuery[ONLY_SOURCE]">
+    <Resource name="sql">
+      <![CDATA[SELECT sum(a) as sum_a, g FROM (SELECT a, b, c FROM SmallTable3 UNION ALL SELECT a, b, c FROM Table3), Table5 WHERE b = e group by g]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.7129264753527287], select=[sum_a, g])
++- HashAggregate(resource=[NodeResource{parallelism=18, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[89.0721767183419], rowcount=[1.7129264753527287], isMerge=[true], groupBy=[g], select=[g, Final_SUM(sum$0) AS sum_a])
+   +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.7129264753527287], distribution=[hash[g]])
+      +- LocalHashAggregate(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=33, preferManagedMem=64, maxManagedMem=128], memCost=[89.0721767183419], rowcount=[1.7129264753527287], groupBy=[g], select=[g, Partial_SUM(a) AS sum$0])
+         +- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[18.0], select=[g, a])
+            +- HashJoin(shuffleCount=[1074], resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=43, preferManagedMem=47, maxManagedMem=128], memCost=[472560.0], rowcount=[18.0], where=[=(b, e)], join=[a, b, e, g], joinType=[InnerJoin], isBroadcast=[true], build=[right])
+               :- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[110.0], select=[a, b])
+               :  +- Union(resource=[NodeResource{], memCost=[0.0], rowcount=[110.0], all=[true], union=[a, b, c])
+               :     :- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+               :     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1], memCost=[0.0], rowcount=[100.0], table=[[builtin, default, Table3]], fields=[a, b, c])
+               +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[10.0], distribution=[broadcast])
+                  +- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[10.0], select=[e, g])
+                     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, Table5]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionQuery[ALL]">
+    <Resource name="sql">
+      <![CDATA[SELECT sum(a) as sum_a, g FROM (SELECT a, b, c FROM SmallTable3 UNION ALL SELECT a, b, c FROM Table3), Table5 WHERE b = e group by g]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[1.7129264753527287], select=[sum_a, g])
++- HashAggregate(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[89.0721767183419], rowcount=[1.7129264753527287], isMerge=[true], groupBy=[g], select=[g, Final_SUM(sum$0) AS sum_a])
+   +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[1.7129264753527287], distribution=[hash[g]])
+      +- LocalHashAggregate(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[89.0721767183419], rowcount=[1.7129264753527287], groupBy=[g], select=[g, Partial_SUM(a) AS sum$0])
+         +- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[18.0], select=[g, a])
+            +- HashJoin(shuffleCount=[1074], resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35, reservedManagedMem=32, preferManagedMem=32, maxManagedMem=470], memCost=[472560.0], rowcount=[18.0], where=[=(b, e)], join=[a, b, e, g], joinType=[InnerJoin], isBroadcast=[true], build=[right])
+               :- Calc(resource=[NodeResource{parallelism=1, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[110.0], select=[a, b])
+               :  +- Union(resource=[NodeResource{], memCost=[0.0], rowcount=[110.0], all=[true], union=[a, b, c])
+               :     :- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+               :     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=1], memCost=[0.0], rowcount=[100.0], table=[[builtin, default, Table3]], fields=[a, b, c])
+               +- Exchange(resource=[NodeResource{], memCost=[0.0], rowcount=[10.0], distribution=[broadcast])
+                  +- Calc(resource=[NodeResource{parallelism=20, cpu=0.3, heapMem=46, directMem=35], memCost=[0.0], rowcount=[10.0], select=[e, g])
+                     +- TableSourceScan(sourceRes=[ResourceSpec: {cpu=0.3, heap=52, direct=24}], conversionRes=[ResourceSpec: {cpu=0.3, heap=46, direct=35}], resource=[NodeResource{parallelism=20], memCost=[0.0], rowcount=[10.0], table=[[builtin, default, Table5]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -195,6 +195,16 @@ Custom:
 - `addSource` - Attach a new source function. For example, to read from Apache Kafka you can use
     `addSource(new FlinkKafkaConsumer08<>(...))`. See [connectors]({{ site.baseurl }}/dev/connectors/index.html) for more details.
 
+SourceV2:
+
+- Currently we introduce a new source interface named *SourceV2*.
+The main reason of this is that current implementation of DataStream source does not work well with complex chain structure.
+See [Tasks and Operator Chains]({{ site.baseurl }}/concepts/runtime.html#tasks-and-operator-chains) for more details.
+- You can use V2 interface with `streamExecutionEnvironment.addSourceV2(sourceFunctionV2)`.
+- We have not migrated all predefined sources to V2 yet.
+And the *SourceV2* may be refactored later since there is a proposal introduced in Flink community.
+See [FLIP-27](https://cwiki.apache.org/confluence/display/FLINK/FLIP-27%3A+Refactor+Source+Interface) for more details.
+
 </div>
 
 <div data-lang="scala" markdown="1">
@@ -252,6 +262,16 @@ Custom:
 
 - `addSource` - Attach a new source function. For example, to read from Apache Kafka you can use
     `addSource(new FlinkKafkaConsumer08<>(...))`. See [connectors]({{ site.baseurl }}/dev/connectors/) for more details.
+
+SourceV2:
+
+- Currently we introduce a new source interface named *SourceV2*.
+The main reason of this is that current implementation of DataStream source does not work well with complex chain structure.
+See [Tasks and Operator Chains]({{ site.baseurl }}/concepts/runtime.html#tasks-and-operator-chains) for more details.
+- You can use V2 interface with `streamExecutionEnvironment.addSourceV2(sourceFunctionV2)`.
+- We have not migrated all predefined sources to V2 yet.
+And the *SourceV2* may be refactored later since there is a proposal introduced in Flink community.
+See [FLIP-27](https://cwiki.apache.org/confluence/display/FLINK/FLIP-27%3A+Refactor+Source+Interface) for more details.
 
 </div>
 </div>
@@ -484,7 +504,7 @@ env.generateSequence(1,10).map(new MyMapper()).setBufferTimeout(timeoutMillis);
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val env: LocalStreamEnvironment = StreamExecutionEnvironment.createLocalEnvironment
+val env = StreamExecutionEnvironment.createLocalEnvironment()
 env.setBufferTimeout(timeoutMillis)
 
 env.generateSequence(1,10).map(myMap).setBufferTimeout(timeoutMillis)

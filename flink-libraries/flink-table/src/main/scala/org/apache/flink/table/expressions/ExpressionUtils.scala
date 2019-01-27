@@ -21,12 +21,11 @@ package org.apache.flink.table.expressions
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInteger, Long => JLong, Short => JShort}
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
+import java.time.Duration
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.streaming.api.windowing.time.{Time => FlinkTime}
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
+import org.apache.flink.table.api.types.{DataTypes, InternalType}
 
 object ExpressionUtils {
   /**
@@ -35,70 +34,87 @@ object ExpressionUtils {
     * @param expr The expression which caller is interested about result type
     * @return     The result type of Expression
     */
-  def getResultType(expr: Expression): TypeInformation[_] = {
+  def getResultType(expr: Expression): InternalType = {
     expr.resultType
   }
 
   private[flink] def isTimeIntervalLiteral(expr: Expression): Boolean = expr match {
-    case Literal(_, TimeIntervalTypeInfo.INTERVAL_MILLIS) => true
+    case Literal(_, DataTypes.INTERVAL_MILLIS) => true
     case _ => false
   }
 
   private[flink] def isRowCountLiteral(expr: Expression): Boolean = expr match {
-    case Literal(_, RowIntervalTypeInfo.INTERVAL_ROWS) => true
+    case Literal(_, DataTypes.INTERVAL_ROWS) => true
     case _ => false
   }
 
-  private[flink] def isTimeAttribute(expr: Expression): Boolean = expr match {
-    case r: ResolvedFieldReference if FlinkTypeFactory.isTimeIndicatorType(r.resultType) => true
-    case _ => false
-  }
+  private[flink] def isTimeAttribute(expr: Expression): Boolean =
+    isRowtimeAttribute(expr) || isProctimeAttribute(expr)
 
   private[flink] def isRowtimeAttribute(expr: Expression): Boolean = expr match {
-    case r: ResolvedFieldReference if FlinkTypeFactory.isRowtimeIndicatorType(r.resultType) => true
+    case r: ResolvedFieldReference if r.resultType == DataTypes.ROWTIME_INDICATOR => true
     case _ => false
   }
 
   private[flink] def isProctimeAttribute(expr: Expression): Boolean = expr match {
-    case r: ResolvedFieldReference if FlinkTypeFactory.isProctimeIndicatorType(r.resultType) =>
-      true
+    case r: ResolvedFieldReference if r.resultType == DataTypes.PROCTIME_INDICATOR => true
+    case _: Proctime => true
     case _ => false
   }
 
   private[flink] def toTime(expr: Expression): FlinkTime = expr match {
-    case Literal(value: Long, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
+    case Literal(value: Long, DataTypes.INTERVAL_MILLIS) =>
       FlinkTime.milliseconds(value)
     case _ => throw new IllegalArgumentException()
   }
 
+  private[flink] def toDuration(expr: Expression): Duration = expr match {
+    case Literal(value: Long, DataTypes.INTERVAL_MILLIS) =>
+      Duration.ofMillis(value)
+    case _ => throw new IllegalArgumentException()
+  }
+
   private[flink] def toLong(expr: Expression): Long = expr match {
-    case Literal(value: Long, RowIntervalTypeInfo.INTERVAL_ROWS) => value
+    case Literal(value: Long, DataTypes.INTERVAL_ROWS) => value
     case _ => throw new IllegalArgumentException()
   }
 
   private[flink] def toMonthInterval(expr: Expression, multiplier: Int): Expression = expr match {
-    case Literal(value: Int, BasicTypeInfo.INT_TYPE_INFO) =>
-      Literal(value * multiplier, TimeIntervalTypeInfo.INTERVAL_MONTHS)
+    case Literal(value: Int, DataTypes.INT) =>
+      Literal(value * multiplier, DataTypes.INTERVAL_MONTHS)
     case _ =>
-      Cast(Mul(expr, Literal(multiplier)), TimeIntervalTypeInfo.INTERVAL_MONTHS)
+      Cast(Mul(expr, Literal(multiplier)), DataTypes.INTERVAL_MONTHS)
   }
 
   private[flink] def toMilliInterval(expr: Expression, multiplier: Long): Expression = expr match {
-    case Literal(value: Int, BasicTypeInfo.INT_TYPE_INFO) =>
-      Literal(value * multiplier, TimeIntervalTypeInfo.INTERVAL_MILLIS)
-    case Literal(value: Long, BasicTypeInfo.LONG_TYPE_INFO) =>
-      Literal(value * multiplier, TimeIntervalTypeInfo.INTERVAL_MILLIS)
+    case Literal(value: Int, DataTypes.INT) =>
+      Literal(value * multiplier, DataTypes.INTERVAL_MILLIS)
+    case Literal(value: Long, DataTypes.LONG) =>
+      Literal(value * multiplier, DataTypes.INTERVAL_MILLIS)
     case _ =>
-      Cast(Mul(expr, Literal(multiplier)), TimeIntervalTypeInfo.INTERVAL_MILLIS)
+      Cast(Mul(expr, Literal(multiplier)), DataTypes.INTERVAL_MILLIS)
   }
 
   private[flink] def toRowInterval(expr: Expression): Expression = expr match {
-    case Literal(value: Int, BasicTypeInfo.INT_TYPE_INFO) =>
-      Literal(value.toLong, RowIntervalTypeInfo.INTERVAL_ROWS)
-    case Literal(value: Long, BasicTypeInfo.LONG_TYPE_INFO) =>
-      Literal(value, RowIntervalTypeInfo.INTERVAL_ROWS)
+    case Literal(value: Int, DataTypes.INT) =>
+      Literal(value.toLong, DataTypes.INTERVAL_ROWS)
+    case Literal(value: Long, DataTypes.LONG) =>
+      Literal(value, DataTypes.INTERVAL_ROWS)
     case _ =>
       throw new IllegalArgumentException("Invalid value for row interval literal.")
+  }
+
+  private[flink] def toRangeInterval(expr: Expression): Expression = expr match {
+    case Literal(value: Int, DataTypes.INT) =>
+      Literal(value.toLong, DataTypes.INTERVAL_RANGE)
+    case Literal(value: Long, DataTypes.LONG) =>
+      Literal(value, DataTypes.INTERVAL_RANGE)
+    case Literal(value: Float, DataTypes.FLOAT) =>
+      Literal(value, DataTypes.INTERVAL_RANGE)
+    case Literal(value: Double, DataTypes.DOUBLE) =>
+      Literal(value, DataTypes.INTERVAL_RANGE)
+    case _ =>
+      throw new IllegalArgumentException("Invalid value for range interval literal.")
   }
 
   private[flink] def convertArray(array: Array[_]): Expression = {

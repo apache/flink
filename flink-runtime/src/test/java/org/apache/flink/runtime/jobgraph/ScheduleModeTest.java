@@ -18,10 +18,16 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.schedule.GraphManagerPlugin;
+import org.apache.flink.runtime.schedule.GraphManagerPluginFactory;
+import org.apache.flink.runtime.schedule.SchedulingConfig;
+import org.apache.flink.runtime.schedule.VertexScheduler;
 import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 public class ScheduleModeTest {
 
@@ -30,7 +36,18 @@ public class ScheduleModeTest {
 	 */
 	@Test
 	public void testAllowLazyDeployment() throws Exception {
-		assertTrue(ScheduleMode.LAZY_FROM_SOURCES.allowLazyDeployment());
-		assertFalse(ScheduleMode.EAGER.allowLazyDeployment());
+		GraphManagerPlugin graphManagerPlugin;
+
+		Configuration conf = new Configuration();
+		SchedulingConfig config = new SchedulingConfig(conf, this.getClass().getClassLoader());
+		conf.setString(ScheduleMode.class.getName(), ScheduleMode.LAZY_FROM_SOURCES.toString());
+		graphManagerPlugin = GraphManagerPluginFactory.createGraphManagerPlugin(conf, this.getClass().getClassLoader());
+		graphManagerPlugin.open(mock(VertexScheduler.class), mock(JobGraph.class), config);
+		assertTrue(graphManagerPlugin.allowLazyDeployment());
+
+		conf.setString(ScheduleMode.class.getName(), ScheduleMode.EAGER.toString());
+		graphManagerPlugin = GraphManagerPluginFactory.createGraphManagerPlugin(conf, this.getClass().getClassLoader());
+		graphManagerPlugin.open(mock(VertexScheduler.class), mock(JobGraph.class), config);
+		assertFalse(graphManagerPlugin.allowLazyDeployment());
 	}
 }

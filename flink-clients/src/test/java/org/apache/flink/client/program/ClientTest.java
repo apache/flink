@@ -60,9 +60,6 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.UUID;
 
-import scala.concurrent.Await;
-import scala.concurrent.duration.Duration;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
@@ -117,8 +114,8 @@ public class ClientTest extends TestLogger {
 	public void shutDownActorSystem() {
 		if (jobManagerSystem != null) {
 			try {
-				jobManagerSystem.terminate();
-				Await.ready(jobManagerSystem.whenTerminated(), Duration.Inf());
+				jobManagerSystem.shutdown();
+				jobManagerSystem.awaitTermination();
 			} catch (Exception e) {
 				e.printStackTrace();
 				fail(e.getMessage());
@@ -209,7 +206,7 @@ public class ClientTest extends TestLogger {
 
 		StandaloneClusterClient out = new StandaloneClusterClient(config);
 		out.setDetached(true);
-		JobSubmissionResult result = out.run(program.getPlanWithJars(), 1);
+		JobSubmissionResult result = out.run(program.getPlanWithJars(), 1, false);
 
 		assertNotNull(result);
 
@@ -229,7 +226,7 @@ public class ClientTest extends TestLogger {
 		out.setDetached(true);
 
 		try {
-			out.run(program.getPlanWithJars(), 1);
+			out.run(program.getPlanWithJars(), 1, false);
 			fail("This should fail with an exception");
 		}
 		catch (ProgramInvocationException e) {

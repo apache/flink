@@ -22,12 +22,10 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
+import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
@@ -620,7 +618,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 	//  utilities
 	// ------------------------------------------------------------------------
 
-	private ExecutionGraph createExecutionGraph(JobGraph jobGraph) throws JobException, JobExecutionException {
+	private ExecutionGraph createExecutionGraph(JobGraph jobGraph) throws Exception {
 		// configure the pipelined failover strategy
 		final Configuration jobManagerConfig = new Configuration();
 		jobManagerConfig.setString(
@@ -628,7 +626,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 				FailoverStrategyLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME);
 
 		final Time timeout = Time.seconds(10L);
-		return ExecutionGraphBuilder.buildGraph(
+		return ExecutionGraphTestUtils.createExecutionGraph(
 			null,
 			jobGraph,
 			jobManagerConfig,

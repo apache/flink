@@ -19,14 +19,16 @@
 package org.apache.flink.orc;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.orc.OrcRowInputFormat.Predicate;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.types.DataType;
+import org.apache.flink.table.api.types.DataTypes;
+import org.apache.flink.table.api.types.DecimalType;
+import org.apache.flink.table.api.types.InternalType;
+import org.apache.flink.table.api.types.TypeConverters;
 import org.apache.flink.table.expressions.Attribute;
 import org.apache.flink.table.expressions.BinaryComparison;
 import org.apache.flink.table.expressions.EqualTo;
@@ -42,6 +44,7 @@ import org.apache.flink.table.expressions.Not;
 import org.apache.flink.table.expressions.NotEqualTo;
 import org.apache.flink.table.expressions.Or;
 import org.apache.flink.table.expressions.UnaryExpression;
+import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.sources.BatchTableSource;
 import org.apache.flink.table.sources.FilterableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
@@ -49,9 +52,10 @@ import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.calcite.tools.RelBuilder;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
 import org.apache.orc.TypeDescription;
+import org.apache.orc.storage.ql.io.sarg.PredicateLeaf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,12 +79,15 @@ import java.util.List;
  *   .build();
  *
  * tEnv.registerTableSource("orcTable", orcSrc);
- * Table res = tableEnv.sqlQuery("SELECT * FROM orcTable");
+ * Table res = tableEnv.sql("SELECT * FROM orcTable");
  * }
  * </pre>
  */
+// Deprecate for OrcVectorizedColumnRowTableSource, please use
+// OrcVectorizedColumnRowTableSource instead.
+@Deprecated
 public class OrcTableSource
-	implements BatchTableSource<Row>, ProjectableTableSource<Row>, FilterableTableSource<Row> {
+	implements BatchTableSource<Row>, ProjectableTableSource, FilterableTableSource {
 
 	private static final Logger LOG = LoggerFactory.getLogger(OrcTableSource.class);
 
@@ -148,12 +155,14 @@ public class OrcTableSource
 		// create a TableSchema that corresponds to the ORC schema
 		this.tableSchema = new TableSchema(
 			typeInfoFromSchema.getFieldNames(),
-			typeInfoFromSchema.getFieldTypes()
+			Arrays.stream(typeInfoFromSchema.getFieldTypes())
+					.map(TypeConverters::createInternalTypeFromTypeInfo)
+					.toArray(InternalType[]::new)
 		);
 	}
 
 	@Override
-	public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
+	public DataStream<Row> getBoundedStream(StreamExecutionEnvironment execEnv) {
 		OrcRowInputFormat orcIF = buildOrcInputFormat();
 		orcIF.setNestedFileEnumeration(recursiveEnumeration);
 		if (selectedFields != null) {
@@ -164,7 +173,7 @@ public class OrcTableSource
 				orcIF.addPredicate(pred);
 			}
 		}
-		return execEnv.createInput(orcIF).name(explainSource());
+		return execEnv.createInput(orcIF, typeInfo, explainSource());
 	}
 
 	@VisibleForTesting
@@ -173,8 +182,8 @@ public class OrcTableSource
 	}
 
 	@Override
-	public TypeInformation<Row> getReturnType() {
-		return typeInfo;
+	public DataType getReturnType() {
+		return TypeConverters.createInternalTypeFromTypeInfo(typeInfo);
 	}
 
 	@Override
@@ -183,13 +192,13 @@ public class OrcTableSource
 	}
 
 	@Override
-	public TableSource<Row> projectFields(int[] selectedFields) {
+	public TableSource projectFields(int[] selectedFields) {
 		// create a copy of the OrcTableSouce with new selected fields
 		return new OrcTableSource(path, orcSchema, orcConfig, batchSize, recursiveEnumeration, selectedFields, predicates);
 	}
 
 	@Override
-	public TableSource<Row> applyPredicate(List<Expression> predicates) {
+	public TableSource applyPredicate(List<Expression> predicates) {
 		ArrayList<Predicate> orcPredicates = new ArrayList<>();
 
 		// we do not remove any predicates from the list because ORC does not fully apply predicates
@@ -212,8 +221,18 @@ public class OrcTableSource
 	}
 
 	@Override
+	public void setRelBuilder(RelBuilder relBuilder) {
+
+	}
+
+	@Override
 	public String explainSource() {
 		return "OrcFile[path=" + path + ", schema=" + orcSchema + ", filter=" + predicateString() + "]";
+	}
+
+	@Override
+	public TableStats getTableStats() {
+		return null;
 	}
 
 	private String predicateString() {
@@ -394,24 +413,24 @@ public class OrcTableSource
 		}
 	}
 
-	private PredicateLeaf.Type toOrcType(TypeInformation<?> type) {
-		if (type == BasicTypeInfo.BYTE_TYPE_INFO ||
-			type == BasicTypeInfo.SHORT_TYPE_INFO ||
-			type == BasicTypeInfo.INT_TYPE_INFO ||
-			type == BasicTypeInfo.LONG_TYPE_INFO) {
+	private PredicateLeaf.Type toOrcType(InternalType type) {
+		if (type == DataTypes.BYTE ||
+			type == DataTypes.SHORT ||
+			type == DataTypes.INT ||
+			type == DataTypes.LONG) {
 			return PredicateLeaf.Type.LONG;
-		} else if (type == BasicTypeInfo.FLOAT_TYPE_INFO ||
-			type == BasicTypeInfo.DOUBLE_TYPE_INFO) {
+		} else if (type == DataTypes.FLOAT ||
+			type == DataTypes.DOUBLE) {
 			return PredicateLeaf.Type.FLOAT;
-		} else if (type == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
+		} else if (type == DataTypes.BOOLEAN) {
 			return PredicateLeaf.Type.BOOLEAN;
-		} else if (type == BasicTypeInfo.STRING_TYPE_INFO) {
+		} else if (type == DataTypes.STRING) {
 			return PredicateLeaf.Type.STRING;
-		} else if (type == SqlTimeTypeInfo.TIMESTAMP) {
+		} else if (type == DataTypes.TIMESTAMP) {
 			return PredicateLeaf.Type.TIMESTAMP;
-		} else if (type == SqlTimeTypeInfo.DATE) {
+		} else if (type == DataTypes.DATE) {
 			return PredicateLeaf.Type.DATE;
-		} else if (type == BasicTypeInfo.BIG_DEC_TYPE_INFO) {
+		} else if (type == DecimalType.SYSTEM_DEFAULT) {
 			return PredicateLeaf.Type.DECIMAL;
 		} else {
 			// unsupported type

@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -50,19 +49,14 @@ public abstract class HeapStateBackendTestBase {
 	}
 
 	public <K> HeapKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer) throws Exception {
-		final KeyGroupRange keyGroupRange = new KeyGroupRange(0, 15);
-		final int numKeyGroups = keyGroupRange.getNumberOfKeyGroups();
-
 		return new HeapKeyedStateBackend<>(
 			mock(TaskKvStateRegistry.class),
 			keySerializer,
 			HeapStateBackendTestBase.class.getClassLoader(),
-			numKeyGroups,
-			keyGroupRange,
+			16,
+			new KeyGroupRange(0, 15),
 			async,
 			new ExecutionConfig(),
-			TestLocalRecoveryConfig.disabled(),
-			new HeapPriorityQueueSetFactory(keyGroupRange, numKeyGroups, 128),
-			TtlTimeProvider.DEFAULT);
+			TestLocalRecoveryConfig.disabled());
 	}
 }

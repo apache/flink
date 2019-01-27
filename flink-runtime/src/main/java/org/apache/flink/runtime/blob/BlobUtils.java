@@ -88,10 +88,15 @@ public class BlobUtils {
 	 * 		thrown if the (distributed) file storage cannot be created
 	 */
 	public static BlobStoreService createBlobStoreFromConfig(Configuration config) throws IOException {
-		if (HighAvailabilityMode.isHighAvailabilityModeActivated(config)) {
+		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
+
+		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
+			return new VoidBlobStore();
+		} else if (highAvailabilityMode == HighAvailabilityMode.FILESYSTEM ||
+				highAvailabilityMode == HighAvailabilityMode.ZOOKEEPER) {
 			return createFileSystemBlobStore(config);
 		} else {
-			return new VoidBlobStore();
+			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + "'.");
 		}
 	}
 
@@ -188,9 +193,27 @@ public class BlobUtils {
 	static File getIncomingDirectory(File storageDir) throws IOException {
 		final File incomingDir = new File(storageDir, "incoming");
 
-		Files.createDirectories(incomingDir.toPath());
+		mkdirTolerateExisting(incomingDir);
 
 		return incomingDir;
+	}
+
+	/**
+	 * Makes sure a given directory exists by creating it if necessary.
+	 *
+	 * @param dir
+	 * 		directory to create
+	 *
+	 * @throws IOException
+	 * 		if creating the directory fails
+	 */
+	private static void mkdirTolerateExisting(final File dir) throws IOException {
+		// note: thread-safe create should try to mkdir first and then ignore the case that the
+		//       directory already existed
+		if (!dir.mkdirs() && !dir.exists()) {
+			throw new IOException(
+				"Cannot create directory '" + dir.getAbsolutePath() + "'.");
+		}
 	}
 
 	/**
@@ -212,7 +235,7 @@ public class BlobUtils {
 			File storageDir, @Nullable JobID jobId, BlobKey key) throws IOException {
 		File file = new File(getStorageLocationPath(storageDir.getAbsolutePath(), jobId, key));
 
-		Files.createDirectories(file.getParentFile().toPath());
+		mkdirTolerateExisting(file.getParentFile());
 
 		return file;
 	}

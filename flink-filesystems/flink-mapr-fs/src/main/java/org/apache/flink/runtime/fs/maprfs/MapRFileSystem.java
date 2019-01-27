@@ -55,6 +55,8 @@ public class MapRFileSystem extends HadoopFileSystem {
 	 * configured clusters. */
 	private static final String MAPR_CLUSTER_CONF_FILE = "/conf/mapr-clusters.conf";
 
+	private static final org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -64,13 +66,12 @@ public class MapRFileSystem extends HadoopFileSystem {
 	 * @throws IOException Thrown if the file system could not be initialized.
 	 */
 	public MapRFileSystem(URI fsUri) throws IOException {
-		super(instantiateMapRFileSystem(fsUri));
+		super(conf, instantiateMapRFileSystem(fsUri));
 	}
 
 	private static org.apache.hadoop.fs.FileSystem instantiateMapRFileSystem(URI fsUri) throws IOException {
 		checkNotNull(fsUri, "fsUri");
 
-		final org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
 		final com.mapr.fs.MapRFileSystem fs;
 
 		final String authority = fsUri.getAuthority();

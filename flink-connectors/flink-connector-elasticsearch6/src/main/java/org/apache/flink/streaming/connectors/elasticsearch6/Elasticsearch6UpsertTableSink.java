@@ -28,6 +28,8 @@ import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureH
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.types.DataType;
+import org.apache.flink.table.api.types.DataTypes;
 import org.apache.flink.types.Row;
 
 import org.apache.http.HttpHost;
@@ -124,6 +126,11 @@ public class Elasticsearch6UpsertTableSink extends ElasticsearchUpsertTableSinkB
 	}
 
 	@Override
+	public DataType getOutputType() {
+		return DataTypes.createTupleType(DataTypes.BOOLEAN, getRecordType());
+	}
+
+	@Override
 	protected SinkFunction<Tuple2<Boolean, Row>> createSinkFunction(
 			List<Host> hosts,
 			ActionRequestFailureHandler failureHandler,
@@ -142,7 +149,7 @@ public class Elasticsearch6UpsertTableSink extends ElasticsearchUpsertTableSinkB
 			.ifPresent(v -> builder.setBulkFlushMaxActions(Integer.valueOf(v)));
 
 		Optional.ofNullable(sinkOptions.get(BULK_FLUSH_MAX_SIZE))
-			.ifPresent(v -> builder.setBulkFlushMaxSizeMb(MemorySize.parse(v).getMebiBytes()));
+			.ifPresent(v -> builder.setBulkFlushMaxSizeMb((int) MemorySize.parse(v).getMebiBytes()));
 
 		Optional.ofNullable(sinkOptions.get(BULK_FLUSH_INTERVAL))
 			.ifPresent(v -> builder.setBulkFlushInterval(Long.valueOf(v)));

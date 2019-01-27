@@ -1,0 +1,124 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testNestedTablesReductionStream">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[+(2, a) AS a])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotReduceTimeFunctionWithProjectForStreamSQL">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[+(a, b) AS EXPR$0, CURRENT_TIMESTAMP() AS t1, CURRENT_TIME() AS t2, LOCALTIME() AS t3, LOCALTIMESTAMP() AS t4, CURRENT_DATE() AS t5])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceCalcExpressionForStreamSQL">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[+(7, a) AS EXPR$0, +(b, 3) AS EXPR$1, 'b' AS EXPR$2, 'STRING' AS EXPR$3, 'teststring' AS EXPR$4, null AS EXPR$5, 1990-10-24 23:00:01.123 AS EXPR$6, 19 AS EXPR$7, false AS EXPR$8, true AS EXPR$9, 2 AS EXPR$10, true AS EXPR$11, 'trueX' AS EXPR$12], where=[>(a, 8)])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceConstantUdfForStreamTableAPI">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, b, c, CAST(1000) AS f, CAST(1500) AS f500], where=[AND(>(a, 1000), <(b, 1500))])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceCalcExpressionForStreamTableAPI">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[13 AS _c0, 'b' AS _c1, 'STRING' AS _c2, 'teststring' AS _c3, 1990-10-24 23:00:01.123 AS _c4, false AS _c5, true AS _c6, 2E0 AS _c7, 'trueX' AS _c8], where=[>(a, 8)])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceConstantUdfForStreamSQL">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, b, c, CAST(1000) AS f, CAST(1500) AS f500], where=[AND(>(a, 1000), <(b, 1500))])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceProjectExpressionForStreamTableAPI">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[13 AS _c0, 'b' AS _c1, 'STRING' AS _c2, 'teststring' AS _c3, 1990-10-24 23:00:01.123 AS _c4, false AS _c5, true AS _c6, 2E0 AS _c7, 'trueX' AS _c8])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceFilterExpressionForStreamSQL">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, b, c], where=[>(a, 8)])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceIllegalConstantUdfForStreamSQL">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, CAST(1) AS f1, CAST(2) AS f2, CAST(3) AS f3, CAST(4) AS f4, CAST(5) AS f5, CAST(6) AS f6, CAST(7) AS f7, CAST(8) AS f8])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceIllegalConstantUdfForStreamTableAPI">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, CAST(1) AS f1, CAST(2) AS f2, CAST(3) AS f3, CAST(4) AS f4, CAST(5) AS f5, CAST(6) AS f6, CAST(7) AS f7, CAST(8) AS f8])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceNonDeterministicUDF">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, b, c], where=[IS NULL(d)])
++- StreamExecCalc(select=[a, b, c, NonDeterministicNullFunc$() AS d])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceFilterExpressionForStreamTableAPI">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, b, c], where=[>(a, 8)])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceProjectExpressionForStreamSQL">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[+(7, a) AS EXPR$0, +(b, 3) AS EXPR$1, 'b' AS EXPR$2, 'STRING' AS EXPR$3, 'teststring' AS EXPR$4, null AS EXPR$5, 1990-10-24 23:00:01.123 AS EXPR$6, 19 AS EXPR$7, false AS EXPR$8, true AS EXPR$9, 2 AS EXPR$10, true AS EXPR$11, 'trueX' AS EXPR$12])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

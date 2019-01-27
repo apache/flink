@@ -19,7 +19,7 @@ Add the following dependency to your project:
 
 ```xml
 <dependency>
-  <groupId>org.apache.flink</groupId>
+  <groupId>com.alibaba.blink</groupId>
   <artifactId>flink-connector-wikiedits</artifactId>
   <version>1.0-SNAPSHOT</version>
 </dependency>

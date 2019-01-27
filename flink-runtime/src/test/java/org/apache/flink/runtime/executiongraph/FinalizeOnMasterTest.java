@@ -19,17 +19,21 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createSimpleTestGraph;
-
 import static org.junit.Assert.assertEquals;
-
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -53,10 +57,13 @@ public class FinalizeOnMasterTest extends TestLogger {
 		vertex2.setInvokableClass(NoOpInvokable.class);
 		vertex2.setParallelism(2);
 
-		final ExecutionGraph eg = createSimpleTestGraph(jid, vertex1, vertex2);
+		final TaskManagerGateway taskManagerGateway = spy(new SimpleAckingTaskManagerGateway());
+		final ExecutionGraph eg = createSimpleTestGraph(jid, taskManagerGateway, new NoRestartStrategy(), vertex1, vertex2);
 		eg.scheduleForExecution();
 		assertEquals(JobStatus.RUNNING, eg.getState());
-		
+
+		verify(taskManagerGateway, Mockito.timeout(2000L).times(eg.getTotalNumberOfVertices()))
+				.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
 		// move all vertices to finished state
@@ -77,10 +84,13 @@ public class FinalizeOnMasterTest extends TestLogger {
 		vertex.setInvokableClass(NoOpInvokable.class);
 		vertex.setParallelism(1);
 
-		final ExecutionGraph eg = createSimpleTestGraph(jid, vertex);
+		final TaskManagerGateway taskManagerGateway = spy(new SimpleAckingTaskManagerGateway());
+		final ExecutionGraph eg = createSimpleTestGraph(jid, taskManagerGateway, new NoRestartStrategy(), vertex);
 		eg.scheduleForExecution();
 		assertEquals(JobStatus.RUNNING, eg.getState());
 
+		verify(taskManagerGateway, Mockito.timeout(2000L).times(eg.getTotalNumberOfVertices()))
+				.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
 		// fail the execution

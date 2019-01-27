@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+
 import java.io.Serializable;
 
 /**
@@ -27,7 +29,9 @@ public class ResourceOverview implements Serializable {
 
 	private static final long serialVersionUID = 7618746920569224557L;
 
-	private static final ResourceOverview EMPTY_RESOURCE_OVERVIEW = new ResourceOverview(0, 0, 0);
+	private static final ResourceProfile EMPTY_RESOURCE_PROFILE = new ResourceProfile(0, 0);
+
+	private static final ResourceOverview EMPTY_RESOURCE_OVERVIEW = new ResourceOverview(0, 0, 0, EMPTY_RESOURCE_PROFILE, EMPTY_RESOURCE_PROFILE);
 
 	private final int numberTaskManagers;
 
@@ -35,10 +39,17 @@ public class ResourceOverview implements Serializable {
 
 	private final int numberFreeSlots;
 
-	public ResourceOverview(int numberTaskManagers, int numberRegisteredSlots, int numberFreeSlots) {
+	private final ResourceProfile totalResources;
+
+	private final ResourceProfile availableResources;
+
+	public ResourceOverview(int numberTaskManagers, int numberRegisteredSlots, int numberFreeSlots,
+			ResourceProfile totalResources, ResourceProfile availableResources) {
 		this.numberTaskManagers = numberTaskManagers;
 		this.numberRegisteredSlots = numberRegisteredSlots;
 		this.numberFreeSlots = numberFreeSlots;
+		this.totalResources = totalResources;
+		this.availableResources = availableResources;
 	}
 
 	public int getNumberTaskManagers() {
@@ -55,5 +66,13 @@ public class ResourceOverview implements Serializable {
 
 	public static ResourceOverview empty() {
 		return EMPTY_RESOURCE_OVERVIEW;
+	}
+
+	public ResourceProfile getTotalResources() {
+		return totalResources;
+	}
+
+	public ResourceProfile getAvailableResources() {
+		return availableResources;
 	}
 }

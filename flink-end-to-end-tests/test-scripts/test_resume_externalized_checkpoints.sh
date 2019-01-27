@@ -37,8 +37,8 @@ else
  NUM_SLOTS=$NEW_DOP
 fi
 
+backup_config
 change_conf "taskmanager.numberOfTaskSlots" "1" "${NUM_SLOTS}"
-set_conf "metrics.fetcher.update-interval" "2000"
 setup_flink_slf4j_metric_reporter
 start_cluster
 
@@ -67,9 +67,8 @@ TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/DataStr
 
 function buildBaseJobCmd {
   local dop=$1
-  local flink_args="$2"
 
-  echo "$FLINK_DIR/bin/flink run -d ${flink_args} -p $dop $TEST_PROGRAM_JAR \
+  echo "$FLINK_DIR/bin/flink run -d -p $dop $TEST_PROGRAM_JAR \
     --test.semantics exactly-once \
     --environment.parallelism $dop \
     --environment.externalize_checkpoint true \
@@ -101,48 +100,38 @@ fi
 
 DATASTREAM_JOB=$($JOB_CMD | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
+wait_job_running $DATASTREAM_JOB
+
 if [[ $SIMULATE_FAILURE == "true" ]]; then
   wait_job_terminal_state $DATASTREAM_JOB FAILED
 else
-  wait_job_running $DATASTREAM_JOB
   wait_num_checkpoints $DATASTREAM_JOB 1
-  wait_oper_metric_num_in_records SemanticsCheckMapper.0 200
+  wait_oper_metric_num_in_records ArtificalKeyedStateMapper.0 200
 
   cancel_job $DATASTREAM_JOB
 fi
 
-# take the latest checkpoint
-CHECKPOINT_PATH=$(find_latest_completed_checkpoint ${CHECKPOINT_DIR}/${DATASTREAM_JOB})
+CHECKPOINT_PATH=$(ls -d $CHECKPOINT_DIR/$DATASTREAM_JOB/chk-[1-9]*)
 
 if [ -z $CHECKPOINT_PATH ]; then
   echo "Expected an externalized checkpoint to be present, but none exists."
   exit 1
 fi
 
+NUM_CHECKPOINTS=$(echo $CHECKPOINT_PATH | wc -l | tr -d ' ')
+if (( $NUM_CHECKPOINTS > 1 )); then
+  echo "Expected only exactly 1 externalized checkpoint to be present, but $NUM_CHECKPOINTS exists."
+  exit 1
+fi
+
 echo "Restoring job with externalized checkpoint at $CHECKPOINT_PATH ..."
 
-BASE_JOB_CMD=`buildBaseJobCmd $NEW_DOP "-s file://${CHECKPOINT_PATH}"`
-JOB_CMD=""
-if [[ $SIMULATE_FAILURE == "true" ]]; then
-  JOB_CMD="$BASE_JOB_CMD \
-    --test.simulate_failure true \
-    --test.simulate_failure.num_records 0 \
-    --test.simulate_failure.num_checkpoints 0 \
-    --test.simulate_failure.max_failures 0 \
-    --environment.restart_strategy no_restart"
-else
-  JOB_CMD=$BASE_JOB_CMD
-fi
+BASE_JOB_CMD=`buildBaseJobCmd $NEW_DOP`
 
-DATASTREAM_JOB=$($JOB_CMD | grep "Job has been submitted with JobID" | sed 's/.* //g')
-
-if [ -z $DATASTREAM_JOB ]; then
-    echo "Resuming from externalized checkpoint job could not be started."
-    exit 1
-fi
+DATASTREAM_JOB=$($BASE_JOB_CMD | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
 wait_job_running $DATASTREAM_JOB
-wait_oper_metric_num_in_records SemanticsCheckMapper.0 200
+wait_oper_metric_num_in_records ArtificalKeyedStateMapper.0 200
 
 # if state is errorneous and the general purpose DataStream job produces alerting messages,
 # output would be non-empty and the test will not pass

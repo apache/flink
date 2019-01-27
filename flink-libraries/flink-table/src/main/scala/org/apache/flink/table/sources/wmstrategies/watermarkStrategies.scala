@@ -19,7 +19,7 @@
 package org.apache.flink.table.sources.wmstrategies
 
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.types.Row
+import org.apache.flink.table.dataformat.BaseRow
 
 /**
   * Provides a strategy to generate watermarks for a rowtime attribute.
@@ -58,7 +58,7 @@ abstract class PunctuatedWatermarkAssigner extends WatermarkStrategy {
     * @param timestamp The value of the timestamp attribute for the row.
     * @return The watermark for this row or null if no watermark should be generated.
     */
-  def getWatermark(row: Row, timestamp: Long): Watermark
+  def getWatermark(row: BaseRow, timestamp: Long): Watermark
 }
 
 /** A strategy which indicates the watermarks should be preserved from the underlying datastream.*/
@@ -75,6 +75,7 @@ final class PreserveWatermarks extends WatermarkStrategy {
     classOf[PreserveWatermarks].hashCode()
   }
 }
+
 object PreserveWatermarks {
   val INSTANCE: PreserveWatermarks = new PreserveWatermarks
 }

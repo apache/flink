@@ -22,6 +22,7 @@ package org.apache.flink.types.parser;
 import java.sql.Time;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.util.TimeConvertUtils;
 
 /**
  * Parses a text field into a {@link Time}.
@@ -42,7 +43,7 @@ public class SqlTimeParser extends FieldParser<Time> {
 
 		String str = new String(bytes, startPos, endPos - startPos, ConfigConstants.DEFAULT_CHARSET);
 		try {
-			this.result = Time.valueOf(str);
+			this.result = new Time(TimeConvertUtils.timeStringToUnixDate(str));
 			return (endPos == limit) ? limit : endPos + delimiter.length;
 		} catch (IllegalArgumentException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);
@@ -98,6 +99,6 @@ public class SqlTimeParser extends FieldParser<Time> {
 		}
 
 		final String str = new String(bytes, startPos, limitedLen, ConfigConstants.DEFAULT_CHARSET);
-		return Time.valueOf(str);
+		return new Time(TimeConvertUtils.timeStringToUnixDate(str));
 	}
 }

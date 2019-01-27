@@ -20,6 +20,7 @@ package org.apache.flink.runtime.iterative.task;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.accumulators.AbstractAccumulatorRegistry;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
@@ -184,7 +185,7 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	public DistributedRuntimeUDFContext createRuntimeContext(MetricGroup metrics) {
 		Environment env = getEnvironment();
 		return new IterativeRuntimeUdfContext(env.getTaskInfo(), getUserCodeClassLoader(),
-				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap, metrics);
+				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorRegistry, metrics);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -375,8 +376,8 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	private class IterativeRuntimeUdfContext extends DistributedRuntimeUDFContext implements IterationRuntimeContext {
 
 		public IterativeRuntimeUdfContext(TaskInfo taskInfo, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig,
-											Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?, ?>> accumulatorMap, MetricGroup metrics) {
-			super(taskInfo, userCodeClassLoader, executionConfig, cpTasks, accumulatorMap, metrics);
+											Map<String, Future<Path>> cpTasks, AbstractAccumulatorRegistry accumulatorRegistry, MetricGroup metrics) {
+			super(taskInfo, userCodeClassLoader, executionConfig, cpTasks, accumulatorRegistry, metrics);
 		}
 
 		@Override

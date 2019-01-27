@@ -39,8 +39,8 @@ import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.streaming.util.migration.MigrationVersion
 import org.apache.flink.test.checkpointing.utils.SavepointMigrationTestBase
-import org.apache.flink.testutils.migration.MigrationVersion
 import org.apache.flink.util.Collector
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -54,19 +54,19 @@ object StatefulJobWBroadcastStateMigrationITCase {
   def parameters: util.Collection[(MigrationVersion, String)] = {
     util.Arrays.asList(
       (MigrationVersion.v1_5, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_5, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_7, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME))
+      (MigrationVersion.v1_5, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME))
   }
 
   // TODO to generate savepoints for a specific Flink version / backend type,
   // TODO change these values accordingly, e.g. to generate for 1.3 with RocksDB,
   // TODO set as (MigrationVersion.v1_3, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME)
-  // TODO Note: You should generate the savepoint based on the release branch instead of the master.
-  val GENERATE_SAVEPOINT_VER: MigrationVersion = MigrationVersion.v1_7
+  val GENERATE_SAVEPOINT_VER: MigrationVersion = MigrationVersion.v1_5
   val GENERATE_SAVEPOINT_BACKEND_TYPE: String = StateBackendLoader.MEMORY_STATE_BACKEND_NAME
+
+  val SCALA_VERSION: String = {
+    val versionString = Properties.versionString.split(" ")(1)
+    versionString.substring(0, versionString.lastIndexOf("."))
+  }
 
   val NUM_ELEMENTS = 4
 }
@@ -75,6 +75,7 @@ object StatefulJobWBroadcastStateMigrationITCase {
   * ITCase for migration Scala state types across different Flink versions.
   */
 @RunWith(classOf[Parameterized])
+@Ignore
 class StatefulJobWBroadcastStateMigrationITCase(
                                         migrationVersionAndBackend: (MigrationVersion, String))
   extends SavepointMigrationTestBase with Serializable {
@@ -136,6 +137,7 @@ class StatefulJobWBroadcastStateMigrationITCase(
     executeAndSavepoint(
       env,
       s"src/test/resources/stateful-scala-with-broadcast" +
+        s"${StatefulJobWBroadcastStateMigrationITCase.SCALA_VERSION}" +
         s"-udf-migration-itcase-flink" +
         s"${StatefulJobWBroadcastStateMigrationITCase.GENERATE_SAVEPOINT_VER}" +
         s"-${StatefulJobWBroadcastStateMigrationITCase.GENERATE_SAVEPOINT_BACKEND_TYPE}-savepoint",
@@ -208,7 +210,7 @@ class StatefulJobWBroadcastStateMigrationITCase(
     restoreAndExecute(
       env,
       SavepointMigrationTestBase.getResourceFilename(
-        s"stateful-scala-with-broadcast" +
+        s"stateful-scala-with-broadcast${StatefulJobWBroadcastStateMigrationITCase.SCALA_VERSION}" +
           s"-udf-migration-itcase-flink${migrationVersionAndBackend._1}" +
           s"-${migrationVersionAndBackend._2}-savepoint"),
       new Tuple2(
@@ -315,7 +317,7 @@ private class AccumulatorCountingSink[T] extends RichSinkFunction[T] {
   }
 
   @throws[Exception]
-  override def invoke(value: T) {
+  def invoke(value: T) {
     count += 1
     getRuntimeContext.getAccumulator(
       AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR).add(1)

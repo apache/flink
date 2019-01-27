@@ -19,10 +19,12 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -30,17 +32,16 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
-import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
+import org.apache.flink.runtime.util.OperatorSubtaskDescriptionText;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -50,6 +51,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
+import org.apache.flink.streaming.runtime.io.StreamRecordWriter;
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -64,7 +66,9 @@ import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -131,14 +135,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 */
 	private final Object lock = new Object();
 
-	/** the head operator that consumes the input streams of this task. */
-	protected OP headOperator;
+	/** The configuration of the head operator. */
+	protected final StreamConfig configuration;
 
 	/** The chain of operators executed by this task. */
-	protected OperatorChain<OUT, OP> operatorChain;
+	protected OperatorChain operatorChain;
 
 	/** The configuration of this streaming task. */
-	protected final StreamConfig configuration;
+	protected final StreamTaskConfigSnapshot streamTaskConfig;
 
 	/** Our state backend. We use this to create checkpoint streams and a keyed state backend. */
 	protected StateBackend stateBackend;
@@ -154,7 +158,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	protected ProcessingTimeService timerService;
 
 	/** The map of user-defined accumulators of this task. */
-	private final Map<String, Accumulator<?, ?>> accumulatorMap;
+	private AccumulatorRegistry accumulatorRegistry;
 
 	/** The currently active background materialization threads. */
 	private final CloseableRegistry cancelables = new CloseableRegistry();
@@ -177,7 +181,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	/** Wrapper for synchronousCheckpointExceptionHandler to deal with rethrown exceptions. Used in the async part. */
 	private AsyncCheckpointExceptionHandler asynchronousCheckpointExceptionHandler;
 
-	private final List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWriters;
+	private final List<StreamRecordWriter<StreamRecord<?>>> streamRecordWriters;
 
 	// ------------------------------------------------------------------------
 
@@ -207,9 +211,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		super(environment);
 
 		this.timerService = timeProvider;
-		this.configuration = new StreamConfig(getTaskConfiguration());
-		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
-		this.recordWriters = createRecordWriters(configuration, environment);
+		this.streamTaskConfig = StreamTaskConfigCache.deserializeFrom(
+			new StreamTaskConfig(super.getTaskConfiguration()), this.getUserCodeClassLoader());
+
+		this.streamRecordWriters = createStreamRecordWriters(streamTaskConfig, environment);
+
+		List<StreamConfig> chainedNodeConfigs = streamTaskConfig.getChainedHeadNodeConfigs();
+		this.configuration = chainedNodeConfigs.size() == 0 ? new StreamConfig(new Configuration()) : chainedNodeConfigs.get(0);
 	}
 
 	// ------------------------------------------------------------------------
@@ -227,6 +235,21 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 	//  Core work methods of the Stream Task
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Allows the user to specify his own {@link ProcessingTimeService TimerServiceProvider}.
+	 * By default a {@link SystemProcessingTimeService DefaultTimerService} is going to be provided.
+	 * Changing it can be useful for testing processing time functionality, such as
+	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner WindowAssigners}
+	 * and {@link org.apache.flink.streaming.api.windowing.triggers.Trigger Triggers}.
+	 * */
+	@VisibleForTesting
+	public void setProcessingTimeService(ProcessingTimeService timeProvider) {
+		if (timeProvider == null) {
+			throw new RuntimeException("The timeProvider cannot be set to null.");
+		}
+		timerService = timeProvider;
+	}
 
 	public StreamTaskStateInitializer createStreamTaskStateInitializer() {
 		return new StreamTaskStateInitializerImpl(
@@ -256,16 +279,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			stateBackend = createStateBackend();
 			checkpointStorage = stateBackend.createCheckpointStorage(getEnvironment().getJobID());
 
+			accumulatorRegistry = getEnvironment().getAccumulatorRegistry();
+
 			// if the clock is not already set, then assign a default TimeServiceProvider
 			if (timerService == null) {
-				ThreadFactory timerThreadFactory = new DispatcherThreadFactory(TRIGGER_THREAD_GROUP,
-					"Time Trigger for " + getName(), getUserCodeClassLoader());
+				ThreadFactory timerThreadFactory =
+					new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, "Time Trigger for " + getName());
 
 				timerService = new SystemProcessingTimeService(this, getCheckpointLock(), timerThreadFactory);
 			}
 
-			operatorChain = new OperatorChain<>(this, recordWriters);
-			headOperator = operatorChain.getHeadOperator();
+			operatorChain = new OperatorChain(this, streamRecordWriters);
 
 			// task specific initialization
 			init();
@@ -336,20 +360,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// still let the computation fail
 			tryDisposeAllOperators();
 			disposed = true;
-		}
-		finally {
+		} catch (Throwable t) {
+			LOG.error("Could not execute the task " + getName() + ", aborting the execution", t);
+			throw t;
+		} finally {
 			// clean up everything we initialized
 			isRunning = false;
-
-			// Now that we are outside the user code, we do not want to be interrupted further
-			// upon cancellation. The shutdown logic below needs to make sure it does not issue calls
-			// that block and stall shutdown.
-			// Additionally, the cancellation watch dog will issue a hard-cancel (kill the TaskManager
-			// process) as a backup in case some shutdown procedure blocks outside our control.
-			setShouldInterruptOnCancel(false);
-
-			// clear any previously issued interrupt for a more graceful shutdown
-			Thread.interrupted();
 
 			// stop all timers and threads
 			tryShutdownTimerService();
@@ -419,7 +435,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * (see {@link #closeAllOperators()}.
 	 */
 	private void openAllOperators() throws Exception {
-		for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
+		final Iterator<StreamOperator<?>> it = operatorChain.getAllOperatorsTopologySorted().descendingIterator();
+		while (it.hasNext()) {
+			final StreamOperator<?> operator = it.next();
 			if (operator != null) {
 				operator.open();
 			}
@@ -435,9 +453,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	private void closeAllOperators() throws Exception {
 		// We need to close them first to last, since upstream operators in the chain might emit
 		// elements in their close methods.
-		StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
-		for (int i = allOperators.length - 1; i >= 0; i--) {
-			StreamOperator<?> operator = allOperators[i];
+		for (StreamOperator<?> operator : operatorChain.getAllOperatorsTopologySorted()) {
 			if (operator != null) {
 				operator.close();
 			}
@@ -449,7 +465,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * {@link StreamTask}. Disposing happens from <b>tail to head</b> operator in the chain.
 	 */
 	private void tryDisposeAllOperators() throws Exception {
-		for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
+		final Iterator<StreamOperator<?>> it = operatorChain.getAllOperatorsTopologySorted().descendingIterator();
+		while (it.hasNext()) {
+			final StreamOperator<?> operator = it.next();
 			if (operator != null) {
 				operator.dispose();
 			}
@@ -471,7 +489,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 */
 	private void disposeAllOperators() {
 		if (operatorChain != null) {
-			for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
+			final Iterator<StreamOperator<?>> it = operatorChain.getAllOperatorsTopologySorted().descendingIterator();
+			while (it.hasNext()) {
+				final StreamOperator<?> operator = it.next();
 				try {
 					if (operator != null) {
 						operator.dispose();
@@ -505,7 +525,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	boolean isSerializingTimestamps() {
-		TimeCharacteristic tc = configuration.getTimeCharacteristic();
+		TimeCharacteristic tc = streamTaskConfig.getTimeCharacteristic();
 		return tc == TimeCharacteristic.EventTime | tc == TimeCharacteristic.IngestionTime;
 	}
 
@@ -537,8 +557,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return configuration;
 	}
 
-	public Map<String, Accumulator<?, ?>> getAccumulatorMap() {
-		return accumulatorMap;
+	public AccumulatorRegistry getAccumulatorRegistry() {
+		return accumulatorRegistry;
+	}
+
+	public StreamTaskConfigSnapshot getStreamTaskConfig() {
+		return streamTaskConfig;
 	}
 
 	public StreamStatusMaintainer getStreamStatusMaintainer() {
@@ -621,23 +645,19 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			if (isRunning) {
 				// we can do a checkpoint
 
-				// All of the following steps happen as an atomic step from the perspective of barriers and
-				// records/watermarks/timers/callbacks.
-				// We generally try to emit the checkpoint barrier as soon as possible to not affect downstream
-				// checkpoint alignments
-
-				// Step (1): Prepare the checkpoint, allow operators to do some pre-barrier work.
-				//           The pre-barrier work should be nothing or minimal in the common case.
+				// Prepare the checkpoint, allow operators to do some pre-barrier work.
+				// The pre-barrier work should be nothing or minimal in the common case.
 				operatorChain.prepareSnapshotPreBarrier(checkpointMetaData.getCheckpointId());
 
-				// Step (2): Send the checkpoint barrier downstream
+				// Since both state checkpointing and downstream barrier emission occurs in this
+				// lock scope, they are an atomic operation regardless of the order in which they occur.
+				// Given this, we immediately emit the checkpoint barriers, so the downstream operators
+				// can start their checkpoint work as soon as possible
 				operatorChain.broadcastCheckpointBarrier(
 						checkpointMetaData.getCheckpointId(),
 						checkpointMetaData.getTimestamp(),
 						checkpointOptions);
 
-				// Step (3): Take the state snapshot. This should be largely asynchronous, to not
-				//           impact progress of the streaming topology
 				checkpointState(checkpointMetaData, checkpointOptions, checkpointMetrics);
 				return true;
 			}
@@ -650,9 +670,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				final CancelCheckpointMarker message = new CancelCheckpointMarker(checkpointMetaData.getCheckpointId());
 				Exception exception = null;
 
-				for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter : recordWriters) {
+				for (StreamRecordWriter<StreamRecord<?>> streamRecordWriter : streamRecordWriters) {
 					try {
-						recordWriter.broadcastEvent(message);
+						streamRecordWriter.broadcastEvent(message);
 					} catch (Exception e) {
 						exception = ExceptionUtils.firstOrSuppressed(
 							new Exception("Could not send cancel checkpoint marker to downstream tasks.", e),
@@ -679,7 +699,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			if (isRunning) {
 				LOG.debug("Notification of complete checkpoint for task {}", getName());
 
-				for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
+				final Iterator<StreamOperator<?>> it = operatorChain.getAllOperatorsTopologySorted().descendingIterator();
+				while (it.hasNext()) {
+					final StreamOperator<?> operator = it.next();
 					if (operator != null) {
 						operator.notifyCheckpointComplete(checkpointId);
 					}
@@ -731,9 +753,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private void initializeState() throws Exception {
 
-		StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
-
-		for (StreamOperator<?> operator : allOperators) {
+		final Iterator<StreamOperator<?>> it = operatorChain.getAllOperatorsTopologySorted().descendingIterator();
+		while (it.hasNext()) {
+			final StreamOperator<?> operator = it.next();
 			if (null != operator) {
 				operator.initializeState();
 			}
@@ -745,7 +767,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 
 	private StateBackend createStateBackend() throws Exception {
-		final StateBackend fromApplication = configuration.getStateBackend(getUserCodeClassLoader());
+		final StateBackend fromApplication = streamTaskConfig.getStateBackend();
 
 		return StateBackendLoader.fromApplicationOrConfigOrDefault(
 				fromApplication,
@@ -756,6 +778,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	protected CheckpointExceptionHandlerFactory createCheckpointExceptionHandlerFactory() {
 		return new CheckpointExceptionHandlerFactory();
+	}
+
+	private String createOperatorIdentifier(StreamOperator<?> operator) {
+		TaskInfo taskInfo = getEnvironment().getTaskInfo();
+		return new OperatorSubtaskDescriptionText(
+			operator.getOperatorID(),
+			operator.getClass().getSimpleName(),
+			taskInfo.getIndexOfThisSubtask(),
+			taskInfo.getNumberOfParallelSubtasks()).toString();
 	}
 
 	/**
@@ -1043,7 +1074,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			this.checkpointOptions = Preconditions.checkNotNull(checkpointOptions);
 			this.checkpointMetrics = Preconditions.checkNotNull(checkpointMetrics);
 			this.storageLocation = Preconditions.checkNotNull(checkpointStorageLocation);
-			this.allOperators = owner.operatorChain.getAllOperators();
+			final List<StreamOperator<?>> operators = new ArrayList<>(owner.operatorChain.getAllOperatorsTopologySorted());
+			Collections.reverse(operators);
+			this.allOperators = operators.toArray(new StreamOperator[0]);
 			this.operatorSnapshotsInProgress = new HashMap<>(allOperators.length);
 		}
 
@@ -1076,7 +1109,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				owner.asyncOperationsThreadPool.submit(asyncCheckpointRunnable);
 
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("{} - finished synchronous part of checkpoint {}. " +
+					LOG.debug("{} - finished synchronous part of checkpoint {}." +
 							"Alignment duration: {} ms, snapshot duration {} ms",
 						owner.getName(), checkpointMetaData.getCheckpointId(),
 						checkpointMetrics.getAlignmentDurationNanos() / 1_000_000,
@@ -1095,7 +1128,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				}
 
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("{} - did NOT finish synchronous part of checkpoint {}. " +
+					LOG.debug("{} - did NOT finish synchronous part of checkpoint {}." +
 							"Alignment duration: {} ms, snapshot duration {} ms",
 						owner.getName(), checkpointMetaData.getCheckpointId(),
 						checkpointMetrics.getAlignmentDurationNanos() / 1_000_000,
@@ -1157,34 +1190,34 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	@VisibleForTesting
-	public static <OUT> List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> createRecordWriters(
-			StreamConfig configuration,
+	public static List<StreamRecordWriter<StreamRecord<?>>> createStreamRecordWriters(
+			StreamTaskConfigSnapshot config,
 			Environment environment) {
-		List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWriters = new ArrayList<>();
-		List<StreamEdge> outEdgesInOrder = configuration.getOutEdgesInOrder(environment.getUserClassLoader());
-		Map<Integer, StreamConfig> chainedConfigs = configuration.getTransitiveChainedTaskConfigsWithSelf(environment.getUserClassLoader());
+		List<StreamRecordWriter<StreamRecord<?>>> streamRecordWriters = new ArrayList<>();
+		List<StreamEdge> outEdges = config.getOutStreamEdgesOfChain();
+		Map<Integer, StreamConfig> chainedConfigs = config.getChainedNodeConfigs();
 
-		for (int i = 0; i < outEdgesInOrder.size(); i++) {
-			StreamEdge edge = outEdgesInOrder.get(i);
-			recordWriters.add(
-				createRecordWriter(
+		for (int i = 0; i < outEdges.size(); i++) {
+			StreamEdge edge = outEdges.get(i);
+			streamRecordWriters.add(
+				createStreamRecordWriter(
 					edge,
 					i,
 					environment,
 					environment.getTaskInfo().getTaskName(),
 					chainedConfigs.get(edge.getSourceId()).getBufferTimeout()));
 		}
-		return recordWriters;
+		return streamRecordWriters;
 	}
 
-	private static <OUT> RecordWriter<SerializationDelegate<StreamRecord<OUT>>> createRecordWriter(
+	private static StreamRecordWriter<StreamRecord<?>> createStreamRecordWriter(
 			StreamEdge edge,
 			int outputIndex,
 			Environment environment,
 			String taskName,
 			long bufferTimeout) {
 		@SuppressWarnings("unchecked")
-		StreamPartitioner<OUT> outputPartitioner = (StreamPartitioner<OUT>) edge.getPartitioner();
+		StreamPartitioner<?> outputPartitioner = edge.getPartitioner();
 
 		LOG.debug("Using partitioner {} for output {} of task {}", outputPartitioner, outputIndex, taskName);
 
@@ -1198,9 +1231,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			}
 		}
 
-		RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output =
-			new RecordWriter<>(bufferWriter, outputPartitioner, bufferTimeout, taskName);
-		output.setMetricGroup(environment.getMetricGroup().getIOMetricGroup());
+		StreamRecordWriter<StreamRecord<?>> output =
+			new StreamRecordWriter(bufferWriter, outputPartitioner, bufferTimeout, taskName);
+		output.setMetricGroup(
+			environment.getMetricGroup().getIOMetricGroup(),
+			environment.getExecutionConfig().isTracingMetricsEnabled(),
+			environment.getExecutionConfig().getTracingMetricsInterval());
 		return output;
 	}
 }

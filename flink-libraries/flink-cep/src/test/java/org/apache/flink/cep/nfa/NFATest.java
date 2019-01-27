@@ -19,11 +19,13 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
-import org.apache.flink.cep.utils.NFATestHarness;
+import org.apache.flink.cep.utils.TestSharedBuffer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -37,8 +39,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.cep.utils.NFAUtils.compile;
 import static org.junit.Assert.assertEquals;
@@ -87,7 +91,9 @@ public class NFATest extends TestLogger {
 		states.add(endState);
 		states.add(endingState);
 
-		List<Map<String, List<Event>>> expectedPatterns = new ArrayList<>();
+		NFA<Event> nfa = new NFA<>(states, 0, false);
+
+		Set<Map<String, List<Event>>> expectedPatterns = new HashSet<>();
 
 		Map<String, List<Event>> firstPattern = new HashMap<>();
 		firstPattern.put("start", Collections.singletonList(new Event(1, "start", 1.0)));
@@ -100,16 +106,14 @@ public class NFATest extends TestLogger {
 		expectedPatterns.add(firstPattern);
 		expectedPatterns.add(secondPattern);
 
-		NFA<Event> nfa = new NFA<>(states, 0, false);
-		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).build();
-
-		Collection<Map<String, List<Event>>> actualPatterns = nfaTestHarness.consumeRecords(streamEvents);
+		Collection<Map<String, List<Event>>> actualPatterns = runNFA(nfa, nfa.createInitialNFAState(), streamEvents);
 
 		assertEquals(expectedPatterns, actualPatterns);
 	}
 
 	@Test
 	public void testTimeoutWindowPruning() throws Exception {
+		NFA<Event> nfa = createStartEndNFA();
 		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
 		streamEvents.add(new StreamRecord<>(new Event(1, "start", 1.0), 1L));
@@ -117,7 +121,7 @@ public class NFATest extends TestLogger {
 		streamEvents.add(new StreamRecord<>(new Event(3, "start", 3.0), 3L));
 		streamEvents.add(new StreamRecord<>(new Event(4, "end", 4.0), 4L));
 
-		List<Map<String, List<Event>>> expectedPatterns = new ArrayList<>();
+		Set<Map<String, List<Event>>> expectedPatterns = new HashSet<>();
 
 		Map<String, List<Event>> secondPattern = new HashMap<>();
 		secondPattern.put("start", Collections.singletonList(new Event(3, "start", 3.0)));
@@ -125,10 +129,7 @@ public class NFATest extends TestLogger {
 
 		expectedPatterns.add(secondPattern);
 
-		NFA<Event> nfa = createStartEndNFA();
-		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).build();
-
-		Collection<Map<String, List<Event>>> actualPatterns = nfaTestHarness.consumeRecords(streamEvents);
+		Collection<Map<String, List<Event>>> actualPatterns = runNFA(nfa, nfa.createInitialNFAState(), streamEvents);
 
 		assertEquals(expectedPatterns, actualPatterns);
 	}
@@ -139,17 +140,15 @@ public class NFATest extends TestLogger {
 	 */
 	@Test
 	public void testWindowBorders() throws Exception {
+		NFA<Event> nfa = createStartEndNFA();
 		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
 		streamEvents.add(new StreamRecord<>(new Event(1, "start", 1.0), 1L));
 		streamEvents.add(new StreamRecord<>(new Event(2, "end", 2.0), 3L));
 
-		List<Map<String, List<Event>>> expectedPatterns = Collections.emptyList();
+		Set<Map<String, List<Event>>> expectedPatterns = Collections.emptySet();
 
-		NFA<Event> nfa = createStartEndNFA();
-		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).build();
-
-		Collection<Map<String, List<Event>>> actualPatterns = nfaTestHarness.consumeRecords(streamEvents);
+		Collection<Map<String, List<Event>>> actualPatterns = runNFA(nfa, nfa.createInitialNFAState(), streamEvents);
 
 		assertEquals(expectedPatterns, actualPatterns);
 	}
@@ -160,6 +159,7 @@ public class NFATest extends TestLogger {
 	 */
 	@Test
 	public void testTimeoutWindowPruningWindowBorders() throws Exception {
+		NFA<Event> nfa = createStartEndNFA();
 		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
 		streamEvents.add(new StreamRecord<>(new Event(1, "start", 1.0), 1L));
@@ -167,7 +167,7 @@ public class NFATest extends TestLogger {
 		streamEvents.add(new StreamRecord<>(new Event(3, "foobar", 3.0), 3L));
 		streamEvents.add(new StreamRecord<>(new Event(4, "end", 4.0), 3L));
 
-		List<Map<String, List<Event>>> expectedPatterns = new ArrayList<>();
+		Set<Map<String, List<Event>>> expectedPatterns = new HashSet<>();
 
 		Map<String, List<Event>> secondPattern = new HashMap<>();
 		secondPattern.put("start", Collections.singletonList(new Event(2, "start", 2.0)));
@@ -175,12 +175,30 @@ public class NFATest extends TestLogger {
 
 		expectedPatterns.add(secondPattern);
 
-		NFA<Event> nfa = createStartEndNFA();
-		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).build();
-
-		Collection<Map<String, List<Event>>> actualPatterns = nfaTestHarness.consumeRecords(streamEvents);
+		Collection<Map<String, List<Event>>> actualPatterns = runNFA(nfa, nfa.createInitialNFAState(), streamEvents);
 
 		assertEquals(expectedPatterns, actualPatterns);
+	}
+
+	public Collection<Map<String, List<Event>>> runNFA(
+		NFA<Event> nfa, NFAState nfaState, List<StreamRecord<Event>> inputs) throws Exception {
+		Set<Map<String, List<Event>>> actualPatterns = new HashSet<>();
+
+		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
+		try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
+			for (StreamRecord<Event> streamEvent : inputs) {
+				nfa.advanceTime(sharedBufferAccessor, nfaState, streamEvent.getTimestamp());
+				Collection<Map<String, List<Event>>> matchedPatterns = nfa.process(
+					sharedBufferAccessor,
+					nfaState,
+					streamEvent.getValue(),
+					streamEvent.getTimestamp());
+
+				actualPatterns.addAll(matchedPatterns);
+			}
+		}
+
+		return actualPatterns;
 	}
 
 	@Test
@@ -271,49 +289,51 @@ public class NFATest extends TestLogger {
 		patterns.add(pattern2);
 		patterns.add(pattern3);
 
-		for (Pattern<Event, ?> p : patterns) {
-			NFA<Event> nfa = compile(p, false);
+		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
+		try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
 
-			Event a = new Event(40, "a", 1.0);
-			Event b = new Event(41, "b", 2.0);
-			Event c = new Event(42, "c", 3.0);
-			Event b1 = new Event(41, "b", 3.0);
-			Event b2 = new Event(41, "b", 4.0);
-			Event b3 = new Event(41, "b", 5.0);
-			Event d = new Event(43, "d", 4.0);
+			for (Pattern<Event, ?> p : patterns) {
+				NFA<Event> nfa = compile(p, false);
 
-			NFAState nfaState = nfa.createInitialNFAState();
+				Event a = new Event(40, "a", 1.0);
+				Event b = new Event(41, "b", 2.0);
+				Event c = new Event(42, "c", 3.0);
+				Event b1 = new Event(41, "b", 3.0);
+				Event b2 = new Event(41, "b", 4.0);
+				Event b3 = new Event(41, "b", 5.0);
+				Event d = new Event(43, "d", 4.0);
 
-			NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
+				NFAState nfaState = nfa.createInitialNFAState();
 
-			nfaTestHarness.consumeRecord(new StreamRecord<>(a, 1));
-			nfaTestHarness.consumeRecord(new StreamRecord<>(b, 2));
-			nfaTestHarness.consumeRecord(new StreamRecord<>(c, 3));
-			nfaTestHarness.consumeRecord(new StreamRecord<>(b1, 4));
-			nfaTestHarness.consumeRecord(new StreamRecord<>(b2, 5));
-			nfaTestHarness.consumeRecord(new StreamRecord<>(b3, 6));
-			nfaTestHarness.consumeRecord(new StreamRecord<>(d, 7));
-			nfaTestHarness.consumeRecord(new StreamRecord<>(a, 8));
+				nfa.process(sharedBufferAccessor, nfaState, a, 1);
+				nfa.process(sharedBufferAccessor, nfaState, b, 2);
+				nfa.process(sharedBufferAccessor, nfaState, c, 3);
+				nfa.process(sharedBufferAccessor, nfaState, b1, 4);
+				nfa.process(sharedBufferAccessor, nfaState, b2, 5);
+				nfa.process(sharedBufferAccessor, nfaState, b3, 6);
+				nfa.process(sharedBufferAccessor, nfaState, d, 7);
+				nfa.process(sharedBufferAccessor, nfaState, a, 8);
 
-			NFAStateSerializer serializer = NFAStateSerializer.INSTANCE;
+				NFAStateSerializer serializer = NFAStateSerializer.INSTANCE;
 
-			//serialize
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			serializer.serialize(nfaState, new DataOutputViewStreamWrapper(baos));
-			baos.close();
+				//serialize
+				ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				serializer.serialize(nfaState, new DataOutputViewStreamWrapper(baos));
+				baos.close();
 
-			// copy
-			ByteArrayInputStream in = new ByteArrayInputStream(baos.toByteArray());
-			ByteArrayOutputStream out = new ByteArrayOutputStream();
-			serializer.duplicate().copy(new DataInputViewStreamWrapper(in), new DataOutputViewStreamWrapper(out));
-			in.close();
-			out.close();
+				// copy
+				ByteArrayInputStream in = new ByteArrayInputStream(baos.toByteArray());
+				ByteArrayOutputStream out = new ByteArrayOutputStream();
+				serializer.duplicate().copy(new DataInputViewStreamWrapper(in), new DataOutputViewStreamWrapper(out));
+				in.close();
+				out.close();
 
-			// deserialize
-			ByteArrayInputStream bais = new ByteArrayInputStream(out.toByteArray());
-			NFAState copy = serializer.duplicate().deserialize(new DataInputViewStreamWrapper(bais));
-			bais.close();
-			assertEquals(nfaState, copy);
+				// deserialize
+				ByteArrayInputStream bais = new ByteArrayInputStream(out.toByteArray());
+				NFAState copy = serializer.duplicate().deserialize(new DataInputViewStreamWrapper(bais));
+				bais.close();
+				assertEquals(nfaState, copy);
+			}
 		}
 	}
 

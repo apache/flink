@@ -39,17 +39,7 @@ public class ProgramInvocationException extends Exception {
 		super(message);
 	}
 
-	/**
-	 * Creates a <tt>ProgramInvocationException</tt> with the given message which contains job id.
-	 *
-	 * @param message
-	 *        The additional message.
-	 * @param jobID
-	 *        ID of failed job.
-	 */
-	public ProgramInvocationException(String message, JobID jobID) {
-		super(message + " (JobID: " + jobID + ")");
-	}
+
 
 	/**
 	 * Creates a <tt>ProgramInvocationException</tt> for the given exception.

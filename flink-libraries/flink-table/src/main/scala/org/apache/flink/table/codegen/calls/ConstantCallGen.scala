@@ -18,21 +18,21 @@
 
 package org.apache.flink.table.codegen.calls
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.api.types.InternalType
+import org.apache.flink.table.codegen.CodeGenUtils._
+import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 
 /**
   * Generates a function call which returns a constant.
   */
-class ConstantCallGen(
-    targetType: TypeInformation[_],
-    constantCode: String) extends CallGenerator {
+class ConstantCallGen(constantCode: String, constantValue: Any) extends CallGenerator {
 
   override def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression = {
-    codeGenerator.generateNonNullLiteral(targetType, constantCode)
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: InternalType,
+      nullCheck: Boolean): GeneratedExpression = {
+    generateNonNullLiteral(returnType, constantCode, constantValue, nullCheck)
   }
 
 }

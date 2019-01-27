@@ -111,10 +111,12 @@ public class JobVertexDetailsInfo implements ResponseBody {
 		public static final String FIELD_NAME_ATTEMPT = "attempt";
 		public static final String FIELD_NAME_HOST = "host";
 		public static final String FIELD_NAME_START_TIME = "start-time";
-		public static final String FIELD_NAME_COMPATIBLE_START_TIME = "start_time";
 		public static final String FIELD_NAME_END_TIME = "end-time";
 		public static final String FIELD_NAME_DURATION = "duration";
 		public static final String FIELD_NAME_METRICS = "metrics";
+		public static final String FIELD_NAME_RESOURCE_ID = "resource-id";
+		public static final String FIELD_NAME_LOG_FILE_NAME = "log-file-name";
+		public static final String FIELD_NAME_STDOUT_FILE_NAME = "stdout-file-name";
 
 		@JsonProperty(FIELD_NAME_SUBTASK)
 		private final int subtask;
@@ -131,9 +133,6 @@ public class JobVertexDetailsInfo implements ResponseBody {
 		@JsonProperty(FIELD_NAME_START_TIME)
 		private final long startTime;
 
-		@JsonProperty(FIELD_NAME_COMPATIBLE_START_TIME)
-		private final long startTimeCompatible;
-
 		@JsonProperty(FIELD_NAME_END_TIME)
 		private final long endTime;
 
@@ -142,6 +141,15 @@ public class JobVertexDetailsInfo implements ResponseBody {
 
 		@JsonProperty(FIELD_NAME_METRICS)
 		private final IOMetricsInfo metrics;
+
+		@JsonProperty(FIELD_NAME_RESOURCE_ID)
+		private final String resourceId;
+
+		@JsonProperty(FIELD_NAME_LOG_FILE_NAME)
+		private final String logFileName;
+
+		@JsonProperty(FIELD_NAME_STDOUT_FILE_NAME)
+		private final String stdoutFileName;
 
 		@JsonCreator
 		public VertexTaskDetail(
@@ -152,16 +160,21 @@ public class JobVertexDetailsInfo implements ResponseBody {
 				@JsonProperty(FIELD_NAME_START_TIME) long startTime,
 				@JsonProperty(FIELD_NAME_END_TIME) long endTime,
 				@JsonProperty(FIELD_NAME_DURATION) long duration,
-				@JsonProperty(FIELD_NAME_METRICS) IOMetricsInfo metrics) {
+				@JsonProperty(FIELD_NAME_METRICS) IOMetricsInfo metrics,
+				@JsonProperty(FIELD_NAME_RESOURCE_ID) String resourceId,
+				@JsonProperty(FIELD_NAME_LOG_FILE_NAME) String logFileName,
+				@JsonProperty(FIELD_NAME_STDOUT_FILE_NAME) String stdoutFileName) {
 			this.subtask = subtask;
 			this.status = checkNotNull(status);
 			this.attempt = attempt;
 			this.host = checkNotNull(host);
 			this.startTime = startTime;
-			this.startTimeCompatible = startTime;
 			this.endTime = endTime;
 			this.duration = duration;
 			this.metrics = checkNotNull(metrics);
+			this.resourceId = checkNotNull(resourceId);
+			this.logFileName = checkNotNull(logFileName);
+			this.stdoutFileName = checkNotNull(stdoutFileName);
 		}
 
 		@Override
@@ -180,15 +193,18 @@ public class JobVertexDetailsInfo implements ResponseBody {
 				attempt == that.attempt &&
 				Objects.equals(host, that.host) &&
 				startTime == that.startTime &&
-				startTimeCompatible == that.startTimeCompatible &&
 				endTime == that.endTime &&
 				duration == that.duration &&
-				Objects.equals(metrics, that.metrics);
+				Objects.equals(metrics, that.metrics) &&
+				Objects.equals(resourceId, that.resourceId) &&
+				Objects.equals(logFileName, that.logFileName) &&
+				Objects.equals(stdoutFileName, that.stdoutFileName);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(subtask, status, attempt, host, startTime, startTimeCompatible, endTime, duration, metrics);
+			return Objects.hash(subtask, status, attempt, host, startTime, endTime,
+				duration, metrics, resourceId, logFileName, stdoutFileName);
 		}
 	}
 }

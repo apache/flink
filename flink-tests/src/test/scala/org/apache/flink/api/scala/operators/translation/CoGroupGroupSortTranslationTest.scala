@@ -18,15 +18,22 @@
 
 package org.apache.flink.api.scala.operators.translation
 
-import org.apache.flink.api.common.operators.Order
-import org.apache.flink.api.common.operators.base.CoGroupOperatorBase
 import org.apache.flink.api.java.io.DiscardingOutputFormat
-import org.apache.flink.api.scala._
-import org.apache.flink.util.{Collector, TestLogger}
+import org.apache.flink.optimizer.util.CompilerTestBase
 import org.junit.Assert._
-import org.junit.{Ignore, Test}
+import org.junit.Test
+import org.apache.flink.api.common.functions.Partitioner
+import org.apache.flink.api.scala._
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType
+import org.apache.flink.optimizer.plan.SingleInputPlanNode
+import org.apache.flink.api.common.operators.Order
+import org.apache.flink.api.common.InvalidProgramException
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
+import org.apache.flink.optimizer.plan.DualInputPlanNode
+import org.apache.flink.api.common.operators.base.CoGroupOperatorBase
+import org.junit.Ignore
 
-class CoGroupGroupSortTranslationTest extends TestLogger {
+class CoGroupGroupSortTranslationTest {
 
   @Test
   def testGroupSortTuples() {
@@ -124,16 +131,11 @@ class CoGroupGroupSortTranslationTest extends TestLogger {
       val input2 = env.fromElements( (0L, 0L, 0L) )
       
       input1
-        .coGroup(input2)
-        .where(1).equalTo(2)
-        .sortFirstGroup(0, Order.DESCENDING)
-        .sortSecondGroup(1, Order.ASCENDING).sortSecondGroup(0, Order.DESCENDING)
-        .apply(
-          (a: Iterator[(Long, Long)],
-            b: Iterator[(Long, Long, Long)],
-            c: Collector[(Long, Long)]) =>
-            a.foreach(e => c.collect(e)))
-        .output(new DiscardingOutputFormat[(Long, Long)])
+          .coGroup(input2)
+          .where(1).equalTo(2)
+          .sortFirstGroup(0, Order.DESCENDING)
+          .sortSecondGroup(1, Order.ASCENDING).sortSecondGroup(0, Order.DESCENDING)
+        .print()
         
       val p = env.createProgramPlan()
       

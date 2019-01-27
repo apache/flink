@@ -1,0 +1,95 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAggregateCalcMerge_Filter">
+    <Resource name="sql">
+      <![CDATA[SELECT a, count(c) as c FROM (SELECT a, c FROM MyTable where a > 1) t GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], c=[COUNT($1)])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalFilter(condition=[>($0, 1)])
+      +- LogicalTableScan(table=[[builtin, default, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalAggregate(group=[{0}], c=[COUNT($1)])
++- LogicalCalc(expr#0..2=[{inputs}], expr#3=[1], expr#4=[>($t0, $t3)], a=[$t0], c=[$t2], $condition=[$t4])
+   +- LogicalTableScan(table=[[builtin, default, MyTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateCalcMerge_WithoutFilter1">
+    <Resource name="sql">
+      <![CDATA[SELECT a, count(c) as c FROM (SELECT a, c FROM MyTable) t GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], c=[COUNT($1)])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[builtin, default, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalAggregate(group=[{0}], c=[COUNT($2)])
++- LogicalTableScan(table=[[builtin, default, MyTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateCalcMerge_WithoutFilter2">
+    <Resource name="sql">
+      <![CDATA[SELECT a, count(c) as c FROM (SELECT c, a FROM MyTable) t GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], c=[COUNT($1)])
++- LogicalProject(a=[$1], c=[$0])
+   +- LogicalProject(c=[$2], a=[$0])
+      +- LogicalTableScan(table=[[builtin, default, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalAggregate(group=[{0}], c=[COUNT($2)])
++- LogicalTableScan(table=[[builtin, default, MyTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateCalcMerge_WithoutFilter3">
+    <Resource name="sql">
+      <![CDATA[SELECT a, count(c) as c FROM (SELECT a, substr(c, 1, 5) as c FROM MyTable) t GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], c=[COUNT($1)])
++- LogicalProject(a=[$0], c=[SUBSTR($2, 1, 5)])
+   +- LogicalTableScan(table=[[builtin, default, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalAggregate(group=[{0}], c=[COUNT($1)])
++- LogicalCalc(expr#0..2=[{inputs}], expr#3=[1], expr#4=[5], expr#5=[SUBSTR($t2, $t3, $t4)], a=[$t0], c=[$t5])
+   +- LogicalTableScan(table=[[builtin, default, MyTable]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

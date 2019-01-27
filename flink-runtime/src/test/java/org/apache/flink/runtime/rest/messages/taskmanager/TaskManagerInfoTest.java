@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.messages.taskmanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.HardwareDescription;
+import org.apache.flink.runtime.instance.TaskManagerResourceDescription;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
 import java.util.Random;
@@ -52,6 +53,20 @@ public class TaskManagerInfoTest extends RestResponseMarshallingTestBase<TaskMan
 			random.nextInt(),
 			new HardwareDescription(
 				random.nextInt(),
+				random.nextLong(),
+				random.nextLong(),
+				random.nextLong()),
+			new TaskManagerResourceDescription(
+				random.nextInt(),
+				random.nextLong(),
+				random.nextLong(),
+				random.nextLong(),
+				random.nextLong(),
+				random.nextLong()),
+			new TaskManagerResourceDescription(
+				random.nextInt(),
+				random.nextLong(),
+				random.nextLong(),
 				random.nextLong(),
 				random.nextLong(),
 				random.nextLong()));

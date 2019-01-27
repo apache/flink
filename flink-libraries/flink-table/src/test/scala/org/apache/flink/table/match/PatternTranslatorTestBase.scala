@@ -20,15 +20,15 @@ package org.apache.flink.table.`match`
 
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.cep.pattern.Pattern
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableConfig, TableEnvironment}
 import org.apache.flink.table.calcite.FlinkPlannerImpl
-import org.apache.flink.table.plan.nodes.datastream.{DataStreamMatch, DataStreamScan}
-import org.apache.flink.types.Row
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.nodes.physical.stream.{StreamExecMatch, StreamExecScan}
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.util.TestLogger
 import org.junit.Assert._
 import org.junit.rules.ExpectedException
@@ -43,19 +43,20 @@ abstract class PatternTranslatorTestBase extends TestLogger{
   def thrown: ExpectedException = expectedException
 
   // setup test utils
-  private val testTableTypeInfo = new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO)
+  private val testTableTypeInfo = new BaseRowTypeInfo(BasicTypeInfo.INT_TYPE_INFO)
   private val tableName = "testTable"
   private val context = prepareContext(testTableTypeInfo)
-  private val planner = new FlinkPlannerImpl(
-    context._2.getFrameworkConfig,
-    context._2.getPlanner,
-    context._2.getTypeFactory)
+  private val planner = {
+    val plannerField = classOf[TableEnvironment].getDeclaredField("flinkPlanner")
+    plannerField.setAccessible(true)
+    plannerField.get(context._2).asInstanceOf[FlinkPlannerImpl]
+  }
 
-  private def prepareContext(typeInfo: TypeInformation[Row])
+  private def prepareContext(typeInfo: TypeInformation[BaseRow])
   : (RelBuilder, StreamTableEnvironment, StreamExecutionEnvironment) = {
     // create DataStreamTable
-    val dataStreamMock = mock(classOf[DataStream[Row]])
-    val jDataStreamMock = mock(classOf[JDataStream[Row]])
+    val dataStreamMock = mock(classOf[DataStream[BaseRow]])
+    val jDataStreamMock = mock(classOf[JDataStream[BaseRow]])
     when(dataStreamMock.javaStream).thenReturn(jDataStreamMock)
     when(jDataStreamMock.getType).thenReturn(typeInfo)
 
@@ -70,7 +71,7 @@ abstract class PatternTranslatorTestBase extends TestLogger{
     (relBuilder, tEnv, env)
   }
 
-  def verifyPattern(matchRecognize: String, expected: Pattern[Row, _ <: Row]): Unit = {
+  def verifyPattern(matchRecognize: String, expected: Pattern[BaseRow, _ <: BaseRow]): Unit = {
     // create RelNode from SQL expression
     val parsed = planner.parse(
       s"""
@@ -85,17 +86,18 @@ abstract class PatternTranslatorTestBase extends TestLogger{
     val optimized = env.optimize(converted, updatesAsRetraction = false)
 
     // throw exception if plan contains more than a match
-    if (!optimized.getInput(0).isInstanceOf[DataStreamScan]) {
+    if (!optimized.getInput(0).isInstanceOf[StreamExecScan]) {
       fail("Expression is converted into more than a Match operation. Use a different test method.")
     }
 
-    val dataMatch = optimized.asInstanceOf[DataStreamMatch]
-    val p = dataMatch.translatePattern(new TableConfig, testTableTypeInfo)._1
+    val dataMatch = optimized.asInstanceOf[StreamExecMatch]
+    val p = dataMatch.translatePattern(new TableConfig, env.getRelBuilder, testTableTypeInfo)._1
 
     compare(expected, p)
   }
 
-  private def compare(expected: Pattern[Row, _ <: Row], actual: Pattern[Row, _ <: Row]): Unit = {
+  private def compare(
+      expected: Pattern[BaseRow, _ <: BaseRow], actual: Pattern[BaseRow, _ <: BaseRow]): Unit = {
     var currentLeft = expected
     var currentRight = actual
     do {

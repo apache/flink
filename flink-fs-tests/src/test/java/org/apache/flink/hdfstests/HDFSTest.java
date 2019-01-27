@@ -93,7 +93,7 @@ public class HDFSTest {
 		try {
 			Configuration hdConf = new Configuration();
 
-			File baseDir = new File("./target/hdfs/hdfsTest").getAbsoluteFile();
+			File baseDir = temporaryFolder.newFolder();
 			FileUtil.fullyDelete(baseDir);
 			hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
 			MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);

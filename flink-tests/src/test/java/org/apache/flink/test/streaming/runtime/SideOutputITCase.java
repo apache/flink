@@ -138,6 +138,11 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 				super.processWatermark(mark);
 				output.collect(new StreamRecord<>("WM:" + mark.getTimestamp()));
 			}
+
+			@Override
+			public void endInput() throws Exception {
+
+			}
 		}
 
 		passThroughtStream

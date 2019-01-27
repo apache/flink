@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -42,6 +43,8 @@ public class SlotSharingGroup implements java.io.Serializable {
 	private transient SlotSharingGroupAssignment taskAssignment;
 
 	private final SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
+
+	private ResourceProfile resourceProfile;
 	
 	public SlotSharingGroup() {}
 	
@@ -85,7 +88,15 @@ public class SlotSharingGroup implements java.io.Serializable {
 		}
 		this.taskAssignment = null;
 	}
-	
+
+	public void setResourceProfile(ResourceProfile resourceProfile) {
+		this.resourceProfile = resourceProfile;
+	}
+
+	public ResourceProfile getResourceProfile() {
+		return resourceProfile;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------

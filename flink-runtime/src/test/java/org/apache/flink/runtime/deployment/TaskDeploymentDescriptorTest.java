@@ -86,6 +86,7 @@ public class TaskDeploymentDescriptorTest {
 				indexInSubtaskGroup,
 				attemptNumber,
 				targetSlotNumber,
+				0,
 				taskRestore,
 				producedResults,
 				inputGates);

@@ -20,33 +20,12 @@ package org.apache.flink.table.api
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestBase
-import org.junit.Assert.{assertEquals, assertTrue}
+import org.apache.flink.table.api.types.DataTypes
+import org.apache.flink.table.util.TableTestBase
+import org.junit.Assert.{assertEquals, assertFalse, fail}
 import org.junit.Test
 
 class TableSchemaTest extends TableTestBase {
-
-  @Test
-  def testBatchTableSchema(): Unit = {
-    val util = batchTestUtil()
-    val table = util.addTable[(Int, String)]("MyTable", 'a, 'b)
-    val schema = table.getSchema
-
-    assertEquals("a", schema.getFieldNames.apply(0))
-    assertEquals("b", schema.getFieldNames.apply(1))
-
-    assertEquals(Types.INT, schema.getFieldTypes.apply(0))
-    assertEquals(Types.STRING, schema.getFieldTypes.apply(1))
-
-    val expectedString = "root\n" +
-      " |-- a: Integer\n" +
-      " |-- b: String\n"
-    assertEquals(expectedString, schema.toString)
-
-    assertTrue(!schema.getFieldName(3).isPresent)
-    assertTrue(!schema.getFieldType(-1).isPresent)
-    assertTrue(!schema.getFieldType("c").isPresent)
-  }
 
   @Test
   def testStreamTableSchema(): Unit = {
@@ -54,19 +33,38 @@ class TableSchemaTest extends TableTestBase {
     val table = util.addTable[(Int, String)]("MyTable", 'a, 'b)
     val schema = table.getSchema
 
-    assertEquals("a", schema.getFieldNames.apply(0))
-    assertEquals("b", schema.getFieldNames.apply(1))
+    assertEquals("a", schema.getColumnNames.apply(0))
+    assertEquals("b", schema.getColumnNames.apply(1))
 
-    assertEquals(Types.INT, schema.getFieldTypes.apply(0))
-    assertEquals(Types.STRING, schema.getFieldTypes.apply(1))
+    assertEquals(DataTypes.INT, schema.getTypes.apply(0).toInternalType)
+    assertEquals(DataTypes.STRING, schema.getTypes.apply(1).toInternalType)
 
     val expectedString = "root\n" +
-      " |-- a: Integer\n" +
-      " |-- b: String\n"
+      " |-- name: a\n"      +
+      " |-- type: IntType\n" +
+      " |-- isNullable: true\n" +
+      " |-- name: b\n" +
+      " |-- type: StringType\n" +
+      " |-- isNullable: true\n"
     assertEquals(expectedString, schema.toString)
 
-    assertTrue(!schema.getFieldName(3).isPresent)
-    assertTrue(!schema.getFieldType(-1).isPresent)
-    assertTrue(!schema.getFieldType("c").isPresent)
+    assertEquals("a", schema.getColumnName(0))
+
+    try {
+      schema.getColumnName(-1)
+      fail("Should never reach here")
+    } catch {
+      case _ =>
+    }
+
+    try {
+      schema.getType(-1)
+      fail("Should never reach here")
+    } catch {
+      case _ =>
+    }
+
+    assertFalse(schema.getType("c").isPresent)
   }
+
 }

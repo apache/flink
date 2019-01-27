@@ -36,19 +36,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A pipelined in-memory only subpartition, which can be consumed once.
- *
- * <p>Whenever {@link #add(BufferConsumer)} adds a finished {@link BufferConsumer} or a second
- * {@link BufferConsumer} (in which case we will assume the first one finished), we will
- * {@link PipelinedSubpartitionView#notifyDataAvailable() notify} a read view created via
- * {@link #createReadView(BufferAvailabilityListener)} of new data availability. Except by calling
- * {@link #flush()} explicitly, we always only notify when the first finished buffer turns up and
- * then, the reader has to drain the buffers via {@link #pollBuffer()} until its return value shows
- * no more buffers being available. This results in a buffer queue which is either empty or has an
- * unfinished {@link BufferConsumer} left from which the notifications will eventually start again.
- *
- * <p>Explicit calls to {@link #flush()} will force this
- * {@link PipelinedSubpartitionView#notifyDataAvailable() notification} for any
- * {@link BufferConsumer} present in the queue.
  */
 class PipelinedSubpartition extends ResultSubpartition {
 
@@ -70,7 +57,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	// ------------------------------------------------------------------------
 
-	PipelinedSubpartition(int index, ResultPartition parent) {
+	PipelinedSubpartition(int index, InternalResultPartition parent) {
 		super(index, parent);
 	}
 
@@ -80,15 +67,25 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
+	public void flush() {
+		synchronized (buffers) {
+			if (buffers.isEmpty()) {
+				return;
+			}
+			flushRequested = !buffers.isEmpty();
+			notifyDataAvailable();
+		}
+	}
+
+	@Override
 	public void finish() throws IOException {
 		add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE), true);
-		LOG.debug("{}: Finished {}.", parent.getOwningTaskName(), this);
+		LOG.debug("Finished {}.", this);
 	}
 
 	private boolean add(BufferConsumer bufferConsumer, boolean finish) {
 		checkNotNull(bufferConsumer);
 
-		final boolean notifyDataAvailable;
 		synchronized (buffers) {
 			if (isFinished || isReleased) {
 				bufferConsumer.close();
@@ -99,13 +96,14 @@ class PipelinedSubpartition extends ResultSubpartition {
 			buffers.add(bufferConsumer);
 			updateStatistics(bufferConsumer);
 			increaseBuffersInBacklog(bufferConsumer);
-			notifyDataAvailable = shouldNotifyDataAvailable() || finish;
 
-			isFinished |= finish;
-		}
-
-		if (notifyDataAvailable) {
-			notifyDataAvailable();
+			if (finish) {
+				isFinished = true;
+				flush();
+			}
+			else {
+				maybeNotifyDataAvailable();
+			}
 		}
 
 		return true;
@@ -134,7 +132,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 			isReleased = true;
 		}
 
-		LOG.debug("{}: Released {}.", parent.getOwningTaskName(), this);
+		LOG.debug("Released {}.", this);
 
 		if (view != null) {
 			view.releaseAllResources();
@@ -190,17 +188,17 @@ class PipelinedSubpartition extends ResultSubpartition {
 				buffer,
 				isAvailableUnsafe(),
 				getBuffersInBacklog(),
-				nextBufferIsEventUnsafe());
+				_nextBufferIsEvent());
 		}
 	}
 
 	boolean nextBufferIsEvent() {
 		synchronized (buffers) {
-			return nextBufferIsEventUnsafe();
+			return _nextBufferIsEvent();
 		}
 	}
 
-	private boolean nextBufferIsEventUnsafe() {
+	private boolean _nextBufferIsEvent() {
 		assert Thread.holdsLock(buffers);
 
 		return !buffers.isEmpty() && !buffers.peekFirst().isBuffer();
@@ -220,21 +218,18 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	@Override
 	public PipelinedSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException {
-		final boolean notifyDataAvailable;
 		synchronized (buffers) {
 			checkState(!isReleased);
 			checkState(readView == null,
 					"Subpartition %s of is being (or already has been) consumed, " +
 					"but pipelined subpartitions can only be consumed once.", index, parent.getPartitionId());
 
-			LOG.debug("{}: Creating read view for subpartition {} of partition {}.",
-				parent.getOwningTaskName(), index, parent.getPartitionId());
+			LOG.debug("Creating read view for subpartition {} of partition {}.", index, parent.getPartitionId());
 
 			readView = new PipelinedSubpartitionView(this, availabilityListener);
-			notifyDataAvailable = !buffers.isEmpty();
-		}
-		if (notifyDataAvailable) {
-			notifyDataAvailable();
+			if (!buffers.isEmpty()) {
+				notifyDataAvailable();
+			}
 		}
 
 		return readView;
@@ -273,8 +268,8 @@ class PipelinedSubpartition extends ResultSubpartition {
 		}
 
 		return String.format(
-			"PipelinedSubpartition#%d [number of buffers: %d (%d bytes), number of buffers in backlog: %d, finished? %s, read view? %s]",
-			index, numBuffers, numBytes, getBuffersInBacklog(), finished, hasReadView);
+			"PipelinedSubpartition [number of buffers: %d (%d bytes), number of buffers in backlog: %d, finished? %s, read view? %s]",
+			numBuffers, numBytes, getBuffersInBacklog(), finished, hasReadView);
 	}
 
 	@Override
@@ -283,26 +278,11 @@ class PipelinedSubpartition extends ResultSubpartition {
 		return Math.max(buffers.size(), 0);
 	}
 
-	@Override
-	public void flush() {
-		final boolean notifyDataAvailable;
-		synchronized (buffers) {
-			if (buffers.isEmpty()) {
-				return;
-			}
-			// if there is more then 1 buffer, we already notified the reader
-			// (at the latest when adding the second buffer)
-			notifyDataAvailable = !flushRequested && buffers.size() == 1;
-			flushRequested = true;
-		}
-		if (notifyDataAvailable) {
+	private void maybeNotifyDataAvailable() {
+		// Notify only when we added first finished buffer.
+		if (getNumberOfFinishedBuffers() == 1) {
 			notifyDataAvailable();
 		}
-	}
-
-	private boolean shouldNotifyDataAvailable() {
-		// Notify only when we added first finished buffer.
-		return readView != null && !flushRequested && getNumberOfFinishedBuffers() == 1;
 	}
 
 	private void notifyDataAvailable() {
@@ -314,9 +294,6 @@ class PipelinedSubpartition extends ResultSubpartition {
 	private int getNumberOfFinishedBuffers() {
 		assert Thread.holdsLock(buffers);
 
-		// NOTE: isFinished() is not guaranteed to provide the most up-to-date state here
-		// worst-case: a single finished buffer sits around until the next flush() call
-		// (but we do not offer stronger guarantees anyway)
 		if (buffers.size() == 1 && buffers.peekLast().isFinished()) {
 			return 1;
 		}

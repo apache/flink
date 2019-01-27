@@ -24,7 +24,7 @@ under the License.
 
 Flink can run on a single machine, even in a single Java Virtual Machine. This allows users to test and debug Flink programs locally. This section gives an overview of the local execution mechanisms.
 
-The local environments and executors allow you to run Flink programs in a local Java Virtual Machine, or with within any JVM as part of existing programs. Most examples can be launched locally by simply hitting the "Run" button of your IDE.
+The local environments and executors allow you to run Flink programs in a local Java Virtual Machine, or within any JVM as part of existing programs. Most examples can be launched locally by simply hitting the "Run" button of your IDE.
 
 There are two different kinds of local execution supported in Flink. The `LocalExecutionEnvironment` is starting the full Flink runtime, including a JobManager and a TaskManager. These include memory management and all the internal algorithms that are executed in the cluster mode.
 
@@ -45,7 +45,7 @@ If you are developing your program in a Maven project, you have to add the `flin
 
 {% highlight xml %}
 <dependency>
-  <groupId>org.apache.flink</groupId>
+  <groupId>com.alibaba.blink</groupId>
   <artifactId>flink-clients{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
 </dependency>
@@ -79,11 +79,11 @@ public static void main(String[] args) throws Exception {
 
 The `JobExecutionResult` object, which is returned after the execution finished, contains the program runtime and the accumulator results.
 
-The `LocalEnvironment` allows also to pass custom configuration values to Flink.
+The `LocalEnvironment` also allows to pass custom configuration values to Flink.
 
 {% highlight java %}
 Configuration conf = new Configuration();
-conf.setFloat(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY, 0.5f);
+conf.setFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION, 0.5f);
 final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(conf);
 {% endhighlight %}
 
@@ -93,14 +93,14 @@ final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(con
 
 The execution on Java Collections using the `CollectionEnvironment` is a low-overhead approach for executing Flink programs. Typical use-cases for this mode are automated tests, debugging and code re-use.
 
-Users can use algorithms implemented for batch processing also for cases that are more interactive. A slightly changed variant of a Flink program could be used in a Java Application Server for processing incoming requests.
+Users can use algorithms implemented for batch processing as well as for cases that are more interactive. A slightly changed variant of a Flink program could be used in a Java Application Server for processing incoming requests.
 
 **Skeleton for Collection-based execution**
 
 {% highlight java %}
 public static void main(String[] args) throws Exception {
     // initialize a new Collection-based execution environment
-    final ExecutionEnvironment env = new CollectionEnvironment();
+    final ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 
     DataSet<User> users = env.fromCollection( /* get elements from a Java Collection */);
 

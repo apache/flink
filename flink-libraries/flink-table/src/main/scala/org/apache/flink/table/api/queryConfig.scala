@@ -22,7 +22,15 @@ import _root_.java.io.Serializable
 
 import org.apache.flink.api.common.time.Time
 
-class QueryConfig private[table] extends Serializable {}
+class QueryConfig private[table] extends Serializable {
+
+  /**
+    * The [[QueryConfig]] holds parameters that exits in [[TableConfig]] also. If the user gives
+    * a [[QueryConfig]], put all parameters of it to override [[TableConfig]].
+    */
+  private[flink] def overrideTableConfig(tableConfig: TableConfig): Unit = {}
+
+}
 
 /**
   * The [[BatchQueryConfig]] holds parameters to configure the behavior of batch queries.
@@ -72,10 +80,10 @@ class StreamQueryConfig private[table] extends QueryConfig {
   def withIdleStateRetentionTime(minTime: Time, maxTime: Time): StreamQueryConfig = {
 
     if (maxTime.toMilliseconds - minTime.toMilliseconds < 300000 &&
-      !(maxTime.toMilliseconds == 0 && minTime.toMilliseconds == 0)) {
+        !(maxTime.toMilliseconds == 0 && minTime.toMilliseconds == 0)) {
       throw new IllegalArgumentException(
         s"Difference between minTime: ${minTime.toString} and maxTime: ${maxTime.toString} " +
-          s"shoud be at least 5 minutes.")
+            s"shoud be at least 5 minutes.")
     }
     minIdleStateRetentionTime = minTime.toMilliseconds
     maxIdleStateRetentionTime = maxTime.toMilliseconds
@@ -88,5 +96,12 @@ class StreamQueryConfig private[table] extends QueryConfig {
 
   def getMaxIdleStateRetentionTime: Long = {
     maxIdleStateRetentionTime
+  }
+
+  override private[flink] def overrideTableConfig(tableConfig: TableConfig): Unit = {
+    if (minIdleStateRetentionTime != 0 || maxIdleStateRetentionTime != 0) {
+      tableConfig.withIdleStateRetentionTime(Time.milliseconds(minIdleStateRetentionTime),
+        Time.milliseconds(maxIdleStateRetentionTime))
+    }
   }
 }

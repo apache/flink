@@ -22,8 +22,10 @@ import org.apache.calcite.adapter.java.JavaTypeFactory
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.validate.{SqlConformanceEnum, SqlValidatorImpl, SqlValidatorScope}
-import org.apache.flink.table.api.ValidationException
+import org.apache.calcite.tools.ValidationException
+import org.apache.flink.table.dataformat.Decimal
 
 /**
  * This is a copy of Calcite's CalciteSqlValidator to use with [[FlinkPlannerImpl]].
@@ -50,18 +52,30 @@ class FlinkCalciteSqlValidator(
     typeFactory.asInstanceOf[JavaTypeFactory].toSql(targetRowType)
   }
 
+  override def validateLiteral(literal: SqlLiteral): Unit = {
+    literal.getTypeName match {
+      case SqlTypeName.DECIMAL =>
+        val bd = literal.getValue.asInstanceOf[java.math.BigDecimal]
+        if (bd.precision > Decimal.MAX_PS) {
+          throw newValidationError(literal,
+            org.apache.calcite.util.Static.RESOURCE.numberLiteralOutOfRange(bd.toString))
+        }
+      case _ => super.validateLiteral(literal)
+    }
+  }
+
   override def validateJoin(join: SqlJoin, scope: SqlValidatorScope): Unit = {
     // Due to the improper translation of lateral table left outer join in Calcite, we need to
     // temporarily forbid the common predicates until the problem is fixed (see FLINK-7865).
     if (join.getJoinType == JoinType.LEFT &&
-      isCollectionTable(join.getRight)) {
+        isCollectionTable(join.getRight)) {
       join.getCondition match {
         case c: SqlLiteral if c.booleanValue() && c.getValue.asInstanceOf[Boolean] =>
-          // We accept only literal true
+        // We accept only literal true
         case c if null != c =>
           throw new ValidationException(
-            s"Left outer joins with a table function do not accept a predicate such as $c. " +
-              s"Only literal TRUE is accepted.")
+            s"Left outer joins with a table function do not accept a predicte such as $c. " +
+                s"Only literal TRUE is accepted.")
       }
     }
     super.validateJoin(join, scope)
@@ -75,4 +89,5 @@ class FlinkCalciteSqlValidator(
       case _ => false
     }
   }
+
 }

@@ -22,74 +22,158 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
-import org.apache.commons.collections.IteratorUtils;
 import org.junit.Test;
 
-import javax.annotation.Nonnull;
-
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.List;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 /**
- * Tests for the {@link TaskSlotTable}.
+ * Test the actions on a slot table.
  */
-public class TaskSlotTableTest extends TestLogger {
+public class TaskSlotTableTest {
 
-	private static final Time SLOT_TIMEOUT = Time.seconds(100L);
-
-	/**
-	 * Tests that one can can mark allocated slots as active.
-	 */
 	@Test
-	public void testTryMarkSlotActive() throws SlotNotFoundException {
-		final TaskSlotTable taskSlotTable = createTaskSlotTable(Collections.nCopies(3, ResourceProfile.UNKNOWN));
+	public void testAllocateAndFree() throws SlotNotFoundException {
+		JobID jobID = new JobID();
+		AllocationID allocationID1 = new AllocationID();
+		AllocationID allocationID2 = new AllocationID();
 
-		try {
-			taskSlotTable.start(new TestingSlotActionsBuilder().build());
+		final int totalCPU = 3;
+		final int totalMemory = 1000;
+		final int firstCPU = 1;
+		final int firstMemory = 220;
+		final int secondCPU = 2;
+		final int secondMemory = 320;
 
-			final JobID jobId1 = new JobID();
-			final AllocationID allocationId1 = new AllocationID();
-			taskSlotTable.allocateSlot(0, jobId1, allocationId1, SLOT_TIMEOUT);
-			final AllocationID allocationId2 = new AllocationID();
-			taskSlotTable.allocateSlot(1, jobId1, allocationId2, SLOT_TIMEOUT);
-			final AllocationID allocationId3 = new AllocationID();
-			final JobID jobId2 = new JobID();
-			taskSlotTable.allocateSlot(2, jobId2, allocationId3, SLOT_TIMEOUT);
+		TaskSlotTable taskSlotTable = new TaskSlotTable(
+			Arrays.asList(ResourceProfile.UNKNOWN, ResourceProfile.UNKNOWN),
+			new ResourceProfile(totalCPU, totalMemory),
+			mock(TimerService.class)
+		);
 
-			taskSlotTable.markSlotActive(allocationId1);
+		taskSlotTable.start(mock(SlotActions.class));
 
-			assertThat(taskSlotTable.isAllocated(0, jobId1, allocationId1), is(true));
-			assertThat(taskSlotTable.isAllocated(1, jobId1, allocationId2), is(true));
-			assertThat(taskSlotTable.isAllocated(2, jobId2, allocationId3), is(true));
+		// The first slot
+		taskSlotTable.allocateSlot(0,
+			jobID,
+			allocationID1,
+			new ResourceProfile(firstCPU, firstMemory),
+			Collections.emptyList(),
+			Time.seconds(2));
 
-			assertThat(IteratorUtils.toList(taskSlotTable.getActiveSlots(jobId1)), is(equalTo(Arrays.asList(allocationId1))));
+		List<TaskSlot> allocated = Lists.newArrayList(taskSlotTable.getAllocatedSlots(jobID));
+		assertEquals(allocated.size(), 1);
+		assertEquals(new ResourceProfile(firstCPU, firstMemory), allocated.get(0).getAllocationResourceProfile());
 
-			assertThat(taskSlotTable.tryMarkSlotActive(jobId1, allocationId1), is(true));
-			assertThat(taskSlotTable.tryMarkSlotActive(jobId1, allocationId2), is(true));
-			assertThat(taskSlotTable.tryMarkSlotActive(jobId1, allocationId3), is(false));
+		// Un-satisfiable allocation should be fail
+		assertFalse(taskSlotTable.allocateSlot(1,
+			jobID,
+			allocationID2,
+			new ResourceProfile(totalCPU, totalMemory),
+			Collections.emptyList(),
+			Time.seconds(2)));
 
-			assertThat(Sets.newHashSet(taskSlotTable.getActiveSlots(jobId1)), is(equalTo(new HashSet<>(Arrays.asList(allocationId2, allocationId1)))));
-		} finally {
-			taskSlotTable.stop();
+		// The second slot
+		taskSlotTable.allocateSlot(1,
+			jobID,
+			allocationID2,
+			new ResourceProfile(secondCPU, secondMemory),
+			Collections.emptyList(),
+			Time.seconds(2));
+
+		allocated = Lists.newArrayList(taskSlotTable.getAllocatedSlots(jobID));
+		assertEquals(allocated.size(), 2);
+		for (TaskSlot taskSlot : allocated) {
+			if (taskSlot.getAllocationId().equals(allocationID1)) {
+				assertEquals(new ResourceProfile(firstCPU, firstMemory), taskSlot.getAllocationResourceProfile());
+			} else if (taskSlot.getAllocationId().equals(allocationID2)) {
+				assertEquals(new ResourceProfile(secondCPU, secondMemory), taskSlot.getAllocationResourceProfile());
+			} else {
+				fail("Unknown allocation");
+			}
 		}
+
+		// Free the first
+		taskSlotTable.freeSlot(allocationID1);
+		allocated = Lists.newArrayList(taskSlotTable.getAllocatedSlots(jobID));
+		assertEquals(allocated.size(), 1);
+		assertEquals(new ResourceProfile(secondCPU, secondMemory), allocated.get(0).getAllocationResourceProfile());
+
+		// Free the second
+		taskSlotTable.freeSlot(allocationID2);
+		allocated = Lists.newArrayList(taskSlotTable.getAllocatedSlots(jobID));
+		assertEquals(allocated.size(), 0);
 	}
 
-	@Nonnull
-	private TaskSlotTable createTaskSlotTable(final Collection<ResourceProfile> resourceProfiles) {
-		return new TaskSlotTable(
-			resourceProfiles,
-			new TimerService<>(TestingUtils.defaultExecutor(), 10000L));
-	}
+	@Test
+	public void testAllocateAndFreeWithUnknowTotalResource() throws SlotNotFoundException {
+		JobID jobID = new JobID();
+		AllocationID allocationID1 = new AllocationID();
+		AllocationID allocationID2 = new AllocationID();
 
+		final int firstCPU = 1;
+		final int firstMemory = 220;
+		final int secondCPU = 2;
+		final int secondMemory = 320;
+
+		TaskSlotTable taskSlotTable = new TaskSlotTable(
+			Arrays.asList(ResourceProfile.UNKNOWN, ResourceProfile.UNKNOWN),
+			ResourceProfile.UNKNOWN,
+			mock(TimerService.class)
+		);
+
+		taskSlotTable.start(mock(SlotActions.class));
+
+		// The first slot
+		taskSlotTable.allocateSlot(0,
+			jobID,
+			allocationID1,
+			new ResourceProfile(firstCPU, firstMemory),
+			Collections.emptyList(),
+			Time.seconds(2));
+
+		List<TaskSlot> allocated = Lists.newArrayList(taskSlotTable.getAllocatedSlots(jobID));
+		assertEquals(allocated.size(), 1);
+		assertEquals(new ResourceProfile(firstCPU, firstMemory), allocated.get(0).getAllocationResourceProfile());
+
+		// The second slot
+		taskSlotTable.allocateSlot(1,
+			jobID,
+			allocationID2,
+			new ResourceProfile(secondCPU, secondMemory),
+			Collections.emptyList(),
+			Time.seconds(2));
+
+		allocated = Lists.newArrayList(taskSlotTable.getAllocatedSlots(jobID));
+		assertEquals(allocated.size(), 2);
+		for (TaskSlot taskSlot : allocated) {
+			if (taskSlot.getAllocationId().equals(allocationID1)) {
+				assertEquals(new ResourceProfile(firstCPU, firstMemory), taskSlot.getAllocationResourceProfile());
+			} else if (taskSlot.getAllocationId().equals(allocationID2)) {
+				assertEquals(new ResourceProfile(secondCPU, secondMemory), taskSlot.getAllocationResourceProfile());
+			} else {
+				fail("Unknown allocation");
+			}
+		}
+
+		// Free the first
+		taskSlotTable.freeSlot(allocationID1);
+		allocated = Lists.newArrayList(taskSlotTable.getAllocatedSlots(jobID));
+		assertEquals(allocated.size(), 1);
+		assertEquals(new ResourceProfile(secondCPU, secondMemory), allocated.get(0).getAllocationResourceProfile());
+
+		// Free the second
+		taskSlotTable.freeSlot(allocationID2);
+		allocated = Lists.newArrayList(taskSlotTable.getAllocatedSlots(jobID));
+		assertEquals(allocated.size(), 0);
+	}
 }

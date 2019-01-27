@@ -108,12 +108,12 @@ public class StringPairSerializer extends TypeSerializer<StringPair> {
 	}
 
 	@Override
-	public TypeSerializerConfigSnapshot<StringPair> snapshotConfiguration() {
+	public TypeSerializerConfigSnapshot snapshotConfiguration() {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public CompatibilityResult<StringPair> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+	public CompatibilityResult<StringPair> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		throw new UnsupportedOperationException();
 	}
 }

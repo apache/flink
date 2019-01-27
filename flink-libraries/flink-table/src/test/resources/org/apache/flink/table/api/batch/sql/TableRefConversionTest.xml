@@ -1,0 +1,68 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testTableRefConversion1">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM MyView WHERE c > 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- LogicalFilter(condition=[>(CAST($2):INTEGER, 10)])
+   +- LogicalTableScan(table=[[builtin, default, MyView]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, c])
++- HashSemiJoin(where=[=(b, d)], join=[a, b, c], joinType=[LeftSemiJoin], isBroadcast=[true], build=[right])
+   :- Calc(select=[a, b, c], where=[>(CAST(c), 10)])
+   :  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[d], where=[=(c, CAST(e))])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableRefConversion2">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM MyView WHERE c > 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- LogicalFilter(condition=[>(CAST($2):INTEGER, 10)])
+   +- LogicalTableScan(table=[[builtin, default, MyView]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, c])
++- NestedLoopJoin(where=[=(b, EXPR$0)], join=[a, b, c, EXPR$0], joinType=[InnerJoin], build=[right], singleRowJoin=[true])
+   :- Calc(select=[a, b, c], where=[>(CAST(c), 10)])
+   :  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- HashAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_MAX(d) AS max$0])
+               +- Calc(select=[d], where=[=(c, CAST(e))])
+                  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

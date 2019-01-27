@@ -41,7 +41,7 @@ This connector provides access to data streams from [RabbitMQ](http://www.rabbit
 
 {% highlight xml %}
 <dependency>
-  <groupId>org.apache.flink</groupId>
+  <groupId>com.alibaba.blink</groupId>
   <artifactId>flink-connector-rabbitmq{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
@@ -50,11 +50,11 @@ This connector provides access to data streams from [RabbitMQ](http://www.rabbit
 Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here]({{site.baseurl}}/dev/linking.html).
 
 #### Installing RabbitMQ
-Follow the instructions from the [RabbitMQ download page](http://www.rabbitmq.com/download.html). After the installation the server automatically starts, and the application connecting to RabbitMQ can be launched.
+Follow the instructions from the [RabbitMQ download page](http://www.rabbitmq.com/download.html). After the installation, the server automatically starts, and the application connecting to RabbitMQ can be launched.
 
 #### RabbitMQ Source
 
-This connector provides a `RMQSource` class to consume messages from a RabbitMQ
+This connector provides an `RMQSource` class to consume messages from a RabbitMQ
 queue. This source provides three different levels of guarantees, depending
 on how it is configured with Flink:
 
@@ -132,7 +132,7 @@ val stream = env
 </div>
 
 #### RabbitMQ Sink
-This connector provides a `RMQSink` class for sending messages to a RabbitMQ
+This connector provides an `RMQSink` class for sending messages to a RabbitMQ
 queue. Below is a code example for setting up a RabbitMQ sink.
 
 <div class="codetabs" markdown="1">

@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.client.gateway.utils;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.Types;
+import org.apache.flink.table.api.types.DataType;
+import org.apache.flink.table.api.types.DataTypes;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
+import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.sources.DefinedProctimeAttribute;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -123,8 +124,8 @@ public abstract class TestTableSourceFactoryBase implements StreamTableSourceFac
 		}
 
 		@Override
-		public TypeInformation<Row> getReturnType() {
-			return Types.ROW(schema.getFieldNames(), schema.getFieldTypes());
+		public DataType getReturnType() {
+			return DataTypes.createRowType(schema.getFieldTypes(), schema.getFieldNames());
 		}
 
 		@Override
@@ -145,6 +146,11 @@ public abstract class TestTableSourceFactoryBase implements StreamTableSourceFac
 		@Override
 		public String getProctimeAttribute() {
 			return proctime;
+		}
+
+		@Override
+		public TableStats getTableStats() {
+			return null;
 		}
 	}
 }

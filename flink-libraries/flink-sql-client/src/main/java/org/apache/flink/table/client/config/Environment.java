@@ -19,6 +19,8 @@
 package org.apache.flink.table.client.config;
 
 import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.client.catalog.CatalogType;
+import org.apache.flink.table.client.config.entries.CatalogEntry;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.FunctionEntry;
@@ -37,7 +39,7 @@ import java.util.Map;
 
 /**
  * Environment configuration that represents the content of an environment file. Environment files
- * define tables, execution, and deployment behavior. An environment might be defined by default or
+ * define tables, execution, catalogs, and deployment behavior. An environment might be defined by default or
  * as part of a session. Environments can be merged or enriched with properties (e.g. from CLI command).
  *
  * <p>In future versions, we might restrict the merging or enrichment of deployment properties to not
@@ -57,9 +59,12 @@ public class Environment {
 
 	private DeploymentEntry deployment;
 
+	private Map<String, CatalogEntry> catalogs;
+
 	public Environment() {
 		this.tables = Collections.emptyMap();
 		this.functions = Collections.emptyMap();
+		this.catalogs = Collections.emptyMap();
 		this.execution = ExecutionEntry.DEFAULT_INSTANCE;
 		this.deployment = DeploymentEntry.DEFAULT_INSTANCE;
 	}
@@ -114,6 +119,25 @@ public class Environment {
 		return deployment;
 	}
 
+	public Map<String, CatalogEntry> getCatalogs() {
+		return catalogs;
+	}
+
+	public void setCatalogs(List<Map<String, Object>> catalogList) {
+		this.catalogs = new HashMap<>(catalogList.size());
+
+		catalogList.forEach(config -> {
+			final CatalogEntry catalog = CatalogEntry.create(config);
+
+			if (catalogs.containsKey(catalog.getName())) {
+				throw new SqlClientException(
+					String.format("Catalog %s is already registered", catalog.getName()));
+			}
+
+			catalogs.put(catalog.getName(), catalog);
+		});
+	}
+
 	@Override
 	public String toString() {
 		final StringBuilder sb = new StringBuilder();
@@ -141,7 +165,9 @@ public class Environment {
 	 */
 	public static Environment parse(URL url) throws IOException {
 		try {
-			return new ConfigUtil.LowerCaseYamlMapper().readValue(url, Environment.class);
+			Environment env = new ConfigUtil.LowerCaseYamlMapper().readValue(url, Environment.class);
+			validateEnvironment(env);
+			return env;
 		} catch (JsonMappingException e) {
 			throw new SqlClientException("Could not parse environment file. Cause: " + e.getMessage());
 		}
@@ -152,9 +178,29 @@ public class Environment {
 	 */
 	public static Environment parse(String content) throws IOException {
 		try {
-			return new ConfigUtil.LowerCaseYamlMapper().readValue(content, Environment.class);
+			Environment env = new ConfigUtil.LowerCaseYamlMapper().readValue(content, Environment.class);
+			validateEnvironment(env);
+			return env;
 		} catch (JsonMappingException e) {
 			throw new SqlClientException("Could not parse environment file. Cause: " + e.getMessage());
+		}
+	}
+
+	/**
+	 * check whether the environment file is valid.
+	 */
+	public static void validateEnvironment(Environment env) {
+		if (env.tables.size() < 1) {
+			return;
+		}
+		boolean isHiveCatalogDefault = env.catalogs.values().stream().filter(c ->
+			c.isDefaultCatalog()
+				&& c.getType().isPresent()
+				&& c.getType().get().equals(CatalogType.hive.name())).count() > 0;
+		if (isHiveCatalogDefault) {
+			throw new SqlClientException("Flink table cannot be registered into Hive catalog. "
+				+ "Please set a flink_in_memory catalog as default catalog, "
+				+ "or set none catalog as default in yaml config file");
 		}
 	}
 
@@ -180,6 +226,14 @@ public class Environment {
 		// merge deployment properties
 		mergedEnv.deployment = DeploymentEntry.merge(env1.getDeployment(), env2.getDeployment());
 
+		Map<String, CatalogEntry> catalogs = new HashMap<>();
+		catalogs.putAll(env1.getCatalogs());
+		catalogs.putAll(env2.getCatalogs());
+
+		mergedEnv.catalogs = catalogs;
+
+		validateEnvironment(mergedEnv);
+
 		return mergedEnv;
 	}
 
@@ -204,6 +258,8 @@ public class Environment {
 
 		// enrich deployment properties
 		enrichedEnv.deployment = DeploymentEntry.enrich(env.deployment, properties);
+
+		validateEnvironment(enrichedEnv);
 
 		return enrichedEnv;
 	}

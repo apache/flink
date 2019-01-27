@@ -30,22 +30,23 @@ import org.apache.flink.core.memory.MemorySegment;
 public class AsynchronousBulkBlockReader extends AsynchronousFileIOChannel<MemorySegment, ReadRequest> implements BulkBlockChannelReader {
 	
 	private final ArrayList<MemorySegment> returnBuffers;
-	
-	
+	private final int bufferSize;
+
 	protected AsynchronousBulkBlockReader(FileIOChannel.ID channelID, RequestQueue<ReadRequest> requestQueue, 
-			List<MemorySegment> sourceSegments, int numBlocks)
+			List<MemorySegment> sourceSegments, int numBlocks, int bufferedSize)
 	throws IOException
 	{
-		this (channelID, requestQueue, sourceSegments, numBlocks, new ArrayList<MemorySegment>(numBlocks));
+		this (channelID, requestQueue, sourceSegments, numBlocks, new ArrayList<MemorySegment>(numBlocks), bufferedSize);
 	}
 	
 	private AsynchronousBulkBlockReader(FileIOChannel.ID channelID, RequestQueue<ReadRequest> requestQueue, 
-			List<MemorySegment> sourceSegments, int numBlocks, ArrayList<MemorySegment> target)
+			List<MemorySegment> sourceSegments, int numBlocks, ArrayList<MemorySegment> target, int bufferSize)
 	throws IOException
 	{
 		super(channelID, requestQueue, new CollectingCallback(target), false);
 		this.returnBuffers = target;
-		
+		this.bufferSize = bufferSize;
+
 		// sanity check
 		if (sourceSegments.size() < numBlocks) {
 			throw new IllegalArgumentException("The list of source memory segments must contain at least" +
@@ -59,7 +60,7 @@ public class AsynchronousBulkBlockReader extends AsynchronousFileIOChannel<Memor
 	}
 	
 	private void readBlock(MemorySegment segment) throws IOException {
-		addRequest(new SegmentReadRequest(this, segment));
+		addRequest(new SegmentReadRequest(this, segment, bufferSize));
 	}
 	
 	@Override

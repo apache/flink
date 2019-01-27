@@ -33,7 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import javax.net.ServerSocketFactory;
+import javax.net.ssl.SSLContext;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -77,6 +77,9 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 
 	/** The server socket listening for incoming connections. */
 	private final ServerSocket serverSocket;
+
+	/** The SSL server context if ssl is enabled for the connections. */
+	private final SSLContext serverSSLContext;
 
 	/** Blob Server configuration. */
 	private final Configuration blobServiceConfiguration;
@@ -169,30 +172,40 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 
 		this.shutdownHook = ShutdownHookUtil.addShutdownHook(this, getClass().getSimpleName(), LOG);
 
+		if (config.getBoolean(BlobServerOptions.SSL_ENABLED)) {
+			try {
+				serverSSLContext = SSLUtils.createSSLServerContext(config);
+			} catch (Exception e) {
+				throw new IOException("Failed to initialize SSLContext for the blob server", e);
+			}
+		} else {
+			serverSSLContext = null;
+		}
+
 		//  ----------------------- start the server -------------------
 
-		final String serverPortRange = config.getString(BlobServerOptions.PORT);
-		final Iterator<Integer> ports = NetUtils.getPortRangeFromString(serverPortRange);
+		String serverPortRange = config.getString(BlobServerOptions.PORT);
 
-		final ServerSocketFactory socketFactory;
-		if (SSLUtils.isInternalSSLEnabled(config) && config.getBoolean(BlobServerOptions.SSL_ENABLED)) {
-			try {
-				socketFactory = SSLUtils.createSSLServerSocketFactory(config);
-			}
-			catch (Exception e) {
-				throw new IOException("Failed to initialize SSL for the blob server", e);
-			}
-		}
-		else {
-			socketFactory = ServerSocketFactory.getDefault();
-		}
+		Iterator<Integer> ports = NetUtils.getPortRangeFromString(serverPortRange);
 
 		final int finalBacklog = backlog;
-		this.serverSocket = NetUtils.createSocketFromPorts(ports,
-				(port) -> socketFactory.createServerSocket(port, finalBacklog));
+		ServerSocket socketAttempt = NetUtils.createSocketFromPorts(ports, new NetUtils.SocketFactory() {
+			@Override
+			public ServerSocket createSocket(int port) throws IOException {
+				if (serverSSLContext == null) {
+					return new ServerSocket(port, finalBacklog);
+				} else {
+					LOG.info("Enabling ssl for the blob server");
+					return serverSSLContext.getServerSocketFactory().createServerSocket(port, finalBacklog);
+				}
+			}
+		});
 
-		if (serverSocket == null) {
-			throw new IOException("Unable to open BLOB Server in specified port range: " + serverPortRange);
+		if (socketAttempt == null) {
+			throw new IOException("Unable to allocate socket for blob server in specified port range: " + serverPortRange);
+		} else {
+			SSLUtils.setSSLVerAndCipherSuites(socketAttempt, config);
+			this.serverSocket = socketAttempt;
 		}
 
 		// start the server thread

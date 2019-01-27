@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
@@ -34,7 +35,6 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.nio.file.Files;
 import java.util.Collection;
 
 /**
@@ -146,6 +146,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	@Nullable
 	private final JobManagerTaskRestore taskRestore;
 
+	/** The create timestamp of execution. */
+	private final long createTimestamp;
+
 	public TaskDeploymentDescriptor(
 		JobID jobId,
 		MaybeOffloaded<JobInformation> serializedJobInformation,
@@ -155,6 +158,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		int subtaskIndex,
 		int attemptNumber,
 		int targetSlotNumber,
+		long createTimestamp,
 		@Nullable JobManagerTaskRestore taskRestore,
 		Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
 		Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
@@ -175,6 +179,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 		Preconditions.checkArgument(0 <= targetSlotNumber, "The target slot number must be positive.");
 		this.targetSlotNumber = targetSlotNumber;
+
+		Preconditions.checkArgument(0 <= createTimestamp, "The create timestamp must be positive.");
+		this.createTimestamp = createTimestamp;
 
 		this.taskRestore = taskRestore;
 
@@ -273,6 +280,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		return allocationId;
 	}
 
+	public long getCreateTimestamp() {
+		return createTimestamp;
+	}
+
 	/**
 	 * Loads externalized data from the BLOB store back to the object.
 	 *
@@ -300,7 +311,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			//       (it is deleted automatically on the BLOB server and cache when the job
 			//       enters a terminal state)
 			SerializedValue<JobInformation> serializedValue =
-				SerializedValue.fromBytes(Files.readAllBytes(dataFile.toPath()));
+				SerializedValue.fromBytes(FileUtils.readAllBytes(dataFile.toPath(), -1));
 			serializedJobInformation = new NonOffloaded<>(serializedValue);
 		}
 
@@ -315,7 +326,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			//       (it is deleted automatically on the BLOB server and cache when the job
 			//       enters a terminal state)
 			SerializedValue<TaskInformation> serializedValue =
-				SerializedValue.fromBytes(Files.readAllBytes(dataFile.toPath()));
+				SerializedValue.fromBytes(FileUtils.readAllBytes(dataFile.toPath(), -1));
 			serializedTaskInformation = new NonOffloaded<>(serializedValue);
 		}
 

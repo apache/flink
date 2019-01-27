@@ -22,12 +22,11 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.executiongraph.DummyJobInformation;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobInformation;
@@ -49,10 +48,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link RescalePartitioner}.
@@ -67,12 +66,10 @@ public class RescalePartitionerTest extends StreamPartitionerTest {
 
 	@Test
 	public void testSelectChannelsInterval() {
-		streamPartitioner.setup(3);
-
-		assertSelectedChannel(0);
-		assertSelectedChannel(1);
-		assertSelectedChannel(2);
-		assertSelectedChannel(0);
+		assertSelectedChannel(0, 3);
+		assertSelectedChannel(1, 3);
+		assertSelectedChannel(2, 3);
+		assertSelectedChannel(0, 3);
 	}
 
 	@Test
@@ -130,24 +127,17 @@ public class RescalePartitionerTest extends StreamPartitionerTest {
 			jobId,
 			jobName);
 
-		ExecutionGraph eg = new ExecutionGraph(
+		ScheduledExecutorService executor = TestingUtils.defaultExecutor();
+
+		ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraphDirectly(
 			jobInformation,
-			TestingUtils.defaultExecutor(),
-			TestingUtils.defaultExecutor(),
+			executor,
+			executor,
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
 			new RestartAllStrategy.Factory(),
 			new Scheduler(TestingUtils.defaultExecutionContext()),
-			ExecutionGraph.class.getClassLoader(),
-			VoidBlobWriter.getInstance(),
-			AkkaUtils.getDefaultTimeout());
-		try {
-			eg.attachJobGraph(jobVertices);
-		}
-		catch (JobException e) {
-			e.printStackTrace();
-			fail("Building ExecutionGraph failed: " + e.getMessage());
-		}
+			jobVertices);
 
 		ExecutionJobVertex execSourceVertex = eg.getJobVertex(sourceVertex.getID());
 		ExecutionJobVertex execMapVertex = eg.getJobVertex(mapVertex.getID());

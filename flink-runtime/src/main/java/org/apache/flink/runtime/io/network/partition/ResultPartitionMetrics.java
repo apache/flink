@@ -28,11 +28,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ResultPartitionMetrics {
 
-	private final ResultPartition partition;
+	private final InternalResultPartition partition;
 
 	// ------------------------------------------------------------------------
 
-	private ResultPartitionMetrics(ResultPartition partition) {
+	private ResultPartitionMetrics(InternalResultPartition partition) {
 		this.partition = checkNotNull(partition);
 	}
 
@@ -158,7 +158,7 @@ public class ResultPartitionMetrics {
 	//  Static access
 	// ------------------------------------------------------------------------
 
-	public static void registerQueueLengthMetrics(MetricGroup group, ResultPartition partition) {
+	public static void registerQueueLengthMetrics(MetricGroup group, InternalResultPartition partition) {
 		ResultPartitionMetrics metrics = new ResultPartitionMetrics(partition);
 
 		group.gauge("totalQueueLen", metrics.getTotalQueueLenGauge());

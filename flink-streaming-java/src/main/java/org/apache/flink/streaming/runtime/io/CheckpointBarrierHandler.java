@@ -49,6 +49,28 @@ public interface CheckpointBarrierHandler {
 	BufferOrEvent getNextNonBlocked() throws Exception;
 
 	/**
+	 * Returns the next {@link BufferOrEvent} that the operator may consume.
+	 * This call will not block if there is no BufferOrEvent available.
+	 *
+	 * @return The next BufferOrEvent, or {@code null}, if there is no BufferOrEvent available.
+	 *
+	 * @throws IOException Thrown if the network or local disk I/O fails.
+	 *
+	 * @throws InterruptedException Thrown if the thread is interrupted while blocking during
+	 *                              waiting for the next BufferOrEvent to become available.
+	 * @throws Exception Thrown in case that a checkpoint fails that is started as the result of receiving
+	 *                   the last checkpoint barrier
+	 */
+	BufferOrEvent pollNext() throws Exception;
+
+	/**
+	 * Check if it is finished.
+	 *
+	 * @return {@code true}, if is finished, {@code false} otherwise.
+	 */
+	boolean isFinished();
+
+	/**
 	 * Registers the task be notified once all checkpoint barriers have been received for a checkpoint.
 	 *
 	 * @param task The task to notify

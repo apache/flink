@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.Preconditions;
 
@@ -45,7 +44,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *     <li>The default parallelism of the program, i.e., how many parallel tasks to use for
  *         all functions that do not define a specific value directly.</li>
  *     <li>The number of retries in the case of failed executions.</li>
- *     <li>The delay between execution retries.</li>
+ *     <li>The delay between delay between execution retries.</li>
  *     <li>The {@link ExecutionMode} of the program: Batch or Pipelined.
  *         The default execution mode is {@link ExecutionMode#PIPELINED}</li>
  *     <li>Enabling or disabling the "closure cleaner". The closure cleaner pre-processes
@@ -86,6 +85,11 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * unchanged.
 	 */
 	public static final int PARALLELISM_UNKNOWN = -2;
+
+	/**
+	 * The default sampling rate of tracing metric based on records count.
+	 */
+	public static final int DEFAULT_TRACING_METRICS_SAMPLE_INTERVAL = 100;
 
 	private static final long DEFAULT_RESTART_DELAY = 10000L;
 
@@ -132,9 +136,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/**
 	 * Interval in milliseconds for sending latency tracking marks from the sources to the sinks.
 	 */
-	private long latencyTrackingInterval = MetricOptions.LATENCY_INTERVAL.defaultValue();
-
-	private boolean isLatencyTrackingConfigured = false;
+	private long latencyTrackingInterval = -1;
 
 	/**
 	 * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
@@ -142,9 +144,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	@Deprecated
 	private long executionRetryDelay = DEFAULT_RESTART_DELAY;
 
-	private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
-		new RestartStrategies.FallbackRestartStrategyConfiguration();
-	
+	private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration;
+
 	private long taskCancellationIntervalMillis = -1;
 
 	/**
@@ -156,11 +157,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/** This flag defines if we use compression for the state snapshot data or not. Default: false */
 	private boolean useSnapshotCompression = false;
 
-	/** Determines if a task fails or not if there is an error in writing its checkpoint data. Default: true */
-	private boolean failTaskOnCheckpointError = true;
-
-	/** The default input dependency constraint to schedule tasks. */
-	private InputDependencyConstraint defaultInputDependencyConstraint = InputDependencyConstraint.ANY;
+	/** Determines if a task fails or not if there is an error in writing its checkpoint data. Default: false */
+	private boolean failTaskOnCheckpointError = false;
 
 	// ------------------------------- User code values --------------------------------------------
 
@@ -180,6 +178,10 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	private LinkedHashSet<Class<?>> registeredKryoTypes = new LinkedHashSet<>();
 
 	private LinkedHashSet<Class<?>> registeredPojoTypes = new LinkedHashSet<>();
+
+	private boolean tracingMetricsEnabled = false;
+
+	private int tracingMetricsInterval = DEFAULT_TRACING_METRICS_SAMPLE_INTERVAL;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -240,6 +242,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * Interval for sending latency tracking marks from the sources to the sinks.
 	 * Flink will send latency tracking marks from the sources at the specified interval.
 	 *
+	 * Recommended value: 2000 (2 seconds).
+	 *
 	 * Setting a tracking interval <= 0 disables the latency tracking.
 	 *
 	 * @param interval Interval in milliseconds.
@@ -247,7 +251,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	@PublicEvolving
 	public ExecutionConfig setLatencyTrackingInterval(long interval) {
 		this.latencyTrackingInterval = interval;
-		this.isLatencyTrackingConfigured = true;
 		return this;
 	}
 
@@ -261,17 +264,12 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
-	 * @deprecated will be removed in a future version
+	 * Returns if latency tracking is enabled
+	 * @return True, if the tracking is enabled, false otherwise.
 	 */
 	@PublicEvolving
-	@Deprecated
 	public boolean isLatencyTrackingEnabled() {
-		return isLatencyTrackingConfigured && latencyTrackingInterval > 0;
-	}
-
-	@Internal
-	public boolean isLatencyTrackingConfigured() {
-		return isLatencyTrackingConfigured;
+		return latencyTrackingInterval > 0;
 	}
 
 	/**
@@ -402,7 +400,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 */
 	@PublicEvolving
 	public void setRestartStrategy(RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
-		this.restartStrategyConfiguration = Preconditions.checkNotNull(restartStrategyConfiguration);
+		this.restartStrategyConfiguration = restartStrategyConfiguration;
 	}
 
 	/**
@@ -413,14 +411,14 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	@PublicEvolving
 	@SuppressWarnings("deprecation")
 	public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
-		if (restartStrategyConfiguration instanceof RestartStrategies.FallbackRestartStrategyConfiguration) {
+		if (restartStrategyConfiguration == null) {
 			// support the old API calls by creating a restart strategy from them
 			if (getNumberOfExecutionRetries() > 0 && getExecutionRetryDelay() >= 0) {
 				return RestartStrategies.fixedDelayRestart(getNumberOfExecutionRetries(), getExecutionRetryDelay());
 			} else if (getNumberOfExecutionRetries() == 0) {
 				return RestartStrategies.noRestart();
 			} else {
-				return restartStrategyConfiguration;
+				return null;
 			}
 		} else {
 			return restartStrategyConfiguration;
@@ -522,32 +520,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
-	 * Sets the default input dependency constraint for vertex scheduling. It indicates when a task
-	 * should be scheduled considering its inputs status.
-	 *
-	 * <p>The default constraint is {@link InputDependencyConstraint#ANY}.
-	 *
-	 * @param inputDependencyConstraint The input dependency constraint.
-	 */
-	@PublicEvolving
-	public void setDefaultInputDependencyConstraint(InputDependencyConstraint inputDependencyConstraint) {
-		this.defaultInputDependencyConstraint = inputDependencyConstraint;
-	}
-
-	/**
-	 * Gets the default input dependency constraint for vertex scheduling. It indicates when a task
-	 * should be scheduled considering its inputs status.
-	 *
-	 * <p>The default constraint is {@link InputDependencyConstraint#ANY}.
-	 *
-	 * @return The input dependency constraint of this job.
-	 */
-	@PublicEvolving
-	public InputDependencyConstraint getDefaultInputDependencyConstraint() {
-		return defaultInputDependencyConstraint;
-	}
-
-	/**
 	 * Force TypeExtractor to use Kryo serializer for POJOS even though we could analyze as POJO.
 	 * In some cases this might be preferable. For example, when using interfaces
 	 * with subclasses that cannot be analyzed as POJO.
@@ -569,7 +541,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	/**
 	 * Enables the use generic types which are serialized via Kryo.
-	 * 
+	 *
 	 * <p>Generic types are enabled by default.
 	 *
 	 * @see #disableGenericTypes()
@@ -583,16 +555,16 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * is used, Flink will throw an {@code UnsupportedOperationException} whenever it encounters
 	 * a data type that would go through Kryo for serialization.
 	 *
-	 * <p>Disabling generic types can be helpful to eagerly find and eliminate the use of types
+	 * <p>Disabling generic types can be helpful to eagerly find and eliminate teh use of types
 	 * that would go through Kryo serialization during runtime. Rather than checking types
 	 * individually, using this option will throw exceptions eagerly in the places where generic
 	 * types are used.
-	 * 
+	 *
 	 * <p><b>Important:</b> We recommend to use this option only during development and pre-production
 	 * phases, not during actual production use. The application program and/or the input data may be
 	 * such that new, previously unseen, types occur at some point. In that case, setting this option
 	 * would cause the program to fail.
-	 * 
+	 *
 	 * @see #enableGenericTypes()
 	 */
 	public void disableGenericTypes() {
@@ -602,9 +574,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/**
 	 * Checks whether generic types are supported. Generic types are types that go through Kryo during
 	 * serialization.
-	 * 
+	 *
 	 * <p>Generic types are enabled by default.
-	 * 
+	 *
 	 * @see #enableGenericTypes()
 	 * @see #disableGenericTypes()
 	 */
@@ -660,21 +632,21 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	public boolean isObjectReuseEnabled() {
 		return objectReuse;
 	}
-	
+
 	/**
 	 * Sets the {@link CodeAnalysisMode} of the program. Specifies to which extent user-defined
 	 * functions are analyzed in order to give the Flink optimizer an insight of UDF internals
 	 * and inform the user about common implementation mistakes. The static code analyzer pre-interprets
 	 * user-defined functions in order to get implementation insights for program improvements
 	 * that can be printed to the log, automatically applied, or disabled.
-	 * 
+	 *
 	 * @param codeAnalysisMode see {@link CodeAnalysisMode}
 	 */
 	@PublicEvolving
 	public void setCodeAnalysisMode(CodeAnalysisMode codeAnalysisMode) {
 		this.codeAnalysisMode = codeAnalysisMode;
 	}
-	
+
 	/**
 	 * Returns the {@link CodeAnalysisMode} of the program.
 	 */
@@ -685,7 +657,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	/**
 	 * Enables the printing of progress update messages to {@code System.out}
-	 * 
+	 *
 	 * @return The ExecutionConfig object, to allow for function chaining.
 	 */
 	public ExecutionConfig enableSysoutLogging() {
@@ -705,7 +677,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	/**
 	 * Gets whether progress update messages should be printed to {@code System.out}
-	 * 
+	 *
 	 * @return True, if progress update messages should be printed, false otherwise.
 	 */
 	public boolean isSysoutLoggingEnabled() {
@@ -947,8 +919,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				registeredKryoTypes.equals(other.registeredKryoTypes) &&
 				registeredPojoTypes.equals(other.registeredPojoTypes) &&
 				taskCancellationIntervalMillis == other.taskCancellationIntervalMillis &&
-				useSnapshotCompression == other.useSnapshotCompression &&
-				defaultInputDependencyConstraint == other.defaultInputDependencyConstraint;
+				useSnapshotCompression == other.useSnapshotCompression;
 
 		} else {
 			return false;
@@ -976,22 +947,38 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			registeredKryoTypes,
 			registeredPojoTypes,
 			taskCancellationIntervalMillis,
-			useSnapshotCompression,
-			defaultInputDependencyConstraint);
+			useSnapshotCompression);
 	}
 
 	public boolean canEqual(Object obj) {
 		return obj instanceof ExecutionConfig;
 	}
-	
+
 	@Override
 	@Internal
 	public ArchivedExecutionConfig archive() {
 		return new ArchivedExecutionConfig(this);
 	}
 
+	public boolean isTracingMetricsEnabled() {
+		return tracingMetricsEnabled;
+	}
 
-	// ------------------------------ Utilities  ----------------------------------
+	public ExecutionConfig setTracingMetricsEnabled(boolean tracingMetricsEnabled) {
+		this.tracingMetricsEnabled = tracingMetricsEnabled;
+		return this;
+	}
+
+	public int getTracingMetricsInterval() {
+		return tracingMetricsInterval;
+	}
+
+	public ExecutionConfig setTracingMetricsInterval(int tracingMetricsInterval) {
+		Preconditions.checkArgument(tracingMetricsInterval > 0);
+		this.tracingMetricsInterval = tracingMetricsInterval;
+		return this;
+	}
+// ------------------------------ Utilities  ----------------------------------
 
 	public static class SerializableSerializer<T extends Serializer<?> & Serializable> implements Serializable {
 		private static final long serialVersionUID = 4687893502781067189L;

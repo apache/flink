@@ -30,7 +30,6 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 import static org.mockito.Mockito.mock;
@@ -64,8 +63,7 @@ public class SourceFunctionUtil {
 
 			RuntimeContext runtimeContext = new StreamingRuntimeContext(
 				operator,
-				environment,
-				new HashMap<>());
+				environment);
 			((RichFunction) sourceFunction).setRuntimeContext(runtimeContext);
 			((RichFunction) sourceFunction).open(new Configuration());
 

@@ -20,6 +20,8 @@ package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.util.AbstractID;
 
+import javax.xml.bind.DatatypeConverter;
+
 /**
  * A class for statistically unique operator IDs.
  */
@@ -37,6 +39,10 @@ public class OperatorID extends AbstractID {
 
 	public OperatorID(long lowerPart, long upperPart) {
 		super(lowerPart, upperPart);
+	}
+
+	public static OperatorID fromHexString(String hexString) {
+		return new OperatorID(DatatypeConverter.parseHexBinary(hexString));
 	}
 
 	public static OperatorID fromJobVertexID(JobVertexID id) {

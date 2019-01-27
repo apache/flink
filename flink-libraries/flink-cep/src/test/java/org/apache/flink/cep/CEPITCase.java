@@ -24,8 +24,8 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
-import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.RichIterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
@@ -102,15 +102,19 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		});
 
-		DataStream<String> result = CEP.pattern(input, pattern).flatSelect((p, o) -> {
-			StringBuilder builder = new StringBuilder();
+		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
-			builder.append(p.get("start").get(0).getId()).append(",")
-				.append(p.get("middle").get(0).getId()).append(",")
-				.append(p.get("end").get(0).getId());
+			@Override
+			public String select(Map<String, List<Event>> pattern) {
+				StringBuilder builder = new StringBuilder();
 
-			o.collect(builder.toString());
-		}, Types.STRING);
+				builder.append(pattern.get("start").get(0).getId()).append(",")
+					.append(pattern.get("middle").get(0).getId()).append(",")
+					.append(pattern.get("end").get(0).getId());
+
+				return builder.toString();
+			}
+		});
 
 		List<String> resultList = new ArrayList<>();
 
@@ -172,14 +176,18 @@ public class CEPITCase extends AbstractTestBase {
 				}
 			});
 
-		DataStream<String> result = CEP.pattern(input, pattern).select(p -> {
-			StringBuilder builder = new StringBuilder();
+		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
-			builder.append(p.get("start").get(0).getId()).append(",")
-				.append(p.get("middle").get(0).getId()).append(",")
-				.append(p.get("end").get(0).getId());
+			@Override
+			public String select(Map<String, List<Event>> pattern) {
+				StringBuilder builder = new StringBuilder();
 
-			return builder.toString();
+				builder.append(pattern.get("start").get(0).getId()).append(",")
+					.append(pattern.get("middle").get(0).getId()).append(",")
+					.append(pattern.get("end").get(0).getId());
+
+				return builder.toString();
+			}
 		});
 
 		List<String> resultList = new ArrayList<>();

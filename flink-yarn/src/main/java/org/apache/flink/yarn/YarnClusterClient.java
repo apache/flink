@@ -20,7 +20,6 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.client.program.ActorSystemLoader;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
@@ -148,8 +147,8 @@ public class YarnClusterClient extends ClusterClient<ApplicationId> {
 	}
 
 	@Override
-	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-		if (isDetached()) {
+	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader, boolean detached) throws ProgramInvocationException {
+		if (isDetached() || detached) {
 			if (newlyCreatedCluster) {
 				stopAfterJob(jobGraph.getJobID());
 			}
@@ -286,14 +285,14 @@ public class YarnClusterClient extends ClusterClient<ApplicationId> {
 	private static class LazApplicationClientLoader {
 
 		private final Configuration flinkConfig;
-		private final ActorSystemLoader actorSystemLoader;
+		private final LazyActorSystemLoader actorSystemLoader;
 		private final HighAvailabilityServices highAvailabilityServices;
 
 		private ActorRef applicationClient;
 
 		private LazApplicationClientLoader(
 				Configuration flinkConfig,
-				ActorSystemLoader actorSystemLoader,
+				LazyActorSystemLoader actorSystemLoader,
 				HighAvailabilityServices highAvailabilityServices) {
 			this.flinkConfig = Preconditions.checkNotNull(flinkConfig, "flinkConfig");
 			this.actorSystemLoader = Preconditions.checkNotNull(actorSystemLoader, "actorSystemLoader");

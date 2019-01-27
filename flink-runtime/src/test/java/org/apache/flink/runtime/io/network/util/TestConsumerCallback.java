@@ -20,8 +20,14 @@ package org.apache.flink.runtime.io.network.util;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
+import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.types.IntValue;
+import org.junit.Assert;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
@@ -92,6 +98,70 @@ public interface TestConsumerCallback {
 				expected++;
 			}
 
+			super.onBuffer(buffer);
+		}
+
+		@Override
+		public void onEvent(AbstractEvent event) {
+			super.onEvent(event);
+		}
+	}
+
+	public class VerifyAscendingOnFixedStepCallback extends RecyclingCallback {
+
+		private final int startValue;
+
+		private final int stepWidth;
+
+		private final int totalRecordCount;
+
+		private int actualRecordCount;
+
+		private final RecordDeserializer<IntValue> deserializer =
+			new SpillingAdaptiveSpanningRecordDeserializer<>(new String[]{System.getProperty("java.io.tmpdir")});
+
+		private final Set<IntValue> totalData = new HashSet<>();
+
+		public VerifyAscendingOnFixedStepCallback(int startValue, int stepWidth, int totalRecordCount) {
+			this.startValue = startValue;
+			this.stepWidth = stepWidth;
+			this.totalRecordCount = totalRecordCount;
+			this.actualRecordCount = 0;
+		}
+
+		private void assertExpectedValue(int actualValue) {
+			Assert.assertTrue(actualValue % stepWidth == startValue);
+			Assert.assertTrue(((actualValue - startValue) / stepWidth) < totalRecordCount);
+			Assert.assertTrue(((actualValue - startValue) / stepWidth) >= 0);
+			Assert.assertTrue(!totalData.contains(actualValue));
+			totalData.add(new IntValue(actualValue));
+		}
+
+		public int getActualRecordCount() {
+			return actualRecordCount;
+		}
+
+		@Override
+		public void onBuffer(Buffer buffer) {
+			final MemorySegment segment = buffer.getMemorySegment();
+			try {
+				final IntValue target = new IntValue();
+				deserializer.setNextBuffer(buffer);
+
+				while (true) {
+					RecordDeserializer.DeserializationResult result = deserializer.getNextRecord(target);
+					if (result.isFullRecord()) {
+						assertExpectedValue(target.getValue());
+						actualRecordCount++;
+					}
+
+					if (result.isBufferConsumed()) {
+						break;
+					}
+				}
+			} catch (Exception e) {
+				Assert.assertTrue("Exception during deserialization: " + e.getMessage(), false);
+			}
 			super.onBuffer(buffer);
 		}
 

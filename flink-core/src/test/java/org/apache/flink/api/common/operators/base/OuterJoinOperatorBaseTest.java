@@ -20,7 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.AbstractAccumulatorRegistry;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -44,6 +44,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.powermock.api.mockito.PowerMockito.mock;
 
 @SuppressWarnings("serial")
 public class OuterJoinOperatorBaseTest implements Serializable {
@@ -70,11 +71,10 @@ public class OuterJoinOperatorBaseTest implements Serializable {
 
 		String taskName = "Test rich outer join function";
 		TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
-		HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
 		HashMap<String, Future<Path>> cpTasks = new HashMap<>();
 
 		runtimeContext = new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks,
-			accumulatorMap, new UnregisteredMetricsGroup());
+			mock(AbstractAccumulatorRegistry.class), new UnregisteredMetricsGroup());
 	}
 
 	@Test

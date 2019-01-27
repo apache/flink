@@ -107,10 +107,11 @@ public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<Asy
 	public class SavepointTriggerHandler extends TriggerHandler<RestfulGateway, SavepointTriggerRequestBody, SavepointTriggerMessageParameters> {
 
 		public SavepointTriggerHandler(
+				final CompletableFuture<String> localRestAddress,
 				final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 				final Time timeout,
 				final Map<String, String> responseHeaders) {
-			super(leaderRetriever, timeout, responseHeaders, SavepointTriggerHeaders.getInstance());
+			super(localRestAddress, leaderRetriever, timeout, responseHeaders, SavepointTriggerHeaders.getInstance());
 		}
 
 		@Override
@@ -144,10 +145,11 @@ public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<Asy
 	public class SavepointStatusHandler extends StatusHandler<RestfulGateway, SavepointInfo, SavepointStatusMessageParameters> {
 
 		public SavepointStatusHandler(
+				final CompletableFuture<String> localRestAddress,
 				final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 				final Time timeout,
 				final Map<String, String> responseHeaders) {
-			super(leaderRetriever, timeout, responseHeaders, SavepointStatusHeaders.getInstance());
+			super(localRestAddress, leaderRetriever, timeout, responseHeaders, SavepointStatusHeaders.getInstance());
 		}
 
 		@Override

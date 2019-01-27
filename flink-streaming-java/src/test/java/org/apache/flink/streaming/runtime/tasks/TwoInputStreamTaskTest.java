@@ -19,11 +19,19 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -40,6 +48,8 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoMapFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -53,9 +63,12 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executors;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask}. Theses tests
@@ -241,6 +254,7 @@ public class TwoInputStreamTaskTest {
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
+		streamConfig.setCheckpointingEnabled(true);
 		CoStreamMap<String, Integer, String> coMapOperator = new CoStreamMap<String, Integer, String>(new IdentityMap());
 		streamConfig.setStreamOperator(coMapOperator);
 		streamConfig.setOperatorID(new OperatorID());
@@ -326,6 +340,7 @@ public class TwoInputStreamTaskTest {
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
+		streamConfig.setCheckpointingEnabled(true);
 		CoStreamMap<String, Integer, String> coMapOperator = new CoStreamMap<String, Integer, String>(new IdentityMap());
 		streamConfig.setStreamOperator(coMapOperator);
 		streamConfig.setOperatorID(new OperatorID());
@@ -402,7 +417,7 @@ public class TwoInputStreamTaskTest {
 
 		final TaskMetricGroup taskMetricGroup = new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
 			@Override
-			public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
+			public OperatorMetricGroup addOperator(OperatorID operatorID, String name) {
 				return new OperatorMetricGroup(NoOpMetricRegistry.INSTANCE, this, operatorID, name);
 			}
 		};
@@ -440,15 +455,32 @@ public class TwoInputStreamTaskTest {
 	static class DuplicatingOperator extends AbstractStreamOperator<String> implements TwoInputStreamOperator<String, String, String> {
 
 		@Override
-		public void processElement1(StreamRecord<String> element) {
-			output.collect(element);
-			output.collect(element);
+		public TwoInputSelection firstInputSelection() {
+			return TwoInputSelection.ANY;
 		}
 
 		@Override
-		public void processElement2(StreamRecord<String> element) {
+		public TwoInputSelection processElement1(StreamRecord<String> element) {
 			output.collect(element);
 			output.collect(element);
+			return TwoInputSelection.ANY;
+		}
+
+		@Override
+		public TwoInputSelection processElement2(StreamRecord<String> element) {
+			output.collect(element);
+			output.collect(element);
+			return TwoInputSelection.ANY;
+		}
+
+		@Override
+		public void endInput1() throws Exception {
+
+		}
+
+		@Override
+		public void endInput2() throws Exception {
+
 		}
 	}
 
@@ -470,13 +502,13 @@ public class TwoInputStreamTaskTest {
 		InterceptingOperatorMetricGroup chainedOperatorMetricGroup = new InterceptingOperatorMetricGroup();
 		InterceptingTaskMetricGroup taskMetricGroup = new InterceptingTaskMetricGroup() {
 			@Override
-			public OperatorMetricGroup getOrAddOperator(OperatorID id, String name) {
+			public OperatorMetricGroup addOperator(OperatorID id, String name) {
 				if (id.equals(headOperatorId)) {
 					return headOperatorMetricGroup;
 				} else if (id.equals(chainedOperatorId)) {
 					return chainedOperatorMetricGroup;
 				} else {
-					return super.getOrAddOperator(id, name);
+					return super.addOperator(id, name);
 				}
 			}
 		};
@@ -609,6 +641,458 @@ public class TwoInputStreamTaskTest {
 		public String map2(Integer value) throws Exception {
 
 			return value.toString();
+		}
+	}
+
+	@Test
+	public void testMutableObjectReuse() throws Exception {
+		final TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
+			env -> new TwoInputStreamTask((Environment) env),
+			new TupleTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
+			new TupleTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
+			new TupleTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO));
+
+		testHarness.setupOperatorChain(new OperatorID(), new TestMutableObjectReuseHeadOperator())
+			.chain(new OperatorID(), new TestMutableObjectReuseHeadOperator.TestMutableObjectReuseNextOperator(),
+				new TupleSerializer(Tuple2.class,
+					new TypeSerializer<?>[]{BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()), BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig())}))
+			.finish();
+
+		ExecutionConfig executionConfig = testHarness.getExecutionConfig();
+		executionConfig.enableObjectReuse();
+
+		long initialTime = 0L;
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+
+		testHarness.invoke();
+		testHarness.waitForTaskRunning();
+
+		testHarness.processElement(new StreamRecord<>(Tuple2.of("Hello", 1)), 0, 0);
+		testHarness.processElement(new StreamRecord<>(Tuple2.of("Hello", 2), initialTime + 1), 1, 0);
+		testHarness.processElement(new Watermark(initialTime + 1), 0, 0);
+		testHarness.processElement(new Watermark(initialTime + 1), 1, 0);
+		testHarness.processElement(new StreamRecord<>(Tuple2.of("Ciao", 1), initialTime + 2), 0, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 1, 0);
+		testHarness.processElement(new StreamRecord<>(Tuple2.of("Ciao", 2), initialTime + 3), 1, 0);
+
+		expectedOutput.add(new StreamRecord<>(Tuple2.of("Hello", 1)));
+		expectedOutput.add(new StreamRecord<>(Tuple2.of("Hello", 2), initialTime + 1));
+		expectedOutput.add(new Watermark(initialTime + 1));
+		expectedOutput.add(new StreamRecord<>(Tuple2.of("Ciao", 1), initialTime + 2));
+		expectedOutput.add(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()));
+		expectedOutput.add(new StreamRecord<>(Tuple2.of("Ciao", 2), initialTime + 3));
+
+		testHarness.endInput();
+
+		testHarness.waitForTaskCompletion();
+
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+			expectedOutput,
+			testHarness.getOutput());
+	}
+
+	// This must only be used in one test, otherwise the static fields will be changed
+	// by several tests concurrently
+	private static class TestMutableObjectReuseHeadOperator
+		extends AbstractStreamOperator<Tuple2<String, Integer>>
+		implements TwoInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>> {
+
+		private static final long serialVersionUID = 1L;
+
+		private static Object headOperatorValue;
+
+		private Object prevRecord1 = null;
+		private Object prevValue1 = null;
+
+		private Object prevRecord2 = null;
+		private Object prevValue2 = null;
+
+		@Override
+		public TwoInputSelection firstInputSelection() {
+			return TwoInputSelection.ANY;
+		}
+
+		@Override
+		public TwoInputSelection processElement1(StreamRecord<Tuple2<String, Integer>> element) throws Exception {
+			if (prevRecord1 != null) {
+				assertTrue("Reuse StreamRecord object in the 1th input of the head operator.", element != prevRecord1);
+				assertTrue("No reuse value object in the 1th input of the head operator.", element.getValue() == prevValue1);
+			}
+
+			prevRecord1 = element;
+			prevValue1 = element.getValue();
+
+			headOperatorValue = element.getValue();
+
+			output.collect(element);
+			return TwoInputSelection.ANY;
+		}
+
+		@Override
+		public TwoInputSelection processElement2(StreamRecord<Tuple2<String, Integer>> element) {
+			if (prevRecord2 != null) {
+				assertTrue("Reuse StreamRecord object in the 2th input of the head operator.", element != prevRecord2);
+				assertTrue("No reuse value object in the 2th input of the head operator.", element.getValue() == prevValue2);
+
+				if (prevValue1 != null) {
+					assertTrue("Reuse the same value object in two inputs of the head operator.", prevValue2 != prevValue1);
+				}
+			}
+
+			prevRecord2 = element;
+			prevValue2 = element.getValue();
+
+			headOperatorValue = element.getValue();
+
+			output.collect(element);
+			return TwoInputSelection.ANY;
+		}
+
+		@Override
+		public void endInput1() throws Exception {
+
+		}
+
+		@Override
+		public void endInput2() throws Exception {
+
+		}
+
+		private static class TestMutableObjectReuseNextOperator
+			extends AbstractStreamOperator<Tuple2<String, Integer>>
+			implements OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> {
+
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void processElement(StreamRecord<Tuple2<String, Integer>> element) throws Exception {
+				assertTrue("No reuse value object in chain.", element.getValue() == headOperatorValue);
+
+				output.collect(element);
+			}
+
+			@Override
+			public void endInput() throws Exception {
+
+			}
+		}
+	}
+
+	@Test
+	public void testEndInputNotification() throws Exception {
+		final TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
+			TwoInputStreamTask::new,
+			3, 2, new int[] {1, 2, 2},
+			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+
+		testHarness.setupOperatorChain(new OperatorID(), new TestEndInputNotificationOperator(0))
+			.chain(new OperatorID(),
+				new OneInputStreamTaskTest.TestEndInputNotificationOperator(1),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+			.finish();
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+
+		testHarness.invoke();
+		testHarness.waitForTaskRunning();
+
+		TestEndInputNotificationOperator headOperator = (TestEndInputNotificationOperator) testHarness.getTask().operatorChain.getHeadOperators()[0];
+
+		testHarness.processElement(new StreamRecord<>("Hello-1"), 0, 0);
+		testHarness.endInput(0,  0);
+		testHarness.processElement(new StreamRecord<>("Hello-2"), 0, 1);
+		testHarness.endInput(0,  1);
+
+		headOperator.waitNumOutputRecords(1, 3);
+
+		testHarness.processElement(new StreamRecord<>("Hello-3"), 1, 0);
+		testHarness.processElement(new StreamRecord<>("Hello-4"), 1, 1);
+		testHarness.endInput(1,  0);
+		testHarness.endInput(1,  1);
+
+		headOperator.waitNumOutputRecords(2, 2);
+
+		testHarness.processElement(new StreamRecord<>("Hello-5"), 2, 0);
+		testHarness.processElement(new StreamRecord<>("Hello-6"), 2, 1);
+		testHarness.endInput(2,  0);
+		testHarness.endInput(2,  1);
+
+		expectedOutput.add(new StreamRecord<>("Hello-1-[operator0-1]"));
+		expectedOutput.add(new StreamRecord<>("Hello-2-[operator0-1]"));
+		expectedOutput.add(new StreamRecord<>("Ciao-[operator0-1]"));
+		expectedOutput.add(new StreamRecord<>("Hello-3-[operator0-2]"));
+		expectedOutput.add(new StreamRecord<>("Hello-4-[operator0-2]"));
+		expectedOutput.add(new StreamRecord<>("Hello-5-[operator0-2]"));
+		expectedOutput.add(new StreamRecord<>("Hello-6-[operator0-2]"));
+		expectedOutput.add(new StreamRecord<>("Ciao-[operator0-2]"));
+		expectedOutput.add(new StreamRecord<>("Ciao-operator1"));
+
+		testHarness.waitForTaskCompletion();
+
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+			expectedOutput,
+			testHarness.getOutput());
+	}
+
+	private static class TestEndInputNotificationOperator
+		extends AbstractStreamOperator<String>
+		implements TwoInputStreamOperator<String, String, String> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final int index;
+		private final String name;
+
+		private volatile int numOutputRecords1;
+		private volatile int numOutputRecords2;
+
+		private static final CompletableFuture<Void> success = CompletableFuture.completedFuture(null);
+		private static final CompletableFuture<Void> failure = FutureUtils.completedExceptionally(new Exception("Not in line with expectations."));
+
+		public TestEndInputNotificationOperator(int index) {
+			this.index = index;
+			this.name = "operator" + index;
+		}
+
+		@Override
+		public TwoInputSelection firstInputSelection() {
+			return TwoInputSelection.ANY;
+		}
+
+		@Override
+		public TwoInputSelection processElement1(StreamRecord<String> element) throws Exception {
+			output.collect(element.replace(element.getValue() + "-[" + name + "-1]"));
+
+			numOutputRecords1++;
+			synchronized (this) {
+				this.notifyAll();
+			}
+			return TwoInputSelection.ANY;
+		}
+
+		@Override
+		public TwoInputSelection processElement2(StreamRecord<String> element) throws Exception {
+			output.collect(element.replace(element.getValue() + "-[" + name + "-2]"));
+
+			numOutputRecords2++;
+			synchronized (this) {
+				this.notifyAll();
+			}
+			return TwoInputSelection.ANY;
+		}
+
+		@Override
+		public void endInput1() throws Exception {
+			output.collect(new StreamRecord<>("Ciao-[" + name + "-1]"));
+
+			numOutputRecords1++;
+			synchronized (this) {
+				this.notifyAll();
+			}
+		}
+
+		@Override
+		public void endInput2() throws Exception {
+			output.collect(new StreamRecord<>("Ciao-[" + name + "-2]"));
+
+			numOutputRecords2++;
+			synchronized (this) {
+				this.notifyAll();
+			}
+		}
+
+		public void waitNumOutputRecords(int typeNumber, int numOutputRecords) throws Exception {
+			FutureUtils.retryWithDelay(
+				() -> {
+					if ((typeNumber == 1 && numOutputRecords1 == numOutputRecords)
+						|| (typeNumber == 2 && numOutputRecords2 == numOutputRecords)) {
+						return success;
+					}
+					return failure;
+				},
+				5_000,
+				Time.milliseconds(0),
+				(throwable) -> {
+					synchronized (this) {
+						try {
+							this.wait(1L);
+						} catch (Throwable t) {
+						}
+					}
+					return true;
+				},
+				new ScheduledExecutorServiceAdapter(Executors.newSingleThreadScheduledExecutor()))
+				.get();
+		}
+	}
+
+	@Test
+	public void testSelectedReading() throws Exception {
+		final TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
+			TestSelectedReadingTask::new,
+			3, 2, new int[] {1, 2, 2},
+			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+
+		testHarness.setupOperatorChain(new OperatorID(), new TestSelectedReadingOperator(0, 2))
+			.chain(new OperatorID(),
+				new TestSelectedReadingOneInputOperator(1),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+			.finish();
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+
+		testHarness.invoke();
+		testHarness.waitForTaskRunning();
+
+		testHarness.processElement(new StreamRecord<>("Hello-1"), 0, 0);
+		testHarness.endInput(0,  0);
+		testHarness.processElement(new StreamRecord<>("Hello-2"), 0, 1);
+		testHarness.processElement(new StreamRecord<>("Hello-3"), 0, 1);
+		testHarness.endInput(0,  1);
+
+		testHarness.processElement(new StreamRecord<>("Hello-4"), 1, 0);
+		testHarness.processElement(new StreamRecord<>("Hello-5"), 1, 1);
+		testHarness.endInput(1,  0);
+		testHarness.endInput(1,  1);
+
+		testHarness.processElement(new StreamRecord<>("Hello-6"), 2, 0);
+		testHarness.processElement(new StreamRecord<>("Hello-7"), 2, 1);
+		testHarness.endInput(2,  0);
+		testHarness.endInput(2,  1);
+
+		Object lock = ((TestSelectedReadingTask) testHarness.getTask()).getStartProcessingLock();
+		synchronized (lock) {
+			lock.notifyAll();
+		}
+
+		expectedOutput.add(new StreamRecord<>("Hello-1-[operator0-1]"));
+		expectedOutput.add(new StreamRecord<>("Hello-2-[operator0-1]"));
+		expectedOutput.add(new StreamRecord<>("Hello-4-[operator0-2]"));
+		expectedOutput.add(new StreamRecord<>("Hello-6-[operator0-2]"));
+		expectedOutput.add(new StreamRecord<>("Hello-3-[operator0-1]"));
+		expectedOutput.add(new StreamRecord<>("Ciao-[operator0-1]"));
+		expectedOutput.add(new StreamRecord<>("Hello-5-[operator0-2]"));
+		expectedOutput.add(new StreamRecord<>("Hello-7-[operator0-2]"));
+		expectedOutput.add(new StreamRecord<>("Ciao-[operator0-2]"));
+		expectedOutput.add(new StreamRecord<>("Ciao-operator1"));
+
+		testHarness.waitForTaskCompletion();
+
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+			expectedOutput,
+			testHarness.getOutput());
+	}
+
+	private static class TestSelectedReadingTask extends TwoInputStreamTask {
+
+		private Object startProcessingLock = new Object();
+
+		public TestSelectedReadingTask(Environment env) {
+			super(env);
+		}
+
+		@Override
+		protected void run() throws Exception {
+			synchronized (startProcessingLock) {
+				startProcessingLock.wait();
+			}
+
+			super.run();
+		}
+
+		public Object getStartProcessingLock() {
+			return startProcessingLock;
+		}
+	}
+
+	private static class TestSelectedReadingOperator
+		extends AbstractStreamOperator<String>
+		implements TwoInputStreamOperator<String, String, String> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final int index;
+		private final String name;
+		private final int maxContinuousReadingNum;
+
+		private boolean isInputEnd1;
+		private boolean isInputEnd2;
+
+		private int currentInputReadingCount;
+
+		public TestSelectedReadingOperator(int index, int maxContinuousReadingNum) {
+			this.index = index;
+			this.name = "operator" + index;
+			this.maxContinuousReadingNum = maxContinuousReadingNum;
+
+			this.currentInputReadingCount = 0;
+		}
+
+		@Override
+		public TwoInputSelection firstInputSelection() {
+			return TwoInputSelection.FIRST;
+		}
+
+		@Override
+		public TwoInputSelection processElement1(StreamRecord<String> element) throws Exception {
+			output.collect(element.replace(element.getValue() + "-[" + name + "-1]"));
+
+			currentInputReadingCount++;
+			if (currentInputReadingCount == maxContinuousReadingNum) {
+				currentInputReadingCount = 0;
+				return !isInputEnd2 ? TwoInputSelection.SECOND : TwoInputSelection.FIRST;
+			} else {
+				return TwoInputSelection.FIRST;
+			}
+		}
+
+		@Override
+		public TwoInputSelection processElement2(StreamRecord<String> element) throws Exception {
+			output.collect(element.replace(element.getValue() + "-[" + name + "-2]"));
+
+			currentInputReadingCount++;
+			if (currentInputReadingCount == maxContinuousReadingNum) {
+				currentInputReadingCount = 0;
+				return !isInputEnd1 ? TwoInputSelection.FIRST : TwoInputSelection.SECOND;
+			} else {
+				return TwoInputSelection.SECOND;
+			}
+		}
+
+		@Override
+		public void endInput1() throws Exception {
+			output.collect(new StreamRecord<>("Ciao-[" + name + "-1]"));
+			isInputEnd1 = true;
+		}
+
+		@Override
+		public void endInput2() throws Exception {
+			output.collect(new StreamRecord<>("Ciao-[" + name + "-2]"));
+			isInputEnd2 = true;
+		}
+	}
+
+	private static class TestSelectedReadingOneInputOperator
+		extends AbstractStreamOperator<String>
+		implements OneInputStreamOperator<String, String> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final int index;
+
+		public TestSelectedReadingOneInputOperator(int index) {
+			this.index = index;
+		}
+
+		@Override
+		public void processElement(StreamRecord<String> element) throws Exception {
+			output.collect(element);
+		}
+
+		@Override
+		public void endInput() throws Exception {
+			output.collect(new StreamRecord<>("Ciao-operator" + index));
 		}
 	}
 }

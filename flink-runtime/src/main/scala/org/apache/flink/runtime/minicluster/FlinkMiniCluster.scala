@@ -49,7 +49,6 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent._
-import scala.util.{Failure, Success}
 
 /**
  * Abstract base class for Flink's mini cluster. The mini cluster starts a
@@ -449,13 +448,6 @@ abstract class FlinkMiniCluster(
       ioExecutor)
   }
 
-  def firstActorSystem(): Option[ActorSystem] = {
-    jobManagerActorSystems match {
-      case Some(jmActorSystems) => Some(jmActorSystems.head)
-      case None => None
-    }
-  }
-
   protected def startInternalShutdown(): Unit = {
     webMonitor foreach {
       _.stop()
@@ -480,30 +472,30 @@ abstract class FlinkMiniCluster(
 
     if (!useSingleActorSystem) {
       taskManagerActorSystems foreach {
-        _ foreach(_.terminate())
+        _ foreach(_.shutdown())
       }
 
       resourceManagerActorSystems foreach {
-        _ foreach(_.terminate())
+        _ foreach(_.shutdown())
       }
     }
 
     jobManagerActorSystems foreach {
-      _ foreach(_.terminate())
+      _ foreach(_.shutdown())
     }
   }
 
   def awaitTermination(): Unit = {
     jobManagerActorSystems foreach {
-      _ foreach(s => Await.ready(s.whenTerminated, Duration.Inf))
+      _ foreach(_.awaitTermination())
     }
 
     resourceManagerActorSystems foreach {
-      _ foreach(s => Await.ready(s.whenTerminated, Duration.Inf))
+      _ foreach(_.awaitTermination())
     }
 
     taskManagerActorSystems foreach {
-      _ foreach(s => Await.ready(s.whenTerminated, Duration.Inf))
+      _ foreach(_.awaitTermination())
     }
   }
 
@@ -626,10 +618,7 @@ abstract class FlinkMiniCluster(
 
   def shutdownJobClientActorSystem(actorSystem: ActorSystem): Unit = {
     if(!useSingleActorSystem) {
-      actorSystem.terminate().onComplete {
-        case Success(_) =>
-        case Failure(t) => LOG.warn("Could not cleanly shut down the job client actor system.", t)
-      }
+      actorSystem.shutdown()
     }
   }
 
@@ -721,8 +710,16 @@ abstract class FlinkMiniCluster(
     * @return Execution result of the executed job
     * @throws JobExecutionException if the job failed to execute
     */
-  override def executeJobBlocking(jobGraph: JobGraph) = {
-    submitJobAndWait(jobGraph, false)
+  override def executeJob(jobGraph: JobGraph, detached: Boolean) = {
+    if (detached) {
+      submitJobDetached(jobGraph)
+    } else {
+      submitJobAndWait(jobGraph, false)
+    }
+  }
+
+  override def cancel(jobId: JobID):Unit = {
+
   }
 
   override def closeAsync() = {

@@ -21,9 +21,8 @@ package org.apache.flink.table.expressions.utils
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.commons.lang3.StringUtils
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
+import org.apache.flink.table.api.types.{DataType, DataTypes}
+import org.apache.flink.table.api.functions.{FunctionContext, ScalarFunction}
 import org.apache.flink.types.Row
 import org.junit.Assert
 
@@ -112,8 +111,8 @@ object Func10 extends ScalarFunction {
     c
   }
 
-  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = {
-    Types.SQL_TIMESTAMP
+  override def getResultType(arguments: Array[AnyRef], signature: Array[Class[_]]): DataType = {
+    DataTypes.TIMESTAMP
   }
 }
 
@@ -128,8 +127,8 @@ object Func12 extends ScalarFunction {
     a
   }
 
-  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = {
-    Types.INTERVAL_MILLIS
+  override def getResultType(arguments: Array[AnyRef], signature: Array[Class[_]]): DataType = {
+    DataTypes.INTERVAL_MILLIS
   }
 }
 
@@ -278,55 +277,37 @@ object Func18 extends ScalarFunction {
 }
 
 object Func19 extends ScalarFunction {
+  def eval(obj: Object): Int = {
+    if (null != obj) {
+      obj.hashCode()
+    } else {
+      0
+    }
+  }
+
+  def eval(obj: Object, len: Int): Int = {
+    if (null != obj) {
+      obj.hashCode()
+    } else {
+      Math.max(len, 0)
+    }
+  }
+}
+
+object Func20 extends ScalarFunction {
   def eval(row: Row): Row = {
     row
   }
 
-  override def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] =
-    Array(Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT)))
-
-  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
-    Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
-
-}
-
-/**
-  * A scalar function that always returns TRUE if opened correctly.
-  */
-class Func20 extends ScalarFunction {
-
-  private var permitted: Boolean = false
-
-  override def open(context: FunctionContext): Unit = {
-    permitted = true
+  override def getParameterTypes(signature: Array[Class[_]]): Array[DataType] = {
+    Array(DataTypes.createRowType(DataTypes.INT, DataTypes.BOOLEAN,
+      DataTypes.createRowType(DataTypes.INT, DataTypes.INT, DataTypes.INT)))
   }
 
-  def eval(x: Int): Boolean = {
-    permitted
-  }
-
-  override def close(): Unit = {
-    permitted = false
-  }
-}
-
-object Func21 extends ScalarFunction {
-  def eval(p: People): String = {
-    p.name
-  }
-
-  def eval(p: Student): String = {
-    "student#" + p.name
-  }
-}
-
-object Func22 extends ScalarFunction {
-  def eval(a: Array[People]): String = {
-    a.head.name
-  }
-
-  def eval(a: Array[Student]): String = {
-    "student#" + a.head.name
+  override def getResultType(arguments: Array[AnyRef], signature: Array[Class[_]]): DataType = {
+    DataTypes.createRowType(
+      DataTypes.INT, DataTypes.BOOLEAN,
+      DataTypes.createRowType(DataTypes.INT, DataTypes.INT, DataTypes.INT))
   }
 }
 
@@ -340,10 +321,5 @@ class SplitUDF(deterministic: Boolean) extends ScalarFunction {
     }
   }
   override def isDeterministic: Boolean = deterministic
+
 }
-
-class People(val name: String)
-
-class Student(name: String) extends People(name)
-
-class GraduatedStudent(name: String) extends Student(name)

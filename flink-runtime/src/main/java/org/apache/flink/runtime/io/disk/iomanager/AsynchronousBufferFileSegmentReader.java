@@ -36,7 +36,7 @@ public class AsynchronousBufferFileSegmentReader extends AsynchronousFileIOChann
 
 	@Override
 	public void seekTo(long position) throws IOException {
-		requestQueue.add(new SeekRequest(this, position));
+		requestQueue.add(new SeekRequest(this, position, -1));
 	}
 
 	@Override

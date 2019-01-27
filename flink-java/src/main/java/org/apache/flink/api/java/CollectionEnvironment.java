@@ -19,7 +19,8 @@
 package org.apache.flink.api.java;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.CollectionExecutor;
 
@@ -30,13 +31,18 @@ import org.apache.flink.api.common.operators.CollectionExecutor;
 public class CollectionEnvironment extends ExecutionEnvironment {
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobSubmissionResult executeInternal(String jobName, boolean detached) throws Exception {
 		Plan p = createProgramPlan(jobName);
 
 		// We need to reverse here. Object-Reuse enabled, means safe mode is disabled.
 		CollectionExecutor exec = new CollectionExecutor(getConfig());
 		this.lastJobExecutionResult = exec.execute(p);
 		return this.lastJobExecutionResult;
+	}
+
+	@Override
+	public void cancel(JobID jobId) throws Exception {
+
 	}
 
 	@Override
@@ -51,5 +57,10 @@ public class CollectionEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public void startNewSession() throws Exception {
+	}
+
+	@Override
+	public void stop() throws Exception {
+
 	}
 }

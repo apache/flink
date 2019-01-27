@@ -1,0 +1,32 @@
+== Abstract Syntax Tree ==
+LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
++- LogicalProject(num=[$1], id=[$0])
+   +- LogicalTableScan(table=[[builtin, default, T]])
+
+== Optimized Logical Plan ==
+StreamExecSink(fields=[num, cnt], retract=[false], accMode=[Acc])
++- StreamExecGroupAggregate(groupBy=[num], select=[num, COUNT(id) AS cnt], retract=[false], accMode=[Acc])
+   +- StreamExecExchange(distribution=[hash[num]], retract=[true], accMode=[Acc])
+      +- StreamExecCalc(select=[num, id], retract=[true], accMode=[Acc])
+         +- StreamExecDataStreamScan(table=[[builtin, default, T]], retract=[true], accMode=[Acc])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:[builtin, default, T], fields:(id, num, text))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(select: (num, id))
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : GroupAggregate(groupBy: (num), select: (num, COUNT(id) AS cnt))
+				ship_strategy : HASH
+
+				 : Data Sink
+					content : Sink: TestingUpsertTableSink(keys=(0))
+					ship_strategy : REBALANCE
+

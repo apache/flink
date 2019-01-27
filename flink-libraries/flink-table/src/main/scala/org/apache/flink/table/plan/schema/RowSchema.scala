@@ -20,9 +20,8 @@ package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.types.{DataType, DataTypes, InternalType, RowType}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 
@@ -31,11 +30,13 @@ import scala.collection.JavaConversions._
   */
 class RowSchema(private val logicalRowType: RelDataType) {
 
-  private lazy val physicalRowFieldTypes: Seq[TypeInformation[_]] =
-    logicalRowType.getFieldList map { f => FlinkTypeFactory.toTypeInfo(f.getType) }
+  private lazy val physicalRowFieldTypes: Seq[InternalType] =
+    logicalRowType.getFieldList map {
+      f => FlinkTypeFactory.toDataType(f.getType).toInternalType
+    }
 
-  private lazy val physicalRowTypeInfo: TypeInformation[Row] = new RowTypeInfo(
-    physicalRowFieldTypes.toArray, fieldNames.toArray)
+  private lazy val physicalRowType: InternalType = DataTypes.createRowType(
+    physicalRowFieldTypes.toArray[DataType], fieldNames.toArray)
 
   /**
     * Returns the arity of the schema.
@@ -48,14 +49,14 @@ class RowSchema(private val logicalRowType: RelDataType) {
   def relDataType: RelDataType = logicalRowType
 
   /**
-    * Returns the [[TypeInformation]] of the schema
+    * Returns the [[InternalType]] of of the schema
     */
-  def typeInfo: TypeInformation[Row] = physicalRowTypeInfo
+  def dataType: InternalType = physicalRowType
 
   /**
     * Returns the [[TypeInformation]] of fields of the schema
     */
-  def fieldTypeInfos: Seq[TypeInformation[_]] = physicalRowFieldTypes
+  def fieldTypeInfos: Seq[InternalType] = physicalRowFieldTypes
 
   /**
     * Returns the fields names
@@ -65,9 +66,9 @@ class RowSchema(private val logicalRowType: RelDataType) {
   /**
     * Returns a projected [[TypeInformation]] of the schema.
     */
-  def projectedTypeInfo(fields: Array[Int]): TypeInformation[Row] = {
+  def projectedTypeInfo(fields: Array[Int]): RowType = {
     val projectedTypes = fields.map(fieldTypeInfos(_))
     val projectedNames = fields.map(fieldNames(_))
-    new RowTypeInfo(projectedTypes, projectedNames)
+    DataTypes.createRowType(projectedTypes.toArray[DataType], projectedNames)
   }
 }

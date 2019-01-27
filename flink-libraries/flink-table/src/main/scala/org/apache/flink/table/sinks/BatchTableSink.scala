@@ -18,15 +18,18 @@
 
 package org.apache.flink.table.sinks
 
-import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.Table
+import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
+import org.apache.flink.table.api._
 
 /** Defines an external [[TableSink]] to emit a batch [[Table]].
   *
-  * @tparam T Type of [[DataSet]] that this [[TableSink]] expects and supports.
+  * @tparam T Type of [[DataStream]] that this [[TableSink]] expects and supports.
   */
 trait BatchTableSink[T] extends TableSink[T] {
 
-  /** Emits the DataSet. */
-  def emitDataSet(dataSet: DataSet[T]): Unit
+  /** Emits the DataStream. */
+  def emitBoundedStream(boundedStream: DataStream[T],
+                         tableConfig: TableConfig,
+                         executionConfig: ExecutionConfig): DataStreamSink[_]
 }

@@ -19,21 +19,17 @@
 package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.calcite.schema.Statistic
-import org.apache.calcite.schema.impl.AbstractTable
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.api.{TableException, Types}
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.types.{RowType, DataType, DataTypes, InternalType}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
-abstract class InlineTable[T](
-    val typeInfo: TypeInformation[T],
+abstract class InlineTable(
+    val dataType: DataType,
     val fieldIndexes: Array[Int],
     val fieldNames: Array[String],
     val statistic: FlinkStatistic)
-  extends AbstractTable {
+  extends FlinkTable {
 
   if (fieldIndexes.length != fieldNames.length) {
     throw new TableException(
@@ -57,10 +53,10 @@ abstract class InlineTable[T](
         s"List of all fields: ${fieldNames.mkString("[", ", ", "]")}.")
   }
 
-  val fieldTypes: Array[TypeInformation[_]] =
-    typeInfo match {
+  val fieldTypes: Array[InternalType] =
+    dataType.toInternalType match {
 
-      case ct: CompositeType[_] =>
+      case ct: RowType =>
         // it is ok to leave out fields
         if (fieldIndexes.count(_ >= 0) > ct.getArity) {
           throw new TableException(
@@ -68,31 +64,33 @@ abstract class InlineTable[T](
             "must not be greater than number of field names " + fieldNames.deep + ".")
         }
         fieldIndexes.map {
-          case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER =>
-            TimeIndicatorTypeInfo.ROWTIME_INDICATOR
-          case TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER =>
-            TimeIndicatorTypeInfo.PROCTIME_INDICATOR
-          case TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER =>
-            Types.SQL_TIMESTAMP
-          case TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER =>
-            Types.SQL_TIMESTAMP
-          case i => ct.getTypeAt(i).asInstanceOf[TypeInformation[_]]}
+          case DataTypes.ROWTIME_STREAM_MARKER =>
+            DataTypes.ROWTIME_INDICATOR
+          case DataTypes.PROCTIME_STREAM_MARKER =>
+            DataTypes.PROCTIME_INDICATOR
+          case DataTypes.ROWTIME_BATCH_MARKER =>
+            DataTypes.TIMESTAMP
+          case DataTypes.PROCTIME_BATCH_MARKER =>
+            DataTypes.TIMESTAMP
+          case i => ct.getInternalTypeAt(i).toInternalType
+        }
 
-      case t: TypeInformation[_] =>
+      case t: InternalType =>
         var cnt = 0
         val types = fieldIndexes.map {
-          case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER =>
-            TimeIndicatorTypeInfo.ROWTIME_INDICATOR
-          case TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER =>
-            TimeIndicatorTypeInfo.PROCTIME_INDICATOR
-          case TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER =>
-            Types.SQL_TIMESTAMP
-          case TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER =>
-            Types.SQL_TIMESTAMP
+          case DataTypes.ROWTIME_STREAM_MARKER =>
+            DataTypes.ROWTIME_INDICATOR
+          case DataTypes.PROCTIME_STREAM_MARKER =>
+            DataTypes.PROCTIME_INDICATOR
+          case DataTypes.ROWTIME_BATCH_MARKER =>
+            DataTypes.TIMESTAMP
+          case DataTypes.PROCTIME_BATCH_MARKER =>
+            DataTypes.TIMESTAMP
           case _ =>
             cnt += 1
-            t.asInstanceOf[TypeInformation[_]]
+            t
         }
+
         // ensure that the atomic type is matched at most once.
         if (cnt > 1) {
           throw new TableException(
@@ -104,7 +102,7 @@ abstract class InlineTable[T](
 
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
-    flinkTypeFactory.buildLogicalRowType(fieldNames, fieldTypes)
+    flinkTypeFactory.buildRelDataType(fieldNames, fieldTypes)
   }
 
   /**
@@ -112,6 +110,13 @@ abstract class InlineTable[T](
     *
     * @return statistics of current table
     */
-  override def getStatistic: Statistic = statistic
+  override def getStatistic: FlinkStatistic = statistic
 
+   /**
+    * Creates a copy of this table, changing statistic.
+    *
+    * @param statistic A new FlinkStatistic.
+    * @return Copy of this table, substituting statistic.
+    */
+  def copy(statistic: FlinkStatistic): FlinkTable
 }

@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import static org.junit.Assert.*;
 import static java.util.Arrays.asList;
+import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,7 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.AbstractAccumulatorRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Collector;
@@ -91,7 +92,7 @@ public class PartitionMapOperatorTest implements java.io.Serializable {
 			List<Integer> resultMutableSafe = op.executeOnCollections(input,
 					new RuntimeUDFContext(taskInfo, null, executionConfig,
 							new HashMap<String, Future<Path>>(),
-							new HashMap<String, Accumulator<?, ?>>(),
+							mock(AbstractAccumulatorRegistry.class),
 							new UnregisteredMetricsGroup()),
 					executionConfig);
 			
@@ -99,7 +100,7 @@ public class PartitionMapOperatorTest implements java.io.Serializable {
 			List<Integer> resultRegular = op.executeOnCollections(input,
 					new RuntimeUDFContext(taskInfo, null, executionConfig,
 							new HashMap<String, Future<Path>>(),
-							new HashMap<String, Accumulator<?, ?>>(),
+							mock(AbstractAccumulatorRegistry.class),
 							new UnregisteredMetricsGroup()),
 					executionConfig);
 			

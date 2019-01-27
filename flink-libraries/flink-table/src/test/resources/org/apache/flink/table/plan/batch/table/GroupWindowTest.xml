@@ -1,0 +1,225 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAllEventTimeSlidingGroupWindowOverTime">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(TMP_0=[$0])
++- LogicalWindowAggregate(group=[{}], TMP_0=[COUNT($0)], window=[SlidingGroupWindow('w, 'long, 8.millis, 10.millis)], properties=[])
+   +- LogicalProject(int=[$1], long=[$0])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashWindowAggregate(window=[SlidingGroupWindow('w, 'long, 8.millis, 10.millis)], select=[Final_COUNT(count$0) AS TMP_0])
++- Exchange(distribution=[single])
+   +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w, 'long, 8.millis, 10.millis)], select=[Partial_COUNT(int) AS count$0])
+      +- Calc(select=[int, long])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[long, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllEventTimeTumblingGroupWindowOverTime">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(TMP_0=[$0])
++- LogicalWindowAggregate(group=[{}], TMP_0=[COUNT($0)], window=[TumblingGroupWindow('w, 'long, 5.millis)], properties=[])
+   +- LogicalProject(int=[$1], long=[$0])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashWindowAggregate(window=[TumblingGroupWindow('w, 'long, 5.millis)], select=[Final_COUNT(count$0) AS TMP_0])
++- Exchange(distribution=[single])
+   +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w, 'long, 5.millis)], select=[Partial_COUNT(int) AS count$0])
+      +- Calc(select=[int, long])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[long, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDecomposableAggFunctions">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(TMP_0=[$0], TMP_1=[$1], TMP_2=[$2], TMP_3=[$3], TMP_4=[$4], TMP_5=[$5])
++- LogicalWindowAggregate(group=[{}], TMP_0=[VAR_POP($0)], TMP_1=[VAR_SAMP($0)], TMP_2=[STDDEV_POP($0)], TMP_3=[STDDEV_SAMP($0)], window=[TumblingGroupWindow('w, 'rowtime, 900000.millis)], properties=[TMP_4, TMP_5])
+   +- LogicalProject(c=[$3], rowtime=[$0])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[CAST(/(-($f0, /(*(CAST($f1), CAST($f1)), $f2)), $f2)) AS TMP_0, CAST(/(-($f3, /(*(CAST($f1), CAST($f1)), $f2)), CASE(=($f2, 1), null, -($f2, 1)))) AS TMP_1, CAST(POWER(/(-($f4, /(*(CAST($f1), CAST($f1)), $f2)), $f2), 0.5)) AS TMP_2, CAST(POWER(/(-($f5, /(*(CAST($f1), CAST($f1)), $f2)), CASE(=($f2, 1), null, -($f2, 1))), 0.5)) AS TMP_3, TMP_4, TMP_5])
++- HashWindowAggregate(window=[TumblingGroupWindow('w, 'rowtime, 900000.millis)], properties=[TMP_4, TMP_5], select=[Final_SUM(sum$0) AS $f0, Final_SUM(sum$1) AS $f1, Final_COUNT(count$2) AS $f2, Final_SUM(sum$3) AS $f3, Final_SUM(sum$4) AS $f4, Final_SUM(sum$5) AS $f5])
+   +- Exchange(distribution=[single])
+      +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w, 'rowtime, 900000.millis)], properties=[TMP_4, TMP_5], select=[Partial_SUM($f2) AS sum$0, Partial_SUM(c) AS sum$1, Partial_COUNT(c) AS count$2, Partial_SUM($f3) AS sum$3, Partial_SUM($f4) AS sum$4, Partial_SUM($f5) AS sum$5])
+         +- Calc(select=[c, rowtime, *(CAST(c), CAST(c)) AS $f2, *(CAST(c), CAST(c)) AS $f3, *(CAST(c), CAST(c)) AS $f4, *(CAST(c), CAST(c)) AS $f5])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[rowtime, a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeSlidingGroupWindowOverTime">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(string=[$0], TMP_0=[$1])
++- LogicalWindowAggregate(group=[{0}], TMP_0=[COUNT($1)], window=[SlidingGroupWindow('w, 'long, 8.millis, 10.millis)], properties=[])
+   +- LogicalProject(string=[$2], int=[$1], long=[$0])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, 'long, 8.millis, 10.millis)], select=[string, Final_COUNT(count$0) AS TMP_0])
++- Exchange(distribution=[hash[string]])
+   +- LocalHashWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, 'long, 8.millis, 10.millis)], select=[string, Partial_COUNT(int) AS count$0])
+      +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[long, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeSlidingGroupWindowOverTimeWithUdAgg">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(string=[$0], TMP_0=[$1])
++- LogicalWindowAggregate(group=[{0}], TMP_0=[org$apache$flink$table$runtime$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$04265736c1f71f3da954eaf35f29024c($1, $2)], window=[SlidingGroupWindow('w, 'long, 8.millis, 10.millis)], properties=[])
+   +- LogicalProject(string=[$2], long=[$0], int=[$1])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, 'long, 8.millis, 10.millis)], select=[string, Final_myWeightedAvg(TMP_0) AS TMP_0])
++- Sort(orderBy=[string ASC, assignedWindow$ ASC])
+   +- Exchange(distribution=[hash[string]])
+      +- LocalSortWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, 'long, 8.millis, 10.millis)], select=[string, Partial_myWeightedAvg(long, int) AS TMP_0])
+         +- Sort(orderBy=[string ASC, long ASC])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[long, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeTumblingGroupWindowOverTime">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(string=[$0], TMP_0=[$1])
++- LogicalWindowAggregate(group=[{0}], TMP_0=[COUNT($1)], window=[TumblingGroupWindow('w, 'long, 5.millis)], properties=[])
+   +- LogicalProject(string=[$2], int=[$1], long=[$0])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, 'long, 5.millis)], select=[string, Final_COUNT(count$0) AS TMP_0])
++- Exchange(distribution=[hash[string]])
+   +- LocalHashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, 'long, 5.millis)], select=[string, Partial_COUNT(int) AS count$0])
+      +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[long, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeTumblingGroupWindowOverTimeWithUdAgg">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(string=[$0], TMP_0=[$1])
++- LogicalWindowAggregate(group=[{0}], TMP_0=[org$apache$flink$table$runtime$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$04265736c1f71f3da954eaf35f29024c($1, $2)], window=[TumblingGroupWindow('w, 'long, 5.millis)], properties=[])
+   +- LogicalProject(string=[$2], long=[$0], int=[$1])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, 'long, 5.millis)], select=[string, Final_myWeightedAvg(TMP_0) AS TMP_0])
++- Sort(orderBy=[string ASC, assignedWindow$ ASC])
+   +- Exchange(distribution=[hash[string]])
+      +- LocalSortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, 'long, 5.millis)], select=[string, Partial_myWeightedAvg(long, int) AS TMP_0])
+         +- Sort(orderBy=[string ASC, long ASC])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[long, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLongEventTimeSlidingGroupWindowWithProperties">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(string=[$0], TMP_0=[$1], TMP_1=[$2], TMP_2=[$3], TMP_3=[$4])
++- LogicalWindowAggregate(group=[{0}], TMP_0=[COUNT($1)], window=[SlidingGroupWindow('w, 'ts, 3600000.millis, 600000.millis)], properties=[TMP_1, TMP_2, TMP_3])
+   +- LogicalProject(string=[$2], int=[$1], ts=[$0])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, 'ts, 3600000.millis, 600000.millis)], properties=[TMP_1, TMP_2, TMP_3], select=[string, Final_COUNT(count$0) AS TMP_0])
++- Exchange(distribution=[hash[string]])
+   +- LocalHashWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, 'ts, 3600000.millis, 600000.millis)], properties=[TMP_1, TMP_2, TMP_3], select=[string, Partial_COUNT(int) AS count$0])
+      +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[ts, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTimestampEventTimeSlidingGroupWindowWithProperties">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(string=[$0], TMP_0=[$1], TMP_1=[$2], TMP_2=[$3], TMP_3=[$4])
++- LogicalWindowAggregate(group=[{0}], TMP_0=[COUNT($1)], window=[SlidingGroupWindow('w, 'ts, 3600000.millis, 600000.millis)], properties=[TMP_1, TMP_2, TMP_3])
+   +- LogicalProject(string=[$2], int=[$1], ts=[$0])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, 'ts, 3600000.millis, 600000.millis)], properties=[TMP_1, TMP_2, TMP_3], select=[string, Final_COUNT(count$0) AS TMP_0])
++- Exchange(distribution=[hash[string]])
+   +- LocalHashWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, 'ts, 3600000.millis, 600000.millis)], properties=[TMP_1, TMP_2, TMP_3], select=[string, Partial_COUNT(int) AS count$0])
+      +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[ts, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLongEventTimeTumblingGroupWindowWithProperties">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(string=[$0], TMP_0=[$1], TMP_1=[$2], TMP_2=[$3], TMP_3=[$4])
++- LogicalWindowAggregate(group=[{0}], TMP_0=[COUNT($1)], window=[TumblingGroupWindow('w, 'ts, 7200000.millis)], properties=[TMP_1, TMP_2, TMP_3])
+   +- LogicalProject(string=[$2], int=[$1], ts=[$0])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, 'ts, 7200000.millis)], properties=[TMP_1, TMP_2, TMP_3], select=[string, Final_COUNT(count$0) AS TMP_0])
++- Exchange(distribution=[hash[string]])
+   +- LocalHashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, 'ts, 7200000.millis)], properties=[TMP_1, TMP_2, TMP_3], select=[string, Partial_COUNT(int) AS count$0])
+      +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[ts, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTimestampEventTimeTumblingGroupWindowWithProperties">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(string=[$0], TMP_0=[$1], TMP_1=[$2], TMP_2=[$3], TMP_3=[$4])
++- LogicalWindowAggregate(group=[{0}], TMP_0=[COUNT($1)], window=[TumblingGroupWindow('w, 'ts, 7200000.millis)], properties=[TMP_1, TMP_2, TMP_3])
+   +- LogicalProject(string=[$2], int=[$1], ts=[$0])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, 'ts, 7200000.millis)], properties=[TMP_1, TMP_2, TMP_3], select=[string, Final_COUNT(count$0) AS TMP_0])
++- Exchange(distribution=[hash[string]])
+   +- LocalHashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, 'ts, 7200000.millis)], properties=[TMP_1, TMP_2, TMP_3], select=[string, Partial_COUNT(int) AS count$0])
+      +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[ts, int, string])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

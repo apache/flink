@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.plan
 
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.api.{OverWindow, TableEnvironment, ValidationException}
+import org.apache.flink.table.api.types.{RowType}
+import org.apache.flink.table.api.{OverWindow, TableEnvironment}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical.{LogicalNode, Project}
 
@@ -92,11 +92,6 @@ object ProjectionTranslator {
             case _ => (x._1, x._2)
           }
         }
-
-      // Expression is null
-      case null =>
-        throw new ValidationException("Scala 'null' is not a valid expression. " +
-          "Use 'Null(TYPE)' to specify typed null expressions. For example: Null(Types.INT)")
     }
   }
 
@@ -172,6 +167,13 @@ object ProjectionTranslator {
             replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
         sfc.makeCopy(Array(clazz, newArgs))
 
+      // row constructor
+      case c @ RowConstructor(args) =>
+        val newArgs = c.elements
+          .map((exp: Expression) =>
+            replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
+        c.makeCopy(Array(newArgs))
+
       // array constructor
       case c @ ArrayConstructor(args) =>
         val newArgs = c.elements
@@ -220,7 +222,7 @@ object ProjectionTranslator {
           .getOrElse(throw new RuntimeException("Could not find resolved composite."))
         resolvedExpr.validateInput()
         val newProjects = resolvedExpr.resultType match {
-          case ct: CompositeType[_] =>
+          case ct: RowType =>
             (0 until ct.getArity).map { idx =>
               projectList += GetCompositeField(unresolved, ct.getFieldNames()(idx))
             }
@@ -261,7 +263,8 @@ object ProjectionTranslator {
             overWindow.get.partitionBy,
             overWindow.get.orderBy,
             overWindow.get.preceding,
-            overWindow.get.following)
+            overWindow.get.following,
+            tableEnv)
         } else {
           u
         }

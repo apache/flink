@@ -1,0 +1,246 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testMultiOverWindowRangeType">
+    <Resource name="sql">
+      <![CDATA[SELECT count(*) over (partition by c order by a range between -1 PRECEDING and 10 FOLLOWING),sum(a) over (partition by c order by a),rank() over (partition by c order by a, c),sum(a) over (partition by c order by a range between 1 PRECEDING and 10 FOLLOWING),count(*) over (partition by c order by c rows between 1 PRECEDING and 10 FOLLOWING) FROM Table3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[COUNT() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RANGE BETWEEN -1 PRECEDING AND 10 FOLLOWING)], EXPR$1=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), CAST($SUM0($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)):INTEGER, null)], EXPR$2=[RANK() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST, $2 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], EXPR$3=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RANGE BETWEEN 1 PRECEDING AND 10 FOLLOWING), 0), CAST($SUM0($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RANGE BETWEEN 1 PRECEDING AND 10 FOLLOWING)):INTEGER, null)], EXPR$4=[COUNT() OVER (PARTITION BY $2 ORDER BY $2 NULLS FIRST ROWS BETWEEN 1 PRECEDING AND 10 FOLLOWING)])
++- LogicalTableScan(table=[[builtin, default, Table3]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[w0$o0 AS EXPR$0, CASE(>(w1$o0, 0), CAST(w1$o1), null) AS EXPR$1, w2$o0 AS EXPR$2, CASE(>(w3$o0, 0), CAST(w3$o1), null) AS EXPR$3, w4$o0 AS EXPR$4])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN -1 PRECEDING AND 10 FOLLOWING], window#1=[COUNT(a) AS w1$o0, $SUM0(a) AS w1$o1 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#2=[COUNT(a) AS w3$o1, $SUM0(a) AS w2$o0 RANG BETWEEN 1 PRECEDING AND 10 FOLLOWING], window#3=[RANK(*) AS w3$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#4=[COUNT(*) AS w4$o0 ROWS BETWEEN 1 PRECEDING AND 10 FOLLOWING], select=[a, c, w0$o0, w1$o0, w1$o1, w3$o1, w2$o0, w3$o0, w4$o0])
+   +- Sort(orderBy=[c ASC])
+      +- Exchange(distribution=[hash[c]])
+         +- Calc(select=[a, c])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOverWindow0PrecedingAnd0Following">
+    <Resource name="sql">
+      <![CDATA[SELECT c, count(*) over (partition by c order by a rows between 0 PRECEDING and 0 FOLLOWING) FROM Table3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], EXPR$1=[COUNT() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST ROWS BETWEEN 0 PRECEDING AND 0 FOLLOWING)])
++- LogicalTableScan(table=[[builtin, default, Table3]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, w0$o0 AS $1])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(*) AS w0$o0 ROWS BETWEEN 0 PRECEDING AND 0 FOLLOWING], select=[a, c, w0$o0])
+   +- Sort(orderBy=[c ASC, a ASC])
+      +- Exchange(distribution=[hash[c]])
+         +- Calc(select=[a, c])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOverWindow0PrecedingAndCurrentRow">
+    <Resource name="sql">
+      <![CDATA[SELECT c, count(*) over (partition by c order by a rows between 0 PRECEDING and CURRENT ROW) FROM Table3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], EXPR$1=[COUNT() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST ROWS BETWEEN 0 PRECEDING AND CURRENT ROW)])
++- LogicalTableScan(table=[[builtin, default, Table3]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, w0$o0 AS $1])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(*) AS w0$o0 ROWS BETWEEN 0 PRECEDING AND CURRENT ROW], select=[a, c, w0$o0])
+   +- Sort(orderBy=[c ASC, a ASC])
+      +- Exchange(distribution=[hash[c]])
+         +- Calc(select=[a, c])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOverWindowCurrentRowAnd0Following">
+    <Resource name="sql">
+      <![CDATA[SELECT c, count(*) over (partition by c order by a rows between CURRENT ROW and 0 FOLLOWING) FROM Table3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], EXPR$1=[COUNT() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST ROWS BETWEEN CURRENT ROW AND 0 FOLLOWING)])
++- LogicalTableScan(table=[[builtin, default, Table3]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, w0$o0 AS $1])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(*) AS w0$o0 ROWS BETWEEN CURRENT ROW AND 0 FOLLOWING], select=[a, c, w0$o0])
+   +- Sort(orderBy=[c ASC, a ASC])
+      +- Exchange(distribution=[hash[c]])
+         +- Calc(select=[a, c])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOverWindowRangeType">
+    <Resource name="sql">
+      <![CDATA[SELECT count(*) over (partition by c order by a range between -1 PRECEDING and 10 FOLLOWING) FROM Table3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[COUNT() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RANGE BETWEEN -1 PRECEDING AND 10 FOLLOWING)])
++- LogicalTableScan(table=[[builtin, default, Table3]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[w0$o0 AS $0])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN -1 PRECEDING AND 10 FOLLOWING], select=[a, c, w0$o0])
+   +- Sort(orderBy=[c ASC, a ASC])
+      +- Exchange(distribution=[hash[c]])
+         +- Calc(select=[a, c])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOverWindowWithoutFrame">
+    <Resource name="sql">
+      <![CDATA[SELECT c, count(*) over (partition by c) FROM Table3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], EXPR$1=[COUNT() OVER (PARTITION BY $2 RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)])
++- LogicalTableScan(table=[[builtin, default, Table3]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, w0$o0 AS $1])
++- OverAggregate(partitionBy=[c], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[a, b, c, w0$o0])
+   +- Sort(orderBy=[c ASC])
+      +- Exchange(distribution=[hash[c]])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRangeWindowWithNegative1">
+    <Resource name="sql">
+      <![CDATA[SELECT count(*) over (partition by c order by a range between -1 PRECEDING and 10 FOLLOWING) FROM Table3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[COUNT() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RANGE BETWEEN -1 PRECEDING AND 10 FOLLOWING)])
++- LogicalTableScan(table=[[builtin, default, Table3]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[w0$o0 AS $0])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN -1 PRECEDING AND 10 FOLLOWING], select=[a, c, w0$o0])
+   +- Sort(orderBy=[c ASC, a ASC])
+      +- Exchange(distribution=[hash[c]])
+         +- Calc(select=[a, c])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRangeWindowWithNegative2">
+    <Resource name="sql">
+      <![CDATA[SELECT count(*) over (partition by c order by a range between -1 FOLLOWING and 10 FOLLOWING) FROM Table3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[COUNT() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RANGE BETWEEN -1 FOLLOWING AND 10 FOLLOWING)])
++- LogicalTableScan(table=[[builtin, default, Table3]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[w0$o0 AS $0])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN -1 FOLLOWING AND 10 FOLLOWING], select=[a, c, w0$o0])
+   +- Sort(orderBy=[c ASC, a ASC])
+      +- Exchange(distribution=[hash[c]])
+         +- Calc(select=[a, c])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankRangeWindowWithCompositeOrders">
+    <Resource name="sql">
+      <![CDATA[SELECT rank() over (partition by c order by a, c) FROM Table3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[RANK() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST, $2 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
++- LogicalTableScan(table=[[builtin, default, Table3]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[w0$o0 AS $0])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC, c ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
+   +- Sort(orderBy=[c ASC, a ASC])
+      +- Exchange(distribution=[hash[c]])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankRangeWindowWithConstants1">
+    <Resource name="sql">
+      <![CDATA[SELECT count(1) over () FROM Table3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[COUNT(1) OVER (RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)])
++- LogicalTableScan(table=[[builtin, default, Table3]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+OverAggregate(window#0=[COUNT(1) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[w0$o0])
++- Exchange(distribution=[single])
+   +- Calc(select=[])
+      +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankRangeWindowWithConstants2">
+    <Resource name="sql">
+      <![CDATA[SELECT sum(a) over (partition by c order by a range between -1 FOLLOWING and 10 FOLLOWING), count(1) over (partition by c order by a range between -1 FOLLOWING and 10 FOLLOWING)  FROM Table3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RANGE BETWEEN -1 FOLLOWING AND 10 FOLLOWING), 0), CAST($SUM0($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RANGE BETWEEN -1 FOLLOWING AND 10 FOLLOWING)):INTEGER, null)], EXPR$1=[COUNT(1) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RANGE BETWEEN -1 FOLLOWING AND 10 FOLLOWING)])
++- LogicalTableScan(table=[[builtin, default, Table3]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[CASE(>(w0$o0, 0), CAST(w0$o1), null) AS EXPR$0, w0$o2 AS EXPR$1])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1, COUNT(1) AS w0$o2 RANG BETWEEN -1 FOLLOWING AND 10 FOLLOWING], select=[a, c, w0$o0, w0$o1, w0$o2])
+   +- Sort(orderBy=[c ASC, a ASC])
+      +- Exchange(distribution=[hash[c]])
+         +- Calc(select=[a, c])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

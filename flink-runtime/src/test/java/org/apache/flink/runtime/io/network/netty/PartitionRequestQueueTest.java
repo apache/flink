@@ -407,5 +407,10 @@ public class PartitionRequestQueueTest {
 		public boolean isAvailable() {
 			return false;
 		}
+
+		@Override
+		public void notifyCreditAdded(int creditDeltas) {
+
+		}
 	}
 }

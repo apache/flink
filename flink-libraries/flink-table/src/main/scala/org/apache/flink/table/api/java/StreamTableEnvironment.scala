@@ -17,15 +17,15 @@
  */
 package org.apache.flink.table.api.java
 
+import _root_.java.lang.{Boolean => JBool}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.table.api._
-import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
-import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import _root_.java.lang.{Boolean => JBool}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.types.DataTypes
+import org.apache.flink.table.expressions.ExpressionParser
 
 /**
   * The [[TableEnvironment]] for a Java [[StreamExecutionEnvironment]].
@@ -60,7 +60,7 @@ class StreamTableEnvironment(
   def fromDataStream[T](dataStream: DataStream[T]): Table = {
 
     val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream)
+    registerDataStreamInternal(name, dataStream, false)
     scan(name)
   }
 
@@ -85,7 +85,7 @@ class StreamTableEnvironment(
       .toArray
 
     val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream, exprs)
+    registerDataStreamInternal(name, dataStream, exprs, false)
     scan(name)
   }
 
@@ -104,7 +104,25 @@ class StreamTableEnvironment(
   def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit = {
 
     checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream)
+    registerDataStreamInternal(name, dataStream, false)
+  }
+
+  /**
+    * Registers or replace the given [[DataStream]] as table in the
+    * [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * The field names of the [[Table]] are automatically derived
+    * from the type of the [[DataStream]].
+    *
+    * @param name The name under which the [[DataStream]] is registered in the catalog.
+    * @param dataStream The [[DataStream]] to register.
+    * @tparam T The type of the [[DataStream]] to register.
+    */
+  def registerOrReplaceDataStream[T](name: String, dataStream: DataStream[T]): Unit = {
+
+    checkValidTableName(name)
+    registerDataStreamInternal(name, dataStream, true)
   }
 
   /**
@@ -130,7 +148,18 @@ class StreamTableEnvironment(
       .toArray
 
     checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream, exprs)
+    registerDataStreamInternal(name, dataStream, exprs, false)
+  }
+
+  def registerOrReplaceDataStream[T](name: String,
+                                     dataStream: DataStream[T],
+                                     fields: String): Unit = {
+    val exprs = ExpressionParser
+      .parseExpressionList(fields)
+      .toArray
+
+    checkValidTableName(name)
+    registerDataStreamInternal(name, dataStream, exprs, true)
   }
 
   /**
@@ -150,7 +179,9 @@ class StreamTableEnvironment(
     * @return The converted [[DataStream]].
     */
   def toAppendStream[T](table: Table, clazz: Class[T]): DataStream[T] = {
-    toAppendStream(table, clazz, queryConfig)
+    val t = DataTypes.extractDataType(clazz)
+    TableEnvironment.validateType(t)
+    translateToDataStream[T](table, updatesAsRetraction = false, withChangeFlag = false, t)
   }
 
   /**
@@ -170,7 +201,8 @@ class StreamTableEnvironment(
     * @return The converted [[DataStream]].
     */
   def toAppendStream[T](table: Table, typeInfo: TypeInformation[T]): DataStream[T] = {
-    toAppendStream(table, typeInfo, queryConfig)
+    TableEnvironment.validateType(typeInfo)
+    translateToDataStream[T](table, updatesAsRetraction = false, withChangeFlag = false, typeInfo)
   }
 
   /**
@@ -194,9 +226,8 @@ class StreamTableEnvironment(
       table: Table,
       clazz: Class[T],
       queryConfig: StreamQueryConfig): DataStream[T] = {
-    val typeInfo = TypeExtractor.createTypeInfo(clazz)
-    TableEnvironment.validateType(typeInfo)
-    translate[T](table, queryConfig, updatesAsRetraction = false, withChangeFlag = false)(typeInfo)
+    queryConfig.overrideTableConfig(getConfig)
+    toAppendStream(table, clazz)
   }
 
   /**
@@ -220,8 +251,7 @@ class StreamTableEnvironment(
       table: Table,
       typeInfo: TypeInformation[T],
       queryConfig: StreamQueryConfig): DataStream[T] = {
-    TableEnvironment.validateType(typeInfo)
-    translate[T](table, queryConfig, updatesAsRetraction = false, withChangeFlag = false)(typeInfo)
+    toAppendStream(table, typeInfo)
   }
 
   /**
@@ -244,8 +274,13 @@ class StreamTableEnvironment(
   def toRetractStream[T](
       table: Table,
       clazz: Class[T]): DataStream[JTuple2[JBool, T]] = {
-
-    toRetractStream(table, clazz, queryConfig)
+    val tp = DataTypes.extractDataType(clazz)
+    TableEnvironment.validateType(tp)
+    translateToDataStream[JTuple2[JBool, T]](
+      table,
+      updatesAsRetraction = true,
+      withChangeFlag = true,
+      DataTypes.createTupleType(DataTypes.BOOLEAN, tp))
   }
 
   /**
@@ -268,8 +303,12 @@ class StreamTableEnvironment(
   def toRetractStream[T](
       table: Table,
       typeInfo: TypeInformation[T]): DataStream[JTuple2[JBool, T]] = {
-
-    toRetractStream(table, typeInfo, queryConfig)
+    TableEnvironment.validateType(typeInfo)
+    translateToDataStream[JTuple2[JBool, T]](
+      table,
+      updatesAsRetraction = true,
+      withChangeFlag = true,
+      DataTypes.createTupleType(DataTypes.BOOLEAN, typeInfo))
   }
 
   /**
@@ -294,15 +333,8 @@ class StreamTableEnvironment(
       table: Table,
       clazz: Class[T],
       queryConfig: StreamQueryConfig): DataStream[JTuple2[JBool, T]] = {
-
-    val typeInfo = TypeExtractor.createTypeInfo(clazz)
-    TableEnvironment.validateType(typeInfo)
-    val resultType = new TupleTypeInfo[JTuple2[JBool, T]](Types.BOOLEAN, typeInfo)
-    translate[JTuple2[JBool, T]](
-      table,
-      queryConfig,
-      updatesAsRetraction = true,
-      withChangeFlag = true)(resultType)
+    queryConfig.overrideTableConfig(getConfig)
+    toRetractStream(table, clazz)
   }
 
   /**
@@ -327,56 +359,7 @@ class StreamTableEnvironment(
       table: Table,
       typeInfo: TypeInformation[T],
       queryConfig: StreamQueryConfig): DataStream[JTuple2[JBool, T]] = {
-
-    TableEnvironment.validateType(typeInfo)
-    val resultTypeInfo = new TupleTypeInfo[JTuple2[JBool, T]](
-      Types.BOOLEAN,
-      typeInfo
-    )
-    translate[JTuple2[JBool, T]](
-      table,
-      queryConfig,
-      updatesAsRetraction = true,
-      withChangeFlag = true)(resultTypeInfo)
-  }
-
-  /**
-    * Registers a [[TableFunction]] under a unique name in the TableEnvironment's catalog.
-    * Registered functions can be referenced in Table API and SQL queries.
-    *
-    * @param name The name under which the function is registered.
-    * @param tf The TableFunction to register.
-    * @tparam T The type of the output row.
-    */
-  def registerFunction[T](name: String, tf: TableFunction[T]): Unit = {
-    implicit val typeInfo: TypeInformation[T] = TypeExtractor
-      .createTypeInfo(tf, classOf[TableFunction[_]], tf.getClass, 0)
-      .asInstanceOf[TypeInformation[T]]
-
-    registerTableFunctionInternal[T](name, tf)
-  }
-
-  /**
-    * Registers an [[AggregateFunction]] under a unique name in the TableEnvironment's catalog.
-    * Registered functions can be referenced in Table API and SQL queries.
-    *
-    * @param name The name under which the function is registered.
-    * @param f The AggregateFunction to register.
-    * @tparam T The type of the output value.
-    * @tparam ACC The type of aggregate accumulator.
-    */
-  def registerFunction[T, ACC](
-      name: String,
-      f: AggregateFunction[T, ACC])
-  : Unit = {
-    implicit val typeInfo: TypeInformation[T] = TypeExtractor
-      .createTypeInfo(f, classOf[AggregateFunction[T, ACC]], f.getClass, 0)
-      .asInstanceOf[TypeInformation[T]]
-
-    implicit val accTypeInfo: TypeInformation[ACC] = TypeExtractor
-      .createTypeInfo(f, classOf[AggregateFunction[T, ACC]], f.getClass, 1)
-      .asInstanceOf[TypeInformation[ACC]]
-
-    registerAggregateFunctionInternal[T, ACC](name, f)
+    queryConfig.overrideTableConfig(getConfig)
+    toRetractStream(table, typeInfo)
   }
 }

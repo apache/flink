@@ -64,9 +64,8 @@ object TableFactoryService extends Logging {
     */
   def find[T](factoryClass: Class[T], descriptor: Descriptor, classLoader: ClassLoader): T = {
     Preconditions.checkNotNull(descriptor)
-    Preconditions.checkNotNull(classLoader)
-
-    findInternal(factoryClass, descriptor.toProperties, Some(classLoader))
+    val optionClassLoader = Option(classLoader)
+    findInternal(factoryClass, descriptor.toProperties, optionClassLoader)
   }
 
   /**
@@ -95,9 +94,8 @@ object TableFactoryService extends Logging {
       propertyMap: JMap[String, String],
       classLoader: ClassLoader)
     : T = {
-    Preconditions.checkNotNull(classLoader)
-
-    findInternal(factoryClass, propertyMap, Some(classLoader))
+    val optionClassLoader = Option(classLoader)
+    findInternal(factoryClass, propertyMap, optionClassLoader)
   }
 
   /**
@@ -207,7 +205,12 @@ object TableFactoryService extends Logging {
       plainContext.remove(STATISTICS_PROPERTY_VERSION)
 
       // check if required context is met
-      plainContext.forall(e => properties.contains(e._1) && properties(e._1) == e._2)
+      plainContext.forall { e =>
+        properties.contains(e._1) &&
+          ((e._1 == CONNECTOR_TYPE && // If the key is connector.type, ignore case of the value.
+            properties(e._1).equalsIgnoreCase(e._2)) ||
+          properties(e._1) == e._2)
+      }
     }
 
     if (matchingFactories.isEmpty) {
@@ -282,13 +285,14 @@ object TableFactoryService extends Logging {
           |${supportedKeys.sorted.mkString("\n")}""".stripMargin,
         factoryClass,
         foundFactories,
-        properties)
+        properties, null)
     } else if (supportedFactories.isEmpty) {
       throw new NoMatchingTableFactoryException(
         s"No factory supports all properties.",
         factoryClass,
         foundFactories,
-        properties)
+        properties,
+        null)
     } else if (supportedFactories.length > 1) {
       throw new AmbiguousTableFactoryException(
         supportedFactories,

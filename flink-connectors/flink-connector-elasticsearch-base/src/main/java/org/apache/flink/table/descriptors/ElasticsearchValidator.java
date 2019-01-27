@@ -84,9 +84,14 @@ public class ElasticsearchValidator extends ConnectorDescriptorValidator {
 
 	private void validateHosts(DescriptorProperties properties) {
 		final Map<String, Consumer<String>> hostsValidators = new HashMap<>();
-		hostsValidators.put(CONNECTOR_HOSTS_HOSTNAME, (key) -> properties.validateString(key, false, 1));
-		hostsValidators.put(CONNECTOR_HOSTS_PORT, (key) -> properties.validateInt(key, false, 0, 65535));
-		hostsValidators.put(CONNECTOR_HOSTS_PROTOCOL, (key) -> properties.validateString(key, false, 1));
+		hostsValidators.put(
+			CONNECTOR_HOSTS_HOSTNAME,
+			(key) -> properties.validateString(key, false, 1));
+		hostsValidators.put(
+			CONNECTOR_HOSTS_PORT,
+			(key) -> properties.validateInt(key, false, 0, 65535));
+		hostsValidators.put(CONNECTOR_HOSTS_PROTOCOL,
+			(key) -> properties.validateString(key, false, 1));
 		properties.validateFixedIndexedProperties(CONNECTOR_HOSTS, false, hostsValidators);
 	}
 

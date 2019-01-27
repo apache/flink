@@ -21,17 +21,21 @@ package org.apache.flink.runtime.io.network.buffer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.io.network.partition.InternalResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -45,6 +49,10 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for {@link NetworkBufferPool}.
@@ -324,11 +332,11 @@ public class NetworkBufferPoolTest extends TestLogger {
 
 		final List<Buffer> buffers = new ArrayList<>(numBuffers);
 		List<MemorySegment> memorySegments = Collections.emptyList();
-		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers,
-			// make releaseMemory calls always fail:
-			Optional.of(numBuffersToRecycle -> {
-				throw new TestIOException();
-		}));
+		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers);
+		// make releaseMemory calls always fail:
+		bufferPool.setBufferPoolOwner(numBuffersToRecycle -> {
+			throw new TestIOException();
+		});
 
 		try {
 			// take all but one buffer
@@ -364,10 +372,11 @@ public class NetworkBufferPoolTest extends TestLogger {
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, 128);
 
 		final List<Buffer> buffers = new ArrayList<>(numBuffers);
-		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers,
-			Optional.of(numBuffersToRecycle -> {
+		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers);
+		bufferPool.setBufferPoolOwner(
+			numBuffersToRecycle -> {
 				throw new TestIOException();
-		}));
+			});
 
 		try {
 
@@ -484,6 +493,344 @@ public class NetworkBufferPoolTest extends TestLogger {
 			globalPool.createBufferPool(10, 10);
 		} finally {
 			globalPool.destroy();
+		}
+	}
+
+	@Test(timeout = 10000L)
+	public void testWithoutBufferPoolOwnerAndRequiredEqualsMax() throws Exception {
+		final int numBuffers = 100;
+		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128);
+		ArrayList<BufferPool> bufferPools = new ArrayList<>(10);
+
+		try {
+			// without buffer pool owner and required equals max
+			createBufferPools(globalPool, bufferPools, 10, 10, 10);
+
+			checkBufferPoolState(globalPool, 100, numBuffers, 0);
+			checkNetworkBufferInsufficient(globalPool);
+
+			destroyBufferPools(bufferPools, 0, 10);
+
+			checkBufferPoolState(globalPool, 0, numBuffers, 0);
+		} finally {
+			globalPool.destroy();
+		}
+	}
+
+	@Test(timeout = 10000L)
+	public void testWithoutBufferPoolOwnerAndRequiredLessThanMax() throws Exception {
+		final int numBuffers = 100;
+		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128);
+		ArrayList<BufferPool> bufferPools = new ArrayList<>(10);
+
+		try {
+			// without buffer pool owner and required less than max
+			createBufferPools(globalPool, bufferPools, 10, 20, 10);
+
+			checkBufferPoolState(globalPool, 100, numBuffers, 0);
+			checkNetworkBufferInsufficient(globalPool);
+
+			destroyBufferPools(bufferPools, 0, 10);
+
+			checkBufferPoolState(globalPool, 0, numBuffers, 0);
+		} finally {
+			globalPool.destroy();
+		}
+	}
+
+	@Test(timeout = 10000L)
+	public void testWithPipelinedBufferPoolOwnerAndRequiredEqualsMax() throws Exception {
+		final int numBuffers = 100;
+		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128);
+		ArrayList<BufferPool> bufferPools = new ArrayList<>(10);
+		HashMap<BufferPool, ArrayList<Buffer>> buffPool2Buffers = new HashMap<>(100);
+
+		try {
+			// with buffer pool owner (pipelined result partition) and required equals max
+			createBufferPools(globalPool, bufferPools, 10, 10, 10);
+			setBufferPoolOwner(bufferPools, ResultPartitionType.PIPELINED, buffPool2Buffers, false);
+
+			checkBufferPoolState(globalPool, 100, numBuffers, 0);
+			checkNetworkBufferInsufficient(globalPool);
+
+			requestBuffers(buffPool2Buffers, bufferPools, 10);
+			destroyBufferPools(bufferPools, 0, 10);
+
+			checkBufferPoolState(globalPool, 0, 0, 0);
+
+			BufferPool bufferPool = globalPool.createBufferPool(10, 10);
+			assertTrue(bufferPool.requestBuffer() == null);
+
+			recycleBuffers(buffPool2Buffers);
+
+			Buffer buffer = bufferPool.requestBuffer();
+			assertTrue(buffer != null);
+			buffer.recycleBuffer();
+			bufferPool.lazyDestroy();
+
+			checkBufferPoolState(globalPool, 0, numBuffers, 0);
+		} finally {
+			globalPool.destroy();
+		}
+	}
+
+	@Test(timeout = 10000L)
+	public void testWithPipelinedBufferPoolOwnerAndRequiredLessThanMax() throws Exception {
+		final int numBuffers = 100;
+		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128);
+		ArrayList<BufferPool> bufferPools = new ArrayList<>(10);
+		HashMap<BufferPool, ArrayList<Buffer>> buffPool2Buffers = new HashMap<>(100);
+
+		try {
+			// with buffer pool owner (pipelined result partition) and required less than max
+			createBufferPools(globalPool, bufferPools, 10, 20, 10);
+			setBufferPoolOwner(bufferPools, ResultPartitionType.PIPELINED, buffPool2Buffers, false);
+
+			checkBufferPoolState(globalPool, 100, numBuffers, 0);
+			checkNetworkBufferInsufficient(globalPool);
+
+			requestBuffers(buffPool2Buffers, bufferPools, 10);
+			destroyBufferPools(bufferPools, 0, 10);
+
+			checkBufferPoolState(globalPool, 0, 0, 0);
+
+			BufferPool bufferPool = globalPool.createBufferPool(10, 10);
+			assertTrue(bufferPool.requestBuffer() == null);
+
+			recycleBuffers(buffPool2Buffers);
+
+			Buffer buffer = bufferPool.requestBuffer();
+			assertTrue(buffer != null);
+			buffer.recycleBuffer();
+			bufferPool.lazyDestroy();
+
+			checkBufferPoolState(globalPool, 0, numBuffers, 0);
+		} finally {
+			globalPool.destroy();
+		}
+	}
+
+	@Test(timeout = 10000L)
+	public void testWithBlockingBufferPoolOwnerAndRequiredEqualsMax() throws Exception {
+		final int numBuffers = 100;
+		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128);
+		ArrayList<BufferPool> bufferPools = new ArrayList<>(10);
+		HashMap<BufferPool, ArrayList<Buffer>> buffPool2Buffers = new HashMap<>(100);
+
+		try {
+			// with buffer pool owner (blocking result partition) and required equals max
+			createBufferPools(globalPool, bufferPools, 10, 10, 10);
+			setBufferPoolOwner(bufferPools, ResultPartitionType.BLOCKING, buffPool2Buffers, true);
+
+			checkBufferPoolState(globalPool, 100, numBuffers, 0);
+
+			requestBuffers(buffPool2Buffers, bufferPools, 10);
+			checkNetworkBufferInsufficient(globalPool);
+
+			bufferPools.get(0).lazyDestroy();
+
+			checkBufferPoolState(globalPool, 100, 0, 1);
+
+			BufferPool bufferPool = globalPool.createBufferPool(10, 10);
+			setBufferPoolOwner(bufferPool, ResultPartitionType.BLOCKING, buffPool2Buffers, false);
+
+			checkBufferPoolState(globalPool, 100, 10, 0);
+
+			requestBuffers(buffPool2Buffers, bufferPool, 10);
+			buffPool2Buffers.remove(bufferPools.get(0));
+
+			checkBufferPoolState(globalPool, 100, 0, 0);
+			checkNetworkBufferInsufficient(globalPool);
+
+			bufferPools.get(1).lazyDestroy();
+
+			checkBufferPoolState(globalPool, 100, 0, 1);
+
+			recycleBuffers(buffPool2Buffers.get(bufferPools.get(1)));
+
+			checkBufferPoolState(globalPool, 100, 10, 1);
+
+			bufferPools.get(1).notifyBufferPoolOwnerReleased();
+
+			checkBufferPoolState(globalPool, 90, 10, 0);
+
+			buffPool2Buffers.remove(bufferPools.get(1));
+			notifyBufferPoolOwnerReleased(buffPool2Buffers);
+
+			checkBufferPoolState(globalPool, 0, numBuffers, 0);
+		} finally {
+			globalPool.destroy();
+		}
+	}
+
+	@Test(timeout = 10000L)
+	public void testWithBlockingBufferPoolOwnerAndRequiredLessThanMax() throws Exception {
+		final int numBuffers = 100;
+		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128);
+		ArrayList<BufferPool> bufferPools = new ArrayList<>(10);
+		HashMap<BufferPool, ArrayList<Buffer>> buffPool2Buffers = new HashMap<>(100);
+
+		try {
+			// with buffer pool owner (blocking result partition) and required less than max
+			createBufferPools(globalPool, bufferPools, 10, 20, 5);
+			setBufferPoolOwner(bufferPools, ResultPartitionType.BLOCKING, buffPool2Buffers, true);
+
+			checkBufferPoolState(globalPool, 50, numBuffers, 0);
+
+			requestBuffers(buffPool2Buffers, bufferPools.subList(0, 4), 10);
+
+			checkBufferPoolState(globalPool, 50, 60, 0);
+
+			requestBuffers(buffPool2Buffers, bufferPools.get(4), 20);
+
+			checkBufferPoolState(globalPool, 50, 40, 0);
+
+			BufferPool bufferPool = globalPool.createBufferPool(50, 50);
+
+			checkBufferPoolState(globalPool, 100, 50, 0);
+			checkNetworkBufferInsufficient(globalPool);
+
+			bufferPools.get(4).lazyDestroy();
+
+			checkBufferPoolState(globalPool, 90, 60, 0);
+
+			BufferPool newBufPool = globalPool.createBufferPool(10, 20);
+
+			checkBufferPoolState(globalPool, 100, 60, 0);
+
+			buffPool2Buffers.remove(bufferPools.get(4));
+			bufferPool.lazyDestroy();
+
+			checkBufferPoolState(globalPool, 50, 60, 0);
+
+			newBufPool.lazyDestroy();
+
+			checkBufferPoolState(globalPool, 40, 60, 0);
+
+			notifyBufferPoolOwnerReleased(buffPool2Buffers);
+
+			checkBufferPoolState(globalPool, 0, numBuffers, 0);
+		} finally {
+			globalPool.destroy();
+		}
+	}
+
+	private void createBufferPools(
+		NetworkBufferPool globalPool,
+		ArrayList<BufferPool> bufferPools,
+		int numRequiredBuffers,
+		int maxUsedBuffers,
+		int numBufferPools) throws Exception {
+		for (int i = 0; i < numBufferPools; ++i) {
+			BufferPool localBufferPool = globalPool.createBufferPool(numRequiredBuffers, maxUsedBuffers);
+			bufferPools.add(localBufferPool);
+		}
+	}
+
+	private void checkBufferPoolState(
+		NetworkBufferPool globalPool,
+		int numTotalRequiredBuffers,
+		int numberOfAvailableMemorySegments,
+		int numBufferPoolsToDestroy) {
+
+		assertEquals(numTotalRequiredBuffers, globalPool.getNumTotalRequiredBuffers());
+		assertEquals(numberOfAvailableMemorySegments, globalPool.getNumberOfAvailableMemorySegments());
+		assertEquals(numBufferPoolsToDestroy, globalPool.getNumBufferPoolsToDestroy());
+	}
+
+	private void checkNetworkBufferInsufficient(NetworkBufferPool globalPool) {
+		try {
+			globalPool.createBufferPool(1, 1);
+			fail();
+		} catch (IOException e) {
+			// should throw IOException
+		}
+	}
+
+	private void destroyBufferPools(ArrayList<BufferPool> bufferPools, int startIndex, int endIndex) {
+		for (int i = startIndex; i < endIndex; ++i) {
+			bufferPools.get(i).lazyDestroy();
+		}
+	}
+
+	private void setBufferPoolOwner(
+		BufferPool bufferPool,
+		ResultPartitionType partitionType,
+		HashMap<BufferPool, ArrayList<Buffer>> buffPool2Buffers,
+		boolean allowOwnerReleaseMemory) throws IOException {
+		InternalResultPartition owner = mock(InternalResultPartition.class);
+		when(owner.getPartitionType()).thenReturn(partitionType);
+		bufferPool.setBufferPoolOwner(owner);
+		if (allowOwnerReleaseMemory) {
+			allowOwnerReleaseMemory(buffPool2Buffers, bufferPool, owner);
+		}
+	}
+
+	private void setBufferPoolOwner(
+		ArrayList<BufferPool> bufferPools,
+		ResultPartitionType partitionType,
+		HashMap<BufferPool, ArrayList<Buffer>> buffPool2Buffers,
+		boolean allowOwnerReleaseMemory) throws IOException {
+		for (BufferPool bufferPool: bufferPools) {
+			setBufferPoolOwner(bufferPool, partitionType, buffPool2Buffers, allowOwnerReleaseMemory);
+		}
+	}
+
+	private void allowOwnerReleaseMemory(
+		HashMap<BufferPool, ArrayList<Buffer>> buffPool2Buffers,
+		BufferPool bufferPool,
+		InternalResultPartition owner) throws IOException {
+		doAnswer(new Answer() {
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				for (Buffer buffer: buffPool2Buffers.get(bufferPool)) {
+					buffer.recycleBuffer();
+				}
+				return null;
+			}
+		}).when(owner).releaseMemory(anyInt());
+	}
+
+	private void requestBuffers(
+		HashMap<BufferPool, ArrayList<Buffer>> buffPool2Buffers,
+		BufferPool bufferPool,
+		int numBuffers) throws IOException, InterruptedException {
+		ArrayList<Buffer> buffers = new ArrayList<>();
+		for (int i = 0; i < numBuffers; ++i) {
+			buffers.add(bufferPool.requestBufferBlocking());
+		}
+		buffPool2Buffers.put(bufferPool, buffers);
+	}
+
+	private void requestBuffers(
+		HashMap<BufferPool, ArrayList<Buffer>> buffPool2Buffers,
+		List<BufferPool> bufferPools,
+		int numBuffers) throws IOException, InterruptedException {
+		for (BufferPool bufferPool: bufferPools) {
+			requestBuffers(buffPool2Buffers, bufferPool, numBuffers);
+		}
+	}
+
+	private void recycleBuffers(ArrayList<Buffer> buffers) {
+		for (Buffer buffer: buffers) {
+			buffer.recycleBuffer();
+		}
+		buffers.clear();
+	}
+
+	private void recycleBuffers(HashMap<BufferPool, ArrayList<Buffer>> buffPool2Buffers) {
+		for (ArrayList<Buffer> buffers: buffPool2Buffers.values()) {
+			recycleBuffers(buffers);
+		}
+	}
+
+	private void notifyBufferPoolOwnerReleased(HashMap<BufferPool, ArrayList<Buffer>> buffPool2Buffers) {
+		for (BufferPool bufPool: buffPool2Buffers.keySet()) {
+			bufPool.lazyDestroy();
+			for (Buffer buf: buffPool2Buffers.get(bufPool)) {
+				buf.recycleBuffer();
+			}
+			bufPool.notifyBufferPoolOwnerReleased();
 		}
 	}
 }

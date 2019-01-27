@@ -27,6 +27,9 @@ import java.io.Serializable;
  * 
  * <p>Input splits are transferred in serialized form via the messages, so they need to be serializable
  * as defined by {@link java.io.Serializable}.</p>
+ *
+ * <p>Notes: Input splits will be compared to filter out the ones already assigned when job master failover,
+ * so the method equals(Object) must be implemented.</p>
  */
 @Public
 public interface InputSplit extends Serializable {

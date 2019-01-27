@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapsh
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
@@ -157,8 +156,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 		}
 		else if (tag == TAG_LATENCY_MARKER) {
 			target.writeLong(source.readLong());
-			target.writeLong(source.readLong());
-			target.writeLong(source.readLong());
+			target.writeInt(source.readInt());
 			target.writeInt(source.readInt());
 		} else {
 			throw new IOException("Corrupt stream, found tag: " + tag);
@@ -226,20 +224,27 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	public StreamElement deserialize(StreamElement reuse, DataInputView source) throws IOException {
 		int tag = source.readByte();
 		if (tag == TAG_REC_WITH_TIMESTAMP) {
-			long timestamp = source.readLong();
-			T value = typeSerializer.deserialize(source);
 			StreamRecord<T> reuseRecord = reuse.asRecord();
+
+			long timestamp = source.readLong();
+			T value  = typeSerializer.deserialize(reuseRecord.getValue(), source);
+
 			reuseRecord.replace(value, timestamp);
 			return reuseRecord;
 		}
 		else if (tag == TAG_REC_WITHOUT_TIMESTAMP) {
-			T value = typeSerializer.deserialize(source);
 			StreamRecord<T> reuseRecord = reuse.asRecord();
+
+			T value = typeSerializer.deserialize(reuseRecord.getValue(), source);
+
 			reuseRecord.replace(value);
 			return reuseRecord;
 		}
 		else if (tag == TAG_WATERMARK) {
 			return new Watermark(source.readLong());
+		}
+		else if (tag == TAG_STREAM_STATUS) {
+			return new StreamStatus(source.readInt());
 		}
 		else if (tag == TAG_LATENCY_MARKER) {
 			return new LatencyMarker(source.readLong(), new OperatorID(source.readLong(), source.readLong()), source.readInt());
@@ -283,18 +288,18 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public StreamElementSerializerConfigSnapshot<T> snapshotConfiguration() {
+	public StreamElementSerializerConfigSnapshot snapshotConfiguration() {
 		return new StreamElementSerializerConfigSnapshot<>(typeSerializer);
 	}
 
 	@Override
-	public CompatibilityResult<StreamElement> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-		Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> previousTypeSerializerAndConfig;
+	public CompatibilityResult<StreamElement> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousTypeSerializerAndConfig;
 
 		// we are compatible for data written by ourselves or the legacy MultiplexingStreamRecordSerializer
 		if (configSnapshot instanceof StreamElementSerializerConfigSnapshot) {
 			previousTypeSerializerAndConfig =
-				((StreamElementSerializerConfigSnapshot<?>) configSnapshot).getSingleNestedSerializerAndConfig();
+				((StreamElementSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerAndConfig();
 		} else {
 			return CompatibilityResult.requiresMigration();
 		}
@@ -319,7 +324,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	/**
 	 * Configuration snapshot specific to the {@link StreamElementSerializer}.
 	 */
-	public static final class StreamElementSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot<StreamElement> {
+	public static final class StreamElementSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
 
 		private static final int VERSION = 1;
 

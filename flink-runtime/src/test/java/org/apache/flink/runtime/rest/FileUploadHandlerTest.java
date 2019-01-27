@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.rest;
 
-import org.apache.flink.runtime.io.network.netty.NettyLeakDetectionResource;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,7 +35,9 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.io.StringWriter;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 
@@ -51,9 +51,6 @@ public class FileUploadHandlerTest extends TestLogger {
 	public static final MultipartUploadResource MULTIPART_UPLOAD_RESOURCE = new MultipartUploadResource();
 
 	private static final ObjectMapper OBJECT_MAPPER = RestMapperUtils.getStrictObjectMapper();
-
-	@ClassRule
-	public static final NettyLeakDetectionResource LEAK_DETECTION = new NettyLeakDetectionResource();
 
 	@After
 	public void reset() {
@@ -122,20 +119,6 @@ public class FileUploadHandlerTest extends TestLogger {
 		String jsonPayload = sw.toString();
 
 		return builder.addFormDataPart(attribute, jsonPayload);
-	}
-
-	@Test
-	public void testUploadDirectoryRegeneration() throws Exception {
-		OkHttpClient client = new OkHttpClient();
-
-		MultipartUploadResource.MultipartFileHandler fileHandler = MULTIPART_UPLOAD_RESOURCE.getFileHandler();
-
-		FileUtils.deleteDirectory(MULTIPART_UPLOAD_RESOURCE.getUploadDirectory().toFile());
-
-		Request fileRequest = buildFileRequest(fileHandler.getMessageHeaders().getTargetRestEndpointURL());
-		try (Response response = client.newCall(fileRequest).execute()) {
-			assertEquals(fileHandler.getMessageHeaders().getResponseStatusCode().code(), response.code());
-		}
 	}
 
 	@Test
@@ -216,13 +199,20 @@ public class FileUploadHandlerTest extends TestLogger {
 
 	@Test
 	public void testUploadCleanupOnUnknownAttribute() throws IOException {
-		OkHttpClient client = new OkHttpClient();
-
+		OkHttpClient client = new OkHttpClient.Builder()
+			.connectTimeout(5000, TimeUnit.MILLISECONDS)
+			.writeTimeout(5000, TimeUnit.MILLISECONDS)
+			.readTimeout(5000, TimeUnit.MILLISECONDS)
+			.build();
 		Request request = buildMixedRequestWithUnknownAttribute(MULTIPART_UPLOAD_RESOURCE.getMixedHandler().getMessageHeaders().getTargetRestEndpointURL());
-		try (Response response = client.newCall(request).execute()) {
-			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
+		try {
+			try (Response response = client.newCall(request).execute()) {
+				assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
+				MULTIPART_UPLOAD_RESOURCE.assertUploadDirectoryIsEmpty();
+			}
+		} catch (InterruptedIOException e) {
+			e.printStackTrace();
 		}
-		MULTIPART_UPLOAD_RESOURCE.assertUploadDirectoryIsEmpty();
 	}
 
 	/**

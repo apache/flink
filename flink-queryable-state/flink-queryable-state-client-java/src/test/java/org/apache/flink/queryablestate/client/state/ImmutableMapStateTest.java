@@ -19,7 +19,6 @@
 package org.apache.flink.queryablestate.client.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
@@ -45,7 +44,7 @@ public class ImmutableMapStateTest {
 					BasicTypeInfo.LONG_TYPE_INFO,
 					BasicTypeInfo.LONG_TYPE_INFO);
 
-	private MapState<Long, Long> mapState;
+	private ImmutableMapState<Long, Long> mapState;
 
 	@Before
 	public void setUp() throws Exception {
@@ -66,7 +65,7 @@ public class ImmutableMapStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testPut() throws Exception {
+	public void testPut() {
 		assertTrue(mapState.contains(1L));
 		long value = mapState.get(1L);
 		assertEquals(5L, value);
@@ -79,7 +78,7 @@ public class ImmutableMapStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testPutAll() throws Exception {
+	public void testPutAll() {
 		assertTrue(mapState.contains(1L));
 		long value = mapState.get(1L);
 		assertEquals(5L, value);
@@ -96,7 +95,7 @@ public class ImmutableMapStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testUpdate() throws Exception {
+	public void testUpdate() {
 		assertTrue(mapState.contains(1L));
 		long value = mapState.get(1L);
 		assertEquals(5L, value);
@@ -109,7 +108,7 @@ public class ImmutableMapStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testIterator() throws Exception {
+	public void testIterator() {
 		assertTrue(mapState.contains(1L));
 		long value = mapState.get(1L);
 		assertEquals(5L, value);
@@ -125,7 +124,7 @@ public class ImmutableMapStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testIterable() throws Exception {
+	public void testIterable() {
 		assertTrue(mapState.contains(1L));
 		long value = mapState.get(1L);
 		assertEquals(5L, value);
@@ -143,7 +142,7 @@ public class ImmutableMapStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testKeys() throws Exception {
+	public void testKeys() {
 		assertTrue(mapState.contains(1L));
 		long value = mapState.get(1L);
 		assertEquals(5L, value);
@@ -159,7 +158,7 @@ public class ImmutableMapStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testValues() throws Exception {
+	public void testValues() {
 		assertTrue(mapState.contains(1L));
 		long value = mapState.get(1L);
 		assertEquals(5L, value);
@@ -175,7 +174,7 @@ public class ImmutableMapStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testClear() throws Exception {
+	public void testClear() {
 		assertTrue(mapState.contains(1L));
 		long value = mapState.get(1L);
 		assertEquals(5L, value);

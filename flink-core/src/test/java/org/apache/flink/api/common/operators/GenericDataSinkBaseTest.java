@@ -20,7 +20,7 @@ package org.apache.flink.api.common.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.AbstractAccumulatorRegistry;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.util.TestIOData;
 import org.apache.flink.api.common.operators.util.TestNonRichOutputFormat;
@@ -39,6 +39,7 @@ import java.util.concurrent.Future;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.powermock.api.mockito.PowerMockito.mock;
 
 /**
  * Checks the GenericDataSinkBase operator for both Rich and non-Rich output formats.
@@ -91,14 +92,14 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
 			sink.setInput(source);
 
 			ExecutionConfig executionConfig = new ExecutionConfig();
-			final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<String, Accumulator<?, ?>>();
+			final AbstractAccumulatorRegistry accumulatorRegistry = mock(AbstractAccumulatorRegistry.class);
 			final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
 			final TaskInfo taskInfo = new TaskInfo("test_sink", 1, 0, 1, 0);
 			executionConfig.disableObjectReuse();
 			in.reset();
 			
 			sink.executeOnCollections(asList(TestIOData.NAMES), new RuntimeUDFContext(
-					taskInfo, null, executionConfig, cpTasks, accumulatorMap, new UnregisteredMetricsGroup()),
+					taskInfo, null, executionConfig, cpTasks, accumulatorRegistry, new UnregisteredMetricsGroup()),
 					executionConfig);
 		
 				assertEquals(out.output, asList(TestIOData.RICH_NAMES));
@@ -108,7 +109,7 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
 			in.reset();
 			
 			sink.executeOnCollections(asList(TestIOData.NAMES), new RuntimeUDFContext(
-					taskInfo, null, executionConfig, cpTasks, accumulatorMap, new UnregisteredMetricsGroup()),
+					taskInfo, null, executionConfig, cpTasks, accumulatorRegistry, new UnregisteredMetricsGroup()),
 					executionConfig);
 			assertEquals(out.output, asList(TestIOData.RICH_NAMES));
 		} catch(Exception e){

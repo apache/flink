@@ -18,21 +18,15 @@
 ################################################################################
 
 # This can be used to run a single test in the context of a test runnner
-# Usage: ./run-single-test.sh [skip] test-scripts/my-test-case.sh
-
-# IMPORTANT:
-# With the "skip" flag one can disable default exceptions and errors checking in log files. This should be done carefully though.
-# A valid reasons for doing so could be e.g killing TMs randomly as we cannot predict what exception could be thrown. Whenever
-# those checks are disabled, one should take care that a proper checks are performed in the tests itself that ensure that the test finished
-# in an expected state.
+# Usage: ./run-single-test.sh test-scripts/my-test-case.sh
 
 if [ $# -eq 0 ]; then
-    echo "Usage: ./run-single-test.sh [skip] <path-to-test-script> [<arg1> <arg2> ...]"
+    echo "Usage: ./run-single-test.sh <path-to-test-script> [<arg1> <arg2> ...]"
     exit 1
 fi
 
 END_TO_END_DIR="`dirname \"$0\"`" # relative
-END_TO_END_DIR="`( cd \"$END_TO_END_DIR\" && pwd -P)`" # absolutized and normalized
+END_TO_END_DIR="`( cd \"$END_TO_END_DIR\" && pwd )`" # absolutized and normalized
 if [ -z "$END_TO_END_DIR" ] ; then
     # error; for some reason, the path is not accessible
     # to the script (e.g. permissions re-evaled after suid)
@@ -48,15 +42,11 @@ fi
 
 source "${END_TO_END_DIR}/test-scripts/test-runner-common.sh"
 
-FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd -P )`" # absolutized and normalized
+FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd )`" # absolutized and normalized
 
 echo "flink-end-to-end-test directory: $END_TO_END_DIR"
 echo "Flink distribution directory: $FLINK_DIR"
 
-if [[ "$1" = "skip" ]]; then
-    run_test "${*:2}" "${*:2}" "skip_check_exceptions"
-else
-    run_test "$*" "$*"
-fi
+run_test "$*" "$*"
 
 exit 0

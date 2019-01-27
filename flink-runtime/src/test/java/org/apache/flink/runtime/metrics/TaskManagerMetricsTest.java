@@ -49,8 +49,6 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import scala.Option;
-import scala.concurrent.Await;
-import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
@@ -108,8 +106,7 @@ public class TaskManagerMetricsTest extends TestLogger {
 			TaskManagerMetricGroup taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
 				metricRegistry,
 				taskManagerServices.getTaskManagerLocation(),
-				taskManagerServices.getNetworkEnvironment(),
-				taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval());
+				taskManagerServices.getNetworkEnvironment());
 
 			// create the task manager
 			final Props tmProps = TaskManager.getTaskManagerProps(
@@ -157,11 +154,11 @@ public class TaskManagerMetricsTest extends TestLogger {
 			Assert.assertFalse(metricRegistry.isShutdown());
 
 			// shut down the actors and the actor system
-			actorSystem.terminate();
-			Await.result(actorSystem.whenTerminated(), Duration.Inf());
+			actorSystem.shutdown();
+			actorSystem.awaitTermination();
 		} finally {
 			if (actorSystem != null) {
-				actorSystem.terminate();
+				actorSystem.shutdown();
 			}
 
 			if (highAvailabilityServices != null) {

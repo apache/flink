@@ -1,0 +1,210 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAggregationOnProctime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[EXPR$0])
++- StreamExecGroupAggregate(groupBy=[long], select=[long, MIN(proctime) AS EXPR$0])
+   +- StreamExecExchange(distribution=[hash[long]])
+      +- StreamExecCalc(select=[long, PROCTIME(proctime) AS proctime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregationOnRowtime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[TMP_0])
++- StreamExecGroupAggregate(groupBy=[long], select=[long, MIN(rowtime) AS TMP_0])
+   +- StreamExecExchange(distribution=[hash[long]])
+      +- StreamExecCalc(select=[CAST(rowtime) AS rowtime, long])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDoNotMaterializeLeftSideOfTemporalTableJoin">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[TMP_0])
++- StreamExecGroupWindowAggregate(groupBy=[currency], window=[TumblingGroupWindow('w, 'o_proctime, 1000.millis)], select=[currency, SUM(converted_amount) AS TMP_0])
+   +- StreamExecExchange(distribution=[hash[currency]])
+      +- StreamExecCalc(select=[*(o_amount, rate) AS converted_amount, currency, o_proctime])
+         +- StreamExecTemporalTableFunctionJoin(where=[AND(__TEMPORAL_JOIN_CONDITION(o_proctime, currency), =(currency, o_currency))], join=[o_amount, o_currency, o_proctime, currency, rate], joinType=[InnerJoin])
+            :- StreamExecExchange(distribution=[hash[o_currency]])
+            :  +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+            +- StreamExecExchange(distribution=[hash[currency]])
+               +- StreamExecCalc(select=[currency, rate])
+                  +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilteringOnRowtime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[rowtime], where=[>(rowtime, 1990-12-02 12:11:11)])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupingOnProctime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[EXPR$0])
++- StreamExecGroupAggregate(groupBy=[proctime], select=[proctime, COUNT(long) AS EXPR$0])
+   +- StreamExecExchange(distribution=[hash[proctime]])
+      +- StreamExecCalc(select=[PROCTIME(proctime) AS proctime, long])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupingOnRowtime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[TMP_0])
++- StreamExecGroupAggregate(groupBy=[rowtime], select=[rowtime, COUNT(long) AS TMP_0])
+   +- StreamExecExchange(distribution=[hash[rowtime]])
+      +- StreamExecCalc(select=[long, CAST(rowtime) AS rowtime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMaterializeLeftRowtimeWithProcessingTimeTemporalTableJoin">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[TMP_0])
++- StreamExecGroupWindowAggregate(groupBy=[currency], window=[TumblingGroupWindow('w, 'o_rowtime, 1000.millis)], select=[currency, SUM(converted_amount) AS TMP_0])
+   +- StreamExecExchange(distribution=[hash[currency]])
+      +- StreamExecCalc(select=[*(o_amount, rate) AS converted_amount, currency, CAST(o_rowtime) AS o_rowtime])
+         +- StreamExecTemporalTableFunctionJoin(where=[AND(__TEMPORAL_JOIN_CONDITION(o_proctime, currency), =(currency, o_currency))], join=[o_amount, o_currency, o_proctime, o_rowtime, currency, rate], joinType=[InnerJoin])
+            :- StreamExecExchange(distribution=[hash[o_currency]])
+            :  +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+            +- StreamExecExchange(distribution=[hash[currency]])
+               +- StreamExecCalc(select=[currency, rate])
+                  +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMaterializeRightSideOfTemporalTableJoin">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[TMP_0])
++- StreamExecGroupWindowAggregate(groupBy=[currency], window=[TumblingGroupWindow('w, 'proctime, 1000.millis)], select=[currency, SUM(converted_amount) AS TMP_0])
+   +- StreamExecExchange(distribution=[hash[currency]])
+      +- StreamExecCalc(select=[*(o_amount, rate) AS converted_amount, currency, proctime], where=[=(currency, o_currency)])
+         +- StreamExecCalc(select=[o_amount, o_currency, currency, rate, PROCTIME(proctime) AS proctime])
+            +- StreamExecTemporalTableFunctionJoin(where=[__TEMPORAL_JOIN_CONDITION(o_proctime, currency)], join=[o_amount, o_currency, o_proctime, currency, rate, proctime], joinType=[InnerJoin])
+               :- StreamExecExchange(distribution=[single])
+               :  +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+               +- StreamExecExchange(distribution=[single])
+                  +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiWindow">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[TMP_2, long, TMP_3])
++- StreamExecGroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w2, 'newrowtime, 1000.millis)], properties=[TMP_2], select=[long, SUM(int) AS TMP_3, end('w2) AS TMP_2])
+   +- StreamExecExchange(distribution=[hash[long]])
+      +- StreamExecCalc(select=[long, TMP_1 AS int, TMP_0 AS newrowtime])
+         +- StreamExecGroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w, 'rowtime, 100.millis)], properties=[TMP_0], select=[long, SUM(int) AS TMP_1, rowtime('w) AS TMP_0])
+            +- StreamExecExchange(distribution=[hash[long]])
+               +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSelectAll">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[rowtime, long, int, PROCTIME(proctime) AS proctime])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleMaterialization">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[FLOOR(CAST(rowtime), FLAG(DAY)) AS rowtime], where=[>(long, 0)])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableFunction">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[rowtime, PROCTIME(proctime) AS proctime, s])
++- StreamExecCorrelate(invocation=[org$apache$flink$table$plan$TimeIndicatorConversionTest$TableFunc$ecc6480589a03ee08a56697f916443a0(CAST($0):TIMESTAMP(3) NOT NULL, PROCTIME($3), '')], correlate=[table(TableFunc(CAST(rowtime),PROCTIME(proctime),''))], select=[rowtime,proctime,s], rowType=[RecordType(TIME ATTRIBUTE(ROWTIME) rowtime, TIME ATTRIBUTE(PROCTIME) proctime, VARCHAR(65536) s)], joinType=[INNER])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowWithAggregationOnRowtime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[EXPR$0, long])
++- StreamExecGroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, 'rowtime, 100.millis)], select=[long, MIN(rowtime0) AS EXPR$0])
+   +- StreamExecExchange(distribution=[hash[long]])
+      +- StreamExecCalc(select=[long, rowtime, CAST(rowtime) AS rowtime0])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnion">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecUnion(all=[true], union=[rowtime])
+:- StreamExecCalc(select=[rowtime])
+:  +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
++- StreamExecCalc(select=[rowtime])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindow">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[TMP_0 AS rowtime, long, TMP_1])
++- StreamExecGroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w, 'rowtime, 100.millis)], properties=[TMP_0], select=[long, SUM(int) AS TMP_1, end('w) AS TMP_0])
+   +- StreamExecExchange(distribution=[hash[long]])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowWithAggregationOnRowtimeWithHaving">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[EXPR$0, long], where=[=(EXTRACT(FLAG(QUARTER), CAST(w$end)), 1)])
++- StreamExecGroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, 'rowtime, 1000.millis)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[long, MIN(rowtime0) AS EXPR$0, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
+   +- StreamExecExchange(distribution=[hash[long]])
+      +- StreamExecCalc(select=[long, rowtime, CAST(rowtime) AS rowtime0])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowSql">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[w$end AS rowtime, long, EXPR$2])
++- StreamExecGroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, 'rowtime, 100.millis)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[long, SUM(int) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
+   +- StreamExecExchange(distribution=[hash[long]])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

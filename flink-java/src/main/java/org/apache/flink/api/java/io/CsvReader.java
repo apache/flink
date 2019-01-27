@@ -358,6 +358,26 @@ public class CsvReader {
 		return new DataSource<T>(executionContext, inputFormat, typeInfo, Utils.getCallLocationName());
 	}
 
+	/**
+	 * Generate {@link TupleCsvInputFormat} with given type.
+	 * @param targetType
+	 * @param <T>
+	 * @return the input format
+	 */
+	public <T extends Tuple> TupleCsvInputFormat<T> generateTupleCsvInputFormat(Class<T> targetType) {
+		TupleTypeInfo<T> typeInfo = (TupleTypeInfo<T>) TypeExtractor.createTypeInfo(targetType);
+		TupleCsvInputFormat<T> inputFormat = new TupleCsvInputFormat<T>(path, this.lineDelimiter, this.fieldDelimiter, typeInfo, this.includedMask);
+
+		Class<?>[] classes = new Class<?>[typeInfo.getArity()];
+		for (int i = 0; i < typeInfo.getArity(); i++) {
+			classes[i] = typeInfo.getTypeAt(i).getTypeClass();
+		}
+
+		configureInputFormat(inputFormat);
+
+		return inputFormat;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Miscellaneous
 	// --------------------------------------------------------------------------------------------

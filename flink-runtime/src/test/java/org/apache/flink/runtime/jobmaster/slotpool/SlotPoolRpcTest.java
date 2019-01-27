@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.DummyScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils;
@@ -40,7 +41,6 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -86,7 +86,7 @@ public class SlotPoolRpcTest extends TestLogger {
 	@BeforeClass
 	public static void setup() {
 		ActorSystem actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
-		rpcService = new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
+		rpcService = new AkkaRpcService(actorSystem, Time.seconds(10));
 	}
 
 	@AfterClass
@@ -378,10 +378,12 @@ public class SlotPoolRpcTest extends TestLogger {
 		public CompletableFuture<Acknowledge> releaseSlot(
 			SlotRequestId slotRequestId,
 			@Nullable SlotSharingGroupId slotSharingGroupId,
+			@Nullable CoLocationConstraint coLocationConstraint,
 			@Nullable Throwable cause) {
 			final Consumer<SlotRequestId> currentReleaseSlotConsumer = releaseSlotConsumer;
 
-			final CompletableFuture<Acknowledge> acknowledgeCompletableFuture = super.releaseSlot(slotRequestId, slotSharingGroupId, cause);
+			final CompletableFuture<Acknowledge> acknowledgeCompletableFuture =
+					super.releaseSlot(slotRequestId, slotSharingGroupId, coLocationConstraint, cause);
 
 			if (currentReleaseSlotConsumer != null) {
 				currentReleaseSlotConsumer.accept(slotRequestId);

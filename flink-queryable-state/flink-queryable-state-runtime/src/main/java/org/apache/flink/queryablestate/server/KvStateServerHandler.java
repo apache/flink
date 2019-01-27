@@ -79,9 +79,9 @@ public class KvStateServerHandler extends AbstractServerHandler<KvStateInternalR
 			if (kvState == null) {
 				responseFuture.completeExceptionally(new UnknownKvStateIdException(getServerName(), request.getKvStateId()));
 			} else {
-				byte[] serializedKeyAndNamespace = request.getSerializedKeyAndNamespace();
+				byte[] serializedKey = request.getSerializedKey();
 
-				byte[] serializedResult = getSerializedValue(kvState, serializedKeyAndNamespace);
+				byte[] serializedResult = getSerializedValue(kvState, serializedKey);
 				if (serializedResult != null) {
 					responseFuture.complete(new KvStateResponse(serializedResult));
 				} else {
@@ -105,11 +105,10 @@ public class KvStateServerHandler extends AbstractServerHandler<KvStateInternalR
 		final KvStateInfo<K, N, V> infoForCurrentThread = entry.getInfoForCurrentThread();
 
 		return state.getSerializedValue(
-				serializedKeyAndNamespace,
-				infoForCurrentThread.getKeySerializer(),
-				infoForCurrentThread.getNamespaceSerializer(),
-				infoForCurrentThread.getStateValueSerializer()
-		);
+			serializedKeyAndNamespace,
+			infoForCurrentThread.getKeySerializer(),
+			infoForCurrentThread.getNamespaceSerializer(),
+			infoForCurrentThread.getStateValueSerializer());
 	}
 
 	@Override

@@ -176,7 +176,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		try {
 			List<StateObject> toDispose =
 				new ArrayList<>(
-						managedOperatorState.size() +
+					managedOperatorState.size() +
 						rawOperatorState.size() +
 						managedKeyedState.size() +
 						rawKeyedState.size());

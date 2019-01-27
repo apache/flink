@@ -18,10 +18,14 @@
 
 package org.apache.flink.api.common.operators;
 
+import org.apache.flink.api.common.resources.CommonExtendedResource;
+import org.apache.flink.api.common.resources.Resource;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -155,5 +159,20 @@ public class ResourceSpecTest extends TestLogger {
 		byte[] buffer = InstantiationUtil.serializeObject(rs1);
 		ResourceSpec rs2 = InstantiationUtil.deserializeObject(buffer, ClassLoader.getSystemClassLoader());
 		assertEquals(rs1, rs2);
+	}
+
+	@Test
+	public void testAddExtendedResource() {
+		ResourceSpec rs1 = ResourceSpec.newBuilder().
+			setCpuCores(1.0).
+			setHeapMemoryInMB(100).
+			setGPUResource(1.1).
+			addExtendedResource(new CommonExtendedResource(ResourceSpec.MANAGED_MEMORY_NAME, 1024)).
+			build();
+
+		assertEquals(1.1, rs1.getGPUResource(), 0.000001);
+		Map<String, Resource> extendedResourceMap = rs1.getExtendedResources();
+		assertEquals(1.1, extendedResourceMap.get(ResourceSpec.GPU_NAME).getValue(), 0.000001);
+		assertEquals(1024, extendedResourceMap.get(ResourceSpec.MANAGED_MEMORY_NAME).getValue(), 0.000001);
 	}
 }

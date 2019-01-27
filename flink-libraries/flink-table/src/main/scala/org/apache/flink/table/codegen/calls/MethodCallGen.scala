@@ -18,27 +18,77 @@
 
 package org.apache.flink.table.codegen.calls
 
+import java.lang.{Boolean => JBoolean, Byte => JByte, Character => JChar, Short => JShort,
+  Integer => JInt, Long => JLong, Float => JFloat, Double => JDouble}
 import java.lang.reflect.Method
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.types.{DataTypes, InternalType}
 import org.apache.flink.table.codegen.CodeGenUtils.qualifyMethod
-import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
-import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.codegen.CodeGeneratorContext.BINARY_STRING
+import org.apache.flink.table.codegen.calls.CallGenerator.{generateCallIfArgsNotNull,
+  generateCallIfArgsNullable}
+import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 
 /**
   * Generates a function call by using a [[java.lang.reflect.Method]].
   */
-class MethodCallGen(returnType: TypeInformation[_], method: Method) extends CallGenerator {
+class MethodCallGen(
+    method: Method,
+    argNotNull: Boolean = true) extends CallGenerator {
+  val boxedTypes = Seq(classOf[JByte], classOf[JShort], classOf[JInt],
+    classOf[JLong], classOf[JFloat], classOf[JDouble], classOf[JBoolean], classOf[JChar])
 
   override def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression = {
-    generateCallIfArgsNotNull(codeGenerator.nullCheck, returnType, operands) {
-      (terms) =>
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: InternalType,
+      nullCheck: Boolean): GeneratedExpression = {
+
+    val call = (origTerms: Seq[String]) => {
+      val terms = origTerms.zipWithIndex.map { case (term, index) =>
+        if (operands(index).resultType == DataTypes.STRING) {
+          s"$term.toString()"
+        } else {
+          term
+        }
+      }
+
+      if (FunctionGenerator.isFunctionWithTimeZone(method)) {
+        val timeZone = ctx.addReusableTimeZone()
+        // insert the zoneID parameters for timestamp functions
         s"""
-          |${qualifyMethod(method)}(${terms.mkString(", ")})
-          |""".stripMargin
+           |${qualifyMethod(method)}(${terms.mkString(", ")}, $timeZone)
+           |""".stripMargin
+
+      } else {
+        s"""
+           |${qualifyMethod(method)}(${terms.mkString(", ")})
+           |""".stripMargin
+      }
     }
+
+    val resultCall = if (returnType == DataTypes.STRING ) {
+      (args: Seq[String]) => {
+        s"$BINARY_STRING.fromString(${call(args)})"
+      }
+    } else {
+      call
+    }
+
+    val returnBoxedType = isReturnTypeBoxed(method)
+    (argNotNull, returnBoxedType) match {
+      case (true, true) => generateCallIfArgsNotNull(ctx, nullCheck, returnType, operands,
+        primitiveNullable = true)(resultCall)
+      case (true, false) => generateCallIfArgsNotNull(ctx, nullCheck, returnType,
+        operands)(resultCall)
+      case (false, true) => generateCallIfArgsNullable(ctx, nullCheck, returnType, operands,
+        primitiveNullable = true)(resultCall)
+      case (false, false) => generateCallIfArgsNullable(ctx, nullCheck, returnType,
+        operands)(resultCall)
+    }
+  }
+
+  def isReturnTypeBoxed(method: Method): Boolean = {
+    boxedTypes.contains(method.getReturnType)
   }
 }

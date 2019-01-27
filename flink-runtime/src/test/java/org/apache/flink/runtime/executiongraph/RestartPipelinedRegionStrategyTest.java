@@ -19,9 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
 import org.apache.flink.runtime.executiongraph.failover.RestartPipelinedRegionStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -40,7 +38,6 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
 
 public class RestartPipelinedRegionStrategyTest {
 
@@ -94,7 +91,7 @@ public class RestartPipelinedRegionStrategyTest {
 			jobId,
 			jobName);
 
-		ExecutionGraph eg = new ExecutionGraph(
+		ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraphDirectly(
 			jobInformation,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
@@ -102,16 +99,7 @@ public class RestartPipelinedRegionStrategyTest {
 			new NoRestartStrategy(),
             new RestartPipelinedRegionStrategy.Factory(),
             scheduler,
-            ExecutionGraph.class.getClassLoader(),
-			VoidBlobWriter.getInstance(),
-			AkkaUtils.getDefaultTimeout());
-		try {
-			eg.attachJobGraph(ordered);
-		}
-		catch (JobException e) {
-			e.printStackTrace();
-			fail("Job failed with exception: " + e.getMessage());
-		}
+			ordered);
 
         RestartPipelinedRegionStrategy strategy = (RestartPipelinedRegionStrategy)eg.getFailoverStrategy();
         ExecutionJobVertex ejv1 = eg.getJobVertex(v1.getID());
@@ -179,7 +167,7 @@ public class RestartPipelinedRegionStrategyTest {
 			jobId,
 			jobName);
 
-		ExecutionGraph eg = new ExecutionGraph(
+		ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraphDirectly(
 			jobInformation,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
@@ -187,16 +175,7 @@ public class RestartPipelinedRegionStrategyTest {
 			new NoRestartStrategy(),
             new RestartPipelinedRegionStrategy.Factory(),
             scheduler,
-            ExecutionGraph.class.getClassLoader(),
-			VoidBlobWriter.getInstance(),
-			AkkaUtils.getDefaultTimeout());
-		try {
-			eg.attachJobGraph(ordered);
-		}
-		catch (JobException e) {
-			e.printStackTrace();
-			fail("Job failed with exception: " + e.getMessage());
-		}
+			ordered);
 
         // All in one failover region
         RestartPipelinedRegionStrategy strategy = (RestartPipelinedRegionStrategy)eg.getFailoverStrategy();
@@ -269,7 +248,7 @@ public class RestartPipelinedRegionStrategyTest {
 			jobId,
 			jobName);
 
-		ExecutionGraph eg = new ExecutionGraph(
+		ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraphDirectly(
 			jobInformation,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
@@ -277,16 +256,7 @@ public class RestartPipelinedRegionStrategyTest {
 			new NoRestartStrategy(),
             new RestartPipelinedRegionStrategy.Factory(),
             scheduler,
-            ExecutionGraph.class.getClassLoader(),
-			VoidBlobWriter.getInstance(),
-			AkkaUtils.getDefaultTimeout());
-		try {
-			eg.attachJobGraph(ordered);
-		}
-		catch (JobException e) {
-			e.printStackTrace();
-			fail("Job failed with exception: " + e.getMessage());
-		}
+			ordered);
 
         // All in one failover region
         RestartPipelinedRegionStrategy strategy = (RestartPipelinedRegionStrategy)eg.getFailoverStrategy();
@@ -350,7 +320,7 @@ public class RestartPipelinedRegionStrategyTest {
 			jobId,
 			jobName);
 
-        ExecutionGraph eg = new ExecutionGraph(
+        ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraphDirectly(
         	jobInformation,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
@@ -358,16 +328,7 @@ public class RestartPipelinedRegionStrategyTest {
 			new NoRestartStrategy(),
             new RestartPipelinedRegionStrategy.Factory(),
             scheduler,
-            ExecutionGraph.class.getClassLoader(),
-			VoidBlobWriter.getInstance(),
-			AkkaUtils.getDefaultTimeout());
-		try {
-			eg.attachJobGraph(ordered);
-		}
-		catch (JobException e) {
-			e.printStackTrace();
-			fail("Job failed with exception: " + e.getMessage());
-		}
+			ordered);
 
         // All in one failover region
         RestartPipelinedRegionStrategy strategy = (RestartPipelinedRegionStrategy)eg.getFailoverStrategy();

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProviderException;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -29,13 +30,21 @@ import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * A provider which gets input splits from job master through rpc.
+ */
 public class RpcInputSplitProvider implements InputSplitProvider {
 	private final JobMasterGateway jobMasterGateway;
 	private final JobVertexID jobVertexID;
 	private final ExecutionAttemptID executionAttemptID;
 	private final Time timeout;
+	private final Map<OperatorID, List<InputSplit>> assignedInutSplits;
 
 	public RpcInputSplitProvider(
 			JobMasterGateway jobMasterGateway,
@@ -46,15 +55,17 @@ public class RpcInputSplitProvider implements InputSplitProvider {
 		this.jobVertexID = Preconditions.checkNotNull(jobVertexID);
 		this.executionAttemptID = Preconditions.checkNotNull(executionAttemptID);
 		this.timeout = Preconditions.checkNotNull(timeout);
+		this.assignedInutSplits = new HashMap<>(1);
 	}
 
-
 	@Override
-	public InputSplit getNextInputSplit(ClassLoader userCodeClassLoader) throws InputSplitProviderException {
+	public InputSplit getNextInputSplit(OperatorID operatorID, ClassLoader userCodeClassLoader) throws InputSplitProviderException {
+		Preconditions.checkNotNull(operatorID);
 		Preconditions.checkNotNull(userCodeClassLoader);
 
 		CompletableFuture<SerializedInputSplit> futureInputSplit = jobMasterGateway.requestNextInputSplit(
 			jobVertexID,
+			operatorID,
 			executionAttemptID);
 
 		try {
@@ -63,10 +74,18 @@ public class RpcInputSplitProvider implements InputSplitProvider {
 			if (serializedInputSplit.isEmpty()) {
 				return null;
 			} else {
-				return InstantiationUtil.deserializeObject(serializedInputSplit.getInputSplitData(), userCodeClassLoader);
+				InputSplit inputSplit = InstantiationUtil.deserializeObject(serializedInputSplit.getInputSplitData(), userCodeClassLoader);
+				assignedInutSplits.putIfAbsent(operatorID, new ArrayList<>(1));
+				assignedInutSplits.get(operatorID).add(inputSplit);
+				return inputSplit;
 			}
 		} catch (Exception e) {
 			throw new InputSplitProviderException("Requesting the next input split failed.", e);
 		}
+	}
+
+	@Override
+	public Map<OperatorID, List<InputSplit>> getAssignedInputSplits() {
+		return assignedInutSplits;
 	}
 }

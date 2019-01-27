@@ -218,7 +218,7 @@ public abstract class TaskManagerProcessReapingTestBase extends TestLogger {
 				taskManagerProcess.destroy();
 			}
 			if (jmActorSystem != null) {
-				jmActorSystem.terminate();
+				jmActorSystem.shutdown();
 			}
 			if (highAvailabilityServices != null) {
 				highAvailabilityServices.closeAndCleanupAllData();
@@ -247,7 +247,7 @@ public abstract class TaskManagerProcessReapingTestBase extends TestLogger {
 			Configuration cfg = new Configuration();
 			cfg.setString(JobManagerOptions.ADDRESS, "localhost");
 			cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
-			cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
+			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
 			cfg.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 256);
 
 			final HighAvailabilityServices highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(

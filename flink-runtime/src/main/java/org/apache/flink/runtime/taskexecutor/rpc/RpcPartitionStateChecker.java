@@ -30,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class RpcPartitionStateChecker implements PartitionProducerStateChecker {
 
-	private final JobMasterGateway jobMasterGateway;
+	private JobMasterGateway jobMasterGateway;
 
 	public RpcPartitionStateChecker(JobMasterGateway jobMasterGateway) {
 		this.jobMasterGateway = Preconditions.checkNotNull(jobMasterGateway);
@@ -43,5 +43,9 @@ public class RpcPartitionStateChecker implements PartitionProducerStateChecker {
 			ResultPartitionID partitionId) {
 
 		return jobMasterGateway.requestPartitionState(resultId, partitionId);
+	}
+
+	public void notifyJobMasterGatewayChanged(JobMasterGateway jobMasterGateway) {
+		this.jobMasterGateway = jobMasterGateway;
 	}
 }

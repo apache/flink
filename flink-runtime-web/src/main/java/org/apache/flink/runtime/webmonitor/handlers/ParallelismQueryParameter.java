@@ -41,9 +41,4 @@ public class ParallelismQueryParameter extends MessageQueryParameter<Integer> {
 	public String convertValueToString(final Integer value) {
 		return value.toString();
 	}
-
-	@Override
-	public String getDescription() {
-		return "Positive integer value that specifies the desired parallelism for the job.";
-	}
 }

@@ -23,6 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.accumulators.AbstractAccumulatorRegistry;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
@@ -41,14 +42,16 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.SortedMapState;
+import org.apache.flink.api.common.state.SortedMapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -65,7 +68,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final ExecutionConfig executionConfig;
 
-	private final Map<String, Accumulator<?, ?>> accumulators;
+	private final AbstractAccumulatorRegistry accumulatorRegistry;
 
 	private final DistributedCache distributedCache;
 
@@ -74,14 +77,14 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	public AbstractRuntimeUDFContext(TaskInfo taskInfo,
 										ClassLoader userCodeClassLoader,
 										ExecutionConfig executionConfig,
-										Map<String, Accumulator<?, ?>> accumulators,
+									 	AbstractAccumulatorRegistry accumulatorRegistry,
 										Map<String, Future<Path>> cpTasks,
 										MetricGroup metrics) {
 		this.taskInfo = checkNotNull(taskInfo);
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.executionConfig = executionConfig;
 		this.distributedCache = new DistributedCache(checkNotNull(cpTasks));
-		this.accumulators = checkNotNull(accumulators);
+		this.accumulatorRegistry = checkNotNull(accumulatorRegistry);
 		this.metrics = metrics;
 	}
 
@@ -147,41 +150,58 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	@Override
 	public <V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> accumulator) {
-		if (accumulators.containsKey(name)) {
-			throw new UnsupportedOperationException("The accumulator '" + name
-					+ "' already exists and cannot be added.");
-		}
-		accumulators.put(name, accumulator);
+		accumulatorRegistry.addAccumulator(name, accumulator);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
-		return (Accumulator<V, A>) accumulators.get(name);
+		return (Accumulator<V, A>) accumulatorRegistry.getAccumulators().get(name);
 	}
 
 	@Override
 	public Map<String, Accumulator<?, ?>> getAllAccumulators() {
-		return Collections.unmodifiableMap(this.accumulators);
+		return accumulatorRegistry.getAccumulators();
+	}
+
+	@Override
+	public <V, A extends Serializable> void addPreAggregatedAccumulator(String name, Accumulator<V, A> accumulator) {
+		accumulatorRegistry.addPreAggregatedAccumulator(name, accumulator);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <V, A extends Serializable> Accumulator<V, A> getPreAggregatedAccumulator(String name) {
+		return (Accumulator<V, A>) accumulatorRegistry.getPreAggregatedAccumulators().get(name);
+	}
+
+	@Override
+	public void commitPreAggregatedAccumulator(String name) {
+		accumulatorRegistry.commitPreAggregatedAccumulator(name);
+	}
+
+	@Override
+	public <V, A extends Serializable> CompletableFuture<Accumulator<V, A>> queryPreAggregatedAccumulator(String name) {
+		return accumulatorRegistry.queryPreAggregatedAccumulator(name);
 	}
 
 	@Override
 	public ClassLoader getUserCodeClassLoader() {
 		return this.userCodeClassLoader;
 	}
-
+	
 	@Override
 	public DistributedCache getDistributedCache() {
 		return this.distributedCache;
 	}
-
+	
 	// --------------------------------------------------------------------------------------------
-
+	
 	@SuppressWarnings("unchecked")
 	private <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name,
-			Class<? extends Accumulator<V, A>> accumulatorClass) {
-
-		Accumulator<?, ?> accumulator = accumulators.get(name);
+			Class<? extends Accumulator<V, A>> accumulatorClass)
+	{
+		Accumulator<?, ?> accumulator = accumulatorRegistry.getAccumulators().get(name);
 
 		if (accumulator != null) {
 			AccumulatorHelper.compareAccumulatorTypes(name, accumulator.getClass(), accumulatorClass);
@@ -193,7 +213,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 			catch (Exception e) {
 				throw new RuntimeException("Cannot create accumulator " + accumulatorClass.getName());
 			}
-			accumulators.put(name, accumulator);
+			accumulatorRegistry.addAccumulator(name, accumulator);
 		}
 		return (Accumulator<V, A>) accumulator;
 	}
@@ -233,12 +253,18 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");
 	}
-
+	
 	@Override
 	@PublicEvolving
 	public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");
+	}
+
+	@Override
+	public <UK, UV> SortedMapState<UK, UV> getSortedMapState(SortedMapStateDescriptor<UK, UV> stateProperties) {
+		throw new UnsupportedOperationException(
+			"This state is only accessible by functions executed on a KeyedStream");
 	}
 
 	@Internal

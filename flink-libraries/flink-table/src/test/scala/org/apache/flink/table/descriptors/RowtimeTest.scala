@@ -20,14 +20,14 @@ package org.apache.flink.table.descriptors
 
 import java.util
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.table.api.types.{DataTypes, InternalType}
 import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.descriptors.RowtimeTest.{CustomAssigner, CustomExtractor}
 import org.apache.flink.table.expressions.{Cast, Expression, ResolvedFieldReference}
 import org.apache.flink.table.sources.tsextractors.TimestampExtractor
 import org.apache.flink.table.sources.wmstrategies.PunctuatedWatermarkAssigner
-import org.apache.flink.types.Row
 import org.junit.Test
 
 import scala.collection.JavaConverters._
@@ -84,8 +84,8 @@ class RowtimeTest extends DescriptorTestBase {
       "rowtime.watermarks.type" -> "custom",
       "rowtime.watermarks.class" -> "org.apache.flink.table.descriptors.RowtimeTest$CustomAssigner",
       "rowtime.watermarks.serialized" -> ("rO0ABXNyAD1vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmRlc2NyaX" +
-        "B0b3JzLlJvd3RpbWVUZXN0JEN1c3RvbUFzc2lnbmVyeDcuDvfbu0kCAAB4cgBHb3JnLmFwYWNoZS5mbGluay" +
-        "50YWJsZS5zb3VyY2VzLndtc3RyYXRlZ2llcy5QdW5jdHVhdGVkV2F0ZXJtYXJrQXNzaWduZXKBUc57oaWu9A" +
+        "B0b3JzLlJvd3RpbWVUZXN0JEN1c3RvbUFzc2lnbmVyvyZVn_qL5NoCAAB4cgBHb3JnLmFwYWNoZS5mbGluay" +
+        "50YWJsZS5zb3VyY2VzLndtc3RyYXRlZ2llcy5QdW5jdHVhdGVkV2F0ZXJtYXJrQXNzaWduZXJO5QVJMeARJg" +
         "IAAHhyAD1vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnNvdXJjZXMud21zdHJhdGVnaWVzLldhdGVybWFya1N0cm" +
         "F0ZWd5mB_uSxDZ8-MCAAB4cA")
     )
@@ -95,9 +95,9 @@ class RowtimeTest extends DescriptorTestBase {
       "rowtime.timestamps.class" -> ("org.apache.flink.table.descriptors." +
         "RowtimeTest$CustomExtractor"),
       "rowtime.timestamps.serialized" -> ("rO0ABXNyAD5vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmRlc2NyaXB0b3" +
-        "JzLlJvd3RpbWVUZXN0JEN1c3RvbUV4dHJhY3RvcoaChjMg55xwAgABTAAFZmllbGR0ABJMamF2YS9sYW5nL1N0cm" +
+        "JzLlJvd3RpbWVUZXN0JEN1c3RvbUV4dHJhY3Rvco24SJYz-nhVAgABTAAFZmllbGR0ABJMamF2YS9sYW5nL1N0cm" +
         "luZzt4cgA-b3JnLmFwYWNoZS5mbGluay50YWJsZS5zb3VyY2VzLnRzZXh0cmFjdG9ycy5UaW1lc3RhbXBFeHRyYW" +
-        "N0b3LU8E2thK4wMQIAAHhwdAAHdHNGaWVsZA"),
+        "N0b3JjTy3cOl2oPgIAAHhwdAAHdHNGaWVsZA"),
       "rowtime.watermarks.type" -> "periodic-bounded",
       "rowtime.watermarks.delay" -> "1000"
     )
@@ -109,7 +109,7 @@ class RowtimeTest extends DescriptorTestBase {
 object RowtimeTest {
 
   class CustomAssigner extends PunctuatedWatermarkAssigner() {
-    override def getWatermark(row: Row, timestamp: Long): Watermark =
+    override def getWatermark(row: BaseRow, timestamp: Long): Watermark =
       throw new UnsupportedOperationException()
   }
 
@@ -120,9 +120,9 @@ object RowtimeTest {
 
     override def getArgumentFields: Array[String] = Array(field)
 
-    override def validateArgumentFields(argumentFieldTypes: Array[TypeInformation[_]]): Unit = {
+    override def validateArgumentFields(argumentFieldTypes: Array[InternalType]): Unit = {
       argumentFieldTypes(0) match {
-        case Types.SQL_TIMESTAMP =>
+        case DataTypes.TIMESTAMP =>
         case _ =>
           throw new ValidationException(
             s"Field 'ts' must be of type Timestamp but is of type ${argumentFieldTypes(0)}.")
@@ -132,7 +132,7 @@ object RowtimeTest {
     override def getExpression(fieldAccesses: Array[ResolvedFieldReference]): Expression = {
       val fieldAccess: Expression = fieldAccesses(0)
       require(fieldAccess.resultType == Types.SQL_TIMESTAMP)
-      Cast(fieldAccess, Types.LONG)
+      Cast(fieldAccess, DataTypes.LONG)
     }
 
     override def equals(other: Any): Boolean = other match {

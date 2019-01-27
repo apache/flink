@@ -42,6 +42,8 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.SortedMapState;
+import org.apache.flink.api.common.state.SortedMapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.metrics.MetricGroup;
@@ -51,6 +53,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Rich variant of the {@link AsyncFunction}. As a {@link RichFunction}, it gives access to the
@@ -189,6 +192,11 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction im
 		}
 
 		@Override
+		public <UK, UV> SortedMapState<UK, UV> getSortedMapState(SortedMapStateDescriptor<UK, UV> stateProperties) {
+			throw new UnsupportedOperationException("State is not supported in rich async functions.");
+		}
+
+		@Override
 		public <V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> accumulator) {
 			throw new UnsupportedOperationException("Accumulators are not supported in rich async functions.");
 		}
@@ -201,6 +209,26 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction im
 		@Override
 		public Map<String, Accumulator<?, ?>> getAllAccumulators() {
 			throw new UnsupportedOperationException("Accumulators are not supported in rich async functions.");
+		}
+
+		@Override
+		public <V, A extends Serializable> void addPreAggregatedAccumulator(String name, Accumulator<V, A> accumulator) {
+			throw new UnsupportedOperationException("Pre-aggregated accumulators are not supported in rich async functions.");
+		}
+
+		@Override
+		public <V, A extends Serializable> Accumulator<V, A> getPreAggregatedAccumulator(String name) {
+			throw new UnsupportedOperationException("Pre-aggregated accumulators are not supported in rich async functions.");
+		}
+
+		@Override
+		public void commitPreAggregatedAccumulator(String name) {
+			throw new UnsupportedOperationException("Pre-aggregated accumulators are not supported in rich async functions.");
+		}
+
+		@Override
+		public <V, A extends Serializable> CompletableFuture<Accumulator<V, A>> queryPreAggregatedAccumulator(String name) {
+			throw new UnsupportedOperationException("Pre-aggregated accumulators are not supported in rich async functions.");
 		}
 
 		@Override

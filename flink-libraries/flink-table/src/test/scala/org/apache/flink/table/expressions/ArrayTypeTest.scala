@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.expressions
 
-import java.sql.Date
-
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.types.DataTypes
 import org.apache.flink.table.expressions.utils.ArrayTypeTestBase
+import org.apache.flink.table.util.DateTimeTestUtil._
 import org.junit.Test
 
 class ArrayTypeTest extends ArrayTypeTestBase {
@@ -54,13 +53,13 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       "[2, 9]")
 
     testAllApis(
-      array(Null(Types.INT), 1),
+      array(Null(DataTypes.INT), 1),
       "array(Null(INT), 1)",
       "ARRAY[NULLIF(1,1), 1]",
       "[null, 1]")
 
     testAllApis(
-      array(array(Null(Types.INT), 1)),
+      array(array(Null(DataTypes.INT), 1)),
       "array(array(Null(INT), 1))",
       "ARRAY[ARRAY[NULLIF(1,1), 1]]",
       "[[null, 1]]")
@@ -77,15 +76,27 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       "[1, 2, 3]")
 
     testAllApis(
-      Array(Date.valueOf("1985-04-11")),
-      "array('1985-04-11'.toDate)",
-      "ARRAY[DATE '1985-04-11']",
-      "[1985-04-11]")
+      Array(UTCDate("1985-04-11"), UTCDate("2018-07-26")),
+      "array('1985-04-11'.toDate, '2018-07-26'.toDate)",
+      "ARRAY[DATE '1985-04-11', DATE '2018-07-26']",
+      "[1985-04-11, 2018-07-26]")
+
+    testAllApis(
+      Array(UTCTime("14:15:16"), UTCTime("17:18:19")),
+      "array('14:15:16'.toTime, '17:18:19'.toTime)",
+      "ARRAY[TIME '14:15:16', TIME '17:18:19']",
+      "[14:15:16, 17:18:19]")
+
+    testAllApis(
+      Array(UTCTimestamp("1985-04-11 14:15:16"), UTCTimestamp("2018-07-26 17:18:19")),
+      "array('1985-04-11 14:15:16'.toTimestamp, '2018-07-26 17:18:19'.toTimestamp)",
+      "ARRAY[TIMESTAMP '1985-04-11 14:15:16', TIMESTAMP '2018-07-26 17:18:19']",
+      "[1985-04-11 14:15:16.000, 2018-07-26 17:18:19.000]")
 
     testAllApis(
       Array(BigDecimal(2.0002), BigDecimal(2.0003)),
       "Array(2.0002p, 2.0003p)",
-      "ARRAY[CAST(2.0002 AS DECIMAL), CAST(2.0003 AS DECIMAL)]",
+      "ARRAY[CAST(2.0002 AS DECIMAL(10,4)), CAST(2.0003 AS DECIMAL(10,4))]",
       "[2.0002, 2.0003]")
 
     testAllApis(
@@ -302,7 +313,7 @@ class ArrayTypeTest extends ArrayTypeTestBase {
   @Test
   def testArrayTypeCasting(): Unit = {
     testTableApi(
-      'f3.cast(Types.OBJECT_ARRAY(Types.SQL_DATE)),
+      'f3.cast(DataTypes.createArrayType(DataTypes.DATE)),
       "f3.cast(OBJECT_ARRAY(SQL_DATE))",
       "[1984-03-12, 1984-02-10]"
     )

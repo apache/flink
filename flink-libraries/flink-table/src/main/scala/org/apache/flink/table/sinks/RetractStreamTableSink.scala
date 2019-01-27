@@ -20,13 +20,9 @@ package org.apache.flink.table.sinks
 
 import java.lang.{Boolean => JBool}
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.TupleTypeInfo
-import org.apache.flink.table.api.Types
-
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.Table
+import org.apache.flink.table.api.types.{DataType, DataTypes}
 
 /**
   * Defines an external [[TableSink]] to emit a streaming [[Table]] with insert, update, and delete
@@ -42,14 +38,11 @@ import org.apache.flink.table.api.Table
   *
   * @tparam T Type of records that this [[TableSink]] expects and supports.
   */
-trait RetractStreamTableSink[T] extends StreamTableSink[JTuple2[JBool, T]] {
+trait RetractStreamTableSink[T] extends BaseRetractStreamTableSink[JTuple2[JBool, T]] {
 
   /** Returns the requested record type */
-  def getRecordType: TypeInformation[T]
+  def getRecordType: DataType
 
-  /** Emits the DataStream. */
-  def emitDataStream(dataStream: DataStream[JTuple2[JBool, T]]): Unit
-
-  override def getOutputType = new TupleTypeInfo(Types.BOOLEAN, getRecordType)
+  override def getOutputType = DataTypes.createTupleType(DataTypes.BOOLEAN, getRecordType)
 
 }

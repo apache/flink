@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.sinks
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.Table
+import org.apache.flink.table.api.types.DataType
 
 /** A [[TableSink]] specifies how to emit a [[Table]] to an external
   * system or location.
@@ -31,19 +31,19 @@ import org.apache.flink.table.api.Table
 trait TableSink[T] {
 
   /**
-    * Returns the type expected by this [[TableSink]].
+    * Return the type expected by this [[TableSink]].
     *
     * This type should depend on the types returned by [[getFieldNames]].
     *
     * @return The type expected by this [[TableSink]].
     */
-  def getOutputType: TypeInformation[T]
+  def getOutputType: DataType
 
   /** Returns the names of the table fields. */
   def getFieldNames: Array[String]
 
   /** Returns the types of the table fields. */
-  def getFieldTypes: Array[TypeInformation[_]]
+  def getFieldTypes: Array[DataType]
 
   /**
     * Return a copy of this [[TableSink]] configured with the field names and types of the
@@ -55,5 +55,5 @@ trait TableSink[T] {
     *         [[Table]] to emit.
     */
   def configure(fieldNames: Array[String],
-                fieldTypes: Array[TypeInformation[_]]): TableSink[T]
+                fieldTypes: Array[DataType]): TableSink[T]
 }

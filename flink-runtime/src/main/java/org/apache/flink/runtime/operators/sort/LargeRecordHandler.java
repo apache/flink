@@ -252,10 +252,15 @@ public class LargeRecordHandler<T> {
 		keysReader = new FileChannelInputView(ioManager.createBlockChannelReader(keysChannel),
 				memManager, memForKeysReader, lastBlockBytesKeys);
 		InputViewIterator<Tuple> keyIterator = new InputViewIterator<Tuple>(keysReader, keySerializer);
-		
-		keySorter = new UnilateralSortMerger<Tuple>(memManager, memory, ioManager, 
-				keyIterator, memoryOwner, keySerializerFactory, keyComparator, 1, maxFilehandles, 1.0f, false,
-				this.executionConfig.isObjectReuseEnabled());
+
+		BlockSortedDataFileFactory<Tuple> blockSortedDataFileFactory = new BlockSortedDataFileFactory<>(
+			ioManager.createChannelEnumerator(), keySerializerFactory.getSerializer(), ioManager);
+		SortedDataFileMerger<Tuple> sortedDataFileMerger = new RecordComparisonMerger<>(
+			blockSortedDataFileFactory, ioManager, keySerializerFactory.getSerializer(), keyComparator,
+			maxFilehandles, this.executionConfig.isObjectReuseEnabled());
+		keySorter = new UnilateralSortMerger<>(blockSortedDataFileFactory, sortedDataFileMerger, memManager, memory, ioManager,
+			keyIterator, memoryOwner, keySerializerFactory, keyComparator, 1, maxFilehandles, true, 1.0f, false,
+			this.executionConfig.isObjectReuseEnabled());
 
 		// wait for the sorter to sort the keys
 		MutableObjectIterator<Tuple> result;

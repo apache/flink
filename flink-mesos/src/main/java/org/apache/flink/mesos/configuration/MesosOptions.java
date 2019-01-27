@@ -19,9 +19,6 @@
 package org.apache.flink.mesos.configuration;
 
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.description.Description;
-import org.apache.flink.configuration.description.LinkElement;
-import org.apache.flink.configuration.description.TextElement;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -36,10 +33,7 @@ public class MesosOptions {
 	public static final ConfigOption<Integer> INITIAL_TASKS =
 		key("mesos.initial-tasks")
 			.defaultValue(0)
-			.withDescription(Description.builder()
-				.text("The initial workers to bring up when the master starts. ")
-				.text("This option is ignored unless Flink is in %s.", LinkElement.link("#legacy", "legacy mode"))
-				.build());
+			.withDescription("The initial workers to bring up when the master starts");
 
 	/**
 	 * The maximum number of failed Mesos tasks before entirely stopping
@@ -50,10 +44,8 @@ public class MesosOptions {
 	public static final ConfigOption<Integer> MAX_FAILED_TASKS =
 		key("mesos.maximum-failed-tasks")
 			.defaultValue(-1)
-			.withDescription(Description.builder()
-				.text("The maximum number of failed workers before the cluster fails. May be set to -1 to disable this feature. ")
-				.text("This option is ignored unless Flink is in %s.", LinkElement.link("#legacy", "legacy mode"))
-				.build());
+			.withDescription("The maximum number of failed workers before the cluster fails. May be set to -1 to disable" +
+				" this feature");
 
 	/**
 	 * The Mesos master URL.
@@ -71,21 +63,16 @@ public class MesosOptions {
 	public static final ConfigOption<String> MASTER_URL =
 		key("mesos.master")
 			.noDefaultValue()
-			.withDescription(Description.builder()
-				.text("The Mesos master URL. The value should be in one of the following forms: ")
-				.list(
-					TextElement.text("host:port"),
-					TextElement.text("zk://host1:port1,host2:port2,.../path"),
-					TextElement.text("zk://username:password@host1:port1,host2:port2,.../path"),
-					TextElement.text("file:///path/to/file"))
-				.build());
+			.withDescription("The Mesos master URL. The value should be in one of the following forms:" +
+				" \"host:port\", \"zk://host1:port1,host2:port2,.../path\"," +
+				" \"zk://username:password@host1:port1,host2:port2,.../path\" or \"file:///path/to/file\"");
 
 	/**
 	 * The failover timeout for the Mesos scheduler, after which running tasks are automatically shut down.
 	 */
 	public static final ConfigOption<Integer> FAILOVER_TIMEOUT_SECONDS =
 		key("mesos.failover-timeout")
-			.defaultValue(60 * 60 * 24 * 7)
+			.defaultValue(600)
 			.withDescription("The failover timeout in seconds for the Mesos scheduler, after which running tasks are" +
 				" automatically shut down.");
 
@@ -132,16 +119,5 @@ public class MesosOptions {
 			.defaultValue(true)
 			.withDescription("Enables SSL for the Flink artifact server. Note that security.ssl.enabled also needs to" +
 				" be set to true encryption to enable encryption.");
-
-	/**
-	 * Config parameter to configure which configuration keys will dynamically get a port assigned through Mesos.
-	 */
-	public static final ConfigOption<String> PORT_ASSIGNMENTS =
-		key("mesos.resourcemanager.tasks.port-assignments")
-		.noDefaultValue()
-		.withDescription(Description.builder()
-			.text("Comma-separated list of configuration keys which represent a configurable port. " +
-				"All port keys will dynamically get a port assigned through Mesos.")
-			.build());
 
 }

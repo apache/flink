@@ -90,8 +90,8 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
 	 * Creates a Avro deserialization schema.
 	 *
 	 * @param recordClazz class to which deserialize. Should be one of:
-	 *                    {@link org.apache.avro.specific.SpecificRecord},
-	 *                    {@link org.apache.avro.generic.GenericRecord}.
+	 *                    {@link SpecificRecord},
+	 *                    {@link GenericRecord}.
 	 * @param reader      reader's Avro schema. Should be provided if recordClazz is
 	 *                    {@link GenericRecord}
 	 */
@@ -164,7 +164,7 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
 	@SuppressWarnings("unchecked")
 	public TypeInformation<T> getProducedType() {
 		if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
-			return new AvroTypeInfo(recordClazz);
+			return new AvroTypeInfo(recordClazz, false);
 		} else {
 			return (TypeInformation<T>) new GenericRecordAvroTypeInfo(this.reader);
 		}

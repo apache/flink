@@ -40,6 +40,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
@@ -202,7 +203,24 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	 */
 	@VisibleForTesting
 	protected <K, V> KafkaProducer<K, V> getKafkaProducer(Properties props) {
-		return new KafkaProducer<>(props);
+		return createKafkaProducer(props);
+	}
+
+	// load KafkaProducer via system classloader instead of application classloader, otherwise we will hit classloading
+	// issue in scala-shell scenario where kafka jar is not shipped with JobGraph, but shipped when starting yarn
+	// container.
+	public static KafkaProducer createKafkaProducer(Properties kafkaProperties) {
+		try {
+			return new KafkaProducer<>(kafkaProperties);
+		} catch (KafkaException e) {
+			ClassLoader original = Thread.currentThread().getContextClassLoader();
+			try {
+				Thread.currentThread().setContextClassLoader(null);
+				return new KafkaProducer<>(kafkaProperties);
+			} finally {
+				Thread.currentThread().setContextClassLoader(original);
+			}
+		}
 	}
 
 	// ----------------------------------- Utilities --------------------------
@@ -295,16 +313,12 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 			this.topicPartitionsMap.put(targetTopic, partitions);
 		}
 
-		ProducerRecord<byte[], byte[]> record;
-		if (flinkKafkaPartitioner == null) {
-			record = new ProducerRecord<>(targetTopic, serializedKey, serializedValue);
-		} else {
-			record = new ProducerRecord<>(
-					targetTopic,
-					flinkKafkaPartitioner.partition(next, serializedKey, serializedValue, targetTopic, partitions),
-					serializedKey,
-					serializedValue);
-		}
+		Integer partition = flinkKafkaPartitioner == null ?
+			null : flinkKafkaPartitioner.partition(next, serializedKey, serializedValue, targetTopic, partitions);
+
+		ProducerRecord<byte[], byte[]> record =
+			buildProducerRecord(context, targetTopic, partition, serializedKey, serializedValue);
+
 		if (flushOnCheckpoint) {
 			synchronized (pendingRecordsLock) {
 				pendingRecords++;
@@ -321,6 +335,20 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 
 		// make sure we propagate pending errors
 		checkErroneous();
+	}
+
+	/**
+	 * A protected method to allow subclass build the producer records based on different Kafka versions.
+	 * @param context the sink function context.
+	 * @param topic the topic the producer record sent to.
+	 * @param partition the partition the producer record sent to.
+	 * @param keyBytes the serialized key.
+	 * @param valueBytes the serialized value.
+	 * @return A {@link ProducerRecord} that is ready to send.
+	 */
+	protected ProducerRecord<byte[], byte[]> buildProducerRecord(
+		Context context, String topic, Integer partition, byte[] keyBytes, byte[] valueBytes) {
+		return new ProducerRecord<>(topic, partition, keyBytes, valueBytes);
 	}
 
 	// ------------------- Logic for handling checkpoint flushing -------------------------- //

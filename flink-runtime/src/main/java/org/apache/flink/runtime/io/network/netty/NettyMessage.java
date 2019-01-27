@@ -38,6 +38,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOutboundHandlerAdapter;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.MessageToMessageDecoder;
 
 import javax.annotation.Nullable;
 
@@ -46,9 +47,11 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ProtocolException;
 import java.nio.ByteBuffer;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A simple and generic interface to serialize messages to Netty's buffer space.
@@ -186,110 +189,58 @@ public abstract class NettyMessage {
 				ctx.write(msg, promise);
 			}
 		}
+
+		// Create the frame length decoder here as it depends on the encoder
+		//
+		// +------------------+------------------+--------++----------------+
+		// | FRAME LENGTH (4) | MAGIC NUMBER (4) | ID (1) || CUSTOM MESSAGE |
+		// +------------------+------------------+--------++----------------+
+		static LengthFieldBasedFrameDecoder createFrameLengthDecoder() {
+			return new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, -4, 4);
+		}
 	}
 
-	/**
-	 * Message decoder based on netty's {@link LengthFieldBasedFrameDecoder} but avoiding the
-	 * additional memory copy inside {@link #extractFrame(ChannelHandlerContext, ByteBuf, int, int)}
-	 * since we completely decode the {@link ByteBuf} inside {@link #decode(ChannelHandlerContext,
-	 * ByteBuf)} and will not re-use it afterwards.
-	 *
-	 * <p>The frame-length encoder will be based on this transmission scheme created by {@link NettyMessage#allocateBuffer(ByteBufAllocator, byte, int)}:
-	 * <pre>
-	 * +------------------+------------------+--------++----------------+
-	 * | FRAME LENGTH (4) | MAGIC NUMBER (4) | ID (1) || CUSTOM MESSAGE |
-	 * +------------------+------------------+--------++----------------+
-	 * </pre>
-	 */
-	static class NettyMessageDecoder extends LengthFieldBasedFrameDecoder {
-		private final boolean restoreOldNettyBehaviour;
-
-		/**
-		 * Creates a new message decoded with the required frame properties.
-		 *
-		 * @param restoreOldNettyBehaviour
-		 * 		restore Netty 4.0.27 code in {@link LengthFieldBasedFrameDecoder#extractFrame} to
-		 * 		copy instead of slicing the buffer
-		 */
-		NettyMessageDecoder(boolean restoreOldNettyBehaviour) {
-			super(Integer.MAX_VALUE, 0, 4, -4, 4);
-			this.restoreOldNettyBehaviour = restoreOldNettyBehaviour;
-		}
+	@ChannelHandler.Sharable
+	static class NettyMessageDecoder extends MessageToMessageDecoder<ByteBuf> {
 
 		@Override
-		protected Object decode(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
-			ByteBuf msg = (ByteBuf) super.decode(ctx, in);
-			if (msg == null) {
-				return null;
+		protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
+			int magicNumber = msg.readInt();
+
+			if (magicNumber != MAGIC_NUMBER) {
+				throw new IllegalStateException("Network stream corrupted: received incorrect magic number.");
 			}
 
-			try {
-				int magicNumber = msg.readInt();
+			byte msgId = msg.readByte();
 
-				if (magicNumber != MAGIC_NUMBER) {
-					throw new IllegalStateException(
-						"Network stream corrupted: received incorrect magic number.");
-				}
-
-				byte msgId = msg.readByte();
-
-				final NettyMessage decodedMsg;
-				switch (msgId) {
-					case BufferResponse.ID:
-						decodedMsg = BufferResponse.readFrom(msg);
-						break;
-					case PartitionRequest.ID:
-						decodedMsg = PartitionRequest.readFrom(msg);
-						break;
-					case TaskEventRequest.ID:
-						decodedMsg = TaskEventRequest.readFrom(msg, getClass().getClassLoader());
-						break;
-					case ErrorResponse.ID:
-						decodedMsg = ErrorResponse.readFrom(msg);
-						break;
-					case CancelPartitionRequest.ID:
-						decodedMsg = CancelPartitionRequest.readFrom(msg);
-						break;
-					case CloseRequest.ID:
-						decodedMsg = CloseRequest.readFrom(msg);
-						break;
-					case AddCredit.ID:
-						decodedMsg = AddCredit.readFrom(msg);
-						break;
-					default:
-						throw new ProtocolException(
-							"Received unknown message from producer: " + msg);
-				}
-
-				return decodedMsg;
-			} finally {
-				// ByteToMessageDecoder cleanup (only the BufferResponse holds on to the decoded
-				// msg but already retain()s the buffer once)
-				msg.release();
+			final NettyMessage decodedMsg;
+			switch (msgId) {
+				case BufferResponse.ID:
+					decodedMsg = BufferResponse.readFrom(msg);
+					break;
+				case PartitionRequest.ID:
+					decodedMsg = PartitionRequest.readFrom(msg);
+					break;
+				case TaskEventRequest.ID:
+					decodedMsg = TaskEventRequest.readFrom(msg, getClass().getClassLoader());
+					break;
+				case ErrorResponse.ID:
+					decodedMsg = ErrorResponse.readFrom(msg);
+					break;
+				case CancelPartitionRequest.ID:
+					decodedMsg = CancelPartitionRequest.readFrom(msg);
+					break;
+				case CloseRequest.ID:
+					decodedMsg = CloseRequest.readFrom(msg);
+					break;
+				case AddCredit.ID:
+					decodedMsg = AddCredit.readFrom(msg);
+					break;
+				default:
+					throw new ProtocolException("Received unknown message from producer: " + msg);
 			}
-		}
 
-		@Override
-		protected ByteBuf extractFrame(ChannelHandlerContext ctx, ByteBuf buffer, int index, int length) {
-			if (restoreOldNettyBehaviour) {
-				/*
-				 * For non-credit based code paths with Netty >= 4.0.28.Final:
-				 * These versions contain an improvement by Netty, which slices a Netty buffer
-				 * instead of doing a memory copy [1] in the
-				 * LengthFieldBasedFrameDecoder. In some situations, this
-				 * interacts badly with our Netty pipeline leading to OutOfMemory
-				 * errors.
-				 *
-				 * [1] https://github.com/netty/netty/issues/3704
-				 *
-				 * TODO: remove along with the non-credit based fallback protocol
-				 */
-				ByteBuf frame = ctx.alloc().buffer(length);
-				frame.writeBytes(buffer, index, length);
-				return frame;
-			} else {
-				return super.extractFrame(ctx, buffer, index, length);
-			}
+			out.add(decodedMsg);
 		}
 	}
 
@@ -299,9 +250,10 @@ public abstract class NettyMessage {
 
 	static class BufferResponse extends NettyMessage {
 
-		private static final byte ID = 0;
+		static final byte ID = 0;
 
-		final ByteBuf buffer;
+		// receiver ID (16), sequence number (4), backlog (4), isBuffer (1), buffer size (4)
+		static final int MESSAGE_HEADER_LENGTH = 16 + 4 + 4 + 1 + 4;
 
 		final InputChannelID receiverId;
 
@@ -311,41 +263,45 @@ public abstract class NettyMessage {
 
 		final boolean isBuffer;
 
+		final int dataBufferSize;
+
+		final ByteBuf buffer;
+
+		BufferResponse(
+			Buffer buffer,
+			int sequenceNumber,
+			InputChannelID receiverId,
+			int backlog) {
+			this(checkNotNull(buffer).asByteBuf(), buffer.isBuffer(), sequenceNumber, receiverId, backlog, buffer.readableBytes());
+		}
+
 		private BufferResponse(
-				ByteBuf buffer,
+				@Nullable ByteBuf buffer,
 				boolean isBuffer,
 				int sequenceNumber,
 				InputChannelID receiverId,
-				int backlog) {
-			this.buffer = checkNotNull(buffer);
+				int backlog,
+				int dataBufferSize) {
+			this.buffer = buffer;
 			this.isBuffer = isBuffer;
 			this.sequenceNumber = sequenceNumber;
 			this.receiverId = checkNotNull(receiverId);
 			this.backlog = backlog;
-		}
-
-		BufferResponse(
-				Buffer buffer,
-				int sequenceNumber,
-				InputChannelID receiverId,
-				int backlog) {
-			this.buffer = checkNotNull(buffer).asByteBuf();
-			this.isBuffer = buffer.isBuffer();
-			this.sequenceNumber = sequenceNumber;
-			this.receiverId = checkNotNull(receiverId);
-			this.backlog = backlog;
+			this.dataBufferSize = dataBufferSize;
 		}
 
 		boolean isBuffer() {
 			return isBuffer;
 		}
 
-		ByteBuf getNettyBuffer() {
+		ByteBuf getBuffer() {
 			return buffer;
 		}
 
 		void releaseBuffer() {
-			buffer.release();
+			if (buffer != null) {
+				buffer.release();
+			}
 		}
 
 		// --------------------------------------------------------------------
@@ -354,8 +310,7 @@ public abstract class NettyMessage {
 
 		@Override
 		ByteBuf write(ByteBufAllocator allocator) throws IOException {
-			// receiver ID (16), sequence number (4), backlog (4), isBuffer (1), buffer size (4)
-			final int messageHeaderLength = 16 + 4 + 4 + 1 + 4;
+			checkState(buffer != null, "The BufferResponse must contain a buffer to write");
 
 			ByteBuf headerBuf = null;
 			try {
@@ -365,7 +320,7 @@ public abstract class NettyMessage {
 				}
 
 				// only allocate header buffer - we will combine it with the data buffer below
-				headerBuf = allocateBuffer(allocator, ID, messageHeaderLength, buffer.readableBytes(), false);
+				headerBuf = allocateBuffer(allocator, ID, MESSAGE_HEADER_LENGTH, buffer.readableBytes(), false);
 
 				receiverId.writeTo(headerBuf);
 				headerBuf.writeInt(sequenceNumber);
@@ -373,14 +328,13 @@ public abstract class NettyMessage {
 				headerBuf.writeBoolean(isBuffer);
 				headerBuf.writeInt(buffer.readableBytes());
 
-				CompositeByteBuf composityBuf = allocator.compositeDirectBuffer();
-				composityBuf.addComponent(headerBuf);
-				composityBuf.addComponent(buffer);
+				CompositeByteBuf compositeBuf = allocator.compositeDirectBuffer();
+				compositeBuf.addComponent(headerBuf);
+				compositeBuf.addComponent(buffer);
 				// update writer index since we have data written to the components:
-				composityBuf.writerIndex(headerBuf.writerIndex() + buffer.writerIndex());
-				return composityBuf;
-			}
-			catch (Throwable t) {
+				compositeBuf.writerIndex(headerBuf.writerIndex() + buffer.writerIndex());
+				return compositeBuf;
+			} catch (Throwable t) {
 				if (headerBuf != null) {
 					headerBuf.release();
 				}
@@ -391,6 +345,45 @@ public abstract class NettyMessage {
 			}
 		}
 
+		/**
+		 * Parses the message header part and composes a new BufferResponse with an empty data buffer. The
+		 * data buffer will be filled in later. This method is used in credit-based network stack.
+		 *
+		 * @param messageHeader the serialized message header.
+		 * @param bufferAllocator the allocator for network buffer.
+		 * @return a BufferResponse object with the header parsed and the data buffer to fill in later.
+		 */
+		static BufferResponse readFrom(ByteBuf messageHeader, NetworkBufferAllocator bufferAllocator) {
+			InputChannelID receiverId = InputChannelID.fromByteBuf(messageHeader);
+			int sequenceNumber = messageHeader.readInt();
+			int backlog = messageHeader.readInt();
+			boolean isBuffer = messageHeader.readBoolean();
+			int size = messageHeader.readInt();
+
+			Buffer dataBuffer = null;
+			if (size != 0) {
+				if (isBuffer) {
+					dataBuffer = bufferAllocator.allocatePooledNetworkBuffer(receiverId, size);
+				} else {
+					dataBuffer = bufferAllocator.allocateUnPooledNetworkBuffer(size);
+				}
+			}
+
+			return new BufferResponse(dataBuffer == null ? null : dataBuffer.asByteBuf(),
+				isBuffer,
+				sequenceNumber,
+				receiverId,
+				backlog,
+				size);
+		}
+
+		/**
+		 * Parses the whole BufferResponse message and composes a new BufferResponse with both header parsed and
+		 * data buffer filled in. This method is used in non-credit-based network stack.
+		 *
+		 * @param buffer the whole serialized BufferResponse message.
+		 * @return a BufferResponse object with the header parsed and the data buffer filled in.
+		 */
 		static BufferResponse readFrom(ByteBuf buffer) {
 			InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
 			int sequenceNumber = buffer.readInt();
@@ -399,13 +392,13 @@ public abstract class NettyMessage {
 			int size = buffer.readInt();
 
 			ByteBuf retainedSlice = buffer.readSlice(size).retain();
-			return new BufferResponse(retainedSlice, isBuffer, sequenceNumber, receiverId, backlog);
+			return new BufferResponse(retainedSlice, isBuffer, sequenceNumber, receiverId, backlog, size);
 		}
 	}
 
 	static class ErrorResponse extends NettyMessage {
 
-		private static final byte ID = 1;
+		static final byte ID = 1;
 
 		final Throwable cause;
 
@@ -480,7 +473,7 @@ public abstract class NettyMessage {
 
 	static class PartitionRequest extends NettyMessage {
 
-		private static final byte ID = 2;
+		static final byte ID = 2;
 
 		final ResultPartitionID partitionId;
 
@@ -541,7 +534,7 @@ public abstract class NettyMessage {
 
 	static class TaskEventRequest extends NettyMessage {
 
-		private static final byte ID = 3;
+		static final byte ID = 3;
 
 		final TaskEvent event;
 
@@ -614,7 +607,7 @@ public abstract class NettyMessage {
 	 */
 	static class CancelPartitionRequest extends NettyMessage {
 
-		private static final byte ID = 4;
+		static final byte ID = 4;
 
 		final InputChannelID receiverId;
 
@@ -648,7 +641,7 @@ public abstract class NettyMessage {
 
 	static class CloseRequest extends NettyMessage {
 
-		private static final byte ID = 5;
+		static final byte ID = 5;
 
 		CloseRequest() {
 		}
@@ -668,7 +661,7 @@ public abstract class NettyMessage {
 	 */
 	static class AddCredit extends NettyMessage {
 
-		private static final byte ID = 6;
+		static final byte ID = 6;
 
 		final ResultPartitionID partitionId;
 

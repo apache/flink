@@ -18,97 +18,83 @@
 
 package org.apache.flink.table.codegen.calls
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.functions.{CustomTypeDefinedFunction, ScalarFunction}
+import org.apache.flink.table.api.types._
 import org.apache.flink.table.codegen.CodeGenUtils._
-import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
-import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.codegen.calls.ScalarFunctionCallGen.prepareUDFArgs
+import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.typeutils.TypeCheckUtils
-
-import scala.collection.mutable
+import org.apache.flink.table.runtime.conversion.DataStructureConverters._
+import org.apache.flink.table.runtime.functions.python.PythonScalarFunction
+import org.apache.flink.table.typeutils.TypeUtils
 
 /**
   * Generates a call to user-defined [[ScalarFunction]].
   *
   * @param scalarFunction user-defined [[ScalarFunction]] that might be overloaded
-  * @param signature actual signature with which the function is called
-  * @param returnType actual return type required by the surrounding
   */
-class ScalarFunctionCallGen(
-    scalarFunction: ScalarFunction,
-    signature: Seq[TypeInformation[_]],
-    returnType: TypeInformation[_])
-  extends CallGenerator {
+class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerator {
 
   override def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: InternalType,
+      nullCheck: Boolean): GeneratedExpression = {
+    val operandTypes = operands.map(_.resultType).toArray
+    val arguments = operands.map {
+      case expr if expr.literal =>
+        createToExternalConverter(expr.resultType)(expr.literalValue).asInstanceOf[AnyRef]
+      case _ => null
+    }.toArray
     // determine function method and result class
-    val matchingSignature = getEvalMethodSignature(scalarFunction, signature)
-      .getOrElse(throw new CodeGenException("No matching signature found."))
-    val resultClass = getResultTypeClassOfScalarFunction(scalarFunction, matchingSignature)
-
-    // get the expanded parameter types
-    var paramClasses = new mutable.ArrayBuffer[Class[_]]
-    for (i <- operands.indices) {
-      if (i < matchingSignature.length - 1) {
-        paramClasses += matchingSignature(i)
-      } else if (matchingSignature.last.isArray) {
-        // last argument is an array type
-        paramClasses += matchingSignature.last.getComponentType
-      } else {
-        // last argument is not an array type
-        paramClasses += matchingSignature.last
-      }
+    val resultClass = if (scalarFunction.isInstanceOf[PythonScalarFunction]) {
+      getResultTypeClassOfPythonScalarFunction(returnType)
+    }
+    else {
+      getResultTypeClassOfScalarFunction(scalarFunction, operandTypes)
     }
 
     // convert parameters for function (output boxing)
-    val parameters = paramClasses.zip(operands).map { case (paramClass, operandExpr) =>
-          if (paramClass.isPrimitive) {
-            operandExpr
-          } else if (TypeCheckUtils.isPrimitiveWrapper(paramClass)
-              && TypeCheckUtils.isTemporal(operandExpr.resultType)) {
-            // we use primitives to represent temporal types internally, so no casting needed here
-            val exprOrNull: String = if (codeGenerator.nullCheck) {
-              s"${operandExpr.nullTerm} ? null : " +
-                s"(${paramClass.getCanonicalName}) ${operandExpr.resultTerm}"
-            } else {
-              operandExpr.resultTerm
-            }
-            operandExpr.copy(resultTerm = exprOrNull)
-          } else {
-            val boxedTypeTerm = boxedTypeTermForTypeInfo(operandExpr.resultType)
-            val boxedExpr = codeGenerator.generateOutputFieldBoxing(operandExpr)
-            val exprOrNull: String = if (codeGenerator.nullCheck) {
-              s"${boxedExpr.nullTerm} ? null : ($boxedTypeTerm) ${boxedExpr.resultTerm}"
-            } else {
-              boxedExpr.resultTerm
-            }
-            boxedExpr.copy(resultTerm = exprOrNull)
-          }
-        }
+    val parameters = prepareUDFArgs(ctx, nullCheck, operands, scalarFunction)
 
     // generate function call
-    val functionReference = codeGenerator.addReusableFunction(scalarFunction)
+    val functionReference = ctx.addReusableFunction(scalarFunction)
     val resultTypeTerm = if (resultClass.isPrimitive) {
-      primitiveTypeTermForTypeInfo(returnType)
+      primitiveTypeTermForType(returnType)
     } else {
-      boxedTypeTermForTypeInfo(returnType)
+      boxedTypeTermForType(returnType)
     }
-    val resultTerm = newName("result")
+    val resultTerm = ctx.newReusableField("result", resultTypeTerm)
+    val evalResult = s"$functionReference.eval(${parameters.map(_.resultTerm).mkString(", ")})"
+    val resultExternalType = UserDefinedFunctionUtils.getResultTypeOfScalarFunction(
+      scalarFunction, arguments, operandTypes)
+    val setResult = {
+      if (resultClass.isPrimitive) {
+        s"$resultTerm = $evalResult;"
+      } else {
+        val javaTerm = newName("javaResult")
+        // it maybe a Internal class, so use resultClass is most safety.
+        val javaTypeTerm = resultClass.getCanonicalName
+        val internal = genToInternalIfNeeded(ctx, resultExternalType, resultClass, javaTerm)
+        s"""
+            |$javaTypeTerm $javaTerm = ($javaTypeTerm) $evalResult;
+            |$resultTerm = $javaTerm == null ? null : ($internal);
+            """.stripMargin
+      }
+    }
+
     val functionCallCode =
       s"""
         |${parameters.map(_.code).mkString("\n")}
-        |$resultTypeTerm $resultTerm = $functionReference.eval(
-        |  ${parameters.map(_.resultTerm).mkString(", ")});
+        |$setResult
         |""".stripMargin
 
     // convert result of function to internal representation (input unboxing)
     val resultUnboxing = if (resultClass.isPrimitive) {
-      codeGenerator.generateTerm(returnType, resultTerm)
+      generateNonNullField(returnType, resultTerm, nullCheck)
     } else {
-      codeGenerator.generateInputFieldUnboxing(returnType, resultTerm)
+      generateInputFieldUnboxing(returnType, resultTerm, nullCheck, ctx)
     }
     resultUnboxing.copy(code =
       s"""
@@ -116,5 +102,42 @@ class ScalarFunctionCallGen(
         |${resultUnboxing.code}
         |""".stripMargin
     )
+  }
+
+}
+
+object ScalarFunctionCallGen {
+  def prepareUDFArgs(
+      ctx: CodeGeneratorContext,
+      nullCheck: Boolean,
+      operands: Seq[GeneratedExpression],
+      func: CustomTypeDefinedFunction): Array[GeneratedExpression] = {
+
+    // get the expanded parameter types
+    var paramClasses = getEvalMethodSignature(func, operands.map(_.resultType).toArray)
+
+    val signatureTypes = func
+        .getParameterTypes(paramClasses)
+        .zipWithIndex
+        .map {
+      case (t, i) =>
+        // we don't trust GenericType.
+        if (TypeUtils.isGeneric(t)) operands(i).resultType else t
+    }
+
+    paramClasses.zipWithIndex.zip(operands).map { case ((paramClass, i), operandExpr) =>
+      if (paramClass.isPrimitive) {
+        operandExpr
+      } else {
+        val externalResultTerm = genToExternalIfNeeded(
+          ctx, signatureTypes(i), paramClass, operandExpr.resultTerm)
+        val exprOrNull = if (nullCheck) {
+          s"${operandExpr.nullTerm} ? null : ($externalResultTerm)"
+        } else {
+          s"($externalResultTerm)"
+        }
+        operandExpr.copy(resultTerm = exprOrNull)
+      }
+    }
   }
 }

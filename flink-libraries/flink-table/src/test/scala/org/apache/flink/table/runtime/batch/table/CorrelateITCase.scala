@@ -18,49 +18,39 @@
 
 package org.apache.flink.table.runtime.batch.table
 
-import java.sql.{Date, Timestamp}
-
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.util.CollectionDataSets
+import org.apache.flink.table.api.Table
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableEnvironment, Types, ValidationException}
-import org.apache.flink.table.expressions.utils.{Func1, Func18, Func20, RichFunc2}
+import org.apache.flink.table.api.types.DataTypes
+import org.apache.flink.table.runtime.batch.sql.BatchTestBase
+import org.apache.flink.table.util.DateTimeTestUtil._
+import org.apache.flink.table.util._
+import org.apache.flink.table.expressions.utils.{Func1, Func18, RichFunc2}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
-import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.runtime.utils.{TableProgramsClusterTestBase, _}
-import org.apache.flink.table.utils._
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.table.runtime.utils.UserDefinedFunctionTestUtils
 import org.apache.flink.test.util.TestBaseUtils
-import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-@RunWith(classOf[Parameterized])
-class CorrelateITCase(
-    mode: TestExecutionMode,
-    configMode: TableConfigMode)
-    extends TableProgramsClusterTestBase(mode, configMode) {
+class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testCrossJoin(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData.as('a, 'b, 'c)
 
     val func1 = new TableFunc1
-    val result = in.join(func1('c) as 's).select('c, 's).toDataSet[Row]
+    val result = in.join(func1('c) as 's).select('c, 's)
     val results = result.collect()
     val expected = "Jack#22,Jack\n" + "Jack#22,22\n" + "John#19,John\n" + "John#19,19\n" +
       "Anna#44,Anna\n" + "Anna#44,44\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
 
     // with overloading
-    val result2 = in.join(func1('c, "$") as 's).select('c, 's).toDataSet[Row]
+    val result2 = in.join(func1('c, "$") as 's).select('c, 's)
     val results2 = result2.collect()
     val expected2 = "Jack#22,$Jack\n" + "Jack#22,$22\n" + "John#19,$John\n" +
       "John#19,$19\n" + "Anna#44,$Anna\n" + "Anna#44,$44\n"
@@ -69,27 +59,10 @@ class CorrelateITCase(
 
   @Test
   def testLeftOuterJoinWithoutPredicates(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData.as('a, 'b, 'c)
 
     val func2 = new TableFunc2
-    val result = in.leftOuterJoin(func2('c) as ('s, 'l)).select('c, 's, 'l).toDataSet[Row]
-    val results = result.collect()
-    val expected = "Jack#22,Jack,4\n" + "Jack#22,22,2\n" + "John#19,John,4\n" +
-      "John#19,19,2\n" + "Anna#44,Anna,4\n" + "Anna#44,44,2\n" + "nosharp,null,null"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testLeftOuterJoinWithSplit(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    tableEnv.getConfig.setMaxGeneratedCodeLength(1) // split every field
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
-
-    val func2 = new TableFunc2
-    val result = in.leftOuterJoin(func2('c) as ('s, 'l)).select('c, 's, 'l).toDataSet[Row]
+    val result = in.leftOuterJoin(func2('c) as ('s, 'l)).select('c, 's, 'l)
     val results = result.collect()
     val expected = "Jack#22,Jack,4\n" + "Jack#22,22,2\n" + "John#19,John,4\n" +
       "John#19,19,2\n" + "Anna#44,Anna,4\n" + "Anna#44,44,2\n" + "nosharp,null,null"
@@ -101,15 +74,12 @@ class CorrelateITCase(
     */
   @Test (expected = classOf[ValidationException])
   def testLeftOuterJoinWithPredicates(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData.as('a, 'b, 'c)
 
     val func2 = new TableFunc2
     val result = in
-      .leftOuterJoin(func2('c) as ('s, 'l), 'a === 'l)
-      .select('c, 's, 'l)
-      .toDataSet[Row]
+        .leftOuterJoin(func2('c) as ('s, 'l), 'a === 'l)
+        .select('c, 's, 'l)
     val results = result.collect()
     val expected = "John#19,19,2\n" + "nosharp,null,null"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
@@ -117,16 +87,14 @@ class CorrelateITCase(
 
   @Test
   def testWithFilter(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData.as('a, 'b, 'c)
     val func0 = new TableFunc0
 
     val result = in
       .join(func0('c) as ('name, 'age))
       .select('c, 'name, 'age)
       .filter('age > 20)
-      .toDataSet[Row]
+
 
     val results = result.collect()
     val expected = "Jack#22,Jack,22\n" + "Anna#44,Anna,44\n"
@@ -135,15 +103,13 @@ class CorrelateITCase(
 
   @Test
   def testCustomReturnType(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData.as('a, 'b, 'c)
     val func2 = new TableFunc2
 
     val result = in
       .join(func2('c) as ('name, 'len))
       .select('c, 'name, 'len)
-      .toDataSet[Row]
+
 
     val results = result.collect()
     val expected = "Jack#22,Jack,4\n" + "Jack#22,22,2\n" + "John#19,John,4\n" +
@@ -153,15 +119,13 @@ class CorrelateITCase(
 
   @Test
   def testHierarchyType(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData.as('a, 'b, 'c)
 
     val hierarchy = new HierarchyTableFunction
     val result = in
       .join(hierarchy('c) as ('name, 'adult, 'len))
       .select('c, 'name, 'adult, 'len)
-      .toDataSet[Row]
+
 
     val results = result.collect()
     val expected = "Jack#22,Jack,true,22\n" + "John#19,John,false,19\n" +
@@ -171,16 +135,14 @@ class CorrelateITCase(
 
   @Test
   def testPojoType(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData.as('a, 'b, 'c)
 
     val pojo = new PojoTableFunc()
     val result = in
       .join(pojo('c))
       .where('age > 20)
       .select('c, 'name, 'age)
-      .toDataSet[Row]
+
 
     val results = result.collect()
     val expected = "Jack#22,Jack,22\n" + "Anna#44,Anna,44\n"
@@ -189,15 +151,13 @@ class CorrelateITCase(
 
   @Test
   def testUserDefinedTableFunctionWithScalarFunction(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData.as('a, 'b, 'c)
     val func1 = new TableFunc1
 
     val result = in
       .join(func1('c.substring(2)) as 's)
       .select('c, 's)
-      .toDataSet[Row]
+
 
     val results = result.collect()
     val expected = "Jack#22,ack\n" + "Jack#22,22\n" + "John#19,ohn\n" + "John#19,19\n" +
@@ -207,16 +167,14 @@ class CorrelateITCase(
 
   @Test
   def testUserDefinedTableFunctionWithScalarFunctionInCondition(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData.as('a, 'b, 'c)
     val func0 = new TableFunc0
 
     val result = in
       .join(func0('c))
       .where(Func18('name, "J") && (Func1('a) < 3) && Func1('age) > 20)
       .select('c, 'name, 'age)
-      .toDataSet[Row]
+
 
     val results = result.collect()
     val expected = "Jack#22,Jack,22"
@@ -225,19 +183,17 @@ class CorrelateITCase(
 
   @Test
   def testLongAndTemporalTypes(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData.as('a, 'b, 'c)
     val func0 = new JavaTableFunc0
 
     val result = in
         .where('a === 1)
-        .select(Date.valueOf("1990-10-14") as 'x,
+        .select(UTCDate("1990-10-14") as 'x,
                 1000L as 'y,
-                Timestamp.valueOf("1990-10-14 12:10:10") as 'z)
+                UTCTimestamp("1990-10-14 12:10:10") as 'z)
         .join(func0('x, 'y, 'z) as 's)
         .select('s)
-        .toDataSet[Row]
+
 
     val results = result.collect()
     val expected = "1000\n" + "655906210000\n" + "7591\n"
@@ -246,15 +202,14 @@ class CorrelateITCase(
 
   @Test
   def testByteShortFloatArguments(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData.as('a, 'b, 'c)
     val tFunc = new TableFunc4
 
-    val result = in
-      .select('a.cast(Types.BYTE) as 'a, 'a.cast(Types.SHORT) as 'b, 'b.cast(Types.FLOAT) as 'c)
-      .join(tFunc('a, 'b, 'c) as ('a2, 'b2, 'c2))
-      .toDataSet[Row]
+    val result = in.select(
+      'a.cast(DataTypes.BYTE) as 'a,
+      'a.cast(DataTypes.SHORT) as 'b,
+      'b.cast(DataTypes.FLOAT) as 'c)
+        .join(tFunc('a, 'b, 'c) as ('a2, 'b2, 'c2))
 
     val results = result.collect()
     val expected = Seq(
@@ -267,26 +222,21 @@ class CorrelateITCase(
 
   @Test
   def testUserDefinedTableFunctionWithParameter(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
     val richTableFunc1 = new RichTableFunc1
     tEnv.registerFunction("RichTableFunc1", richTableFunc1)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("word_separator" -> "#"))
 
-    val result = testData(env)
-      .toTable(tEnv, 'a, 'b, 'c)
+    val result = testData
       .join(richTableFunc1('c) as 's)
       .select('a, 's)
 
     val expected = "1,Jack\n" + "1,22\n" + "2,John\n" + "2,19\n" + "3,Anna\n" + "3,44"
-    val results = result.toDataSet[Row].collect()
+    val results = result.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testUserDefinedTableFunctionWithScalarFunctionWithParameters(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
     val richTableFunc1 = new RichTableFunc1
     tEnv.registerFunction("RichTableFunc1", richTableFunc1)
     val richFunc2 = new RichFunc2
@@ -295,21 +245,18 @@ class CorrelateITCase(
       env,
       Map("word_separator" -> "#", "string.value" -> "test"))
 
-    val result = CollectionDataSets.getSmall3TupleDataSet(env)
-      .toTable(tEnv, 'a, 'b, 'c)
+    val result = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
       .join(richTableFunc1(richFunc2('c)) as 's)
       .select('a, 's)
 
     val expected = "1,Hi\n1,test\n2,Hello\n2,test\n3,Hello world\n3,test"
-    val results = result.toDataSet[Row].collect()
+    val results = result.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testTableFunctionConstructorWithParams(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData.as('a, 'b, 'c)
     val func30 = new TableFunc3(null)
     val func31 = new TableFunc3("OneConf_")
     val func32 = new TableFunc3("TwoConf_")
@@ -321,7 +268,7 @@ class CorrelateITCase(
       .select('c, 'd, 'e, 'f, 'g)
       .join(func32('c) as ('h, 'i))
       .select('c, 'd, 'f, 'h, 'e, 'g, 'i)
-      .toDataSet[Row]
+
 
     val results = result.collect()
 
@@ -333,13 +280,10 @@ class CorrelateITCase(
 
   @Test
   def testTableFunctionWithVariableArguments(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
     val varArgsFunc0 = new VarArgsFunc0
-    tableEnv.registerFunction("VarArgsFunc0", varArgsFunc0)
+    tEnv.registerFunction("VarArgsFunc0", varArgsFunc0)
 
-    val result = testData(env)
-      .toTable(tableEnv, 'a, 'b, 'c)
+    val result = testData
       .select('c)
       .join(varArgsFunc0("1", "2", 'c))
 
@@ -355,54 +299,67 @@ class CorrelateITCase(
       "nosharp,1\n" +
       "nosharp,2\n" +
       "nosharp,nosharp"
-    val results = result.toDataSet[Row].collect()
+    val results = result.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
 
     // Test for empty cases
-    val result0 = testData(env)
-      .toTable(tableEnv, 'a, 'b, 'c)
+    val result0 = testData
       .select('c)
       .join(varArgsFunc0())
-    val results0 = result0.toDataSet[Row].collect()
+    val results0 = result0.collect()
     assertTrue(results0.isEmpty)
   }
 
   @Test
-  def testTableFunctionCollectorOpenClose(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val t = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+  def testCountStarOnCorrelate(): Unit = {
+    val in = testData.as('a, 'b, 'c)
     val func0 = new TableFunc0
-    val func20 = new Func20
 
-    val result = t
-      .join(func0('c) as('d, 'e))
-      .where(func20('e))
-      .select('c, 'd, 'e)
+    val result = in
+      .join(func0('c) as ('name, 'age))
+      .select(0.count)
 
-    val results = result.toDataSet[Row].collect()
-
-    val expected = Seq (
-      "Jack#22,Jack,22",
-      "John#19,John,19",
-      "Anna#44,Anna,44"
-    )
-
-    TestBaseUtils.compareResultAsText(
-      results.asJava,
-      expected.sorted.mkString("\n")
-    )
+    val results = result.collect()
+    val expected = "3"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  private def testData(
-      env: ExecutionEnvironment)
-    : DataSet[(Int, Long, String)] = {
+  @Test
+  def testCountStarOnLeftCorrelate(): Unit = {
+    val in = testData.as('a, 'b, 'c)
+    val func0 = new TableFunc0
+
+    val result = in
+      .leftOuterJoin(func0('c) as ('name, 'age))
+      .select(0.count)
+
+    val results = result.collect()
+    val expected = "4"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testCorrelateAfterConcatAggWithConstantParam(): Unit = {
+    val in = testData.as('a, 'b, 'c)
+    val in2 = testData.as('a, 'b, 'c)
+    val func0 = new TableFunc0
+    val left = in.select('c.concat_agg("#") as 'd)
+    val result = in2.join(left).as('a, 'b, 'c, 'd)
+      .join(func0('c) as ('name, 'age))
+      .select('a, 'c, 'name, 'age)
+
+    val results = result.collect()
+    val expected = "1,Jack#22,Jack,22\n2,John#19,John,19\n3,Anna#44,Anna,44"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  private def testData: Table = {
 
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Jack#22"))
     data.+=((2, 2L, "John#19"))
     data.+=((3, 2L, "Anna#44"))
     data.+=((4, 3L, "nosharp"))
-    env.fromCollection(data)
+    tEnv.fromCollection(data, "a, b, c")
   }
 }

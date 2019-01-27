@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.runtime.aggfunctions
 
+import java.math.{BigDecimal => JBigDecimal}
 import java.util
-
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.java.typeutils.GenericTypeInfo
-import org.apache.flink.table.functions.AggregateFunction
-import org.apache.flink.table.functions.aggfunctions._
+import org.apache.flink.table.api.functions.AggregateFunction
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.types.{DataTypes, GenericType}
+import org.apache.flink.table.dataformat.{BinaryString, Decimal}
+import org.apache.flink.table.runtime.functions.aggfunctions.{CollectAccumulator, CollectAggFunction}
+import org.apache.flink.table.typeutils.{BinaryStringTypeInfo, DecimalTypeInfo}
 
 import scala.collection.JavaConverters._
 
@@ -31,27 +33,36 @@ import scala.collection.JavaConverters._
   * Test case for built-in collect aggregate functions
   */
 class StringCollectAggFunctionTest
-  extends AggFunctionTestBase[util.Map[String, Integer], CollectAccumulator[String]] {
+  extends AggFunctionTestBase[util.Map[BinaryString, Integer], CollectAccumulator[BinaryString]] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
-    Seq("a", "a", "b", null, "c", null, "d", "e", null, "f"),
+    Seq(BinaryString.fromString("a"),
+        BinaryString.fromString("a"),
+        BinaryString.fromString("b"),
+        null,
+        BinaryString.fromString("c"),
+        null,
+        BinaryString.fromString("d"),
+        BinaryString.fromString("e"),
+        null,
+        BinaryString.fromString("f")),
     Seq(null, null, null, null, null, null)
   )
 
-  override def expectedResults: Seq[util.Map[String, Integer]] = {
-    val map = new util.HashMap[String, Integer]()
-    map.put("a", 2)
-    map.put("b", 1)
-    map.put("c", 1)
-    map.put("d", 1)
-    map.put("e", 1)
-    map.put("f", 1)
-    Seq(map, Map[String, Integer]().asJava)
+  override def expectedResults: Seq[util.Map[BinaryString, Integer]] = {
+    val map = new util.HashMap[BinaryString, Integer]()
+    map.put(BinaryString.fromString("a"), 2)
+    map.put(BinaryString.fromString("b"), 1)
+    map.put(BinaryString.fromString("c"), 1)
+    map.put(BinaryString.fromString("d"), 1)
+    map.put(BinaryString.fromString("e"), 1)
+    map.put(BinaryString.fromString("f"), 1)
+    Seq(map, Map[BinaryString, Integer]().asJava)
   }
 
   override def aggregator: AggregateFunction[
-    util.Map[String, Integer], CollectAccumulator[String]] =
-    new CollectAggFunction(BasicTypeInfo.STRING_TYPE_INFO)
+    util.Map[BinaryString, Integer], CollectAccumulator[BinaryString]] =
+    new CollectAggFunction(BinaryStringTypeInfo.INSTANCE)
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
@@ -75,7 +86,7 @@ class IntCollectAggFunctionTest
   }
 
   override def aggregator: AggregateFunction[util.Map[Int, Integer], CollectAccumulator[Int]] =
-    new CollectAggFunction(BasicTypeInfo.INT_TYPE_INFO)
+    new CollectAggFunction(DataTypes.INT)
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
@@ -99,7 +110,7 @@ class ByteCollectAggFunctionTest
   }
 
   override def aggregator: AggregateFunction[util.Map[Byte, Integer], CollectAccumulator[Byte]] =
-    new CollectAggFunction(BasicTypeInfo.BYTE_TYPE_INFO)
+    new CollectAggFunction(DataTypes.BYTE)
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
@@ -124,7 +135,7 @@ class ShortCollectAggFunctionTest
   }
 
   override def aggregator: AggregateFunction[util.Map[Short, Integer], CollectAccumulator[Short]] =
-    new CollectAggFunction(BasicTypeInfo.SHORT_TYPE_INFO)
+    new CollectAggFunction(DataTypes.SHORT)
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
@@ -148,7 +159,7 @@ class LongCollectAggFunctionTest
   }
 
   override def aggregator: AggregateFunction[util.Map[Long, Integer], CollectAccumulator[Long]] =
-    new CollectAggFunction(BasicTypeInfo.LONG_TYPE_INFO)
+    new CollectAggFunction(DataTypes.LONG)
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
@@ -172,7 +183,7 @@ class FloatAggFunctionTest
   }
 
   override def aggregator: AggregateFunction[util.Map[Float, Integer], CollectAccumulator[Float]] =
-    new CollectAggFunction(BasicTypeInfo.FLOAT_TYPE_INFO)
+    new CollectAggFunction(DataTypes.FLOAT)
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
@@ -197,7 +208,7 @@ class DoubleAggFunctionTest
 
   override def aggregator: AggregateFunction[
     util.Map[Double, Integer], CollectAccumulator[Double]] =
-    new CollectAggFunction(BasicTypeInfo.DOUBLE_TYPE_INFO)
+    new CollectAggFunction(DataTypes.DOUBLE)
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
@@ -219,7 +230,40 @@ class ObjectCollectAggFunctionTest
 
   override def aggregator: AggregateFunction[
     util.Map[Object, Integer], CollectAccumulator[Object]] =
-    new CollectAggFunction(new GenericTypeInfo[Object](classOf[Object]))
+    new CollectAggFunction(new GenericType[Object](classOf[Object]))
+
+  override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
+}
+
+class DecimalCollectAggFunctionTest
+  extends AggFunctionTestBase[util.Map[Decimal, Integer], CollectAccumulator[Decimal]] {
+
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(Decimal.fromBigDecimal(new JBigDecimal(1), 7, 2),
+        Decimal.fromBigDecimal(new JBigDecimal(1), 7, 2),
+        Decimal.fromBigDecimal(new JBigDecimal(2), 7, 2),
+        null,
+        Decimal.fromBigDecimal(new JBigDecimal(3), 7, 2),
+        null,
+        Decimal.fromBigDecimal(new JBigDecimal(4), 7, 2),
+        Decimal.fromBigDecimal(new JBigDecimal(5), 7, 2),
+        null),
+    Seq(null, null, null, null, null, null)
+  )
+
+  override def expectedResults: Seq[util.Map[Decimal, Integer]] = {
+    val map = new util.HashMap[Decimal, Integer]()
+    map.put(Decimal.fromBigDecimal(new JBigDecimal(1), 7, 2), 2)
+    map.put(Decimal.fromBigDecimal(new JBigDecimal(2), 7, 2), 1)
+    map.put(Decimal.fromBigDecimal(new JBigDecimal(3), 7, 2), 1)
+    map.put(Decimal.fromBigDecimal(new JBigDecimal(4), 7, 2), 1)
+    map.put(Decimal.fromBigDecimal(new JBigDecimal(5), 7, 2), 1)
+    Seq(map, Map[Decimal, Integer]().asJava)
+  }
+
+  override def aggregator: AggregateFunction[util.Map[Decimal, Integer],
+    CollectAccumulator[Decimal]] =
+    new CollectAggFunction(DecimalTypeInfo.of(7, 2))
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }

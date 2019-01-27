@@ -21,12 +21,17 @@ package org.apache.flink.streaming.connectors.kafka.internal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.common.TopicPartition;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.Closeable;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -51,7 +56,7 @@ public final class Handover implements Closeable {
 
 	private final Object lock = new Object();
 
-	private ConsumerRecords<byte[], byte[]> next;
+	private ConsumerRecordsAndPositions next;
 	private Throwable error;
 	private boolean wakeupProducer;
 
@@ -68,13 +73,13 @@ public final class Handover implements Closeable {
 	 * @throws Exception Rethrows exceptions from the {@link #reportError(Throwable)} method.
 	 */
 	@Nonnull
-	public ConsumerRecords<byte[], byte[]> pollNext() throws Exception {
+	public ConsumerRecordsAndPositions pollNext() throws Exception {
 		synchronized (lock) {
 			while (next == null && error == null) {
 				lock.wait();
 			}
 
-			ConsumerRecords<byte[], byte[]> n = next;
+			ConsumerRecordsAndPositions n = next;
 			if (n != null) {
 				next = null;
 				lock.notifyAll();
@@ -85,7 +90,7 @@ public final class Handover implements Closeable {
 
 				// this statement cannot be reached since the above method always throws an exception
 				// this is only here to silence the compiler and any warnings
-				return ConsumerRecords.empty();
+				return new ConsumerRecordsAndPositions(ConsumerRecords.empty(), Collections.emptyMap());
 			}
 		}
 	}
@@ -98,6 +103,9 @@ public final class Handover implements Closeable {
 	 * <p>This behavior is similar to a "size one" blocking queue.
 	 *
 	 * @param element The next element to hand over.
+	 * @param positions The consumer positions at the point when the next element is handed over.
+	 *                  This is used to help the fetchers decide whether it should stop when a
+	 *                  stopping offset is specified.
 	 *
 	 * @throws InterruptedException
 	 *                 Thrown, if the thread is interrupted while blocking for the Handover to be empty.
@@ -107,7 +115,9 @@ public final class Handover implements Closeable {
 	 * @throws ClosedException
 	 *                 Thrown if the Handover was closed or concurrently being closed.
 	 */
-	public void produce(final ConsumerRecords<byte[], byte[]> element)
+	public void produce(
+		final ConsumerRecords<byte[], byte[]> element,
+		final Map<TopicPartition, Long> positions)
 			throws InterruptedException, WakeupException, ClosedException {
 
 		checkNotNull(element);
@@ -125,7 +135,7 @@ public final class Handover implements Closeable {
 			}
 			// if there is no error, then this is open and can accept this element
 			else if (error == null) {
-				next = element;
+				next = new ConsumerRecordsAndPositions(element, positions);
 				lock.notifyAll();
 			}
 			// an error marks this as closed for the producer
@@ -140,7 +150,7 @@ public final class Handover implements Closeable {
 	 * it is currently blocked in the {@link #pollNext()} method, or the next time it
 	 * calls that method.
 	 *
-	 * <p>After this method has been called, no call to either {@link #produce(ConsumerRecords)}
+	 * <p>After this method has been called, no call to either {@link #produce(ConsumerRecords, Map)}
 	 * or {@link #pollNext()} will ever return regularly any more, but will always return
 	 * exceptionally.
 	 *
@@ -164,7 +174,7 @@ public final class Handover implements Closeable {
 	}
 
 	/**
-	 * Closes the handover. Both the {@link #produce(ConsumerRecords)} method and the
+	 * Closes the handover. Both the {@link #produce(ConsumerRecords, Map)} method and the
 	 * {@link #pollNext()} will throw a {@link ClosedException} on any currently blocking and
 	 * future invocations.
 	 *
@@ -187,7 +197,7 @@ public final class Handover implements Closeable {
 
 	/**
 	 * Wakes the producer thread up. If the producer thread is currently blocked in
-	 * the {@link #produce(ConsumerRecords)} method, it will exit the method throwing
+	 * the {@link #produce(ConsumerRecords, Map)} method, it will exit the method throwing
 	 * a {@link WakeupException}.
 	 */
 	public void wakeupProducer() {
@@ -201,7 +211,7 @@ public final class Handover implements Closeable {
 
 	/**
 	 * An exception thrown by the Handover in the {@link #pollNext()} or
-	 * {@link #produce(ConsumerRecords)} method, after the Handover was closed via
+	 * {@link #produce(ConsumerRecords, Map)} method, after the Handover was closed via
 	 * {@link #close()}.
 	 */
 	public static final class ClosedException extends Exception {
@@ -209,10 +219,47 @@ public final class Handover implements Closeable {
 	}
 
 	/**
-	 * A special exception thrown bv the Handover in the {@link #produce(ConsumerRecords)}
+	 * A special exception thrown bv the Handover in the {@link #produce(ConsumerRecords, Map)}
 	 * method when the producer is woken up from a blocking call via {@link #wakeupProducer()}.
 	 */
 	public static final class WakeupException extends Exception {
 		private static final long serialVersionUID = 1L;
+	}
+
+	/**
+	 * A container class hosting the {@link ConsumerRecords} produced by the KafkaConsumerThread
+	 * as well as the positions of the corresponding partitions when those consumer records are
+	 * handed over. The positions are used by the fetchers to decide whether the consumption
+	 * should stop. The positions are needed because when transaction exists, the originally
+	 * specified stopping offsets may be a control message (e.g. transaction abort) and never
+	 * be seen by the user. In that case, users needs to know the position in order to decide
+	 * whether the consumption has reached the stopping offset.
+	 */
+	public static final class ConsumerRecordsAndPositions {
+		private final ConsumerRecords<byte[], byte[]> records;
+		private final Map<TopicPartition, Long> positions;
+
+		private ConsumerRecordsAndPositions(
+			ConsumerRecords<byte[], byte[]> records,
+			Map<TopicPartition, Long> positions) {
+			this.records = records;
+			this.positions = positions;
+		}
+
+		public ConsumerRecords<byte[], byte[]> records() {
+			return records;
+		}
+
+		public List<ConsumerRecord<byte[], byte[]>> records(TopicPartition tp) {
+			return records.records(tp);
+		}
+
+		public Map<TopicPartition, Long> positions() {
+			return positions;
+		}
+
+		public Long position(TopicPartition tp) {
+			return positions.get(tp);
+		}
 	}
 }

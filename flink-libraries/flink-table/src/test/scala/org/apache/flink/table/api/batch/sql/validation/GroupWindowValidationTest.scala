@@ -24,7 +24,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.util.TableTestBase
 import org.junit.Test
 
 class GroupWindowValidationTest extends TableTestBase {
@@ -39,7 +39,7 @@ class GroupWindowValidationTest extends TableTestBase {
         "FROM T " +
         "GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '2' HOUR, TIME '10:00:00')"
 
-    util.verifySql(sqlQuery, "n/a")
+    util.verifyPlan(sqlQuery)
   }
 
   @Test(expected = classOf[TableException])
@@ -52,7 +52,7 @@ class GroupWindowValidationTest extends TableTestBase {
         "FROM T " +
         "GROUP BY SESSION(ts, INTERVAL '2' HOUR, TIME '10:00:00')"
 
-    util.verifySql(sqlQuery, "n/a")
+    util.verifyPlan(sqlQuery)
   }
 
   @Test(expected = classOf[TableException])
@@ -63,7 +63,7 @@ class GroupWindowValidationTest extends TableTestBase {
     val sql = "SELECT COUNT(*) " +
       "FROM T " +
       "GROUP BY TUMBLE(ts, b * INTERVAL '1' MINUTE)"
-    util.verifySql(sql, "n/a")
+    util.verifyPlan(sql)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -77,7 +77,7 @@ class GroupWindowValidationTest extends TableTestBase {
     val sql = "SELECT weightedAvg(c, a) AS wAvg " +
       "FROM T " +
       "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)"
-    util.verifySql(sql, "n/a")
+    util.verifyPlan(sql)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -92,6 +92,6 @@ class GroupWindowValidationTest extends TableTestBase {
         "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c"
 
     // should fail because PROCTIME properties are not yet supported in batch
-    util.verifySql(sqlQuery, "FAIL")
+    util.verifyPlan(sqlQuery)
   }
 }

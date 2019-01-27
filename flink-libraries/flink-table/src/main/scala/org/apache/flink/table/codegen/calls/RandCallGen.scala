@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.codegen.calls
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
+import org.apache.flink.table.api.types.{DataTypes, InternalType}
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
-import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 
 /**
   * Generates a random function call.
@@ -29,26 +29,26 @@ import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
 class RandCallGen(isRandInteger: Boolean, hasSeed: Boolean) extends CallGenerator {
 
   override def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression = {
-
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: InternalType,
+      nullCheck: Boolean): GeneratedExpression = {
     val randField = if (hasSeed) {
       if (operands.head.literal) {
-        codeGenerator.addReusableRandom(Some(operands.head))
+        ctx.addReusableRandom(Some(operands.head), nullCheck)
       } else {
         s"(new java.util.Random(${operands.head.resultTerm}))"
       }
     } else {
-      codeGenerator.addReusableRandom(None)
+      ctx.addReusableRandom(None, nullCheck)
     }
 
     if (isRandInteger) {
-      generateCallIfArgsNotNull(codeGenerator.nullCheck, INT_TYPE_INFO, operands) { terms =>
+      generateCallIfArgsNotNull(ctx, nullCheck, DataTypes.INT, operands) { terms =>
         s"$randField.nextInt(${terms.last})"
       }
     } else {
-      generateCallIfArgsNotNull(codeGenerator.nullCheck, DOUBLE_TYPE_INFO, operands) { _ =>
+      generateCallIfArgsNotNull(ctx, nullCheck, DataTypes.DOUBLE, operands) { _ =>
         s"$randField.nextDouble()"
       }
     }

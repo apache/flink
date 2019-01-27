@@ -30,6 +30,7 @@ import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.{Tuple => JavaTuple}
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat
+import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWindowedStream, DataStream => JavaStream, KeyedStream => JavaKeyedStream, _}
@@ -158,31 +159,59 @@ class DataStream[T](stream: JavaStream[T]) {
   @PublicEvolving
   def preferredResources: ResourceSpec = stream.getPreferredResources()
 
-// ---------------------------------------------------------------------------
-//  Fine-grained resource profiles are an incomplete work-in-progress feature
-//  The setters are hence commented out at this point.
-// ---------------------------------------------------------------------------
-//  /**
-//   * Sets the minimum and preferred resources of this operation.
-//   */
-//  @PublicEvolving
-//  def resources(minResources: ResourceSpec, preferredResources: ResourceSpec) : DataStream[T] =
-//    stream match {
-//      case stream : SingleOutputStreamOperator[T] => asScalaStream(
-//        stream.setResources(minResources, preferredResources))
-//      case _ =>
-//        throw new UnsupportedOperationException("Operator does not support " +
-//          "configuring custom resources specs.")
-//      this
-//  }
-//
-//  /**
-//   * Sets the resource of this operation.
-//   */
-//  @PublicEvolving
-//  def resources(resources: ResourceSpec) : Unit = {
-//    this.resources(resources, resources)
-//  }
+  /**
+    * Sets the minimum and preferred resources of this operation.
+    */
+  @PublicEvolving
+  def setResources(minResources: ResourceSpec, preferredResources: ResourceSpec) : DataStream[T] =
+    stream match {
+      case stream : SingleOutputStreamOperator[T] => asScalaStream(
+        stream.setResources(minResources, preferredResources))
+      case _ =>
+        throw new UnsupportedOperationException("Operator does not support " +
+          "configuring custom resources specs.")
+        this
+    }
+
+  /**
+    * Sets the resource of this operation.
+    */
+  @PublicEvolving
+  def setResources(resources: ResourceSpec) : DataStream[T] = {
+    this.setResources(resources, resources)
+  }
+
+  /**
+    * Sets the value of the given option for the operator.
+    *
+    * @param key   The option to be updated.
+    * @param value The value of the option to be updated.
+    */
+  def setConfigItem(key: ConfigOption[String], value: String): DataStream[T] =
+    stream match {
+      case stream : SingleOutputStreamOperator[T] => asScalaStream(
+        stream.setConfigItem(key, value))
+      case _ =>
+        throw new UnsupportedOperationException("Operator does not support " +
+          "custom configurations.")
+        this
+    }
+
+  /**
+    * Sets the value of the given option for the operator.
+    *
+    * @param key   The name of the option to be updated.
+    * @param value The value of the option to be updated.
+    */
+  def setConfigItem(key: String, value: String): DataStream[T] =
+    stream match {
+      case stream : SingleOutputStreamOperator[T] => asScalaStream(
+        stream.setConfigItem(key, value))
+      case _ =>
+        throw new UnsupportedOperationException("Operator does not support " +
+          "custom configurations.")
+        this
+    }
 
   /**
    * Gets the name of the current data stream. This name is
@@ -412,18 +441,6 @@ class DataStream[T](stream: JavaStream[T]) {
       override def getProducedType: TypeInformation[K] = keyType
     }
     asScalaStream(new JavaKeyedStream(stream, keyExtractor, keyType))
-  }
-
-  /**
-   * Groups the elements of a DataStream by the given K key to
-   * be used with grouped operators like grouped reduce or grouped aggregations.
-   */
-  def keyBy[K: TypeInformation](fun: KeySelector[T, K]): KeyedStream[T, K] = {
-
-    val cleanFun = clean(fun)
-    val keyType: TypeInformation[K] = implicitly[TypeInformation[K]]
-
-    asScalaStream(new JavaKeyedStream(stream, cleanFun, keyType))
   }
 
   /**
@@ -915,19 +932,13 @@ class DataStream[T](stream: JavaStream[T]) {
    * Operator used for directing tuples to specific named outputs using an
    * OutputSelector. Calling this method on an operator creates a new
    * [[SplitStream]].
-   *
-   * @deprecated Please use side output instead.
    */
-  @deprecated
   def split(selector: OutputSelector[T]): SplitStream[T] = asScalaStream(stream.split(selector))
 
   /**
    * Creates a new [[SplitStream]] that contains only the elements satisfying the
    *  given output selector predicate.
-   *
-   * @deprecated Please use side output instead.
    */
-  @deprecated
   def split(fun: T => TraversableOnce[String]): SplitStream[T] = {
     if (fun == null) {
       throw new NullPointerException("OutputSelector must not be null.")
@@ -976,29 +987,6 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   @PublicEvolving
   def printToErr() = stream.printToErr()
-
-  /**
-    * Writes a DataStream to the standard output stream (stdout). For each
-    * element of the DataStream the result of [[AnyRef.toString()]] is
-    * written.
-    *
-    * @param sinkIdentifier The string to prefix the output with.
-    * @return The closed DataStream.
-    */
-  @PublicEvolving
-  def print(sinkIdentifier: String): DataStreamSink[T] = stream.print(sinkIdentifier)
-
-  /**
-    * Writes a DataStream to the standard output stream (stderr).
-    *
-    * For each element of the DataStream the result of
-    * [[AnyRef.toString()]] is written.
-    *
-    * @param sinkIdentifier The string to prefix the output with.
-    * @return The closed DataStream.
-    */
-  @PublicEvolving
-  def printToErr(sinkIdentifier: String) = stream.printToErr(sinkIdentifier)
 
   /**
     * Writes a DataStream to the file specified by path in text format. For
@@ -1130,7 +1118,7 @@ class DataStream[T](stream: JavaStream[T]) {
     }
     val cleanFun = clean(fun)
     val sinkFunction = new SinkFunction[T] {
-      override def invoke(in: T) = cleanFun(in)
+      def invoke(in: T) = cleanFun(in)
     }
     this.addSink(sinkFunction)
   }

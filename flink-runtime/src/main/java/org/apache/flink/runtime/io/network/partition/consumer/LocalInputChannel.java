@@ -22,6 +22,7 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
+import org.apache.flink.runtime.io.network.partition.DataConsumptionException;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -57,7 +58,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	/** Task event dispatcher for backwards events. */
 	private final TaskEventDispatcher taskEventDispatcher;
 
-	/** The consumed subpartition. */
+	/** The consumed subpartition */
 	private volatile ResultSubpartitionView subpartitionView;
 
 	private volatile boolean isReleased;
@@ -84,7 +85,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		int maxBackoff,
 		TaskIOMetricGroup metrics) {
 
-		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, metrics.getNumBytesInLocalCounter(), metrics.getNumBuffersInLocalCounter());
+		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, metrics.getNumBytesInLocalCounter());
 
 		this.partitionManager = checkNotNull(partitionManager);
 		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
@@ -127,8 +128,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 					if (increaseBackoff()) {
 						retriggerRequest = true;
 					} else {
-						throw notFound;
+						throw new DataConsumptionException(notFound.getPartitionId(), notFound);
 					}
+				} catch (Throwable t) {
+					throw new DataConsumptionException(partitionId, t);
 				}
 			}
 		}
@@ -194,7 +197,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		}
 
 		numBytesIn.inc(next.buffer().getSizeUnsafe());
-		numBuffersIn.inc();
 		return Optional.of(new BufferAndAvailability(next.buffer(), next.isMoreAvailable(), next.buffersInBacklog()));
 	}
 
@@ -245,7 +247,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	}
 
 	/**
-	 * Releases the partition reader.
+	 * Releases the partition reader
 	 */
 	@Override
 	void releaseAllResources() throws IOException {

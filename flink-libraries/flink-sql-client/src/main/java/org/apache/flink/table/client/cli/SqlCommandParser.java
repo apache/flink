@@ -83,6 +83,14 @@ public final class SqlCommandParser {
 			"HELP",
 			NO_OPERANDS),
 
+		SHOW_CATALOGS(
+			"SHOW\\s+CATALOGS",
+			NO_OPERANDS),
+
+		SHOW_DATABASES(
+			"SHOW\\s+DATABASES",
+			NO_OPERANDS),
+
 		SHOW_TABLES(
 			"SHOW\\s+TABLES",
 			NO_OPERANDS),
@@ -91,8 +99,16 @@ public final class SqlCommandParser {
 			"SHOW\\s+FUNCTIONS",
 			NO_OPERANDS),
 
+		USE(
+			"USE\\s+(.*)",
+			SINGLE_OPERAND),
+
 		DESCRIBE(
 			"DESCRIBE\\s+(.*)",
+			SINGLE_OPERAND),
+
+		DESC(
+			"DESC\\s+(.*)",
 			SINGLE_OPERAND),
 
 		EXPLAIN(
@@ -107,17 +123,25 @@ public final class SqlCommandParser {
 			"(INSERT\\s+INTO.*)",
 			SINGLE_OPERAND),
 
+		CREATE_TABLE(
+			"(CREATE\\s+TABLE.*)",
+			SINGLE_OPERAND),
+
 		CREATE_VIEW(
-			"CREATE\\s+VIEW\\s+(\\S+)\\s+AS\\s+(.*)",
+			"(CREATE\\s+VIEW\\s+(\\S+)\\s+AS\\s+(.*))",
 			(operands) -> {
-				if (operands.length < 2) {
+				if (operands.length < 3) {
 					return Optional.empty();
 				}
-				return Optional.of(new String[]{operands[0], operands[1]});
+				return Optional.of(new String[]{operands[0], operands[1], operands[2]});
 			}),
 
 		DROP_VIEW(
 			"DROP\\s+VIEW\\s+(.*)",
+			SINGLE_OPERAND),
+
+		CREATE_FUNCTION(
+			"(CREATE\\s+FUNCTION.*)",
 			SINGLE_OPERAND),
 
 		SET(

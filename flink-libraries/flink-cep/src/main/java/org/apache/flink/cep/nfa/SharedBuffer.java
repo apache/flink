@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapsh
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.compiler.NFAStateNameHandler;
@@ -158,8 +157,7 @@ public class SharedBuffer<V> {
 	/**
 	 * The {@link TypeSerializerConfigSnapshot} serializer configuration to be stored with the managed state.
 	 */
-	public static final class SharedBufferSerializerConfigSnapshot<K, V>
-			extends CompositeTypeSerializerConfigSnapshot<SharedBuffer<V>> {
+	public static final class SharedBufferSerializerConfigSnapshot<K, V> extends CompositeTypeSerializerConfigSnapshot {
 
 		private static final int VERSION = 1;
 
@@ -356,7 +354,7 @@ public class SharedBuffer<V> {
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot<SharedBuffer<V>> snapshotConfiguration() {
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
 			return new SharedBufferSerializerConfigSnapshot<>(
 				keySerializer,
 				valueSerializer,
@@ -366,8 +364,8 @@ public class SharedBuffer<V> {
 		@Override
 		public CompatibilityResult<SharedBuffer<V>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			if (configSnapshot instanceof SharedBufferSerializerConfigSnapshot) {
-				List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> serializerConfigSnapshots =
-					((SharedBufferSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
+				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializerConfigSnapshots =
+					((SharedBufferSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
 
 				CompatibilityResult<K> keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 					serializerConfigSnapshots.get(0).f0,

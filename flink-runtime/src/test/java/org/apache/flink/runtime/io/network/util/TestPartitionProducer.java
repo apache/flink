@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.util;
 
-import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.InternalResultPartition;
 import org.apache.flink.runtime.io.network.util.TestProducerSource.BufferConsumerAndChannel;
 
 import java.util.Random;
@@ -38,7 +38,7 @@ public class TestPartitionProducer implements Callable<Boolean> {
 	public static final int MAX_SLEEP_TIME_MS = 20;
 
 	/** The partition to add data to. */
-	private final ResultPartition partition;
+	private final InternalResultPartition partition;
 
 	/**
 	 * Flag indicating whether the consumer is slow. If true, the consumer will sleep a random
@@ -53,7 +53,7 @@ public class TestPartitionProducer implements Callable<Boolean> {
 	private final Random random;
 
 	public TestPartitionProducer(
-			ResultPartition partition,
+			InternalResultPartition partition,
 			boolean isSlowProducer,
 			TestProducerSource source) {
 

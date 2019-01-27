@@ -61,14 +61,18 @@ public class JDBCTestBase {
 			new TestEntry(1010, ("A Teaspoon of Java 1.8"), ("Kevin Jones"), null, 1010)
 	};
 
-	static class TestEntry {
-		protected final Integer id;
-		protected final String title;
-		protected final String author;
-		protected final Double price;
-		protected final Integer qty;
+	/**
+	 */
+	public static class TestEntry {
+		public Integer id;
+		public String title;
+		public String author;
+		public Double price;
+		public Integer qty;
 
-		private TestEntry(Integer id, String title, String author, Double price, Integer qty) {
+		public TestEntry() {}
+
+		public TestEntry(Integer id, String title, String author, Double price, Integer qty) {
 			this.id = id;
 			this.title = title;
 			this.author = author;

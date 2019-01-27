@@ -23,6 +23,8 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import java.util.concurrent.TimeoutException;
+
 import static org.junit.Assert.fail;
 
 /**
@@ -51,5 +53,46 @@ public class TestUtils {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Wait indefinitely until the given condition is met.
+	 *
+	 * @param condition the condition to wait for.
+	 * @throws Exception
+	 */
+	public static void waitUntil(ThrowingSupplier<Boolean> condition) throws Exception {
+		waitUntil("No Error Message", condition, Long.MAX_VALUE);
+	}
+
+	/**
+	 * Wait until the given condition is met or timeout, whichever happens first.
+	 *
+	 * @param errMsg the error message if the condition is not met.
+	 * @param condition the condition to wait for.
+	 * @param timeoutMs the maximum time to wait in milliseconds.
+	 * @throws Exception
+	 */
+	public static void waitUntil(String errMsg, ThrowingSupplier<Boolean> condition, long timeoutMs) throws Exception {
+		long now = System.currentTimeMillis();
+		long deadline = timeoutMs == Long.MAX_VALUE ? Long.MAX_VALUE : now + timeoutMs;
+
+		while (now <= deadline) {
+			if (condition.apply()) {
+				return;
+			}
+			Thread.sleep(1);
+			now = System.currentTimeMillis();
+		}
+		throw new TimeoutException(errMsg);
+	}
+
+	/**
+	 * A supplier lambda function interface that allows exception to be thrown.
+	 * @param <T>
+	 */
+	@FunctionalInterface
+	public interface ThrowingSupplier<T> {
+		T apply() throws Exception;
 	}
 }

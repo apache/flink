@@ -26,25 +26,8 @@ import scala.Product;
  * @param <IN> Type of the elements emitted by this sink, it must extend {@link Product}
  */
 public class CassandraScalaProductSink<IN extends Product> extends AbstractCassandraTupleSink<IN> {
-	public CassandraScalaProductSink(
-			String insertQuery,
-			ClusterBuilder builder) {
-		this(insertQuery, builder, CassandraSinkBaseConfig.newBuilder().build());
-	}
-
-	CassandraScalaProductSink(
-			String insertQuery,
-			ClusterBuilder builder,
-			CassandraSinkBaseConfig config) {
-		this(insertQuery, builder, config, new NoOpCassandraFailureHandler());
-	}
-
-	CassandraScalaProductSink(
-			String insertQuery,
-			ClusterBuilder builder,
-			CassandraSinkBaseConfig config,
-			CassandraFailureHandler failureHandler) {
-		super(insertQuery, builder, config, failureHandler);
+	public CassandraScalaProductSink(String insertQuery, ClusterBuilder builder) {
+		super(insertQuery, builder);
 	}
 
 	@Override

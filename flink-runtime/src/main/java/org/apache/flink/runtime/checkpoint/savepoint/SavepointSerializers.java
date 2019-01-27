@@ -32,11 +32,12 @@ public class SavepointSerializers {
 	/** If this flag is true, restoring a savepoint fails if it contains legacy state (<= Flink 1.1 format) */
 	static boolean FAIL_WHEN_LEGACY_STATE_DETECTED = true;
 
-	private static final Map<Integer, SavepointSerializer<?>> SERIALIZERS = new HashMap<>(2);
+	private static final Map<Integer, SavepointSerializer<?>> SERIALIZERS = new HashMap<>(3);
 
 	static {
 		SERIALIZERS.put(SavepointV1.VERSION, SavepointV1Serializer.INSTANCE);
 		SERIALIZERS.put(SavepointV2.VERSION, SavepointV2Serializer.INSTANCE);
+		SERIALIZERS.put(SavepointV3.VERSION, SavepointV3Serializer.INSTANCE);
 	}
 
 	private SavepointSerializers() {

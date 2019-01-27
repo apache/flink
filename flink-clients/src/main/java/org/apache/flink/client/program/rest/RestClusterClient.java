@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.JobListener;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.NewClusterClient;
@@ -31,8 +32,9 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
 import org.apache.flink.client.program.rest.retry.WaitStrategy;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
@@ -159,7 +161,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			config,
 			null,
 			clusterId,
-			new ExponentialWaitStrategy(10L, 2000L),
+			new ExponentialWaitStrategy(10L, config.getLong(RestOptions.POLL_MAX_INTERVAL)),
 			null);
 	}
 
@@ -171,7 +173,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			config,
 			null,
 			clusterId,
-			new ExponentialWaitStrategy(10L, 2000L),
+			new ExponentialWaitStrategy(10L, config.getLong(RestOptions.POLL_MAX_INTERVAL)),
 			webMonitorRetrievalService);
 	}
 
@@ -237,60 +239,60 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 	}
 
 	@Override
-	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
+	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader, boolean detached) throws ProgramInvocationException {
 		log.info("Submitting job {} (detached: {}).", jobGraph.getJobID(), isDetached());
 
 		final CompletableFuture<JobSubmissionResult> jobSubmissionFuture = submitJob(jobGraph);
 
-		if (isDetached()) {
-			try {
-				return jobSubmissionFuture.get();
-			} catch (Exception e) {
-				throw new ProgramInvocationException("Could not submit job",
+		try {
+			JobSubmissionResult submissionResult = jobSubmissionFuture.get();
+			// jobListeners is null when using bin/flink run
+			if (this.jobListeners != null){
+				for (JobListener jobListener : this.jobListeners) {
+					jobListener.onJobSubmitted(submissionResult.getJobID());
+				}
+			}
+			if (isDetached() || detached) {
+				return submissionResult;
+			}
+		} catch (Exception e) {
+			throw new ProgramInvocationException("Could not submit job",
 					jobGraph.getJobID(), ExceptionUtils.stripExecutionException(e));
-			}
-		} else {
-			final CompletableFuture<JobResult> jobResultFuture = jobSubmissionFuture.thenCompose(
-				ignored -> requestJobResult(jobGraph.getJobID()));
-
-			final JobResult jobResult;
-			try {
-				jobResult = jobResultFuture.get();
-			} catch (Exception e) {
-				throw new ProgramInvocationException("Could not retrieve the execution result.",
-					jobGraph.getJobID(), ExceptionUtils.stripExecutionException(e));
-			}
-
-			try {
-				this.lastJobExecutionResult = jobResult.toJobExecutionResult(classLoader);
-				return lastJobExecutionResult;
-			} catch (JobExecutionException e) {
-				throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), e);
-			} catch (IOException | ClassNotFoundException e) {
-				throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), e);
-			}
 		}
-	}
 
-	/**
-	 * Requests the job details.
-	 *
-	 * @param jobId The job id
-	 * @return Job details
-	 */
-	public CompletableFuture<JobDetailsInfo> getJobDetails(JobID jobId) {
-		final JobDetailsHeaders detailsHeaders = JobDetailsHeaders.getInstance();
-		final JobMessageParameters  params = new JobMessageParameters();
-		params.jobPathParameter.resolve(jobId);
-
-		return sendRequest(
-			detailsHeaders,
-			params);
+		final CompletableFuture<JobResult> jobResultFuture = jobSubmissionFuture.thenCompose(
+			ignored -> requestJobResult(jobGraph.getJobID()));
+		final JobResult jobResult;
+		try {
+			jobResult = jobResultFuture.get();
+			this.lastJobExecutionResult = jobResult.toJobExecutionResult(classLoader);
+			if (this.jobListeners != null) {
+				for (JobListener jobListener : this.jobListeners) {
+					jobListener.onJobExecuted(lastJobExecutionResult);
+				}
+			}
+			return lastJobExecutionResult;
+		} catch (JobResult.WrappedJobException e) {
+			throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), e.getCause());
+		} catch (IOException | ClassNotFoundException e) {
+			throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), e);
+		} catch (Exception e) {
+			throw new ProgramInvocationException("Could not retrieve the execution result.",
+				jobGraph.getJobID(), ExceptionUtils.stripExecutionException(e));
+		}
 	}
 
 	@Override
 	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
-		return getJobDetails(jobId).thenApply(JobDetailsInfo::getJobStatus);
+		JobDetailsHeaders detailsHeaders = JobDetailsHeaders.getInstance();
+		final JobMessageParameters  params = new JobMessageParameters();
+		params.jobPathParameter.resolve(jobId);
+
+		CompletableFuture<JobDetailsInfo> responseFuture = sendRequest(
+			detailsHeaders,
+			params);
+
+		return responseFuture.thenApply(JobDetailsInfo::getJobStatus);
 	}
 
 	/**
@@ -343,14 +345,30 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 
 			filesToUpload.add(new FileUpload(jobGraphFile, RestConstants.CONTENT_TYPE_BINARY));
 
-			for (Path jar : jobGraph.getUserJars()) {
-				jarFileNames.add(jar.getName());
-				filesToUpload.add(new FileUpload(Paths.get(jar.toUri()), RestConstants.CONTENT_TYPE_JAR));
+			if (flinkConfig.getBoolean(CoreOptions.DISABLE_UPLOAD_USER_JARS)) {
+				log.info("Uploading user-jars is disabled");
+			} else {
+				for (Path jar : jobGraph.getUserJars()) {
+					try {
+						if (!jar.getFileSystem().isDistributedFS()) {
+							jarFileNames.add(jar.getName());
+							filesToUpload.add(new FileUpload(Paths.get(jar.toUri()), RestConstants.CONTENT_TYPE_JAR));
+						}
+					} catch (IOException e) {
+						throw new CompletionException(new FlinkException("Failed to upload jars.", e));
+					}
+				}
 			}
-
 			for (Map.Entry<String, DistributedCache.DistributedCacheEntry> artifacts : jobGraph.getUserArtifacts().entrySet()) {
-				artifactFileNames.add(new JobSubmitRequestBody.DistributedCacheFile(artifacts.getKey(), new Path(artifacts.getValue().filePath).getName()));
-				filesToUpload.add(new FileUpload(Paths.get(artifacts.getValue().filePath), RestConstants.CONTENT_TYPE_BINARY));
+				try {
+					Path file = new Path(artifacts.getValue().filePath);
+					if (!file.getFileSystem().isDistributedFS()) {
+						artifactFileNames.add(new JobSubmitRequestBody.DistributedCacheFile(artifacts.getKey(), new Path(artifacts.getValue().filePath).getName()));
+						filesToUpload.add(new FileUpload(Paths.get(file.toUri()), RestConstants.CONTENT_TYPE_BINARY));
+					}
+				} catch (IOException e) {
+					throw new CompletionException(new FlinkException("Failed to upload artifacts.", e));
+				}
 			}
 
 			final JobSubmitRequestBody requestBody = new JobSubmitRequestBody(
@@ -385,7 +403,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 				(JobSubmitResponseBody jobSubmitResponseBody) -> new JobSubmissionResult(jobGraph.getJobID()))
 			.exceptionally(
 				(Throwable throwable) -> {
-					throw new CompletionException(new JobSubmissionException(jobGraph.getJobID(), "Failed to submit JobGraph.", ExceptionUtils.stripCompletionException(throwable)));
+					throw new CompletionException(new JobSubmissionException(jobGraph.getJobID(), "Failed to submit JobGraph.", throwable));
 				});
 	}
 
@@ -702,8 +720,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 		return sendRequest(messageHeaders, EmptyMessageParameters.getInstance(), EmptyRequestBody.getInstance());
 	}
 
-	@VisibleForTesting
-	public <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P>
+	private <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P>
 			sendRequest(M messageHeaders, U messageParameters, R request) {
 		return sendRetriableRequest(
 			messageHeaders, messageParameters, request, isConnectionProblemOrServiceUnavailable());

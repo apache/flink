@@ -19,10 +19,11 @@
 package org.apache.flink.api.common.operators.base;
 
 import static org.junit.Assert.*;
+import static org.powermock.api.mockito.PowerMockito.mock;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.AbstractAccumulatorRegistry;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
@@ -122,7 +123,7 @@ public class InnerJoinOperatorBaseTest implements Serializable {
 
 		try {
 			final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
-			final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<String, Accumulator<?, ?>>();
+			final AbstractAccumulatorRegistry accumulatorRegistry = mock(AbstractAccumulatorRegistry.class);
 			final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
 
 			ExecutionConfig executionConfig = new ExecutionConfig();
@@ -130,13 +131,13 @@ public class InnerJoinOperatorBaseTest implements Serializable {
 			executionConfig.disableObjectReuse();
 			List<Integer> resultSafe = base.executeOnCollections(inputData1, inputData2,
 					new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks,
-							accumulatorMap, new UnregisteredMetricsGroup()),
+							accumulatorRegistry, new UnregisteredMetricsGroup()),
 					executionConfig);
 			
 			executionConfig.enableObjectReuse();
 			List<Integer> resultRegular = base.executeOnCollections(inputData1, inputData2,
 					new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks,
-							accumulatorMap, new UnregisteredMetricsGroup()),
+							accumulatorRegistry, new UnregisteredMetricsGroup()),
 					executionConfig);
 
 			assertEquals(expected, resultSafe);

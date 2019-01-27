@@ -18,19 +18,17 @@
 
 package org.apache.flink.table.expressions.utils
 
-import java.sql.Date
-
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.BigDecimalTypeInfo
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.api.functions.ScalarFunction
+import org.apache.flink.table.util.DateTimeTestUtil._
 import org.apache.flink.types.Row
 
 class ScalarOperatorsTestBase extends ExpressionTestBase {
 
-  def testData: Row = {
-    val testData = new Row(21)
+  override def rowTestData: Row = {
+    val testData = new Row(18)
     testData.setField(0, 1: Byte)
     testData.setField(1, 1: Short)
     testData.setField(2, 1)
@@ -46,16 +44,13 @@ class ScalarOperatorsTestBase extends ExpressionTestBase {
     testData.setField(12, null)
     testData.setField(13, Row.of("foo", null))
     testData.setField(14, null)
-    testData.setField(15, Date.valueOf("1996-11-10"))
+    testData.setField(15, UTCDate("1996-11-10"))
     testData.setField(16, BigDecimal("0.00000000").bigDecimal)
     testData.setField(17, BigDecimal("10.0").bigDecimal)
-    testData.setField(18, Array[Integer](1,2))
-    testData.setField(19, Array[(Int, String)]((1,"a"), (2, "b")))
-    testData.setField(20, BigDecimal("1514356320000").bigDecimal)
     testData
   }
 
-  def typeInfo: TypeInformation[Any] = {
+  override def rowType: RowTypeInfo = {
     new RowTypeInfo(
       Types.BYTE,
       Types.SHORT,
@@ -73,12 +68,9 @@ class ScalarOperatorsTestBase extends ExpressionTestBase {
       Types.ROW(Types.STRING, Types.STRING),
       Types.STRING,
       Types.SQL_DATE,
-      Types.DECIMAL,
-      Types.DECIMAL,
-      Types.OBJECT_ARRAY(Types.INT),
-      Types.OBJECT_ARRAY(createTypeInformation[(Int, String)]),
-      Types.DECIMAL
-      ).asInstanceOf[TypeInformation[Any]]
+      BigDecimalTypeInfo.of(19, 8),
+      BigDecimalTypeInfo.of(19, 1)
+    )
   }
 
   override def functions: Map[String, ScalarFunction] = Map(

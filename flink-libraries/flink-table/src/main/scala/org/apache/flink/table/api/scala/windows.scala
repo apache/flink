@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.api.scala
 
-import org.apache.flink.table.api.{OverWindow, TumbleWithSize, OverWindowWithPreceding, SlideWithSize, SessionWithGap}
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 
 /**
@@ -95,9 +95,10 @@ object Over {
     * For streaming tables call [[orderBy 'rowtime or orderBy 'proctime]] to specify time mode.
     *
     * For batch tables, refer to a timestamp or long attribute.
+    * Batch tables can use multiple keys in order by.
     */
-  def orderBy(orderBy: Expression): OverWindowWithOrderBy = {
-    new OverWindowWithOrderBy(Seq[Expression](), orderBy)
+  def orderBy(orderBy: Expression*): OverWindowWithOrderBy = {
+    OverWindowWithOrderBy(Seq[Expression](), orderBy)
   }
 
   /**
@@ -109,6 +110,24 @@ object Over {
   def partitionBy(partitionBy: Expression*): PartitionedOver = {
     PartitionedOver(partitionBy.toArray)
   }
+
+  /**
+    * Assigns an alias for this window that the following `select()` clause can refer to.
+    *
+    * @param alias alias for this over window
+    * @return over window
+    */
+  def as(alias: String): OverWindow = as(ExpressionParser.parseExpression(alias))
+
+  /**
+    * Assigns an alias for this window that the following `select()` clause can refer to.
+    *
+    * @param alias alias for this over window
+    * @return over window
+    */
+  def as(alias: Expression): OverWindow = {
+    OverWindow(alias, Seq[Expression](), Seq[Expression](), UNBOUNDED_RANGE, CURRENT_RANGE)
+  }
 }
 
 case class PartitionedOver(partitionBy: Array[Expression]) {
@@ -119,13 +138,32 @@ case class PartitionedOver(partitionBy: Array[Expression]) {
     * For streaming tables call [[orderBy 'rowtime or orderBy 'proctime]] to specify time mode.
     *
     * For batch tables, refer to a timestamp or long attribute.
+    * Batch tables can use multiple keys in order by.
     */
-  def orderBy(orderBy: Expression): OverWindowWithOrderBy = {
+  def orderBy(orderBy: Expression*): OverWindowWithOrderBy = {
     OverWindowWithOrderBy(partitionBy, orderBy)
+  }
+
+  /**
+    * Assigns an alias for this window that the following `select()` clause can refer to.
+    *
+    * @param alias alias for this over window
+    * @return over window
+    */
+  def as(alias: String): OverWindow = as(ExpressionParser.parseExpression(alias))
+
+  /**
+    * Assigns an alias for this window that the following `select()` clause can refer to.
+    *
+    * @param alias alias for this over window
+    * @return over window
+    */
+  def as(alias: Expression): OverWindow = {
+    OverWindow(alias, partitionBy, Seq[Expression](), UNBOUNDED_RANGE, CURRENT_RANGE)
   }
 }
 
-case class OverWindowWithOrderBy(partitionBy: Seq[Expression], orderBy: Expression) {
+case class OverWindowWithOrderBy(partitionBy: Seq[Expression], orderBy: Seq[Expression]) {
 
   /**
     * Set the preceding offset (based on time or row-count intervals) for over window.

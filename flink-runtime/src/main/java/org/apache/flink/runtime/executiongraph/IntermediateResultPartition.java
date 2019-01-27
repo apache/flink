@@ -32,14 +32,19 @@ public class IntermediateResultPartition {
 
 	private final int partitionNumber;
 
-	private final IntermediateResultPartitionID partitionId;
+	private IntermediateResultPartitionID partitionId;
 
 	private List<List<ExecutionEdge>> consumers;
 
 	/**
-	 * Whether this partition has produced some data.
+	 * Whether this partition has data produced. For pipelined results only.
 	 */
-	private boolean hasDataProduced = false;
+	private boolean dataProduced = false;
+
+	/**
+	 * Whether this partition is finished.
+	 */
+	private boolean isFinished = false;
 
 	public IntermediateResultPartition(IntermediateResult totalResult, ExecutionVertex producer, int partitionNumber) {
 		this.totalResult = totalResult;
@@ -61,6 +66,13 @@ public class IntermediateResultPartition {
 		return totalResult;
 	}
 
+	/**
+	 * Set partition id to the one reported by task executor during jm failover.
+	 */
+	public void setPartitionId(IntermediateResultPartitionID id) {
+		this.partitionId = id;
+	}
+
 	public IntermediateResultPartitionID getPartitionId() {
 		return partitionId;
 	}
@@ -73,20 +85,32 @@ public class IntermediateResultPartition {
 		return consumers;
 	}
 
+	public void resetForNewExecution() {
+		if (isConsumable()) {
+			getIntermediateResult().decrementNumberOfConsumablePartitions();
+		}
+
+		isFinished = false;
+		dataProduced = false;
+	}
+
 	public void markDataProduced() {
-		hasDataProduced = true;
+		if (!isConsumable()) {
+			getIntermediateResult().incrementNumberOfConsumablePartitions();
+		}
+		dataProduced = true;
+	}
+
+	public boolean hasDataProduced() {
+		return dataProduced;
 	}
 
 	public boolean isConsumable() {
 		if (getResultType().isPipelined()) {
-			return hasDataProduced;
+			return dataProduced;
 		} else {
-			return totalResult.areAllPartitionsFinished();
+			return isFinished;
 		}
-	}
-
-	void resetForNewExecution() {
-		hasDataProduced = false;
 	}
 
 	int addConsumerGroup() {
@@ -105,25 +129,10 @@ public class IntermediateResultPartition {
 		consumers.get(consumerNumber).add(edge);
 	}
 
-	boolean markFinished() {
-		// Sanity check that this is only called on blocking partitions.
-		if (!getResultType().isBlocking()) {
-			throw new IllegalStateException("Tried to mark a non-blocking result partition as finished");
+	public void markFinished() {
+		if (getResultType().isBlocking() && !isConsumable()) {
+			getIntermediateResult().incrementNumberOfConsumablePartitions();
 		}
-
-		hasDataProduced = true;
-
-		final int refCnt = totalResult.decrementNumberOfRunningProducersAndGetRemaining();
-
-		if (refCnt == 0) {
-			return true;
-		}
-		else if (refCnt  < 0) {
-			throw new IllegalStateException("Decremented number of unfinished producers below 0. "
-					+ "This is most likely a bug in the execution state/intermediate result "
-					+ "partition management.");
-		}
-
-		return false;
+		isFinished = true;
 	}
 }

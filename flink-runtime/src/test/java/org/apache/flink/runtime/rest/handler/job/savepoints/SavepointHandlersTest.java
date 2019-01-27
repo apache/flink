@@ -60,6 +60,9 @@ import static org.junit.Assert.fail;
  */
 public class SavepointHandlersTest extends TestLogger {
 
+	private static final CompletableFuture<String> LOCAL_REST_ADDRESS =
+		CompletableFuture.completedFuture("localhost:12345");
+
 	private static final Time TIMEOUT = Time.seconds(10);
 
 	private static final JobID JOB_ID = new JobID();
@@ -80,11 +83,13 @@ public class SavepointHandlersTest extends TestLogger {
 
 		final SavepointHandlers savepointHandlers = new SavepointHandlers(null);
 		savepointTriggerHandler = savepointHandlers.new SavepointTriggerHandler(
+			LOCAL_REST_ADDRESS,
 			leaderRetriever,
 			TIMEOUT,
 			Collections.emptyMap());
 
 		savepointStatusHandler = savepointHandlers.new SavepointStatusHandler(
+			LOCAL_REST_ADDRESS,
 			leaderRetriever,
 			TIMEOUT,
 			Collections.emptyMap());
@@ -127,6 +132,7 @@ public class SavepointHandlersTest extends TestLogger {
 		final String defaultSavepointDir = "/other/dir";
 		final SavepointHandlers savepointHandlers = new SavepointHandlers(defaultSavepointDir);
 		final SavepointHandlers.SavepointTriggerHandler savepointTriggerHandler = savepointHandlers.new SavepointTriggerHandler(
+			LOCAL_REST_ADDRESS,
 			leaderRetriever,
 			TIMEOUT,
 			Collections.emptyMap());

@@ -35,11 +35,4 @@ public abstract class SynchronousFileIOChannel extends AbstractFileIOChannel {
 	public boolean isClosed() {
 		return !this.fileChannel.isOpen();
 	}
-	
-	@Override
-	public void close() throws IOException {
-		if (this.fileChannel.isOpen()) {
-			this.fileChannel.close();
-		}
-	}
 }

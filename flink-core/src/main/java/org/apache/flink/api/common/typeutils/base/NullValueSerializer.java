@@ -19,8 +19,6 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.NullValue;
@@ -80,23 +78,5 @@ public final class NullValueSerializer extends TypeSerializerSingleton<NullValue
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof NullValueSerializer;
-	}
-
-	@Override
-	public TypeSerializerSnapshot<NullValue> snapshotConfiguration() {
-		return new NullValueSerializerSnapshot();
-	}
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class NullValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<NullValue> {
-
-		public NullValueSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
 	}
 }

@@ -105,6 +105,7 @@ public class JobVertexTaskManagersInfo implements ResponseBody {
 		public static final String TASK_MANAGERS_FIELD_DURATION = "duration";
 		public static final String TASK_MANAGERS_FIELD_METRICS = "metrics";
 		public static final String TASK_MANAGERS_FIELD_STATUS_COUNTS = "status-counts";
+		public static final String TASK_MANAGERS_FIELD_RESOURCE_ID = "resource-id";
 
 		@JsonProperty(TASK_MANAGERS_FIELD_HOST)
 		private final String host;
@@ -127,6 +128,9 @@ public class JobVertexTaskManagersInfo implements ResponseBody {
 		@JsonProperty(TASK_MANAGERS_FIELD_STATUS_COUNTS)
 		private final Map<ExecutionState, Integer> statusCounts;
 
+		@JsonProperty(TASK_MANAGERS_FIELD_RESOURCE_ID)
+		private final String resourceId;
+
 		@JsonCreator
 		public TaskManagersInfo(
 				@JsonProperty(TASK_MANAGERS_FIELD_HOST) String host,
@@ -135,7 +139,8 @@ public class JobVertexTaskManagersInfo implements ResponseBody {
 				@JsonProperty(TASK_MANAGERS_FIELD_END_TIME) long endTime,
 				@JsonProperty(TASK_MANAGERS_FIELD_DURATION) long duration,
 				@JsonProperty(TASK_MANAGERS_FIELD_METRICS) IOMetricsInfo metrics,
-				@JsonProperty(TASK_MANAGERS_FIELD_STATUS_COUNTS) Map<ExecutionState, Integer> statusCounts) {
+				@JsonProperty(TASK_MANAGERS_FIELD_STATUS_COUNTS) Map<ExecutionState, Integer> statusCounts,
+				@JsonProperty(TASK_MANAGERS_FIELD_RESOURCE_ID) String resourceId) {
 			this.host = checkNotNull(host);
 			this.status = checkNotNull(status);
 			this.startTime = startTime;
@@ -143,6 +148,7 @@ public class JobVertexTaskManagersInfo implements ResponseBody {
 			this.duration = duration;
 			this.metrics = checkNotNull(metrics);
 			this.statusCounts = checkNotNull(statusCounts);
+			this.resourceId = resourceId;
 		}
 
 		@Override
@@ -160,12 +166,13 @@ public class JobVertexTaskManagersInfo implements ResponseBody {
 				endTime == that.endTime &&
 				duration == that.duration &&
 				Objects.equals(metrics, that.metrics) &&
-				Objects.equals(statusCounts, that.statusCounts);
+				Objects.equals(statusCounts, that.statusCounts) &&
+				Objects.equals(resourceId, that.resourceId);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(host, status, startTime, endTime, duration, metrics, statusCounts);
+			return Objects.hash(host, status, startTime, endTime, duration, metrics, statusCounts, resourceId);
 		}
 	}
 }

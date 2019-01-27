@@ -18,13 +18,14 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.table.api.types.DataType;
+import org.apache.flink.table.api.types.DataTypes;
+import org.apache.flink.table.api.types.InternalType;
+import org.apache.flink.table.api.types.TypeConverters;
 import org.apache.flink.types.Row;
 
 import org.junit.Test;
@@ -42,10 +43,11 @@ import static org.junit.Assert.assertTrue;
  */
 public class JDBCAppendTableSinkTest {
 	private static final String[] FIELD_NAMES = new String[]{"foo"};
-	private static final TypeInformation[] FIELD_TYPES = new TypeInformation[]{
-		BasicTypeInfo.STRING_TYPE_INFO
+	private static final InternalType[] FIELD_TYPES = new InternalType[]{
+		DataTypes.STRING
 	};
-	private static final RowTypeInfo ROW_TYPE = new RowTypeInfo(FIELD_TYPES, FIELD_NAMES);
+	private static final TypeInformation ROW_TYPE =
+			TypeConverters.createExternalTypeInfoFromDataType(DataTypes.createRowType(FIELD_TYPES, FIELD_NAMES));
 
 	@Test
 	public void testAppendTableSink() throws IOException {
@@ -79,12 +81,12 @@ public class JDBCAppendTableSinkTest {
 			.setDrivername("foo")
 			.setDBUrl("bar")
 			.setQuery("INSERT INTO foobar (id) VALUES (?)")
-			.setParameterTypes(Types.LONG, Types.STRING, Types.INT)
+			.setParameterTypes(DataTypes.LONG, DataTypes.STRING, DataTypes.INT)
 			.build();
 
 		sink.configure(
 			new String[] {"Hello"},
-			new TypeInformation<?>[] {Types.STRING, Types.INT, Types.LONG});
+			new DataType[] {DataTypes.STRING, DataTypes.INT, DataTypes.LONG});
 	}
 
 }

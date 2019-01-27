@@ -20,8 +20,7 @@ package org.apache.flink.table.api.batch
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.util.TableTestBase
 import org.junit.Test
 
 class BatchTableEnvironmentTest extends TableTestBase {
@@ -33,34 +32,16 @@ class BatchTableEnvironmentTest extends TableTestBase {
 
     val sqlTable = util.tableEnv.sqlQuery(s"SELECT a, b, c FROM $table WHERE b > 12")
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      term("select", "a, b, c"),
-      term("where", ">(b, 12)"))
+    util.verifyPlan(sqlTable)
+  }
 
-    util.verifyTable(sqlTable, expected)
-
+  @Test
+  def testSqlWithoutRegistering2(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]("tableName", 'a, 'b, 'c)
     val table2 = util.addTable[(Long, Int, String)]('d, 'e, 'f)
 
     val sqlTable2 = util.tableEnv.sqlQuery(s"SELECT d, e, f FROM $table, $table2 WHERE c = d")
-
-    val join = unaryNode(
-      "DataSetJoin",
-      binaryNode(
-        "DataSetCalc",
-        batchTableNode(0),
-        batchTableNode(1),
-        term("select", "c")),
-      term("where", "=(c, d)"),
-      term("join", "c, d, e, f"),
-      term("joinType", "InnerJoin"))
-
-    val expected2 = unaryNode(
-      "DataSetCalc",
-      join,
-      term("select", "d, e, f"))
-
-    util.verifyTable(sqlTable2, expected2)
+    util.verifyPlan(sqlTable2)
   }
 }

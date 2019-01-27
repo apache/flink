@@ -18,12 +18,6 @@
 
 package org.apache.flink.runtime.io.disk;
 
-import static org.junit.Assert.*;
-
-import java.io.EOFException;
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
@@ -32,27 +26,52 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
+
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.io.EOFException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+@RunWith(Parameterized.class)
 public class SeekableFileChannelInputViewTest {
+
+	private IOManager ioManager;
+
+	private static final int NUM_READ_WRITE_THREADS = 10;
+
+	public SeekableFileChannelInputViewTest(boolean useBufferedIO) {
+		ioManager = useBufferedIO ? new IOManagerAsync(1024 * 1024, 1024 * 1024, NUM_READ_WRITE_THREADS) : new IOManagerAsync(NUM_READ_WRITE_THREADS);
+	}
+
+	@Parameterized.Parameters(name = "useBufferedIO-{0}")
+	public static Collection<Boolean> parameters() {
+		return Arrays.asList(true, false);
+	}
 
 	@Test
 	public void testSeek() {
-		final IOManager ioManager = new IOManagerAsync();
 		final int PAGE_SIZE = 16 * 1024;
 		final int NUM_RECORDS = 120000;
 		// integers across 7.x pages (7 pages = 114.688 bytes, 8 pages = 131.072 bytes)
-		
+
 		try {
 			MemoryManager memMan = new MemoryManager(4 * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
 			List<MemorySegment> memory = new ArrayList<MemorySegment>();
 			memMan.allocatePages(new DummyInvokable(), memory, 4);
-			
+
 			FileIOChannel.ID channel = ioManager.createChannel();
 			BlockChannelWriter<MemorySegment> writer = ioManager.createBlockChannelWriter(channel);
 			FileChannelOutputView out = new FileChannelOutputView(writer, memMan, memory, memMan.getPageSize());
-			
+
 			// write some integers across 7.5 pages (7 pages = 114.688 bytes, 8 pages = 131.072 bytes)
 			for (int i = 0; i < NUM_RECORDS; i += 4) {
 				out.writeInt(i);
@@ -60,10 +79,10 @@ public class SeekableFileChannelInputViewTest {
 			// close for the first time, make sure all memory returns
 			out.close();
 			assertTrue(memMan.verifyEmpty());
-			
+
 			memMan.allocatePages(new DummyInvokable(), memory, 4);
 			SeekableFileChannelInputView in = new SeekableFileChannelInputView(ioManager, channel, memMan, memory, out.getBytesInLatestSegment());
-			
+
 			// read first, complete
 			for (int i = 0; i < NUM_RECORDS; i += 4) {
 				assertEquals(i, in.readInt());
@@ -72,7 +91,7 @@ public class SeekableFileChannelInputViewTest {
 				in.readInt();
 				fail("should throw EOF exception");
 			} catch (EOFException ignored) {}
-			
+
 			// seek to the middle of the 3rd page
 			int i = 2 * PAGE_SIZE + PAGE_SIZE / 4;
 			in.seek(i);
@@ -83,7 +102,7 @@ public class SeekableFileChannelInputViewTest {
 				in.readInt();
 				fail("should throw EOF exception");
 			} catch (EOFException ignored) {}
-			
+
 			// seek to the end
 			i = 120000 - 4;
 			in.seek(i);
@@ -94,7 +113,7 @@ public class SeekableFileChannelInputViewTest {
 				in.readInt();
 				fail("should throw EOF exception");
 			} catch (EOFException ignored) {}
-			
+
 			// seek to the beginning
 			i = 0;
 			in.seek(i);
@@ -105,7 +124,7 @@ public class SeekableFileChannelInputViewTest {
 				in.readInt();
 				fail("should throw EOF exception");
 			} catch (EOFException ignored) {}
-			
+
 			// seek to after a page
 			i = PAGE_SIZE;
 			in.seek(i);
@@ -116,7 +135,7 @@ public class SeekableFileChannelInputViewTest {
 				in.readInt();
 				fail("should throw EOF exception");
 			} catch (EOFException ignored) {}
-			
+
 			// seek to after a page
 			i = 3 * PAGE_SIZE;
 			in.seek(i);
@@ -127,7 +146,7 @@ public class SeekableFileChannelInputViewTest {
 				in.readInt();
 				fail("should throw EOF exception");
 			} catch (EOFException ignored) {}
-			
+
 			// seek to the end
 			i = NUM_RECORDS;
 			in.seek(i);
@@ -135,7 +154,7 @@ public class SeekableFileChannelInputViewTest {
 				in.readInt();
 				fail("should throw EOF exception");
 			} catch (EOFException ignored) {}
-			
+
 			// seek out of bounds
 			try {
 				in.seek(-10);

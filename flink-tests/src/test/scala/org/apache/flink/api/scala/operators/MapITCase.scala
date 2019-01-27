@@ -35,12 +35,12 @@ import org.apache.flink.api.scala._
 
 @RunWith(classOf[Parameterized])
 class MapITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
-  private var resultPath: String = null
-  private var expected: String = null
+  private var resultPath: String = _
+  private var expected: String = _
   private val _tempFolder = new TemporaryFolder()
 
   @Rule
-  def tempFolder = _tempFolder
+  def tempFolder: TemporaryFolder = _tempFolder
 
   @Before
   def before(): Unit = {
@@ -129,7 +129,8 @@ class MapITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) 
     val tupleMapDs = ds.map( t => (t._1 + 1, t._3, t._2) )
     tupleMapDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
-    expected = "2,Hi,1\n" + "3,Hello,2\n" + "4,Hello world,2\n" + "5,Hello world, how are you?," +
+    expected = "2,Hi,1\n" + "3,Hello,2\n" + "4,Hello world,2\n" +
+      "5,Hello world, how are you?," +
       "3\n" + "6,I am fine.,3\n" + "7,Luke Skywalker,3\n" + "8,Comment#1,4\n" + "9,Comment#2," +
       "4\n" + "10,Comment#3,4\n" + "11,Comment#4,4\n" + "12,Comment#5,5\n" + "13,Comment#6," +
       "5\n" + "14,Comment#7,5\n" + "15,Comment#8,5\n" + "16,Comment#9,5\n" + "17,Comment#10," +

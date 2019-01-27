@@ -19,8 +19,8 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.types.InternalType;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 
@@ -137,7 +137,7 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 		final TableSchema baseSchema = descriptorProperties.getTableSchema(SCHEMA);
 		for (int i = 0; i < baseSchema.getFieldCount(); i++) {
 			final String fieldName = baseSchema.getFieldNames()[i];
-			final TypeInformation<?> fieldType = baseSchema.getFieldTypes()[i];
+			final InternalType fieldType = baseSchema.getFieldTypes()[i];
 
 			final boolean isProctime = descriptorProperties
 				.getOptionalBoolean(SCHEMA + '.' + i + '.' + SCHEMA_PROCTIME)

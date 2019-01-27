@@ -25,9 +25,6 @@ import akka.actor.ActorSystem;
 import akka.actor.Address;
 import org.slf4j.Logger;
 
-import java.util.concurrent.TimeoutException;
-
-import scala.concurrent.Await;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
@@ -68,13 +65,11 @@ public class DefaultQuarantineHandler implements QuarantineHandler {
 
 	private void shutdownActorSystem(ActorSystem actorSystem) {
 		// shut the actor system down
-		actorSystem.terminate();
+		actorSystem.shutdown();
 
 		try {
 			// give it some time to complete the shutdown
-			Await.ready(actorSystem.whenTerminated(), timeout);
-		} catch (InterruptedException | TimeoutException e) {
-			log.error("Exception thrown when terminating the actor system", e);
+			actorSystem.awaitTermination(timeout);
 		} finally {
 			// now let's crash the JVM
 			System.exit(exitCode);

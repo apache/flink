@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -38,6 +39,27 @@ import java.util.List;
 @Internal
 public class UnionTransformation<T> extends StreamTransformation<T> {
 	private final List<StreamTransformation<T>> inputs;
+
+	/**
+	 * Creates a new {@code UnionTransformation} from the given input {@code StreamTransformations}.
+	 * And the given outputType {@code TypeInformation}.
+	 *
+	 * <p>The input {@code StreamTransformations} must all have the same type.
+	 *
+	 * @param inputs The list of input {@code StreamTransformations}
+	 * @param outputType the outputType of this {@code UnionTransformation}
+	 */
+	public UnionTransformation(List<StreamTransformation<T>> inputs, TypeInformation<T> outputType) {
+		super("Union", outputType, inputs.get(0).getParallelism());
+
+		for (StreamTransformation<T> input: inputs) {
+			if (!input.getOutputType().equals(inputs.get(0).getOutputType())) {
+				throw new UnsupportedOperationException("Type mismatch in input " + input);
+			}
+		}
+
+		this.inputs = Lists.newArrayList(inputs);
+	}
 
 	/**
 	 * Creates a new {@code UnionTransformation} from the given input {@code StreamTransformations}.

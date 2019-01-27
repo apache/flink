@@ -21,12 +21,12 @@ package org.apache.flink.table.plan.schema
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{BatchTableSource, TableSourceUtil}
+import org.apache.flink.table.sources.{BatchTableSource, TableSource, TableSourceUtil}
 
 class BatchTableSourceTable[T](
     tableSource: BatchTableSource[T],
     statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends TableSourceTable[T](
+  extends TableSourceTable(
     tableSource,
     statistic) {
 
@@ -39,5 +39,23 @@ class BatchTableSourceTable[T](
       streaming = false,
       typeFactory.asInstanceOf[FlinkTypeFactory])
   }
+
+  /**
+   * Creates a copy of this table, changing statistic.
+   *
+   * @param statistic A new FlinkStatistic.
+   * @return Copy of this table, substituting statistic.
+   */
+  override def copy(statistic: FlinkStatistic) =
+    new BatchTableSourceTable(tableSource, statistic)
+
+  /**
+   * replace table source with the given one, and create a new table source table.
+   *
+   * @param tableSource tableSource to replace.
+   * @return new TableSourceTable
+   */
+  override def replaceTableSource(tableSource: TableSource) =
+    new BatchTableSourceTable(tableSource.asInstanceOf[BatchTableSource[_]], statistic)
 }
 

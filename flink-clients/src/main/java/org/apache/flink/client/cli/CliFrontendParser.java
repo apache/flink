@@ -19,7 +19,6 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -43,7 +42,7 @@ public class CliFrontendParser {
 
 	static final Option JAR_OPTION = new Option("j", "jarfile", true, "Flink program JAR file.");
 
-	static final Option CLASS_OPTION = new Option("c", "class", true,
+	public static final Option CLASS_OPTION = new Option("c", "class", true,
 			"Class with the program entry point (\"main\" method or \"getPlan()\" method. Only needed if the " +
 			"JAR file does not specify the class in its manifest.");
 
@@ -63,11 +62,6 @@ public class CliFrontendParser {
 	public static final Option DETACHED_OPTION = new Option("d", "detached", false, "If present, runs " +
 			"the job in detached mode");
 
-	public static final Option SHUTDOWN_IF_ATTACHED_OPTION = new Option(
-		"sae", "shutdownOnAttachedExit", false,
-		"If the job is submitted in attached mode, perform a best-effort cluster shutdown " +
-			"when the CLI is terminated abruptly, e.g., in response to a user interrupt, such as typing Ctrl + C.");
-
 	/**
 	 * @deprecated use non-prefixed variant {@link #DETACHED_OPTION} for both YARN and non-YARN deployments
 	 */
@@ -75,17 +69,23 @@ public class CliFrontendParser {
 	public static final Option YARN_DETACHED_OPTION = new Option("yd", "yarndetached", false, "If present, runs " +
 		"the job in detached mode (deprecated; use non-YARN specific option instead)");
 
-	static final Option ARGS_OPTION = new Option("a", "arguments", true,
+	public static final Option ARGS_OPTION = new Option("a", "arguments", true,
 			"Program arguments. Arguments can also be added without -a, simply as trailing parameters.");
 
 	public static final Option ADDRESS_OPTION = new Option("m", "jobmanager", true,
 			"Address of the JobManager (master) to which to connect. " +
 			"Use this flag to connect to a different JobManager than the one specified in the configuration.");
 
-	public static final Option SAVEPOINT_PATH_OPTION = new Option("s", "fromSavepoint", true,
+	static final Option SAVEPOINT_PATH_OPTION = new Option("s", "fromSavepoint", true,
 			"Path to a savepoint to restore the job from (for example hdfs:///flink/savepoint-1537).");
 
-	public static final Option SAVEPOINT_ALLOW_NON_RESTORED_OPTION = new Option("n", "allowNonRestoredState", false,
+	static final Option RESUME_PATH_OPTION = new Option("r", "resume", true,
+		"Path to a checkpoint dir to restore the job from latest externalized checkpoint. " +
+			"If " + CheckpointingOptions.CHCKPOINTS_CREATE_SUBDIRS + " is set to true as default, please give checkpoint directory at job-id level (for example hdfs:///user-defined-dir/job-id); " +
+			"if " + CheckpointingOptions.CHCKPOINTS_CREATE_SUBDIRS + " is set to false, please just give the user defined checkpoint directory (for example hdfs:///user-defined-dir). " +
+			"If no valid checkpoint found, job would continue running from scratch.");
+
+	static final Option SAVEPOINT_ALLOW_NON_RESTORED_OPTION = new Option("n", "allowNonRestoredState", false,
 			"Allow to skip savepoint state that cannot be restored. " +
 					"You need to allow this if you removed an operator from your " +
 					"program that was part of the program when the savepoint was triggered.");
@@ -100,9 +100,6 @@ public class CliFrontendParser {
 	static final Option SCHEDULED_OPTION = new Option("s", "scheduled", false,
 			"Show only scheduled programs and their JobIDs");
 
-	static final Option ALL_OPTION = new Option("a", "all", false,
-		"Show all programs and their JobIDs");
-
 	static final Option ZOOKEEPER_NAMESPACE_OPTION = new Option("z", "zookeeperNamespace", true,
 			"Namespace to create the Zookeeper sub-paths for high availability mode");
 
@@ -112,6 +109,25 @@ public class CliFrontendParser {
 			"directory (" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + ") is used.");
 
 	static final Option MODIFY_PARALLELISM_OPTION = new Option("p", "parallelism", true, "New parallelism for the specified job.");
+
+	static final String MULTIPLE_VALUE_SEPARATOR = ",";
+
+	static final Option LIBJARS_OPTION = new Option(null, "libjars", true,
+			"Attach custom library jars for job. Directory could not be supported. " +
+			"Use '" + MULTIPLE_VALUE_SEPARATOR + "' to separate multiple jars. " +
+			"The jars could be in local file system or distributed file system. " +
+			"Use URI schema to specify which file system the jar belongs. " +
+			"If schema is missing, would try to get the jars in local file system. " +
+			"(eg: --libjars file:///tmp/dependency1.jar,hdfs:///$namenode_address/tmp/dependency2.jar)");
+
+	static final Option FILES_OPTION = new Option(null, "files", true,
+			"Attach custom files for job. Directory could not be supported. " +
+			"Use '" + MULTIPLE_VALUE_SEPARATOR + "' to separate multiple files. " +
+			"The files could be in local file system or distributed file system. " +
+			"Use URI schema to specify which file system the file belongs. " +
+			"If schema is missing, would try to get the file in local file system. " +
+			"Use '#' after the file path to specify retrieval key in runtime. " +
+			"(eg: --file file:///tmp/a.txt#file_key,hdfs:///$namenode_address/tmp/b.txt)");
 
 	static {
 		HELP_OPTION.setRequired(false);
@@ -133,7 +149,6 @@ public class CliFrontendParser {
 
 		LOGGING_OPTION.setRequired(false);
 		DETACHED_OPTION.setRequired(false);
-		SHUTDOWN_IF_ATTACHED_OPTION.setRequired(false);
 		YARN_DETACHED_OPTION.setRequired(false);
 
 		ARGS_OPTION.setRequired(false);
@@ -146,6 +161,9 @@ public class CliFrontendParser {
 		SAVEPOINT_PATH_OPTION.setRequired(false);
 		SAVEPOINT_PATH_OPTION.setArgName("savepointPath");
 
+		RESUME_PATH_OPTION.setRequired(false);
+		RESUME_PATH_OPTION.setArgName("resumePath");
+
 		SAVEPOINT_ALLOW_NON_RESTORED_OPTION.setRequired(false);
 
 		ZOOKEEPER_NAMESPACE_OPTION.setRequired(false);
@@ -157,6 +175,12 @@ public class CliFrontendParser {
 
 		MODIFY_PARALLELISM_OPTION.setRequired(false);
 		MODIFY_PARALLELISM_OPTION.setArgName("newParallelism");
+
+		LIBJARS_OPTION.setRequired(false);
+		LIBJARS_OPTION.setArgName("libraryJars");
+
+		FILES_OPTION.setRequired(false);
+		FILES_OPTION.setArgName("files");
 	}
 
 	private static final Options RUN_OPTIONS = getRunCommandOptions();
@@ -176,8 +200,9 @@ public class CliFrontendParser {
 		options.addOption(ARGS_OPTION);
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
-		options.addOption(SHUTDOWN_IF_ATTACHED_OPTION);
 		options.addOption(YARN_DETACHED_OPTION);
+		options.addOption(LIBJARS_OPTION);
+		options.addOption(FILES_OPTION);
 		return options;
 	}
 
@@ -187,7 +212,8 @@ public class CliFrontendParser {
 		options.addOption(PARALLELISM_OPTION);
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
-		options.addOption(SHUTDOWN_IF_ATTACHED_OPTION);
+		options.addOption(LIBJARS_OPTION);
+		options.addOption(FILES_OPTION);
 		return options;
 	}
 
@@ -195,7 +221,8 @@ public class CliFrontendParser {
 		Options options = buildGeneralOptions(new Options());
 		options = getProgramSpecificOptions(options);
 		options.addOption(SAVEPOINT_PATH_OPTION);
-		return options.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
+		options.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
+		return options.addOption(RESUME_PATH_OPTION);
 	}
 
 	static Options getInfoCommandOptions() {
@@ -205,7 +232,6 @@ public class CliFrontendParser {
 
 	static Options getListCommandOptions() {
 		Options options = buildGeneralOptions(new Options());
-		options.addOption(ALL_OPTION);
 		options.addOption(RUNNING_OPTION);
 		return options.addOption(SCHEDULED_OPTION);
 	}
@@ -238,7 +264,8 @@ public class CliFrontendParser {
 	private static Options getRunOptionsWithoutDeprecatedOptions(Options options) {
 		Options o = getProgramSpecificOptionsWithoutDeprecatedOptions(options);
 		o.addOption(SAVEPOINT_PATH_OPTION);
-		return o.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
+		o.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
+		return o.addOption(RESUME_PATH_OPTION);
 	}
 
 	private static Options getInfoOptionsWithoutDeprecatedOptions(Options options) {
@@ -407,16 +434,6 @@ public class CliFrontendParser {
 			}
 			formatter.printHelp(" ", customOpts);
 			System.out.println();
-		}
-	}
-
-	public static SavepointRestoreSettings createSavepointRestoreSettings(CommandLine commandLine) {
-		if (commandLine.hasOption(SAVEPOINT_PATH_OPTION.getOpt())) {
-			String savepointPath = commandLine.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
-			boolean allowNonRestoredState = commandLine.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt());
-			return SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState);
-		} else {
-			return SavepointRestoreSettings.none();
 		}
 	}
 

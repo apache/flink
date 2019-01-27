@@ -18,77 +18,462 @@
 
 package org.apache.flink.table.api
 
-import _root_.java.util.concurrent.atomic.AtomicInteger
-
-import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.plan.hep.HepMatchOrder
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.sql2rel.RelDecorrelator
-import org.apache.calcite.tools.RuleSet
-import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.io.DiscardingOutputFormat
-import org.apache.flink.api.java.typeutils.GenericTypeInfo
-import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.annotation.{InterfaceStability, VisibleForTesting}
+import org.apache.flink.api.common.accumulators.SerializedListAccumulator
+import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.common.{ExecutionMode, JobExecutionResult}
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.runtime.client.JobExecutionException
+import org.apache.flink.runtime.schedule.VertexInputTracker.{InputDependencyConstraint, VertexInputTrackerOptions}
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.graph.{StreamGraph, StreamGraphGenerator}
+import org.apache.flink.streaming.api.transformations.StreamTransformation
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.types.{DataType, DataTypes, RowType}
+import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
-import org.apache.flink.table.explain.PlanJsonParser
+import org.apache.flink.table.errorcode.TableErrors
 import org.apache.flink.table.expressions.{Expression, TimeAttribute}
-import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.dataset.DataSetRel
-import org.apache.flink.table.plan.rules.FlinkRuleSets
+import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
+import org.apache.flink.table.plan.cost.{FlinkBatchCost, FlinkCostFactory}
+import org.apache.flink.table.plan.logical.{LogicalNode, SinkNode}
+import org.apache.flink.table.plan.nodes.calcite.LogicalSink
+import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecSink, BatchPhysicalRel}
+import org.apache.flink.table.plan.nodes.process.DAGProcessContext
+import org.apache.flink.table.plan.optimize.{BatchOptimizeContext, FlinkBatchPrograms}
 import org.apache.flink.table.plan.schema._
-import org.apache.flink.table.runtime.MapRunner
+import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.plan.subplan.BatchDAGOptimizer
+import org.apache.flink.table.plan.util.{DeadlockBreakupProcessor, FlinkNodeOptUtil, FlinkRelOptUtil, SameRelObjectShuttle, SubplanReuseUtil}
+import org.apache.flink.table.resource.batch.RunningUnitKeeper
+import org.apache.flink.table.runtime.AbstractStreamOperatorWithMetrics
 import org.apache.flink.table.sinks._
-import org.apache.flink.table.sources.{BatchTableSource, TableSource}
-import org.apache.flink.types.Row
+import org.apache.flink.table.sources.{BatchTableSource, _}
+import org.apache.flink.table.temptable.TableServiceException
+import org.apache.flink.table.util.PlanUtil._
+import org.apache.flink.table.util._
+import org.apache.flink.util.{AbstractID, ExceptionUtils, Preconditions}
+import org.apache.calcite.plan.{Context, ConventionTraitDef, RelOptPlanner}
+import org.apache.calcite.rel.{RelCollationTraitDef, RelNode}
+import org.apache.calcite.sql.SqlExplainLevel
+import org.apache.calcite.sql2rel.SqlToRelConverter
+import org.apache.calcite.sql2rel.SqlToRelConverter.Config
+import _root_.java.util.{ArrayList => JArrayList, List => JList, Map => JMap, Set => JSet}
+
+import _root_.scala.collection.JavaConversions._
+import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.mutable
+import _root_.scala.collection.mutable.ArrayBuffer
+import _root_.scala.util.{Failure, Success, Try}
 
 /**
-  * The abstract base class for batch TableEnvironments.
+ *  A session to construct between [[Table]] and [[DataStream]], its main function is:
   *
-  * A TableEnvironment can be used to:
-  * - convert a [[DataSet]] to a [[Table]]
-  * - register a [[DataSet]] in the [[TableEnvironment]]'s catalog
-  * - register a [[Table]] in the [[TableEnvironment]]'s catalog
-  * - scan a registered table to obtain a [[Table]]
-  * - specify a SQL query on registered tables to obtain a [[Table]]
-  * - convert a [[Table]] into a [[DataSet]]
-  * - explain the AST and execution plan of a [[Table]]
-  *
-  * @param execEnv The [[ExecutionEnvironment]] which is wrapped in this [[BatchTableEnvironment]].
-  * @param config The [[TableConfig]] of this [[BatchTableEnvironment]].
-  */
-abstract class BatchTableEnvironment(
-    private[flink] val execEnv: ExecutionEnvironment,
+  *  1. Get a table from [[DataStream]], or through registering a [[TableSource]];
+  *  2. Transform current already construct table to [[DataStream]];
+  *  3. Add [[TableSink]] to the [[Table]].
+ * @param config The [[TableConfig]] of this [[BatchTableEnvironment]].
+ */
+@InterfaceStability.Evolving
+class BatchTableEnvironment(
+    val streamEnv: StreamExecutionEnvironment,
     config: TableConfig)
-  extends TableEnvironment(config) {
+    extends TableEnvironment(streamEnv, config) {
 
-  // a counter for unique table names.
-  private val nameCntr: AtomicInteger = new AtomicInteger(0)
+  private val ruKeeper = new RunningUnitKeeper(this)
 
-  // the naming pattern for internally registered tables.
-  private val internalNamePattern = "^_DataSetTable_[0-9]+$".r
+  /** Fetch [[RunningUnitKeeper]] bond with this table env. */
+  private[table] def getRUKeeper: RunningUnitKeeper = ruKeeper
 
-  override def queryConfig: BatchQueryConfig = new BatchQueryConfig
+  // the builder for Calcite RelNodes, Calcite's representation of a relational expression tree.
+  override protected def createRelBuilder: FlinkRelBuilder = FlinkRelBuilder.create(
+    frameworkConfig,
+    config,
+    getTypeFactory,
+    Array(
+      ConventionTraitDef.INSTANCE,
+      FlinkRelDistributionTraitDef.INSTANCE,
+      RelCollationTraitDef.INSTANCE),
+    catalogManager
+  )
+
+  // prefix for unique table names.
+  override private[flink] val tableNamePrefix = "_DataStreamTable_"
 
   /**
-    * Checks if the chosen table name is valid.
-    *
-    * @param name The table name to check.
+   * `expand` is set as false, and each sub-query becomes a [[org.apache.calcite.rex.RexSubQuery]].
+   */
+  override protected def getSqlToRelConverterConfig: Config =
+    SqlToRelConverter.configBuilder()
+        .withTrimUnusedFields(false)
+        .withConvertTableAccess(false)
+        .withExpand(false)
+        .withInSubQueryThreshold(Int.MaxValue)
+        .build()
+
+  /**
+   * Returns specific FlinkCostFactory of this Environment.
+   */
+  override protected def getFlinkCostFactory: FlinkCostFactory = FlinkBatchCost.FACTORY
+
+  /**
+    * Triggers the program execution with specific job name.
+    * @param jobName name for the job
     */
-  override protected def checkValidTableName(name: String): Unit = {
-    val m = internalNamePattern.findFirstIn(name)
-    m match {
-      case Some(_) =>
-        throw new TableException(s"Illegal Table name. " +
-          s"Please choose a name that does not contain the pattern $internalNamePattern")
-      case None =>
+  override def execute(jobName: String): JobExecutionResult = {
+    tableServiceManager.startTableServiceJob()
+    val sinkNodesBak = new mutable.MutableList[SinkNode]
+    sinkNodesBak ++= sinkNodes
+    Try {
+      val streamGraph = generateStreamGraph(jobName)
+      val res = executeStreamGraph(streamGraph)
+      tableServiceManager.markAllTablesCached()
+      res
+    } match {
+      case Success(value) => value
+      case Failure(ex) => ex match {
+        case je: JobExecutionException
+          if ExceptionUtils.findThrowable(je, classOf[TableServiceException]).isPresent =>
+          sinkNodes ++= sinkNodesBak
+          tableServiceManager.invalidateCachedTable()
+          val streamGraph = generateStreamGraph(jobName)
+          executeStreamGraph(streamGraph)
+        case _ => throw ex
+      }
     }
   }
 
-  /** Returns a unique table name according to the internal naming pattern. */
-  override protected def createUniqueTableName(): String =
-    "_DataSetTable_" + nameCntr.getAndIncrement()
+  private[flink] override def collect[T](
+      table: Table,
+      sink: CollectTableSink[T],
+      jobName: Option[String]): Seq[T] = {
+    val outType = sink.getOutputType
+    val typeSerializer = DataTypes.createExternalSerializer(outType)
+        .asInstanceOf[TypeSerializer[T]]
+    val id = new AbstractID().toString
+    sink.init(typeSerializer, id)
+    writeToSink(table, sink)
+    val res = execute(jobName.getOrElse(DEFAULT_JOB_NAME))
+    val accResult: JArrayList[Array[Byte]] = res.getAccumulatorResult(id)
+    SerializedListAccumulator.deserializeList(accResult, typeSerializer).asScala
+  }
+
+  protected override def translateStreamGraph(
+      streamingTransformations: ArrayBuffer[StreamTransformation[_]],
+      jobName: Option[String]): StreamGraph = {
+    mergeParameters()
+    val context = StreamGraphGenerator.Context.buildBatchProperties(streamEnv)
+    if (getConfig.getConf.getBoolean(TableConfigOptions.SQL_EXEC_DATA_EXCHANGE_MODE_ALL_BATCH)) {
+      val constraint = getConfig.getConf.getValue(
+        VertexInputTrackerOptions.INPUT_DEPENDENCY_CONSTRAINT)
+      // When the user does not set this value,
+      // in batch mode, use ALL to avoid deadlock and resource utilization rate.
+      if (constraint == null) {
+        getConfig.getConf.setString(
+          VertexInputTrackerOptions.INPUT_DEPENDENCY_CONSTRAINT,
+          InputDependencyConstraint.ALL.toString)
+      }
+      context.getExecutionConfig.setExecutionMode(ExecutionMode.BATCH)
+    } else {
+      context.getExecutionConfig.setExecutionMode(ExecutionMode.PIPELINED)
+    }
+    context.setSlotSharingEnabled(false)
+
+    ruKeeper.setScheduleConfig(context)
+    jobName match {
+      case Some(jn) => context.setJobName(jn)
+      case None => context.setJobName(DEFAULT_JOB_NAME)
+    }
+    val streamGraph = StreamGraphGenerator.generate(context, streamingTransformations)
+
+    setupOperatorMetricCollect()
+    ruKeeper.clear()
+
+    streamingTransformations.clear()
+    streamGraph
+  }
+
+  private def executeStreamGraph(streamGraph: StreamGraph): JobExecutionResult = {
+    val result = streamEnv.execute(streamGraph)
+    dumpPlanWithMetricsIfNeed(streamGraph, result)
+    result
+  }
+
+  /**
+    * Set up operator metric collect to be true.
+    */
+  @VisibleForTesting
+  private[flink] def setupOperatorMetricCollect(): Unit = {
+    if (streamEnv != null &&
+        streamEnv.getConfig != null &&
+        config.getConf.getBoolean(TableConfigOptions.SQL_EXEC_OPERATOR_METRIC_DUMP_ENABLED)) {
+      val parameters = new Configuration()
+      Option(streamEnv.getConfig.getGlobalJobParameters).foreach(gb =>
+        gb.toMap.foreach(kv => parameters.setString(kv._1, kv._2))
+      )
+      parameters.setString(
+        AbstractStreamOperatorWithMetrics.METRICS_CONF_KEY,
+        AbstractStreamOperatorWithMetrics.METRICS_CONF_VALUE)
+      streamEnv.getConfig.setGlobalJobParameters(parameters)
+    }
+  }
+
+  override private[table] def writeToSink[T](
+      table: Table,
+      sink: TableSink[T],
+      sinkName: String): Unit = {
+    val sinkNode = SinkNode(table.logicalPlan, sink, sinkName)
+    if (config.getSubsectionOptimization) {
+      sinkNodes += sinkNode
+    } else {
+      val transformation = translate(table, sink, sinkName)
+      transformations.add(transformation)
+    }
+  }
+
+  /**
+   * Registers a [[DataStream]] as a table under a given name in the [[TableEnvironment]]'s
+   * catalog.
+   *
+   * @param name     The name under which the table is registered in the catalog.
+   * @param boundedStream The [[DataStream]] to register as table in the catalog.
+   * @tparam T the type of the [[DataStream]].
+   */
+  protected def registerBoundedStreamInternal[T](
+      name: String, boundedStream: DataStream[T], replace: Boolean): Unit = {
+    val (fieldNames, fieldIdxs) = getFieldInfo(boundedStream.getTransformation.getOutputType)
+    val boundedStreamTable = new DataStreamTable[T](boundedStream, fieldIdxs, fieldNames)
+    registerTableInternal(name, boundedStreamTable, replace)
+  }
+
+  /**
+   * Registers a [[DataStream]] as a table under a given name in the [[TableEnvironment]]'s
+   * catalog.
+   *
+   * @param name           The name under which the table is registered in the catalog.
+   * @param boundedStream       The [[DataStream]] to register as table in the catalog.
+   * @param fieldNullables The field isNullables attributes of boundedStream.
+   * @tparam T the type of the [[DataStream]].
+   */
+  protected def registerBoundedStreamInternal[T](
+      name: String,
+      boundedStream: DataStream[T],
+      fieldNullables: Array[Boolean],
+      replace: Boolean): Unit = {
+    val dataType = boundedStream.getTransformation.getOutputType
+    val (fieldNames, fieldIndexes) = getFieldInfo(dataType)
+    val fieldTypes = TableEnvironment.getFieldTypes(dataType)
+    val relDataType = getTypeFactory.buildRelDataType(fieldNames, fieldTypes, fieldNullables)
+    val boundedStreamTable = new IntermediateBoundedStreamTable[T](
+      relDataType, boundedStream, fieldIndexes, fieldNames)
+    registerTableInternal(name, boundedStreamTable, replace)
+  }
+
+  /**
+   * Registers a [[DataStream]] as a table under a given name with field names as specified by
+   * field expressions in the [[TableEnvironment]]'s catalog.
+   *
+   * @param name     The name under which the table is registered in the catalog.
+   * @param boundedStream The [[DataStream]] to register as table in the catalog.
+   * @param fields   The field expressions to define the field names of the table.
+   * @tparam T The type of the [[DataStream]].
+   */
+  protected def registerBoundedStreamInternal[T](
+      name: String, boundedStream: DataStream[T],
+      fields: Array[Expression], replace: Boolean): Unit = {
+
+    if (fields.exists(_.isInstanceOf[TimeAttribute])) {
+      throw new ValidationException(
+        ".rowtime and .proctime time indicators are not allowed in a batch exec environment.")
+    }
+
+    val dataType = boundedStream.getTransformation.getOutputType
+    val (fieldNames, fieldIndexes) = getFieldInfo[T](dataType, fields)
+    val boundedStreamTable = new DataStreamTable[T](boundedStream, fieldIndexes, fieldNames)
+    registerTableInternal(name, boundedStreamTable, replace)
+  }
+
+  /**
+   * Registers a [[DataStream]] as a table under a given name with field names as specified by
+   * field expressions in the [[TableEnvironment]]'s catalog.
+   *
+   * @param name           The name under which the table is registered in the catalog.
+   * @param boundedStream       The [[DataStream]] to register as table in the catalog.
+   * @param fields         The field expressions to define the field names of the table.
+   * @param fieldNullables The field isNullables attributes of boundedStream.
+   * @tparam T The type of the [[DataStream]].
+   */
+  protected def registerBoundedStreamInternal[T](
+      name: String,
+      boundedStream: DataStream[T],
+      fields: Array[Expression],
+      fieldNullables: Array[Boolean],
+      replace: Boolean): Unit = {
+
+    if (fields.exists(_.isInstanceOf[TimeAttribute])) {
+      throw new ValidationException(
+        ".rowtime and .proctime time indicators are not allowed in a batch exec environment.")
+    }
+    val dataType = boundedStream.getTransformation.getOutputType
+    val (fieldNames, fieldIndexes) = getFieldInfo(dataType, fields)
+    val physicalFieldTypes = TableEnvironment.getFieldTypes(dataType)
+    val fieldTypes = fieldIndexes.map(physicalFieldTypes.apply)
+    val relDataType = getTypeFactory.buildRelDataType(fieldNames, fieldTypes, fieldNullables)
+    val boundedStreamTable = new IntermediateBoundedStreamTable[T](
+      relDataType, boundedStream, fieldIndexes, fieldNames)
+    registerTableInternal(name, boundedStreamTable, replace)
+  }
+
+  private def translate[A](
+      table: Table,
+      sink: TableSink[A],
+      sinkName: String,
+      dagOptimizeEnabled: Boolean = false): StreamTransformation[_] = {
+    val sinkNode = SinkNode(table.logicalPlan, sink, sinkName)
+    val nodeDag = optimizeAndTranslateNodeDag(dagOptimizeEnabled, sinkNode)
+    nodeDag.head match {
+      case batchExecSink: BatchExecSink[A] => translate(batchExecSink, sink.getOutputType)
+      case _ => throw new TableException(TableErrors.INST.sqlCompileSinkNodeRequired())
+    }
+  }
+
+  /**
+    * Translates a [[ExecNode]] DAG into a [[StreamTransformation]] DAG.
+    *
+    * @param sinks The node DAG to translate.
+    * @return The [[StreamTransformation]] DAG that corresponds to the node DAG.
+    */
+  override protected def translate(sinks: Seq[ExecNode[_, _]]): Seq[StreamTransformation[_]] = {
+    sinks.map {
+      case n: BatchExecSink[_] => translate(n, n.sink.getOutputType)
+      case _ => throw new TableException(TableErrors.INST.sqlCompileSinkNodeRequired())
+    }
+  }
+
+  /**
+   * Translates a [[BatchExecNode]] plan into a [[StreamTransformation]].
+   * Converts to target type if necessary.
+   *
+   * @param node        The plan to translate.
+   * @param resultType  The [[DataType]] of the elements that result from resulting
+   *                    [[StreamTransformation]].
+   * @return The [[StreamTransformation]] that corresponds to the given node.
+   */
+  private def translate[OUT](
+      node: ExecNode[_, OUT],
+      resultType: DataType): StreamTransformation[OUT] = {
+    TableEnvironment.validateType(resultType)
+
+    node match {
+      case node: BatchExecNode[OUT] => node.translateToPlan(this)
+      case _ =>
+        throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +
+          "This is a bug and should not happen. Please file an issue.")
+    }
+  }
+
+  /**
+   * Generates the optimized [[RelNode]] tree from the original relational node tree.
+   *
+   * @param relNode The original [[RelNode]] tree
+   * @return The optimized [[RelNode]] tree
+   */
+  private[flink] def optimize(relNode: RelNode): RelNode = {
+    val programs = config.getCalciteConfig.getBatchPrograms
+      .getOrElse(FlinkBatchPrograms.buildPrograms(config.getConf))
+    Preconditions.checkNotNull(programs)
+
+    val optimizedPlan = programs.optimize(relNode, new BatchOptimizeContext {
+      override def getContext: Context = getFrameworkConfig.getContext
+
+      override def getRelOptPlanner: RelOptPlanner = getPlanner
+    })
+
+    // Rewrite same rel object to different rel objects
+    // in order to get the correct dag (dag reuse is based on object not digest)
+    optimizedPlan.accept(new SameRelObjectShuttle())
+  }
+
+  /**
+    * Translates a [[Table]] into a [[DataStream]].
+    *
+    * The transformation involves optimizing the relational expression tree as defined by
+    * Table API calls and / or SQL queries and generating corresponding [[DataStream]] operators.
+    *
+    * @param table The root node of the relational expression tree.
+    * @param resultType The [[DataType]] of the resulting [[DataStream]].
+    * @tparam T The type of the resulting [[DataStream]].
+    * @return The [[DataStream]] that corresponds to the translated [[Table]].
+    */
+  protected def translateToDataStream[T](
+    table: Table,
+    resultType: DataType): DataStream[T] = {
+    val sink = new DataStreamTableSink[T](table, resultType, false, false)
+    val sinkName = createUniqueTableName()
+    val sinkNode = LogicalSink.create(table.getRelNode, sink, sinkName)
+    val optimizedPlan = optimize(sinkNode)
+    val optimizedNodes = translateNodeDag(Seq(optimizedPlan))
+    require(optimizedNodes.size() == 1)
+    val transformation = translate(optimizedNodes.head, resultType)
+    new DataStream(execEnv, transformation).asInstanceOf[DataStream[T]]
+  }
+
+  /**
+    * Convert [[BatchPhysicalRel]] DAG to [[BatchExecNode]] DAG and translate them.
+    */
+  @VisibleForTesting
+  private[flink] def translateNodeDag(rels: Seq[RelNode]): Seq[BatchExecNode[_]] = {
+    require(rels.nonEmpty && rels.forall(_.isInstanceOf[BatchPhysicalRel]))
+    // reuse subplan
+    val reusedPlan = SubplanReuseUtil.reuseSubplan(rels, config)
+    // convert BatchPhysicalRel DAG to BatchExecNode DAG
+    val nodeDag = reusedPlan.map(_.asInstanceOf[BatchExecNode[_]])
+    // breakup deadlock
+    // TODO move DeadlockBreakupProcessor into batch DAGProcessors
+    val nodeDagWithoutDeadlock = new DeadlockBreakupProcessor().process(
+      nodeDag, new DAGProcessContext(this))
+    // build running units
+    nodeDagWithoutDeadlock.foreach(n => ruKeeper.buildRUs(n.asInstanceOf[BatchExecNode[_]]))
+    // call processors
+    val dagProcessors = getConfig.getBatchDAGProcessors
+    require(dagProcessors != null)
+    val postNodeDag = dagProcessors.process(
+      nodeDagWithoutDeadlock, new DAGProcessContext(this, ruKeeper.getRunningUnitMap))
+
+    dumpOptimizedPlanIfNeed(postNodeDag)
+    postNodeDag.map(_.asInstanceOf[BatchExecNode[_]])
+  }
+
+  /**
+    * Optimize the RelNode tree (or DAG), and translate the result to ExecNode tree (or DAG).
+    */
+  @VisibleForTesting
+  private[flink] override def optimizeAndTranslateNodeDag(
+      dagOptimizeEnabled: Boolean,
+      logicalNodes: LogicalNode*): Seq[ExecNode[_, _]] = {
+    if (logicalNodes.isEmpty) {
+      throw new TableException(TableErrors.INST.sqlCompileNoSinkTblError())
+    }
+    val nodeDag = if (dagOptimizeEnabled) {
+      val optLogicalNodes = tableServiceManager.cachePlanBuilder.buildPlanIfNeeded(logicalNodes)
+      // optimize dag
+      val optRelNodes = BatchDAGOptimizer.optimize(optLogicalNodes, this)
+      // translate node dag
+      translateNodeDag(optRelNodes)
+    } else {
+      require(logicalNodes.size == 1)
+      val sinkTable = new Table(this, logicalNodes.head)
+      val originTree = sinkTable.getRelNode
+      // optimize tree
+      val optimizedTree = optimize(originTree)
+      // translate node tree
+      translateNodeDag(Seq(optimizedTree))
+    }
+    require(nodeDag.size() == logicalNodes.size)
+    nodeDag
+  }
 
   /**
     * Registers an internal [[BatchTableSource]] in this [[TableEnvironment]]'s catalog without
@@ -96,11 +481,13 @@ abstract class BatchTableEnvironment(
     *
     * @param name        The name under which the [[TableSource]] is registered.
     * @param tableSource The [[TableSource]] to register.
+    * @param replace     Whether to replace the registered table.
     */
   override protected def registerTableSourceInternal(
-      name: String,
-      tableSource: TableSource[_])
-    : Unit = {
+    name: String,
+    tableSource: TableSource,
+    statistic: FlinkStatistic,
+    replace: Boolean = false): Unit = {
 
     tableSource match {
 
@@ -110,17 +497,17 @@ abstract class BatchTableEnvironment(
         getTable(name) match {
 
           // table source and/or sink is registered
-          case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
+          case Some(table: TableSourceSinkTable[_]) => table.tableSourceTable match {
 
             // wrapper contains source
-            case Some(_: TableSourceTable[_]) =>
+            case Some(_: TableSourceTable) if !replace =>
               throw new TableException(s"Table '$name' already exists. " +
                 s"Please choose a different name.")
 
             // wrapper contains only sink (not source)
             case _ =>
               val enrichedTable = new TableSourceSinkTable(
-                Some(new BatchTableSourceTable(batchTableSource)),
+                Some(new BatchTableSourceTable(batchTableSource, statistic)),
                 table.tableSinkTable)
               replaceRegisteredTable(name, enrichedTable)
           }
@@ -128,15 +515,15 @@ abstract class BatchTableEnvironment(
           // no table is registered
           case _ =>
             val newTable = new TableSourceSinkTable(
-              Some(new BatchTableSourceTable(batchTableSource)),
+              Some(new BatchTableSourceTable(batchTableSource, statistic)),
               None)
             registerTableInternal(name, newTable)
         }
 
       // not a batch table source
       case _ =>
-        throw new TableException("Only BatchTableSource can be registered in " +
-            "BatchTableEnvironment.")
+        throw new TableException("Only BatchTableSource can be " +
+          "registered in BatchTableEnvironment.")
     }
   }
 
@@ -173,37 +560,12 @@ abstract class BatchTableEnvironment(
     new BatchTableDescriptor(this, connectorDescriptor)
   }
 
-  /**
-    * Registers an external [[TableSink]] with given field names and types in this
-    * [[TableEnvironment]]'s catalog.
-    * Registered sink tables can be referenced in SQL DML statements.
-    *
-    * Example:
-    *
-    * {{{
-    *   // create a table sink and its field names and types
-    *   val fieldNames: Array[String] = Array("a", "b", "c")
-    *   val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.INT, Types.LONG)
-    *   val tableSink: BatchTableSink = new YourTableSinkImpl(...)
-    *
-    *   // register the table sink in the catalog
-    *   tableEnv.registerTableSink("output_table", fieldNames, fieldsTypes, tableSink)
-    *
-    *   // use the registered sink
-    *   tableEnv.sqlUpdate("INSERT INTO output_table SELECT a, b, c FROM sourceTable")
-    * }}}
-    *
-    * @param name       The name under which the [[TableSink]] is registered.
-    * @param fieldNames The field names to register with the [[TableSink]].
-    * @param fieldTypes The field types to register with the [[TableSink]].
-    * @param tableSink  The [[TableSink]] to register.
-    */
-  def registerTableSink(
+  override def registerTableSinkInternal(
       name: String,
       fieldNames: Array[String],
-      fieldTypes: Array[TypeInformation[_]],
-      tableSink: TableSink[_]): Unit = {
-    // validate
+      fieldTypes: Array[DataType],
+      tableSink: TableSink[_],
+      replace: Boolean): Unit = {
     checkValidTableName(name)
     if (fieldNames == null) throw new TableException("fieldNames must not be null.")
     if (fieldTypes == null) throw new TableException("fieldTypes must not be null.")
@@ -214,22 +576,13 @@ abstract class BatchTableEnvironment(
 
     // configure and register
     val configuredSink = tableSink.configure(fieldNames, fieldTypes)
-    registerTableSinkInternal(name, configuredSink)
+    registerTableSinkInternal(name, configuredSink, replace)
   }
 
-  /**
-    * Registers an external [[TableSink]] with already configured field names and field types in
-    * this [[TableEnvironment]]'s catalog.
-    * Registered sink tables can be referenced in SQL DML statements.
-    *
-    * @param name The name under which the [[TableSink]] is registered.
-    * @param configuredSink The configured [[TableSink]] to register.
-    */
-  def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = {
-    registerTableSinkInternal(name, configuredSink)
-  }
-
-  private def registerTableSinkInternal(name: String, configuredSink: TableSink[_]): Unit = {
+  protected def registerTableSinkInternal(
+      name: String,
+      configuredSink: TableSink[_],
+      replace: Boolean): Unit = {
     // validate
     checkValidTableName(name)
     if (configuredSink.getFieldNames == null || configuredSink.getFieldTypes == null) {
@@ -246,16 +599,16 @@ abstract class BatchTableEnvironment(
     configuredSink match {
 
       // check for proper batch table sink
-      case _: BatchTableSink[_] =>
+      case _: BatchTableSink[_] | _: BatchCompatibleStreamTableSink[_] =>
 
         // check if a table (source or sink) is registered
         getTable(name) match {
 
           // table source and/or sink is registered
-          case Some(table: TableSourceSinkTable[_, _]) => table.tableSinkTable match {
+          case Some(table: TableSourceSinkTable[_]) => table.tableSinkTable match {
 
             // wrapper contains sink
-            case Some(_: TableSinkTable[_]) =>
+            case Some(_: TableSinkTable[_]) if !replace =>
               throw new TableException(s"Table '$name' already exists. " +
                 s"Please choose a different name.")
 
@@ -282,238 +635,132 @@ abstract class BatchTableEnvironment(
   }
 
   /**
-    * Writes a [[Table]] to a [[TableSink]].
-    *
-    * Internally, the [[Table]] is translated into a [[DataSet]] and handed over to the
-    * [[TableSink]] to write it.
-    *
-    * @param table The [[Table]] to write.
-    * @param sink The [[TableSink]] to write the [[Table]] to.
-    * @param queryConfig The configuration for the query to generate.
-    * @tparam T The expected type of the [[DataSet]] which represents the [[Table]].
+    * Merge global job parameters and table config parameters,
+    * and set the merged result to GlobalJobParameters
     */
-  override private[flink] def writeToSink[T](
-      table: Table,
-      sink: TableSink[T],
-      queryConfig: QueryConfig): Unit = {
+  private def mergeParameters(): Unit = {
+    if (streamEnv != null && streamEnv.getConfig != null) {
+      val parameters = new Configuration()
+      if (config != null && config.getConf != null) {
+        parameters.addAll(config.getConf)
+      }
 
-    // Check the query configuration to be a batch one.
-    val batchQueryConfig = queryConfig match {
-      case batchConfig: BatchQueryConfig => batchConfig
-      case _ =>
-        throw new TableException("BatchQueryConfig required to configure batch query.")
-    }
+      if (streamEnv.getConfig.getGlobalJobParameters != null) {
+        streamEnv.getConfig.getGlobalJobParameters.toMap.asScala.foreach {
+          kv => parameters.setString(kv._1, kv._2)
+        }
+      }
 
-    sink match {
-      case batchSink: BatchTableSink[T] =>
-        val outputType = sink.getOutputType
-        // translate the Table into a DataSet and provide the type that the TableSink expects.
-        val result: DataSet[T] = translate(table, batchQueryConfig)(outputType)
-        // Give the DataSet to the TableSink to emit it.
-        batchSink.emitDataSet(result)
-      case _ =>
-        throw new TableException("BatchTableSink required to emit batch Table.")
+      streamEnv.getConfig.setGlobalJobParameters(parameters)
     }
   }
 
   /**
-    * Creates a final converter that maps the internal row type to external type.
-    *
-    * @param physicalTypeInfo the input of the sink
-    * @param schema the input schema with correct field names (esp. for POJO field mapping)
-    * @param requestedTypeInfo the output type of the sink
-    * @param functionName name of the map function. Must not be unique but has to be a
-    *                     valid Java class identifier.
-    */
-  protected def getConversionMapper[IN, OUT](
-      physicalTypeInfo: TypeInformation[IN],
-      schema: RowSchema,
-      requestedTypeInfo: TypeInformation[OUT],
-      functionName: String)
-    : Option[MapFunction[IN, OUT]] = {
-
-    val converterFunction = generateRowConverterFunction[OUT](
-      physicalTypeInfo.asInstanceOf[TypeInformation[Row]],
-      schema,
-      requestedTypeInfo,
-      functionName
-    )
-
-    // add a runner if we need conversion
-    converterFunction.map { func =>
-      new MapRunner[IN, OUT](
-          func.name,
-          func.code,
-          func.returnType)
-    }
-  }
-
-  /**
-    * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
-    * the result of the given [[Table]].
-    *
-    * @param table The table for which the AST and execution plan will be returned.
-    * @param extended Flag to include detailed optimizer estimates.
-    */
+   * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
+   * the result of the given [[Table]].
+   *
+   * @param table    The table for which the AST and execution plan will be returned.
+   * @param extended Flag to include detailed optimizer estimates.
+   */
   private[flink] def explain(table: Table, extended: Boolean): String = {
     val ast = table.getRelNode
-    val optimizedPlan = optimize(ast)
-    val dataSet = translate[Row](optimizedPlan, ast.getRowType, queryConfig) (
-      new GenericTypeInfo (classOf[Row]))
-    dataSet.output(new DiscardingOutputFormat[Row])
-    val env = dataSet.getExecutionEnvironment
-    val jasonSqlPlan = env.getExecutionPlan
-    val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, extended)
+    // explain as simple tree, ignore dag optimization if it's enabled
+    val optimizedNode = optimizeAndTranslateNodeDag(false, table.logicalPlan).head
 
-    s"== Abstract Syntax Tree ==" +
-        System.lineSeparator +
-        s"${RelOptUtil.toString(ast)}" +
-        System.lineSeparator +
-        s"== Optimized Logical Plan ==" +
-        System.lineSeparator +
-        s"${RelOptUtil.toString(optimizedPlan)}" +
-        System.lineSeparator +
-        s"== Physical Execution Plan ==" +
-        System.lineSeparator +
-        s"$sqlPlan"
-  }
+    val fieldTypes = ast.getRowType.getFieldList.asScala
+      .map(field => FlinkTypeFactory.toInternalType(field.getType))
+    val transformation = translate(optimizedNode, new RowType(fieldTypes: _*))
+    val streamGraph = translateStreamGraph(ArrayBuffer(transformation), None)
 
-  /**
-    * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
-    * the result of the given [[Table]].
-    *
-    * @param table The table for which the AST and execution plan will be returned.
-    */
-  def explain(table: Table): String = explain(table: Table, extended = false)
+    val executionPlan = PlanUtil.explainPlan(streamGraph)
 
-  /**
-    * Registers a [[DataSet]] as a table under a given name in the [[TableEnvironment]]'s catalog.
-    *
-    * @param name The name under which the table is registered in the catalog.
-    * @param dataSet The [[DataSet]] to register as table in the catalog.
-    * @tparam T the type of the [[DataSet]].
-    */
-  protected def registerDataSetInternal[T](name: String, dataSet: DataSet[T]): Unit = {
-
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](dataSet.getType)
-    val dataSetTable = new DataSetTable[T](
-      dataSet,
-      fieldIndexes,
-      fieldNames
-    )
-    registerTableInternal(name, dataSetTable)
-  }
-
-  /**
-    * Registers a [[DataSet]] as a table under a given name with field names as specified by
-    * field expressions in the [[TableEnvironment]]'s catalog.
-    *
-    * @param name The name under which the table is registered in the catalog.
-    * @param dataSet The [[DataSet]] to register as table in the catalog.
-    * @param fields The field expressions to define the field names of the table.
-    * @tparam T The type of the [[DataSet]].
-    */
-  protected def registerDataSetInternal[T](
-      name: String, dataSet: DataSet[T], fields: Array[Expression]): Unit = {
-
-    val inputType = dataSet.getType
-
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](
-      inputType,
-      fields)
-
-    if (fields.exists(_.isInstanceOf[TimeAttribute])) {
-      throw new ValidationException(
-        ".rowtime and .proctime time indicators are not allowed in a batch environment.")
+    val (explainLevel, withResource, withMemCost) = if (extended) {
+      (SqlExplainLevel.ALL_ATTRIBUTES, true, true)
+    } else {
+      (SqlExplainLevel.EXPPLAN_ATTRIBUTES, false, false)
     }
 
-    val dataSetTable = new DataSetTable[T](dataSet, fieldIndexes, fieldNames)
-    registerTableInternal(name, dataSetTable)
+    s"== Abstract Syntax Tree ==" +
+      System.lineSeparator +
+      s"${FlinkRelOptUtil.toString(ast)}" +
+      System.lineSeparator +
+      s"== Optimized Logical Plan ==" +
+      System.lineSeparator +
+      s"${FlinkNodeOptUtil.treeToString(
+        optimizedNode, explainLevel, withResource, withMemCost)}" +
+      System.lineSeparator +
+      s"== Physical Execution Plan ==" +
+      System.lineSeparator +
+      s"$executionPlan"
+  }
+
+  def explain(table: Table): String = explain(table: Table, extended = false)
+
+  def explain(extended: Boolean = false): String = {
+    if (!config.getSubsectionOptimization) {
+      throw new TableException("Can not explain due to subsection optimization is not supported, " +
+        "please check your TableConfig.")
+    }
+
+    val sinkExecNodes = optimizeAndTranslateNodeDag(true, sinkNodes: _*)
+
+    val sb = new StringBuilder
+    sb.append("== Abstract Syntax Tree ==")
+    sb.append(System.lineSeparator)
+    sinkNodes.foreach { sink =>
+      val table = new Table(this, sink.children.head)
+      val ast = table.getRelNode
+      sb.append(FlinkRelOptUtil.toString(ast))
+      sb.append(System.lineSeparator)
+    }
+
+    sb.append("== Optimized Logical Plan ==")
+    sb.append(System.lineSeparator)
+    val (explainLevel, withResource, withMemCost) = if (extended) {
+      (SqlExplainLevel.ALL_ATTRIBUTES, true, true)
+    } else {
+      (SqlExplainLevel.EXPPLAN_ATTRIBUTES, false, false)
+    }
+    sb.append(FlinkNodeOptUtil.dagToString(sinkExecNodes, explainLevel, withResource, withMemCost))
+
+    val sinkTransformations = translate(sinkExecNodes)
+    val streamGraph = StreamGraphGenerator.generate(
+      StreamGraphGenerator.Context.buildBatchProperties(streamEnv), sinkTransformations)
+    val sqlPlan = PlanUtil.explainPlan(streamGraph)
+    sb.append("== Physical Execution Plan ==")
+    sb.append(System.lineSeparator)
+    sb.append(sqlPlan)
+    sb.toString()
   }
 
   /**
-    * Returns the built-in normalization rules that are defined by the environment.
-    */
-  protected def getBuiltInNormRuleSet: RuleSet = FlinkRuleSets.DATASET_NORM_RULES
-
-  /**
-    * Returns the built-in optimization rules that are defined by the environment.
-    */
-  protected def getBuiltInPhysicalOptRuleSet: RuleSet = FlinkRuleSets.DATASET_OPT_RULES
-
-  /**
-    * Generates the optimized [[RelNode]] tree from the original relational node tree.
-    *
-    * @param relNode The original [[RelNode]] tree
-    * @return The optimized [[RelNode]] tree
-    */
-  private[flink] def optimize(relNode: RelNode): RelNode = {
-    val convSubQueryPlan = optimizeConvertSubQueries(relNode)
-    val expandedPlan = optimizeExpandPlan(convSubQueryPlan)
-    val decorPlan = RelDecorrelator.decorrelateQuery(expandedPlan)
-    val normalizedPlan = optimizeNormalizeLogicalPlan(decorPlan)
-    val logicalPlan = optimizeLogicalPlan(normalizedPlan)
-    optimizePhysicalPlan(logicalPlan, FlinkConventions.DATASET)
+   * Dump stream graph plan with accumulated operator metrics if config enabled.
+   *
+   * @param streamGraph streamGraph
+   * @param jobResult   job result of stream graph
+   */
+  private[this] def dumpPlanWithMetricsIfNeed(
+      streamGraph: StreamGraph,
+      jobResult: JobExecutionResult): Unit = {
+    val dumpFilePath = config.getConf.getString(
+      TableConfigOptions.SQL_EXEC_OPERATOR_METRIC_DUMP_PATH)
+    if (config.getConf.getBoolean(TableConfigOptions.SQL_EXEC_OPERATOR_METRIC_DUMP_ENABLED)
+        && dumpFilePath != null) {
+      streamGraph.dumpPlanWithMetrics(dumpFilePath, jobResult)
+    }
   }
 
   /**
-    * Translates a [[Table]] into a [[DataSet]].
+    * Dump optimized plan if config enabled.
     *
-    * The transformation involves optimizing the relational expression tree as defined by
-    * Table API calls and / or SQL queries and generating corresponding [[DataSet]] operators.
-    *
-    * @param table The root node of the relational expression tree.
-    * @param queryConfig The configuration for the query to generate.
-    * @param tpe   The [[TypeInformation]] of the resulting [[DataSet]].
-    * @tparam A The type of the resulting [[DataSet]].
-    * @return The [[DataSet]] that corresponds to the translated [[Table]].
+    * @param optimizedNodes optimized plan
     */
-  protected def translate[A](
-      table: Table,
-      queryConfig: BatchQueryConfig)(implicit tpe: TypeInformation[A]): DataSet[A] = {
-    val relNode = table.getRelNode
-    val dataSetPlan = optimize(relNode)
-    translate(dataSetPlan, relNode.getRowType, queryConfig)
-  }
+  private[this] def dumpOptimizedPlanIfNeed(optimizedNodes: Seq[ExecNode[_, _]]): Unit = {
+    val dumpFilePath = config.getConf.getString(TableConfigOptions.SQL_OPTIMIZER_PLAN_DUMP_PATH)
+    val planDump = config.getConf.getBoolean(TableConfigOptions.SQL_OPTIMIZER_PLAN_DUMP_ENABLED)
 
-  /**
-    * Translates a logical [[RelNode]] into a [[DataSet]]. Converts to target type if necessary.
-    *
-    * @param logicalPlan The root node of the relational expression tree.
-    * @param logicalType The row type of the result. Since the logicalPlan can lose the
-    *                    field naming during optimization we pass the row type separately.
-    * @param queryConfig The configuration for the query to generate.
-    * @param tpe         The [[TypeInformation]] of the resulting [[DataSet]].
-    * @tparam A The type of the resulting [[DataSet]].
-    * @return The [[DataSet]] that corresponds to the translated [[Table]].
-    */
-  protected def translate[A](
-      logicalPlan: RelNode,
-      logicalType: RelDataType,
-      queryConfig: BatchQueryConfig)(implicit tpe: TypeInformation[A]): DataSet[A] = {
-    TableEnvironment.validateType(tpe)
-
-    logicalPlan match {
-      case node: DataSetRel =>
-        val plan = node.translateToPlan(this, queryConfig)
-        val conversion =
-          getConversionMapper(
-            plan.getType,
-            new RowSchema(logicalType),
-            tpe,
-            "DataSetSinkConversion")
-        conversion match {
-          case None => plan.asInstanceOf[DataSet[A]] // no conversion necessary
-          case Some(mapFunction: MapFunction[Row, A]) =>
-            plan.map(mapFunction)
-              .returns(tpe)
-              .name(s"to: ${tpe.getTypeClass.getSimpleName}")
-              .asInstanceOf[DataSet[A]]
-        }
-
-      case _ =>
-        throw new TableException("Cannot generate DataSet due to an invalid logical plan. " +
-          "This is a bug and should not happen. Please file an issue.")
+    if (planDump && dumpFilePath != null) {
+      dumpExecNodes(optimizedNodes, dumpFilePath)
     }
   }
 }

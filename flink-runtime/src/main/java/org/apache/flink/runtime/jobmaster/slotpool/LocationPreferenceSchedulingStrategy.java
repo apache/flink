@@ -21,20 +21,18 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
@@ -44,38 +42,18 @@ public class LocationPreferenceSchedulingStrategy implements SchedulingStrategy 
 
 	private static final LocationPreferenceSchedulingStrategy INSTANCE = new LocationPreferenceSchedulingStrategy();
 
-	/**
-	 * Calculates the candidate's locality score.
-	 */
-	private static final BiFunction<Integer, Integer, Integer> LOCALITY_EVALUATION_FUNCTION = (localWeigh, hostLocalWeigh) -> localWeigh * 10 + hostLocalWeigh;
-
 	LocationPreferenceSchedulingStrategy() {}
 
 	@Nullable
 	@Override
 	public <IN, OUT> OUT findMatchWithLocality(
-			@Nonnull SlotProfile slotProfile,
-			@Nonnull Supplier<Stream<IN>> candidates,
-			@Nonnull Function<IN, SlotInfo> contextExtractor,
-			@Nonnull Predicate<IN> additionalRequirementsFilter,
-			@Nonnull BiFunction<IN, Locality, OUT> resultProducer) {
-
-		return doFindMatchWithLocality(
-			slotProfile,
-			candidates.get(),
-			contextExtractor,
-			additionalRequirementsFilter,
-			resultProducer);
-	}
-
-	@Nullable
-	protected  <IN, OUT> OUT doFindMatchWithLocality(
 		@Nonnull SlotProfile slotProfile,
 		@Nonnull Stream<IN> candidates,
-		@Nonnull Function<IN, SlotInfo> contextExtractor,
+		@Nonnull Function<IN, SlotContext> contextExtractor,
 		@Nonnull Predicate<IN> additionalRequirementsFilter,
 		@Nonnull BiFunction<IN, Locality, OUT> resultProducer) {
-		Collection<TaskManagerLocation> locationPreferences = slotProfile.getPreferredLocations();
+
+		final Collection<TaskManagerLocation> locationPreferences = slotProfile.getPreferredLocations();
 
 		// if we have no location preferences, we can only filter by the additional requirements.
 		if (locationPreferences.isEmpty()) {
@@ -87,43 +65,64 @@ public class LocationPreferenceSchedulingStrategy implements SchedulingStrategy 
 		}
 
 		// we build up two indexes, one for resource id and one for host names of the preferred locations.
-		final Map<ResourceID, Integer> preferredResourceIDs = new HashMap<>(locationPreferences.size());
-		final Map<String, Integer> preferredFQHostNames = new HashMap<>(locationPreferences.size());
+		HashSet<ResourceID> preferredResourceIDs = new HashSet<>(locationPreferences.size());
+		HashSet<String> preferredFQHostNames = new HashSet<>(locationPreferences.size());
 
 		for (TaskManagerLocation locationPreference : locationPreferences) {
-			preferredResourceIDs.merge(locationPreference.getResourceID(), 1, Integer::sum);
-			preferredFQHostNames.merge(locationPreference.getFQDNHostname(), 1, Integer::sum);
+			preferredResourceIDs.add(locationPreference.getResourceID());
+			preferredFQHostNames.add(locationPreference.getFQDNHostname());
 		}
 
 		Iterator<IN> iterator = candidates.iterator();
 
-		IN bestCandidate = null;
-		int bestCandidateScore = Integer.MIN_VALUE;
-		Locality bestCandidateLocality = null;
+		IN matchByHostName = null;
+		IN matchByAdditionalRequirements = null;
 
 		while (iterator.hasNext()) {
+
 			IN candidate = iterator.next();
-			if (additionalRequirementsFilter.test(candidate)) {
-				SlotInfo slotContext = contextExtractor.apply(candidate);
+			SlotContext slotContext = contextExtractor.apply(candidate);
 
-				// this gets candidate is local-weigh
-				Integer localWeigh = preferredResourceIDs.getOrDefault(slotContext.getTaskManagerLocation().getResourceID(), 0);
+			// this if checks if the candidate has is a local slot
+			if (preferredResourceIDs.contains(slotContext.getTaskManagerLocation().getResourceID())) {
+				if (additionalRequirementsFilter.test(candidate)) {
+					// we can stop, because we found a match with best possible locality.
+					return resultProducer.apply(candidate, Locality.LOCAL);
+				} else {
+					// next candidate because this failed on the additional requirements.
+					continue;
+				}
+			}
 
-				// this gets candidate is host-local-weigh
-				Integer hostLocalWeigh = preferredFQHostNames.getOrDefault(slotContext.getTaskManagerLocation().getFQDNHostname(), 0);
+			// this if checks if the candidate is at least host-local, if we did not find another host-local
+			// candidate before.
+			if (matchByHostName == null) {
+				if (preferredFQHostNames.contains(slotContext.getTaskManagerLocation().getFQDNHostname())) {
+					if (additionalRequirementsFilter.test(candidate)) {
+						// We remember the candidate, but still continue because there might still be a candidate
+						// that is local to the desired task manager.
+						matchByHostName = candidate;
+					} else {
+						// next candidate because this failed on the additional requirements.
+						continue;
+					}
+				}
 
-				int candidateScore = LOCALITY_EVALUATION_FUNCTION.apply(localWeigh, hostLocalWeigh);
-				if (candidateScore > bestCandidateScore) {
-					bestCandidateScore = candidateScore;
-					bestCandidate = candidate;
-					bestCandidateLocality = localWeigh > 0 ? Locality.LOCAL : hostLocalWeigh > 0 ? Locality.HOST_LOCAL : Locality.NON_LOCAL;
+				// this if checks if the candidate at least fulfils the resource requirements, and is only required
+				// if we did not yet find a valid candidate with better locality.
+				if (matchByAdditionalRequirements == null
+					&& additionalRequirementsFilter.test(candidate)) {
+					// Again, we remember but continue in hope for a candidate with better locality.
+					matchByAdditionalRequirements = candidate;
 				}
 			}
 		}
 
 		// at the end of the iteration, we return the candidate with best possible locality or null.
-		if (bestCandidate != null) {
-			return resultProducer.apply(bestCandidate, bestCandidateLocality);
+		if (matchByHostName != null) {
+			return resultProducer.apply(matchByHostName, Locality.HOST_LOCAL);
+		} else if (matchByAdditionalRequirements != null) {
+			return resultProducer.apply(matchByAdditionalRequirements, Locality.NON_LOCAL);
 		} else {
 			return null;
 		}

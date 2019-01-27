@@ -20,13 +20,11 @@ package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
-import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.AbstractAggregatedMetricsParameters;
@@ -90,12 +88,11 @@ public abstract class AggregatingMetricsHandlerTestBase<
 
 	@Before
 	public void setUp() throws Exception {
-		MetricFetcher fetcher = new MetricFetcherImpl<RestfulGateway>(
+		MetricFetcher<RestfulGateway> fetcher = new MetricFetcher<RestfulGateway>(
 			mock(GatewayRetriever.class),
 			mock(MetricQueryServiceRetriever.class),
 			Executors.directExecutor(),
-			TestingUtils.TIMEOUT(),
-			MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
+			TestingUtils.TIMEOUT());
 		store = fetcher.getMetricStore();
 
 		Collection<MetricDump> metricDumps = getMetricDumps();
@@ -104,6 +101,7 @@ public abstract class AggregatingMetricsHandlerTestBase<
 		}
 
 		handler = getHandler(
+			TEST_REST_ADDRESS,
 			LEADER_RETRIEVER,
 			TIMEOUT,
 			TEST_HEADERS,
@@ -121,11 +119,12 @@ public abstract class AggregatingMetricsHandlerTestBase<
 	protected abstract Collection<MetricDump> getMetricDumps();
 
 	protected abstract H getHandler(
+		CompletableFuture<String> localRestAddress,
 		GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 		Time timeout,
 		Map<String, String> responseHeaders,
 		Executor executor,
-		MetricFetcher fetcher
+		MetricFetcher<?> fetcher
 	);
 
 	@Test

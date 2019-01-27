@@ -20,8 +20,9 @@ package org.apache.flink.table.api.scala
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.Table
+import org.apache.flink.table.api.functions.TableFunction
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.TableFunction
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getResultTypeOfCTDFunction
 import org.apache.flink.table.plan.logical.LogicalTableFunctionCall
 
 /**
@@ -38,9 +39,8 @@ class TableFunctionConversions[T](tf: TableFunction[T]) {
     * @return A [[Table]] with which represents the [[LogicalTableFunctionCall]].
     */
   final def apply(args: Expression*)(implicit typeInfo: TypeInformation[T]): Table = {
-
-    val resultType = if (tf.getResultType == null) typeInfo else tf.getResultType
-
+    val resultType = getResultTypeOfCTDFunction(
+      tf, args.toArray, () => typeInfo)
     new Table(
       tableEnv = null, // Table environment will be set later.
       LogicalTableFunctionCall(
@@ -49,7 +49,7 @@ class TableFunctionConversions[T](tf: TableFunction[T]) {
         args.toList,
         resultType,
         Array.empty,
-        child = null // Child will be set later.
+        input = null // Input will be set later.
       )
     )
   }

@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.sources
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.types.InternalType
 import org.apache.flink.table.expressions.{Expression, ResolvedFieldReference}
 
 /**
@@ -42,7 +42,7 @@ abstract class FieldComputer[T] {
     *
     * @return The result type of the expression.
     */
-  def getReturnType: TypeInformation[T]
+  def getReturnType: InternalType
 
   /**
     * Validates that the fields that the expression references have the correct types.
@@ -50,7 +50,7 @@ abstract class FieldComputer[T] {
     * @param argumentFieldTypes The types of the physical input fields.
     */
   @throws[ValidationException]
-  def validateArgumentFields(argumentFieldTypes: Array[TypeInformation[_]]): Unit
+  def validateArgumentFields(argumentFieldTypes: Array[InternalType]): Unit
 
   /**
     * Returns the [[Expression]] that computes the value of the field.

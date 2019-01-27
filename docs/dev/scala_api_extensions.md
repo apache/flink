@@ -269,7 +269,7 @@ data.keyingBy {
     </tr>
     <tr>
       <td><strong>mapWith</strong></td>
-      <td><strong>map (ConnectedDataStream)</strong></td>
+      <td><strong>map (ConnectedStreams)</strong></td>
       <td>
 {% highlight scala %}
 data.mapWith(
@@ -281,7 +281,7 @@ data.mapWith(
     </tr>
     <tr>
       <td><strong>flatMapWith</strong></td>
-      <td><strong>flatMap (ConnectedDataStream)</strong></td>
+      <td><strong>flatMap (ConnectedStreams)</strong></td>
       <td>
 {% highlight scala %}
 data.flatMapWith(
@@ -293,7 +293,7 @@ data.flatMapWith(
     </tr>
     <tr>
       <td><strong>keyingBy</strong></td>
-      <td><strong>keyBy (ConnectedDataStream)</strong></td>
+      <td><strong>keyBy (ConnectedStreams)</strong></td>
       <td>
 {% highlight scala %}
 data.keyingBy(

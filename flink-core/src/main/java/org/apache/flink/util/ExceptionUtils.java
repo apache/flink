@@ -364,7 +364,7 @@ public final class ExceptionUtils {
 
 		Throwable t = throwable;
 		while (t != null) {
-			if (t.getMessage() != null && t.getMessage().contains(searchMessage)) {
+			if (t.getMessage().contains(searchMessage)) {
 				return Optional.of(t);
 			} else {
 				t = t.getCause();
@@ -382,7 +382,11 @@ public final class ExceptionUtils {
 	 * @return Cause of ExecutionException or given Throwable
 	 */
 	public static Throwable stripExecutionException(Throwable throwable) {
-		return stripException(throwable, ExecutionException.class);
+		while (throwable instanceof ExecutionException && throwable.getCause() != null) {
+			throwable = throwable.getCause();
+		}
+
+		return throwable;
 	}
 
 	/**
@@ -393,23 +397,11 @@ public final class ExceptionUtils {
 	 * @return Cause of CompletionException or given Throwable
 	 */
 	public static Throwable stripCompletionException(Throwable throwable) {
-		return stripException(throwable, CompletionException.class);
-	}
-
-	/**
-	 * Unpacks an specified exception and returns its cause. Otherwise the given
-	 * {@link Throwable} is returned.
-	 *
-	 * @param throwableToStrip to strip
-	 * @param typeToStrip type to strip
-	 * @return Unpacked cause or given Throwable if not packed
-	 */
-	public static Throwable stripException(Throwable throwableToStrip, Class<? extends Throwable> typeToStrip) {
-		while (typeToStrip.isAssignableFrom(throwableToStrip.getClass()) && throwableToStrip.getCause() != null) {
-			throwableToStrip = throwableToStrip.getCause();
+		while (throwable instanceof CompletionException && throwable.getCause() != null) {
+			throwable = throwable.getCause();
 		}
 
-		return throwableToStrip;
+		return throwable;
 	}
 
 	/**

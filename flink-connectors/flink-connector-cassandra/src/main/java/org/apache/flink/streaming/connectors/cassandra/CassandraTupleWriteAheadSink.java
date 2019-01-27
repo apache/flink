@@ -158,4 +158,9 @@ public class CassandraTupleWriteAheadSink<IN extends Tuple> extends GenericWrite
 			return true;
 		}
 	}
+
+	@Override
+	public void endInput() throws Exception {
+		// do nothing now.
+	}
 }

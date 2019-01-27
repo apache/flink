@@ -18,47 +18,45 @@
 
 package org.apache.flink.table.sources
 
-import org.apache.flink.api.scala.DataSet
-import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.api.types.DataType
+import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.util.TableConnectorUtil
 
-/**
-  * Defines an external table with the schema that is provided by [[TableSource#getTableSchema]].
+/** Defines an external table by providing schema information and used to produce a
+  * [[org.apache.flink.api.scala.DataSet]] or [[org.apache.flink.streaming.api.scala.DataStream]].
+  * Schema information consists of a data type, field names, and corresponding indices of
+  * these names in the data type.
   *
-  * The data of a [[TableSource]] is produced as a [[DataSet]] in case of a [[BatchTableSource]] or
-  * as a [[DataStream]] in case of a [[StreamTableSource]].
-  * The type of ths produced [[DataSet]] or [[DataStream]] is specified by the
-  * [[TableSource#getReturnType]] method.
+  * To define a TableSource one needs to implement [[TableSource#getReturnType]]. In this case
+  * field names and field indices are derived from the returned type.
   *
-  * By default, the fields of the [[TableSchema]] are implicitly mapped by name to the fields of the
-  * return type [[TypeInformation]]. An explicit mapping can be defined by implementing the
-  * [[DefinedFieldMapping]] interface.
-  *
-  * @tparam T The return type of the [[TableSource]].
+  * In case if custom field names are required one need to additionally implement
+  * the [[DefinedFieldMapping]] trait.
   */
-trait TableSource[T] {
+trait TableSource {
 
-  /** Returns the [[TypeInformation]] for the return type of the [[TableSource]].
-    * The fields of the return type are mapped to the table schema based on their name.
-    *
-    * @return The type of the returned [[DataSet]] or [[DataStream]].
-    */
-  def getReturnType: TypeInformation[T]
+  /** Returns the [[DataType]] for the return type of the [[TableSource]]. */
+  def getReturnType: DataType
 
-  /**
-    * Returns the schema of the produced table.
-    *
-    * @return The [[TableSchema]] of the produced table.
-    */
+  /** Returns the table schema of the table source */
   def getTableSchema: TableSchema
 
-  /**
-    * Describes the table source.
+  /** Describes the table source, it will be used for computing qualified names of
+    * [[org.apache.flink.table.plan.schema.FlinkRelOptTable]].
     *
-    * @return A String explaining the [[TableSource]].
-    */
+    * Naming Convention that developers MUST follow:
+    *
+    * "<connector_type_name>-<stream_table_name>"
+    *
+    * Note: After project push down or filter push down, the explainSource value of new TableSource
+    * should be different with the original one.
+    *
+    *  */
   def explainSource(): String =
-    TableConnectorUtil.generateRuntimeName(getClass, getTableSchema.getFieldNames)
+    TableConnectorUtil.generateRuntimeName(getClass, getTableSchema.getColumnNames)
+
+  /** Returns the statistics of the table. */
+  def getTableStats: TableStats = null
+
 }

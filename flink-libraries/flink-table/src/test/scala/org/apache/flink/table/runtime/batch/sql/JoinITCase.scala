@@ -18,505 +18,756 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.TableEnvironment
+import java.util
+
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
+import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
-import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.table.runtime.batch.sql.BatchTestBase.row
+import org.apache.flink.table.runtime.batch.sql.TestData._
+import org.apache.flink.table.runtime.batch.sql.joins.JoinITCaseBase
+import org.apache.flink.table.runtime.batch.sql.joins.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
 import org.apache.flink.types.Row
-import org.junit.Assert.assertEquals
-import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.{Before, Ignore, Test}
 
-import scala.collection.JavaConverters._
+import scala.collection.Seq
 
 @RunWith(classOf[Parameterized])
-class JoinITCase(
-    configMode: TableConfigMode)
-  extends TableProgramsCollectionTestBase(configMode) {
+class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase with JoinITCaseBase {
 
-  @Test
-  def testInnerJoin(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE b = e"
-
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
-    tEnv.registerTable("Table3", ds1)
-    tEnv.registerTable("Table5", ds2)
-
-    val result = tEnv.sqlQuery(sqlQuery)
-
-    val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n"
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  @Before
+  def before(): Unit = {
+    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+    registerCollection("SmallTable3", smallData3, type3, nullablesOfSmallData3, 'a, 'b, 'c)
+    registerCollection("Table3", data3, type3, nullablesOfData3, 'a, 'b, 'c)
+    registerCollection("Table5", data5, type5, nullablesOfData5, 'd, 'e, 'f, 'g, 'h)
+    registerCollection("NullTable3", nullData3, type3, nullablesOfNullData3, 'a, 'b, 'c)
+    registerCollection("NullTable5", nullData5, type5, nullablesOfNullData5, 'd, 'e, 'f, 'g, 'h)
+    registerCollection("l", data2_1, INT_DOUBLE, 'a, 'b)
+    registerCollection("r", data2_2, INT_DOUBLE, 'c, 'd)
+    registerCollection("t", data2_3, INT_DOUBLE, nullablesOfData2_3, 'c, 'd)
+    disableOtherJoinOpForJoin(tEnv, expectedJoinType)
   }
 
   @Test
-  def testInnerJoinWithFilter(): Unit = {
+  def testJoin(): Unit = {
+    checkResult(
+      "SELECT c, g FROM SmallTable3, Table5 WHERE b = e",
+      Seq(
+        row("Hi", "Hallo"),
+        row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt")
+      ))
+  }
 
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+  @Test
+  def testJoinSameFieldEqual(): Unit = {
+    checkResult(
+      "SELECT c, g FROM SmallTable3, Table5 WHERE b = e and b = h",
+      Seq(
+        row("Hi", "Hallo"),
+        row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt")
+      ))
+  }
 
-    val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE b = e AND b < 2"
+  @Test
+  def testJoinOn(): Unit = {
+    checkResult(
+      "SELECT c, g FROM SmallTable3 JOIN Table5 ON b = e",
+      Seq(
+        row("Hi", "Hallo"),
+        row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt")
+      ))
+  }
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
-    tEnv.registerTable("Table3", ds1)
-    tEnv.registerTable("Table5", ds2)
+  @Test
+  def testJoinNoMatches(): Unit = {
+    checkResult(
+      "SELECT c, g FROM SmallTable3, Table5 where c = g",
+      Seq())
+  }
 
-    val result = tEnv.sqlQuery(sqlQuery)
+  @Test
+  def testJoinNoMatchesWithSubquery(): Unit = {
+    checkResult(
+      "SELECT c, g FROM " +
+        "(SELECT * FROM SmallTable3 WHERE b>2), (SELECT * FROM Table5 WHERE e>2) WHERE b = e",
+      Seq())
+  }
 
-    val expected = "Hi,Hallo\n"
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  @Test
+  def testJoinWithFilter(): Unit = {
+    checkResult(
+      "SELECT c, g FROM SmallTable3, Table5 WHERE b = e AND b < 2",
+      Seq(
+        row("Hi", "Hallo")
+      ))
+  }
+
+  @Test
+  def testJoinWithJoinFilter(): Unit = {
+    checkResult(
+      "SELECT c, g FROM Table3, Table5 WHERE b = e AND a < 6",
+      Seq(
+        row("Hi", "Hallo"),
+        row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt"),
+        row("Hello world, how are you?", "Hallo Welt wie"),
+        row("I am fine.", "Hallo Welt wie")
+      ))
   }
 
   @Test
   def testInnerJoinWithNonEquiJoinPredicate(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE b = e AND a < 6 AND h < b"
-
-    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
-    tEnv.registerTable("Table3", ds1)
-    tEnv.registerTable("Table5", ds2)
-
-    val result = tEnv.sqlQuery(sqlQuery)
-
-    val expected = "Hello world, how are you?,Hallo Welt wie\n" + "I am fine.,Hallo Welt wie\n"
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    checkResult(
+      "SELECT c, g FROM Table3, Table5 WHERE b = e AND a < 6 AND h < b",
+      Seq(
+        row("Hello world, how are you?", "Hallo Welt wie"),
+        row("I am fine.", "Hallo Welt wie")
+      ))
   }
 
   @Test
-  def testInnerJoinWithMultipleKeys(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE a = d AND b = h"
-
-    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
-    tEnv.registerTable("Table3", ds1)
-    tEnv.registerTable("Table5", ds2)
-
-    val result = tEnv.sqlQuery(sqlQuery)
-
-    val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt wie gehts?\n" +
-      "Hello world,ABC\n" + "I am fine.,HIJ\n" + "I am fine.,IJK\n"
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  def testJoinWithMultipleKeys(): Unit = {
+    checkResult(
+      "SELECT c, g FROM NullTable3, NullTable5 WHERE a = d AND b = h",
+      Seq(
+        row("Hi", "Hallo"),
+        row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt wie gehts?"),
+        row("Hello world", "ABC"),
+        row("I am fine.", "HIJ"),
+        row("I am fine.", "IJK")
+      ))
   }
 
   @Test
-  def testInnerJoinWithAlias(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val sqlQuery =
-      "SELECT Table5.c, T.`1-_./Ü` FROM (SELECT a, b, c AS `1-_./Ü` FROM Table3) AS T, Table5 " +
-      "WHERE a = d AND a < 4"
-
-    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'c)
-    tEnv.registerTable("Table3", ds1)
-    tEnv.registerTable("Table5", ds2)
-
-    val result = tEnv.sqlQuery(sqlQuery)
-    val expected = "1,Hi\n" + "2,Hello\n" + "1,Hello\n" +
-      "2,Hello world\n" + "2,Hello world\n" + "3,Hello world\n"
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  def testJoinWithAlias(): Unit = {
+    registerCollection("AliasTable5", data5, type5, 'd, 'e, 'f, 'g, 'c)
+    checkResult(
+      "SELECT AliasTable5.c, T.`1-_./Ü` FROM " +
+        "(SELECT a, b, c AS `1-_./Ü` FROM Table3) AS T, AliasTable5 WHERE a = d AND a < 4",
+      Seq(
+        row("1", "Hi"),
+        row("2", "Hello"),
+        row("1", "Hello"),
+        row("2", "Hello world"),
+        row("2", "Hello world"),
+        row("3", "Hello world")
+      ))
   }
 
   @Test
-  def testInnerJoinWithAggregation(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val sqlQuery = "SELECT COUNT(g), COUNT(b) FROM Table3, Table5 WHERE a = d"
-
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env)
-    tEnv.registerDataSet("Table3", ds1, 'a, 'b, 'c)
-    tEnv.registerDataSet("Table5", ds2, 'd, 'e, 'f, 'g, 'h)
-
-    val result = tEnv.sqlQuery(sqlQuery)
-
-    val expected = "6,6"
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  def testLeftJoinWithMultipleKeys(): Unit = {
+    checkResult(
+      "SELECT c, g FROM NullTable3 LEFT JOIN NullTable5 ON a = d and b = h",
+      Seq(
+        row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt wie gehts?"), row("Hello world", "ABC"),
+        row("I am fine.", "HIJ"), row("I am fine.", "IJK"),
+        row("Hello world, how are you?", null), row("Luke Skywalker", null),
+        row("Comment#1", null), row("Comment#2", null), row("Comment#3", null),
+        row("Comment#4", null), row("Comment#5", null), row("Comment#6", null),
+        row("Comment#7", null), row("Comment#8", null), row("Comment#9", null),
+        row("Comment#10", null), row("Comment#11", null), row("Comment#12", null),
+        row("Comment#13", null), row("Comment#14", null), row("Comment#15", null),
+        row("NullTuple", null), row("NullTuple", null)
+      ))
   }
 
   @Test
-  def testInnerJoinWithAggregation2(): Unit = {
+  def testLeftJoinWithNonEquiJoinPred(): Unit = {
+    checkResult(
+      "SELECT c, g FROM NullTable3 LEFT JOIN NullTable5 ON a = d and b <= h",
+      Seq(
+        row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt wie gehts?"), row("Hello world", "ABC"),
+        row("Hello world", "BCD"), row("I am fine.", "HIJ"), row("I am fine.", "IJK"),
+        row("Hello world, how are you?", null), row("Luke Skywalker", null),
+        row("Comment#1", null), row("Comment#2", null), row("Comment#3", null),
+        row("Comment#4", null), row("Comment#5", null), row("Comment#6", null),
+        row("Comment#7", null), row("Comment#8", null), row("Comment#9", null),
+        row("Comment#10", null), row("Comment#11", null), row("Comment#12", null),
+        row("Comment#13", null), row("Comment#14", null), row("Comment#15", null),
+        row("NullTuple", null), row("NullTuple", null)
+      ))
+  }
 
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+  @Test
+  def testLeftJoinWithLeftLocalPred(): Unit = {
+    checkResult(
+      "SELECT c, g FROM NullTable3 LEFT JOIN NullTable5 ON a = d and b = 2",
+      Seq(
+        row("Hi", null), row("Hello", "Hallo Welt"), row("Hello", "Hallo Welt wie"),
+        row("Hello world", "Hallo Welt wie gehts?"), row("Hello world", "ABC"),
+        row("Hello world", "BCD"), row("I am fine.", null),
+        row("Hello world, how are you?", null), row("Luke Skywalker", null),
+        row("Comment#1", null), row("Comment#2", null), row("Comment#3", null),
+        row("Comment#4", null), row("Comment#5", null), row("Comment#6", null),
+        row("Comment#7", null), row("Comment#8", null), row("Comment#9", null),
+        row("Comment#10", null), row("Comment#11", null), row("Comment#12", null),
+        row("Comment#13", null), row("Comment#14", null), row("Comment#15", null),
+        row("NullTuple", null), row("NullTuple", null)
+      ))
+  }
 
-    val sqlQuery = "SELECT COUNT(b), COUNT(g) FROM Table3, Table5 WHERE a = d"
+  @Test
+  def testRightJoinWithMultipleKeys(): Unit = {
+    checkResult(
+      "SELECT c, g FROM NullTable3 RIGHT JOIN NullTable5 ON a = d and b = h",
+      Seq(
+        row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt wie gehts?"), row("Hello world", "ABC"),
+        row("I am fine.", "HIJ"), row("I am fine.", "IJK"),
+        row(null, "Hallo Welt wie"), row(null, "BCD"), row(null, "CDE"),
+        row(null, "DEF"), row(null, "EFG"), row(null, "FGH"),
+        row(null, "GHI"), row(null, "JKL"), row(null, "KLM"),
+        row(null, "NullTuple"), row(null, "NullTuple")
+      ))
+  }
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
-    tEnv.registerTable("Table3", ds1)
-    tEnv.registerTable("Table5", ds2)
+  @Test
+  def testRightJoinWithNonEquiJoinPred(): Unit = {
+    checkResult(
+      "SELECT c, g FROM NullTable5 RIGHT JOIN NullTable3 ON a = d and b <= h",
+      Seq(
+        row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt wie gehts?"), row("Hello world", "ABC"),
+        row("Hello world", "BCD"), row("I am fine.", "HIJ"), row("I am fine.", "IJK"),
+        row("Hello world, how are you?", null), row("Luke Skywalker", null),
+        row("Comment#1", null), row("Comment#2", null), row("Comment#3", null),
+        row("Comment#4", null), row("Comment#5", null), row("Comment#6", null),
+        row("Comment#7", null), row("Comment#8", null), row("Comment#9", null),
+        row("Comment#10", null), row("Comment#11", null), row("Comment#12", null),
+        row("Comment#13", null), row("Comment#14", null), row("Comment#15", null),
+        row("NullTuple", null), row("NullTuple", null)
+      ))
+  }
 
-    val result = tEnv.sqlQuery(sqlQuery)
+  @Test
+  def testRightJoinWithLeftLocalPred(): Unit = {
+    checkResult(
+      "SELECT c, g FROM NullTable5 RIGHT JOIN NullTable3 ON a = d and b = 2",
+      Seq(
+        row("Hi", null), row("Hello", "Hallo Welt"), row("Hello", "Hallo Welt wie"),
+        row("Hello world", "Hallo Welt wie gehts?"), row("Hello world", "ABC"),
+        row("Hello world", "BCD"), row("I am fine.", null),
+        row("Hello world, how are you?", null), row("Luke Skywalker", null),
+        row("Comment#1", null), row("Comment#2", null), row("Comment#3", null),
+        row("Comment#4", null), row("Comment#5", null), row("Comment#6", null),
+        row("Comment#7", null), row("Comment#8", null), row("Comment#9", null),
+        row("Comment#10", null), row("Comment#11", null), row("Comment#12", null),
+        row("Comment#13", null), row("Comment#14", null), row("Comment#15", null),
+        row("NullTuple", null), row("NullTuple", null)
+      ))
+  }
 
-    val expected = "6,6"
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  @Test
+  def testFullOuterJoinWithMultipleKeys(): Unit = {
+    if (expectedJoinType != BroadcastHashJoin && expectedJoinType != NestedLoopJoin) {
+      checkResult(
+        "SELECT c, g FROM NullTable3 FULL JOIN NullTable5 ON a = d and b = h",
+        Seq(
+          row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
+          row("Hello world", "Hallo Welt wie gehts?"), row("Hello world", "ABC"),
+          row("I am fine.", "HIJ"), row("I am fine.", "IJK"),
+          row(null, "Hallo Welt wie"), row(null, "BCD"), row(null, "CDE"),
+          row(null, "DEF"), row(null, "EFG"), row(null, "FGH"),
+          row(null, "GHI"), row(null, "JKL"), row(null, "KLM"),
+          row("Hello world, how are you?", null), row("Luke Skywalker", null),
+          row("Comment#1", null), row("Comment#2", null), row("Comment#3", null),
+          row("Comment#4", null), row("Comment#5", null), row("Comment#6", null),
+          row("Comment#7", null), row("Comment#8", null), row("Comment#9", null),
+          row("Comment#10", null), row("Comment#11", null), row("Comment#12", null),
+          row("Comment#13", null), row("Comment#14", null), row("Comment#15", null),
+          row("NullTuple", null), row("NullTuple", null),
+          row(null, "NullTuple"), row(null, "NullTuple")
+        ))
+    }
+  }
+
+  @Test
+  def testFullJoinWithNonEquiJoinPred(): Unit = {
+    if (expectedJoinType != BroadcastHashJoin && expectedJoinType != NestedLoopJoin) {
+      checkResult(
+        "SELECT c, g FROM NullTable3 FULL JOIN NullTable5 ON a = d and b <= h",
+        Seq(
+          // join matcher
+          row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
+          row("Hello world", "Hallo Welt wie gehts?"), row("Hello world", "ABC"),
+          row("Hello world", "BCD"), row("I am fine.", "HIJ"), row("I am fine.", "IJK"),
+
+          // preserved left
+          row("Hello world, how are you?", null), row("Luke Skywalker", null),
+          row("Comment#1", null), row("Comment#2", null), row("Comment#3", null),
+          row("Comment#4", null), row("Comment#5", null), row("Comment#6", null),
+          row("Comment#7", null), row("Comment#8", null), row("Comment#9", null),
+          row("Comment#10", null), row("Comment#11", null), row("Comment#12", null),
+          row("Comment#13", null), row("Comment#14", null), row("Comment#15", null),
+          row("NullTuple", null), row("NullTuple", null),
+
+          // preserved right
+          row(null, "Hallo Welt wie"), row(null, "CDE"),
+          row(null, "DEF"), row(null, "EFG"), row(null, "FGH"),
+          row(null, "GHI"), row(null, "JKL"), row(null, "KLM"),
+          row(null, "NullTuple"), row(null, "NullTuple")
+        ))
+    }
+  }
+
+  @Test
+  def testFullJoinWithLeftLocalPred(): Unit = {
+    if (expectedJoinType != BroadcastHashJoin && expectedJoinType != NestedLoopJoin) {
+      checkResult(
+        "SELECT c, g FROM NullTable3 FULL JOIN NullTable5 ON a = d and b >= 2 and h = 1",
+        Seq(
+          // join matcher
+          row("Hello", "Hallo Welt wie"),
+          row("Hello world, how are you?", "DEF"),
+          row("Hello world, how are you?", "EFG"),
+          row("I am fine.", "GHI"),
+
+          // preserved left
+          row("Hi", null), row("Hello world", null), row("Luke Skywalker", null),
+          row("Comment#1", null), row("Comment#2", null), row("Comment#3", null),
+          row("Comment#4", null), row("Comment#5", null), row("Comment#6", null),
+          row("Comment#7", null), row("Comment#8", null), row("Comment#9", null),
+          row("Comment#10", null), row("Comment#11", null), row("Comment#12", null),
+          row("Comment#13", null), row("Comment#14", null), row("Comment#15", null),
+          row("NullTuple", null), row("NullTuple", null),
+
+          // preserved right
+          row(null, "Hallo"), row(null, "Hallo Welt"), row(null, "Hallo Welt wie gehts?"),
+          row(null, "ABC"), row(null, "BCD"), row(null, "CDE"), row(null, "FGH"),
+          row(null, "HIJ"), row(null, "IJK"), row(null, "JKL"), row(null, "KLM"),
+          row(null, "NullTuple"), row(null, "NullTuple")
+        ))
+    }
   }
 
   @Test
   def testFullOuterJoin(): Unit = {
+    if (expectedJoinType != BroadcastHashJoin && expectedJoinType != NestedLoopJoin) {
+      checkResult(
+        "SELECT c, g FROM SmallTable3 FULL OUTER JOIN Table5 ON b = e",
+        Seq(
+          row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
+          row("Hello world", "Hallo Welt"),
+          row(null, "Hallo Welt wie gehts?"), row(null, "Hallo Welt wie"),
+          row(null, "ABC"), row(null, "BCD"), row(null, "CDE"),
+          row(null, "DEF"), row(null, "EFG"), row(null, "FGH"),
+          row(null, "GHI"), row(null, "HIJ"), row(null, "IJK"),
+          row(null, "JKL"), row(null, "KLM")
+        ))
+    }
+  }
 
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    tEnv.getConfig.setNullCheck(true)
+  @Test
+  def testFullOuterJoinWithoutEqualCond(): Unit = {
+    if (expectedJoinType == NestedLoopJoin) {
+      checkResult(
+        "SELECT t1.c, t2.c FROM SmallTable3 t1 FULL OUTER JOIN SmallTable3 t2 ON t1.b > t2.b",
+        Seq(
+          row("Hello world", "Hi"), row("Hello", "Hi"), row("Hi", null),
+          row(null, "Hello"), row(null, "Hello world")
+        ))
+    }
+  }
 
-    val sqlQuery = "SELECT c, g FROM Table3 FULL OUTER JOIN Table5 ON b = e"
+  @Test
+  def testSingleRowFullOuterJoinWithoutEqualCond(): Unit = {
+    if (expectedJoinType == NestedLoopJoin) {
+      checkResult(
+        "SELECT c, mc FROM SmallTable3 t1 FULL OUTER JOIN " +
+            "(SELECT min(b) AS mb, max(c) AS mc FROM SmallTable3) t2 ON b > mb",
+        Seq(
+          row("Hello world", "Hi"), row("Hello", "Hi"), row("Hi", null)
+        ))
+    }
+  }
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
-    tEnv.registerTable("Table3", ds1)
-    tEnv.registerTable("Table5", ds2)
-
-    val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n" +
-      "null,Hallo Welt wie\n" + "null,Hallo Welt wie gehts?\n" + "null,ABC\n" + "null,BCD\n" +
-      "null,CDE\n" + "null,DEF\n" + "null,EFG\n" + "null,FGH\n" + "null,GHI\n" + "null,HIJ\n" +
-      "null,IJK\n" + "null,JKL\n" + "null,KLM"
-
-    val results = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  @Test
+  def testSingleRowFullOuterJoinWithoutEqualCondNoMatch(): Unit = {
+    if (expectedJoinType == NestedLoopJoin) {
+      checkResult(
+        "SELECT c, mc FROM SmallTable3 t1 FULL OUTER JOIN " +
+            "(SELECT max(b) AS mb, max(c) AS mc FROM SmallTable3) t2 ON b > mb",
+        Seq(
+          row("Hello world", null), row("Hello", null), row("Hi", null), row(null, "Hi")
+        ))
+    }
   }
 
   @Test
   def testLeftOuterJoin(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    tEnv.getConfig.setNullCheck(true)
-
-    val sqlQuery = "SELECT c, g FROM Table5 LEFT OUTER JOIN Table3 ON b = e"
-
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
-    tEnv.registerTable("Table3", ds1)
-    tEnv.registerTable("Table5", ds2)
-
-    val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n" +
-      "null,Hallo Welt wie\n" + "null,Hallo Welt wie gehts?\n" + "null,ABC\n" + "null,BCD\n" +
-      "null,CDE\n" + "null,DEF\n" + "null,EFG\n" + "null,FGH\n" + "null,GHI\n" + "null,HIJ\n" +
-      "null,IJK\n" + "null,JKL\n" + "null,KLM"
-    val results = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    checkResult(
+      "SELECT c, g FROM Table5 LEFT OUTER JOIN SmallTable3 ON b = e",
+      Seq(
+        row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt"),
+        row(null, "Hallo Welt wie gehts?"), row(null, "Hallo Welt wie"),
+        row(null, "ABC"), row(null, "BCD"), row(null, "CDE"),
+        row(null, "DEF"), row(null, "EFG"), row(null, "FGH"),
+        row(null, "GHI"), row(null, "HIJ"), row(null, "IJK"),
+        row(null, "JKL"), row(null, "KLM")
+      ))
   }
 
   @Test
   def testRightOuterJoin(): Unit = {
+    checkResult(
+      "SELECT c, g FROM SmallTable3 RIGHT OUTER JOIN Table5 ON b = e",
+      Seq(
+        row("Hi", "Hallo"), row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt"),
+        row(null, "Hallo Welt wie gehts?"), row(null, "Hallo Welt wie"),
+        row(null, "ABC"), row(null, "BCD"), row(null, "CDE"),
+        row(null, "DEF"), row(null, "EFG"), row(null, "FGH"),
+        row(null, "GHI"), row(null, "HIJ"), row(null, "IJK"),
+        row(null, "JKL"), row(null, "KLM")
+      ))
+  }
 
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    tEnv.getConfig.setNullCheck(true)
-
-    val sqlQuery = "SELECT c, g FROM Table3 RIGHT OUTER JOIN Table5 ON b = e"
-
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
-    tEnv.registerTable("Table3", ds1)
-    tEnv.registerTable("Table5", ds2)
-
-    val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n" +
-      "null,Hallo Welt wie\n" + "null,Hallo Welt wie gehts?\n" + "null,ABC\n" + "null,BCD\n" +
-      "null,CDE\n" + "null,DEF\n" + "null,EFG\n" + "null,FGH\n" + "null,GHI\n" + "null,HIJ\n" +
-      "null,IJK\n" + "null,JKL\n" + "null,KLM"
-    val results = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  // join with agg
+  @Test
+  def testJoinWithAggregation(): Unit = {
+    checkResult(
+      "SELECT COUNT(g), COUNT(b) FROM SmallTable3, Table5 WHERE a = d",
+      Seq(row(6L, 6L)))
   }
 
   @Test
-  def testCrossJoinWithLeftSingleRowInput(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val table = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a1, 'a2, 'a3)
-    tEnv.registerTable("A", table)
-
-    val sqlQuery2 = "SELECT * FROM (SELECT count(*) FROM A) CROSS JOIN A"
-    val expected =
-      "3,1,1,Hi\n" +
-      "3,2,2,Hello\n" +
-      "3,3,2,Hello world"
-    val result = tEnv.sqlQuery(sqlQuery2).collect()
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
-  }
-
-  @Test
-  def testCrossJoinWithRightSingleRowInput(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val table = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a1, 'a2, 'a3)
-    tEnv.registerTable("A", table)
-
-    val sqlQuery1 = "SELECT * FROM A CROSS JOIN (SELECT count(*) FROM A)"
-    val expected =
-      "1,1,Hi,3\n" +
-      "2,2,Hello,3\n" +
-      "3,2,Hello world,3"
-    val result = tEnv.sqlQuery(sqlQuery1).collect()
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
-  }
-
-  @Test
-  def testCrossJoinWithEmptySingleRowInput(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val table = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a1, 'a2, 'a3)
-    tEnv.registerTable("A", table)
-
-    val sqlQuery1 = "SELECT * FROM A CROSS JOIN (SELECT count(*) FROM A HAVING count(*) < 0)"
-    val result = tEnv.sqlQuery(sqlQuery1).count()
-    Assert.assertEquals(0, result)
-  }
-
-  @Test
-  def testLeftNullRightJoin(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    val sqlQuery =
-      "SELECT a, cnt " +
-      "FROM (SELECT cnt FROM (SELECT COUNT(*) AS cnt FROM B) WHERE cnt < 0) RIGHT JOIN A ON a < cnt"
-
-    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
-    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
-    tEnv.registerTable("A", ds1)
-    tEnv.registerTable("B", ds2)
-
-
-    val result = tEnv.sqlQuery(sqlQuery)
-    val expected = Seq(
-          "1,null",
-          "2,null", "2,null",
-          "3,null", "3,null", "3,null",
-          "4,null", "4,null", "4,null", "4,null",
-          "5,null", "5,null", "5,null", "5,null", "5,null").mkString("\n")
-
-    val results = result.toDataSet[Row].collect()
-
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-
-  @Test
-  def testLeftSingleRightJoinEqualPredicate(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    val sqlQuery =
-      "SELECT a, cnt FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON cnt = a"
-
-    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
-    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
-    tEnv.registerTable("A", ds1)
-    tEnv.registerTable("B", ds2)
-
-    val result = tEnv.sqlQuery(sqlQuery)
-    val expected = Seq(
-      "1,null", "2,null", "2,null", "3,3", "3,3",
-      "3,3", "4,null", "4,null", "4,null",
-      "4,null", "5,null", "5,null", "5,null",
-      "5,null", "5,null").mkString("\n")
-
-    val results = result.toDataSet[Row].collect()
-
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testLeftSingleRightJoinNotEqualPredicate(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    val sqlQuery =
-      "SELECT a, cnt FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON cnt > a"
-
-    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
-    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
-    tEnv.registerTable("A", ds1)
-    tEnv.registerTable("B", ds2)
-
-    val result = tEnv.sqlQuery(sqlQuery)
-    val expected = Seq(
-      "1,3", "2,3", "2,3", "3,null", "3,null",
-      "3,null", "4,null", "4,null", "4,null",
-      "4,null", "5,null", "5,null", "5,null",
-      "5,null", "5,null").mkString("\n")
-
-    val results = result.toDataSet[Row].collect()
-
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testRightNullLeftJoin(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    val sqlQuery =
-      "SELECT a, cnt " +
-      "FROM A LEFT JOIN (SELECT cnt FROM (SELECT COUNT(*) AS cnt FROM B) WHERE cnt < 0) ON cnt > a"
-
-    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv)
-    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    tEnv.registerTable("A", ds2)
-    tEnv.registerTable("B", ds1)
-
-    val result = tEnv.sqlQuery(sqlQuery)
-
-    val expected = Seq(
-      "2,null", "3,null", "1,null").mkString("\n")
-
-    val results = result.toDataSet[Row].collect()
-
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testRightSingleLeftJoinEqualPredicate(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    val sqlQuery =
-      "SELECT a, cnt FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) ON cnt = a"
-
-    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
-    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
-    tEnv.registerTable("A", ds1)
-    tEnv.registerTable("B", ds2)
-
-    val result = tEnv.sqlQuery(sqlQuery)
-
-    val expected = Seq(
-      "1,null", "2,null", "2,null", "3,3", "3,3",
-      "3,3", "4,null", "4,null", "4,null",
-      "4,null", "5,null", "5,null", "5,null",
-      "5,null", "5,null").mkString("\n")
-
-    val results = result.toDataSet[Row].collect()
-
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testRightSingleLeftJoinNotEqualPredicate(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    val sqlQuery =
-      "SELECT a, cnt FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) ON cnt < a"
-
-    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
-    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
-    tEnv.registerTable("A", ds1)
-    tEnv.registerTable("B", ds2)
-
-    val result = tEnv.sqlQuery(sqlQuery)
-
-    val expected = Seq(
-      "1,null", "2,null", "2,null", "3,null", "3,null",
-      "3,null", "4,3", "4,3", "4,3",
-      "4,3", "5,3", "5,3", "5,3",
-      "5,3", "5,3").mkString("\n")
-
-    val results = result.toDataSet[Row].collect()
-
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testRightSingleLeftJoinTwoFields(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    val sqlQuery =
-      "SELECT a, cnt, cnt2 " +
-      "FROM t1 LEFT JOIN (SELECT COUNT(*) AS cnt,COUNT(*) AS cnt2 FROM t2 ) AS x ON a = cnt"
-
-    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
-    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
-    tEnv.registerTable("t1", ds1)
-    tEnv.registerTable("t2", ds2)
-
-    val result = tEnv.sqlQuery(sqlQuery)
-    val expected = Seq(
-      "1,null,null",
-      "2,null,null", "2,null,null",
-      "3,3,3", "3,3,3", "3,3,3",
-      "4,null,null", "4,null,null", "4,null,null", "4,null,null",
-      "5,null,null", "5,null,null", "5,null,null", "5,null,null", "5,null,null").mkString("\n")
-
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
+  @Ignore //TODO support FlinkLogicalCorrelate
   def testCrossWithUnnest(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
     val data = List(
-      (1, 1L, Array("Hi", "w")),
-      (2, 2L, Array("Hello", "k")),
-      (3, 2L, Array("Hello world", "x"))
+      row(1, 1L, Array("Hi", "w")),
+      row(2, 2L, Array("Hello", "k")),
+      row(3, 2L, Array("Hello world", "x"))
     )
-    val stream = env.fromCollection(data)
-    tEnv.registerDataSet("T", stream, 'a, 'b, 'c)
+    tEnv.registerCollection("T", data,
+      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_ARRAY_TYPE_INFO),
+      'a, 'b, 'c)
 
-    val sqlQuery = "SELECT a, s FROM T, UNNEST(T.c) as A (s)"
-
-    val result = tEnv.sqlQuery(sqlQuery)
-
-    val expected = List("1,Hi", "1,w", "2,Hello", "2,k", "3,Hello world", "3,x")
-    val results = result.toDataSet[Row].collect().toList
-    assertEquals(expected.toString(), results.sortWith(_.toString < _.toString).toString())
+    checkResult(
+      "SELECT a, s FROM T, UNNEST(T.c) as A (s)",
+      Seq())
   }
 
   @Test
+  @Ignore //TODO support FlinkLogicalCorrelate
   def testJoinWithUnnestOfTuple(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
     val data = List(
-      (1, Array((12, "45.6"), (2, "45.612"))),
-      (2, Array((13, "41.6"), (1, "45.2136"))),
-      (3, Array((18, "42.6")))
-    )
-    val stream = env.fromCollection(data)
-    tEnv.registerDataSet("T", stream, 'a, 'b)
+      row(1, Array(row(12, "45.6"), row(2, "45.612"))),
+      row(2, Array(row(13, "41.6"), row(1, "45.2136"))),
+      row(3, Array(row(18, "42.6"))))
+    tEnv.registerCollection("T", data,
+      new RowTypeInfo(INT_TYPE_INFO,
+        ObjectArrayTypeInfo.getInfoFor(classOf[Array[Row]],
+          new RowTypeInfo(INT_TYPE_INFO, STRING_TYPE_INFO))),
+      'a, 'b)
 
-    val sqlQuery = "" +
+    checkResult(
       "SELECT a, b, x, y " +
-      "FROM " +
-      "  (SELECT a, b FROM T WHERE a < 3) as tf, " +
-      "  UNNEST(tf.b) as A (x, y) " +
-      "WHERE x > a"
+        "FROM " +
+        "  (SELECT a, b FROM T WHERE a < 3) as tf, " +
+        "  UNNEST(tf.b) as A (x, y) " +
+        "WHERE x > a",
+      Seq())
+  }
 
-    val result = tEnv.sqlQuery(sqlQuery)
+  @Test
+  def testJoinConditionNeedSimplify(): Unit = {
+    checkResult(
+      "SELECT A.d FROM Table5 A JOIN SmallTable3 B ON (A.d=B.a and B.a>2) or (A.d=B.a and B.b=1)",
+      Seq(row(1), row(3), row(3), row(3)))
+  }
 
-    val expected = List(
-      "1,[(12,45.6), (2,45.612)],12,45.6",
-      "1,[(12,45.6), (2,45.612)],2,45.612",
-      "2,[(13,41.6), (1,45.2136)],13,41.6").mkString(", ")
-    val results = result.toDataSet[Row].collect().map(_.toString)
-    assertEquals(expected, results.sorted.mkString(", "))
+  @Test
+  def testJoinConditionDerivedFromCorrelatedSubQueryNeedSimplify(): Unit = {
+    checkResult(
+      "SELECT B.a FROM SmallTable3 B WHERE b = (" +
+        "select count(*) from Table5 A where (A.d=B.a and A.d<3) or (A.d=B.a and B.b=5))",
+      Seq(row(1), row(2)))
+  }
+
+  @Test
+  def testSimple(): Unit = {
+    checkResult(
+      "select a, b from l where a in (select c from r where c > 2)",
+      Seq(row(3, 3.0), row(6, null)))
+  }
+
+  @Test
+  def testSelect(): Unit = {
+    checkResult(
+      "select t.a from (select 1 as a)t",
+      Seq(row(1)))
+  }
+
+  @Test
+  def testCorrelated(): Unit = {
+    expectedJoinType match {
+      case NestedLoopJoin =>
+        checkResult(
+          "select t.a from (select l.a from l, r where l.a = r.c and l.a = 6)t",
+          Seq(row(6)))
+      case _ =>
+      // l.a=r.c and l.a = 6 => l.a=6 and r.c=6, so after ftd and join condition simplified, join
+      // condition is TRUE. Only NestedLoopJoin can handle join without any equi-condition.
+    }
+  }
+
+  @Test
+  def testCorrelatedExist(): Unit = {
+    checkResult(
+      "select * from l where exists (select * from r where l.a = r.c)",
+      Seq(row(2, 1.0), row(2, 1.0), row(3, 3.0), row(6, null)))
+
+    checkResult(
+      "select * from l where exists (select * from r where l.a = r.c) and l.a <= 2",
+      Seq(row(2, 1.0), row(2, 1.0)))
+  }
+
+  @Test
+  def testCorrelatedNotExist(): Unit = {
+    checkResult(
+      "select * from l where not exists (select * from r where l.a = r.c and l.b <> r.d)",
+      Seq(row(1, 2.0), row(1, 2.0), row(6, null), row(null, 5.0), row(null, null)))
+  }
+
+  @Test
+  def testUncorrelatedScalar(): Unit = {
+    checkResult(
+      "select (select 1) as b",
+      Seq(row(1)))
+
+    checkResult(
+      "select (select 1 as b)",
+      Seq(row(1)))
+
+    checkResult(
+      "select (select 1 as a) as b",
+      Seq(row(1)))
+  }
+
+  @Test
+  def testEqualWithAggScalar(): Unit = {
+    checkResult(
+      "select a, b from l where a = (select distinct (c) from r where c = 2)",
+      Seq(row(2, 1.0), row(2, 1.0)))
+  }
+
+  @Test
+  def testComparisonsScalar(): Unit = {
+    checkEmptyResult(
+      "select a, b from l where a = (select c from r where 1 = 2)")
+
+    checkResult(
+      "select a, b from l where a >= 1.0 * (select avg(d) from r where c > 2)",
+      row(2, 1.0) :: row(2, 1.0) :: row(3, 3.0) :: row(6, null) :: Nil)
+
+    checkResult(
+      "select a, b from l where a * b < 2.0 * (select avg(d) from r where l.a = r.c and c < 6 )",
+      row(2, 1.0) :: row(2, 1.0) :: Nil)
+  }
+
+  @Test
+  def testJoinWithNull(): Unit = {
+    checkResult(
+      "SELECT c, g FROM NullTable3, NullTable5 " +
+          "WHERE (a = d OR (a IS NULL AND d IS NULL)) AND b = h",
+      Seq(
+        row("Hi", "Hallo"),
+        row("Hello", "Hallo Welt"),
+        row("Hello world", "Hallo Welt wie gehts?"),
+        row("Hello world", "ABC"),
+        row("I am fine.", "HIJ"),
+        row("I am fine.", "IJK"),
+        row("NullTuple", "NullTuple"),
+        row("NullTuple", "NullTuple"),
+        row("NullTuple", "NullTuple"),
+        row("NullTuple", "NullTuple")
+      ))
+
+    checkResult(
+      "SELECT c, g FROM NullTable3, NullTable5 " +
+          "WHERE (a = d OR (a IS NULL AND d IS NULL)) and c = 'NullTuple'",
+      Seq(
+        row("NullTuple", "NullTuple"),
+        row("NullTuple", "NullTuple"),
+        row("NullTuple", "NullTuple"),
+        row("NullTuple", "NullTuple")
+      ))
+
+    registerCollection(
+      "NullT", Seq(row(null, null, "c")), type3, allNullablesOfNullData3, 'a, 'b, 'c)
+    checkResult(
+      "SELECT T1.a, T1.b, T1.c FROM NullT T1, NullT T2 WHERE " +
+          "(T1.a = T2.a OR (T1.a IS NULL AND T2.a IS NULL)) " +
+          "AND (T1.b = T2.b OR (T1.b IS NULL AND T2.b IS NULL)) AND T1.c = T2.c",
+      Seq(row("null", "null", "c")))
+  }
+
+  @Test
+  def testSingleRowJoin(): Unit = {
+    checkResult(
+      "SELECT s, a, b, c FROM SmallTable3 JOIN (SELECT SUM(b) AS s FROM SmallTable3) ON true",
+      Seq(
+        row(5L, 1, 1L, "Hi"),
+        row(5L, 2, 2L, "Hello"),
+        row(5L, 3, 2L, "Hello world")
+      )
+    )
+
+    checkResult(
+      "SELECT s, a, b, c FROM (SELECT SUM(b) AS s FROM SmallTable3) JOIN SmallTable3 ON true",
+      Seq(
+        row(5L, 1, 1L, "Hi"),
+        row(5L, 2, 2L, "Hello"),
+        row(5L, 3, 2L, "Hello world")
+      )
+    )
+
+    checkResult(
+      "SELECT s, a, b, c FROM SmallTable3 JOIN (SELECT SUM(b) AS s FROM SmallTable3) ON s <> b",
+      Seq(
+        row(5L, 1, 1L, "Hi"),
+        row(5L, 2, 2L, "Hello"),
+        row(5L, 3, 2L, "Hello world")
+      )
+    )
+
+    checkResult(
+      "SELECT s, a, b, c FROM (SELECT SUM(b) AS s FROM SmallTable3) JOIN SmallTable3 ON s <> b",
+      Seq(
+        row(5L, 1, 1L, "Hi"),
+        row(5L, 2, 2L, "Hello"),
+        row(5L, 3, 2L, "Hello world")
+      )
+    )
+  }
+
+  @Test
+  def testNonEmptyTableJoinEmptyTable(): Unit = {
+    checkResult(
+      "SELECT s, a, b, c FROM " +
+        "SmallTable3 JOIN (SELECT SUM(b) AS s FROM SmallTable3 HAVING COUNT(*) < 0) ON true",
+      Seq()
+    )
+
+    checkResult(
+      "SELECT s, a, b, c FROM " +
+        "(SELECT SUM(b) AS s FROM SmallTable3 HAVING COUNT(*) < 0) JOIN SmallTable3 ON true",
+      Seq()
+    )
+
+    if (expectedJoinType == NestedLoopJoin) {
+      checkResult(
+        "SELECT s, a, b, c FROM SmallTable3 FULL JOIN " +
+            "(SELECT SUM(b) AS s FROM SmallTable3 HAVING COUNT(*) < 0) ON true",
+        Seq(row(null, 1, 1, "Hi"), row(null, 2, 2, "Hello"), row(null, 3, 2, "Hello world"))
+      )
+
+      checkResult(
+        "SELECT s, a, b, c FROM (SELECT SUM(b) AS s FROM SmallTable3 HAVING COUNT(*) < 0) " +
+            "FULL JOIN SmallTable3 ON true",
+        Seq(row(null, 1, 1, "Hi"), row(null, 2, 2, "Hello"), row(null, 3, 2, "Hello world"))
+      )
+    }
+  }
+
+  @Test
+  def testEmptyTableJoinEmptyTable(): Unit = {
+    checkResult(
+      "SELECT sa, sb FROM " +
+        "(SELECT SUM(a) AS sa FROM SmallTable3 HAVING COUNT(*) < 0) JOIN " +
+        "(SELECT SUM(b) AS sb FROM SmallTable3 HAVING COUNT(*) < 0) ON true",
+      Seq()
+    )
+
+    checkResult(
+      "SELECT sa, sb FROM " +
+        "(SELECT SUM(b) AS sb FROM SmallTable3 HAVING COUNT(*) < 0) JOIN " +
+        "(SELECT SUM(a) AS sa FROM SmallTable3 HAVING COUNT(*) < 0) ON true",
+      Seq()
+    )
+
+    if (expectedJoinType == NestedLoopJoin) {
+      checkResult(
+        "SELECT sa, sb FROM " +
+            "(SELECT SUM(a) AS sa FROM SmallTable3 HAVING COUNT(*) < 0) FULL JOIN " +
+            "(SELECT SUM(b) AS sb FROM SmallTable3 HAVING COUNT(*) < 0) ON true",
+        Seq()
+      )
+
+      checkResult(
+        "SELECT sa, sb FROM " +
+            "(SELECT SUM(b) AS sb FROM SmallTable3 HAVING COUNT(*) < 0) FULL JOIN " +
+            "(SELECT SUM(a) AS sa FROM SmallTable3 HAVING COUNT(*) < 0) ON true",
+        Seq()
+      )
+    }
+  }
+
+  @Test
+  def testJoinCollation(): Unit = {
+    checkResult(
+      """
+        |WITH v1 AS (
+        |  SELECT t1.a AS a, (t1.b + t2.b) AS b
+        |    FROM SmallTable3 AS t1, SmallTable3 AS t2 WHERE t1.a = t2.a
+        |),
+        |
+        |v2 AS (
+        |  SELECT t1.a AS a, (t1.b * t2.b) AS b
+        |    FROM SmallTable3 AS t1, SmallTable3 AS t2 WHERE t1.a = t2.a
+        |)
+        |
+        |SELECT v1.a, v2.a, v1.b, v2.b FROM v1, v2 WHERE v1.a = v2.a
+      """.stripMargin,
+      Seq(
+        row(1, 1, 2L, 1L),
+        row(2, 2, 4L, 4L),
+        row(3, 3, 4L, 4L)
+      )
+    )
+
+    checkResult(
+      """
+        |WITH v1 AS (
+        |  SELECT t1.a AS a, (t1.b + t2.b) AS b
+        |    FROM SmallTable3 AS t1, SmallTable3 AS t2 WHERE t1.a = t2.a
+        |),
+        |
+        |v2 AS (
+        |  SELECT t1.b AS a, (t1.b * t2.b) AS b
+        |    FROM SmallTable3 AS t1, SmallTable3 AS t2 WHERE t1.b = t2.b
+        |)
+        |
+        |SELECT v1.a, v2.a, v1.b, v2.b FROM v1, v2 WHERE v1.a = v2.a
+      """.stripMargin,
+      Seq(
+        row(1, 1L, 2L, 1L),
+        row(2, 2L, 4L, 4L),
+        row(2, 2L, 4L, 4L),
+        row(2, 2L, 4L, 4L),
+        row(2, 2L, 4L, 4L)
+      )
+    )
+  }
+}
+
+object JoinITCase {
+
+  @Parameterized.Parameters(name = "{0}")
+  def parameters(): util.Collection[Array[_]] = {
+    util.Arrays.asList(
+      Array(BroadcastHashJoin), Array(HashJoin), Array(SortMergeJoin), Array(NestedLoopJoin))
   }
 }

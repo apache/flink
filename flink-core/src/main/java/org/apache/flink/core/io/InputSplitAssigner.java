@@ -18,8 +18,9 @@
 
 package org.apache.flink.core.io;
 
-
 import org.apache.flink.annotation.PublicEvolving;
+
+import java.util.List;
 
 /**
  * An input split assigner distributes the {@link InputSplit}s among the instances on which a
@@ -38,4 +39,13 @@ public interface InputSplitAssigner {
 	 */
 	InputSplit getNextInputSplit(String host, int taskId);
 
+	/**
+	 * Notify that some input splits have already been assigned.
+	 * When get next input split, these splits should not be return.
+	 * This is usually due to job master failover.
+	 *
+	 * @param taskId The id of the task which the input splits are assigned to.
+	 * @param inputSplits The input splits that have already been assigned.
+	 */
+	void inputSplitsAssigned(int taskId, List<InputSplit> inputSplits);
 }

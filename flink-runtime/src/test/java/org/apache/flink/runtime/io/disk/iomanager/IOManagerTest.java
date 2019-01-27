@@ -87,13 +87,13 @@ public class IOManagerTest {
 			}
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	private static class TestIOManager extends IOManager {
 
 		protected TestIOManager(String[] paths) {
-			super(paths);
+			super(paths, 1);
 		}
 
 		@Override
@@ -128,6 +128,16 @@ public class IOManagerTest {
 
 		@Override
 		public BulkBlockChannelReader createBulkBlockChannelReader(ID channelID, List<MemorySegment> targetSegments, int numBlocks) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public BufferFileWriter createStreamFileWriter(ID channelID) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public BufferFileReader createStreamFileReader(ID channelID, RequestDoneCallback<Buffer> callback) throws IOException {
 			throw new UnsupportedOperationException();
 		}
 	}

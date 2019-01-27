@@ -1,0 +1,95 @@
+/*
+ *   Licensed to the Apache Software Foundation (ASF) under one
+ *   or more contributor license agreements.  See the NOTICE file
+ *   distributed with this work for additional information
+ *   regarding copyright ownership.  The ASF licenses this file
+ *   to you under the Apache License, Version 2.0 (the
+ *   "License"); you may not use this file except in compliance
+ *   with the License.  You may obtain a copy of the License at
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *   Unless required by applicable law or agreed to in writing, software
+ *   distributed under the License is distributed on an "AS IS" BASIS,
+ *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *   See the License for the specific language governing permissions and
+ *   limitations under the License.
+ */
+
+@import "theme";
+
+:host {
+  cursor: pointer;
+  .background {
+    stroke: none;
+    fill: @primary-color;
+  }
+
+  .border {
+    fill: none;
+    stroke-opacity: 1;
+    stroke-width: 0.12;
+  }
+
+  .split {
+    fill: @border-color-split;
+  }
+  .q-border {
+    stroke: lighten(@primary-color, 20);
+    fill: none;
+    stroke-width: 0.18;
+    transform: scale(34)
+  }
+
+  .fill-percent-left {
+    fill: none;
+    stroke: @warning-color;
+    stroke-opacity: 1;
+    stroke-width: 0.18;
+    transition: stroke-dasharray .3s, stroke .3s;
+    transform: scale(34) matrix(0, 1, -1, 0, 0, 0);
+    opacity: 0.8;
+  }
+
+  .fill-percent-right {
+    fill: none;
+    stroke: @warning-color;
+    stroke-opacity: 1;
+    stroke-width: 0.18;
+    transition: stroke-dasharray .3s, stroke .3s;
+    transform: scale(34) matrix(0, 1, 1, 0, 0, 0);
+    opacity: 0.8;
+  }
+
+  text {
+    font-size: 16px;
+    dominant-baseline: middle;
+    text-anchor: middle;
+    font-family: "proxima-nova", Helvetica, Arial, sans-serif;
+    fill: #ffffff;
+    &.name {
+      font-size: 8px;
+    }
+    &.fill-text {
+      fill: @text-color;
+    }
+
+    &.clip {
+      fill: @text-color;
+    }
+  }
+
+  .node-label-wrapper {
+    margin-top: 50px;
+    line-height: 150%;
+    display: inline-block;
+    vertical-align: top;
+    cursor: pointer;
+    pointer-events: all;
+    font-size: 12px;
+    width: 100%;
+    border-radius: 6px;
+    padding: 6px 0;
+    color: @text-color;
+    background: fade(@background-color-base, 90);
+    text-align: center;
+  }
+}

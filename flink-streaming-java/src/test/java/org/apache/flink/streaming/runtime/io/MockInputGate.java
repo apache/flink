@@ -20,14 +20,21 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGateListener;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Mock {@link InputGate}.
@@ -36,7 +43,7 @@ public class MockInputGate implements InputGate {
 
 	private final int pageSize;
 
-	private final int numberOfChannels;
+	private final int numChannels;
 
 	private final Queue<BufferOrEvent> bufferOrEvents;
 
@@ -44,18 +51,11 @@ public class MockInputGate implements InputGate {
 
 	private int closedChannels;
 
-	private final String owningTaskName;
-
-	public MockInputGate(int pageSize, int numberOfChannels, List<BufferOrEvent> bufferOrEvents) {
-		this(pageSize, numberOfChannels, bufferOrEvents, "MockTask");
-	}
-
-	public MockInputGate(int pageSize, int numberOfChannels, List<BufferOrEvent> bufferOrEvents, String owningTaskName) {
+	public MockInputGate(int pageSize, int numChannels, List<BufferOrEvent> bufferOrEvents) {
 		this.pageSize = pageSize;
-		this.numberOfChannels = numberOfChannels;
+		this.numChannels = numChannels;
 		this.bufferOrEvents = new ArrayDeque<BufferOrEvent>(bufferOrEvents);
-		this.closed = new boolean[numberOfChannels];
-		this.owningTaskName = owningTaskName;
+		this.closed = new boolean[numChannels];
 	}
 
 	@Override
@@ -64,18 +64,28 @@ public class MockInputGate implements InputGate {
 	}
 
 	@Override
-	public int getNumberOfInputChannels() {
-		return numberOfChannels;
+	public int getSubInputGateCount() {
+		return 0;
 	}
 
 	@Override
-	public String getOwningTaskName() {
-		return owningTaskName;
+	public InputGate getSubInputGate(int index) {
+		return null;
+	}
+
+	@Override
+	public int getNumberOfInputChannels() {
+		return numChannels;
 	}
 
 	@Override
 	public boolean isFinished() {
 		return bufferOrEvents.isEmpty();
+	}
+
+	@Override
+	public boolean moreAvailable() {
+		return !bufferOrEvents.isEmpty();
 	}
 
 	@Override
@@ -98,7 +108,17 @@ public class MockInputGate implements InputGate {
 	}
 
 	@Override
+	public Optional<BufferOrEvent> getNextBufferOrEvent(InputGate subInputGate) throws IOException, InterruptedException {
+		return getNextBufferOrEvent();
+	}
+
+	@Override
 	public Optional<BufferOrEvent> pollNextBufferOrEvent() {
+		return getNextBufferOrEvent();
+	}
+
+	@Override
+	public Optional<BufferOrEvent> pollNextBufferOrEvent(InputGate subInputGate) {
 		return getNextBufferOrEvent();
 	}
 
@@ -114,4 +134,16 @@ public class MockInputGate implements InputGate {
 	public void registerListener(InputGateListener listener) {
 	}
 
+	@Override
+	public InputChannel[] getAllInputChannels() {
+		SingleInputGate inputGate = mock(SingleInputGate.class);
+		when(inputGate.getConsumedPartitionType()).thenReturn(ResultPartitionType.PIPELINED);
+		InputChannel[] inputChannels = new InputChannel[numChannels];
+		for (int i = 0; i < inputChannels.length; i++) {
+			InputChannel inputChannel = mock(InputChannel.class);
+			when(inputChannel.getInputGate()).thenReturn(inputGate);
+			inputChannels[i] = inputChannel;
+		}
+		return inputChannels;
+	}
 }

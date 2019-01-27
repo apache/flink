@@ -132,7 +132,7 @@ Incremental checkpoints can dramatically reduce the checkpointing time in compar
 recovery time. The core idea is that incremental checkpoints only record all changes to the previous completed checkpoint, instead of
 producing a full, self-contained backup of the state backend. Like this, incremental checkpoints build upon previous checkpoints. Flink leverages
 RocksDB's internal backup mechanism in a way that is self-consolidating over time. As a result, the incremental checkpoint history in Flink
-does not grow indefinitely, and old checkpoints are eventually subsumed and pruned automatically.
+does not grow indefinitely, and old checkpoints are eventually subsumed and pruned automatically. `
 
 While we strongly encourage the use of incremental checkpoints for large state, please note that this is a new feature and currently not enabled 
 by default. To enable this feature, users can instantiate a `RocksDBStateBackend` with the corresponding boolean flag in the constructor set to `true`, e.g.:
@@ -141,17 +141,6 @@ by default. To enable this feature, users can instantiate a `RocksDBStateBackend
     RocksDBStateBackend backend =
         new RocksDBStateBackend(filebackend, true);
 {% endhighlight %}
-
-**RocksDB Timers**
-
-For RocksDB, a user can chose whether timers are stored on the heap (default) or inside RocksDB. Heap-based timers can have a better performance for smaller numbers of
-timers, while storing timers inside RocksDB offers higher scalability as the number of timers in RocksDB can exceed the available main memory (spilling to disk).
-
-When using RockDB as state backend, the type of timer storage can be selected through Flink's configuration via option key `state.backend.rocksdb.timer-service.factory`.
-Possible choices are `heap` (to store timers on the heap, default) and `rocksdb` (to store timers in RocksDB).
-
-<span class="label label-info">Note</span> *The combination RocksDB state backend / with incremental checkpoint / with heap-based timers currently does NOT support asynchronous snapshots for the timers state.
-Other state like keyed state is still snapshotted asynchronously. Please note that this is not a regression from previous versions and will be resolved with `FLINK-10026`.*
 
 **Passing Options to RocksDB**
 
@@ -183,15 +172,16 @@ public class MyOptions implements OptionsFactory {
 **Predefined Options**
 
 Flink provides some predefined collections of option for RocksDB for different settings, which can be set for example via
-`RocksDBStateBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)`.
+`RocksDBStateBacked.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)`.
 
 We expect to accumulate more such profiles over time. Feel free to contribute such predefined option profiles when you
 found a set of options that work well and seem representative for certain workloads.
 
-<span class="label label-info">Note</span> RocksDB is a native library that allocates memory directly from the process,
-and not from the JVM. Any memory you assign to RocksDB will have to be accounted for, typically by decreasing the JVM heap size
+**Important:** RocksDB is a native library, whose allocated memory not from the JVM, but directly from the process'
+native memory. Any memory you assign to RocksDB will have to be accounted for, typically by decreasing the JVM heap size
 of the TaskManagers by the same amount. Not doing that may result in YARN/Mesos/etc terminating the JVM processes for
-allocating more memory than configured.
+allocating more memory than configures.
+
 
 ## Capacity Planning
 
@@ -241,7 +231,7 @@ Compression can be activated through the `ExecutionConfig`:
 		executionConfig.setUseSnapshotCompression(true);
 {% endhighlight %}
 
-<span class="label label-info">Note</span> The compression option has no impact on incremental snapshots, because they are using RocksDB's internal
+**Notice:** The compression option has no impact on incremental snapshots, because they are using RocksDB's internal
 format which is always using snappy compression out of the box.
 
 ## Task-Local Recovery
@@ -324,9 +314,7 @@ and occupy local disk space. In the future, we might also offer an implementatio
 and occupy local disk space. For *incremental snapshots*, the local state is based on RocksDB's native checkpointing mechanism. This mechanism is also used as the first step
 to create the primary copy, which means that in this case no additional cost is introduced for creating the secondary copy. We simply keep the native checkpoint directory around
 instead of deleting it after uploading to the distributed store. This local copy can share active files with the working directory of RocksDB (via hard links), so for active
-files also no additional disk space is consumed for task-local recovery with incremental snapshots. Using hard links also means that the RocksDB directories must be on
-the same physical device as all the configure local recovery directories that can be used to store local state, or else establishing hard links can fail (see FLINK-10954).
-Currently, this also prevents using local recovery when RocksDB directories are configured to be located on more than one physical device.
+files also no additional disk space is consumed for task-local recovery with incremental snapshots.
 
 ### Allocation-preserving scheduling
 

@@ -42,7 +42,7 @@ public class HeapBroadcastState<K, V> implements BackendWritableBroadcastState<K
 	/**
 	 * Meta information of the state, including state name, assignment mode, and serializer.
 	 */
-	private RegisteredBroadcastStateBackendMetaInfo<K, V> stateMetaInfo;
+	private RegisteredBroadcastBackendStateMetaInfo<K, V> stateMetaInfo;
 
 	/**
 	 * The internal map the holds the elements of the state.
@@ -54,11 +54,11 @@ public class HeapBroadcastState<K, V> implements BackendWritableBroadcastState<K
 	 */
 	private final MapSerializer<K, V> internalMapCopySerializer;
 
-	HeapBroadcastState(RegisteredBroadcastStateBackendMetaInfo<K, V> stateMetaInfo) {
+	HeapBroadcastState(RegisteredBroadcastBackendStateMetaInfo<K, V> stateMetaInfo) {
 		this(stateMetaInfo, new HashMap<>());
 	}
 
-	private HeapBroadcastState(final RegisteredBroadcastStateBackendMetaInfo<K, V> stateMetaInfo, final Map<K, V> internalMap) {
+	private HeapBroadcastState(final RegisteredBroadcastBackendStateMetaInfo<K, V> stateMetaInfo, final Map<K, V> internalMap) {
 
 		this.stateMetaInfo = Preconditions.checkNotNull(stateMetaInfo);
 		this.backingMap = Preconditions.checkNotNull(internalMap);
@@ -70,12 +70,12 @@ public class HeapBroadcastState<K, V> implements BackendWritableBroadcastState<K
 	}
 
 	@Override
-	public void setStateMetaInfo(RegisteredBroadcastStateBackendMetaInfo<K, V> stateMetaInfo) {
+	public void setStateMetaInfo(RegisteredBroadcastBackendStateMetaInfo<K, V> stateMetaInfo) {
 		this.stateMetaInfo = stateMetaInfo;
 	}
 
 	@Override
-	public RegisteredBroadcastStateBackendMetaInfo<K, V> getStateMetaInfo() {
+	public RegisteredBroadcastBackendStateMetaInfo<K, V> getStateMetaInfo() {
 		return stateMetaInfo;
 	}
 

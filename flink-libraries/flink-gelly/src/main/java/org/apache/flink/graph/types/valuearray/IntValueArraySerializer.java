@@ -18,9 +18,8 @@
 
 package org.apache.flink.graph.types.valuearray;
 
-import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
+import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArraySerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -85,21 +84,9 @@ public final class IntValueArraySerializer extends TypeSerializerSingleton<IntVa
 		return obj instanceof IntValueArraySerializer;
 	}
 
-	// -----------------------------------------------------------------------------------
-
 	@Override
-	public TypeSerializerSnapshot<IntValueArray> snapshotConfiguration() {
-		return new IntValueArraySerializerSnapshot();
-	}
-
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class IntValueArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<IntValueArray> {
-
-		public IntValueArraySerializerSnapshot() {
-			super(IntValueArraySerializer::new);
-		}
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(IntPrimitiveArraySerializer.class.getCanonicalName());
 	}
 }

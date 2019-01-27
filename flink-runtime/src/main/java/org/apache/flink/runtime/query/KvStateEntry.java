@@ -46,9 +46,9 @@ public class KvStateEntry<K, N, V> {
 	public KvStateEntry(final InternalKvState<K, N, V> state) {
 		this.state = Preconditions.checkNotNull(state);
 		this.stateInfo = new KvStateInfo<>(
-				state.getKeySerializer(),
-				state.getNamespaceSerializer(),
-				state.getValueSerializer()
+			state.getKeySerializer(),
+			state.getNamespaceSerializer(),
+			state.getValueSerializer()
 		);
 		this.serializerCache = new ConcurrentHashMap<>();
 		this.areSerializersStateless = stateInfo.duplicate() == stateInfo;
@@ -60,8 +60,8 @@ public class KvStateEntry<K, N, V> {
 
 	public KvStateInfo<K, N, V> getInfoForCurrentThread() {
 		return areSerializersStateless
-				? stateInfo
-				: serializerCache.computeIfAbsent(Thread.currentThread(), t -> stateInfo.duplicate());
+			? stateInfo
+			: serializerCache.computeIfAbsent(Thread.currentThread(), t -> stateInfo.duplicate());
 	}
 
 	public void clear() {

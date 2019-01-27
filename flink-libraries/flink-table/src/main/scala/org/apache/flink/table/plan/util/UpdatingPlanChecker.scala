@@ -17,11 +17,13 @@
  */
 package org.apache.flink.table.plan.util
 
+import org.apache.calcite.plan.hep.HepRelVertex
+import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.{RelNode, RelVisitor}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.flink.table.expressions.ProctimeAttribute
-import org.apache.flink.table.plan.nodes.datastream._
+import org.apache.flink.table.plan.nodes.physical.stream._
 
 import _root_.scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -53,8 +55,12 @@ object UpdatingPlanChecker {
 
     override def visit(node: RelNode, ordinal: Int, parent: RelNode): Unit = {
       node match {
-        case s: DataStreamRel if s.producesUpdates || s.producesRetractions =>
+        case s: StreamPhysicalRel if s.producesUpdates =>
           isAppendOnly = false
+        case hep: HepRelVertex =>
+          visit(hep.getCurrentRel, ordinal, parent)   //remove wrapper node
+        case rs: RelSubset =>
+          visit(rs.getOriginal, ordinal, parent)      //remove wrapper node
         case _ =>
           super.visit(node, ordinal, parent)
       }
@@ -72,29 +78,28 @@ object UpdatingPlanChecker {
     // forwards keys from its input(s).
     def visit(node: RelNode): Option[Seq[(String, String)]] = {
       node match {
-        case c: DataStreamCalc =>
+        case c: StreamExecCalc =>
           val inputKeys = visit(node.getInput(0))
           // check if input has keys
           if (inputKeys.isDefined) {
             // track keys forward
             val inNames = c.getInput.getRowType.getFieldNames
-            val inOutNames = c.getProgram.getNamedProjects
-              .map(p => {
-                c.getProgram.expandLocalRef(p.left) match {
-                  // output field is forwarded input field
-                  case i: RexInputRef => (i.getIndex, p.right)
-                  // output field is renamed input field
-                  case a: RexCall if a.getKind.equals(SqlKind.AS) =>
-                    a.getOperands.get(0) match {
-                      case ref: RexInputRef =>
-                        (ref.getIndex, p.right)
-                      case _ =>
-                        (-1, p.right)
-                    }
-                  // output field is not forwarded from input
-                  case _: RexNode => (-1, p.right)
-                }
-              })
+            val inOutNames = c.getProgram.getNamedProjects.map(p => {
+              c.getProgram.expandLocalRef(p.left) match {
+                // output field is forwarded input field
+                case i: RexInputRef => (i.getIndex, p.right)
+                // output field is renamed input field
+                case a: RexCall if a.getKind.equals(SqlKind.AS) =>
+                  a.getOperands.get(0) match {
+                    case ref: RexInputRef =>
+                      (ref.getIndex, p.right)
+                    case _ =>
+                      (-1, p.right)
+                  }
+                // output field is not forwarded from input
+                case _: RexNode => (-1, p.right)
+              }
+            })
               // filter all non-forwarded fields
               .filter(_._1 >= 0)
               // resolve names of input fields
@@ -125,14 +130,14 @@ object UpdatingPlanChecker {
             None
           }
 
-        case _: DataStreamOverAggregate =>
+        case _: StreamExecOverAggregate =>
           // keys are always forwarded by Over aggregate
           visit(node.getInput(0))
-        case a: DataStreamGroupAggregate =>
+        case a: StreamExecGroupAggregate =>
           // get grouping keys
           val groupKeys = a.getRowType.getFieldNames.take(a.getGroupings.length)
           Some(groupKeys.map(e => (e, e)))
-        case w: DataStreamGroupWindowAggregate =>
+        case w: StreamExecGroupWindowAggregate =>
           // get grouping keys
           val groupKeys =
             w.getRowType.getFieldNames.take(w.getGroupings.length).toArray
@@ -148,7 +153,7 @@ object UpdatingPlanChecker {
             None
           }
 
-        case j: DataStreamJoin =>
+        case j: StreamExecJoin =>
           // get key(s) for join
           val lInKeys = visit(j.getLeft)
           val rInKeys = visit(j.getRight)
@@ -168,9 +173,9 @@ object UpdatingPlanChecker {
               .zip(joinNames.subList(lInNames.size, joinNames.length))
               .toMap
 
-            val lJoinKeys: Seq[String] = j.getJoinInfo.leftKeys
+            val lJoinKeys: Seq[String] = j.joinInfo.leftKeys
               .map(lInNames.get(_))
-            val rJoinKeys: Seq[String] = j.getJoinInfo.rightKeys
+            val rJoinKeys: Seq[String] = j.joinInfo.rightKeys
               .map(rInNames.get(_))
               .map(rInNamesToJoinNamesMap(_))
 
@@ -183,7 +188,7 @@ object UpdatingPlanChecker {
               lJoinKeys.zip(rJoinKeys)
             )
           }
-        case _: DataStreamRel =>
+        case _: StreamPhysicalRel =>
           // anything else does not forward keys, so we can stop
           None
       }
@@ -198,12 +203,12 @@ object UpdatingPlanChecker {
       * @return Return output keys of join
       */
     def getOutputKeysForNonWindowJoin(
-        inNames: Seq[String],
-        inKeys: Seq[(String, String)],
-        joinKeys: Seq[(String, String)])
+      inNames: Seq[String],
+      inKeys: Seq[(String, String)],
+      joinKeys: Seq[(String, String)])
     : Option[Seq[(String, String)]] = {
 
-      val nameToGroups = mutable.HashMap.empty[String,String]
+      val nameToGroups = mutable.HashMap.empty[String, String]
 
       // merge two groups
       def merge(nameA: String, nameB: String): Unit = {

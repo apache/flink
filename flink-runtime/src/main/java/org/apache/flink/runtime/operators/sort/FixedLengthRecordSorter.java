@@ -22,7 +22,6 @@ package org.apache.flink.runtime.operators.sort;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
 import org.apache.flink.runtime.memory.AbstractPagedInputView;
 import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 import org.apache.flink.util.MutableObjectIterator;
@@ -33,10 +32,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 
+ *
  */
 public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
-	
+
 	private static final int MIN_REQUIRED_BUFFERS = 3;
 
 	// ------------------------------------------------------------------------
@@ -44,59 +43,59 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	// ------------------------------------------------------------------------
 
 	private final byte[] swapBuffer;
-	
+
 	private final TypeSerializer<T> serializer;
-	
+
 	private final TypeComparator<T> comparator;
-	
+
 	private final SingleSegmentOutputView outView;
-	
+
 	private final SingleSegmentInputView inView;
-	
+
 	private MemorySegment currentSortBufferSegment;
-	
+
 	private int currentSortBufferOffset;
-	
+
 	private final ArrayList<MemorySegment> freeMemory;
-	
+
 	private final ArrayList<MemorySegment> sortBuffer;
-	
+
 	private long sortBufferBytes;
-	
+
 	private int numRecords;
-	
+
 	private final int numKeyBytes;
-	
+
 	private final int recordSize;
-	
+
 	private final int recordsPerSegment;
-	
+
 	private final int lastEntryOffset;
-	
+
 	private final int segmentSize;
-	
+
 	private final int totalNumBuffers;
-	
+
 	private final boolean useNormKeyUninverted;
-	
+
 	private final T recordInstance;
-	
-	
+
+
 	// -------------------------------------------------------------------------
 	// Constructors / Destructors
 	// -------------------------------------------------------------------------
-	
-	public FixedLengthRecordSorter(TypeSerializer<T> serializer, TypeComparator<T> comparator, 
+
+	public FixedLengthRecordSorter(TypeSerializer<T> serializer, TypeComparator<T> comparator,
 			List<MemorySegment> memory)
 	{
 		if (serializer == null || comparator == null || memory == null) {
 			throw new NullPointerException();
 		}
-		
+
 		this.serializer = serializer;
 		this.comparator = comparator;
 		this.useNormKeyUninverted = !comparator.invertNormalizedKey();
-		
+
 		// check the size of the first buffer and record it. all further buffers must have the same size.
 		// the size must also be a power of 2
 		this.totalNumBuffers = memory.size();
@@ -106,7 +105,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 		this.segmentSize = memory.get(0).size();
 		this.recordSize = serializer.getLength();
 		this.numKeyBytes = this.comparator.getNormalizeKeyLen();
-		
+
 		// check that the serializer and comparator allow our operations
 		if (this.recordSize <= 0) {
 			throw new IllegalArgumentException("This sorter works only for fixed-length data types.");
@@ -115,14 +114,14 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 		} else if (!comparator.supportsSerializationWithKeyNormalization()) {
 			throw new IllegalArgumentException("This sorter requires a comparator that supports serialization with key normalization.");
 		}
-		
+
 		// compute the entry size and limits
 		this.recordsPerSegment = segmentSize / this.recordSize;
 		this.lastEntryOffset = (this.recordsPerSegment - 1) * this.recordSize;
 		this.swapBuffer = new byte[this.recordSize];
-		
+
 		this.freeMemory = new ArrayList<MemorySegment>(memory);
-		
+
 		// create the buffer collections
 		this.sortBuffer = new ArrayList<MemorySegment>(16);
 		this.outView = new SingleSegmentOutputView(this.segmentSize);
@@ -130,7 +129,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 		this.currentSortBufferSegment = nextMemorySegment();
 		this.sortBuffer.add(this.currentSortBufferSegment);
 		this.outView.set(this.currentSortBufferSegment);
-		
+
 		this.recordInstance = this.serializer.createInstance();
 	}
 
@@ -158,11 +157,11 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 		this.numRecords = 0;
 		this.currentSortBufferOffset = 0;
 		this.sortBufferBytes = 0;
-		
+
 		// return all memory
 		this.freeMemory.addAll(this.sortBuffer);
 		this.sortBuffer.clear();
-		
+
 		// grab first buffers
 		this.currentSortBufferSegment = nextMemorySegment();
 		this.sortBuffer.add(this.currentSortBufferSegment);
@@ -171,25 +170,25 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 
 	/**
 	 * Checks whether the buffer is empty.
-	 * 
+	 *
 	 * @return True, if no record is contained, false otherwise.
 	 */
 	@Override
 	public boolean isEmpty() {
 		return this.numRecords == 0;
 	}
-	
+
 	@Override
 	public void dispose() {
 		this.freeMemory.clear();
 		this.sortBuffer.clear();
 	}
-	
+
 	@Override
 	public long getCapacity() {
 		return ((long) this.totalNumBuffers) * this.segmentSize;
 	}
-	
+
 	@Override
 	public long getOccupancy() {
 		return this.sortBufferBytes;
@@ -198,12 +197,12 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	// -------------------------------------------------------------------------
 	// Retrieving and Writing
 	// -------------------------------------------------------------------------
-	
+
 	@Override
 	public T getRecord(int logicalPosition) throws IOException {
 		return getRecord(serializer.createInstance(), logicalPosition);
 	}
-	
+
 	@Override
 	public T getRecord(T reuse, int logicalPosition) throws IOException {
 		final int buffer = logicalPosition / this.recordsPerSegment;
@@ -215,7 +214,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	/**
 	 * Writes a given record to this sort buffer. The written record will be appended and take
 	 * the last logical position.
-	 * 
+	 *
 	 * @param record The record to be written.
 	 * @return True, if the record was successfully written, false, if the sort buffer was full.
 	 * @throws IOException Thrown, if an error occurred while serializing the record into the buffers.
@@ -235,7 +234,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 				return false;
 			}
 		}
-		
+
 		// serialize the record into the data buffers
 		try {
 			this.comparator.writeWithKeyNormalization(record, this.outView);
@@ -246,15 +245,15 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 			throw new IOException("Error: Serialization consumes more bytes than announced by the serializer.");
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//                           Access Utilities
 	// ------------------------------------------------------------------------
-	
+
 	private boolean memoryAvailable() {
 		return !this.freeMemory.isEmpty();
 	}
-	
+
 	private MemorySegment nextMemorySegment() {
 		return this.freeMemory.remove(this.freeMemory.size() - 1);
 	}
@@ -308,25 +307,25 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	}
 
 	// -------------------------------------------------------------------------
-	
+
 	/**
 	 * Gets an iterator over all records in this buffer in their logical order.
-	 * 
+	 *
 	 * @return An iterator returning the records in their logical order.
 	 */
 	@Override
 	public final MutableObjectIterator<T> getIterator() {
 		final SingleSegmentInputView startIn = new SingleSegmentInputView(this.recordsPerSegment * this.recordSize);
 		startIn.set(this.sortBuffer.get(0), 0);
-		
+
 		return new MutableObjectIterator<T>() {
-			
+
 			private final SingleSegmentInputView in = startIn;
 			private final TypeComparator<T> comp = comparator;
-			
+
 			private final int numTotal = size();
 			private final int numPerSegment = recordsPerSegment;
-			
+
 			private int currentTotal = 0;
 			private int currentInSegment = 0;
 			private int currentSegmentIndex = 0;
@@ -334,16 +333,16 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 			@Override
 			public T next(T reuse) {
 				if (this.currentTotal < this.numTotal) {
-					
+
 					if (this.currentInSegment >= this.numPerSegment) {
 						this.currentInSegment = 0;
 						this.currentSegmentIndex++;
 						this.in.set(sortBuffer.get(this.currentSegmentIndex), 0);
 					}
-					
+
 					this.currentTotal++;
 					this.currentInSegment++;
-					
+
 					try {
 						return this.comp.readWithKeyDenormalization(reuse, this.in);
 					}
@@ -382,95 +381,94 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 			}
 		};
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//                Writing to a DataOutputView
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Writes the records in this buffer in their logical order to the given output.
-	 * 
+	 *
 	 * @param output The output view to write the records to.
 	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
 	 */
 	@Override
-	public void writeToOutput(final ChannelWriterOutputView output) throws IOException {
+	public void writeToOutput(final SortedDataFile<T> output) throws IOException {
 		final TypeComparator<T> comparator = this.comparator;
 		final TypeSerializer<T> serializer = this.serializer;
 		T record = this.recordInstance;
-		
+
 		final SingleSegmentInputView inView = this.inView;
-		
+
 		final int recordsPerSegment = this.recordsPerSegment;
 		int recordsLeft = this.numRecords;
 		int currentMemSeg = 0;
-		
+
 		while (recordsLeft > 0) {
 			final MemorySegment currentIndexSegment = this.sortBuffer.get(currentMemSeg++);
 			inView.set(currentIndexSegment, 0);
-			
+
 			// check whether we have a full or partially full segment
 			if (recordsLeft >= recordsPerSegment) {
 				// full segment
 				for (int numInMemSeg = 0; numInMemSeg < recordsPerSegment; numInMemSeg++) {
 					record = comparator.readWithKeyDenormalization(record, inView);
-					serializer.serialize(record, output);
+					output.writeRecord(record);
 				}
 				recordsLeft -= recordsPerSegment;
 			} else {
 				// partially filled segment
 				for (; recordsLeft > 0; recordsLeft--) {
 					record = comparator.readWithKeyDenormalization(record, inView);
-					serializer.serialize(record, output);
+					output.writeRecord(record);
 				}
 			}
 		}
 	}
-	
+
 	@Override
-	public void writeToOutput(ChannelWriterOutputView output, LargeRecordHandler<T> largeRecordsOutput)
-			throws IOException
-	{
+	public void writeToOutput(SortedDataFile<T> output, LargeRecordHandler<T> largeRecordsOutput)
+		throws IOException {
 		writeToOutput(output);
 	}
-	
+
 	/**
 	 * Writes a subset of the records in this buffer in their logical order to the given output.
-	 * 
+	 *
 	 * @param output The output view to write the records to.
 	 * @param start The logical start position of the subset.
 	 * @param num The number of elements to write.
 	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
 	 */
 	@Override
-	public void writeToOutput(final ChannelWriterOutputView output, final int start, int num) throws IOException {
+	public void writeToOutput(final SortedDataFile<T> output, final int start, int num) throws IOException {
 		final TypeComparator<T> comparator = this.comparator;
 		final TypeSerializer<T> serializer = this.serializer;
 		T record = this.recordInstance;
-		
+
 		final SingleSegmentInputView inView = this.inView;
-		
+
 		final int recordsPerSegment = this.recordsPerSegment;
 		int currentMemSeg = start / recordsPerSegment;
 		int offset = (start % recordsPerSegment) * this.recordSize;
-		
+
 		while (num > 0) {
 			final MemorySegment currentIndexSegment = this.sortBuffer.get(currentMemSeg++);
 			inView.set(currentIndexSegment, offset);
-			
+
 			// check whether we have a full or partially full segment
 			if (num >= recordsPerSegment && offset == 0) {
 				// full segment
 				for (int numInMemSeg = 0; numInMemSeg < recordsPerSegment; numInMemSeg++) {
 					record = comparator.readWithKeyDenormalization(record, inView);
-					serializer.serialize(record, output);
+					output.writeRecord(record);
 				}
 				num -= recordsPerSegment;
 			} else {
 				// partially filled segment
 				for (; num > 0 && offset <= this.lastEntryOffset; num--, offset += this.recordSize) {
 					record = comparator.readWithKeyDenormalization(record, inView);
-					serializer.serialize(record, output);
+					output.writeRecord(record);
 				}
 			}
 

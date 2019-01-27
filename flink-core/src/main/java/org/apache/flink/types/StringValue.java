@@ -192,6 +192,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		for (int i = 0; i < len; i++) {
 			this.value[i] = value.charAt(offset + i);
 		}
+		this.len = len;
 		this.hashCode = 0;
 	}
 	
@@ -242,7 +243,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		if (bytes == null) {
 			throw new NullPointerException("Bytes must not be null");
 		}
-		if (len < 0 || offset < 0 || offset > bytes.length - len) {
+		if (len < 0 | offset < 0 | offset > bytes.length - len) {
 			throw new IndexOutOfBoundsException();
 		}
 		

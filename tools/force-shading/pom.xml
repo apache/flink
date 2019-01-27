@@ -28,6 +28,17 @@ under the License.
 		<version>18</version>
 	</parent>
 
+	<distributionManagement>
+		<repository>
+			<id>releases</id>
+			<url>http://mvnrepo.alibaba-inc.com/mvn/releases</url>
+		</repository>
+		<snapshotRepository>
+			<id>snapshots</id>
+			<url>http://mvnrepo.alibaba-inc.com/mvn/snapshots</url>
+		</snapshotRepository>
+	</distributionManagement>
+
 	<!--
 	This module is used a dependency in the root pom. It activates shading for all sub modules
 	through an include rule in the shading configuration. This assures that Maven always generates
@@ -36,20 +47,15 @@ under the License.
 	and thus be suffixed along with all other modules.
 	-->
 
-	<groupId>org.apache.flink</groupId>
+	<groupId>com.alibaba.blink</groupId>
 	<artifactId>force-shading</artifactId>
-	<version>1.8-SNAPSHOT</version>
+	<version>1.5.1</version>
 
 	<packaging>jar</packaging>
 
 	<profiles>
 		<profile>
 			<id>release</id>
-			<activation>
-				<property>
-					<name>release</name>
-				</property>
-			</activation>
 			<build>
 				<plugins>
 					<plugin>

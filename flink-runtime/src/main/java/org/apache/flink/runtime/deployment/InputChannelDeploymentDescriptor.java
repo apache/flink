@@ -18,13 +18,11 @@
 
 package org.apache.flink.runtime.deployment;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphException;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -84,8 +82,9 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 	 * Creates an input channel deployment descriptor for each partition.
 	 */
 	public static InputChannelDeploymentDescriptor[] fromEdges(
+			ResultPartitionLocationTrackerProxy resultPartitionLocationTrackerProxy,
 			ExecutionEdge[] edges,
-			ResourceID consumerResourceId,
+			TaskManagerLocation consumerLocation,
 			boolean allowLazyDeployment) throws ExecutionGraphException {
 
 		final InputChannelDeploymentDescriptor[] icdd = new InputChannelDeploymentDescriptor[edges.length];
@@ -101,28 +100,18 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 			final ResultPartitionLocation partitionLocation;
 
 			// The producing task needs to be RUNNING or already FINISHED
-			if ((consumedPartition.getResultType().isPipelined() || consumedPartition.isConsumable()) &&
+			if ((consumedPartition.getResultType().isPipelined() ||
+					consumedPartition.isConsumable()) &&
 				producerSlot != null &&
-					(producerState == ExecutionState.RUNNING ||
-						producerState == ExecutionState.FINISHED ||
-						producerState == ExecutionState.SCHEDULED ||
-						producerState == ExecutionState.DEPLOYING)) {
+				(producerState == ExecutionState.RUNNING ||
+					producerState == ExecutionState.FINISHED ||
+					producerState == ExecutionState.SCHEDULED ||
+					producerState == ExecutionState.DEPLOYING)) {
 
 				final TaskManagerLocation partitionTaskManagerLocation = producerSlot.getTaskManagerLocation();
-				final ResourceID partitionTaskManager = partitionTaskManagerLocation.getResourceID();
 
-				if (partitionTaskManager.equals(consumerResourceId)) {
-					// Consuming task is deployed to the same TaskManager as the partition => local
-					partitionLocation = ResultPartitionLocation.createLocal();
-				}
-				else {
-					// Different instances => remote
-					final ConnectionID connectionId = new ConnectionID(
-							partitionTaskManagerLocation,
-							consumedPartition.getIntermediateResult().getConnectionIndex());
-
-					partitionLocation = ResultPartitionLocation.createRemote(connectionId);
-				}
+				partitionLocation = resultPartitionLocationTrackerProxy.getResultPartitionLocation(
+					partitionTaskManagerLocation, consumerLocation, consumedPartition.getIntermediateResult());
 			}
 			else if (allowLazyDeployment) {
 				// The producing task might not have registered the partition yet
@@ -136,8 +125,8 @@ public class InputChannelDeploymentDescriptor implements Serializable {
 				throw new ExecutionGraphException(msg);
 			}
 			else {
-				String msg = String.format("Trying to eagerly schedule a task whose inputs " +
-					"are not ready (result type: %s, partition consumable: %s, producer state: %s, producer slot: %s).",
+				String msg = String.format("Trying to eagerly schedule a task whose inputs are not ready " +
+						"(result type: %s, partition consumable: %s, producer state: %s, producer slot: %s).",
 						consumedPartition.getResultType(),
 						consumedPartition.isConsumable(),
 						producerState,

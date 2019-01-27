@@ -27,19 +27,23 @@ import org.apache.flink.core.memory.MemorySegment;
  * and calls a callback once they have been handled.
  */
 public class AsynchronousBlockWriterWithCallback extends AsynchronousFileIOChannel<MemorySegment, WriteRequest> implements BlockChannelWriterWithCallback<MemorySegment> {
-	
+
+	private final int bufferSize;
+
 	/**
 	 * Creates a new asynchronous block writer for the given channel.
 	 *  
 	 * @param channelID The ID of the channel to write to.
 	 * @param requestQueue The request queue of the asynchronous writer thread, to which the I/O requests are added.
 	 * @param callback The callback to be invoked when requests are done.
+	 * @param bufferSize -1 mean not use buffered.
 	 * @throws IOException Thrown, if the underlying file channel could not be opened exclusively.
 	 */
 	protected AsynchronousBlockWriterWithCallback(FileIOChannel.ID channelID, RequestQueue<WriteRequest> requestQueue,
-			RequestDoneCallback<MemorySegment> callback) throws IOException
+			RequestDoneCallback<MemorySegment> callback, int bufferSize) throws IOException
 	{
 		super(channelID, requestQueue, callback, true);
+		this.bufferSize = bufferSize;
 	}
 
 	/**
@@ -51,6 +55,6 @@ public class AsynchronousBlockWriterWithCallback extends AsynchronousFileIOChann
 	 */
 	@Override
 	public void writeBlock(MemorySegment segment) throws IOException {
-		addRequest(new SegmentWriteRequest(this, segment));
+		addRequest(new SegmentWriteRequest(this, segment, bufferSize));
 	}
 }

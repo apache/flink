@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.common.io.compression;
 
 import org.apache.flink.annotation.Internal;
@@ -32,12 +31,14 @@ import java.util.zip.GZIPInputStream;
 @Internal
 public class GzipInflaterInputStreamFactory implements InflaterInputStreamFactory<GZIPInputStream> {
 
-	private static final GzipInflaterInputStreamFactory INSTANCE = new GzipInflaterInputStreamFactory();
+	private static GzipInflaterInputStreamFactory INSTANCE = null;
 
 	public static GzipInflaterInputStreamFactory getInstance() {
+		if (INSTANCE == null) {
+			INSTANCE = new GzipInflaterInputStreamFactory();
+		}
 		return INSTANCE;
 	}
-
 	@Override
 	public GZIPInputStream create(InputStream in) throws IOException {
 		return new GZIPInputStream(in);

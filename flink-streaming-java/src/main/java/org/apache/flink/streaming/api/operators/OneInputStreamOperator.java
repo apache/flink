@@ -49,4 +49,11 @@ public interface OneInputStreamOperator<IN, OUT> extends StreamOperator<OUT> {
 	void processWatermark(Watermark mark) throws Exception;
 
 	void processLatencyMarker(LatencyMarker latencyMarker) throws Exception;
+
+	/**
+	 * It is notified that no more element ({@link StreamRecord}, {@link Watermark} and {@link LatencyMarker})
+	 * will arrive at this operator. This method is guaranteed to not be called concurrently with
+	 * other methods of the operator.
+	 */
+	void endInput() throws Exception;
 }

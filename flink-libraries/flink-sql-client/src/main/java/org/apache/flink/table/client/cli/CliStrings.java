@@ -44,6 +44,7 @@ public final class CliStrings {
 		.append(formatCommand(SqlCommand.QUIT, "Quits the SQL CLI client."))
 		.append(formatCommand(SqlCommand.CLEAR, "Clears the current terminal."))
 		.append(formatCommand(SqlCommand.HELP, "Prints the available commands."))
+		.append(formatCommand(SqlCommand.CREATE_TABLE, "Creates a table with SQL DDL. Syntax: 'CREATE TABLE <name> (<field_name, field_type>) with (<key>=<value>)"))
 		.append(formatCommand(SqlCommand.SHOW_TABLES, "Shows all registered tables."))
 		.append(formatCommand(SqlCommand.SHOW_FUNCTIONS, "Shows all registered user-defined functions."))
 		.append(formatCommand(SqlCommand.DESCRIBE, "Describes the schema of a table with the given name."))
@@ -51,8 +52,9 @@ public final class CliStrings {
 		.append(formatCommand(SqlCommand.SELECT, "Executes a SQL SELECT query on the Flink cluster."))
 		.append(formatCommand(SqlCommand.INSERT_INTO, "Inserts the results of a SQL SELECT query into a declared table sink."))
 		.append(formatCommand(SqlCommand.CREATE_VIEW, "Creates a virtual table from a SQL query. Syntax: 'CREATE VIEW <name> AS <query>;'"))
-		.append(formatCommand(SqlCommand.DROP_VIEW, "Deletes a previously created virtual table. Syntax: 'DROP VIEW <name>;'"))
+		//.append(formatCommand(SqlCommand.DROP_VIEW, "Deletes a previously created virtual table. Syntax: 'DROP VIEW <name>;'"))
 		.append(formatCommand(SqlCommand.SOURCE, "Reads a SQL SELECT query from a file and executes it on the Flink cluster."))
+		.append(formatCommand(SqlCommand.CREATE_FUNCTION, "Creates a UDX with SQL DDL. Syntax: 'CREATE FUNCTION <name> AS <QualifiedFunctionDef>"))
 		.append(formatCommand(SqlCommand.SET, "Sets a session configuration property. Syntax: 'SET <key>=<value>;'. Use 'SET;' for listing all properties."))
 		.append(formatCommand(SqlCommand.RESET, "Resets all session configuration properties."))
 		.style(AttributedStyle.DEFAULT.underline())
@@ -138,6 +140,10 @@ public final class CliStrings {
 	public static final String MESSAGE_VIEW_CREATED = "View has been created.";
 
 	public static final String MESSAGE_VIEW_REMOVED = "View has been removed.";
+
+	public static final String MESSAGE_TABLE_CREATE = "Table has been created.";
+
+	public static final String MESSAGE_FUNCTION_CREATE = "Function has been created.";
 
 	public static final String MESSAGE_VIEW_ALREADY_EXISTS = "A view with this name has already been defined in the current CLI session.";
 

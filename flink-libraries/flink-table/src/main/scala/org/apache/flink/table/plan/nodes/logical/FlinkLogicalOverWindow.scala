@@ -18,7 +18,11 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
-import java.util.{List => JList}
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.errorcode.TableErrors
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.util.OverAggregateUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -27,7 +31,11 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.Window
 import org.apache.calcite.rel.logical.LogicalWindow
 import org.apache.calcite.rex.RexLiteral
-import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.calcite.sql.SqlRankFunction
+
+import java.util.{List => JList}
+
+import scala.collection.JavaConversions._
 
 class FlinkLogicalOverWindow(
     cluster: RelOptCluster,
@@ -48,6 +56,8 @@ class FlinkLogicalOverWindow(
       getRowType,
       windowGroups)
   }
+
+  override def isDeterministic: Boolean = OverAggregateUtil.isDeterministic(windowGroups)
 }
 
 class FlinkLogicalOverWindowConverter
@@ -59,8 +69,17 @@ class FlinkLogicalOverWindowConverter
 
   override def convert(rel: RelNode): RelNode = {
     val window = rel.asInstanceOf[LogicalWindow]
-    val traitSet = rel.getTraitSet.replace(FlinkConventions.LOGICAL)
+    val traitSet = FlinkRelMetadataQuery.traitSet(rel).replace(FlinkConventions.LOGICAL).simplify()
     val newInput = RelOptRule.convert(window.getInput, FlinkConventions.LOGICAL)
+
+    window.groups.foreach { group =>
+      val orderKeySize = group.orderKeys.getFieldCollations.size()
+      group.aggCalls.foreach { winAggCall =>
+        if (orderKeySize == 0 && winAggCall.op.isInstanceOf[SqlRankFunction]) {
+          throw new ValidationException(TableErrors.INST.sqlOverRankWithoutOrderByInvalid())
+        }
+      }
+    }
 
     new FlinkLogicalOverWindow(
       rel.getCluster,

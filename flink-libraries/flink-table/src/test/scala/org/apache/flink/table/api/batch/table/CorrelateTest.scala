@@ -18,17 +18,10 @@
 
 package org.apache.flink.table.api.batch.table
 
-import org.apache.calcite.rel.rules.{CalcMergeRule, FilterCalcMergeRule, ProjectCalcMergeRule}
-import org.apache.calcite.tools.RuleSets
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.calcite.{CalciteConfig, CalciteConfigBuilder}
-import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.utils.{TableFunc0, TableFunc1, TableTestBase}
-import org.junit.Test
-
-import scala.collection.JavaConversions._
+import org.apache.flink.table.util.{TableFunc0, TableFunc1, TableTestBase}
+import org.junit.{Ignore, Test}
 
 class CorrelateTest extends TableTestBase {
 
@@ -40,43 +33,18 @@ class CorrelateTest extends TableTestBase {
 
     val result1 = table.join(function('c) as 's).select('c, 's)
 
-    val expected1 = unaryNode(
-      "DataSetCalc",
-      unaryNode(
-        "DataSetCorrelate",
-        batchTableNode(0),
-        term("invocation", s"${function.functionIdentifier}($$2)"),
-        term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-        term("select", "a", "b", "c", "s"),
-        term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
-        term("joinType", "INNER")
-      ),
-      term("select", "c", "s")
-    )
+    util.verifyPlan(result1)
+  }
 
-    util.verifyTable(result1, expected1)
-
-    // test overloading
+  @Test
+  def testCrossJoin2(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val function = util.addFunction("func1", new TableFunc1)
 
     val result2 = table.join(function('c, "$") as 's).select('c, 's)
 
-    val expected2 = unaryNode(
-      "DataSetCalc",
-      unaryNode(
-        "DataSetCorrelate",
-        batchTableNode(0),
-        term("invocation", s"${function.functionIdentifier}($$2, '$$')"),
-        term("correlate", s"table(${function.getClass.getSimpleName}(c, '$$'))"),
-        term("select", "a", "b", "c", "s"),
-        term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
-        term("joinType", "INNER")
-      ),
-      term("select", "c", "s")
-    )
-
-    util.verifyTable(result2, expected2)
+    util.verifyPlan(result2)
   }
 
   @Test
@@ -87,25 +55,11 @@ class CorrelateTest extends TableTestBase {
 
     val result = table.leftOuterJoin(function('c) as 's).select('c, 's).where('s > "")
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      unaryNode(
-        "DataSetCorrelate",
-        batchTableNode(0),
-        term("invocation", s"${function.functionIdentifier}($$2)"),
-        term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-        term("select", "a", "b", "c", "s"),
-        term("rowType",
-          "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
-        term("joinType", "LEFT")
-      ),
-      term("select", "c", "s"),
-      term("where", ">(s, '')")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
   }
 
+  // TODO to FLINK-7853.
+  @Ignore
   @Test
   def testLeftOuterJoinWithLiteralTrue(): Unit = {
     val util = batchTestUtil()
@@ -114,21 +68,7 @@ class CorrelateTest extends TableTestBase {
 
     val result = table.leftOuterJoin(function('c) as 's, true).select('c, 's)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      unaryNode(
-        "DataSetCorrelate",
-        batchTableNode(0),
-        term("invocation", s"${function.functionIdentifier}($$2)"),
-        term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-        term("select", "a", "b", "c", "s"),
-        term("rowType",
-          "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
-        term("joinType", "LEFT")
-      ),
-      term("select", "c", "s"))
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
   }
 
   @Test
@@ -144,70 +84,20 @@ class CorrelateTest extends TableTestBase {
       .where('e > 20)
       .select('c, 'd)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      unaryNode(
-        "DataSetCorrelate",
-        batchTableNode(0),
-        term("invocation", s"${function.functionIdentifier}($$2)"),
-        term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-        term("select", "a", "b", "c", "d", "e"),
-        term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, " +
-               "VARCHAR(65536) d, INTEGER e)"),
-        term("joinType", "INNER"),
-        term("condition", "AND(>($1, 10), >($1, 20))")
-      ),
-      term("select", "c", "d")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
   }
 
   @Test
-  def testCorrelateWithMultiFilterAndWithoutCalcMergeRules(): Unit = {
+  def testCorrelateAfterConcatAggWithConstantParam(): Unit = {
     val util = batchTestUtil()
-
-    val logicalRuleSet = FlinkRuleSets.LOGICAL_OPT_RULES.filter {
-        case CalcMergeRule.INSTANCE => false
-        case FilterCalcMergeRule.INSTANCE => false
-        case ProjectCalcMergeRule.INSTANCE => false
-        case _ => true
-      }
-
-    val cc: CalciteConfig = new CalciteConfigBuilder()
-      .replaceLogicalOptRuleSet(RuleSets.ofList(logicalRuleSet.toList))
-      .build()
-
-    util.tableEnv.getConfig.setCalciteConfig(cc)
-
-    val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val sourceTable = util.addTable[(String)]("MyTable1", 'a)
     val function = util.addFunction("func1", new TableFunc0)
+    val left = sourceTable.groupBy("5").select('a.concat_agg("#") as 'a)
+    val result = left.join(function('a))
 
-    val result = sourceTable.select('a, 'b, 'c)
-      .join(function('c) as('d, 'e))
-      .select('c, 'd, 'e)
-      .where('e > 10)
-      .where('e > 20)
-      .select('c, 'd)
-
-    val expected = unaryNode(
-      "DataSetCalc",
-      unaryNode(
-        "DataSetCorrelate",
-        batchTableNode(0),
-        term("invocation", s"${function.functionIdentifier}($$2)"),
-        term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-        term("select", "a", "b", "c", "d", "e"),
-        term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, " +
-               "VARCHAR(65536) d, INTEGER e)"),
-        term("joinType", "INNER"),
-        term("condition", "AND(>($1, 10), >($1, 20))")
-      ),
-      term("select", "c", "d")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
   }
+
+
+
 }

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.preaggregatedaccumulators.EmptyOperationAccumulatorAggregationManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -58,8 +59,9 @@ public class DummyEnvironment implements Environment {
 	private final TaskInfo taskInfo;
 	private KvStateRegistry kvStateRegistry = new KvStateRegistry();
 	private TaskStateManager taskStateManager;
-	private final AccumulatorRegistry accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
+	private final AccumulatorRegistry accumulatorRegistry = new AccumulatorRegistry(jobId, jobVertexId, 0, executionId, new EmptyOperationAccumulatorAggregationManager());
 	private ClassLoader userClassLoader;
+	private Configuration taskConfiguration;
 
 	public DummyEnvironment() {
 		this("Test Job", 1, 0, 1);
@@ -107,9 +109,13 @@ public class DummyEnvironment implements Environment {
 		return executionId;
 	}
 
+	public void setTaskConfiguration(Configuration taskConfiguration) {
+		this.taskConfiguration = taskConfiguration;
+	}
+
 	@Override
 	public Configuration getTaskConfiguration() {
-		return new Configuration();
+		return taskConfiguration == null ? new Configuration() : taskConfiguration;
 	}
 
 	@Override
@@ -223,6 +229,7 @@ public class DummyEnvironment implements Environment {
 	public TaskEventDispatcher getTaskEventDispatcher() {
 		throw new UnsupportedOperationException();
 	}
+
 	public void setTaskStateManager(TaskStateManager taskStateManager) {
 		this.taskStateManager = taskStateManager;
 	}

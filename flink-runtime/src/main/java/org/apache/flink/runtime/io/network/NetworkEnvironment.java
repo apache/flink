@@ -25,7 +25,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.InternalResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -43,7 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Optional;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -80,54 +80,42 @@ public class NetworkEnvironment {
 
 	private final int partitionRequestMaxBackoff;
 
-	/** Number of network buffers to use for each outgoing/incoming channel (subpartition/input channel). */
+	/** Number of network buffers to use for each input channel. */
 	private final int networkBuffersPerChannel;
 
-	/** Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate). */
+	/** Number of extra network buffers to use for each input gate. */
 	private final int extraNetworkBuffersPerGate;
+
+	/** Number of network buffers to use for each external shuffle blocking input channel. */
+	private final int networkBuffersPerExternalBlockingChannel;
+
+	/** Number of extra network buffers to use for each external shuffle blocking input gate. */
+	private final int extraNetworkBuffersPerExternalBlockingGate;
+
+	/** Number of network buffers to use for each internal result subpartition. */
+	private final int networkBuffersPerSubpartition;
 
 	private final boolean enableCreditBased;
 
 	private boolean isShutdown;
 
 	public NetworkEnvironment(
-		int numBuffers,
-		int memorySegmentSize,
-		int partitionRequestInitialBackoff,
-		int partitionRequestMaxBackoff,
-		int networkBuffersPerChannel,
-		int extraNetworkBuffersPerGate,
-		boolean enableCreditBased) {
-		this(
-			new NetworkBufferPool(numBuffers, memorySegmentSize),
-			new LocalConnectionManager(),
-			new ResultPartitionManager(),
-			new TaskEventDispatcher(),
-			new KvStateRegistry(),
-			null,
-			null,
-			IOManager.IOMode.SYNC,
-			partitionRequestInitialBackoff,
-			partitionRequestMaxBackoff,
-			networkBuffersPerChannel,
-			extraNetworkBuffersPerGate,
-			enableCreditBased);
-	}
-
-	public NetworkEnvironment(
-		NetworkBufferPool networkBufferPool,
-		ConnectionManager connectionManager,
-		ResultPartitionManager resultPartitionManager,
-		TaskEventDispatcher taskEventDispatcher,
-		KvStateRegistry kvStateRegistry,
-		KvStateServer kvStateServer,
-		KvStateClientProxy kvStateClientProxy,
-		IOMode defaultIOMode,
-		int partitionRequestInitialBackoff,
-		int partitionRequestMaxBackoff,
-		int networkBuffersPerChannel,
-		int extraNetworkBuffersPerGate,
-		boolean enableCreditBased) {
+			NetworkBufferPool networkBufferPool,
+			ConnectionManager connectionManager,
+			ResultPartitionManager resultPartitionManager,
+			TaskEventDispatcher taskEventDispatcher,
+			KvStateRegistry kvStateRegistry,
+			KvStateServer kvStateServer,
+			KvStateClientProxy kvStateClientProxy,
+			IOMode defaultIOMode,
+			int partitionRequestInitialBackoff,
+			int partitionRequestMaxBackoff,
+			int networkBuffersPerChannel,
+			int extraNetworkBuffersPerGate,
+			int networkBuffersPerExternalBlockingChannel,
+			int extraNetworkBuffersPerExternalBlockingGate,
+			int networkBuffersPerSubpartition,
+			boolean enableCreditBased) {
 
 		this.networkBufferPool = checkNotNull(networkBufferPool);
 		this.connectionManager = checkNotNull(connectionManager);
@@ -146,6 +134,9 @@ public class NetworkEnvironment {
 		isShutdown = false;
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 		this.extraNetworkBuffersPerGate = extraNetworkBuffersPerGate;
+		this.networkBuffersPerExternalBlockingChannel = networkBuffersPerExternalBlockingChannel;
+		this.extraNetworkBuffersPerExternalBlockingGate = extraNetworkBuffersPerExternalBlockingGate;
+		this.networkBuffersPerSubpartition = networkBuffersPerSubpartition;
 
 		this.enableCreditBased = enableCreditBased;
 	}
@@ -207,14 +198,14 @@ public class NetworkEnvironment {
 	// --------------------------------------------------------------------------------------------
 
 	public void registerTask(Task task) throws IOException {
-		final ResultPartition[] producedPartitions = task.getProducedPartitions();
+		final List<InternalResultPartition> resultPartitions = task.getInternalPartitions();
 
 		synchronized (lock) {
 			if (isShutdown) {
 				throw new IllegalStateException("NetworkEnvironment is shut down");
 			}
 
-			for (final ResultPartition partition : producedPartitions) {
+			for (final InternalResultPartition partition : resultPartitions) {
 				setupPartition(partition);
 			}
 
@@ -227,19 +218,15 @@ public class NetworkEnvironment {
 	}
 
 	@VisibleForTesting
-	public void setupPartition(ResultPartition partition) throws IOException {
+	public void setupPartition(InternalResultPartition partition) throws IOException {
 		BufferPool bufferPool = null;
 
 		try {
-			int maxNumberOfMemorySegments = partition.getPartitionType().isBounded() ?
-				partition.getNumberOfSubpartitions() * networkBuffersPerChannel +
-					extraNetworkBuffersPerGate : Integer.MAX_VALUE;
-			// If the partition type is back pressure-free, we register with the buffer pool for
-			// callbacks to release memory.
-			bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(),
-				maxNumberOfMemorySegments,
-				partition.getPartitionType().hasBackPressure() ? Optional.empty() : Optional.of(partition));
-
+			int extraNetworkBufferThisPartition = extraNetworkBuffersPerGate >= 0 ?
+				extraNetworkBuffersPerGate : partition.getNumberOfSubpartitions() * networkBuffersPerSubpartition;
+			int numberOfMemorySegments = partition.getNumberOfSubpartitions() * networkBuffersPerSubpartition
+				+ extraNetworkBufferThisPartition;
+			bufferPool = networkBufferPool.createBufferPool(numberOfMemorySegments, numberOfMemorySegments);
 			partition.registerBufferPool(bufferPool);
 
 			resultPartitionManager.registerResultPartition(partition);
@@ -262,18 +249,25 @@ public class NetworkEnvironment {
 	public void setupInputGate(SingleInputGate gate) throws IOException {
 		BufferPool bufferPool = null;
 		int maxNumberOfMemorySegments;
+		int extraNetworkBufferThisGate;
 		try {
 			if (enableCreditBased) {
-				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
-					extraNetworkBuffersPerGate : Integer.MAX_VALUE;
-
-				// assign exclusive buffers to input channels directly and use the rest for floating buffers
-				gate.assignExclusiveSegments(networkBufferPool, networkBuffersPerChannel);
-				bufferPool = networkBufferPool.createBufferPool(0, maxNumberOfMemorySegments);
+				if (gate.isPartitionRequestRestricted()) {
+					extraNetworkBufferThisGate = Math.max(extraNetworkBuffersPerExternalBlockingGate, 0);
+						gate.setNetworkProperties(networkBufferPool, networkBuffersPerExternalBlockingChannel);
+					// for external shuffle, extra buffer is not used currently
+					bufferPool = networkBufferPool.createBufferPool(0, extraNetworkBufferThisGate);
+				} else {
+					extraNetworkBufferThisGate = extraNetworkBuffersPerGate >= 0 ?
+						extraNetworkBuffersPerGate : gate.getNumberOfInputChannels() * networkBuffersPerChannel;
+					gate.setNetworkProperties(networkBufferPool, networkBuffersPerChannel);
+					bufferPool = networkBufferPool.createBufferPool(0, extraNetworkBufferThisGate);
+				}
 			} else {
-				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
-					gate.getNumberOfInputChannels() * networkBuffersPerChannel +
-						extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+				extraNetworkBufferThisGate = extraNetworkBuffersPerGate >= 0 ?
+					extraNetworkBuffersPerGate : gate.getNumberOfInputChannels() * networkBuffersPerChannel;
+				maxNumberOfMemorySegments = gate.getNumberOfInputChannels() * networkBuffersPerChannel
+					+ extraNetworkBufferThisGate;
 
 				bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(),
 					maxNumberOfMemorySegments);
@@ -304,7 +298,7 @@ public class NetworkEnvironment {
 				resultPartitionManager.releasePartitionsProducedBy(executionId, task.getFailureCause());
 			}
 
-			for (ResultPartition partition : task.getProducedPartitions()) {
+			for (InternalResultPartition partition : task.getInternalPartitions()) {
 				taskEventDispatcher.unregisterPartition(partition.getPartitionId());
 				partition.destroyBufferPool();
 			}
@@ -345,7 +339,7 @@ public class NetworkEnvironment {
 				} catch (Throwable ie) {
 					kvStateServer.shutdown();
 					kvStateServer = null;
-					LOG.error("Failed to start the Queryable State Data Server.", ie);
+					throw new IOException("Failed to start the Queryable State Data Server.", ie);
 				}
 			}
 
@@ -355,7 +349,7 @@ public class NetworkEnvironment {
 				} catch (Throwable ie) {
 					kvStateProxy.shutdown();
 					kvStateProxy = null;
-					LOG.error("Failed to start the Queryable State Client Proxy.", ie);
+					throw new IOException("Failed to start the Queryable State Client Proxy.", ie);
 				}
 			}
 		}

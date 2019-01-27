@@ -27,6 +27,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -97,31 +99,43 @@ public class SlotAllocationTest extends TestLogger {
 			}
 		};
 
-		DataStream<Long> src1 = env.generateSequence(1, 10);
-		DataStream<Long> src2 = env.generateSequence(1, 10).slotSharingGroup("src-1");
+		DataStream<Long> src1 = env.generateSequence(1, 10).name("0");
+		DataStream<Long> src2 = env.generateSequence(1, 10).name("1").slotSharingGroup("src-1");
 
 		// this should not inherit group "src-1"
-		src1.union(src2).filter(dummyFilter);
+		src1.union(src2).filter(dummyFilter).name("4");
 
-		DataStream<Long> src3 = env.generateSequence(1, 10).slotSharingGroup("group-1");
-		DataStream<Long> src4 = env.generateSequence(1, 10).slotSharingGroup("group-1");
+		DataStream<Long> src3 = env.generateSequence(1, 10).name("2").slotSharingGroup("group-1");
+		DataStream<Long> src4 = env.generateSequence(1, 10).name("3").slotSharingGroup("group-1");
 
 		// this should inherit "group-1" now
-		src3.union(src4).filter(dummyFilter);
+		src3.union(src4).filter(dummyFilter).name("5");
 
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-		List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+		JobVertex[] sortedVertices = jobGraph.getVerticesAsArray();
+		Arrays.sort(sortedVertices, new Comparator<JobVertex>() {
+			@Override
+			public int compare(JobVertex o1, JobVertex o2) {
+				if (o1.hasNoConnectedInputs() && !o2.hasNoConnectedInputs()) {
+					return -1;
+				} else if (!o1.hasNoConnectedInputs() && o2.hasNoConnectedInputs()) {
+					return 1;
+				}
+
+				return o1.getName().compareTo(o2.getName());
+			}
+		});
 
 		// first pipeline
-		assertEquals(vertices.get(0).getSlotSharingGroup(), vertices.get(4).getSlotSharingGroup());
-		assertNotEquals(vertices.get(0).getSlotSharingGroup(), vertices.get(1).getSlotSharingGroup());
-		assertNotEquals(vertices.get(1).getSlotSharingGroup(), vertices.get(4).getSlotSharingGroup());
+		assertEquals(sortedVertices[0].getSlotSharingGroup(), sortedVertices[4].getSlotSharingGroup());
+		assertNotEquals(sortedVertices[0].getSlotSharingGroup(), sortedVertices[1].getSlotSharingGroup());
+		assertNotEquals(sortedVertices[1].getSlotSharingGroup(), sortedVertices[4].getSlotSharingGroup());
 
 		// second pipeline
-		assertEquals(vertices.get(2).getSlotSharingGroup(), vertices.get(3).getSlotSharingGroup());
-		assertEquals(vertices.get(2).getSlotSharingGroup(), vertices.get(5).getSlotSharingGroup());
-		assertEquals(vertices.get(3).getSlotSharingGroup(), vertices.get(5).getSlotSharingGroup());
+		assertEquals(sortedVertices[2].getSlotSharingGroup(), sortedVertices[3].getSlotSharingGroup());
+		assertEquals(sortedVertices[2].getSlotSharingGroup(), sortedVertices[5].getSlotSharingGroup());
+		assertEquals(sortedVertices[3].getSlotSharingGroup(), sortedVertices[5].getSlotSharingGroup());
 	}
 
 	@Test

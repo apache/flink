@@ -165,7 +165,7 @@ public class HadoopFsFactory implements FileSystemFactory {
 				throw new IOException(message, e);
 			}
 
-			HadoopFileSystem fs = new HadoopFileSystem(hadoopFs);
+			HadoopFileSystem fs = new HadoopFileSystem(hadoopConfig, hadoopFs);
 
 			// create the Flink file system, optionally limiting the open connections
 			if (flinkConfig != null) {

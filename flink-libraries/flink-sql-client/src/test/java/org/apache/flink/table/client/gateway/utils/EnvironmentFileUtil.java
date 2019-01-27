@@ -32,8 +32,14 @@ import java.util.Objects;
  */
 public final class EnvironmentFileUtil {
 
+	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
+
 	private EnvironmentFileUtil() {
 		// private
+	}
+
+	public static Environment getCatalogTestEnvironment() throws IOException {
+		return parseUnmodified(DEFAULTS_ENVIRONMENT_FILE);
 	}
 
 	public static Environment parseUnmodified(String fileName) throws IOException {

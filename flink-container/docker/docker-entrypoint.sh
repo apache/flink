@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
@@ -25,7 +25,6 @@ JOB_CLUSTER="job-cluster"
 TASK_MANAGER="task-manager"
 
 CMD="$1"
-shift;
 
 if [ "${CMD}" == "--help" -o "${CMD}" == "-h" ]; then
     echo "Usage: $(basename $0) (${JOB_CLUSTER}|${TASK_MANAGER})"
@@ -33,6 +32,7 @@ if [ "${CMD}" == "--help" -o "${CMD}" == "-h" ]; then
 elif [ "${CMD}" == "${JOB_CLUSTER}" -o "${CMD}" == "${TASK_MANAGER}" ]; then
     echo "Starting the ${CMD}"
 
+    shift;
     if [ "${CMD}" == "${TASK_MANAGER}" ]; then
         exec $FLINK_HOME/bin/taskmanager.sh start-foreground "$@"
     else
@@ -40,4 +40,8 @@ elif [ "${CMD}" == "${JOB_CLUSTER}" -o "${CMD}" == "${TASK_MANAGER}" ]; then
     fi
 fi
 
+echo "Starting the command $@"
+export FLINK_ROOT_DIR="$FLINK_HOME"
+. "$FLINK_HOME"/bin/config.sh
+export FLINK_CLASSPATH=`constructFlinkClassPath`
 exec "$@"

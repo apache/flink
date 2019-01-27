@@ -56,7 +56,7 @@ public class Kafka08TableSourceSinkFactoryTest extends KafkaTableSourceSinkFacto
 	}
 
 	@Override
-	protected KafkaTableSourceBase getExpectedKafkaTableSource(
+	protected KafkaTableSource getExpectedKafkaTableSource(
 			TableSchema schema,
 			Optional<String> proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
@@ -81,7 +81,7 @@ public class Kafka08TableSourceSinkFactoryTest extends KafkaTableSourceSinkFacto
 	}
 
 	@Override
-	protected KafkaTableSinkBase getExpectedKafkaTableSink(
+	protected KafkaTableSink getExpectedKafkaTableSink(
 			TableSchema schema,
 			String topic,
 			Properties properties,

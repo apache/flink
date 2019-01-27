@@ -18,19 +18,34 @@
 
 package org.apache.flink.yarn.entrypoint;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
-import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
-import org.apache.flink.runtime.entrypoint.component.SessionDispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
+import org.apache.flink.runtime.resourcemanager.slotmanager.DynamicAssigningSlotManager;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.yarn.YarnSessionResourceManager;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Map;
@@ -60,8 +75,46 @@ public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 	}
 
 	@Override
-	protected DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration) {
-		return new SessionDispatcherResourceManagerComponentFactory(YarnResourceManagerFactory.INSTANCE);
+	protected ResourceManager<?> createResourceManager(
+			Configuration configuration,
+			ResourceID resourceId,
+			RpcService rpcService,
+			HighAvailabilityServices highAvailabilityServices,
+			HeartbeatServices heartbeatServices,
+			MetricRegistry metricRegistry,
+			FatalErrorHandler fatalErrorHandler,
+			ClusterInformation clusterInformation,
+			@Nullable String webInterfaceUrl) throws Exception {
+		final ResourceManagerConfiguration rmConfiguration = ResourceManagerConfiguration.fromConfiguration(configuration);
+		final ResourceManagerRuntimeServicesConfiguration rmServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
+		final ResourceManagerRuntimeServices rmRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
+			rmServicesConfiguration,
+			highAvailabilityServices,
+			rpcService.getScheduledExecutor());
+
+		return new YarnSessionResourceManager(
+			rpcService,
+			ResourceManager.RESOURCE_MANAGER_NAME,
+			resourceId,
+			configuration,
+			System.getenv(),
+			rmConfiguration,
+			highAvailabilityServices,
+			heartbeatServices,
+			new DynamicAssigningSlotManager(
+				rpcService.getScheduledExecutor(),
+				rmServicesConfiguration.getSlotManagerConfiguration().getTaskManagerRequestTimeout(),
+				rmServicesConfiguration.getSlotManagerConfiguration().getSlotRequestTimeout(),
+				configuration.contains(ResourceManagerOptions.TASK_MANAGER_TIMEOUT) ?
+					rmServicesConfiguration.getSlotManagerConfiguration().getTaskManagerTimeout() :
+					Time.seconds(AkkaUtils.INF_TIMEOUT().toSeconds()),
+				rmServicesConfiguration.getSlotManagerConfiguration().getTaskManagerCheckerInitialDelay(),
+				DynamicAssigningSlotManager.SlotPlacementPolicy.valueOf(configuration.getString(ResourceManagerOptions.SLOT_PLACEMENT_POLICY))),
+			metricRegistry,
+			rmRuntimeServices.getJobLeaderIdService(),
+			clusterInformation,
+			fatalErrorHandler,
+			webInterfaceUrl);
 	}
 
 	public static void main(String[] args) {
@@ -90,6 +143,6 @@ public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 			configuration,
 			workingDirectory);
 
-		ClusterEntrypoint.runClusterEntrypoint(yarnSessionClusterEntrypoint);
+		yarnSessionClusterEntrypoint.startCluster();
 	}
 }

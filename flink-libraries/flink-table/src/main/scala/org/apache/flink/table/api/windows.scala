@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.api
 
+import org.apache.flink.table.api.scala.{CURRENT_RANGE, CURRENT_ROW}
+import org.apache.flink.table.api.types.DataTypes
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical._
-import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
-import org.apache.flink.table.api.scala.{CURRENT_RANGE, CURRENT_ROW}
 
 /**
   * Over window is similar to the traditional OVER SQL.
@@ -29,40 +29,52 @@ import org.apache.flink.table.api.scala.{CURRENT_RANGE, CURRENT_ROW}
 case class OverWindow(
     private[flink] val alias: Expression,
     private[flink] val partitionBy: Seq[Expression],
-    private[flink] val orderBy: Expression,
+    private[flink] val orderBy: Seq[Expression],
     private[flink] val preceding: Expression,
     private[flink] val following: Expression)
 
 case class CurrentRow() extends Expression {
-  override private[flink] def resultType = RowIntervalTypeInfo.INTERVAL_ROWS
+  override private[flink] def resultType = DataTypes.INTERVAL_ROWS
 
   override private[flink] def children = Seq()
 
   override def toString = "CURRENT ROW"
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 case class CurrentRange() extends Expression {
-  override private[flink] def resultType = TimeIntervalTypeInfo.INTERVAL_MILLIS
+  override private[flink] def resultType = DataTypes.INTERVAL_RANGE
 
   override private[flink] def children = Seq()
 
   override def toString = "CURRENT RANGE"
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 case class UnboundedRow() extends Expression {
-  override private[flink] def resultType = RowIntervalTypeInfo.INTERVAL_ROWS
+  override private[flink] def resultType = DataTypes.INTERVAL_ROWS
 
   override private[flink] def children = Seq()
 
   override def toString = "UNBOUNDED ROW"
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 case class UnboundedRange() extends Expression {
-  override private[flink] def resultType = TimeIntervalTypeInfo.INTERVAL_MILLIS
+  override private[flink] def resultType = DataTypes.INTERVAL_RANGE
 
   override private[flink] def children = Seq()
 
   override def toString = "UNBOUNDED RANGE"
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 /**
@@ -70,7 +82,7 @@ case class UnboundedRange() extends Expression {
   */
 class OverWindowWithPreceding(
     private val partitionBy: Seq[Expression],
-    private val orderBy: Expression,
+    private val orderBy: Seq[Expression],
     private val preceding: Expression) {
 
   private[flink] var following: Expression = _
@@ -93,7 +105,7 @@ class OverWindowWithPreceding(
 
     // set following to CURRENT_ROW / CURRENT_RANGE if not defined
     if (null == following) {
-      if (preceding.resultType.isInstanceOf[RowIntervalTypeInfo]) {
+      if (preceding.resultType == DataTypes.INTERVAL_ROWS) {
         following = CURRENT_ROW
       } else {
         following = CURRENT_RANGE
@@ -137,7 +149,7 @@ class OverWindowWithPreceding(
   * For finite batch tables, window provides shortcuts for time-based groupBy.
   *
   */
-abstract class Window(val alias: Expression, val timeField: Expression) {
+abstract class WindowExpression(val alias: Expression, val timeField: Expression) {
 
   /**
     * Converts an API class to a logical window for planning.
@@ -234,7 +246,7 @@ class TumbleWithSizeOnTimeWithAlias(
     alias: Expression,
     timeField: Expression,
     size: Expression)
-  extends Window(
+  extends WindowExpression(
     alias,
     timeField) {
 
@@ -369,7 +381,7 @@ class SlideWithSizeAndSlideOnTimeWithAlias(
     timeField: Expression,
     size: Expression,
     slide: Expression)
-  extends Window(
+  extends WindowExpression(
     alias,
     timeField) {
 
@@ -469,7 +481,7 @@ class SessionWithGapOnTimeWithAlias(
     alias: Expression,
     timeField: Expression,
     gap: Expression)
-  extends Window(
+  extends WindowExpression(
     alias,
     timeField) {
 

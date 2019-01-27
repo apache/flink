@@ -37,7 +37,7 @@ The [predefined data sinks]({{ site.baseurl }}/dev/datastream_api.html#data-sink
 
 ## Bundled Connectors
 
-Connectors provide code for interfacing with various third-party systems. Currently these systems are supported:
+Connectors provide code for interfacing with various third-party systems. Currently, these systems are supported:
 
  * [Apache Kafka](kafka.html) (source/sink)
  * [Apache Cassandra](cassandra.html) (sink)
@@ -48,7 +48,7 @@ Connectors provide code for interfacing with various third-party systems. Curren
  * [Apache NiFi](nifi.html) (source/sink)
  * [Twitter Streaming API](twitter.html) (source)
 
-Keep in mind that to use one of these connectors in an application, additional third party
+Keep in mind that to use one of these connectors in an application, additional third-party
 components are usually required, e.g. servers for the data stores or message queues.
 Note also that while the streaming connectors listed in this section are part of the
 Flink project and are included in source releases, they are not included in the binary distributions. 
@@ -70,7 +70,7 @@ Additional streaming connectors for Flink are being released through [Apache Bah
 
 Using a connector isn't the only way to get data in and out of Flink.
 One common pattern is to query an external database or web service in a `Map` or `FlatMap`
-in order to enrich the primary datastream.
+in order to enrich the primary `DataStream`.
 Flink offers an API for [Asynchronous I/O]({{ site.baseurl }}/dev/stream/operators/asyncio.html)
 to make it easier to do this kind of enrichment efficiently and robustly.
 
@@ -82,5 +82,3 @@ If the data involved has many fewer reads than writes, a better approach can be
 for an external application to pull from Flink the data it needs.
 The [Queryable State]({{ site.baseurl }}/dev/stream/state/queryable_state.html) interface
 enables this by allowing the state being managed by Flink to be queried on demand.
-
-{% top %}

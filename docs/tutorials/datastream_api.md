@@ -37,12 +37,13 @@ give you a good foundation from which to start building more complex analysis pr
 ## Setting up a Maven Project
 
 We are going to use a Flink Maven Archetype for creating our project structure. Please
-see [Java API Quickstart]({{ site.baseurl }}/dev/projectsetup/java_api_quickstart.html) for more details
+see [Java API Quickstart]({{ site.baseurl }}/quickstart/java_api_quickstart.html) for more details
+quickstart/java_api_quickstart.html
 about this. For our purposes, the command to run is this:
 
 {% highlight bash %}
 $ mvn archetype:generate \
-    -DarchetypeGroupId=org.apache.flink \
+    -DarchetypeGroupId=com.alibaba.blink \
     -DarchetypeArtifactId=flink-quickstart-java \{% unless site.is_stable %}
     -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
     -DarchetypeVersion={{ site.version }} \
@@ -90,29 +91,29 @@ use it in our program. Edit the `dependencies` section of the `pom.xml` so that 
 {% highlight xml %}
 <dependencies>
     <dependency>
-        <groupId>org.apache.flink</groupId>
+        <groupId>com.alibaba.blink</groupId>
         <artifactId>flink-java</artifactId>
         <version>${flink.version}</version>
     </dependency>
     <dependency>
-        <groupId>org.apache.flink</groupId>
-        <artifactId>flink-streaming-java_2.11</artifactId>
+        <groupId>com.alibaba.blink</groupId>
+        <artifactId>flink-streaming-java{{ site.scala_version_suffix }}</artifactId>
         <version>${flink.version}</version>
     </dependency>
     <dependency>
-        <groupId>org.apache.flink</groupId>
-        <artifactId>flink-clients_2.11</artifactId>
+        <groupId>com.alibaba.blink</groupId>
+        <artifactId>flink-clients{{ site.scala_version_suffix }}</artifactId>
         <version>${flink.version}</version>
     </dependency>
     <dependency>
-        <groupId>org.apache.flink</groupId>
-        <artifactId>flink-connector-wikiedits_2.11</artifactId>
+        <groupId>com.alibaba.blink</groupId>
+        <artifactId>flink-connector-wikiedits{{ site.scala_version_suffix }}</artifactId>
         <version>${flink.version}</version>
     </dependency>
 </dependencies>
 {% endhighlight %}
 
-Notice the `flink-connector-wikiedits_2.11` dependency that was added. (This example and
+Notice the `flink-connector-wikiedits{{ site.scala_version_suffix }}` dependency that was added. (This example and
 the Wikipedia connector were inspired by the *Hello Samza* example of Apache Samza.)
 
 ## Writing a Flink Program
@@ -300,8 +301,8 @@ use the Kafka sink. Add this to the `pom.xml` file in the dependencies section:
 
 {% highlight xml %}
 <dependency>
-    <groupId>org.apache.flink</groupId>
-    <artifactId>flink-connector-kafka-0.11_2.11</artifactId>
+    <groupId>com.alibaba.blink</groupId>
+    <artifactId>flink-connector-kafka-0.11{{ site.scala_version_suffix }}</artifactId>
     <version>${flink.version}</version>
 </dependency>
 {% endhighlight %}
@@ -382,7 +383,7 @@ You can observe the output of the program by inspecting the Kafka topic using th
 console consumer:
 
 {% highlight bash %}
-bin/kafka-console-consumer.sh  --zookeeper localhost:2181 --topic wiki-result
+bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic wiki-result
 {% endhighlight %}
 
 You can also check out the Flink dashboard which should be running at [http://localhost:8081](http://localhost:8081).

@@ -1,0 +1,62 @@
+== Abstract Syntax Tree ==
+LogicalCorrelate(correlation=[$cor2], joinType=[inner], requiredColumns=[{}])
+:- LogicalFilter(condition=[=($0, $6)])
+:  +- LogicalJoin(condition=[true], joinType=[inner])
+:     :- LogicalFilter(condition=[=($1, $4)])
+:     :  +- LogicalJoin(condition=[true], joinType=[inner])
+:     :     :- LogicalTableScan(table=[[builtin, default, t1]])
+:     :     +- LogicalTableScan(table=[[builtin, default, t2]])
+:     +- LogicalTableScan(table=[[builtin, default, t3]])
++- LogicalTableFunctionScan(invocation=[org$apache$flink$table$util$TableFunc1$4cf19b69e9ec9920db1afce973dac2eb($5)], rowType=[RecordType(VARCHAR(65536) f1)], elementType=[class [Ljava.lang.Object;])
+
+== Optimized Logical Plan ==
+StreamExecSink(fields=[a, b, c, d, e, f, i, j, k, l, m, f1], retract=[false], accMode=[Acc])
++- StreamExecCorrelate(invocation=[org$apache$flink$table$util$TableFunc1$4cf19b69e9ec9920db1afce973dac2eb($5)], correlate=[table(TableFunc1(f))], select=[a,b,c,d,e,f,i,j,k,l,m,f1], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, INTEGER d, BIGINT e, VARCHAR(65536) f, INTEGER i, BIGINT j, INTEGER k, VARCHAR(65536) l, BIGINT m, VARCHAR(65536) f1)], joinType=[INNER], retract=[false], accMode=[Acc])
+   +- StreamExecJoin(where=[=(a, i)], join=[a, b, c, d, e, f, i, j, k, l, m], joinType=[InnerJoin], retract=[false], accMode=[Acc])
+      :- StreamExecExchange(distribution=[hash[a]], retract=[true], accMode=[Acc])
+      :  +- StreamExecJoin(where=[=(b, e)], join=[a, b, c, d, e, f], joinType=[InnerJoin], retract=[true], accMode=[Acc])
+      :     :- StreamExecExchange(distribution=[hash[b]], retract=[true], accMode=[Acc])
+      :     :  +- StreamExecDataStreamScan(table=[[builtin, default, t1]], retract=[true], accMode=[Acc])
+      :     +- StreamExecExchange(distribution=[hash[e]], retract=[true], accMode=[Acc])
+      :        +- StreamExecDataStreamScan(table=[[builtin, default, t2]], retract=[true], accMode=[Acc])
+      +- StreamExecExchange(distribution=[hash[i]], retract=[true], accMode=[Acc])
+         +- StreamExecDataStreamScan(table=[[builtin, default, t3]], retract=[true], accMode=[Acc])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:[builtin, default, t1], fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : SourceConversion(table:[builtin, default, t2], fields:(d, e, f))
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : InnerJoin(where: (=(b, e)), join: (a, b, c, d, e, f))
+				ship_strategy : HASH
+
+				 : Operator
+					content : SourceConversion(table:[builtin, default, t3], fields:(i, j, k, l, m))
+					ship_strategy : FORWARD
+
+					 : Operator
+						content : InnerJoin(where: (=(a, i)), join: (a, b, c, d, e, f, i, j, k, l, m))
+						ship_strategy : HASH
+
+						 : Operator
+							content : correlate: table(TableFunc1(f)), select: a,b,c,d,e,f,i,j,k,l,m,f1
+							ship_strategy : FORWARD
+
+							 : Data Sink
+								content : Sink: csv sink: file
+								ship_strategy : FORWARD
+

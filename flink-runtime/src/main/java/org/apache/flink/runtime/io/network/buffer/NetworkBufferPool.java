@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
@@ -30,10 +31,11 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -67,6 +69,8 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 	private final Set<LocalBufferPool> allBufferPools = new HashSet<>();
 
+	private final LinkedList<LocalBufferPool> bufferPoolsToDestroy = new LinkedList<>();
+
 	private int numTotalRequiredBuffers;
 
 	/**
@@ -89,7 +93,8 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 		try {
 			for (int i = 0; i < numberOfSegmentsToAllocate; i++) {
-				availableMemorySegments.add(MemorySegmentFactory.allocateUnpooledOffHeapMemory(segmentSize, null));
+				ByteBuffer memory = ByteBuffer.allocateDirect(segmentSize);
+				availableMemorySegments.add(MemorySegmentFactory.wrapPooledOffHeapMemory(memory, null));
 			}
 		}
 		catch (OutOfMemoryError err) {
@@ -133,6 +138,8 @@ public class NetworkBufferPool implements BufferPoolFactory {
 			if (isDestroyed) {
 				throw new IllegalStateException("Network buffer pool has already been destroyed.");
 			}
+
+			tryReleaseMemory(numRequiredBuffers);
 
 			if (numTotalRequiredBuffers + numRequiredBuffers > totalNumberOfMemorySegments) {
 				throw new IOException(String.format("Insufficient number of network buffers: " +
@@ -254,17 +261,14 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 	@Override
 	public BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers) throws IOException {
-		return createBufferPool(numRequiredBuffers, maxUsedBuffers, Optional.empty());
-	}
-
-	@Override
-	public BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers, Optional<BufferPoolOwner> owner) throws IOException {
 		// It is necessary to use a separate lock from the one used for buffer
 		// requests to ensure deadlock freedom for failure cases.
 		synchronized (factoryLock) {
 			if (isDestroyed) {
 				throw new IllegalStateException("Network buffer pool has already been destroyed.");
 			}
+
+			tryReleaseMemory(numRequiredBuffers);
 
 			// Ensure that the number of required buffers can be satisfied.
 			// With dynamic memory management this should become obsolete.
@@ -287,7 +291,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 			// We are good to go, create a new buffer pool and redistribute
 			// non-fixed size buffers.
 			LocalBufferPool localBufferPool =
-				new LocalBufferPool(this, numRequiredBuffers, maxUsedBuffers, owner);
+				new LocalBufferPool(this, numRequiredBuffers, maxUsedBuffers);
 
 			allBufferPools.add(localBufferPool);
 
@@ -295,7 +299,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 				redistributeBuffers();
 			} catch (IOException e) {
 				try {
-					destroyBufferPool(localBufferPool);
+					tryDestroyBufferPool(localBufferPool, false);
 				} catch (IOException inner) {
 					e.addSuppressed(inner);
 				}
@@ -307,13 +311,31 @@ public class NetworkBufferPool implements BufferPoolFactory {
 	}
 
 	@Override
-	public void destroyBufferPool(BufferPool bufferPool) throws IOException {
+	public void tryDestroyBufferPool(BufferPool bufferPool, boolean lazyDestroy) throws IOException {
 		if (!(bufferPool instanceof LocalBufferPool)) {
 			throw new IllegalArgumentException("bufferPool is no LocalBufferPool");
 		}
 
 		synchronized (factoryLock) {
 			if (allBufferPools.remove(bufferPool)) {
+				if (lazyDestroy) {
+					bufferPoolsToDestroy.add((LocalBufferPool) bufferPool);
+				} else {
+					numTotalRequiredBuffers -= bufferPool.getNumberOfRequiredMemorySegments();
+
+					redistributeBuffers();
+				}
+			}
+		}
+	}
+
+	public void destroyBufferPool(BufferPool bufferPool) throws IOException {
+		if (!(bufferPool instanceof LocalBufferPool)) {
+			throw new IllegalArgumentException("bufferPool is no LocalBufferPool");
+		}
+
+		synchronized (factoryLock) {
+			if(bufferPoolsToDestroy.remove(bufferPool)) {
 				numTotalRequiredBuffers -= bufferPool.getNumberOfRequiredMemorySegments();
 
 				redistributeBuffers();
@@ -338,6 +360,17 @@ public class NetworkBufferPool implements BufferPoolFactory {
 			if (allBufferPools.size() > 0 || numTotalRequiredBuffers > 0) {
 				throw new IllegalStateException("NetworkBufferPool is not empty after destroying all LocalBufferPools");
 			}
+		}
+	}
+
+	private void tryReleaseMemory(int numRequiredBuffers) throws IOException {
+		assert Thread.holdsLock(factoryLock);
+
+		while (!bufferPoolsToDestroy.isEmpty() &&
+			numTotalRequiredBuffers + numRequiredBuffers > totalNumberOfMemorySegments) {
+			LocalBufferPool bufferPool = bufferPoolsToDestroy.pollFirst();
+			bufferPool.releaseMemory();
+			numTotalRequiredBuffers -= bufferPool.getNumberOfRequiredMemorySegments();
 		}
 	}
 
@@ -408,5 +441,15 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 		assert (totalPartsUsed == totalCapacity);
 		assert (numDistributedMemorySegment == memorySegmentsToDistribute);
+	}
+
+	@VisibleForTesting
+	public int getNumBufferPoolsToDestroy() {
+		return bufferPoolsToDestroy.size();
+	}
+
+	@VisibleForTesting
+	public int getNumTotalRequiredBuffers() {
+		return numTotalRequiredBuffers;
 	}
 }

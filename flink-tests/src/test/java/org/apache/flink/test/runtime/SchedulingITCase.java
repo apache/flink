@@ -41,6 +41,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -49,7 +50,6 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVER_STRATEGY;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -57,6 +57,24 @@ import static org.junit.Assert.assertThat;
  * IT case for testing Flink's scheduling strategies.
  */
 public class SchedulingITCase extends TestLogger {
+
+	/**
+	 * Tests scheduling with default EAGER mode.
+	 */
+	@Test(timeout = 60000L)
+	public void testEagerScheduling() throws Exception {
+		final Configuration configuration = new Configuration();
+		executeSchedulingTest(configuration, ScheduleMode.EAGER);
+	}
+
+	/**
+	 * Tests scheduling with default LAZY_FROM_SOURCES mode.
+	 */
+	@Test(timeout = 60000L)
+	public void testLazyScheduling() throws Exception {
+		final Configuration configuration = new Configuration();
+		executeSchedulingTest(configuration, ScheduleMode.LAZY_FROM_SOURCES);
+	}
 
 	/**
 	 * Tests that if local recovery is disabled we won't spread
@@ -72,31 +90,22 @@ public class SchedulingITCase extends TestLogger {
 
 	/**
 	 * Tests that if local recovery is enabled we won't spread
-	 * out tasks when recovering for global failover.
+	 * out tasks when recovering.
 	 */
 	@Test
-	public void testLocalRecoveryFull() throws Exception {
-		testLocalRecoveryInternal("full");
-	}
-
-	/**
-	 * Tests that if local recovery is enabled we won't spread
-	 * out tasks when recovering for regional failover.
-	 */
-	@Test
-	public void testLocalRecoveryRegion() throws Exception {
-		testLocalRecoveryInternal("region");
-	}
-
-	private void testLocalRecoveryInternal(String failoverStrategyValue) throws Exception {
+	@Ignore("The test should not pass until FLINK-9635 has been fixed")
+	public void testLocalRecovery() throws Exception {
 		final Configuration configuration = new Configuration();
 		configuration.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
-		configuration.setString(EXECUTION_FAILOVER_STRATEGY.key(), failoverStrategyValue);
 
 		executeSchedulingTest(configuration);
 	}
 
 	private void executeSchedulingTest(Configuration configuration) throws Exception {
+		executeSchedulingTest(configuration, ScheduleMode.EAGER);
+	}
+
+	private void executeSchedulingTest(Configuration configuration, ScheduleMode scheduleMode) throws Exception {
 		configuration.setInteger(RestOptions.PORT, 0);
 
 		final long slotIdleTimeout = 50L;
@@ -114,7 +123,7 @@ public class SchedulingITCase extends TestLogger {
 
 			MiniClusterClient miniClusterClient = new MiniClusterClient(configuration, miniCluster);
 
-			JobGraph jobGraph = createJobGraph(slotIdleTimeout << 1, parallelism);
+			JobGraph jobGraph = createJobGraph(slotIdleTimeout << 1, parallelism, scheduleMode);
 			CompletableFuture<JobSubmissionResult> submissionFuture = miniClusterClient.submitJob(jobGraph);
 
 			// wait for the submission to succeed
@@ -129,23 +138,29 @@ public class SchedulingITCase extends TestLogger {
 	}
 
 	@Nonnull
-	private JobGraph createJobGraph(long delay, int parallelism) throws IOException {
+	private JobGraph createJobGraph(long delay, int parallelism, ScheduleMode scheduleMode) throws IOException {
 		SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
 
-		final JobVertex source = new JobVertex("source");
+		final JobVertex source = new JobVertex("source1");
 		source.setInvokableClass(OneTimeFailingInvokable.class);
 		source.setParallelism(parallelism);
 		source.setSlotSharingGroup(slotSharingGroup);
 
-		final JobVertex sink = new JobVertex("sink");
-		sink.setInvokableClass(NoOpInvokable.class);
-		sink.setParallelism(parallelism);
-		sink.setSlotSharingGroup(slotSharingGroup);
+		final JobVertex sink1 = new JobVertex("Sink1");
+		sink1.setInvokableClass(NoOpInvokable.class);
+		sink1.setParallelism(parallelism);
+		sink1.setSlotSharingGroup(slotSharingGroup);
 
-		sink.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-		JobGraph jobGraph = new JobGraph(source, sink);
+		final JobVertex sink2 = new JobVertex("Sink2");
+		sink2.setInvokableClass(NoOpInvokable.class);
+		sink2.setParallelism(parallelism);
+		sink2.setSlotSharingGroup(slotSharingGroup);
 
-		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+		sink1.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+		sink2.connectNewDataSetAsInput(source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		JobGraph jobGraph = new JobGraph(source, sink1, sink2);
+
+		jobGraph.setScheduleMode(scheduleMode);
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, delay));

@@ -40,4 +40,9 @@ public class StreamMap<IN, OUT>
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		output.collect(element.replace(userFunction.map(element.getValue())));
 	}
+
+	@Override
+	public void endInput() throws Exception {
+
+	}
 }

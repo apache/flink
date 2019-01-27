@@ -724,19 +724,17 @@ A `ProcessWindowFunction` can be defined and used like this:
 DataStream<Tuple2<String, Long>> input = ...;
 
 input
-  .keyBy(t -> t.f0)
-  .timeWindow(Time.minutes(5))
-  .process(new MyProcessWindowFunction());
+    .keyBy(<key selector>)
+    .window(<window assigner>)
+    .process(new MyProcessWindowFunction());
 
 /* ... */
 
-public class MyProcessWindowFunction 
-    extends ProcessWindowFunction<Tuple2<String, Long>, String, String, TimeWindow> {
+public class MyProcessWindowFunction extends ProcessWindowFunction<Tuple<String, Long>, String, String, TimeWindow> {
 
-  @Override
-  public void process(String key, Context context, Iterable<Tuple2<String, Long>> input, Collector<String> out) {
+  void process(String key, Context context, Iterable<Tuple<String, Long>> input, Collector<String> out) {
     long count = 0;
-    for (Tuple2<String, Long> in: input) {
+    for (Tuple<String, Long> in: input) {
       count++;
     }
     out.collect("Window: " + context.window() + "count: " + count);
@@ -751,9 +749,9 @@ public class MyProcessWindowFunction
 val input: DataStream[(String, Long)] = ...
 
 input
-  .keyBy(_._1)
-  .timeWindow(Time.minutes(5))
-  .process(new MyProcessWindowFunction())
+    .keyBy(<key selector>)
+    .window(<window assigner>)
+    .process(new MyProcessWindowFunction())
 
 /* ... */
 
@@ -783,7 +781,7 @@ When the window is closed, the `ProcessWindowFunction` will be provided with the
 This allows it to incrementally compute windows while having access to the
 additional window meta information of the `ProcessWindowFunction`.
 
-<span class="label label-info">Note</span> You can also use the legacy `WindowFunction` instead of
+<span class="label label-info">Note</span> You can also the legacy `WindowFunction` instead of
 `ProcessWindowFunction` for incremental window aggregation.
 
 #### Incremental Window Aggregation with ReduceFunction
@@ -819,7 +817,7 @@ private static class MyProcessWindowFunction
                     Iterable<SensorReading> minReadings,
                     Collector<Tuple2<Long, SensorReading>> out) {
       SensorReading min = minReadings.iterator().next();
-      out.collect(new Tuple2<Long, SensorReading>(context.window().getStart(), min));
+      out.collect(new Tuple2<Long, SensorReading>(window.getStart(), min));
   }
 }
 
@@ -836,12 +834,12 @@ input
   .reduce(
     (r1: SensorReading, r2: SensorReading) => { if (r1.value > r2.value) r2 else r1 },
     ( key: String,
-      context: ProcessWindowFunction[_, _, _, TimeWindow]#Context,
+      window: TimeWindow,
       minReadings: Iterable[SensorReading],
       out: Collector[(Long, SensorReading)] ) =>
       {
         val min = minReadings.iterator.next()
-        out.collect((context.window.getStart, min))
+        out.collect((window.getStart, min))
       }
   )
 
@@ -971,7 +969,7 @@ private static class MyFoldFunction
 
   public Tuple3<String, Long, Integer> fold(Tuple3<String, Long, Integer> acc, SensorReading s) {
       Integer cur = acc.getField(2);
-      acc.setField(cur + 1, 2);
+      acc.setField(2, cur + 1);
       return acc;
   }
 }
@@ -1034,7 +1032,7 @@ different keys and events for all of them currently fall into the *[12:00, 13:00
 then there will be 1000 window instances that each have their own keyed per-window state.
 
 There are two methods on the `Context` object that a `process()` invocation receives that allow
-access to the two types of state:
+access two the two types of state:
 
  - `globalState()`, which allows access to keyed state that is not scoped to a window
  - `windowState()`, which allows access to keyed state that is also scoped to the window

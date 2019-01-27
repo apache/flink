@@ -102,4 +102,9 @@ For that reason, the execution of an ExecutionVertex is tracked in an {% gh_link
 <img src="{{ site.baseurl }}/fig/state_machine.svg" alt="States and Transitions of Task Executions" height="300px" style="text-align: center;"/>
 </div>
 
+
+## Plugable scheduling strategies
+
+JobManager supplies two default scheduling strategies, **EAGER** for streaming jobs and **LAZY_FROM_SOURCE** for batch jobs. Customized scheduling strategies are enabled to support specified scheduling requirements. Customized strategies need to implement the {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/schedule/GraphManagerPlugin.java "GraphManagerPlugin" %} and set **jobmanager.execution.graph-manager-plugin** to the customized strategy class name in the custom config of {% gh_link /flink-streaming-java/src/main/java/org/apache/flink/streaming/api/graph/StreamGraph.java "StreamGraph" %}.
+
 {% top %}

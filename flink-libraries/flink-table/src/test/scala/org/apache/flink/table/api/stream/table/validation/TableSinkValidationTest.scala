@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.api.stream.table.validation
 
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableEnvironment, TableException}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.stream.table.{TestAppendSink, TestUpsertSink}
-import org.apache.flink.table.runtime.utils.StreamTestData
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.runtime.utils.{StreamTestData, TestingAppendSink}
+import org.apache.flink.table.util.TableTestBase
+import org.apache.flink.api.scala._
+import org.apache.flink.types.Row
 import org.junit.Test
 
 class TableSinkValidationTest extends TableTestBase {
@@ -35,48 +35,10 @@ class TableSinkValidationTest extends TableTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'id, 'num, 'text)
-    tEnv.registerTableSink("testSink", new TestAppendSink)
 
     t.groupBy('text)
     .select('text, 'id.count, 'num.sum)
-    .insertInto("testSink")
-
-    // must fail because table is not append-only
-    env.execute()
-  }
-
-  @Test(expected = classOf[TableException])
-  def testUpsertSinkOnUpdatingTableWithoutFullKey(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = StreamTestData.get3TupleDataStream(env)
-      .assignAscendingTimestamps(_._1.toLong)
-      .toTable(tEnv, 'id, 'num, 'text)
-    tEnv.registerTableSink("testSink", new TestUpsertSink(Array("len", "cTrue"), false))
-
-    t.select('id, 'num, 'text.charLength() as 'len, ('id > 0) as 'cTrue)
-    .groupBy('len, 'cTrue)
-    .select('len, 'id.count, 'num.sum)
-    .insertInto("testSink")
-
-    // must fail because table is updating table without full key
-    env.execute()
-  }
-
-  @Test(expected = classOf[TableException])
-  def testAppendSinkOnLeftJoin(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
-    tEnv.registerTableSink("testSink", new TestAppendSink)
-
-    ds1.leftOuterJoin(ds2, 'a === 'd && 'b === 'h)
-      .select('c, 'g)
-      .insertInto("testSink")
+    .toAppendStream[Row].addSink(new TestingAppendSink)
 
     // must fail because table is not append-only
     env.execute()

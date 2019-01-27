@@ -32,12 +32,9 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
 import javax.annotation.Nonnull;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -53,22 +50,20 @@ abstract class AbstractTaskManagerHandler<T extends RestfulGateway, R extends Re
 	private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
 
 	protected AbstractTaskManagerHandler(
+			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends T> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<R, P, M> messageHeaders,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
 
 		this.resourceManagerGatewayRetriever = Preconditions.checkNotNull(resourceManagerGatewayRetriever);
 	}
 
 	@Override
 	protected CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R, M> request, @Nonnull T gateway) throws RestHandlerException {
-		Optional<ResourceManagerGateway> resourceManagerGatewayOptional = resourceManagerGatewayRetriever.getNow();
-
-		ResourceManagerGateway resourceManagerGateway = resourceManagerGatewayOptional.orElseThrow(
-			() -> new RestHandlerException("Cannot connect to ResourceManager right now. Please try to refresh.", HttpResponseStatus.NOT_FOUND));
+		ResourceManagerGateway resourceManagerGateway = getResourceManagerGateway(resourceManagerGatewayRetriever);
 
 		return handleRequest(request, resourceManagerGateway);
 	}

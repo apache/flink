@@ -20,26 +20,42 @@ package org.apache.flink.table.api.stream.sql.validation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.utils.{TableFunc1, TableTestBase}
+import org.apache.calcite.tools.ValidationException
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.util.{StreamTableTestUtil, TableFunc1, TableTestBase}
 import org.junit.Test
 
-class CorrelateValidationTest extends TableTestBase{
+class CorrelateValidationTest extends TableTestBase {
 
   /**
     * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
     * join predicate can only be empty or literal true (the restriction should be removed in
     * FLINK-7865).
     */
+
+  private val streamUtil: StreamTableTestUtil = streamTestUtil()
+  streamUtil.addTable[(Int, Int)]("tbl_a", 'c1, 'c2)
+  streamUtil.addTable[Int]("tbl_b", 'c1)
+
+  val func1 = new TableFunc1
+  streamUtil.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+  streamUtil.addFunction("func1", func1)
+
+  @Test(expected = classOf[TableException])
+  def testWhereWithExists(): Unit = {
+    val sql =
+      """
+        |SELECT l.c1, l.c2
+        |FROM tbl_a l
+        |WHERE EXISTS (SELECT 1 FROM tbl_b r WHERE l.c1 = l.c2) OR l.c2 < 2
+        | """.stripMargin
+
+    streamUtil.explainSql(sql)
+  }
+
   @Test(expected = classOf[ValidationException])
   def testLeftOuterJoinWithPredicates(): Unit = {
-    val util = streamTestUtil()
-    val func1 = new TableFunc1
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-    util.addFunction("func1", func1)
-
     val sqlQuery = "SELECT c, s FROM MyTable LEFT JOIN LATERAL TABLE(func1(c)) AS T(s) ON c = s"
-
-    util.verifySql(sqlQuery, "n/a")
+    streamUtil.explainSql(sqlQuery)
   }
 }

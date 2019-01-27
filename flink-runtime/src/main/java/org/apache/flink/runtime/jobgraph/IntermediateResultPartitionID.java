@@ -37,6 +37,10 @@ public class IntermediateResultPartitionID extends AbstractID {
 		super(lowerPart, upperPart);
 	}
 
+	public IntermediateResultPartitionID(byte[] bytes) {
+		super(bytes);
+	}
+
 	public void writeTo(ByteBuf buf) {
 		buf.writeLong(this.lowerPart);
 		buf.writeLong(this.upperPart);

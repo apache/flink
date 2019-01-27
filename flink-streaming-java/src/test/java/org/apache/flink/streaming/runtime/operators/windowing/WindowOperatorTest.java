@@ -25,11 +25,11 @@ import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
@@ -98,9 +98,6 @@ import static org.mockito.Mockito.when;
  */
 @SuppressWarnings("serial")
 public class WindowOperatorTest extends TestLogger {
-
-	private static final TypeInformation<Tuple2<String, Integer>> STRING_INT_TUPLE =
-			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){});
 
 	// For counting if close() is called the correct number of times on the SumReducer
 	private static AtomicInteger closeCalled = new AtomicInteger(0);
@@ -191,9 +188,11 @@ public class WindowOperatorTest extends TestLogger {
 		final int windowSize = 3;
 		final int windowSlide = 1;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 				new SumReducer(),
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
 				SlidingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS), Time.of(windowSlide, TimeUnit.SECONDS)),
@@ -210,14 +209,17 @@ public class WindowOperatorTest extends TestLogger {
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testSlidingEventTimeWindowsApply() throws Exception {
 		closeCalled.set(0);
 
 		final int windowSize = 3;
 		final int windowSlide = 1;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
 				SlidingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS), Time.of(windowSlide, TimeUnit.SECONDS)),
@@ -312,9 +314,11 @@ public class WindowOperatorTest extends TestLogger {
 
 		final int windowSize = 3;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 				new SumReducer(),
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
 				TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
@@ -337,8 +341,10 @@ public class WindowOperatorTest extends TestLogger {
 
 		final int windowSize = 3;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
 				TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
@@ -364,8 +370,10 @@ public class WindowOperatorTest extends TestLogger {
 
 		final int sessionSize = 3;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
 				EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
@@ -439,8 +447,10 @@ public class WindowOperatorTest extends TestLogger {
 
 		final int sessionSize = 3;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
 				EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
@@ -514,8 +524,10 @@ public class WindowOperatorTest extends TestLogger {
 
 		final int sessionSize = 3;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>(
-				"window-contents", new SumReducer(), STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+				"window-contents", new SumReducer(), inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
 				EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
@@ -585,8 +597,10 @@ public class WindowOperatorTest extends TestLogger {
 
 		final int sessionSize = 3;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>(
-				"window-contents", new SumReducer(), STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+				"window-contents", new SumReducer(), inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
 				EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
@@ -651,15 +665,19 @@ public class WindowOperatorTest extends TestLogger {
 
 	/**
 	 * This tests whether merging works correctly with the CountTrigger.
+	 * @throws Exception
 	 */
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testSessionWindowsWithCountTrigger() throws Exception {
 		closeCalled.set(0);
 
 		final int sessionSize = 3;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
 				EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
@@ -721,15 +739,19 @@ public class WindowOperatorTest extends TestLogger {
 
 	/**
 	 * This tests whether merging works correctly with the ContinuousEventTimeTrigger.
+	 * @throws Exception
 	 */
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testSessionWindowsWithContinuousEventTimeTrigger() throws Exception {
 		closeCalled.set(0);
 
 		final int sessionSize = 3;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
 			EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
@@ -792,20 +814,22 @@ public class WindowOperatorTest extends TestLogger {
 		testHarness.close();
 	}
 
+	@Test
+	@SuppressWarnings("unchecked")
 	/**
 	 * This tests a custom Session window assigner that assigns some elements to "point windows",
 	 * windows that have the same timestamp for start and end.
 	 *
-	 * <p>In this test, elements that have 33 as the second tuple field will be put into a point
+	 * <p> In this test, elements that have 33 as the second tuple field will be put into a point
 	 * window.
 	 */
-	@Test
-	@SuppressWarnings("unchecked")
 	public void testPointSessions() throws Exception {
 		closeCalled.set(0);
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
 				new PointSessionWindows(3000),
@@ -866,9 +890,11 @@ public class WindowOperatorTest extends TestLogger {
 
 		final int windowSize = 3;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 				new SumReducer(),
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new WindowOperator<>(
 				GlobalWindows.create(),
@@ -950,9 +976,11 @@ public class WindowOperatorTest extends TestLogger {
 
 		final int windowSize = 4;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 				new SumReducer(),
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new WindowOperator<>(
 				GlobalWindows.create(),
@@ -994,7 +1022,7 @@ public class WindowOperatorTest extends TestLogger {
 
 		stateDesc = new ReducingStateDescriptor<>("window-contents",
 				new SumReducer(),
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+				inputType.createSerializer(new ExecutionConfig()));
 
 		operator = new WindowOperator<>(
 				GlobalWindows.create(),
@@ -1037,9 +1065,11 @@ public class WindowOperatorTest extends TestLogger {
 	public void testProcessingTimeTumblingWindows() throws Throwable {
 		final int windowSize = 3;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 				new SumReducer(),
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
 				TumblingProcessingTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
@@ -1094,9 +1124,11 @@ public class WindowOperatorTest extends TestLogger {
 		final int windowSize = 3;
 		final int windowSlide = 1;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 				new SumReducer(),
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
 				SlidingProcessingTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS), Time.of(windowSlide, TimeUnit.SECONDS)),
@@ -1164,9 +1196,11 @@ public class WindowOperatorTest extends TestLogger {
 	public void testProcessingTimeSessionWindows() throws Throwable {
 		final int windowGap = 3;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 				new SumReducer(),
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
 				ProcessingTimeSessionWindows.withGap(Time.of(windowGap, TimeUnit.SECONDS)),
@@ -1232,21 +1266,23 @@ public class WindowOperatorTest extends TestLogger {
 			Tuple2<String, Integer> element = (Tuple2<String, Integer>) invocation.getArguments()[0];
 			switch (element.f0) {
 				case "key1":
-					return 3000L;
+					return 3000;
 				case "key2":
 					switch (element.f1) {
 						case 10:
-							return 1000L;
+							return 1000;
 						default:
-							return 2000L;
+							return 2000;
 					}
 				default:
-					return 0L;
+					return 0;
 			}
 		});
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
 			DynamicEventTimeSessionWindows.withDynamicGap(extractor),
@@ -1314,21 +1350,23 @@ public class WindowOperatorTest extends TestLogger {
 			Tuple2<String, Integer> element = (Tuple2<String, Integer>) invocation.getArguments()[0];
 			switch (element.f0) {
 				case "key1":
-					return 3000L;
+					return 3000;
 				case "key2":
 					switch (element.f1) {
 						case 10:
-							return 1000L;
+							return 1000;
 						default:
-							return 2000L;
+							return 2000;
 					}
 				default:
-					return 0L;
+					return 0;
 			}
 		});
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ListStateDescriptor<Tuple2<String, Integer>> stateDesc = new ListStateDescriptor<>("window-contents",
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
 			DynamicProcessingTimeSessionWindows.withDynamicGap(extractor),
@@ -1394,9 +1432,11 @@ public class WindowOperatorTest extends TestLogger {
 		final int windowSize = 2;
 		final long lateness = 500;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 			new SumReducer(),
-				STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator =
 			new WindowOperator<>(
@@ -1460,9 +1500,11 @@ public class WindowOperatorTest extends TestLogger {
 		final int windowSize = 1000;
 		final long lateness = 2000;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 			new SumReducer(),
-			STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			inputType.createSerializer(new ExecutionConfig()));
 
 		TumblingEventTimeWindows windowAssigner = TumblingEventTimeWindows.of(Time.milliseconds(windowSize));
 
@@ -1527,9 +1569,11 @@ public class WindowOperatorTest extends TestLogger {
 		final int windowSize = 2;
 		final long lateness = 0;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 			new SumReducer(),
-			STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator =
 			new WindowOperator<>(
@@ -1590,9 +1634,11 @@ public class WindowOperatorTest extends TestLogger {
 		final int windowSlide = 1;
 		final long lateness = 0;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 			new SumReducer(),
-			STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator =
 			new WindowOperator<>(
@@ -1667,9 +1713,11 @@ public class WindowOperatorTest extends TestLogger {
 		final int gapSize = 3;
 		final long lateness = 0;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 			new SumReducer(),
-			STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Long, Long>, TimeWindow> operator =
 			new WindowOperator<>(
@@ -1757,9 +1805,11 @@ public class WindowOperatorTest extends TestLogger {
 		final int gapSize = 3;
 		final long lateness = 0;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 			new SumReducer(),
-			STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Long, Long>, TimeWindow> operator =
 			new WindowOperator<>(
@@ -1845,9 +1895,11 @@ public class WindowOperatorTest extends TestLogger {
 		final int gapSize = 3;
 		final long lateness = 10;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 			new SumReducer(),
-			STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Long, Long>, TimeWindow> operator =
 			new WindowOperator<>(
@@ -1930,9 +1982,11 @@ public class WindowOperatorTest extends TestLogger {
 		final int gapSize = 3;
 		final long lateness = 10;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 			new SumReducer(),
-			STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Long, Long>, TimeWindow> operator =
 			new WindowOperator<>(
@@ -1944,7 +1998,7 @@ public class WindowOperatorTest extends TestLogger {
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
 				EventTimeTrigger.create(),
 				lateness,
-				lateOutputTag /* late data output tag */);
+				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
 			createTestHarness(operator);
@@ -2029,9 +2083,11 @@ public class WindowOperatorTest extends TestLogger {
 		final int gapSize = 3;
 		final long lateness = 10000;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 			new SumReducer(),
-			STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Long, Long>, TimeWindow> operator =
 			new WindowOperator<>(
@@ -2043,7 +2099,7 @@ public class WindowOperatorTest extends TestLogger {
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
 				PurgingTrigger.of(EventTimeTrigger.create()),
 				lateness,
-				lateOutputTag /* late data output tag */);
+				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
 			createTestHarness(operator);
@@ -2118,9 +2174,11 @@ public class WindowOperatorTest extends TestLogger {
 		final int gapSize = 3;
 		final long lateness = 10000;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 			new SumReducer(),
-			STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Long, Long>, TimeWindow> operator =
 			new WindowOperator<>(
@@ -2132,7 +2190,7 @@ public class WindowOperatorTest extends TestLogger {
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
 				EventTimeTrigger.create(),
 				lateness,
-				lateOutputTag /* late data output tag */);
+				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
 			createTestHarness(operator);
@@ -2209,8 +2267,10 @@ public class WindowOperatorTest extends TestLogger {
 		final int windowSize = 2;
 		final long lateness = 100;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ListStateDescriptor<Tuple2<String, Integer>> windowStateDesc =
-			new ListStateDescriptor<>("window-contents", STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			new ListStateDescriptor<>("window-contents", inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, String, TimeWindow> operator =
 			new WindowOperator<>(
@@ -2262,8 +2322,10 @@ public class WindowOperatorTest extends TestLogger {
 		final int windowSize = 2;
 		final long lateness = 1;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ListStateDescriptor<Tuple2<String, Integer>> windowStateDesc =
-			new ListStateDescriptor<>("window-contents", STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			new ListStateDescriptor<>("window-contents", inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, TimeWindow> operator =
 			new WindowOperator<>(
@@ -2306,9 +2368,11 @@ public class WindowOperatorTest extends TestLogger {
 		final int windowSize = 2;
 		final long lateness = 1;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 			new SumReducer(),
-			STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator =
 			new WindowOperator<>(
@@ -2351,6 +2415,8 @@ public class WindowOperatorTest extends TestLogger {
 		final int windowSize = 2;
 		final long lateness = 1;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		FoldingStateDescriptor<Tuple2<String, Integer>, Tuple2<String, Integer>> windowStateDesc =
 			new FoldingStateDescriptor<>(
 				"window-contents",
@@ -2363,7 +2429,7 @@ public class WindowOperatorTest extends TestLogger {
 						return new Tuple2<>(value.f0, accumulator.f1 + value.f1);
 					}
 				},
-				STRING_INT_TUPLE);
+				inputType);
 		windowStateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator =
@@ -2407,8 +2473,10 @@ public class WindowOperatorTest extends TestLogger {
 		final int gapSize = 3;
 		final long lateness = 10;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ListStateDescriptor<Tuple2<String, Integer>> windowStateDesc =
-			new ListStateDescriptor<>("window-contents", STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			new ListStateDescriptor<>("window-contents", inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, TimeWindow> operator =
 			new WindowOperator<>(
@@ -2449,9 +2517,11 @@ public class WindowOperatorTest extends TestLogger {
 		final int gapSize = 3;
 		final long lateness = 10;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
 			new SumReducer(),
-			STRING_INT_TUPLE.createSerializer(new ExecutionConfig()));
+			inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Long, Long>, TimeWindow> operator =
 			new WindowOperator<>(
@@ -2492,6 +2562,8 @@ public class WindowOperatorTest extends TestLogger {
 		final int gapSize = 3;
 		final long lateness = 10;
 
+		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
+
 		FoldingStateDescriptor<Tuple2<String, Integer>, Tuple2<String, Integer>> windowStateDesc =
 			new FoldingStateDescriptor<>(
 				"window-contents",
@@ -2504,7 +2576,7 @@ public class WindowOperatorTest extends TestLogger {
 						return new Tuple2<>(value.f0, accumulator.f1 + value.f1);
 					}
 				},
-				STRING_INT_TUPLE);
+				inputType);
 		windowStateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator =

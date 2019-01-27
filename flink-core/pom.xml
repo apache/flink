@@ -23,9 +23,9 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>org.apache.flink</groupId>
+		<groupId>com.alibaba.blink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.5.1</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -36,13 +36,13 @@ under the License.
 
 	<dependencies>
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-annotations</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-metrics-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -80,10 +80,17 @@ under the License.
 			<!-- managed version -->
 		</dependency>
 
+		<!-- Lz4 compression library -->
+		<dependency>
+			<groupId>org.lz4</groupId>
+			<artifactId>lz4-java</artifactId>
+			<!-- managed version -->
+		</dependency>
+
 		<!-- ================== test dependencies ================== -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 
@@ -93,7 +100,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Joda, jackson, and lombok are used to test that serialization and type extraction
+		<!-- Joda and jackson are used to test that serialization and type extraction
 			work with types from those libraries -->
 
 		<dependency>
@@ -111,13 +118,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-jackson</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<version>1.16.20</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -184,7 +184,6 @@ under the License.
 
 							<!-- leaked constructor in TypeHint -->
 							<exclude>org.apache.flink.api.common.typeinfo.TypeHint</exclude>
-							<exclude>org.apache.flink.api.java.typeutils.TypeInfoParser</exclude>
 						</excludes>
 					</parameter>
 				</configuration>

@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
+import org.apache.flink.table.plan.util.FlinkRexUtil
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core._
@@ -43,12 +45,12 @@ abstract class FlinkLogicalJoinBase(
     joinType)
   with FlinkLogicalRel {
 
-  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
-    val leftRowCnt = metadata.getRowCount(getLeft)
-    val leftRowSize = estimateRowSize(getLeft.getRowType)
+  override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
+    val leftRowCnt = mq.getRowCount(getLeft)
+    val leftRowSize = mq.getAverageRowSize(getLeft)
 
-    val rightRowCnt = metadata.getRowCount(getRight)
-    val rightRowSize = estimateRowSize(getRight.getRowType)
+    val rightRowCnt = mq.getRowCount(getRight)
+    val rightRowSize = mq.getAverageRowSize(getRight)
 
     val ioCost = (leftRowCnt * leftRowSize) + (rightRowCnt * rightRowSize)
     val cpuCost = leftRowCnt + rightRowCnt
@@ -56,4 +58,7 @@ abstract class FlinkLogicalJoinBase(
 
     planner.getCostFactory.makeCost(rowCnt, cpuCost, ioCost)
   }
+
+  override def isDeterministic: Boolean = FlinkRexUtil.isDeterministicOperator(getCondition)
+
 }

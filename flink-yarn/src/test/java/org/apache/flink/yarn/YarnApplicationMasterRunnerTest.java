@@ -19,6 +19,8 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.util.OperatingSystem;
 
@@ -47,6 +49,7 @@ import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_HADOOP_USER_NAME;
 import static org.apache.flink.yarn.YarnConfigKeys.FLINK_JAR_PATH;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
@@ -102,11 +105,15 @@ public class YarnApplicationMasterRunnerTest {
 
 		ContaineredTaskManagerParameters tmParams = mock(ContaineredTaskManagerParameters.class);
 		Configuration taskManagerConf = new Configuration();
-
 		String workingDirectory = root.getAbsolutePath();
+		Utils.uploadTaskManagerConf(flinkConf, yarnConf, env, workingDirectory);
 		Class<?> taskManagerMainClass = YarnApplicationMasterRunnerTest.class;
 		ContainerLaunchContext ctx = Utils.createTaskExecutorContext(flinkConf, yarnConf, env, tmParams,
 			taskManagerConf, workingDirectory, taskManagerMainClass, LOG);
 		assertEquals("file", ctx.getLocalResources().get("flink.jar").getResource().getScheme());
+
+		File taskManagerConfigFile = new File(ctx.getLocalResources().get("flink-conf.yaml").getResource().getFile());
+		Configuration tmConf = GlobalConfiguration.loadYAMLResource(taskManagerConfigFile);
+		assertFalse(tmConf.contains(CoreOptions.TMP_DIRS));
 	}
 }

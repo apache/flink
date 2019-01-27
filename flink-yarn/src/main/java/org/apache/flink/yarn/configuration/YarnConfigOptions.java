@@ -19,10 +19,9 @@
 package org.apache.flink.yarn.configuration;
 
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
-import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.TaskManagerOptions.TASK_MANAGER_CORE;
 
 /**
  * This class holds configuration constants used by Flink's YARN runners.
@@ -63,16 +62,12 @@ public class YarnConfigOptions {
 	/**
 	 * The vcores exposed by YARN.
 	 */
+	@Deprecated
 	public static final ConfigOption<Integer> VCORES =
 		key("yarn.containers.vcores")
-			.defaultValue(-1)
-			.withDescription(Description.builder().text(
-					"The number of virtual cores (vcores) per YARN container. By default, the number of vcores" +
-					" is set to the number of slots per TaskManager, if set, or to 1, otherwise. In order for this" +
-					" parameter to be used your cluster must have CPU scheduling enabled. You can do this by setting" +
-					" the %s.",
-				code("org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler"))
-				.build());
+		.defaultValue(-1)
+		.withDescription("The number of virtual cores (vcores) per YARN container. The config option has been deprecated." +
+			" Please use " + TASK_MANAGER_CORE.key() + " instead.");
 
 	/**
 	 * The maximum number of failed YARN containers before entirely stopping
@@ -97,7 +92,7 @@ public class YarnConfigOptions {
 		key("yarn.application-attempts")
 		.noDefaultValue()
 		.withDescription("Number of ApplicationMaster restarts. Note that that the entire Flink cluster will restart" +
-			" and the YARN Client will loose the connection. Also, the JobManager address will change and you’ll need" +
+			" and the YARN Client will lose the connection. Also, the JobManager address will change and you’ll need" +
 			" to set the JM host:port manually. It is recommended to leave this option at 1.");
 
 	/**
@@ -148,6 +143,36 @@ public class YarnConfigOptions {
 		key("yarn.tags")
 		.defaultValue("")
 		.withDescription("A comma-separated list of tags to apply to the Flink YARN application.");
+
+	/**
+	 * How many virtual core will use a physical core in yarn.
+	 */
+	public static final ConfigOption<Integer> YARN_VCORE_RATIO =
+			key("yarn.vcore-ratio")
+					.defaultValue(1)
+					.withDeprecatedKeys("yarn.vcore.ratio");
+
+	/**
+	 * Physical core for Job JobManager (App Master).
+	 */
+	public static final ConfigOption<Integer> JOB_APP_MASTER_CORE =
+			key("job.app-master-core")
+					.defaultValue(1);
+
+	/**
+	 * The number of threads to start yarn containers in yarn resource manager.
+	 */
+	public static final ConfigOption<Integer> CONTAINER_LAUNCHER_NUMBER =
+			key("yarn.container-launcher-number")
+					.defaultValue(10);
+
+	/**
+	 * The register timeout for a container before released by resource manager. In seconds.
+	 * In case of a container took very long time to be launched.
+	 */
+	public static final ConfigOption<Long> CONTAINER_REGISTER_TIMEOUT =
+			key("yarn.container-register-timeout")
+					.defaultValue(120L);
 
 	// ------------------------------------------------------------------------
 

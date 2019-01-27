@@ -156,6 +156,18 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 	}
 
 	@Override
+	public void endInput() throws Exception {
+		// make sure that we hold the checkpointing lock
+		Thread.holdsLock(checkpointLock);
+
+		// wait split reader finish since we need to make sure all elements are processed when invoking endInput
+		while (reader != null && reader.isAlive() && reader.isRunning()) {
+			reader.close();
+			checkpointLock.wait();
+		}
+	}
+
+	@Override
 	public void dispose() throws Exception {
 		super.dispose();
 

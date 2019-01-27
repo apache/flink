@@ -22,11 +22,16 @@ import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemKind;
+import org.apache.flink.core.fs.LocatedFileStatus;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.RecoverableWriter;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.hdfs.HdfsConfiguration;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Locale;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -43,6 +48,7 @@ public class HadoopFileSystem extends FileSystem {
 	* URL is lazily initialized. */
 	private FileSystemKind fsKind;
 
+	private Configuration config;
 
 	/**
 	 * Wraps the given Hadoop File System object as a Flink File System object.
@@ -51,6 +57,19 @@ public class HadoopFileSystem extends FileSystem {
 	 * @param hadoopFileSystem The Hadoop FileSystem that will be used under the hood.
 	 */
 	public HadoopFileSystem(org.apache.hadoop.fs.FileSystem hadoopFileSystem) {
+		// New hdfs configuration from classpath.
+		this.config = new HdfsConfiguration();
+		this.fs = checkNotNull(hadoopFileSystem, "hadoopFileSystem");
+	}
+
+	/**
+	 * Wraps the given Hadoop File System object as a Flink File System object.
+	 * The given Hadoop file system object is expected to be initialized already.
+	 * @param conf The configuration to get hadoop file system
+	 * @param hadoopFileSystem The Hadoop FileSystem that will be used under the hood.
+	 */
+	public HadoopFileSystem(Configuration conf, org.apache.hadoop.fs.FileSystem hadoopFileSystem) {
+		this.config = conf;
 		this.fs = checkNotNull(hadoopFileSystem, "hadoopFileSystem");
 	}
 
@@ -78,6 +97,10 @@ public class HadoopFileSystem extends FileSystem {
 	@Override
 	public URI getUri() {
 		return fs.getUri();
+	}
+
+	public Configuration getConfig() {
+		return config;
 	}
 
 	@Override
@@ -166,6 +189,17 @@ public class HadoopFileSystem extends FileSystem {
 	}
 
 	@Override
+	public LocatedFileStatus[] listLocatedStatus(final Path f) throws IOException {
+		RemoteIterator<org.apache.hadoop.fs.LocatedFileStatus> fileStatus =
+			this.fs.listLocatedStatus(new org.apache.hadoop.fs.Path(f.toString()));
+		ArrayList<HadoopLocatedFileStatus> result = new ArrayList<>();
+		while (fileStatus.hasNext()) {
+			result.add(new HadoopLocatedFileStatus(fileStatus.next()));
+		}
+		return result.toArray(new HadoopLocatedFileStatus[0]);
+	}
+
+	@Override
 	public boolean mkdirs(final Path f) throws IOException {
 		return this.fs.mkdirs(toHadoopPath(f));
 	}
@@ -194,19 +228,11 @@ public class HadoopFileSystem extends FileSystem {
 		return fsKind;
 	}
 
-	@Override
-	public RecoverableWriter createRecoverableWriter() throws IOException {
-		// This writer is only supported on a subset of file systems, and on
-		// specific versions. We check these schemes and versions eagerly for better error
-		// messages in the constructor of the writer.
-		return new HadoopRecoverableWriter(fs);
-	}
-
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	public static org.apache.hadoop.fs.Path toHadoopPath(Path path) {
+	private static org.apache.hadoop.fs.Path toHadoopPath(Path path) {
 		return new org.apache.hadoop.fs.Path(path.toUri());
 	}
 
@@ -224,8 +250,8 @@ public class HadoopFileSystem extends FileSystem {
 	static FileSystemKind getKindForScheme(String scheme) {
 		scheme = scheme.toLowerCase(Locale.US);
 
-		if (scheme.startsWith("s3") || scheme.startsWith("emr") || scheme.startsWith("oss")) {
-			// the Amazon S3 storage or Aliyun OSS storage
+		if (scheme.startsWith("s3") || scheme.startsWith("emr")) {
+			// the Amazon S3 storage
 			return FileSystemKind.OBJECT_STORE;
 		}
 		else if (scheme.startsWith("http") || scheme.startsWith("ftp")) {

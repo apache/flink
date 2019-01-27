@@ -27,6 +27,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -85,6 +86,7 @@ public class RocksDBPerformanceTest extends TestLogger {
 				.setDisableWAL(true);
 	}
 
+	@Ignore
 	@Test(timeout = 2000)
 	@RetryOnFailure(times = 3)
 	public void testRocksDbMergePerformance() throws Exception {
@@ -137,6 +139,7 @@ public class RocksDBPerformanceTest extends TestLogger {
 		}
 	}
 
+	@Ignore
 	@Test(timeout = 2000)
 	@RetryOnFailure(times = 3)
 	public void testRocksDbRangeGetPerformance() throws Exception {

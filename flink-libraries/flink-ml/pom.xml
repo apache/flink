@@ -22,9 +22,9 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>org.apache.flink</groupId>
+		<groupId>com.alibaba.blink</groupId>
 		<artifactId>flink-libraries</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.5.1</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -38,7 +38,7 @@
 		<!-- core dependencies -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -47,7 +47,7 @@
 		<dependency>
 			<groupId>org.scalanlp</groupId>
 			<artifactId>breeze_${scala.binary.version}</artifactId>
-			<version>0.13</version>
+			<version>0.12</version>
 		</dependency>
 
 		<!-- the dependencies below are already provided in Flink -->
@@ -85,14 +85,14 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
@@ -113,9 +113,6 @@
 		<profile>
 			<id>windows</id>
 			<activation>
-				<property>
-					<name>windows</name>
-				</property>
 				<os>
 					<family>windows</family>
 				</os>
@@ -129,9 +126,6 @@
 			<id>default</id>
 			<activation>
 				<activeByDefault>true</activeByDefault>
-				<property>
-					<name>default</name>
-				</property>
 			</activation>
 			<properties>
 				<suffix.test>(?&lt;!(IT|Integration))(Test|Suite|Case)</suffix.test>

@@ -55,6 +55,10 @@ public class OutputFormatSinkFunction<IN> extends RichSinkFunction<IN> implement
 		this.format = format;
 	}
 
+	public OutputFormat<IN> getFormat() {
+		return format;
+	}
+
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		RuntimeContext context = getRuntimeContext();

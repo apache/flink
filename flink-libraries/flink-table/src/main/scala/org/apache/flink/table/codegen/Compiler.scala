@@ -18,24 +18,12 @@
 
 package org.apache.flink.table.codegen
 
-import org.apache.flink.api.common.InvalidProgramException
 import org.codehaus.commons.compiler.CompileException
-import org.codehaus.janino.SimpleCompiler
 
 trait Compiler[T] {
 
   @throws(classOf[CompileException])
   def compile(cl: ClassLoader, name: String, code: String): Class[T] = {
-    require(cl != null, "Classloader must not be null.")
-    val compiler = new SimpleCompiler()
-    compiler.setParentClassLoader(cl)
-    try {
-      compiler.cook(code)
-    } catch {
-      case t: Throwable =>
-        throw new InvalidProgramException("Table program cannot be compiled. " +
-          "This is a bug. Please file an issue.", t)
-    }
-    compiler.getClassLoader.loadClass(name).asInstanceOf[Class[T]]
+    CodeGenUtils.compile(cl, name, code)
   }
 }

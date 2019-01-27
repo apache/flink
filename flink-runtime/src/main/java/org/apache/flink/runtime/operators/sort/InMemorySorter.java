@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.operators.sort;
 
-import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
 import org.apache.flink.util.Disposable;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -102,9 +101,9 @@ public interface InMemorySorter<T> extends IndexedSortable, Disposable {
 	 * @param output The output view to write the records to.
 	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
 	 */
-	public void writeToOutput(ChannelWriterOutputView output) throws IOException;
+	public void writeToOutput(SortedDataFile<T> output) throws IOException;
 	
-	public void writeToOutput(ChannelWriterOutputView output, LargeRecordHandler<T> largeRecordsOutput) throws IOException;
+	public void writeToOutput(SortedDataFile<T> output, LargeRecordHandler<T> largeRecordsOutput) throws IOException;
 	
 	/**
 	 * Writes a subset of the records in this buffer in their logical order to the given output.
@@ -114,5 +113,5 @@ public interface InMemorySorter<T> extends IndexedSortable, Disposable {
 	 * @param num The number of elements to write.
 	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
 	 */
-	public void writeToOutput(ChannelWriterOutputView output, int start, int num) throws IOException;
+	public void writeToOutput(SortedDataFile<T> output, int start, int num) throws IOException;
 }

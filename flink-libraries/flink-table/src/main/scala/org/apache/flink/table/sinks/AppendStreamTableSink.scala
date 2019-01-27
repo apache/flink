@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.sinks
 
-import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.table.api.Table
 
 /**
@@ -32,5 +32,5 @@ import org.apache.flink.table.api.Table
 trait AppendStreamTableSink[T] extends StreamTableSink[T] {
 
   /** Emits the DataStream. */
-  def emitDataStream(dataStream: DataStream[T]): Unit
+  def emitDataStream(dataStream: DataStream[T]): DataStreamSink[_]
 }

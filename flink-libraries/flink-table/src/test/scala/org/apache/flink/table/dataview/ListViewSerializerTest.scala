@@ -24,6 +24,7 @@ import java.util.Random
 import org.apache.flink.api.common.typeutils.base.{ListSerializer, LongSerializer}
 import org.apache.flink.api.common.typeutils.{SerializerTestBase, TypeSerializer}
 import org.apache.flink.table.api.dataview.ListView
+import org.apache.flink.table.typeutils.ListViewSerializer
 
 /**
   * A test for the [[ListViewSerializer]].

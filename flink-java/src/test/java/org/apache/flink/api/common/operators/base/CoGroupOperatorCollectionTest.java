@@ -20,16 +20,15 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
-import org.apache.flink.api.common.typeinfo.TypeHint;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.operators.base.utils.TestAccumulatorRegistry;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.builder.Tuple2Builder;
+import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -79,11 +78,10 @@ public class CoGroupOperatorCollectionTest implements Serializable {
 			);
 
 			ExecutionConfig executionConfig = new ExecutionConfig();
-			final HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
 			final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
 			final TaskInfo taskInfo = new TaskInfo("Test UDF", 4, 0, 4, 0);
 			final RuntimeContext ctx = new RuntimeUDFContext(
-					taskInfo, null, executionConfig, cpTasks, accumulators, new UnregisteredMetricsGroup());
+					taskInfo, null, executionConfig, cpTasks, new TestAccumulatorRegistry(), new UnregisteredMetricsGroup());
 
 			{
 				SumCoGroup udf1 = new SumCoGroup();
@@ -184,11 +182,14 @@ public class CoGroupOperatorCollectionTest implements Serializable {
 			Tuple2<String, Integer>>> getCoGroupOperator(
 			RichCoGroupFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>> udf) {
 
-		TypeInformation<Tuple2<String, Integer>> tuple2Info = TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){});
-
-		return new CoGroupOperatorBase<>(
+		return new CoGroupOperatorBase<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>,
+				CoGroupFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>>>(
 				udf,
-				new BinaryOperatorInformation<>(tuple2Info, tuple2Info, tuple2Info),
+				new BinaryOperatorInformation<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>>(
+						TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"),
+						TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"),
+						TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>")
+				),
 				new int[]{0},
 				new int[]{0},
 				"coGroup on Collections"

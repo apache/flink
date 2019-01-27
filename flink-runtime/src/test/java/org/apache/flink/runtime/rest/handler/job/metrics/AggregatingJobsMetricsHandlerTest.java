@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -67,8 +68,9 @@ public class AggregatingJobsMetricsHandlerTest extends AggregatingMetricsHandler
 	}
 
 	@Override
-	protected AggregatingJobsMetricsHandler getHandler(GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, Executor executor, MetricFetcher fetcher) {
+	protected AggregatingJobsMetricsHandler getHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, Executor executor, MetricFetcher<?> fetcher) {
 		return new AggregatingJobsMetricsHandler(
+			localRestAddress,
 			leaderRetriever,
 			timeout,
 			responseHeaders,

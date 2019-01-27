@@ -18,10 +18,11 @@
 
 package org.apache.flink.runtime.io.network.api.reader;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
-import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
+import org.apache.flink.runtime.io.network.api.serialization.SerializerManagerUtility;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -52,14 +53,13 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 	 *                       reconstructs multiple large records.
 	 */
 	@SuppressWarnings("unchecked")
-	protected AbstractRecordReader(InputGate inputGate, String[] tmpDirectories) {
+	protected AbstractRecordReader(InputGate inputGate, String[] tmpDirectories, Configuration configuration) {
 		super(inputGate);
 
 		// Initialize one deserializer per input channel
-		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
-		for (int i = 0; i < recordDeserializers.length; i++) {
-			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<T>(tmpDirectories);
-		}
+		SerializerManagerUtility<T> serializerManagerUtility = new SerializerManagerUtility<>(configuration);
+		this.recordDeserializers = serializerManagerUtility.createRecordDeserializers(
+			inputGate.getAllInputChannels(), tmpDirectories);
 	}
 
 	protected boolean getNextRecord(T target) throws IOException, InterruptedException {

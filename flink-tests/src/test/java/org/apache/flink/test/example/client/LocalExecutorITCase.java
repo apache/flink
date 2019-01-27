@@ -60,7 +60,7 @@ public class LocalExecutorITCase extends TestLogger {
 			executor.start();
 			Plan wcPlan = getWordCountPlan(inFile, outFile, parallelism);
 			wcPlan.setExecutionConfig(new ExecutionConfig());
-			executor.executePlan(wcPlan);
+			executor.executePlan(wcPlan, false);
 			executor.stop();
 		} catch (Exception e) {
 			e.printStackTrace();

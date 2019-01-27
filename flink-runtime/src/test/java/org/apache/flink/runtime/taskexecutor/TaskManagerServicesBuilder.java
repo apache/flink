@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.preaggregatedaccumulators.AccumulatorAggregationManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -41,6 +42,7 @@ public class TaskManagerServicesBuilder {
 	private IOManager ioManager;
 	private NetworkEnvironment networkEnvironment;
 	private BroadcastVariableManager broadcastVariableManager;
+	private AccumulatorAggregationManager accumulatorAggregationManager;
 	private TaskSlotTable taskSlotTable;
 	private JobManagerTable jobManagerTable;
 	private JobLeaderService jobLeaderService;
@@ -57,6 +59,7 @@ public class TaskManagerServicesBuilder {
 		ioManager = mock(IOManager.class);
 		networkEnvironment = mock(NetworkEnvironment.class);
 		broadcastVariableManager = new BroadcastVariableManager();
+		accumulatorAggregationManager = mock(AccumulatorAggregationManager.class);
 		taskSlotTable = mock(TaskSlotTable.class);
 		jobManagerTable = new JobManagerTable();
 		jobLeaderService = new JobLeaderService(taskManagerLocation);
@@ -88,6 +91,10 @@ public class TaskManagerServicesBuilder {
 		return this;
 	}
 
+	public void setAccumulatorAggregationManager(AccumulatorAggregationManager accumulatorAggregationManager) {
+		this.accumulatorAggregationManager = accumulatorAggregationManager;
+	}
+
 	public TaskManagerServicesBuilder setTaskSlotTable(TaskSlotTable taskSlotTable) {
 		this.taskSlotTable = taskSlotTable;
 		return this;
@@ -115,6 +122,7 @@ public class TaskManagerServicesBuilder {
 			ioManager,
 			networkEnvironment,
 			broadcastVariableManager,
+			accumulatorAggregationManager,
 			taskSlotTable,
 			jobManagerTable,
 			jobLeaderService,

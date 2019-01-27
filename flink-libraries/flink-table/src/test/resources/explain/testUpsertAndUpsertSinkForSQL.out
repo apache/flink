@@ -1,0 +1,63 @@
+== Abstract Syntax Tree ==
+LogicalAggregate(group=[{0}], frequency=[COUNT($1)])
++- LogicalProject(cnt=[$1], num=[$0])
+   +- LogicalProject(num=[$0], cnt=[$1])
+      +- LogicalFilter(condition=[<($0, 4)])
+         +- LogicalTableScan(table=[[builtin, default, T1]])
+
+LogicalProject(num=[$0], cnt=[$1])
++- LogicalFilter(condition=[AND(>=($0, 4), <($0, 6))])
+   +- LogicalTableScan(table=[[builtin, default, T1]])
+
+== Optimized Logical Plan ==
+StreamExecGroupAggregate(groupBy=[num], select=[num, COUNT(id) AS cnt], retract=[true], accMode=[AccRetract], reuse_id=[1])
++- StreamExecExchange(distribution=[hash[num]], retract=[true], accMode=[Acc])
+   +- StreamExecCalc(select=[num, id], retract=[true], accMode=[Acc])
+      +- StreamExecDataStreamScan(table=[[builtin, default, T]], retract=[true], accMode=[Acc])
+
+StreamExecSink(fields=[cnt, frequency], retract=[false], accMode=[Acc])
++- StreamExecGroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(num) AS frequency], retract=[false], accMode=[Acc])
+   +- StreamExecExchange(distribution=[hash[cnt]], retract=[true], accMode=[AccRetract])
+      +- StreamExecCalc(select=[num, cnt], where=[<(num, 4)], retract=[true], accMode=[AccRetract])
+         +- Reused(reference_id=[1])
+
+StreamExecSink(fields=[num, cnt], retract=[false], accMode=[AccRetract])
++- StreamExecCalc(select=[num, cnt], where=[AND(>=(num, 4), <(num, 6))], retract=[false], accMode=[AccRetract])
+   +- Reused(reference_id=[1])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:[builtin, default, T], fields:(id, num, text))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(select: (num, id))
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : GroupAggregate(groupBy: (num), select: (num, COUNT(id) AS cnt))
+				ship_strategy : HASH
+
+				 : Operator
+					content : Calc(where: (num < 4), select: (num, cnt))
+					ship_strategy : FORWARD
+
+					 : Operator
+						content : GroupAggregate(groupBy: (cnt), select: (cnt, COUNT_RETRACT(num) AS frequency))
+						ship_strategy : HASH
+
+						 : Operator
+							content : Calc(where: ((num >= 4) AND (num < 6)), select: (num, cnt))
+							ship_strategy : FORWARD
+
+							 : Data Sink
+								content : Sink: TestingUpsertTableSink(keys=(0))
+								ship_strategy : REBALANCE
+
+								 : Data Sink
+									content : Sink: TestingUpsertTableSink(keys=())
+									ship_strategy : REBALANCE
+

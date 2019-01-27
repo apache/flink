@@ -19,104 +19,64 @@
 package org.apache.flink.table.api.batch
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.test.util.MultipleProgramsTestBase
-import org.junit.Assert.assertEquals
+import org.apache.flink.table.runtime.batch.sql.BatchTestBase
 import org.junit._
 
-class ExplainTest
-  extends MultipleProgramsTestBase(MultipleProgramsTestBase.TestExecutionMode.CLUSTER) {
-
-  private val testFilePath = ExplainTest.this.getClass.getResource("/").getFile
+class ExplainTest extends BatchTestBase {
 
   @Test
   def testFilterWithoutExtended(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val table = env.fromElements((1, "hello"))
-      .toTable(tEnv, 'a, 'b)
+    val table = tEnv.fromCollection(Seq((1, "hello")), 'a, 'b)
       .filter("a % 2 = 0")
-
-    val result = tEnv.explain(table).replaceAll("\\r\\n", "\n")
-    val source = scala.io.Source.fromFile(testFilePath +
-      "../../src/test/scala/resources/testFilter0.out").mkString.replaceAll("\\r\\n", "\n")
-    assertEquals(source, result)
+    verifyPlan(table)
   }
 
   @Test
   def testFilterWithExtended(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val table = env.fromElements((1, "hello"))
-      .toTable(tEnv, 'a, 'b)
+    val table = tEnv.fromCollection(Seq((1, "hello")), 'a, 'b)
       .filter("a % 2 = 0")
 
-    val result = tEnv.explain(table, extended = true).replaceAll("\\r\\n", "\n")
-    val source = scala.io.Source.fromFile(testFilePath +
-      "../../src/test/scala/resources/testFilter1.out").mkString.replaceAll("\\r\\n", "\n")
-    assertEquals(source, result)
+    verifyPlan(table)
   }
 
   @Test
   def testJoinWithoutExtended(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'a, 'b)
-    val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'c, 'd)
-    val table = table1.join(table2).where("b = d").select("a, c")
+    val table1 = tEnv.fromCollection(Seq((1, "hello")), 'a, 'b)
+    val table2 = tEnv.fromCollection(Seq((1, "hello")), 'c, 'd)
+    val table = table1.join(table2).where("b = d").select('a, 'c)
 
-    val result = tEnv.explain(table).replaceAll("\\r\\n", "\n")
-    val source = scala.io.Source.fromFile(testFilePath +
-      "../../src/test/scala/resources/testJoin0.out").mkString.replaceAll("\\r\\n", "\n")
-    assertEquals(source, result)
+    verifyPlan(table)
   }
 
   @Test
   def testJoinWithExtended(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'a, 'b)
-    val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'c, 'd)
-    val table = table1.join(table2).where("b = d").select("a, c")
+    val table1 = tEnv.fromCollection(Seq((1, "hello")), 'a, 'b)
+    val table2 = tEnv.fromCollection(Seq((1, "hello")), 'c, 'd)
+    val table = table1.join(table2).where("b = d").select('a, 'c)
 
-    val result = tEnv.explain(table, extended = true).replaceAll("\\r\\n", "\n")
-    val source = scala.io.Source.fromFile(testFilePath +
-      "../../src/test/scala/resources/testJoin1.out").mkString.replaceAll("\\r\\n", "\n")
-    assertEquals(source, result)
+    verifyPlan(table)
   }
 
   @Test
   def testUnionWithoutExtended(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
-    val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
+    val table1 = tEnv.fromCollection(Seq((1, "hello")), 'count, 'word)
+    val table2 = tEnv.fromCollection(Seq((1, "hello")), 'count, 'word)
     val table = table1.unionAll(table2)
 
-    val result = tEnv.explain(table).replaceAll("\\r\\n", "\n")
-    val source = scala.io.Source.fromFile(testFilePath +
-      "../../src/test/scala/resources/testUnion0.out").mkString.replaceAll("\\r\\n", "\n")
-    assertEquals(source, result)
+    verifyPlan(table)
   }
 
   @Test
   def testUnionWithExtended(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
-    val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
+    val table1 = tEnv.fromCollection(Seq((1, "hello")), 'count, 'word)
+    val table2 = tEnv.fromCollection(Seq((1, "hello")), 'count, 'word)
     val table = table1.unionAll(table2)
 
-    val result = tEnv.explain(table, extended = true).replaceAll("\\r\\n", "\n")
-    val source = scala.io.Source.fromFile(testFilePath +
-      "../../src/test/scala/resources/testUnion1.out").mkString.replaceAll("\\r\\n", "\n")
-    assertEquals(source, result)
+    verifyPlan(table)
   }
 }

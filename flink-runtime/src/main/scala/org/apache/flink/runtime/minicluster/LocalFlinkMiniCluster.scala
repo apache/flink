@@ -47,7 +47,7 @@ import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages
 import org.apache.flink.runtime.messages.JobManagerMessages.{RunningJobsStatus, StoppingFailure, StoppingResponse}
 import org.apache.flink.runtime.metrics.groups.{JobManagerMetricGroup, TaskManagerMetricGroup}
-import org.apache.flink.runtime.metrics.util.{MetricUtils, SystemResourcesMetricsInitializer}
+import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager
 import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerLocation}
@@ -246,8 +246,7 @@ class LocalFlinkMiniCluster(
     val taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
       metricRegistryOpt.get,
       taskManagerServices.getTaskManagerLocation(),
-      taskManagerServices.getNetworkEnvironment(),
-      taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval)
+      taskManagerServices.getNetworkEnvironment())
 
     val props = getTaskManagerProps(
       taskManagerClass,
@@ -368,8 +367,8 @@ class LocalFlinkMiniCluster(
 
   def setMemory(config: Configuration): Unit = {
     // set this only if no memory was pre-configured
-    if (config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(
-      TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue())) {
+    if (config.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE) ==
+        TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()) {
 
       val numTaskManager = config.getInteger(
         ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
@@ -388,7 +387,7 @@ class LocalFlinkMiniCluster(
       memorySize -= TaskManagerServices.calculateNetworkBufferMemory(memorySize, config)
       memorySize = (memorySize * memoryFraction).toLong
       memorySize >>= 20 // bytes to megabytes
-      config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, memorySize + "m")
+      config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, memorySize)
     }
   }
 

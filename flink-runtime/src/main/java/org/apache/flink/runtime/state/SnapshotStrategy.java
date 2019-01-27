@@ -18,10 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-
-import javax.annotation.Nonnull;
 
 import java.util.concurrent.RunnableFuture;
 
@@ -31,7 +28,7 @@ import java.util.concurrent.RunnableFuture;
  *
  * @param <S> type of the returned state object that represents the result of the snapshot operation.
  */
-@Internal
+@FunctionalInterface
 public interface SnapshotStrategy<S extends StateObject> {
 
 	/**
@@ -46,10 +43,9 @@ public interface SnapshotStrategy<S extends StateObject> {
 	 * @param checkpointOptions Options for how to perform this checkpoint.
 	 * @return A runnable future that will yield a {@link StateObject}.
 	 */
-	@Nonnull
-	RunnableFuture<S> snapshot(
+	RunnableFuture<S> performSnapshot(
 		long checkpointId,
 		long timestamp,
-		@Nonnull CheckpointStreamFactory streamFactory,
-		@Nonnull CheckpointOptions checkpointOptions) throws Exception;
+		CheckpointStreamFactory streamFactory,
+		CheckpointOptions checkpointOptions) throws Exception;
 }

@@ -40,6 +40,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.util.Collection;
+import java.util.HashMap;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ERROR_MESSAGE;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway;
@@ -52,6 +53,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 public class ExecutionVertexDeploymentTest extends TestLogger {
@@ -317,6 +319,9 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			vertex.deployToSlot(slot);
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 
+			// execute the deploy rpc call
+			queue.triggerNextAction();
+
 			Exception testError = new Exception("test error");
 			vertex.fail(testError);
 
@@ -359,6 +364,8 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 	public void testTddProducedPartitionsLazyScheduling() throws Exception {
 		TestingUtils.QueuedActionExecutionContext context = TestingUtils.queuedActionExecutionContext();
 		ExecutionJobVertex jobVertex = getExecutionVertex(new JobVertexID(), context);
+		ExecutionGraph eg = spy(jobVertex.getGraph());
+		when(jobVertex.getGraph()).thenReturn(eg);
 
 		IntermediateResult result =
 				new IntermediateResult(new IntermediateDataSetID(), jobVertex, 1, ResultPartitionType.PIPELINED);
@@ -377,8 +384,12 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 		LogicalSlot slot = mock(LogicalSlot.class);
 		when(slot.getAllocationId()).thenReturn(new AllocationID());
 
+		HashMap<ScheduleMode, Boolean> allowLazyDeploymentMap = new HashMap<>();
+		allowLazyDeploymentMap.put(ScheduleMode.EAGER, false);
+		allowLazyDeploymentMap.put(ScheduleMode.LAZY_FROM_SOURCES, true);
+
 		for (ScheduleMode mode : ScheduleMode.values()) {
-			vertex.getExecutionGraph().setScheduleMode(mode);
+			when(eg.isLazyDeploymentAllowed()).thenReturn(allowLazyDeploymentMap.get(mode));
 
 			TaskDeploymentDescriptor tdd = vertex.createDeploymentDescriptor(new ExecutionAttemptID(), slot, null, 1);
 
@@ -386,11 +397,9 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 
 			assertEquals(1, producedPartitions.size());
 			ResultPartitionDeploymentDescriptor desc = producedPartitions.iterator().next();
-			assertEquals(mode.allowLazyDeployment(), desc.sendScheduleOrUpdateConsumersMessage());
+			assertEquals(allowLazyDeploymentMap.get(mode), desc.sendScheduleOrUpdateConsumersMessage());
 		}
 	}
-
-
 
 	private ExecutionEdge createMockExecutionEdge(int maxParallelism) {
 		ExecutionVertex targetVertex = mock(ExecutionVertex.class);

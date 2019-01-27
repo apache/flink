@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep.nfa.aftermatch;
 
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 
 import java.util.Collection;
@@ -31,7 +32,7 @@ public class NoSkipStrategy extends AfterMatchSkipStrategy {
 
 	private static final long serialVersionUID = -5843740153729531775L;
 
-	static final NoSkipStrategy INSTANCE = new NoSkipStrategy();
+	public static final NoSkipStrategy INSTANCE = new NoSkipStrategy();
 
 	private NoSkipStrategy() {
 	}

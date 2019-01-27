@@ -1,0 +1,115 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testCorrelateWithMultiFilter">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$0], d=[$1])
++- LogicalFilter(condition=[>($2, 20)])
+   +- LogicalFilter(condition=[>($2, 10)])
+      +- LogicalProject(c=[$2], d=[$3], e=[$4])
+         +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
+            :- LogicalProject(a=[$0], b=[$1], c=[$2])
+            :  +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+            +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$util$TableFunc0$a1937c68d8fd71db30e87e222941a1a9($2)], rowType=[RecordType(VARCHAR(65536) d, INTEGER e)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[org$apache$flink$table$util$TableFunc0$a1937c68d8fd71db30e87e222941a1a9($2)], correlate=[table(TableFunc0(c))], select=[c,d], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) d)], joinType=[INNER], condition=[>($1, 20)])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCorrelateAfterConcatAggWithConstantParam">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
+:- LogicalProject(a=[AS($1, 'a')])
+:  +- LogicalAggregate(group=[{1}], TMP_0=[CONCAT_AGG($2, $0)])
+:     +- LogicalProject(a=[$0], $f1=[5], $f2=['#'])
+:        +- LogicalProject(a=[$0])
+:           +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
++- LogicalTableFunctionScan(invocation=[org$apache$flink$table$util$TableFunc0$a1937c68d8fd71db30e87e222941a1a9($0)], rowType=[RecordType(VARCHAR(65536) name, INTEGER age)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[org$apache$flink$table$util$TableFunc0$a1937c68d8fd71db30e87e222941a1a9($0)], correlate=[table(TableFunc0(a))], select=[a,name,age], rowType=[RecordType(VARCHAR(65536) a, VARCHAR(65536) name, INTEGER age)], joinType=[INNER])
++- Calc(select=[TMP_0 AS a])
+   +- SortAggregate(isMerge=[true], groupBy=[$f1], select=[$f1, Final_CONCAT_AGG(accDelimiter$0, concatAcc$1) AS TMP_0])
+      +- Sort(orderBy=[$f1 ASC])
+         +- Exchange(distribution=[hash[$f1]])
+            +- LocalSortAggregate(groupBy=[$f1], select=[$f1, Partial_CONCAT_AGG($f2, a) AS (accDelimiter$0, concatAcc$1)])
+               +- Sort(orderBy=[$f1 ASC])
+                  +- Calc(select=[a, 5 AS $f1, '#' AS $f2])
+                     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCrossJoin">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], s=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
+   :- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$util$TableFunc1$4cf19b69e9ec9920db1afce973dac2eb($2)], rowType=[RecordType(VARCHAR(65536) s)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[org$apache$flink$table$util$TableFunc1$4cf19b69e9ec9920db1afce973dac2eb($2)], correlate=[table(TableFunc1(c))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[INNER])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCrossJoin2">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], s=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
+   :- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+   +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$util$TableFunc1$4cf19b69e9ec9920db1afce973dac2eb($2, '$')], rowType=[RecordType(VARCHAR(65536) s)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[org$apache$flink$table$util$TableFunc1$4cf19b69e9ec9920db1afce973dac2eb($2, '$')], correlate=[table(TableFunc1(c,'$'))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[INNER])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftOuterJoinWithoutJoinPredicates">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalFilter(condition=[>($1, '')])
++- LogicalProject(c=[$2], s=[$3])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{}])
+      :- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+      +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$util$TableFunc1$4cf19b69e9ec9920db1afce973dac2eb($2)], rowType=[RecordType(VARCHAR(65536) s)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, s], where=[>(s, '')])
++- Correlate(invocation=[org$apache$flink$table$util$TableFunc1$4cf19b69e9ec9920db1afce973dac2eb($2)], correlate=[table(TableFunc1(c))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[LEFT])
+   +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -1,0 +1,38 @@
+<!--
+  ~   Licensed to the Apache Software Foundation (ASF) under one
+  ~   or more contributor license agreements.  See the NOTICE file
+  ~   distributed with this work for additional information
+  ~   regarding copyright ownership.  The ASF licenses this file
+  ~   to you under the Apache License, Version 2.0 (the
+  ~   "License"); you may not use this file except in compliance
+  ~   with the License.  You may obtain a copy of the License at
+  ~       http://www.apache.org/licenses/LICENSE-2.0
+  ~   Unless required by applicable law or agreed to in writing, software
+  ~   distributed under the License is distributed on an "AS IS" BASIS,
+  ~   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~   See the License for the specific language governing permissions and
+  ~   limitations under the License.
+  -->
+
+<div class="container" [style.height.px]="top">
+  <div class="graph-action" [class.hied]="selectedNode">
+    <a (click)="graphComponent?.fit()"><i nz-icon type="pic-center" theme="outline"></i> Fit Window</a>
+    <ng-container *ngIf="canToggleExpand">
+      <nz-divider nzType="vertical"></nz-divider>
+      <a (click)="expandAll()"><i nz-icon type="arrows-alt" theme="outline"></i> Expand All</a>
+      <nz-divider nzType="vertical"></nz-divider>
+      <a (click)="collapseAll()"><i nz-icon type="shrink" theme="outline"></i> Collapse All</a>
+    </ng-container>
+  </div>
+  <nz-graph [class.selected]="selectedNode"
+    [nodePortal]="verticesNodeComponent"
+    [beforeToggleExpand]="jobOverviewGraphService.canToggleExpand"
+    [edgeLabelFunction]="jobOverviewGraphService.getLabelForEdge"
+    [edgesLayoutFunction]="jobOverviewGraphService.edgesLayoutFunction"
+    [opNodeHeightFunction]="jobOverviewGraphService.opNodeHeightFunction"
+    [groupNodeHeightFunction]="jobOverviewGraphService.groupNodeHeightFunction"
+    (event)="dagreEvent($event)"></nz-graph>
+  <router-outlet></router-outlet>
+</div>
+<flink-job-overview-list (nodeClick)="onListNodeClick($event)" [nodes]="nodes" [selectedNode]="selectedNode"></flink-job-overview-list>
+<nz-resize [nzTop]="top" [nzMode]="'horizontal'" [nzBaseElement]="elementRef.nativeElement" [nzMin]="280" (nzResizeChange)="top = $event.top"></nz-resize>

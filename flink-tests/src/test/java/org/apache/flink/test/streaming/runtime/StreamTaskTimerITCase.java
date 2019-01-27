@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -226,6 +227,11 @@ public class StreamTaskTimerITCase extends AbstractTestBase {
 			}
 			semaphore.release();
 		}
+
+		@Override
+		public void endInput() throws Exception {
+
+		}
 	}
 
 	private static class TwoInputTimerOperator extends AbstractStreamOperator<String> implements TwoInputStreamOperator<String, String, String>, ProcessingTimeCallback {
@@ -243,22 +249,12 @@ public class StreamTaskTimerITCase extends AbstractTestBase {
 		}
 
 		@Override
-		public void processElement1(StreamRecord<String> element) throws Exception {
-			if (!semaphore.tryAcquire()) {
-				Assert.fail("Concurrent invocation of operator functions.");
-			}
-
-			if (first) {
-				getProcessingTimeService().registerTimer(System.currentTimeMillis() + 100, this);
-				first = false;
-			}
-			numElements++;
-
-			semaphore.release();
+		public TwoInputSelection firstInputSelection() {
+			return TwoInputSelection.ANY;
 		}
 
 		@Override
-		public void processElement2(StreamRecord<String> element) throws Exception {
+		public TwoInputSelection processElement1(StreamRecord<String> element) throws Exception {
 			if (!semaphore.tryAcquire()) {
 				Assert.fail("Concurrent invocation of operator functions.");
 			}
@@ -270,6 +266,25 @@ public class StreamTaskTimerITCase extends AbstractTestBase {
 			numElements++;
 
 			semaphore.release();
+
+			return TwoInputSelection.ANY;
+		}
+
+		@Override
+		public TwoInputSelection processElement2(StreamRecord<String> element) throws Exception {
+			if (!semaphore.tryAcquire()) {
+				Assert.fail("Concurrent invocation of operator functions.");
+			}
+
+			if (first) {
+				getProcessingTimeService().registerTimer(System.currentTimeMillis() + 100, this);
+				first = false;
+			}
+			numElements++;
+
+			semaphore.release();
+
+			return TwoInputSelection.ANY;
 		}
 
 		@Override
@@ -301,6 +316,16 @@ public class StreamTaskTimerITCase extends AbstractTestBase {
 		@Override
 		public void processWatermark2(Watermark mark) throws Exception {
 			//ignore
+		}
+
+		@Override
+		public void endInput1() throws Exception {
+
+		}
+
+		@Override
+		public void endInput2() throws Exception {
+
 		}
 	}
 

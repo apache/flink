@@ -17,129 +17,129 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import java.util
-import java.util.{List => JList}
-
-import org.apache.flink.api.common.state._
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.{ListTypeInfo, RowTypeInfo}
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.operators.TimestampedCollector
-import org.apache.flink.table.api.StreamQueryConfig
-import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
-import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import java.util.{ArrayList => JArrayList, List => JList}
+import java.lang.{Long => JLong}
+import org.apache.flink.api.common.state.{MapStateDescriptor, ValueStateDescriptor}
+import org.apache.flink.api.java.typeutils.ListTypeInfo
+import org.apache.flink.runtime.state.keyed.{KeyedMapState, KeyedValueState}
+import org.apache.flink.table.api.types.{DataTypes, InternalType, TypeConverters}
+import org.apache.flink.table.api.{TableConfig, Types}
+import org.apache.flink.table.codegen.GeneratedAggsHandleFunction
+import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
+import org.apache.flink.table.runtime.functions.ProcessFunction.{Context, OnTimerContext}
+import org.apache.flink.table.runtime.functions.{AggsHandleFunction, ExecutionContext}
+import org.apache.flink.table.typeutils.{BaseRowTypeInfo, TypeUtils}
 import org.apache.flink.table.util.Logging
-import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
 
 /**
- * Process Function for ROWS clause event-time bounded OVER window
- *
-  * @param genAggregations Generated aggregate helper function
-  * @param aggregationStateType     row type info of aggregation
-  * @param inputRowType             row type info of input row
+  * Process Function for ROWS clause event-time bounded OVER window
+  *
+  * @param genAggsHandler           Generated aggregate helper function
+  * @param accTypes                 accumulator types of aggregation
+  * @param inputFieldTypes          input field type infos of input row
   * @param precedingOffset          preceding offset
- */
+  */
 class RowTimeBoundedRowsOver(
-    genAggregations: GeneratedAggregationsFunction,
-    aggregationStateType: RowTypeInfo,
-    inputRowType: CRowTypeInfo,
+    genAggsHandler: GeneratedAggsHandleFunction,
+    accTypes: Seq[InternalType],
+    inputFieldTypes: Seq[InternalType],
     precedingOffset: Long,
     rowTimeIdx: Int,
-    queryConfig: StreamQueryConfig)
-  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
-    with Compiler[GeneratedAggregations]
-    with Logging {
+    tableConfig: TableConfig)
+  extends ProcessFunctionWithCleanupState[BaseRow, BaseRow](tableConfig)
+  with Logging {
 
-  Preconditions.checkNotNull(aggregationStateType)
   Preconditions.checkNotNull(precedingOffset)
 
-  private var output: CRow = _
+  private var output: JoinedRow = _
 
   // the state which keeps the last triggering timestamp
-  private var lastTriggeringTsState: ValueState[Long] = _
+  private var lastTriggeringTsState: KeyedValueState[BaseRow, JLong] = _
 
   // the state which keeps the count of data
-  private var dataCountState: ValueState[Long] = _
+  private var counterState: KeyedValueState[BaseRow, JLong] = _
 
   // the state which used to materialize the accumulator for incremental calculation
-  private var accumulatorState: ValueState[Row] = _
+  private var accState: KeyedValueState[BaseRow, BaseRow] = _
 
   // the state which keeps all the data that are not expired.
   // The first element (as the mapState key) of the tuple is the time stamp. Per each time stamp,
   // the second element of tuple is a list that contains the entire data of all the rows belonging
   // to this time stamp.
-  private var dataState: MapState[Long, JList[Row]] = _
+  private var inputState: KeyedMapState[BaseRow, JLong, JList[BaseRow]] = _
 
-  private var function: GeneratedAggregations = _
+  private var function: AggsHandleFunction = _
 
-  override def open(config: Configuration) {
-    LOG.debug(s"Compiling AggregateHelper: ${genAggregations.name} \n\n" +
-                s"Code:\n${genAggregations.code}")
-    val clazz = compile(
-      getRuntimeContext.getUserCodeClassLoader,
-      genAggregations.name,
-      genAggregations.code)
-    LOG.debug("Instantiating AggregateHelper.")
-    function = clazz.newInstance()
-    function.open(getRuntimeContext)
+//  private val inputFieldTypeInfo = inputRowType.getFieldTypes
+//  private val inputFieldTypeSerializer =
+  // inputFieldTypeInfo.map(DataTypes.createInternalSerializer)
 
-    output = new CRow(function.createOutputRow(), true)
+  override def open(ctx: ExecutionContext) {
+    super.open(ctx)
+    LOG.debug(s"Compiling AggregateHelper: ${genAggsHandler.name} \n\n" +
+        s"Code:\n${genAggsHandler.code}")
+    function = genAggsHandler.newInstance(ctx.getRuntimeContext.getUserCodeClassLoader)
+    function.open(ctx)
 
-    val lastTriggeringTsDescriptor: ValueStateDescriptor[Long] =
-      new ValueStateDescriptor[Long]("lastTriggeringTsState", classOf[Long])
-    lastTriggeringTsState = getRuntimeContext.getState(lastTriggeringTsDescriptor)
+    output = new JoinedRow()
 
-    val dataCountStateDescriptor =
-      new ValueStateDescriptor[Long]("dataCountState", classOf[Long])
-    dataCountState = getRuntimeContext.getState(dataCountStateDescriptor)
+    val lastTriggeringTsDescriptor = new ValueStateDescriptor[JLong](
+      "lastTriggeringTsState",
+      Types.LONG)
+    lastTriggeringTsState = ctx.getKeyedValueState(lastTriggeringTsDescriptor)
 
-    val accumulatorStateDescriptor =
-      new ValueStateDescriptor[Row]("accumulatorState", aggregationStateType)
-    accumulatorState = getRuntimeContext.getState(accumulatorStateDescriptor)
+    val dataCountStateDescriptor = new ValueStateDescriptor[JLong](
+      "processedCountState",
+      Types.LONG)
+    counterState = ctx.getKeyedValueState(dataCountStateDescriptor)
 
-    val keyTypeInformation: TypeInformation[Long] =
-      BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]]
-    val valueTypeInformation: TypeInformation[JList[Row]] =
-      new ListTypeInfo[Row](inputRowType.asInstanceOf[CRowTypeInfo].rowType)
+    val accTypeInfo = new BaseRowTypeInfo(
+      accTypes.map(TypeConverters.createExternalTypeInfoFromDataType): _*)
+    val accStateDesc = new ValueStateDescriptor[BaseRow]("accState", accTypeInfo)
+    accState = ctx.getKeyedValueState(accStateDesc)
 
-    val mapStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
-      new MapStateDescriptor[Long, JList[Row]](
-        "dataState",
-        keyTypeInformation,
-        valueTypeInformation)
-
-    dataState = getRuntimeContext.getMapState(mapStateDescriptor)
+    // input element are all binary row as they are came from network
+    val inputType = new BaseRowTypeInfo(
+      inputFieldTypes.map(TypeConverters.createExternalTypeInfoFromDataType): _*)
+      .asInstanceOf[BaseRowTypeInfo]
+    val rowListTypeInfo = new ListTypeInfo[BaseRow](inputType)
+    val inputStateDesc = new MapStateDescriptor[JLong, JList[BaseRow]](
+      "inputState",
+      Types.LONG,
+      rowListTypeInfo)
+    inputState = ctx.getKeyedMapState(inputStateDesc)
 
     initCleanupTimeState("RowTimeBoundedRowsOverCleanupTime")
   }
 
   override def processElement(
-    inputC: CRow,
-    ctx: ProcessFunction[CRow, CRow]#Context,
-    out: Collector[CRow]): Unit = {
+      input: BaseRow,
+      ctx: Context,
+      out: Collector[BaseRow]): Unit = {
 
-    val input = inputC.row
-
+    val currentKey = executionContext.currentKey()
     // register state-cleanup timer
-    processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
     // triggering timestamp for trigger calculation
-    val triggeringTs = input.getField(rowTimeIdx).asInstanceOf[Long]
+    val triggeringTs = input.getLong(rowTimeIdx)
 
-    val lastTriggeringTs = lastTriggeringTsState.value
+    var lastTriggeringTs = lastTriggeringTsState.get(currentKey)
+    if (lastTriggeringTs == null) {
+      lastTriggeringTs = 0L
+    }
+
     // check if the data is expired, if not, save the data and register event time timer
-
     if (triggeringTs > lastTriggeringTs) {
-      val data = dataState.get(triggeringTs)
+      val data = inputState.get(currentKey, triggeringTs)
       if (null != data) {
         data.add(input)
-        dataState.put(triggeringTs, data)
+        inputState.add(currentKey, triggeringTs, data)
       } else {
-        val data = new util.ArrayList[Row]
+        val data = new JArrayList[BaseRow]
         data.add(input)
-        dataState.put(triggeringTs, data)
+        inputState.add(currentKey, triggeringTs, data)
         // register event time timer
         ctx.timerService.registerEventTimeTimer(triggeringTs)
       }
@@ -147,77 +147,82 @@ class RowTimeBoundedRowsOver(
   }
 
   override def onTimer(
-    timestamp: Long,
-    ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
-    out: Collector[CRow]): Unit = {
+      timestamp: Long,
+      ctx: OnTimerContext,
+      out: Collector[BaseRow]): Unit = {
+
+    val currentKey = executionContext.currentKey()
 
     if (isProcessingTimeTimer(ctx.asInstanceOf[OnTimerContext])) {
-      if (stateCleaningEnabled) {
+      if (needToCleanupState(timestamp)) {
 
-        val keysIt = dataState.keys.iterator()
-        val lastProcessedTime = lastTriggeringTsState.value
+        val keysIt = inputState.iterator(currentKey)
+        var lastProcessedTime = lastTriggeringTsState.get(currentKey)
+        if (lastProcessedTime == null) {
+          lastProcessedTime = 0L
+        }
 
         // is data left which has not been processed yet?
         var noRecordsToProcess = true
         while (keysIt.hasNext && noRecordsToProcess) {
-          if (keysIt.next() > lastProcessedTime) {
+          if (keysIt.next().getKey > lastProcessedTime) {
             noRecordsToProcess = false
           }
         }
 
         if (noRecordsToProcess) {
           // We clean the state
-          cleanupState(dataState, accumulatorState, dataCountState, lastTriggeringTsState)
+          cleanupState(inputState, accState, counterState, lastTriggeringTsState)
           function.cleanup()
         } else {
           // There are records left to process because a watermark has not been received yet.
           // This would only happen if the input stream has stopped. So we don't need to clean up.
           // We leave the state as it is and schedule a new cleanup timer
-          processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+          registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
         }
       }
       return
     }
 
-    // remove timestamp set outside of ProcessFunction.
-    out.asInstanceOf[TimestampedCollector[_]].eraseTimestamp()
-
     // gets all window data from state for the calculation
-    val inputs: JList[Row] = dataState.get(timestamp)
+    val inputs: JList[BaseRow] = inputState.get(currentKey, timestamp)
 
     if (null != inputs) {
 
-      var accumulators = accumulatorState.value
-      var dataCount = dataCountState.value
+      var dataCount = counterState.get(currentKey)
+      if (dataCount == null) {
+        dataCount = 0L
+      }
 
-      var retractList: JList[Row] = null
+      var accumulators = accState.get(currentKey)
+      if (accumulators == null) {
+        accumulators = function.createAccumulators()
+      }
+      // set accumulators in context first
+      function.setAccumulators(accumulators)
+
+      var retractList: JList[BaseRow] = null
       var retractTs: Long = Long.MaxValue
       var retractCnt: Int = 0
       var i = 0
 
       while (i < inputs.size) {
         val input = inputs.get(i)
-
-        // initialize when first run or failover recovery per key
-        if (null == accumulators) {
-          accumulators = function.createAccumulators()
-        }
-
-        var retractRow: Row = null
-
+        var retractRow: BaseRow = null
         if (dataCount >= precedingOffset) {
           if (null == retractList) {
             // find the smallest timestamp
             retractTs = Long.MaxValue
-            val dataTimestampIt = dataState.keys.iterator
+            val dataTimestampIt = inputState.iterator(currentKey)
             while (dataTimestampIt.hasNext) {
-              val dataTs = dataTimestampIt.next
+              val data = dataTimestampIt.next
+              val dataTs = data.getKey
               if (dataTs < retractTs) {
                 retractTs = dataTs
+                // get the oldest rows to retract them
+                retractList = data.getValue
               }
             }
-            // get the oldest rows to retract them
-            retractList = dataState.get(retractTs)
           }
 
           retractRow = retractList.get(retractCnt)
@@ -225,7 +230,7 @@ class RowTimeBoundedRowsOver(
 
           // remove retracted values from state
           if (retractList.size == retractCnt) {
-            dataState.remove(retractTs)
+            inputState.remove(currentKey, retractTs)
             retractList = null
             retractCnt = 0
           }
@@ -233,37 +238,38 @@ class RowTimeBoundedRowsOver(
           dataCount += 1
         }
 
-        // copy forwarded fields to output row
-        function.setForwardedFields(input, output.row)
-
         // retract old row from accumulators
         if (null != retractRow) {
-          function.retract(accumulators, retractRow)
+          function.retract(retractRow)
         }
 
-        // accumulate current row and set aggregate in output row
-        function.accumulate(accumulators, input)
-        function.setAggregationResults(accumulators, output.row)
-        i += 1
+        // accumulate current row
+        function.accumulate(input)
 
+        // prepare output row
+        output.replace(input, function.getValue)
         out.collect(output)
+
+        i += 1
       }
 
       // update all states
-      if (dataState.contains(retractTs)) {
+      if (inputState.contains(currentKey, retractTs)) {
         if (retractCnt > 0) {
           retractList.subList(0, retractCnt).clear()
-          dataState.put(retractTs, retractList)
+          inputState.add(currentKey, retractTs, retractList)
         }
       }
-      dataCountState.update(dataCount)
-      accumulatorState.update(accumulators)
+      counterState.put(currentKey, dataCount)
+      // update the value of accumulators for future incremental computation
+      accumulators = function.getAccumulators
+      accState.put(currentKey, accumulators)
     }
 
-    lastTriggeringTsState.update(timestamp)
+    lastTriggeringTsState.put(currentKey, timestamp)
 
     // update cleanup timer
-    processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
   }
 
   override def close(): Unit = {

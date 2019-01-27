@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.transformations;
 
+import org.apache.flink.runtime.operators.DamBehavior;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.util.OutputTag;
 
@@ -42,6 +43,11 @@ public class SideOutputTransformation<T> extends StreamTransformation<T> {
 	private final StreamTransformation<?> input;
 
 	private final OutputTag<T> tag;
+
+	/**
+	 * The {@link DamBehavior} of the upstream operator on this side-output.
+	 */
+	private DamBehavior damBehavior;
 
 	public SideOutputTransformation(StreamTransformation<?> input, final OutputTag<T> tag) {
 		super("SideOutput", tag.getTypeInfo(), requireNonNull(input).getParallelism());
@@ -71,5 +77,13 @@ public class SideOutputTransformation<T> extends StreamTransformation<T> {
 	@Override
 	public final void setChainingStrategy(ChainingStrategy strategy) {
 		throw new UnsupportedOperationException("Cannot set chaining strategy on SideOutput Transformation.");
+	}
+
+	public DamBehavior getDamBehavior() {
+		return this.damBehavior;
+	}
+
+	public void setDamBehavior(DamBehavior damBehavior) {
+		this.damBehavior = damBehavior;
 	}
 }

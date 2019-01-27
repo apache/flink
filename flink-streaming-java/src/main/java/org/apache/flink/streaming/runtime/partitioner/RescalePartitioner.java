@@ -19,7 +19,6 @@ package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
@@ -48,15 +47,14 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 public class RescalePartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private final int[] returnArray = new int[] {-1};
+	private int nextChannelToSendTo = -1;
 
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record) {
-		int newChannel = ++returnArray[0];
-		if (newChannel >= numberOfChannels) {
-			returnArray[0] = 0;
+	public int selectChannel(StreamRecord<T> record, int numberOfOutputChannels) {
+		if (++nextChannelToSendTo >= numberOfOutputChannels) {
+			nextChannelToSendTo = 0;
 		}
-		return returnArray;
+		return nextChannelToSendTo;
 	}
 
 	public StreamPartitioner<T> copy() {

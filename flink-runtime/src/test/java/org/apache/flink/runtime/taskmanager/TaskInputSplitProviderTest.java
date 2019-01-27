@@ -24,6 +24,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.BaseTestingActorGateway;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProviderException;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -41,6 +42,7 @@ public class TaskInputSplitProviderTest {
 
 		final JobID jobID = new JobID();
 		final JobVertexID vertexID = new JobVertexID();
+		final OperatorID operatorID = new OperatorID();
 		final ExecutionAttemptID executionID = new ExecutionAttemptID();
 		final FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
@@ -55,7 +57,7 @@ public class TaskInputSplitProviderTest {
 			timeout);
 
 		// The jobManager will return a
-		InputSplit nextInputSplit = provider.getNextInputSplit(getClass().getClassLoader());
+		InputSplit nextInputSplit = provider.getNextInputSplit(operatorID, getClass().getClassLoader());
 
 		assertTrue(nextInputSplit == null);
 	}

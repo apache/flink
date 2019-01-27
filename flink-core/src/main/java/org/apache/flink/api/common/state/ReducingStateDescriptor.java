@@ -83,6 +83,13 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>
 		this.reduceFunction = checkNotNull(reduceFunction);
 	}
 
+	// ------------------------------------------------------------------------
+
+	@Override
+	public ReducingState<T> bind(StateBinder stateBinder) throws Exception {
+		return stateBinder.createReducingState(this);
+	}
+
 	/**
 	 * Returns the reduce function to be used for the reducing state.
 	 */

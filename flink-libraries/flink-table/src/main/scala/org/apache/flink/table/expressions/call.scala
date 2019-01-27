@@ -18,22 +18,28 @@
 package org.apache.flink.table.expressions
 
 import java.util
+import java.math.BigDecimal
 
+import scala.collection.mutable
 import com.google.common.collect.ImmutableList
+import org.apache.calcite.rel.RelFieldCollation
 import org.apache.calcite.rex.RexWindowBound._
-import org.apache.calcite.rex.{RexFieldCollation, RexNode, RexWindowBound}
+import org.apache.calcite.rex.{RexCall, RexFieldCollation, RexNode, RexWindowBound}
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.OrdinalReturnTypeInference
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.api.functions.{ScalarFunction, TableFunction}
+import org.apache.flink.table.api.scala.{CURRENT_ROW, UNBOUNDED_ROW}
+import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkTypeFactory}
+import org.apache.flink.table.functions.sql.internal.SqlThrowExceptionFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.functions._
-import org.apache.flink.table.plan.logical.{LogicalNode, LogicalTableFunctionCall}
+import org.apache.flink.table.plan.logical.{LogicalExprVisitor, LogicalNode, LogicalTableFunctionCall}
+import org.apache.flink.table.api.types._
+import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
+import org.apache.flink.table.typeutils.TypeUtils
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
-import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 
 import _root_.scala.collection.JavaConverters._
 
@@ -56,6 +62,9 @@ case class Call(functionName: String, args: Seq[Expression]) extends Expression 
 
   override private[flink] def validateInput(): ValidationResult =
     ValidationFailure(s"Unresolved function call: $functionName")
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 /**
@@ -72,6 +81,9 @@ case class UnresolvedOverCall(agg: Expression, alias: Expression) extends Expres
   override private[flink] def resultType = agg.resultType
 
   override private[flink] def children = Seq()
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 /**
@@ -86,13 +98,14 @@ case class UnresolvedOverCall(agg: Expression, alias: Expression) extends Expres
 case class OverCall(
     agg: Expression,
     partitionBy: Seq[Expression],
-    orderBy: Expression,
-    preceding: Expression,
-    following: Expression) extends Expression {
+    orderBy: Seq[Expression],
+    var preceding: Expression,
+    var following: Expression,
+    tableEnv: TableEnvironment) extends Expression {
 
   override def toString: String = s"$agg OVER (" +
     s"PARTITION BY (${partitionBy.mkString(", ")}) " +
-    s"ORDER BY $orderBy " +
+    s"ORDER BY (${orderBy.mkString(", ")})" +
     s"PRECEDING $preceding " +
     s"FOLLOWING $following)"
 
@@ -104,23 +117,72 @@ case class OverCall(
     val operator: SqlAggFunction = agg.asInstanceOf[Aggregation].getSqlAggFunction()
     val aggResultType = relBuilder
       .getTypeFactory.asInstanceOf[FlinkTypeFactory]
-      .createTypeFromTypeInfo(agg.resultType, isNullable = true)
+      .createTypeFromInternalType(agg.resultType, isNullable = true)
 
     // assemble exprs by agg children
     val aggExprs = agg.asInstanceOf[Aggregation].children.map(_.toRexNode(relBuilder)).asJava
 
     // assemble order by key
-    val orderKey = new RexFieldCollation(orderBy.toRexNode, Set[SqlKind]().asJava)
-    val orderKeys = ImmutableList.of(orderKey)
+    def collation(
+      node: RexNode, direction: RelFieldCollation.Direction,
+      nullDirection: RelFieldCollation.NullDirection, kinds: mutable.Set[SqlKind]): RexNode = {
+      node.getKind match {
+        case SqlKind.DESCENDING =>
+          kinds.add(node.getKind)
+          collation(
+            node.asInstanceOf[RexCall].getOperands.get(0),
+            RelFieldCollation.Direction.DESCENDING, nullDirection, kinds)
+        case SqlKind.NULLS_FIRST =>
+          kinds.add(node.getKind)
+          collation(
+            node.asInstanceOf[RexCall].getOperands.get(0), direction,
+            RelFieldCollation.NullDirection.FIRST, kinds)
+        case SqlKind.NULLS_LAST =>
+          kinds.add(node.getKind)
+          collation(
+            node.asInstanceOf[RexCall].getOperands.get(0), direction,
+            RelFieldCollation.NullDirection.LAST, kinds)
+        case _ =>
+          if (nullDirection == null) {
+            // Set the null direction if not specified.
+            // Consistent with HIVE/SPARK/MYSQL/BLINK-RUNTIME.
+            if (FlinkPlannerImpl.defaultNullCollation.last(
+              direction.equals(RelFieldCollation.Direction.DESCENDING))) {
+              kinds.add(SqlKind.NULLS_LAST)
+            } else {
+              kinds.add(SqlKind.NULLS_FIRST)
+            }
+          }
+          node
+      }
+    }
+
+    val orderKeysBuilder = new ImmutableList.Builder[RexFieldCollation]()
+    for (orderExp <- orderBy) {
+      val kinds: mutable.Set[SqlKind] = mutable.Set()
+      val rexNode = collation(
+        orderExp.toRexNode, RelFieldCollation.Direction.ASCENDING, null, kinds)
+      val orderKey = new RexFieldCollation(rexNode, kinds.asJava)
+      orderKeysBuilder.add(orderKey)
+    }
+    val orderKeys = orderKeysBuilder.build()
 
     // assemble partition by keys
     val partitionKeys = partitionBy.map(_.toRexNode).asJava
 
     // assemble bounds
-    val isPhysical: Boolean = preceding.resultType.isInstanceOf[RowIntervalTypeInfo]
-
-    val lowerBound = createBound(relBuilder, preceding, SqlKind.PRECEDING)
-    val upperBound = createBound(relBuilder, following, SqlKind.FOLLOWING)
+    var isPhysical: Boolean = false
+    var lowerBound, upperBound: RexWindowBound = null
+    agg match {
+      case _: RowNumber | _: Rank | _: DenseRank =>
+        isPhysical = true
+        lowerBound = createBound(relBuilder, UNBOUNDED_ROW, SqlKind.PRECEDING)
+        upperBound = createBound(relBuilder, CURRENT_ROW, SqlKind.FOLLOWING)
+      case _ =>
+        isPhysical = preceding.resultType == DataTypes.INTERVAL_ROWS
+        lowerBound = createBound(relBuilder, preceding, SqlKind.PRECEDING)
+        upperBound = createBound(relBuilder, following, SqlKind.FOLLOWING)
+    }
 
     // build RexOver
     rexBuilder.makeOver(
@@ -144,15 +206,22 @@ case class OverCall(
 
     bound match {
       case _: UnboundedRow | _: UnboundedRange =>
-        val unbounded = SqlWindow.createUnboundedPreceding(SqlParserPos.ZERO)
+        val unbounded = if (sqlKind == SqlKind.PRECEDING) {
+          SqlWindow.createUnboundedPreceding(SqlParserPos.ZERO)
+        } else {
+          SqlWindow.createUnboundedFollowing(SqlParserPos.ZERO)
+        }
         create(unbounded, null)
       case _: CurrentRow | _: CurrentRange =>
         val currentRow = SqlWindow.createCurrentRow(SqlParserPos.ZERO)
         create(currentRow, null)
       case b: Literal =>
+        val DECIMAL_PRECISION_NEEDED_FOR_LONG = 19
         val returnType = relBuilder
           .getTypeFactory.asInstanceOf[FlinkTypeFactory]
-          .createTypeFromTypeInfo(Types.DECIMAL, isNullable = true)
+          .createTypeFromInternalType(
+            DecimalType.of(DECIMAL_PRECISION_NEEDED_FOR_LONG, 0),
+            isNullable = true)
 
         val sqlOperator = new SqlPostfixOperator(
           sqlKind.name,
@@ -168,7 +237,11 @@ case class OverCall(
         val node = new SqlBasicCall(sqlOperator, operands, SqlParserPos.ZERO)
 
         val expressions: util.ArrayList[RexNode] = new util.ArrayList[RexNode]()
-        expressions.add(relBuilder.literal(b.value))
+        b.value match {
+          case v: Double => expressions.add(relBuilder.literal(
+            BigDecimal.valueOf(v.asInstanceOf[Number].doubleValue())))
+          case _ => expressions.add(relBuilder.literal(b.value))
+        }
 
         val rexNode = relBuilder.getRexBuilder.makeCall(returnType, sqlOperator, expressions)
 
@@ -177,7 +250,7 @@ case class OverCall(
   }
 
   override private[flink] def children: Seq[Expression] =
-    Seq(agg) ++ Seq(orderBy) ++ partitionBy ++ Seq(preceding) ++ Seq(following)
+    Seq(agg) ++ orderBy ++ partitionBy ++ Seq(preceding) ++ Seq(following)
 
   override private[flink] def resultType = agg.resultType
 
@@ -193,7 +266,8 @@ case class OverCall(
 
     // check partitionBy expression keys are resolved field reference
     partitionBy.foreach {
-      case r: ResolvedFieldReference if r.resultType.isKeyType  =>
+      case r: ResolvedFieldReference
+        if TypeConverters.createExternalTypeInfoFromDataType(r.resultType).isKeyType  =>
         ValidationSuccess
       case r: ResolvedFieldReference =>
         return ValidationFailure(s"Invalid PartitionBy expression: $r. " +
@@ -207,13 +281,14 @@ case class OverCall(
     preceding match {
       case _: CurrentRow | _: CurrentRange | _: UnboundedRow | _: UnboundedRange =>
         ValidationSuccess
-      case Literal(v: Long, _: RowIntervalTypeInfo) if v > 0 =>
+      case Literal(_: Long, DataTypes.INTERVAL_ROWS) =>
         ValidationSuccess
-      case Literal(_, _: RowIntervalTypeInfo) =>
-        return ValidationFailure("Preceding row interval must be larger than 0.")
-      case Literal(v: Long, _: TimeIntervalTypeInfo[_]) if v >= 0 =>
+      case Literal(_: Long, DataTypes.INTERVAL_RANGE) |
+           Literal(_: Double, DataTypes.INTERVAL_RANGE) =>
         ValidationSuccess
-      case Literal(_, _: TimeIntervalTypeInfo[_]) =>
+      case Literal(v: Long, b) if isTimeInterval(b) && v >= 0 =>
+        ValidationSuccess
+      case Literal(_, b) if isTimeInterval(b) =>
         return ValidationFailure("Preceding time interval must be equal or larger than 0.")
       case Literal(_, _) =>
         return ValidationFailure("Preceding must be a row interval or time interval literal.")
@@ -223,13 +298,14 @@ case class OverCall(
     following match {
       case _: CurrentRow | _: CurrentRange | _: UnboundedRow | _: UnboundedRange =>
         ValidationSuccess
-      case Literal(v: Long, _: RowIntervalTypeInfo) if v > 0 =>
+      case Literal(_: Long, DataTypes.INTERVAL_ROWS) =>
         ValidationSuccess
-      case Literal(_, _: RowIntervalTypeInfo) =>
-        return ValidationFailure("Following row interval must be larger than 0.")
-      case Literal(v: Long, _: TimeIntervalTypeInfo[_]) if v >= 0 =>
+      case Literal(_: Long, DataTypes.INTERVAL_RANGE) |
+           Literal(_: Double, DataTypes.INTERVAL_RANGE) =>
         ValidationSuccess
-      case Literal(_, _: TimeIntervalTypeInfo[_]) =>
+      case Literal(v: Long, b) if isTimeInterval(b) && v >= 0 =>
+        ValidationSuccess
+      case Literal(_, b) if isTimeInterval(b) =>
         return ValidationFailure("Following time interval must be equal or larger than 0.")
       case Literal(_, _) =>
         return ValidationFailure("Following must be a row interval or time interval literal.")
@@ -239,17 +315,72 @@ case class OverCall(
     (preceding, following) match {
       case (p: Expression, f: Expression) if p.resultType == f.resultType =>
         ValidationSuccess
+      case (_: UnboundedRange, f: Expression) if f.resultType == DataTypes.INTERVAL_MILLIS =>
+        ValidationSuccess
+      case (_: CurrentRange, f: Expression) if f.resultType == DataTypes.INTERVAL_MILLIS =>
+        ValidationSuccess
+      case (p: Expression, _: UnboundedRange) if p.resultType == DataTypes.INTERVAL_MILLIS =>
+        ValidationSuccess
+      case (p: Expression, _: CurrentRange) if p.resultType == DataTypes.INTERVAL_MILLIS =>
+        ValidationSuccess
       case _ =>
         return ValidationFailure("Preceding and following must be of same interval type.")
     }
 
-    // check time field
-    if (!ExpressionUtils.isTimeAttribute(orderBy)) {
-      return ValidationFailure("Ordering must be defined on a time attribute.")
+    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
+      validateInputForStream()
+    } else {
+      ValidationSuccess
+    }
+  }
+
+  private[flink] def validateInputForStream(): ValidationResult = {
+    // check preceding/following range
+    preceding match {
+      case Literal(_, DataTypes.INTERVAL_RANGE) =>
+        return ValidationFailure("Stream table API does not support value range.")
+      case Literal(v: Long, DataTypes.INTERVAL_ROWS) if v < 0 =>
+        return ValidationFailure("Stream table API does not support negative preceding.")
+      case _ =>
+        ValidationSuccess
+    }
+    following match {
+      case _: UnboundedRow | _: UnboundedRange =>
+        return ValidationFailure("Stream table API does not support unbounded following.")
+      case Literal(_, DataTypes.INTERVAL_RANGE) =>
+        return ValidationFailure("Stream table API does not support value range.")
+      case Literal(v: Long, DataTypes.INTERVAL_ROWS) if v > 0 =>
+        return ValidationFailure("Stream table API does not support positive following.")
+      case _ =>
+        ValidationSuccess
+    }
+
+    // check lead/lag offset
+    agg match {
+      case a: Lead =>
+        if (a.getOffsetValue > 0) {
+          return ValidationFailure("Stream table API does not support positive offset for lead.")
+        }
+      case a: Lag =>
+        if (a.getOffsetValue < 0) {
+          return ValidationFailure("Stream table API does not support negative offset for lag.")
+        }
+      case _ =>
+        ValidationSuccess
     }
 
     ValidationSuccess
   }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
+}
+
+object ScalarFunctionCall {
+  def apply(
+      scalarFunction: ScalarFunction,
+      parameters: Array[Expression]): ScalarFunctionCall =
+    new ScalarFunctionCall(scalarFunction, parameters)
 }
 
 /**
@@ -262,8 +393,6 @@ case class ScalarFunctionCall(
     scalarFunction: ScalarFunction,
     parameters: Seq[Expression])
   extends Expression {
-
-  private var foundSignature: Option[Array[Class[_]]] = None
 
   override private[flink] def children: Seq[Expression] = parameters
 
@@ -282,15 +411,16 @@ case class ScalarFunctionCall(
     s"${scalarFunction.getClass.getCanonicalName}(${parameters.mkString(", ")})"
 
   override private[flink] def resultType =
-    getResultTypeOfScalarFunction(
+    getResultTypeOfCTDFunction(
       scalarFunction,
-      foundSignature.get)
+      parameters.toArray,
+      () => {extractTypeFromScalarFunc(
+        scalarFunction, parameters.map(_.resultType).toArray)}).toInternalType
 
   override private[flink] def validateInput(): ValidationResult = {
     val signature = children.map(_.resultType)
     // look for a signature that matches the input types
-    foundSignature = getEvalMethodSignature(scalarFunction, signature)
-    if (foundSignature.isEmpty) {
+    if (getEvalUserDefinedMethod(scalarFunction, signature).isEmpty) {
       ValidationFailure(s"Given parameters do not match any signature. \n" +
         s"Actual: ${signatureToString(signature)} \n" +
         s"Expected: ${signaturesToString(scalarFunction, "eval")}")
@@ -298,6 +428,9 @@ case class ScalarFunctionCall(
       ValidationSuccess
     }
   }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 /**
@@ -307,18 +440,20 @@ case class ScalarFunctionCall(
   * @param functionName function name
   * @param tableFunction user-defined table function
   * @param parameters actual parameters of function
-  * @param resultType type information of returned table
+  * @param externalResultType type information of returned table
   */
 case class TableFunctionCall(
     functionName: String,
     tableFunction: TableFunction[_],
     parameters: Seq[Expression],
-    resultType: TypeInformation[_])
+    externalResultType: DataType)
   extends Expression {
 
   private var aliases: Option[Seq[String]] = None
 
   override private[flink] def children: Seq[Expression] = parameters
+
+  override private[flink] def resultType: InternalType = externalResultType.toInternalType
 
   /**
     * Assigns an alias for this table function's returned fields that the following operator
@@ -358,11 +493,43 @@ case class TableFunctionCall(
       functionName,
       tableFunction,
       parameters,
-      resultType,
+      externalResultType,
       fieldNames,
       child)
   }
 
   override def toString =
     s"${tableFunction.getClass.getCanonicalName}(${parameters.mkString(", ")})"
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
+}
+
+case class ThrowException(msg: Expression, tp: InternalType) extends UnaryExpression {
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (child.resultType == DataTypes.STRING) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"ThrowException operator requires String input, " +
+          s"but $child is of type ${child.resultType}")
+    }
+  }
+
+  override def toString: String = s"ThrowException($msg)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(
+      new SqlThrowExceptionFunction(
+        tp,
+        relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]),
+      msg.toRexNode)
+  }
+
+  override private[flink] def child = msg
+
+  override private[flink] def resultType = tp
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }

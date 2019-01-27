@@ -19,12 +19,13 @@ package org.apache.flink.table.expressions
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.types.InternalType
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.plan.logical.LogicalExprVisitor
 import org.apache.flink.table.typeutils.TypeCoercion
 import org.apache.flink.table.validate._
 
-case class Cast(child: Expression, resultType: TypeInformation[_]) extends UnaryExpression {
+case class Cast(child: Expression, resultType: InternalType) extends UnaryExpression {
 
   override def toString = s"$child.cast($resultType)"
 
@@ -35,8 +36,8 @@ case class Cast(child: Expression, resultType: TypeInformation[_]) extends Unary
       .getRexBuilder
       // we use abstract cast here because RelBuilder.cast() has to many side effects
       .makeAbstractCast(
-        typeFactory.createTypeFromTypeInfo(resultType, childRexNode.getType.isNullable),
-        childRexNode)
+      typeFactory.createTypeFromInternalType(resultType, childRexNode.getType.isNullable),
+      childRexNode)
   }
 
   override private[flink] def makeCopy(anyRefs: Array[AnyRef]): this.type = {
@@ -51,4 +52,8 @@ case class Cast(child: Expression, resultType: TypeInformation[_]) extends Unary
       ValidationFailure(s"Unsupported cast from ${child.resultType} to $resultType")
     }
   }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
+

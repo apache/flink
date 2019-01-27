@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.client.gateway.local;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.types.DataType;
+import org.apache.flink.table.api.types.DataTypes;
 import org.apache.flink.table.sinks.BatchTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
@@ -36,7 +39,7 @@ public class CollectBatchTableSink implements BatchTableSink<Row> {
 	private final TypeSerializer<Row> serializer;
 
 	private String[] fieldNames;
-	private TypeInformation<?>[] fieldTypes;
+	private DataType[] fieldTypes;
 
 	public CollectBatchTableSink(String accumulatorName, TypeSerializer<Row> serializer) {
 		this.accumulatorName = accumulatorName;
@@ -44,8 +47,8 @@ public class CollectBatchTableSink implements BatchTableSink<Row> {
 	}
 
 	@Override
-	public TypeInformation<Row> getOutputType() {
-		return Types.ROW_NAMED(fieldNames, fieldTypes);
+	public DataType getOutputType() {
+		return DataTypes.createRowType(fieldTypes, fieldNames);
 	}
 
 	@Override
@@ -54,12 +57,12 @@ public class CollectBatchTableSink implements BatchTableSink<Row> {
 	}
 
 	@Override
-	public TypeInformation<?>[] getFieldTypes() {
+	public DataType[] getFieldTypes() {
 		return fieldTypes;
 	}
 
 	@Override
-	public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+	public TableSink<Row> configure(String[] fieldNames, DataType[] fieldTypes) {
 		final CollectBatchTableSink copy = new CollectBatchTableSink(accumulatorName, serializer);
 		copy.fieldNames = fieldNames;
 		copy.fieldTypes = fieldTypes;
@@ -67,9 +70,10 @@ public class CollectBatchTableSink implements BatchTableSink<Row> {
 	}
 
 	@Override
-	public void emitDataSet(DataSet<Row> dataSet) {
-		dataSet
-			.output(new Utils.CollectHelper<>(accumulatorName, serializer))
+	public DataStreamSink<?> emitBoundedStream(
+			DataStream<Row> boundedStream, TableConfig tableConfig, ExecutionConfig executionConfig) {
+		return boundedStream
+			.writeUsingOutputFormat(new Utils.CollectHelper<>(accumulatorName, serializer))
 			.name("SQL Client Batch Collect Sink");
 	}
 

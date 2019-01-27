@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.client.gateway.utils;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.Types;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.api.functions.AggregateFunction;
+import org.apache.flink.table.api.functions.ScalarFunction;
+import org.apache.flink.table.api.functions.TableFunction;
+import org.apache.flink.table.api.types.DataType;
+import org.apache.flink.table.api.types.DataTypes;
+import org.apache.flink.table.api.types.RowType;
 import org.apache.flink.types.Row;
 
 /**
@@ -37,6 +37,10 @@ public class UserDefinedFunctions {
 	public static class ScalarUDF extends ScalarFunction {
 
 		private int offset;
+
+		public ScalarUDF() {
+			this.offset = 5;
+		}
 
 		public ScalarUDF(Integer offset) {
 			this.offset = offset;
@@ -71,8 +75,8 @@ public class UserDefinedFunctions {
 		}
 
 		@Override
-		public TypeInformation<Long> getResultType() {
-			return BasicTypeInfo.LONG_TYPE_INFO;
+		public DataType getResultType() {
+			return DataTypes.LONG;
 		}
 	}
 
@@ -96,8 +100,8 @@ public class UserDefinedFunctions {
 		}
 
 		@Override
-		public TypeInformation<Row> getResultType() {
-			return Types.ROW(Types.STRING(), Types.LONG());
+		public DataType getResultType(Object[] arguments, Class[] argTypes) {
+			return new RowType(DataTypes.STRING, DataTypes.LONG);
 		}
 	}
 }

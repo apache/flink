@@ -18,6 +18,14 @@
 
 package org.apache.flink.table.runtime.utils
 
+import org.apache.flink.api.common.JobExecutionResult
+import org.apache.flink.api.common.accumulators.SerializedListAccumulator
+import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.table.api.{BatchTableEnvironment, TableEnvironment}
+import org.apache.flink.types.Row
+
+import scala.collection.JavaConverters._
+
 object SortTestUtils {
 
   val tupleDataSetStrings = List((1, 1L, "Hi")
@@ -53,5 +61,22 @@ object SortTestUtils {
       .slice(start, end)
       .mkString("\n")
       .replaceAll("[\\(\\)]", "")
+  }
+
+  def getOrderedRows(tEnv: BatchTableEnvironment,
+      typeSerializer: TypeSerializer[Seq[Row]], id: String): Seq[Row] = {
+    val res: JobExecutionResult = tEnv.execute()
+    val accResult: _root_.java.util.ArrayList[Array[Byte]] = res.getAccumulatorResult(id)
+    val results: Seq[Seq[Row]] =
+      SerializedListAccumulator.deserializeList(accResult, typeSerializer).asScala
+    var totalSize = 0
+    results.foreach((rows : Seq[Row]) => totalSize += rows.length)
+    val avgSize = totalSize / results.length
+    results.foreach((rows : Seq[Row]) => rows.length >= avgSize && rows.length <= avgSize + 1)
+
+    results
+        .filterNot(_.isEmpty)
+        // sort all partitions by their head element to verify the order across partitions
+        .reduceLeft(_ ++ _)
   }
 }

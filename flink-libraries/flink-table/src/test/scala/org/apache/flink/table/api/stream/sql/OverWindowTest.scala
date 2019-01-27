@@ -20,8 +20,7 @@ package org.apache.flink.table.api.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
 import org.junit.Test
 
 class OverWindowTest extends TableTestBase {
@@ -32,7 +31,7 @@ class OverWindowTest extends TableTestBase {
     'proctime.proctime, 'rowtime.rowtime)
 
   @Test
-  def testProctimeBoundedDistinctWithNonDistinctPartitionedRowOver() = {
+  def testProctimeBoundedDistinctWithNonDistinctPartitionedRowOver(): Unit = {
     val sql = "SELECT " +
       "b, " +
       "count(a) OVER (PARTITION BY b ORDER BY proctime ROWS BETWEEN 2 preceding AND " +
@@ -53,32 +52,13 @@ class OverWindowTest extends TableTestBase {
       "sum(DISTINCT c) OVER w as sum2 " +
       "from MyTable " +
       "WINDOW w AS (PARTITION BY b ORDER BY proctime ROWS BETWEEN 2 preceding AND CURRENT ROW)"
+
     streamUtil.verifySqlPlansIdentical(sql, sql2)
-    
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "b", "c", "proctime")
-          ),
-          term("partitionBy", "b"),
-          term("orderBy", "proctime"),
-          term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "b", "c", "proctime", "COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1, " +
-            "COUNT(DISTINCT a) AS w0$o2, COUNT(DISTINCT c) AS w0$o3, $SUM0(DISTINCT c) AS w0$o4")
-        ),
-        term("select", "b", "w0$o0 AS cnt1, CASE(>(w0$o0, 0), CAST(w0$o1), null) AS sum1, " +
-          "w0$o2 AS cnt2, CASE(>(w0$o3, 0), CAST(w0$o4), null) AS sum2")
-      )
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifyPlan(sql)
   }
 
   @Test
-  def testProctimeBoundedDistinctPartitionedRowOver() = {
+  def testProctimeBoundedDistinctPartitionedRowOver(): Unit = {
     val sql = "SELECT " +
       "c, " +
       "count(DISTINCT a) OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN 2 preceding AND " +
@@ -94,31 +74,13 @@ class OverWindowTest extends TableTestBase {
       "CURRENT ROW) as sum1 " +
       "FROM MyTable " +
       "WINDOW w AS (PARTITION BY c ORDER BY proctime ROWS BETWEEN 2 preceding AND CURRENT ROW)"
-    streamUtil.verifySqlPlansIdentical(sql, sql2)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
-          term("partitionBy", "c"),
-          term("orderBy", "proctime"),
-          term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "proctime",
-            "COUNT(DISTINCT a) AS w0$o0, $SUM0(DISTINCT a) AS w0$o1")
-        ),
-        term("select", "c", "w0$o0 AS cnt1, CASE(>(w0$o0, 0), CAST(w0$o1), null) AS sum1")
-      )
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifySqlPlansIdentical(sql, sql2)
+    streamUtil.verifyPlan(sql)
   }
 
   @Test
-  def testProcTimeBoundedPartitionedRowsOver() = {
+  def testProcTimeBoundedPartitionedRowsOver(): Unit = {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN 2 preceding AND " +
@@ -134,30 +96,13 @@ class OverWindowTest extends TableTestBase {
       "sum(a) OVER w as sum1 " +
       "from MyTable " +
       "WINDOW w AS (PARTITION BY c ORDER BY proctime ROWS BETWEEN 2 preceding AND CURRENT ROW)"
+
     streamUtil.verifySqlPlansIdentical(sql, sql2)
-    
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
-          term("partitionBy", "c"),
-          term("orderBy", "proctime"),
-          term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "proctime", "COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1")
-        ),
-        term("select", "c", "w0$o0 AS cnt1, CASE(>(w0$o0, 0), CAST(w0$o1), null) AS sum1")
-      )
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifyPlan(sql)
   }
 
   @Test
-  def testProcTimeBoundedPartitionedRangeOver() = {
+  def testProcTimeBoundedPartitionedRangeOver(): Unit = {
 
     val sqlQuery =
       "SELECT a, " +
@@ -171,38 +116,13 @@ class OverWindowTest extends TableTestBase {
         "FROM MyTable " +
         "WINDOW w AS (PARTITION BY a ORDER BY proctime " +
         "  RANGE BETWEEN INTERVAL '2' HOUR PRECEDING AND CURRENT ROW)"
+
     streamUtil.verifySqlPlansIdentical(sqlQuery, sqlQuery2)
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
-          term("partitionBy", "a"),
-          term("orderBy", "proctime"),
-          term("range", "BETWEEN 7200000 PRECEDING AND CURRENT ROW"),
-          term(
-            "select",
-            "a",
-            "c",
-            "proctime",
-            "COUNT(c) AS w0$o0",
-            "$SUM0(c) AS w0$o1"
-          )
-        ),
-        term("select", "a", "/(CASE(>(w0$o0, 0)", "CAST(w0$o1), null), w0$o0) AS avgA")
-      )
-
-    streamUtil.verifySql(sqlQuery, expected)
+    streamUtil.verifyPlan(sqlQuery)
   }
 
   @Test
-  def testProcTimeBoundedNonPartitionedRangeOver() = {
+  def testProcTimeBoundedNonPartitionedRangeOver(): Unit = {
 
     val sqlQuery =
       "SELECT a, " +
@@ -216,30 +136,13 @@ class OverWindowTest extends TableTestBase {
         "FROM MyTable " +
         "WINDOW w AS (ORDER BY proctime " +
         "  RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW)"
+
     streamUtil.verifySqlPlansIdentical(sqlQuery, sqlQuery2)
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
-          term("orderBy", "proctime"),
-          term("range", "BETWEEN 10000 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "proctime", "COUNT(c) AS w0$o0")
-        ),
-        term("select", "a", "w0$o0 AS $1")
-      )
-
-    streamUtil.verifySql(sqlQuery, expected)
+    streamUtil.verifyPlan(sqlQuery)
   }
 
   @Test
-  def testProcTimeBoundedNonPartitionedRowsOver() = {
+  def testProcTimeBoundedNonPartitionedRowsOver(): Unit = {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (ORDER BY proctime ROWS BETWEEN 2 preceding AND " +
@@ -251,30 +154,14 @@ class OverWindowTest extends TableTestBase {
       "count(a) OVER w " +
       "FROM MyTable " +
       "WINDOW w AS (ORDER BY proctime ROWS BETWEEN 2 preceding AND CURRENT ROW)"
-    streamUtil.verifySqlPlansIdentical(sql, sql2)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
-          term("orderBy", "proctime"),
-          term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "proctime", "COUNT(a) AS w0$o0")
-        ),
-        term("select", "c", "w0$o0 AS $1")
-      )
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifySqlPlansIdentical(sql, sql2)
+    streamUtil.verifyPlan(sql)
   }
 
 
   @Test
-  def testProcTimeUnboundedPartitionedRangeOver() = {
+  def testProcTimeUnboundedPartitionedRangeOver(): Unit = {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding) as cnt1, " +
@@ -288,37 +175,12 @@ class OverWindowTest extends TableTestBase {
       "FROM MyTable " +
       "WINDOW w AS (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding)"
 
-    val sql3 = "SELECT " +
-      "c, " +
-      "count(a) OVER (PARTITION BY c ORDER BY proctime) as cnt1, " +
-      "sum(a) OVER (PARTITION BY c ORDER BY proctime) as cnt2 " +
-      "from MyTable"
-
     streamUtil.verifySqlPlansIdentical(sql, sql2)
-    streamUtil.verifySqlPlansIdentical(sql, sql3)
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
-          term("partitionBy", "c"),
-          term("orderBy", "proctime"),
-          term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "proctime", "COUNT(a) AS w0$o0", "$SUM0(a) AS w0$o1")
-        ),
-        term("select", "c", "w0$o0 AS cnt1", "CASE(>(w0$o0, 0)", "CAST(w0$o1), null) AS cnt2")
-      )
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifyPlan(sql)
   }
 
   @Test
-  def testProcTimeUnboundedPartitionedRowsOver() = {
+  def testProcTimeUnboundedPartitionedRowsOver(): Unit = {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND " +
@@ -330,26 +192,13 @@ class OverWindowTest extends TableTestBase {
       "count(a) OVER w " +
       "FROM MyTable " +
       "WINDOW w AS (PARTITION BY c ORDER BY proctime ROWS UNBOUNDED preceding)"
-    streamUtil.verifySqlPlansIdentical(sql, sql2)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          streamTableNode(0),
-          term("partitionBy", "c"),
-          term("orderBy", "proctime"),
-          term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "b", "c", "proctime", "rowtime", "COUNT(a) AS w0$o0")
-        ),
-        term("select", "c", "w0$o0 AS $1")
-      )
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifySqlPlansIdentical(sql, sql2)
+    streamUtil.verifyPlan(sql)
   }
 
   @Test
-  def testProcTimeUnboundedNonPartitionedRangeOver() = {
+  def testProcTimeUnboundedNonPartitionedRangeOver(): Unit = {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (ORDER BY proctime RANGE UNBOUNDED preceding) as cnt1, " +
@@ -362,29 +211,13 @@ class OverWindowTest extends TableTestBase {
       "sum(a) OVER w as cnt2 " +
       "FROM MyTable " +
       "WINDOW w AS(ORDER BY proctime RANGE UNBOUNDED preceding)"
-    streamUtil.verifySqlPlansIdentical(sql, sql2)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
-          term("orderBy", "proctime"),
-          term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "proctime", "COUNT(a) AS w0$o0", "$SUM0(a) AS w0$o1")
-        ),
-        term("select", "c", "w0$o0 AS cnt1", "CASE(>(w0$o0, 0)", "CAST(w0$o1), null) AS cnt2")
-      )
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifySqlPlansIdentical(sql, sql2)
+    streamUtil.verifyPlan(sql)
   }
 
   @Test
-  def testProcTimeUnboundedNonPartitionedRowsOver() = {
+  def testProcTimeUnboundedNonPartitionedRowsOver(): Unit = {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND " +
@@ -396,278 +229,101 @@ class OverWindowTest extends TableTestBase {
       "count(a) OVER w " +
       "FROM MyTable " +
       "WINDOW w AS (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW)"
-    streamUtil.verifySqlPlansIdentical(sql, sql2)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          streamTableNode(0),
-          term("orderBy", "proctime"),
-          term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "b", "c", "proctime", "rowtime", "COUNT(a) AS w0$o0")
-        ),
-        term("select", "c", "w0$o0 AS $1")
-      )
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifySqlPlansIdentical(sql, sql2)
+    streamUtil.verifyPlan(sql)
   }
 
   @Test
-  def testRowTimeBoundedPartitionedRowsOver() = {
+  def testRowTimeBoundedPartitionedRowsOver(): Unit = {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (PARTITION BY c ORDER BY rowtime ROWS BETWEEN 5 preceding AND " +
       "CURRENT ROW) " +
       "from MyTable"
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
-          term("partitionBy", "c"),
-          term("orderBy", "rowtime"),
-          term("rows", "BETWEEN 5 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "rowtime", "COUNT(a) AS w0$o0")
-        ),
-        term("select", "c", "w0$o0 AS $1")
-      )
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifyPlan(sql)
   }
 
   @Test
-  def testRowTimeBoundedPartitionedRangeOver() = {
+  def testRowTimeBoundedPartitionedRangeOver(): Unit = {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (PARTITION BY c ORDER BY rowtime " +
       "RANGE BETWEEN INTERVAL '1' SECOND  preceding AND CURRENT ROW) " +
       "from MyTable"
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
-          term("partitionBy", "c"),
-          term("orderBy", "rowtime"),
-          term("range", "BETWEEN 1000 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "rowtime", "COUNT(a) AS w0$o0")
-        ),
-        term("select", "c", "w0$o0 AS $1")
-      )
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifyPlan(sql)
   }
 
   @Test
-  def testRowTimeBoundedNonPartitionedRowsOver() = {
+  def testRowTimeBoundedNonPartitionedRowsOver(): Unit = {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (ORDER BY rowtime ROWS BETWEEN 5 preceding AND " +
       "CURRENT ROW) " +
       "from MyTable"
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
-          term("orderBy", "rowtime"),
-          term("rows", "BETWEEN 5 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "rowtime", "COUNT(a) AS w0$o0")
-        ),
-        term("select", "c", "w0$o0 AS $1")
-      )
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifyPlan(sql)
   }
 
   @Test
-  def testRowTimeBoundedNonPartitionedRangeOver() = {
+  def testRowTimeBoundedNonPartitionedRangeOver(): Unit = {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (ORDER BY rowtime " +
       "RANGE BETWEEN INTERVAL '1' SECOND  preceding AND CURRENT ROW) as cnt1 " +
       "from MyTable"
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
-          term("orderBy", "rowtime"),
-          term("range", "BETWEEN 1000 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "rowtime", "COUNT(a) AS w0$o0")
-        ),
-        term("select", "c", "w0$o0 AS $1")
-      )
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifyPlan(sql)
   }
 
   @Test
-  def testRowTimeUnboundedPartitionedRangeOver() = {
+  def testRowTimeUnboundedPartitionedRangeOver(): Unit = {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (PARTITION BY c ORDER BY rowtime RANGE UNBOUNDED preceding) as cnt1, " +
       "sum(a) OVER (PARTITION BY c ORDER BY rowtime RANGE UNBOUNDED preceding) as cnt2 " +
       "from MyTable"
 
-    val sql1 = "SELECT " +
-      "c, " +
-      "count(a) OVER (PARTITION BY c ORDER BY rowtime) as cnt1, " +
-      "sum(a) OVER (PARTITION BY c ORDER BY rowtime) as cnt2 " +
-      "from MyTable"
-    streamUtil.verifySqlPlansIdentical(sql, sql1)
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
-          term("partitionBy", "c"),
-          term("orderBy", "rowtime"),
-          term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "rowtime", "COUNT(a) AS w0$o0", "$SUM0(a) AS w0$o1")
-        ),
-        term("select", "c", "w0$o0 AS cnt1", "CASE(>(w0$o0, 0)", "CAST(w0$o1), null) AS cnt2")
-      )
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifyPlan(sql)
   }
 
   @Test
-  def testRowTimeUnboundedPartitionedRowsOver() = {
+  def testRowTimeUnboundedPartitionedRowsOver(): Unit = {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (PARTITION BY c ORDER BY rowtime ROWS UNBOUNDED preceding) as cnt1, " +
       "sum(a) OVER (PARTITION BY c ORDER BY rowtime ROWS UNBOUNDED preceding) as cnt2 " +
       "from MyTable"
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
-          term("partitionBy", "c"),
-          term("orderBy", "rowtime"),
-          term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term(
-            "select",
-            "a",
-            "c",
-            "rowtime",
-            "COUNT(a) AS w0$o0",
-            "$SUM0(a) AS w0$o1"
-          )
-        ),
-        term(
-          "select",
-          "c",
-          "w0$o0 AS cnt1",
-          "CASE(>(w0$o0, 0)",
-          "CAST(w0$o1), null) AS cnt2"
-        )
-      )
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifyPlan(sql)
   }
 
   @Test
-  def testRowTimeUnboundedNonPartitionedRangeOver() = {
+  def testRowTimeUnboundedNonPartitionedRangeOver(): Unit = {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (ORDER BY rowtime RANGE UNBOUNDED preceding) as cnt1, " +
       "sum(a) OVER (ORDER BY rowtime RANGE UNBOUNDED preceding) as cnt2 " +
       "from MyTable"
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
-          term("orderBy", "rowtime"),
-          term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "rowtime", "COUNT(a) AS w0$o0", "$SUM0(a) AS w0$o1")
-        ),
-        term("select", "c", "w0$o0 AS cnt1", "CASE(>(w0$o0, 0)", "CAST(w0$o1), null) AS cnt2")
-      )
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifyPlan(sql)
   }
 
   @Test
-  def testRowTimeUnboundedNonPartitionedRowsOver() = {
+  def testRowTimeUnboundedNonPartitionedRowsOver(): Unit = {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (ORDER BY rowtime ROWS UNBOUNDED preceding) as cnt1, " +
       "sum(a) OVER (ORDER BY rowtime ROWS UNBOUNDED preceding) as cnt2 " +
       "from MyTable"
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
-          term("orderBy", "rowtime"),
-          term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term(
-            "select",
-            "a",
-            "c",
-            "rowtime",
-            "COUNT(a) AS w0$o0",
-            "$SUM0(a) AS w0$o1"
-          )
-        ),
-        term(
-          "select",
-          "c",
-          "w0$o0 AS cnt1",
-          "CASE(>(w0$o0, 0)",
-          "CAST(w0$o1), null) AS cnt2"
-        )
-      )
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifyPlan(sql)
   }
 
   @Test
-  def testProcTimeBoundedPartitionedRowsOverDifferentWindows() = {
+  def testProcTimeBoundedPartitionedRowsOverDifferentWindows(): Unit = {
     val sql = "SELECT " +
       "a, " +
       "SUM(c) OVER (PARTITION BY a ORDER BY proctime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW), " +
@@ -681,27 +337,8 @@ class OverWindowTest extends TableTestBase {
       "FROM MyTable " +
       "WINDOW w1 AS (PARTITION BY a ORDER BY proctime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)," +
       "w2 AS (PARTITION BY a ORDER BY proctime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)"
+
     streamUtil.verifySqlPlansIdentical(sql, sql2)
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
-          term("partitionBy", "a"),
-          term("orderBy", "proctime"),
-          term("rows", "BETWEEN 3 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "proctime", "COUNT(c) AS w0$o0",
-            "$SUM0(c) AS w0$o1")
-        ),
-        term("select", "a", "CASE(>(w0$o0, 0)", "CAST(w0$o1), null) AS EXPR$1", "w1$o0 AS EXPR$2")
-      )
-
-    streamUtil.verifySql(sql, expected)
+    streamUtil.verifyPlan(sql)
   }
 }

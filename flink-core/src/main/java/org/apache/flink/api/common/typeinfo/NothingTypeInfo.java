@@ -53,7 +53,7 @@ public class NothingTypeInfo extends TypeInformation<Nothing> {
 	@Override
 	@PublicEvolving
 	public int getTotalFields() {
-		return 1;
+		return 0;
 	}
 
 	@Override

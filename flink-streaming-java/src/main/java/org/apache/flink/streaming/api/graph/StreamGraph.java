@@ -18,33 +18,46 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.plan.StreamingPlan;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.operators.DamBehavior;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunctionV2;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.operators.StreamSourceV2;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.runtime.tasks.InputFormatSourceStreamTaskV2;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
+import org.apache.flink.streaming.runtime.tasks.SourceStreamTaskV2;
 import org.apache.flink.streaming.runtime.tasks.StoppableSourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
@@ -66,6 +79,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -80,28 +94,50 @@ public class StreamGraph extends StreamingPlan {
 
 	private String jobName = StreamExecutionEnvironment.DEFAULT_JOB_NAME;
 
-	private final StreamExecutionEnvironment environment;
 	private final ExecutionConfig executionConfig;
 	private final CheckpointConfig checkpointConfig;
 
 	private boolean chaining;
+	private boolean isMultiHeadChainMode;
+	private boolean chainEagerlyEnabled;
 
 	private Map<Integer, StreamNode> streamNodes;
 	private Set<Integer> sources;
 	private Set<Integer> sinks;
 	private Map<Integer, Tuple2<Integer, List<String>>> virtualSelectNodes;
-	private Map<Integer, Tuple2<Integer, OutputTag>> virtualSideOutputNodes;
-	private Map<Integer, Tuple2<Integer, StreamPartitioner<?>>> virtualPartitionNodes;
+	private Map<Integer, Tuple3<Integer, OutputTag, DamBehavior>> virtualSideOutputNodes;
+	private Map<Integer, Tuple3<Integer, StreamPartitioner<?>, DataExchangeMode>> virtualPartitionNodes;
+	private Map<Integer, DamBehavior> mainOutputDamBehaviors;
 
 	protected Map<Integer, String> vertexIDtoBrokerID;
 	protected Map<Integer, Long> vertexIDtoLoopTimeout;
 	private StateBackend stateBackend;
 	private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
 
-	public StreamGraph(StreamExecutionEnvironment environment) {
-		this.environment = environment;
-		this.executionConfig = environment.getConfig();
-		this.checkpointConfig = environment.getCheckpointConfig();
+	private TimeCharacteristic timeCharacteristic;
+	private List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles;
+
+	/** The custom configuration for this job. */
+	private final Configuration customConfiguration = new Configuration();
+
+	private final transient int defaultParallelism;
+	private final transient long defaultBufferTimeout;
+	private final transient DataPartitionerType defaultPartitionerType;
+
+	public StreamGraph(ExecutionConfig executionConfig,
+		CheckpointConfig checkpointConfig,
+		int defaultParallelism,
+		long defaultBufferTimeout,
+		DataPartitionerType defaultPartitionerType) {
+
+		this.executionConfig = executionConfig;
+		this.checkpointConfig = checkpointConfig;
+		this.defaultParallelism = defaultParallelism;
+		this.defaultBufferTimeout = defaultBufferTimeout;
+		this.defaultPartitionerType = defaultPartitionerType;
+
+		// set default schedule mode
+		this.customConfiguration.setString(ScheduleMode.class.getName(), ScheduleMode.EAGER.toString());
 
 		// create an empty new stream graph.
 		clear();
@@ -120,10 +156,8 @@ public class StreamGraph extends StreamingPlan {
 		iterationSourceSinkPairs = new HashSet<>();
 		sources = new HashSet<>();
 		sinks = new HashSet<>();
-	}
-
-	public StreamExecutionEnvironment getEnvironment() {
-		return environment;
+		cachedFiles = new ArrayList<>();
+		mainOutputDamBehaviors = new HashMap<>();
 	}
 
 	public ExecutionConfig getExecutionConfig() {
@@ -146,12 +180,49 @@ public class StreamGraph extends StreamingPlan {
 		this.chaining = chaining;
 	}
 
+	public void setMultiHeadChainMode(boolean multiHeadChainMode) {
+		this.isMultiHeadChainMode = multiHeadChainMode;
+	}
+
 	public void setStateBackend(StateBackend backend) {
 		this.stateBackend = backend;
 	}
 
+	public void setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
+		this.timeCharacteristic = timeCharacteristic;
+	}
+
+	public void setCachedFiles(List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles) {
+		if (this.cachedFiles.size() > 0) {
+			this.cachedFiles.clear();
+		}
+		this.cachedFiles.addAll(cachedFiles);
+	}
+
+	public void setChainEagerlyEnabled(boolean chainEagerlyEnabled) {
+		this.chainEagerlyEnabled = chainEagerlyEnabled;
+	}
+
 	public StateBackend getStateBackend() {
 		return this.stateBackend;
+	}
+
+	public TimeCharacteristic getTimeCharacteristic() {
+		return timeCharacteristic;
+	}
+
+	public List<Tuple2<String, DistributedCache.DistributedCacheEntry>> getCachedFiles() {
+		return cachedFiles;
+	}
+
+	public Configuration getCustomConfiguration() {
+		return this.customConfiguration;
+	}
+
+	public void addCustomConfiguration(Configuration configuration) {
+		if (configuration != null) {
+			this.customConfiguration.addAll(configuration);
+		}
 	}
 
 	// Checkpointing
@@ -160,47 +231,59 @@ public class StreamGraph extends StreamingPlan {
 		return chaining;
 	}
 
+	public boolean isMultiHeadChainMode() {
+		return isMultiHeadChainMode;
+	}
+
 	public boolean isIterative() {
 		return !vertexIDtoLoopTimeout.isEmpty();
 	}
 
+	public boolean isChainEagerlyEnabled() {
+		return chainEagerlyEnabled;
+	}
+
 	public <IN, OUT> void addSource(Integer vertexID,
 		String slotSharingGroup,
-		@Nullable String coLocationGroup,
 		StreamOperator<OUT> operatorObject,
 		TypeInformation<IN> inTypeInfo,
 		TypeInformation<OUT> outTypeInfo,
 		String operatorName) {
-		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorObject, inTypeInfo, outTypeInfo, operatorName);
+		addOperator(vertexID, slotSharingGroup, operatorObject, inTypeInfo, outTypeInfo, operatorName);
 		sources.add(vertexID);
 	}
 
 	public <IN, OUT> void addSink(Integer vertexID,
 		String slotSharingGroup,
-		@Nullable String coLocationGroup,
 		StreamOperator<OUT> operatorObject,
 		TypeInformation<IN> inTypeInfo,
 		TypeInformation<OUT> outTypeInfo,
 		String operatorName) {
-		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorObject, inTypeInfo, outTypeInfo, operatorName);
+		addOperator(vertexID, slotSharingGroup, operatorObject, inTypeInfo, outTypeInfo, operatorName);
 		sinks.add(vertexID);
 	}
 
 	public <IN, OUT> void addOperator(
 			Integer vertexID,
 			String slotSharingGroup,
-			@Nullable String coLocationGroup,
 			StreamOperator<OUT> operatorObject,
 			TypeInformation<IN> inTypeInfo,
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
 
 		if (operatorObject instanceof StoppableStreamSource) {
-			addNode(vertexID, slotSharingGroup, coLocationGroup, StoppableSourceStreamTask.class, operatorObject, operatorName);
+			addNode(vertexID, slotSharingGroup, StoppableSourceStreamTask.class, operatorObject, operatorName);
 		} else if (operatorObject instanceof StreamSource) {
-			addNode(vertexID, slotSharingGroup, coLocationGroup, SourceStreamTask.class, operatorObject, operatorName);
+			addNode(vertexID, slotSharingGroup, SourceStreamTask.class, operatorObject,
+				operatorName);
+		} else if (operatorObject instanceof StreamSourceV2) {
+			if (((StreamSourceV2) operatorObject).getUserFunction() instanceof InputFormatSourceFunctionV2) {
+				addNode(vertexID, slotSharingGroup, InputFormatSourceStreamTaskV2.class, operatorObject, operatorName);
+			} else {
+				addNode(vertexID, slotSharingGroup, SourceStreamTaskV2.class, operatorObject, operatorName);
+			}
 		} else {
-			addNode(vertexID, slotSharingGroup, coLocationGroup, OneInputStreamTask.class, operatorObject, operatorName);
+			addNode(vertexID, slotSharingGroup, OneInputStreamTask.class, operatorObject, operatorName);
 		}
 
 		TypeSerializer<IN> inSerializer = inTypeInfo != null && !(inTypeInfo instanceof MissingTypeInfo) ? inTypeInfo.createSerializer(executionConfig) : null;
@@ -229,14 +312,13 @@ public class StreamGraph extends StreamingPlan {
 	public <IN1, IN2, OUT> void addCoOperator(
 			Integer vertexID,
 			String slotSharingGroup,
-			@Nullable String coLocationGroup,
 			TwoInputStreamOperator<IN1, IN2, OUT> taskOperatorObject,
 			TypeInformation<IN1> in1TypeInfo,
 			TypeInformation<IN2> in2TypeInfo,
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
 
-		addNode(vertexID, slotSharingGroup, coLocationGroup, TwoInputStreamTask.class, taskOperatorObject, operatorName);
+		addNode(vertexID, slotSharingGroup, TwoInputStreamTask.class, taskOperatorObject, operatorName);
 
 		TypeSerializer<OUT> outSerializer = (outTypeInfo != null) && !(outTypeInfo instanceof MissingTypeInfo) ?
 				outTypeInfo.createSerializer(executionConfig) : null;
@@ -257,7 +339,6 @@ public class StreamGraph extends StreamingPlan {
 
 	protected StreamNode addNode(Integer vertexID,
 		String slotSharingGroup,
-		@Nullable String coLocationGroup,
 		Class<? extends AbstractInvokable> vertexClass,
 		StreamOperator<?> operatorObject,
 		String operatorName) {
@@ -266,14 +347,14 @@ public class StreamGraph extends StreamingPlan {
 			throw new RuntimeException("Duplicate vertexID " + vertexID);
 		}
 
-		StreamNode vertex = new StreamNode(environment,
-			vertexID,
+		StreamNode vertex = new StreamNode(vertexID,
 			slotSharingGroup,
-			coLocationGroup,
 			operatorObject,
 			operatorName,
 			new ArrayList<OutputSelector<?>>(),
 			vertexClass);
+		vertex.setParallelism(defaultParallelism);
+		vertex.setBufferTimeout(defaultBufferTimeout);
 
 		streamNodes.put(vertexID, vertex);
 
@@ -308,8 +389,9 @@ public class StreamGraph extends StreamingPlan {
 	 * @param originalId ID of the node that should be connected to.
 	 * @param virtualId ID of the virtual node.
 	 * @param outputTag The selected side-output {@code OutputTag}.
+	 * @param damBehavior The {@link DamBehavior} of the upstream operator on the selected side-output.
 	 */
-	public void addVirtualSideOutputNode(Integer originalId, Integer virtualId, OutputTag outputTag) {
+	public void addVirtualSideOutputNode(Integer originalId, Integer virtualId, OutputTag outputTag, DamBehavior damBehavior) {
 
 		if (virtualSideOutputNodes.containsKey(virtualId)) {
 			throw new IllegalStateException("Already has virtual output node with id " + virtualId);
@@ -320,21 +402,21 @@ public class StreamGraph extends StreamingPlan {
 		// to read a side output from an operation with a different type for the same side output
 		// id.
 
-		for (Tuple2<Integer, OutputTag> tag : virtualSideOutputNodes.values()) {
+		for (Tuple3<Integer, OutputTag, DamBehavior> tag : virtualSideOutputNodes.values()) {
 			if (!tag.f0.equals(originalId)) {
 				// different source operator
 				continue;
 			}
 
 			if (tag.f1.getId().equals(outputTag.getId()) &&
-					!tag.f1.getTypeInfo().equals(outputTag.getTypeInfo())) {
+					(!tag.f1.getTypeInfo().equals(outputTag.getTypeInfo()) || !Objects.equals(tag.f2, damBehavior))) {
 				throw new IllegalArgumentException("Trying to add a side output for the same " +
 						"side-output id with a different type. This is not allowed. Side-output ID: " +
 						tag.f1.getId());
 			}
 		}
 
-		virtualSideOutputNodes.put(virtualId, new Tuple2<>(originalId, outputTag));
+		virtualSideOutputNodes.put(virtualId, new Tuple3<>(originalId, outputTag, damBehavior));
 	}
 
 	/**
@@ -348,14 +430,24 @@ public class StreamGraph extends StreamingPlan {
 	 * @param virtualId ID of the virtual node.
 	 * @param partitioner The partitioner
 	 */
-	public void addVirtualPartitionNode(Integer originalId, Integer virtualId, StreamPartitioner<?> partitioner) {
+	public void addVirtualPartitionNode(Integer originalId,
+		Integer virtualId,
+		StreamPartitioner<?> partitioner,
+		@Nullable DataExchangeMode dataExchangeMode) {
 
 		if (virtualPartitionNodes.containsKey(virtualId)) {
 			throw new IllegalStateException("Already has virtual partition node with id " + virtualId);
 		}
 
-		virtualPartitionNodes.put(virtualId,
-				new Tuple2<Integer, StreamPartitioner<?>>(originalId, partitioner));
+		virtualPartitionNodes.put(virtualId, new Tuple3<>(originalId, partitioner, dataExchangeMode));
+	}
+
+	void setMainOutputDamBehavior(Integer id, DamBehavior damBehavior) {
+		mainOutputDamBehaviors.put(id, damBehavior);
+	}
+
+	void setReadPriorityHint(Integer vertexID, StreamEdge inEdge, StreamNode.ReadPriority priority) {
+		getStreamNode(vertexID).setReadPriorityHint(inEdge, priority);
 	}
 
 	/**
@@ -377,30 +469,55 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
-	public void addEdge(Integer upStreamVertexID, Integer downStreamVertexID, int typeNumber) {
-		addEdgeInternal(upStreamVertexID,
+	public StreamEdge addEdge(Integer upStreamVertexID, Integer downStreamVertexID, int typeNumber) {
+		return addEdgeInternal(upStreamVertexID,
+			downStreamVertexID,
+			typeNumber,
+			null,
+			new ArrayList<String>(),
+			null,
+			null,
+			null);
+	}
+
+	@VisibleForTesting
+	StreamEdge addEdge(Integer upStreamVertexID,
+		Integer downStreamVertexID,
+		int typeNumber,
+		@Nullable DataExchangeMode dataExchangeMode,
+		@Nullable DamBehavior damBehavior) {
+
+		return addEdgeInternal(upStreamVertexID,
 				downStreamVertexID,
 				typeNumber,
 				null,
 				new ArrayList<String>(),
-				null);
+				null,
+				dataExchangeMode,
+				damBehavior);
 
 	}
 
-	private void addEdgeInternal(Integer upStreamVertexID,
+	private StreamEdge addEdgeInternal(Integer upStreamVertexID,
 			Integer downStreamVertexID,
 			int typeNumber,
 			StreamPartitioner<?> partitioner,
 			List<String> outputNames,
-			OutputTag outputTag) {
+			OutputTag outputTag,
+			DataExchangeMode dataExchangeMode,
+			DamBehavior damBehavior) {
 
 		if (virtualSideOutputNodes.containsKey(upStreamVertexID)) {
 			int virtualId = upStreamVertexID;
 			upStreamVertexID = virtualSideOutputNodes.get(virtualId).f0;
 			if (outputTag == null) {
 				outputTag = virtualSideOutputNodes.get(virtualId).f1;
+				damBehavior = virtualSideOutputNodes.get(virtualId).f2;
 			}
-			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, null, outputTag);
+			if (damBehavior == null) {
+				damBehavior = DamBehavior.PIPELINED;
+			}
+			return addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, null, outputTag, dataExchangeMode, damBehavior);
 		} else if (virtualSelectNodes.containsKey(upStreamVertexID)) {
 			int virtualId = upStreamVertexID;
 			upStreamVertexID = virtualSelectNodes.get(virtualId).f0;
@@ -408,24 +525,31 @@ public class StreamGraph extends StreamingPlan {
 				// selections that happen downstream override earlier selections
 				outputNames = virtualSelectNodes.get(virtualId).f1;
 			}
-			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, outputTag);
+			return addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, outputTag, dataExchangeMode, null);
 		} else if (virtualPartitionNodes.containsKey(upStreamVertexID)) {
 			int virtualId = upStreamVertexID;
 			upStreamVertexID = virtualPartitionNodes.get(virtualId).f0;
 			if (partitioner == null) {
 				partitioner = virtualPartitionNodes.get(virtualId).f1;
+				dataExchangeMode = virtualPartitionNodes.get(virtualId).f2;
 			}
-			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, outputTag);
+			return addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, outputTag, dataExchangeMode, null);
 		} else {
 			StreamNode upstreamNode = getStreamNode(upStreamVertexID);
 			StreamNode downstreamNode = getStreamNode(downStreamVertexID);
 
 			// If no partitioner was specified and the parallelism of upstream and downstream
-			// operator matches use forward partitioning, use rebalance otherwise.
+			// operator matches use forward partitioning, use the default partitioning otherwise.
 			if (partitioner == null && upstreamNode.getParallelism() == downstreamNode.getParallelism()) {
-				partitioner = new ForwardPartitioner<Object>();
+				partitioner = new ForwardPartitioner<>();
 			} else if (partitioner == null) {
-				partitioner = new RebalancePartitioner<Object>();
+				if (defaultPartitionerType == DataPartitionerType.RESCALE) {
+					partitioner = new RescalePartitioner<>();
+				} else if (defaultPartitionerType == DataPartitionerType.REBALANCE) {
+					partitioner = new RebalancePartitioner<>();
+				} else {
+					throw new IllegalArgumentException("Error default partitioner type: " + defaultPartitionerType);
+				}
 			}
 
 			if (partitioner instanceof ForwardPartitioner) {
@@ -437,10 +561,27 @@ public class StreamGraph extends StreamingPlan {
 				}
 			}
 
-			StreamEdge edge = new StreamEdge(upstreamNode, downstreamNode, typeNumber, outputNames, partitioner, outputTag);
+			// It must be a main-output edge.
+			if (damBehavior == null) {
+				damBehavior = mainOutputDamBehaviors.get(upStreamVertexID);
+
+				// If no dam behavior was specified, use the default value.
+				if (damBehavior == null) {
+					damBehavior = DamBehavior.PIPELINED;
+				}
+			}
+
+			// If no partition type was specified, use the default value.
+			if (dataExchangeMode == null) {
+				dataExchangeMode = DataExchangeMode.AUTO;
+			}
+
+			StreamEdge edge = new StreamEdge(upstreamNode, downstreamNode, typeNumber, outputNames, partitioner, outputTag, dataExchangeMode, damBehavior);
 
 			getStreamNode(edge.getSourceId()).addOutEdge(edge);
 			getStreamNode(edge.getTargetId()).addInEdge(edge);
+
+			return edge;
 		}
 	}
 
@@ -523,6 +664,10 @@ public class StreamGraph extends StreamingPlan {
 		getStreamNode(vertexID).setInputFormat(inputFormat);
 	}
 
+	public void setOutputFormat(Integer vertexID, OutputFormat<?> outputFormat) {
+		getStreamNode(vertexID).setOutputFormat(outputFormat);
+	}
+
 	void setTransformationUID(Integer nodeId, String transformationId) {
 		StreamNode node = streamNodes.get(nodeId);
 		if (node != null) {
@@ -535,6 +680,13 @@ public class StreamGraph extends StreamingPlan {
 		if (node != null) {
 			node.setUserHash(nodeHash);
 
+		}
+	}
+
+	void addCustomConfiguration(Integer nodeId, Configuration configuration) {
+		StreamNode node = streamNodes.get(nodeId);
+		if (node != null) {
+			node.addCustomConfiguration(configuration);
 		}
 	}
 
@@ -602,7 +754,6 @@ public class StreamGraph extends StreamingPlan {
 		ResourceSpec preferredResources) {
 		StreamNode source = this.addNode(sourceId,
 			null,
-			null,
 			StreamIterationHead.class,
 			null,
 			"IterationSource-" + loopId);
@@ -612,7 +763,6 @@ public class StreamGraph extends StreamingPlan {
 		setResources(source.getId(), minResources, preferredResources);
 
 		StreamNode sink = this.addNode(sinkId,
-			null,
 			null,
 			StreamIterationTail.class,
 			null,
@@ -635,17 +785,9 @@ public class StreamGraph extends StreamingPlan {
 		return iterationSourceSinkPairs;
 	}
 
-	public StreamNode getSourceVertex(StreamEdge edge) {
-		return streamNodes.get(edge.getSourceId());
-	}
-
-	public StreamNode getTargetVertex(StreamEdge edge) {
-		return streamNodes.get(edge.getTargetId());
-	}
-
 	private void removeEdge(StreamEdge edge) {
-		getSourceVertex(edge).getOutEdges().remove(edge);
-		getTargetVertex(edge).getInEdges().remove(edge);
+		getStreamNode(edge.getSourceId()).getOutEdges().remove(edge);
+		getStreamNode(edge.getTargetId()).getInEdges().remove(edge);
 	}
 
 	private void removeVertex(StreamNode toRemove) {
@@ -661,20 +803,19 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	/**
-	 * Gets the assembled {@link JobGraph} with a given job id.
+	 * Gets the assembled {@link JobGraph}.
 	 */
 	@SuppressWarnings("deprecation")
-	@Override
-	public JobGraph getJobGraph(@Nullable JobID jobID) {
+	public JobGraph getJobGraph() {
 		// temporarily forbid checkpointing for iterative jobs
 		if (isIterative() && checkpointConfig.isCheckpointingEnabled() && !checkpointConfig.isForceCheckpointing()) {
 			throw new UnsupportedOperationException(
-				"Checkpointing is currently not supported by default for iterative jobs, as we cannot guarantee exactly once semantics. "
-					+ "State checkpoints happen normally, but records in-transit during the snapshot will be lost upon failure. "
-					+ "\nThe user can force enable state checkpoints with the reduced guarantees by calling: env.enableCheckpointing(interval,true)");
+					"Checkpointing is currently not supported by default for iterative jobs, as we cannot guarantee exactly once semantics. "
+							+ "State checkpoints happen normally, but records in-transit during the snapshot will be lost upon failure. "
+							+ "\nThe user can force enable state checkpoints with the reduced guarantees by calling: env.enableCheckpointing(interval,true)");
 		}
 
-		return StreamingJobGraphGenerator.createJobGraph(this, jobID);
+		return StreamingJobGraphGenerator.createJobGraph(this);
 	}
 
 	@Override

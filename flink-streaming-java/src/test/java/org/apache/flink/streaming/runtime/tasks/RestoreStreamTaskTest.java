@@ -260,8 +260,8 @@ public class RestoreStreamTaskTest extends TestLogger {
 	}
 
 	private void triggerCheckpoint(
-			OneInputStreamTaskTestHarness<String, String> testHarness,
-			OneInputStreamTask<String, String> streamTask) throws Exception {
+		OneInputStreamTaskTestHarness<String, String> testHarness,
+		OneInputStreamTask<String, String> streamTask) throws Exception {
 
 		long checkpointId = 1L;
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, 1L);
@@ -319,6 +319,11 @@ public class RestoreStreamTaskTest extends TestLogger {
 		}
 
 		@Override
+		public void endInput() throws Exception {
+
+		}
+
+		@Override
 		public void initializeState(StateInitializationContext context) throws Exception {
 			super.initializeState(context);
 
@@ -350,6 +355,11 @@ public class RestoreStreamTaskTest extends TestLogger {
 		@Override
 		public void processElement(StreamRecord<String> element) throws Exception {
 			output.collect(element);
+		}
+
+		@Override
+		public void endInput() throws Exception {
+
 		}
 
 		@Override

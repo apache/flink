@@ -18,10 +18,17 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.partition.InternalResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.taskmanager.TaskActions;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -30,37 +37,34 @@ import java.util.ArrayDeque;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.mockito.Mockito.mock;
 
 /**
  * {@link ResultPartitionWriter} that collects output on the List.
  */
 @ThreadSafe
-public abstract class AbstractCollectingResultPartitionWriter implements ResultPartitionWriter {
+public abstract class AbstractCollectingResultPartitionWriter extends InternalResultPartition {
 	private final BufferProvider bufferProvider;
 	private final ArrayDeque<BufferConsumer> bufferConsumers = new ArrayDeque<>();
 
 	public AbstractCollectingResultPartitionWriter(BufferProvider bufferProvider) {
+		super("TestTask",
+			mock(TaskActions.class),
+			new JobID(),
+			new ResultPartitionID(),
+			ResultPartitionType.PIPELINED,
+			1,
+			1,
+			mock(ResultPartitionManager.class),
+			mock(ResultPartitionConsumableNotifier.class),
+			mock(IOManager.class),
+			false);
 		this.bufferProvider = checkNotNull(bufferProvider);
 	}
 
 	@Override
 	public BufferProvider getBufferProvider() {
 		return bufferProvider;
-	}
-
-	@Override
-	public ResultPartitionID getPartitionId() {
-		return new ResultPartitionID();
-	}
-
-	@Override
-	public int getNumberOfSubpartitions() {
-		return 1;
-	}
-
-	@Override
-	public int getNumTargetKeyGroups() {
-		return 1;
 	}
 
 	@Override

@@ -1,0 +1,245 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testCorrelate">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[str_split($cor0.d)], correlate=[table(str_split($cor0.d))], select=[a,d,s], rowType=[RecordType(INTEGER a, VARBINARY d, VARCHAR(65536) s)], joinType=[INNER])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftInputNotAllProjectable2">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[_1 AS name, _2 AS len, c], where=[<>(objHash(a, _2), 0)])
++- StreamExecCorrelate(invocation=[parser($cor0.a)], correlate=[table(parser($cor0.a))], select=[a,c,_1,_2], rowType=[RecordType(VARBINARY a, INTEGER c, VARCHAR(65536) _1, INTEGER _2)], joinType=[INNER])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCorrelateProjectable">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[_2 AS len, objHash(c, _2) AS hash], where=[>(objHash(c, _2), 0)])
++- StreamExecCorrelate(invocation=[parser($cor0.a)], correlate=[table(parser($cor0.a))], select=[c,_2], rowType=[RecordType(VARBINARY c, INTEGER _2)], joinType=[INNER])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCountStarOnCorrelate">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupAggregate(select=[COUNT(*) AS EXPR$0])
++- StreamExecExchange(distribution=[single])
+   +- StreamExecCalc(select=[0 AS $f0])
+      +- StreamExecCorrelate(invocation=[parser($cor0.a)], correlate=[table(parser($cor0.a))], select=[_2], rowType=[RecordType(INTEGER _2)], joinType=[INNER])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCrossJoin">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[INNER])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCrossJoinWithOverloading">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[func1($cor0.c, '$')], correlate=[table(func1($cor0.c,'$'))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[INNER])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCustomType">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[func2($cor0.c)], correlate=[table(func2($cor0.c))], select=[c,name,len], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) name, INTEGER len)], joinType=[INNER])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDynamicTypeWithSQL">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[funcDyna0($cor1.c, 'string,int')], correlate=[table(funcDyna0($cor1.c,'string,int'))], select=[c,name,len0,len1,name1,len10], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) name, INTEGER len0, INTEGER len1, VARCHAR(65536) name1, INTEGER len10)], joinType=[INNER])
++- StreamExecCorrelate(invocation=[funcDyna0($cor0.c, 'string,int,int')], correlate=[table(funcDyna0($cor0.c,'string,int,int'))], select=[a,b,c,f0,f1,f2], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0, INTEGER f1, INTEGER f2)], joinType=[INNER])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDynamicTypeWithSQLAndVariableArgs">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[funcDyna0($cor1.c, 'string,int', 'a', 'b', 'c')], correlate=[table(funcDyna0($cor1.c,'string,int','a','b','c'))], select=[c,name,len0,len1,name1,len10], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) name, INTEGER len0, INTEGER len1, VARCHAR(65536) name1, INTEGER len10)], joinType=[INNER])
++- StreamExecCorrelate(invocation=[funcDyna0($cor0.c, 'string,int,int', 'a', 'b', 'c')], correlate=[table(funcDyna0($cor0.c,'string,int,int','a','b','c'))], select=[a,b,c,f0,f1,f2], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0, INTEGER f1, INTEGER f2)], joinType=[INNER])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDynamicTypeWithSQLAndVariableArgsWithMultiEval">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[funcDyna0($cor0.a)], correlate=[table(funcDyna0($cor0.a))], select=[a,b,c,f0,f1], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, INTEGER f0, INTEGER f1)], joinType=[INNER])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilter">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[func2($cor0.c)], correlate=[table(func2($cor0.c))], select=[c,name,len], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) name, INTEGER len)], joinType=[INNER], condition=[>($1, 2)])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testHierarchyType">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[hierarchy($cor0.c)], correlate=[table(hierarchy($cor0.c))], select=[c,name,adult,len], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) name, BOOLEAN adult, INTEGER len)], joinType=[INNER])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftInputAllProjectable">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[parser($cor0.a)], correlate=[table(parser($cor0.a))], select=[name,len], rowType=[RecordType(VARCHAR(65536) name, INTEGER len)], joinType=[INNER])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftInputAllProjectable2">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[_1 AS name, objHash(_1) AS EXPR$1, _2 AS len])
++- StreamExecCorrelate(invocation=[parser($cor0.a)], correlate=[table(parser($cor0.a))], select=[_1,_2], rowType=[RecordType(VARCHAR(65536) _1, INTEGER _2)], joinType=[INNER], condition=[>(objHash($0), 0)])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftInputAllProjectableWithProcTime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[parser($cor0.a)], correlate=[table(parser($cor0.a))], select=[name,len], rowType=[RecordType(VARCHAR(65536) name, INTEGER len)], joinType=[INNER])
++- StreamExecCalc(select=[a, PROCTIME() AS proctime])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftInputAllProjectableWithRowTime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[parser($cor0.a)], correlate=[table(parser($cor0.a))], select=[name,len], rowType=[RecordType(VARCHAR(65536) name, INTEGER len)], joinType=[INNER])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftInputNotAllProjectable">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[objHash(a) AS hash_a, _1 AS name, _2 AS len])
++- StreamExecCorrelate(invocation=[parser($cor0.a)], correlate=[table(parser($cor0.a))], select=[a,_1,_2], rowType=[RecordType(VARBINARY a, VARCHAR(65536) _1, INTEGER _2)], joinType=[INNER])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftInputNotAllProjectableWithProcTime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[_1 AS name, _2 AS len, PROCTIME(proc) AS proc])
++- StreamExecCorrelate(invocation=[parser($cor0.a)], correlate=[table(parser($cor0.a))], select=[proc,_1,_2], rowType=[RecordType(TIME ATTRIBUTE(PROCTIME) proc, VARCHAR(65536) _1, INTEGER _2)], joinType=[INNER])
+   +- StreamExecCalc(select=[a, PROCTIME() AS proc])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftInputNotAllProjectableWithRowTime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[_1 AS name, _2 AS len, b])
++- StreamExecCorrelate(invocation=[parser($cor0.a)], correlate=[table(parser($cor0.a))], select=[b,_1,_2], rowType=[RecordType(TIME ATTRIBUTE(ROWTIME) b, VARCHAR(65536) _1, INTEGER _2)], joinType=[INNER])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftOuterJoinAsSubQuery">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecJoin(where=[=(c2, s)], join=[a2, b2, c2, c, s], joinType=[LeftOuterJoin])
+:- StreamExecExchange(distribution=[hash[c2]])
+:  +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
++- StreamExecExchange(distribution=[hash[s]])
+   +- StreamExecCorrelate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[LEFT])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftOuterJoinWithLiteralTrue">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[LEFT])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPojoType">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[c, name, age])
++- StreamExecCorrelate(invocation=[pojo($cor0.c)], correlate=[table(pojo($cor0.c))], select=[c,age,name], rowType=[RecordType(VARCHAR(65536) c, INTEGER age, VARCHAR(65536) name)], joinType=[INNER])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowType">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[tableFunc6($cor0.c)], correlate=[table(tableFunc6($cor0.c))], select=[c,f2], rowType=[RecordType(COMPOSITE(Row(f0: Integer, f1: Integer, f2: Integer)) c, INTEGER f2)], joinType=[INNER])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableFunctionWithScalaVariableArguments">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[func2('hello', 'world', $cor0.c)], correlate=[table(func2('hello','world',$cor0.c))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[INNER])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testScalarFunction">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[func1(SUBSTRING($cor0.c, 2))], correlate=[table(func1(SUBSTRING($cor0.c, 2)))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[INNER])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableFunctionWithJavaVariableArguments">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCorrelate(invocation=[func1('hello', 'world', $cor0.c)], correlate=[table(func1('hello','world',$cor0.c))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[INNER])
++- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

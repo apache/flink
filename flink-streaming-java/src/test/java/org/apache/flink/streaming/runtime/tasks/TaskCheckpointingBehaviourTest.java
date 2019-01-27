@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
@@ -47,12 +48,13 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.preaggregatedaccumulators.AccumulatorAggregationManager;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -82,7 +84,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -90,6 +91,7 @@ import java.util.Collections;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 
+import static org.apache.flink.streaming.runtime.tasks.StreamTaskTestHarness.createSingleOperatorTaskConfig;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -193,8 +195,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		CheckpointResponder checkpointResponder,
 		boolean failOnCheckpointErrors) throws IOException {
 
-		Configuration taskConfig = new Configuration();
-		StreamConfig cfg = new StreamConfig(taskConfig);
+		StreamConfig cfg = new StreamConfig(new Configuration());
 		cfg.setStreamOperator(op);
 		cfg.setOperatorID(new OperatorID());
 		cfg.setStateBackend(backend);
@@ -216,7 +217,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				1,
 				11,
 				TestStreamTask.class.getName(),
-				taskConfig);
+				createSingleOperatorTaskConfig(cfg).getConfiguration());
 
 		TaskKvStateRegistry mockKvRegistry = mock(TaskKvStateRegistry.class);
 		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
@@ -237,10 +238,12 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
 				0,
+				System.currentTimeMillis(),
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				network,
 				mock(BroadcastVariableManager.class),
+				mock(AccumulatorAggregationManager.class),
 				new TestTaskStateManager(),
 				mock(TaskManagerActions.class),
 				mock(InputSplitProvider.class),
@@ -254,9 +257,10 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 					blobService.getPermanentBlobService()),
 				new TestingTaskManagerRuntimeInfo(),
 				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-				new NoOpResultPartitionConsumableNotifier(),
+				mock(ResultPartitionConsumableNotifier.class),
 				mock(PartitionProducerStateChecker.class),
-				Executors.directExecutor());
+				Executors.directExecutor(),
+				java.util.concurrent.Executors.newSingleThreadExecutor());
 	}
 
 	// ------------------------------------------------------------------------
@@ -306,13 +310,12 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				env.getUserClassLoader(),
 				env.getExecutionConfig(),
 				true) {
-				@Nonnull
 				@Override
 				public RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot(
 					long checkpointId,
 					long timestamp,
-					@Nonnull CheckpointStreamFactory streamFactory,
-					@Nonnull CheckpointOptions checkpointOptions) throws Exception {
+					CheckpointStreamFactory streamFactory,
+					CheckpointOptions checkpointOptions) throws Exception {
 
 					throw new Exception("Sync part snapshot exception.");
 				}
@@ -336,13 +339,12 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				env.getUserClassLoader(),
 				env.getExecutionConfig(),
 				true) {
-				@Nonnull
 				@Override
 				public RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot(
 					long checkpointId,
 					long timestamp,
-					@Nonnull CheckpointStreamFactory streamFactory,
-					@Nonnull CheckpointOptions checkpointOptions) throws Exception {
+					CheckpointStreamFactory streamFactory,
+					CheckpointOptions checkpointOptions) throws Exception {
 
 					return new FutureTask<>(() -> {
 						throw new Exception("Async part snapshot exception.");
@@ -404,6 +406,13 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 
 		@Override
 		public void sync() {}
+
+		@Override
+		public void write(MemorySegment segment, int off, int len) throws IOException {
+			synchronized (lock) {
+				super.write(segment, off, len);
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------

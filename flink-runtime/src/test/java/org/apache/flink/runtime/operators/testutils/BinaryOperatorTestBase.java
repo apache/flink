@@ -35,6 +35,10 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.Driver;
 import org.apache.flink.runtime.operators.ResettableDriver;
 import org.apache.flink.runtime.operators.TaskContext;
+import org.apache.flink.runtime.operators.sort.BlockSortedDataFileFactory;
+import org.apache.flink.runtime.operators.sort.RecordComparisonMerger;
+import org.apache.flink.runtime.operators.sort.SortedDataFileFactory;
+import org.apache.flink.runtime.operators.sort.SortedDataFileMerger;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
@@ -141,15 +145,30 @@ public abstract class BinaryOperatorTestBase<S extends Function, IN, OUT> extend
 	@SuppressWarnings("unchecked")
 	public void addInputSorted(MutableObjectIterator<IN> input, TypeSerializer<IN> serializer, TypeComparator<IN> comp) throws Exception {
 		this.inputSerializers.add(serializer);
+		RuntimeSerializerFactory<IN> serializerFactory =
+			new RuntimeSerializerFactory<>(serializer, (Class<IN>) serializer.createInstance().getClass());
+		SortedDataFileFactory<IN> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+			getIOManager().createChannelEnumerator(),
+			serializerFactory.getSerializer(),
+			getIOManager());
+		@SuppressWarnings({ "rawtypes", "unchecked" })
+		SortedDataFileMerger<IN> merger = new RecordComparisonMerger(
+			sortedDataFileFactory, getIOManager(),
+			serializerFactory.getSerializer(), comp,
+			32,
+			false);
 		UnilateralSortMerger<IN> sorter = new UnilateralSortMerger<>(
+				sortedDataFileFactory,
+				merger,
 				this.memManager,
 				this.ioManager,
 				input,
 				this.owner,
-				new RuntimeSerializerFactory<>(serializer, (Class<IN>) serializer.createInstance().getClass()),
+				serializerFactory,
 				comp,
 				this.perSortFractionMem,
 				32,
+				true,
 				0.8f,
 				true /*use large record handler*/,
 				false

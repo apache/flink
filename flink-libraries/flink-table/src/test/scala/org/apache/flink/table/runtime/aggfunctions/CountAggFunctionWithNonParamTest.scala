@@ -21,11 +21,11 @@ package org.apache.flink.table.runtime.aggfunctions
 import java.lang.reflect.Method
 import java.lang.{Long => JLong}
 
-import org.apache.flink.table.functions.AggregateFunction
-import org.apache.flink.table.functions.aggfunctions.{CountAccumulator, CountAggFunction}
+import org.apache.flink.table.api.functions.AggregateFunction
+import org.apache.flink.table.functions.aggregate.{CountAccumulator, CountAggFunction}
 
 /**
-  * Test case for built-in count aggregate function with non-nullable parameter.
+  * Test case for built-in count aggregate function
   */
 class CountAggFunctionWithNonParamTest extends AggFunctionTestBase[JLong, CountAccumulator] {
 
@@ -34,9 +34,10 @@ class CountAggFunctionWithNonParamTest extends AggFunctionTestBase[JLong, CountA
     Seq(null, null, null, null, null, null)
   )
 
+
   override def expectedResults: Seq[JLong] = Seq(9L, 6L)
 
-  override def aggregator: AggregateFunction[JLong, CountAccumulator] = new CountAggFunction
+  override def aggregator: AggregateFunction[JLong, CountAccumulator] = new CountAggFunction()
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType)
 

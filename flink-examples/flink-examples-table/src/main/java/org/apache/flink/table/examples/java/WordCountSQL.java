@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.examples.java;
 
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
@@ -41,24 +41,23 @@ public class WordCountSQL {
 	public static void main(String[] args) throws Exception {
 
 		// set up execution environment
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tEnv = TableEnvironment.getBatchTableEnvironment(env);
 
-		DataSet<WC> input = env.fromElements(
+		DataStreamSource<WC> input = env.fromElements(
 			new WC("Hello", 1),
 			new WC("Ciao", 1),
 			new WC("Hello", 1));
 
-		// register the DataSet as table "WordCount"
-		tEnv.registerDataSet("WordCount", input, "word, frequency");
+		// register the BoundedStream as table "WordCount"
+
+		tEnv.registerBoundedStream("WC", input, "word, frequency");
 
 		// run a SQL query on the Table and retrieve the result as a new Table
 		Table table = tEnv.sqlQuery(
-			"SELECT word, SUM(frequency) as frequency FROM WordCount GROUP BY word");
+			"SELECT word, SUM(frequency) as frequency FROM WC GROUP BY word");
 
-		DataSet<WC> result = tEnv.toDataSet(table, WC.class);
-
-		result.print();
+		table.print();
 	}
 
 	// *************************************************************************

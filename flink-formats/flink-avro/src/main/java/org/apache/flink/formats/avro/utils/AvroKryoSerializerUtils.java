@@ -50,7 +50,7 @@ public class AvroKryoSerializerUtils extends AvroUtils {
 	@Override
 	public void addAvroSerializersIfRequired(ExecutionConfig reg, Class<?> type) {
 		if (org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(type) ||
-			org.apache.avro.generic.GenericData.Record.class.isAssignableFrom(type)) {
+			GenericData.Record.class.isAssignableFrom(type)) {
 
 			// Avro POJOs contain java.util.List which have GenericData.Array as their runtime type
 			// because Kryo is not able to serialize them properly, we use this serializer for them
@@ -88,7 +88,7 @@ public class AvroKryoSerializerUtils extends AvroUtils {
 
 	/**
 	 * Slow serialization approach for Avro schemas.
-	 * This is only used with {{@link org.apache.avro.generic.GenericData.Record}} types.
+	 * This is only used with {{@link GenericData.Record}} types.
 	 * Having this serializer, we are able to handle avro Records.
 	 */
 	public static class AvroSchemaSerializer extends Serializer<Schema> implements Serializable {

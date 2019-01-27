@@ -19,8 +19,6 @@
 package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.calcite.schema.Statistic
-import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sinks.TableSink
@@ -28,16 +26,14 @@ import org.apache.flink.table.sinks.TableSink
 /** Class which implements the logic to convert a [[TableSink]] to Calcite Table */
 class TableSinkTable[T](
     val tableSink: TableSink[T],
-    val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN) {
+    val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
+  extends FlinkTable {
 
-  /** Returns the row type of the table with this tableSink.
-    *
-    * @param typeFactory Type factory with which to create the type
-    * @return Row type
-    */
-  def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
+  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
-    flinkTypeFactory.buildLogicalRowType(tableSink.getFieldNames, tableSink.getFieldTypes)
+    flinkTypeFactory.buildRelDataType(
+      tableSink.getFieldNames,
+      tableSink.getFieldTypes.map(_.toInternalType))
   }
 
   /**
@@ -45,5 +41,8 @@ class TableSinkTable[T](
     *
     * @return statistics of current table
     */
-  def getStatistic: Statistic = statistic
+  override def getStatistic: FlinkStatistic = statistic
+
+  override def copy(statistic: FlinkStatistic): FlinkTable =
+    new TableSinkTable[T](tableSink, statistic)
 }

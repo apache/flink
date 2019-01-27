@@ -26,3 +26,7 @@ import org.slf4j.{Logger, LoggerFactory}
 trait Logging {
   @transient lazy val LOG: Logger = LoggerFactory.getLogger(getClass)
 }
+
+object Logging {
+  @transient lazy val CODE_LOG: Logger = LoggerFactory.getLogger(classOf[CodeLogStub])
+}

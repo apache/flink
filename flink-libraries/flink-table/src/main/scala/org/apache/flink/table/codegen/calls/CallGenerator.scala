@@ -18,90 +18,190 @@
 
 package org.apache.flink.table.codegen.calls
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.types.{DataTypes, InternalType}
 import org.apache.flink.table.codegen.CodeGenUtils._
-import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
-import org.apache.flink.table.typeutils.TypeCheckUtils
+import org.apache.flink.table.codegen.CodeGeneratorContext.BINARY_STRING
+import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 
 trait CallGenerator {
 
   def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression
-
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: InternalType,
+      nullCheck: Boolean): GeneratedExpression
 }
 
 object CallGenerator {
 
-  /**
-    * Generates a call with a single result statement.
-    */
-  def generateCallIfArgsNotNull(
+  def generateUnaryOperatorIfNotNull(
+      ctx: CodeGeneratorContext,
       nullCheck: Boolean,
-      returnType: TypeInformation[_],
-      operands: Seq[GeneratedExpression])
-      (call: (Seq[String]) => String)
+      returnType: InternalType,
+      operand: GeneratedExpression,
+      primitiveNullable: Boolean = false)
+  (expr: String => String)
     : GeneratedExpression = {
-
-    generateCallWithStmtIfArgsNotNull(nullCheck, returnType, operands) {
-      (terms) => (None, call(terms))
+    generateCallIfArgsNotNull(ctx, nullCheck, returnType, Seq(operand), primitiveNullable) {
+      args => expr(args.head)
     }
   }
 
-  /**
-    * Generates a call with auxiliary statements and result expression.
-    */
-  def generateCallWithStmtIfArgsNotNull(
+  def generateOperatorIfNotNull(
+      ctx: CodeGeneratorContext,
       nullCheck: Boolean,
-      returnType: TypeInformation[_],
-      operands: Seq[GeneratedExpression])
-      (call: (Seq[String]) => (Option[String], String))
+      returnType: InternalType,
+      left: GeneratedExpression,
+      right: GeneratedExpression)
+      (expr: (String, String) => String)
     : GeneratedExpression = {
-    val resultTerm = newName("result")
-    val nullTerm = newName("isNull")
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(returnType)
+    generateCallIfArgsNotNull(ctx, nullCheck, returnType, Seq(left, right)) {
+      args => expr(args.head, args(1))
+    }
+  }
+
+  def generateReturnStringCallIfArgsNotNull(
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression])
+      (call: Seq[String] => String): GeneratedExpression = {
+    generateCallIfArgsNotNull(ctx, nullCheck = true, DataTypes.STRING, operands) {
+      args => s"$BINARY_STRING.fromString(${call(args)})"
+    }
+  }
+
+  def generateReturnStringCallWithStmtIfArgsNotNull(
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression])
+      (call: Seq[String] => (String, String)): GeneratedExpression = {
+    generateCallWithStmtIfArgsNotNull(ctx, nullCheck = true, DataTypes.STRING, operands) {
+      args =>
+        val (stmt, result) = call(args)
+        (stmt, s"$BINARY_STRING.fromString($result)")
+    }
+  }
+
+  def generateCallIfArgsNotNull(
+      ctx: CodeGeneratorContext,
+      nullCheck: Boolean,
+      returnType: InternalType,
+      operands: Seq[GeneratedExpression],
+      primitiveNullable: Boolean = false)
+      (call: Seq[String] => String): GeneratedExpression = {
+    generateCallWithStmtIfArgsNotNull(ctx, nullCheck, returnType, operands, primitiveNullable) {
+      args => ("", call(args))
+    }
+  }
+
+  def generateCallWithStmtIfArgsNotNull(
+      ctx: CodeGeneratorContext,
+      nullCheck: Boolean,
+      returnType: InternalType,
+      operands: Seq[GeneratedExpression],
+      primitiveNullable: Boolean = false)
+      (call: Seq[String] => (String, String)): GeneratedExpression = {
+    val resultTypeTerm =
+      if (primitiveNullable) {
+        boxedTypeTermForType(returnType)
+      }
+      else {
+        primitiveTypeTermForType(returnType)
+      }
+    val nullTerm = ctx.newReusableField("isNull", "boolean")
+    val resultTerm = ctx.newReusableField("result", resultTypeTerm)
     val defaultValue = primitiveDefaultValue(returnType)
-
-    val (auxiliaryStmt, result) = call(operands.map(_.resultTerm))
-
-    val nullTermCode = if (
-      nullCheck &&
-      isReference(returnType) &&
-      !TypeCheckUtils.isTemporal(returnType)) {
+    val nullResultCode = if (nullCheck
+      && isReference(returnType)
+      && !isInternalPrimitive(returnType)
+      || nullCheck
+      && primitiveNullable) {
       s"""
-         |$nullTerm = ($resultTerm == null);
+         |if ($resultTerm == null) {
+         |  $nullTerm = true;
+         |  $resultTerm = $defaultValue;
+         |}
        """.stripMargin
     } else {
       ""
     }
 
+    val (stmt, result) = call(operands.map(_.resultTerm))
+
     val resultCode = if (nullCheck && operands.nonEmpty) {
       s"""
-        |${operands.map(_.code).mkString("\n")}
-        |boolean $nullTerm = ${operands.map(_.nullTerm).mkString(" || ")};
-        |$resultTypeTerm $resultTerm = $defaultValue;
-        |if (!$nullTerm) {
-        |  ${auxiliaryStmt.getOrElse("")}
-        |  $resultTerm = $result;
-        |  $nullTermCode
-        |}
-        |""".stripMargin
+         |${operands.map(_.code).mkString("\n")}
+         |$nullTerm = ${operands.map(_.nullTerm).mkString(" || ")};
+         |$resultTerm = $defaultValue;
+         |if (!$nullTerm) {
+         |  $stmt
+         |  $resultTerm = $result;
+         |  $nullResultCode
+         |}
+         |""".stripMargin
     } else if (nullCheck && operands.isEmpty) {
       s"""
-        |${operands.map(_.code).mkString("\n")}
-        |boolean $nullTerm = false;
-        |${auxiliaryStmt.getOrElse("")}
-        |$resultTypeTerm $resultTerm = $result;
-        |$nullTermCode
-        |""".stripMargin
+         |${operands.map(_.code).mkString("\n")}
+         |$nullTerm = false;
+         |$stmt
+         |$resultTerm = $result;
+         |""".stripMargin
     } else{
       s"""
-        |boolean $nullTerm = false;
-        |${operands.map(_.code).mkString("\n")}
-        |${auxiliaryStmt.getOrElse("")}
-        |$resultTypeTerm $resultTerm = $result;
-        |""".stripMargin
+         |$nullTerm = false;
+         |${operands.map(_.code).mkString("\n")}
+         |$stmt
+         |$resultTerm = $result;
+         |""".stripMargin
+    }
+
+    GeneratedExpression(resultTerm, nullTerm, resultCode, returnType)
+  }
+
+  def generateCallIfArgsNullable(
+      ctx: CodeGeneratorContext,
+      nullCheck: Boolean,
+      returnType: InternalType,
+      operands: Seq[GeneratedExpression],
+      primitiveNullable: Boolean = false)
+      (call: Seq[String] => String): GeneratedExpression = {
+
+    val resultTypeTerm = if (primitiveNullable) {
+      boxedTypeTermForType(returnType)
+    } else {
+      primitiveTypeTermForType(returnType)
+    }
+    val defaultValue = primitiveDefaultValue(returnType)
+
+    val nullTerm = ctx.newReusableField("isNull", "boolean")
+    val resultTerm = ctx.newReusableField("result", resultTypeTerm)
+    val nullCode = if (nullCheck && (isReference(returnType) || primitiveNullable)) {
+      s"$nullTerm = $resultTerm == null;"
+    } else {
+      s"$nullTerm = false;"
+    }
+
+    val parameters = operands.map(x =>
+      if (x.resultType.equals(DataTypes.STRING)){
+        "( " + x.nullTerm + " ) ? null : (" + x.resultTerm + ")"
+      } else {
+        x.resultTerm
+      })
+
+
+    val resultCode = if (nullCheck) {
+      s"""
+         |${operands.map(_.code).mkString("\n")}
+         |$resultTerm = ${call(parameters)};
+         |$nullCode
+         |if ($nullTerm) {
+         |  $resultTerm = $defaultValue;
+         |}
+       """.stripMargin
+    } else {
+      s"""
+         |${operands.map(_.code).mkString("\n")}
+         |$resultTerm = ${call(parameters)};
+         |$nullCode
+       """.stripMargin
     }
 
     GeneratedExpression(resultTerm, nullTerm, resultCode, returnType)

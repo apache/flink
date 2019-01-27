@@ -43,7 +43,8 @@ import java.util.concurrent.TimeUnit;
 public class AsynchronousBlockReader extends AsynchronousFileIOChannel<MemorySegment, ReadRequest> implements BlockChannelReader<MemorySegment> {
 	
 	private final LinkedBlockingQueue<MemorySegment> returnSegments;
-	
+	private final int bufferSize;
+
 	/**
 	 * Creates a new block channel reader for the given channel.
 	 *  
@@ -51,15 +52,19 @@ public class AsynchronousBlockReader extends AsynchronousFileIOChannel<MemorySeg
 	 * @param requestQueue The request queue of the asynchronous reader thread, to which the I/O requests
 	 *                     are added.
 	 * @param returnSegments The return queue, to which the full Memory Segments are added.
+	 * @param bufferSize -1 mean not use buffered.
 	 * @throws IOException Thrown, if the underlying file channel could not be opened.
 	 */
-	protected AsynchronousBlockReader(FileIOChannel.ID channelID, RequestQueue<ReadRequest> requestQueue,
-			LinkedBlockingQueue<MemorySegment> returnSegments)
+	protected AsynchronousBlockReader(ID channelID,
+			RequestQueue<ReadRequest> requestQueue,
+			LinkedBlockingQueue<MemorySegment> returnSegments,
+			int bufferSize)
 	throws IOException
 	{
 		super(channelID, requestQueue, new QueuingCallback<MemorySegment>(returnSegments), false);
 		this.returnSegments = returnSegments;
-	}	
+		this.bufferSize = bufferSize;
+	}
 
 	/**
 	 * Issues a read request, which will asynchronously fill the given segment with the next block in the
@@ -72,12 +77,12 @@ public class AsynchronousBlockReader extends AsynchronousFileIOChannel<MemorySeg
 	 */
 	@Override
 	public void readBlock(MemorySegment segment) throws IOException {
-		addRequest(new SegmentReadRequest(this, segment));
+		addRequest(new SegmentReadRequest(this, segment, bufferSize));
 	}
 
 	@Override
 	public void seekToPosition(long position) throws IOException {
-		requestQueue.add(new SeekRequest(this, position));
+		requestQueue.add(new SeekRequest(this, position, bufferSize));
 	}
 
 	/**

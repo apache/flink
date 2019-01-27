@@ -505,7 +505,6 @@ public class MergingWindowSetTest {
 		/**
 		 * Merge overlapping {@link TimeWindow}s.
 		 */
-		@Override
 		public void mergeWindows(Collection<TimeWindow> windows, MergingWindowAssigner.MergeCallback<TimeWindow> c) {
 
 			TimeWindow earliestStart = null;

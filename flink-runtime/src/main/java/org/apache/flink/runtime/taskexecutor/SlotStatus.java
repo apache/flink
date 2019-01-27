@@ -22,8 +22,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.resourcemanager.placementconstraint.SlotTag;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -34,35 +37,65 @@ public class SlotStatus implements Serializable {
 
 	private static final long serialVersionUID = 5099191707339664493L;
 
-	/** SlotID to identify a slot. */
+	/** slotID to identify a slot */
 	private final SlotID slotID;
 
-	/** The resource profile of the slot. */
+	/** the resource profile of the slot */
 	private final ResourceProfile resourceProfile;
 
-	/** If the slot is allocated, allocationId identify its allocation; else, allocationId is null. */
+	/** if the slot is allocated, allocationId identify its allocation; else, allocationId is null */
 	private final AllocationID allocationID;
 
-	/** If the slot is allocated, jobId identify which job this slot is allocated to; else, jobId is null. */
+	/** The actual allocated resource */
+	private final ResourceProfile allocationResourceProfile;
+
+	/** if the slot is allocated, jobId identify which job this slot is allocated to; else, jobId is null */
 	private final JobID jobID;
 
+	/** tags of the slot */
+	private final List<SlotTag> tags;
+
+	private final long version;
+
 	public SlotStatus(SlotID slotID, ResourceProfile resourceProfile) {
-		this(slotID, resourceProfile, null, null);
+		this(slotID, resourceProfile, null, null, null, Collections.emptyList(), 0L);
 	}
 
 	public SlotStatus(
 		SlotID slotID,
 		ResourceProfile resourceProfile,
 		JobID jobID,
-		AllocationID allocationID) {
+		AllocationID allocationID,
+		ResourceProfile allocationResourceProfile,
+		long version) {
+		this(slotID,
+			resourceProfile,
+			jobID,
+			allocationID,
+			allocationResourceProfile,
+			Collections.emptyList(),
+			version);
+	}
+
+	public SlotStatus(
+			SlotID slotID,
+			ResourceProfile resourceProfile,
+			JobID jobID,
+			AllocationID allocationID,
+			ResourceProfile allocationResourceProfile,
+			List<SlotTag> tags,
+			long version) {
 		this.slotID = checkNotNull(slotID, "slotID cannot be null");
 		this.resourceProfile = checkNotNull(resourceProfile, "profile cannot be null");
 		this.allocationID = allocationID;
 		this.jobID = jobID;
+		this.allocationResourceProfile = allocationResourceProfile;
+		this.tags = tags;
+		this.version = version;
 	}
 
 	/**
-	 * Get the unique identification of this slot.
+	 * Get the unique identification of this slot
 	 *
 	 * @return The slot id
 	 */
@@ -71,7 +104,7 @@ public class SlotStatus implements Serializable {
 	}
 
 	/**
-	 * Get the resource profile of this slot.
+	 * Get the resource profile of this slot
 	 *
 	 * @return The resource profile
 	 */
@@ -80,7 +113,16 @@ public class SlotStatus implements Serializable {
 	}
 
 	/**
-	 * Get the allocation id of this slot.
+	 * Get the actual allocated resource in this slot
+	 *
+	 * @return The actual allocated resource if this slot is allocated, otherwise null
+	 */
+	public ResourceProfile getAllocationResourceProfile() {
+		return allocationResourceProfile;
+	}
+
+	/**
+	 * Get the allocation id of this slot
 	 *
 	 * @return The allocation id if this slot is allocated, otherwise null
 	 */
@@ -89,12 +131,18 @@ public class SlotStatus implements Serializable {
 	}
 
 	/**
-	 * Get the job id of the slot allocated for.
+	 * Get the job id of the slot allocated for
 	 *
 	 * @return The job id if this slot is allocated, otherwise null
 	 */
 	public JobID getJobID() {
 		return jobID;
+	}
+
+	public List<SlotTag> getTags() { return tags; }
+
+	public long getVersion() {
+		return version;
 	}
 
 	@Override
@@ -117,6 +165,13 @@ public class SlotStatus implements Serializable {
 		if (allocationID != null ? !allocationID.equals(that.allocationID) : that.allocationID != null) {
 			return false;
 		}
+		if (allocationResourceProfile != null ? !allocationResourceProfile.equals(that.allocationResourceProfile)
+				: that.allocationResourceProfile != null) {
+			return false;
+		}
+		if (version != that.version) {
+			return false;
+		}
 		return jobID != null ? jobID.equals(that.jobID) : that.jobID == null;
 
 	}
@@ -127,16 +182,9 @@ public class SlotStatus implements Serializable {
 		result = 31 * result + resourceProfile.hashCode();
 		result = 31 * result + (allocationID != null ? allocationID.hashCode() : 0);
 		result = 31 * result + (jobID != null ? jobID.hashCode() : 0);
+		result = 31 * result + (allocationResourceProfile != null ? allocationResourceProfile.hashCode() : 0);
+		result = 31 * result + Long.hashCode(version);
 		return result;
 	}
 
-	@Override
-	public String toString() {
-		return "SlotStatus{" +
-			"slotID=" + slotID +
-			", resourceProfile=" + resourceProfile +
-			", allocationID=" + allocationID +
-			", jobID=" + jobID +
-			'}';
-	}
 }

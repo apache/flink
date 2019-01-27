@@ -37,12 +37,18 @@ public class JobExceptionsInfoNoRootTest extends RestResponseMarshallingTestBase
 			"exception1",
 			"task1",
 			"location1",
-			System.currentTimeMillis()));
+			System.currentTimeMillis(),
+			"vertex-1",
+			1,
+			0));
 		executionTaskExceptionInfoList.add(new JobExceptionsInfo.ExecutionExceptionInfo(
 			"exception2",
 			"task2",
 			"location2",
-			System.currentTimeMillis()));
+			System.currentTimeMillis(),
+			"vertex-2",
+			2,
+			0));
 		return new JobExceptionsInfo(
 			null,
 			null,

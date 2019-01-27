@@ -52,6 +52,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -59,17 +60,19 @@ import java.util.concurrent.Executor;
  */
 public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsInfo, JobMessageParameters> implements JsonArchivist {
 
-	private final MetricFetcher metricFetcher;
+	private final MetricFetcher<?> metricFetcher;
 
 	public JobDetailsHandler(
+			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, JobDetailsInfo, JobMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor,
-			MetricFetcher metricFetcher) {
+			MetricFetcher<?> metricFetcher) {
 		super(
+			localRestAddress,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -89,13 +92,13 @@ public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsI
 
 	@Override
 	public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
-		ResponseBody json = createJobDetailsInfo(graph, null);
+		ResponseBody json = createJobDetailsInfo(graph, metricFetcher);
 		String path = getMessageHeaders().getTargetRestEndpointURL()
 			.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString());
 		return Collections.singleton(new ArchivedJson(path, json));
 	}
 
-	private static JobDetailsInfo createJobDetailsInfo(AccessExecutionGraph executionGraph, @Nullable MetricFetcher metricFetcher) {
+	private static JobDetailsInfo createJobDetailsInfo(AccessExecutionGraph executionGraph, @Nullable MetricFetcher<?> metricFetcher) {
 		final long now = System.currentTimeMillis();
 		final long startTime = executionGraph.getStatusTimestamp(JobStatus.CREATED);
 		final long endTime = executionGraph.getState().isGloballyTerminalState() ?
@@ -147,7 +150,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsI
 			AccessExecutionJobVertex ejv,
 			long now,
 			JobID jobId,
-			MetricFetcher metricFetcher) {
+			MetricFetcher<?> metricFetcher) {
 		int[] tasksPerState = new int[ExecutionState.values().length];
 		long startTime = Long.MAX_VALUE;
 		long endTime = 0;
@@ -202,15 +205,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsI
 				ejv.getJobVertexId().toString());
 		}
 
-		final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
-			counts.getNumBytesInLocal() + counts.getNumBytesInRemote(),
-			counts.isNumBytesInLocalComplete() && counts.isNumBytesInRemoteComplete(),
-			counts.getNumBytesOut(),
-			counts.isNumBytesOutComplete(),
-			counts.getNumRecordsIn(),
-			counts.isNumRecordsInComplete(),
-			counts.getNumRecordsOut(),
-			counts.isNumRecordsOutComplete());
+		final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(counts);
 
 		return new JobDetailsInfo.JobVertexDetailsInfo(
 			ejv.getJobVertexId(),

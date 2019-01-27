@@ -18,26 +18,20 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import java.io.IOException;
+
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.StringValue;
 
-import java.io.IOException;
-
-/**
- * Type serializer for {@code String}.
- */
 @Internal
 public final class StringSerializer extends TypeSerializerSingleton<String> {
 
 	private static final long serialVersionUID = 1L;
-
-	/** Sharable instance of the StringSerializer. */
+	
 	public static final StringSerializer INSTANCE = new StringSerializer();
-
+	
 	private static final String EMPTY = "";
 
 	@Override
@@ -54,7 +48,7 @@ public final class StringSerializer extends TypeSerializerSingleton<String> {
 	public String copy(String from) {
 		return from;
 	}
-
+	
 	@Override
 	public String copy(String from, String reuse) {
 		return from;
@@ -74,7 +68,7 @@ public final class StringSerializer extends TypeSerializerSingleton<String> {
 	public String deserialize(DataInputView source) throws IOException {
 		return StringValue.readString(source);
 	}
-
+	
 	@Override
 	public String deserialize(String record, DataInputView source) throws IOException {
 		return deserialize(source);
@@ -91,20 +85,8 @@ public final class StringSerializer extends TypeSerializerSingleton<String> {
 	}
 
 	@Override
-	public TypeSerializerSnapshot<String> snapshotConfiguration() {
-		return new StringSerializerSnapshot();
-	}
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class StringSerializerSnapshot extends SimpleTypeSerializerSnapshot<String> {
-
-		public StringSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+				|| identifier.equals(StringValue.class.getCanonicalName());
 	}
 }

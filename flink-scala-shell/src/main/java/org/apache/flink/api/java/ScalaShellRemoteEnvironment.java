@@ -56,11 +56,6 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 
 	@Override
 	protected PlanExecutor getExecutor() throws Exception {
-		// check if we had already started a PlanExecutor. If true, then stop it, because there will
-		// be a new jar file available for the user code classes
-		if (this.executor != null) {
-			this.executor.stop();
-		}
 
 		// write generated classes to disk so that they can be shipped to the cluster
 		URL jarUrl = flinkILoop.writeFilesToDisk().getAbsoluteFile().toURI().toURL();
@@ -68,15 +63,27 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 		List<URL> allJarFiles = new ArrayList<>(jarFiles);
 		allJarFiles.add(jarUrl);
 
-		this.executor = PlanExecutor.createRemoteExecutor(
-			host,
-			port,
-			clientConfiguration,
-			allJarFiles,
-			globalClasspaths
-		);
+		// check if we had already started a PlanExecutor. If true, then stop it, because there will
+		// be a new jar file available for the user code classes
+		if (this.executor != null) {
+			this.executor.setJarFiles(allJarFiles);
+		} else {
+			this.executor = PlanExecutor.createRemoteExecutor(
+					host,
+					port,
+					clientConfiguration,
+					allJarFiles,
+					globalClasspaths
+			);
+			executor.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
+			executor.setJobListeners(getJobListeners());
+		}
 
-		executor.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
+		// if we are using sessions, we keep the executor running
+		if (getSessionTimeout() > 0 && !executor.isRunning()) {
+			executor.start();
+			installShutdownHook();
+		}
 
 		return executor;
 	}

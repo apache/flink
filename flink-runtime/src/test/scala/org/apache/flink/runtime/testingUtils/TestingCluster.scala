@@ -50,7 +50,6 @@ import org.apache.flink.runtime.testingUtils.TestingMessages.Alive
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.testutils.TestingResourceManager
 
-import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Await, ExecutionContext, Future}
 
@@ -230,8 +229,8 @@ class TestingCluster(
           Await.result(stopped, TestingCluster.MAX_RESTART_DURATION)
 
           if(!singleActorSystem) {
-            jmActorSystems(index).terminate()
-            Await.ready(jmActorSystems(index).whenTerminated, Duration.Inf)
+            jmActorSystems(index).shutdown()
+            jmActorSystems(index).awaitTermination()
           }
 
           val newJobManagerActorSystem = if(!singleActorSystem) {
@@ -275,8 +274,8 @@ class TestingCluster(
         Await.result(stopped, TestingCluster.MAX_RESTART_DURATION)
 
         if(!singleActorSystem) {
-          tmActorSystems(index).terminate()
-          Await.ready(tmActorSystems(index).whenTerminated, Duration.Inf)
+          tmActorSystems(index).shutdown()
+          tmActorSystems(index).awaitTermination()
         }
 
         val taskManagerActorSystem  = if(!singleActorSystem) {

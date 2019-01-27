@@ -19,11 +19,15 @@
 package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.json.JsonRowSerializationSchema;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.Host;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
+import org.apache.flink.table.api.types.DataTypes;
+import org.apache.flink.table.api.types.DecimalType;
+import org.apache.flink.table.api.types.TypeConverters;
 import org.apache.flink.table.descriptors.Elasticsearch;
 import org.apache.flink.table.descriptors.Json;
 import org.apache.flink.table.descriptors.Schema;
@@ -31,6 +35,7 @@ import org.apache.flink.table.descriptors.TestTableDescriptor;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.sinks.TableSink;
+import org.apache.flink.table.util.TableSchemaUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
@@ -77,7 +82,8 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 			DOC_TYPE,
 			KEY_DELIMITER,
 			KEY_NULL_LITERAL,
-			new JsonRowSerializationSchema(schema.toRowType()),
+			new JsonRowSerializationSchema((TypeInformation<Row>)
+					TypeConverters.createExternalTypeInfoFromDataType(TableSchemaUtil.toRowType(schema))),
 			XContentType.JSON,
 			new DummyFailureHandler(),
 			createTestSinkOptions());
@@ -121,10 +127,10 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
 
 	protected TableSchema createTestSchema() {
 		return TableSchema.builder()
-			.field(FIELD_KEY, Types.LONG())
-			.field(FIELD_FRUIT_NAME, Types.STRING())
-			.field(FIELD_COUNT, Types.DECIMAL())
-			.field(FIELD_TS, Types.SQL_TIMESTAMP())
+			.field(FIELD_KEY, DataTypes.LONG)
+			.field(FIELD_FRUIT_NAME, DataTypes.STRING)
+			.field(FIELD_COUNT, DecimalType.SYSTEM_DEFAULT)
+			.field(FIELD_TS, DataTypes.TIMESTAMP)
 			.build();
 	}
 

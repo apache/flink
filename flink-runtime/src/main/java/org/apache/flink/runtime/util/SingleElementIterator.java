@@ -64,6 +64,9 @@ public final class SingleElementIterator<E> implements Iterator<E>, Iterable<E> 
 
 		@Override
 		public Iterator<E> iterator() {
+			if (current != null) {
+				this.available = true;
+			}
 			return this;
 		}
 	}

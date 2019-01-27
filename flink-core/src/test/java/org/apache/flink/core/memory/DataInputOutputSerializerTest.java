@@ -91,7 +91,7 @@ public class DataInputOutputSerializerTest {
 		final int numElements = 100000;
 		final ArrayDeque<SerializationTestType> reference = new ArrayDeque<>();
 
-		DataOutputSerializer serializer = new DataOutputSerializer(1);
+		DataOutputSerializer serializer = new DataOutputSerializer(4);
 
 		for (SerializationTestType value : Util.randomRecords(numElements)) {
 			reference.add(value);

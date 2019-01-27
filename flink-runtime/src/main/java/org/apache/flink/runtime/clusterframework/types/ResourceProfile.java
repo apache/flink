@@ -50,28 +50,27 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 
 	public static final ResourceProfile UNKNOWN = new ResourceProfile(-1.0, -1);
 
-	/** ResourceProfile which matches any other ResourceProfile. */
-	public static final ResourceProfile ANY = new ResourceProfile(Double.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Collections.emptyMap());
+	public static final ResourceProfile EMTPY = new ResourceProfile(0, 0);
 
 	// ------------------------------------------------------------------------
 
 	/** How many cpu cores are needed, use double so we can specify cpu like 0.1. */
-	private final double cpuCores;
+	private double cpuCores;
 
 	/** How many heap memory in mb are needed. */
-	private final int heapMemoryInMB;
+	private int heapMemoryInMB;
 
 	/** How many direct memory in mb are needed. */
-	private final int directMemoryInMB;
+	private int directMemoryInMB;
 
 	/** How many native memory in mb are needed. */
-	private final int nativeMemoryInMB;
+	private int nativeMemoryInMB;
 
 	/** Memory used for the task in the slot to communicate with its upstreams. Set by job master. */
-	private final int networkMemoryInMB;
+	private int networkMemoryInMB;
 
 	/** A extensible field for user specified resources from {@link ResourceSpec}. */
-	private final Map<String, Resource> extendedResources = new HashMap<>(1);
+	private Map<String, Resource> extendedResources = new HashMap<>(1);
 
 	// ------------------------------------------------------------------------
 
@@ -200,6 +199,31 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	}
 
 	/**
+	 * Get the managed memory of task manager.
+	 * @return The managed memory in MB
+	 */
+	public int getManagedMemoryInMB() {
+		Resource managedMemory = extendedResources.get(ResourceSpec.MANAGED_MEMORY_NAME);
+		if (managedMemory != null) {
+			return (int)managedMemory.getValue();
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Get the floating memory needed in MB
+	 * @return The floating memory in MB
+	 */
+	public int getFloatingManagedMemoryInMB() {
+		Resource floatingMemory = extendedResources.get(ResourceSpec.FLOATING_MANAGED_MEMORY_NAME);
+		if (floatingMemory != null) {
+			return (int) floatingMemory.getValue();
+		}
+		return 0;
+	}
+
+	/**
 	 * Check whether required resource profile can be matched.
 	 *
 	 * @param required the required resource profile
@@ -212,6 +236,10 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 				nativeMemoryInMB >= required.getNativeMemoryInMB() &&
 				networkMemoryInMB >= required.getNetworkMemoryInMB()) {
 			for (Map.Entry<String, Resource> resource : required.extendedResources.entrySet()) {
+				// Skip floating memory, floating memory will not be considered when findMatchingSlot in slot manager
+				if (resource.getKey().equals(ResourceSpec.FLOATING_MANAGED_MEMORY_NAME)) {
+					continue;
+				}
 				if (!extendedResources.containsKey(resource.getKey()) ||
 						!extendedResources.get(resource.getKey()).getResourceAggregateType().equals(resource.getValue().getResourceAggregateType()) ||
 						extendedResources.get(resource.getKey()).getValue() < resource.getValue().getValue()) {
@@ -255,6 +283,85 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 		return cmp;
 	}
 
+	/**
+	 * Compute the result of subtract another resource from this piece of resource. The extended resource not included in this
+	 * resource will cause IllegalArgumentException.
+	 *
+	 * This method do not check whether enough resource is present. The caller of this method is responsible to do the checking.
+	 *
+	 * @param another The resource to subtract.
+	 * @return The result of subtract another resource from this resource.
+	 *
+	 * @throws IllegalArgumentException The extended resource not included in this resource will cause IllegalArgumentException.
+	 */
+	public ResourceProfile minus(ResourceProfile another) {
+		for (String extendedResourceName : another.extendedResources.keySet()) {
+			if (!extendedResources.containsKey(extendedResourceName)) {
+				throw new IllegalArgumentException("Non-exist extended resource: " + extendedResourceName);
+			}
+		}
+
+		Map<String, Resource> newExtendedResource = new HashMap<String, Resource>(extendedResources.size());
+
+		for (Map.Entry<String, Resource> entry : extendedResources.entrySet()) {
+			Resource anotherResource = another.extendedResources.get(entry.getKey());
+
+			if (anotherResource == null) {
+				newExtendedResource.put(entry.getKey(), entry.getValue());
+			} else {
+				newExtendedResource.put(entry.getKey(), entry.getValue().minus(anotherResource));
+			}
+		}
+
+		return new ResourceProfile(
+			cpuCores - another.cpuCores,
+			heapMemoryInMB - another.heapMemoryInMB,
+			directMemoryInMB - another.directMemoryInMB,
+			nativeMemoryInMB - another.nativeMemoryInMB,
+			networkMemoryInMB - another.networkMemoryInMB,
+			newExtendedResource);
+	}
+
+	public ResourceProfile merge(ResourceProfile another) {
+		ResourceProfile resourceProfile = new ResourceProfile(this);
+		resourceProfile.addTo(another);
+		return resourceProfile;
+	}
+
+	public void addTo(ResourceProfile another) {
+		this.cpuCores += another.getCpuCores();
+		this.heapMemoryInMB += another.getHeapMemoryInMB();
+		this.directMemoryInMB += another.getDirectMemoryInMB();
+		this.nativeMemoryInMB += another.getNativeMemoryInMB();
+		this.networkMemoryInMB += another.getNetworkMemoryInMB();
+		if (!extendedResources.isEmpty() || !another.extendedResources.isEmpty()) {
+			for (Map.Entry<String, Resource> extendResource : another.extendedResources.entrySet()) {
+				Resource rfValue = extendedResources.get(extendResource.getKey());
+				if (rfValue != null) {
+					extendedResources.put(extendResource.getKey(), extendResource.getValue().merge(rfValue));
+				} else {
+					extendedResources.put(extendResource.getKey(), extendResource.getValue());
+				}
+			}
+		}
+	}
+
+	public ResourceProfile multiply(int multiplier) {
+		Map<String, Resource> newExtendedResource = new HashMap<>(extendedResources.size());
+
+		for (Map.Entry<String, Resource> entry : extendedResources.entrySet()) {
+			newExtendedResource.put(entry.getKey(), entry.getValue().multiply(multiplier));
+		}
+
+		return new ResourceProfile(
+			this.getCpuCores() * multiplier,
+			this.getHeapMemoryInMB() * multiplier,
+			this.getDirectMemoryInMB() * multiplier,
+			this.getNativeMemoryInMB() * multiplier,
+			this.getNetworkMemoryInMB() * multiplier,
+			newExtendedResource);
+	}
+
 	// ------------------------------------------------------------------------
 
 	@Override
@@ -289,7 +396,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	public String toString() {
 		final StringBuilder resources = new StringBuilder(extendedResources.size() * 10);
 		for (Map.Entry<String, Resource> resource : extendedResources.entrySet()) {
-			resources.append(", ").append(resource.getKey()).append('=').append(resource.getValue());
+			resources.append(", ").append(resource.getKey()).append('=').append(resource.getValue().getValue());
 		}
 		return "ResourceProfile{" +
 			"cpuCores=" + cpuCores +
@@ -300,7 +407,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 			'}';
 	}
 
-	static ResourceProfile fromResourceSpec(ResourceSpec resourceSpec, int networkMemory) {
+	public static ResourceProfile fromResourceSpec(ResourceSpec resourceSpec, int networkMemory) {
 		Map<String, Resource> copiedExtendedResources = new HashMap<>(resourceSpec.getExtendedResources());
 
 		return new ResourceProfile(

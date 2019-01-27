@@ -42,6 +42,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import javax.annotation.Nonnull;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -65,12 +66,13 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 	private final Configuration configuration;
 
 	public JobSubmitHandler(
+			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
 			Executor executor,
 			Configuration configuration) {
-		super(leaderRetriever, timeout, headers, JobSubmitHeaders.getInstance());
+		super(localRestAddress, leaderRetriever, timeout, headers, JobSubmitHeaders.getInstance());
 		this.executor = executor;
 		this.configuration = configuration;
 	}
@@ -113,7 +115,10 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 		CompletableFuture<Acknowledge> jobSubmissionFuture = finalizedJobGraphFuture.thenCompose(jobGraph -> gateway.submitJob(jobGraph, timeout));
 
 		return jobSubmissionFuture.thenCombine(jobGraphFuture,
-			(ack, jobGraph) -> new JobSubmitResponseBody("/jobs/" + jobGraph.getJobID()));
+			(ack, jobGraph) -> new JobSubmitResponseBody("/jobs/" + jobGraph.getJobID()))
+			.exceptionally(exception -> {
+			throw new CompletionException(new RestHandlerException("Job submission failed.", HttpResponseStatus.INTERNAL_SERVER_ERROR, exception));
+		});
 	}
 
 	private CompletableFuture<JobGraph> loadJobGraph(JobSubmitRequestBody requestBody, Map<String, Path> nameToFile) throws MissingFileException {
@@ -164,8 +169,15 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 		return jobGraphFuture.thenCombine(blobServerPortFuture, (JobGraph jobGraph, Integer blobServerPort) -> {
 			final InetSocketAddress address = new InetSocketAddress(gateway.getHostname(), blobServerPort);
 			try {
+				// Add users jars located in dfs
+				for (Path path : jobGraph.getUserJars()) {
+					if (path.getFileSystem().isDistributedFS()) {
+						jarFiles.add(path);
+					}
+				}
+				log.info("Uploading jarFiles {} and userArtifacts {} to blob server", jarFiles.toString(), artifacts.toString());
 				ClientUtils.uploadJobGraphFiles(jobGraph, jarFiles, artifacts, () -> new BlobClient(address, configuration));
-			} catch (FlinkException e) {
+			} catch (IOException | FlinkException e) {
 				throw new CompletionException(new RestHandlerException(
 					"Could not upload job files.",
 					HttpResponseStatus.INTERNAL_SERVER_ERROR,

@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.cli.CliArgsException;
@@ -29,9 +28,6 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -42,10 +38,19 @@ import org.apache.flink.table.api.BatchQueryConfig;
 import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableConfigOptions;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.functions.AggregateFunction;
+import org.apache.flink.table.api.functions.FunctionService;
+import org.apache.flink.table.api.functions.ScalarFunction;
+import org.apache.flink.table.api.functions.TableFunction;
+import org.apache.flink.table.api.functions.UserDefinedFunction;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.catalog.ReadableCatalog;
+import org.apache.flink.table.client.catalog.ClientCatalogFactory;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.entries.CatalogEntry;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.SinkTableEntry;
@@ -60,11 +65,6 @@ import org.apache.flink.table.factories.BatchTableSourceFactory;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.factories.TableFactoryService;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.functions.FunctionService;
-import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.FlinkException;
@@ -77,6 +77,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * Context for executing table programs. This class caches everything that can be cached across
@@ -91,7 +92,7 @@ public class ExecutionContext<T> {
 	private final Environment mergedEnv;
 	private final List<URL> dependencies;
 	private final ClassLoader classLoader;
-	private final Map<String, TableSource<?>> tableSources;
+	private final Map<String, TableSource> tableSources;
 	private final Map<String, TableSink<?>> tableSinks;
 	private final Map<String, UserDefinedFunction> functions;
 	private final Configuration flinkConfig;
@@ -100,6 +101,8 @@ public class ExecutionContext<T> {
 	private final RunOptions runOptions;
 	private final T clusterId;
 	private final ClusterSpecification clusterSpec;
+
+	private final EnvironmentInstance environmentInstance;
 
 	public ExecutionContext(Environment defaultEnvironment, SessionContext sessionContext, List<URL> dependencies,
 			Configuration flinkConfig, Options commandLineOptions, List<CustomCommandLine<?>> availableCommandLines) {
@@ -138,6 +141,9 @@ public class ExecutionContext<T> {
 		runOptions = createRunOptions(commandLine);
 		clusterId = activeCommandLine.getClusterId(commandLine);
 		clusterSpec = createClusterSpecification(activeCommandLine, commandLine);
+
+		// always share environment instance
+		environmentInstance = new EnvironmentInstance();
 	}
 
 	public SessionContext getSessionContext() {
@@ -165,6 +171,9 @@ public class ExecutionContext<T> {
 	}
 
 	public EnvironmentInstance createEnvironmentInstance() {
+		if (environmentInstance != null) {
+			return environmentInstance;
+		}
 		try {
 			return new EnvironmentInstance();
 		} catch (Throwable t) {
@@ -173,7 +182,7 @@ public class ExecutionContext<T> {
 		}
 	}
 
-	public Map<String, TableSource<?>> getTableSources() {
+	public Map<String, TableSource> getTableSources() {
 		return tableSources;
 	}
 
@@ -230,7 +239,7 @@ public class ExecutionContext<T> {
 		}
 	}
 
-	private static TableSource<?> createTableSource(ExecutionEntry execution, Map<String, String> sourceProperties, ClassLoader classLoader) {
+	private static TableSource createTableSource(ExecutionEntry execution, Map<String, String> sourceProperties, ClassLoader classLoader) {
 		if (execution.isStreamingExecution()) {
 			final StreamTableSourceFactory<?> factory = (StreamTableSourceFactory<?>)
 				TableFactoryService.find(StreamTableSourceFactory.class, sourceProperties, classLoader);
@@ -266,20 +275,16 @@ public class ExecutionContext<T> {
 	public class EnvironmentInstance {
 
 		private final QueryConfig queryConfig;
-		private final ExecutionEnvironment execEnv;
 		private final StreamExecutionEnvironment streamExecEnv;
 		private final TableEnvironment tableEnv;
 
 		private EnvironmentInstance() {
 			// create environments
+			streamExecEnv = createStreamExecutionEnvironment();
 			if (mergedEnv.getExecution().isStreamingExecution()) {
-				streamExecEnv = createStreamExecutionEnvironment();
-				execEnv = null;
 				tableEnv = TableEnvironment.getTableEnvironment(streamExecEnv);
 			} else if (mergedEnv.getExecution().isBatchExecution()) {
-				streamExecEnv = null;
-				execEnv = createExecutionEnvironment();
-				tableEnv = TableEnvironment.getTableEnvironment(execEnv);
+				tableEnv = TableEnvironment.getBatchTableEnvironment(streamExecEnv);
 			} else {
 				throw new SqlExecutionException("Unsupported execution type specified.");
 			}
@@ -296,6 +301,16 @@ public class ExecutionContext<T> {
 			// register user-defined functions
 			registerFunctions();
 
+			// register catalogs
+			mergedEnv.getCatalogs().forEach((name, catalog) -> {
+					ReadableCatalog readableCatalog = ClientCatalogFactory.createCatalog(catalog);
+
+					if (catalog.getDefaultDatabase().isPresent()) {
+						readableCatalog.setDefaultDatabaseName(catalog.getDefaultDatabase().get());
+					}
+					tableEnv.registerCatalog(name, readableCatalog);
+				});
+
 			// register views and temporal tables in specified order
 			mergedEnv.getTables().forEach((name, entry) -> {
 				// if registering a view fails at this point,
@@ -308,14 +323,38 @@ public class ExecutionContext<T> {
 					registerTemporalTable(temporalTableEntry);
 				}
 			});
+
+			// TODO: sql client should parse and set job's TableConfig from execution configs from yaml config file.
+			tableEnv.getConfig().getConf().setInteger(
+				TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM,
+				mergedEnv.getExecution().getParallelism());
+
+			// always enable subsection optimization
+			tableEnv.getConfig().setSubsectionOptimization(true);
+
+			tableEnv.getConfig().getConf().setBoolean(
+				TableConfigOptions.SQL_EXEC_SOURCE_VALUES_INPUT_ENABLED,
+				true);
+
+			setDefaultCatalog(mergedEnv.getCatalogs());
+		}
+
+		private void setDefaultCatalog(Map<String, CatalogEntry> catalogs) {
+			List<CatalogEntry> defaultCatalog = catalogs.values().stream().filter(c -> c.isDefaultCatalog()).collect(Collectors.toList());
+
+			if (defaultCatalog.size() > 1) {
+				throw new IllegalArgumentException(String.format("Only one catalog can be set as default catalog, but currently there are %d", defaultCatalog.size()));
+			}
+
+			if (defaultCatalog.size() == 0) {
+				return;
+			}
+
+			tableEnv.setDefaultCatalog(defaultCatalog.get(0).getName());
 		}
 
 		public QueryConfig getQueryConfig() {
 			return queryConfig;
-		}
-
-		public ExecutionEnvironment getExecutionEnvironment() {
-			return execEnv;
 		}
 
 		public StreamExecutionEnvironment getStreamExecutionEnvironment() {
@@ -327,14 +366,11 @@ public class ExecutionContext<T> {
 		}
 
 		public ExecutionConfig getExecutionConfig() {
-			if (streamExecEnv != null) {
-				return streamExecEnv.getConfig();
-			} else {
-				return execEnv.getConfig();
-			}
+			return streamExecEnv.getConfig();
 		}
 
 		public JobGraph createJobGraph(String name) {
+
 			final FlinkPlan plan = createPlan(name, flinkConfig);
 			return ClusterClient.getJobGraph(
 				flinkConfig,
@@ -345,24 +381,9 @@ public class ExecutionContext<T> {
 		}
 
 		private FlinkPlan createPlan(String name, Configuration flinkConfig) {
-			if (streamExecEnv != null) {
-				final StreamGraph graph = streamExecEnv.getStreamGraph();
-				graph.setJobName(name);
-				return graph;
-			} else {
-				final int parallelism = execEnv.getParallelism();
-				final Plan unoptimizedPlan = execEnv.createProgramPlan();
-				unoptimizedPlan.setJobName(name);
-				final Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), flinkConfig);
-				return ClusterClient.getOptimizedPlan(compiler, unoptimizedPlan, parallelism);
-			}
-		}
-
-		private ExecutionEnvironment createExecutionEnvironment() {
-			final ExecutionEnvironment execEnv = ExecutionEnvironment.getExecutionEnvironment();
-			execEnv.setRestartStrategy(mergedEnv.getExecution().getRestartStrategy());
-			execEnv.setParallelism(mergedEnv.getExecution().getParallelism());
-			return execEnv;
+			StreamGraph graph = tableEnv.generateStreamGraph();
+			graph.setJobName(name);
+			return graph;
 		}
 
 		private StreamExecutionEnvironment createStreamExecutionEnvironment() {
@@ -378,7 +399,7 @@ public class ExecutionContext<T> {
 		}
 
 		private QueryConfig createQueryConfig() {
-			if (streamExecEnv != null) {
+			if (mergedEnv.getExecution().isStreamingExecution()) {
 				final StreamQueryConfig config = new StreamQueryConfig();
 				final long minRetention = mergedEnv.getExecution().getMinStateRetention();
 				final long maxRetention = mergedEnv.getExecution().getMaxStateRetention();

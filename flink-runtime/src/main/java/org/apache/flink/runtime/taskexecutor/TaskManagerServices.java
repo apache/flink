@@ -20,8 +20,6 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.queryablestate.network.stats.DisabledKvStateRequestStats;
@@ -29,6 +27,8 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.preaggregatedaccumulators.RPCBasedAccumulatorAggregationManager;
+import org.apache.flink.runtime.preaggregatedaccumulators.AccumulatorAggregationManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -58,13 +58,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-
-import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
-import static org.apache.flink.util.MathUtils.checkedDownCast;
 
 /**
  * Container for {@link TaskExecutor} services such as the {@link MemoryManager}, {@link IOManager},
@@ -83,6 +79,7 @@ public class TaskManagerServices {
 	private final IOManager ioManager;
 	private final NetworkEnvironment networkEnvironment;
 	private final BroadcastVariableManager broadcastVariableManager;
+	private final AccumulatorAggregationManager accumulatorAggregationManager;
 	private final TaskSlotTable taskSlotTable;
 	private final JobManagerTable jobManagerTable;
 	private final JobLeaderService jobLeaderService;
@@ -94,6 +91,7 @@ public class TaskManagerServices {
 		IOManager ioManager,
 		NetworkEnvironment networkEnvironment,
 		BroadcastVariableManager broadcastVariableManager,
+		AccumulatorAggregationManager accumulatorAggregationManager,
 		TaskSlotTable taskSlotTable,
 		JobManagerTable jobManagerTable,
 		JobLeaderService jobLeaderService,
@@ -108,6 +106,7 @@ public class TaskManagerServices {
 		this.jobManagerTable = Preconditions.checkNotNull(jobManagerTable);
 		this.jobLeaderService = Preconditions.checkNotNull(jobLeaderService);
 		this.taskManagerStateStore = Preconditions.checkNotNull(taskManagerStateStore);
+		this.accumulatorAggregationManager = Preconditions.checkNotNull(accumulatorAggregationManager);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -148,6 +147,10 @@ public class TaskManagerServices {
 
 	public TaskExecutorLocalStateStoresManager getTaskManagerStateStore() {
 		return taskManagerStateStore;
+	}
+
+	public AccumulatorAggregationManager getAccumulatorAggregationManager() {
+		return accumulatorAggregationManager;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -239,25 +242,32 @@ public class TaskManagerServices {
 		final MemoryManager memoryManager = createMemoryManager(taskManagerServicesConfiguration, freeHeapMemoryWithDefrag, maxJvmHeapMemory);
 
 		// start the I/O manager, it will create some temp directories.
-		final IOManager ioManager = new IOManagerAsync(taskManagerServicesConfiguration.getTmpDirPaths());
+		final IOManagerAsync ioManager = new IOManagerAsync(
+			taskManagerServicesConfiguration.getTmpDirPaths(),
+			taskManagerServicesConfiguration.getIoManagerBufferedReadSize(),
+			taskManagerServicesConfiguration.getIoManagerBufferedWriteSize(),
+			taskManagerServicesConfiguration.getIoManagerNumAsyncReadWriteThread());
 
 		final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
-		final List<ResourceProfile> resourceProfiles = new ArrayList<>(taskManagerServicesConfiguration.getNumberOfSlots());
+		final List<ResourceProfile> resourceProfiles = taskManagerServicesConfiguration.getResourceProfileList();
 
-		for (int i = 0; i < taskManagerServicesConfiguration.getNumberOfSlots(); i++) {
-			resourceProfiles.add(ResourceProfile.ANY);
+		for (int i = resourceProfiles.size(); i < taskManagerServicesConfiguration.getNumberOfSlots(); i++) {
+			resourceProfiles.add(ResourceProfile.UNKNOWN);
 		}
+
+		final ResourceProfile totalResourceProfile = taskManagerServicesConfiguration.getTotalResourceProfile();
 
 		final TimerService<AllocationID> timerService = new TimerService<>(
 			new ScheduledThreadPoolExecutor(1),
 			taskManagerServicesConfiguration.getTimerServiceShutdownTimeout());
 
-		final TaskSlotTable taskSlotTable = new TaskSlotTable(resourceProfiles, timerService);
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(resourceProfiles, totalResourceProfile, timerService);
 
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
+
 
 		final String[] stateRootDirectoryStrings = taskManagerServicesConfiguration.getLocalRecoveryStateRootDirectories();
 
@@ -272,12 +282,15 @@ public class TaskManagerServices {
 			stateRootDirectoryFiles,
 			taskIOExecutor);
 
+		final AccumulatorAggregationManager accumulatorAggregationManager = new RPCBasedAccumulatorAggregationManager(jobManagerTable);
+
 		return new TaskManagerServices(
 			taskManagerLocation,
 			memoryManager,
 			ioManager,
 			network,
 			broadcastVariableManager,
+			accumulatorAggregationManager,
 			taskSlotTable,
 			jobManagerTable,
 			jobLeaderService,
@@ -349,12 +362,18 @@ public class TaskManagerServices {
 				throw new RuntimeException("No supported memory type detected.");
 			}
 		}
-
+		final long floatingMemorySize = taskManagerServicesConfiguration.getFloatingManagedMemory() << 20;
+		if (preAllocateMemory) {
+			LOG.info("Using {} MB for floating managed memory." , floatingMemorySize);
+		} else {
+			LOG.info("Limiting floating managed memory to {} MB, memory will be allocated lazily." , floatingMemorySize);
+		}
 		// now start the memory manager
 		final MemoryManager memoryManager;
 		try {
 			memoryManager = new MemoryManager(
 				memorySize,
+				floatingMemorySize,
 				taskManagerServicesConfiguration.getNumberOfSlots(),
 				taskManagerServicesConfiguration.getNetworkConfig().networkBufferSize(),
 				memType,
@@ -419,38 +438,32 @@ public class TaskManagerServices {
 
 		QueryableStateConfiguration qsConfig = taskManagerServicesConfiguration.getQueryableStateConfig();
 
-		KvStateClientProxy kvClientProxy = null;
-		KvStateServer kvStateServer = null;
-
-		if (qsConfig != null) {
-			int numProxyServerNetworkThreads = qsConfig.numProxyServerThreads() == 0 ?
+		int numProxyServerNetworkThreads = qsConfig.numProxyServerThreads() == 0 ?
 				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numProxyServerThreads();
 
-			int numProxyServerQueryThreads = qsConfig.numProxyQueryThreads() == 0 ?
+		int numProxyServerQueryThreads = qsConfig.numProxyQueryThreads() == 0 ?
 				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numProxyQueryThreads();
 
-
-			kvClientProxy = QueryableStateUtils.createKvStateClientProxy(
+		final KvStateClientProxy kvClientProxy = QueryableStateUtils.createKvStateClientProxy(
 				taskManagerServicesConfiguration.getTaskManagerAddress(),
 				qsConfig.getProxyPortRange(),
 				numProxyServerNetworkThreads,
 				numProxyServerQueryThreads,
 				new DisabledKvStateRequestStats());
 
-			int numStateServerNetworkThreads = qsConfig.numStateServerThreads() == 0 ?
+		int numStateServerNetworkThreads = qsConfig.numStateServerThreads() == 0 ?
 				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numStateServerThreads();
 
-			int numStateServerQueryThreads = qsConfig.numStateQueryThreads() == 0 ?
+		int numStateServerQueryThreads = qsConfig.numStateQueryThreads() == 0 ?
 				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numStateQueryThreads();
 
-			kvStateServer = QueryableStateUtils.createKvStateServer(
+		final KvStateServer kvStateServer = QueryableStateUtils.createKvStateServer(
 				taskManagerServicesConfiguration.getTaskManagerAddress(),
 				qsConfig.getStateServerPortRange(),
 				numStateServerNetworkThreads,
 				numStateServerQueryThreads,
 				kvStateRegistry,
 				new DisabledKvStateRequestStats());
-		}
 
 		// we start the network first, to make sure it can allocate its buffers first
 		return new NetworkEnvironment(
@@ -466,6 +479,9 @@ public class TaskManagerServices {
 			networkEnvironmentConfiguration.partitionRequestMaxBackoff(),
 			networkEnvironmentConfiguration.networkBuffersPerChannel(),
 			networkEnvironmentConfiguration.floatingNetworkBuffersPerGate(),
+			networkEnvironmentConfiguration.networkBuffersPerExternalBlockingChannel(),
+			networkEnvironmentConfiguration.floatingNetworkBuffersPerExternalBlockingGate(),
+			networkEnvironmentConfiguration.networkBuffersPerSubpartition(),
 			enableCreditBased);
 	}
 
@@ -492,16 +508,14 @@ public class TaskManagerServices {
 	public static long calculateNetworkBufferMemory(long totalJavaMemorySize, Configuration config) {
 		Preconditions.checkArgument(totalJavaMemorySize > 0);
 
-		int segmentSize =
-			checkedDownCast(MemorySize.parse(config.getString(TaskManagerOptions.MEMORY_SEGMENT_SIZE)).getBytes());
+		int segmentSize = config.getInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE);
 
 		final long networkBufBytes;
 		if (TaskManagerServicesConfiguration.hasNewNetworkBufConf(config)) {
 			// new configuration based on fractions of available memory with selectable min and max
 			float networkBufFraction = config.getFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
-			long networkBufMin = MemorySize.parse(config.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN)).getBytes();
-			long networkBufMax = MemorySize.parse(config.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX)).getBytes();
-
+			long networkBufMin = config.getLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN);
+			long networkBufMax = config.getLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX);
 
 			TaskManagerServicesConfiguration
 				.checkNetworkBufferConfig(segmentSize, networkBufFraction, networkBufMin, networkBufMax);
@@ -659,18 +673,7 @@ public class TaskManagerServices {
 		final long heapSizeMB;
 		if (useOffHeap) {
 
-			long offHeapSize;
-			String managedMemorySizeDefaultVal = TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue();
-			if (!config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(managedMemorySizeDefaultVal)) {
-				try {
-					offHeapSize = MemorySize.parse(config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE), MEGA_BYTES).getMebiBytes();
-				} catch (IllegalArgumentException e) {
-					throw new IllegalConfigurationException(
-						"Could not read " + TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), e);
-				}
-			} else {
-				offHeapSize = Long.valueOf(managedMemorySizeDefaultVal);
-			}
+			long offHeapSize = config.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE);
 
 			if (offHeapSize <= 0) {
 				// calculate off-heap section via fraction

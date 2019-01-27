@@ -18,41 +18,40 @@
 
 package org.apache.flink.table.codegen.calls
 
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.api.types.{DataTypes, InternalType}
+import org.apache.flink.table.codegen.CodeGenUtils._
+import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 
 /**
   * Generates function call to determine current time point (as date/time/timestamp) in
   * local timezone or not.
   */
-class CurrentTimePointCallGen(
-    targetType: TypeInformation[_],
-    local: Boolean)
-  extends CallGenerator {
+class CurrentTimePointCallGen(local: Boolean) extends CallGenerator {
 
   override def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression = targetType match {
-    case SqlTimeTypeInfo.TIME if local =>
-      val time = codeGenerator.addReusableLocalTime()
-      codeGenerator.generateTerm(targetType, time)
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: InternalType,
+      nullCheck: Boolean): GeneratedExpression = returnType match {
+    case DataTypes.TIME if local =>
+      val time = ctx.addReusableLocalTime()
+      generateNonNullField(returnType, time, nullCheck)
 
-    case SqlTimeTypeInfo.TIMESTAMP if local =>
-      val timestamp = codeGenerator.addReusableLocalTimestamp()
-      codeGenerator.generateTerm(targetType, timestamp)
+    case DataTypes.TIMESTAMP if local =>
+      val timestamp = ctx.addReusableLocalTimestamp()
+      generateNonNullField(returnType, timestamp, nullCheck)
 
-    case SqlTimeTypeInfo.DATE =>
-      val date = codeGenerator.addReusableDate()
-      codeGenerator.generateTerm(targetType, date)
+    case DataTypes.DATE =>
+      val date = ctx.addReusableDate()
+      generateNonNullField(returnType, date, nullCheck)
 
-    case SqlTimeTypeInfo.TIME =>
-      val time = codeGenerator.addReusableTime()
-      codeGenerator.generateTerm(targetType, time)
+    case DataTypes.TIME =>
+      val time = ctx.addReusableTime()
+      generateNonNullField(returnType, time, nullCheck)
 
-    case SqlTimeTypeInfo.TIMESTAMP =>
-      val timestamp = codeGenerator.addReusableTimestamp()
-      codeGenerator.generateTerm(targetType, timestamp)
+    case DataTypes.TIMESTAMP =>
+      val timestamp = ctx.addReusableTimestamp()
+      generateNonNullField(returnType, timestamp, nullCheck)
   }
 
 }

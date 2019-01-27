@@ -25,16 +25,12 @@ import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import javax.annotation.Nullable;
-
-import java.util.Collection;
-import java.util.Collections;
 
 /**
  * Simple {@link ResourceManager} implementation for testing purposes.
@@ -45,25 +41,25 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
 			RpcService rpcService,
 			String resourceManagerEndpointId,
 			ResourceID resourceId,
+			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			SlotManager slotManager,
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
-			FatalErrorHandler fatalErrorHandler,
-			JobManagerMetricGroup jobManagerMetricGroup) {
+			FatalErrorHandler fatalErrorHandler) {
 		super(
 			rpcService,
 			resourceManagerEndpointId,
 			resourceId,
+			resourceManagerConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,
 			slotManager,
 			metricRegistry,
 			jobLeaderIdService,
 			new ClusterInformation("localhost", 1234),
-			fatalErrorHandler,
-			jobManagerMetricGroup);
+			fatalErrorHandler);
 	}
 
 	@Override
@@ -77,8 +73,8 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
 	}
 
 	@Override
-	public Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile) {
-		return Collections.emptyList();
+	public void startNewWorker(ResourceProfile resourceProfile) {
+		// noop
 	}
 
 	@Override
@@ -90,5 +86,15 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
 	public boolean stopWorker(ResourceID worker) {
 		// cannot stop workers
 		return false;
+	}
+
+	@Override
+	public void cancelNewWorker(ResourceProfile resourceProfile) {
+		// noop
+	}
+
+	@Override
+	protected int getNumberAllocatedWorkers() {
+		return 0;
 	}
 }

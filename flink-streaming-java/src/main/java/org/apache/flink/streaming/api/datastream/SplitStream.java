@@ -33,7 +33,6 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
  * @param <OUT> The type of the elements in the Stream
  */
 
-@Deprecated
 @PublicEvolving
 public class SplitStream<OUT> extends DataStream<OUT> {
 

@@ -19,20 +19,21 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.rpc.LeaderShipLostHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -41,29 +42,14 @@ import static org.mockito.Mockito.when;
  * {@link org.apache.flink.runtime.dispatcher.Dispatcher.JobManagerRunnerFactory} implementation for
  * testing purposes.
  */
-class TestingJobManagerRunnerFactory implements Dispatcher.JobManagerRunnerFactory {
+final class TestingJobManagerRunnerFactory implements Dispatcher.JobManagerRunnerFactory {
 
 	private final CompletableFuture<JobGraph> jobGraphFuture;
 	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
-	private final CompletableFuture<Void> terminationFuture;
-	private final AtomicReference<Supplier<Exception>> failJobMasterCreationWith;
 
-	TestingJobManagerRunnerFactory(
-			CompletableFuture<JobGraph> jobGraphFuture,
-			CompletableFuture<ArchivedExecutionGraph> resultFuture,
-			CompletableFuture<Void> terminationFuture) {
-		this(jobGraphFuture, resultFuture, terminationFuture, new AtomicReference<>());
-	}
-
-	TestingJobManagerRunnerFactory(
-			CompletableFuture<JobGraph> jobGraphFuture,
-			CompletableFuture<ArchivedExecutionGraph> resultFuture,
-			CompletableFuture<Void> terminationFuture,
-			AtomicReference<Supplier<Exception>> failJobMasterCreationWith) {
+	TestingJobManagerRunnerFactory(CompletableFuture<JobGraph> jobGraphFuture, CompletableFuture<ArchivedExecutionGraph> resultFuture) {
 		this.jobGraphFuture = jobGraphFuture;
 		this.resultFuture = resultFuture;
-		this.terminationFuture = terminationFuture;
-		this.failJobMasterCreationWith = failJobMasterCreationWith;
 	}
 
 	@Override
@@ -74,22 +60,18 @@ class TestingJobManagerRunnerFactory implements Dispatcher.JobManagerRunnerFacto
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
+			BlobServer blobServer,
 			JobManagerSharedServices jobManagerSharedServices,
 			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-			FatalErrorHandler fatalErrorHandler) throws Exception {
-		final Supplier<Exception> exceptionSupplier = failJobMasterCreationWith.get();
+			FatalErrorHandler fatalErrorHandler,
+			LeaderShipLostHandler leaderShipLostHandler,
+			SubmittedJobGraphStore submittedJobGraphStore) throws Exception {
+		jobGraphFuture.complete(jobGraph);
 
-		if (exceptionSupplier != null) {
-			throw exceptionSupplier.get();
-		} else {
-			jobGraphFuture.complete(jobGraph);
+		final JobManagerRunner mock = mock(JobManagerRunner.class);
+		when(mock.getResultFuture()).thenReturn(resultFuture);
+		when(mock.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
 
-			final JobManagerRunner mock = mock(JobManagerRunner.class);
-			when(mock.getResultFuture()).thenReturn(resultFuture);
-			when(mock.closeAsync()).thenReturn(terminationFuture);
-			when(mock.getJobGraph()).thenReturn(jobGraph);
-
-			return mock;
-		}
+		return mock;
 	}
 }

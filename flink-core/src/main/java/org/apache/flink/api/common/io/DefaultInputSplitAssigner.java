@@ -18,16 +18,18 @@
 
 package org.apache.flink.api.common.io;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.util.FlinkRuntimeException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-
-import org.apache.flink.annotation.Internal;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.flink.core.io.InputSplit;
-import org.apache.flink.core.io.InputSplitAssigner;
 
 /**
  * This is the default implementation of the {@link InputSplitAssigner} interface. The default input split assigner
@@ -39,30 +41,28 @@ public class DefaultInputSplitAssigner implements InputSplitAssigner {
 	/** The logging object used to report information and errors. */
 	private static final Logger LOG = LoggerFactory.getLogger(DefaultInputSplitAssigner.class);
 
-	/** The list of all splits */
+	/** The list of all splits. */
 	private final List<InputSplit> splits = new ArrayList<InputSplit>();
-
 
 	public DefaultInputSplitAssigner(InputSplit[] splits) {
 		Collections.addAll(this.splits, splits);
 	}
-	
+
 	public DefaultInputSplitAssigner(Collection<? extends InputSplit> splits) {
 		this.splits.addAll(splits);
 	}
-	
-	
+
 	@Override
 	public InputSplit getNextInputSplit(String host, int taskId) {
 		InputSplit next = null;
-		
+
 		// keep the synchronized part short
 		synchronized (this.splits) {
 			if (this.splits.size() > 0) {
 				next = this.splits.remove(this.splits.size() - 1);
 			}
 		}
-		
+
 		if (LOG.isDebugEnabled()) {
 			if (next == null) {
 				LOG.debug("No more input splits available");
@@ -71,5 +71,22 @@ public class DefaultInputSplitAssigner implements InputSplitAssigner {
 			}
 		}
 		return next;
+	}
+
+	@Override
+	public void inputSplitsAssigned(int taskId, List<InputSplit> inputSplits) {
+		for (InputSplit inputSplit : inputSplits) {
+			boolean found = false;
+			for (InputSplit split : splits) {
+				if (split.equals(inputSplit)) {
+					splits.remove(split);
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				throw new FlinkRuntimeException("InputSplit not found for " + inputSplit.getSplitNumber());
+			}
+		}
 	}
 }

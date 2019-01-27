@@ -30,20 +30,21 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.state.ManualWindowSpeedITCase;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import javax.annotation.Nullable;
 
@@ -51,10 +52,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Stream;
 
 import static org.junit.Assert.assertNotNull;
 
@@ -66,11 +68,20 @@ import static org.junit.Assert.assertNotNull;
  *
  * <p>This tests considers full and incremental checkpoints and was introduced to guard against problems like FLINK-6964.
  */
+@RunWith(Parameterized.class)
 public class ResumeCheckpointManuallyITCase extends TestLogger {
 
 	private static final int PARALLELISM = 2;
 	private static final int NUM_TASK_MANAGERS = 2;
 	private static final int SLOTS_PER_TASK_MANAGER = 2;
+
+	@Parameterized.Parameter
+	public Boolean createCheckpointSubDir;
+
+	@Parameterized.Parameters(name = "createCheckpointSubDir = {0}")
+	public static List<Boolean> parameters() {
+		return Arrays.asList(true, false);
+	}
 
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -255,6 +266,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 		config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, localRecovery);
+		config.setBoolean(CheckpointingOptions.CHCKPOINTS_CREATE_SUBDIRS, createCheckpointSubDir);
 
 		// ZooKeeper recovery mode?
 		if (zooKeeperQuorum != null) {
@@ -264,12 +276,12 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haDir.toURI().toString());
 		}
 
-		MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
-			new MiniClusterResourceConfiguration.Builder()
-				.setConfiguration(config)
-				.setNumberTaskManagers(NUM_TASK_MANAGERS)
-				.setNumberSlotsPerTaskManager(SLOTS_PER_TASK_MANAGER)
-				.build());
+		MiniClusterResource cluster = new MiniClusterResource(
+			new MiniClusterResource.MiniClusterResourceConfiguration(
+				config,
+				NUM_TASK_MANAGERS,
+				SLOTS_PER_TASK_MANAGER),
+			true);
 
 		cluster.before();
 
@@ -291,11 +303,11 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 		}
 	}
 
-	private static String runJobAndGetExternalizedCheckpoint(StateBackend backend, File checkpointDir, @Nullable String externalCheckpoint, ClusterClient<?> client) throws Exception {
+	private String runJobAndGetExternalizedCheckpoint(StateBackend backend, File checkpointDir, @Nullable String externalCheckpoint, ClusterClient<?> client) throws Exception {
 		JobGraph initialJobGraph = getJobGraph(backend, externalCheckpoint);
 		NotifyingInfiniteTupleSource.countDownLatch = new CountDownLatch(PARALLELISM);
 
-		client.submitJob(initialJobGraph, ResumeCheckpointManuallyITCase.class.getClassLoader());
+		client.submitJob(initialJobGraph, ResumeCheckpointManuallyITCase.class.getClassLoader(), false);
 
 		// wait until all sources have been started
 		NotifyingInfiniteTupleSource.countDownLatch.await();
@@ -307,7 +319,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 		return getExternalizedCheckpointCheckpointPath(checkpointDir, initialJobGraph.getJobID());
 	}
 
-	private static String getExternalizedCheckpointCheckpointPath(File checkpointDir, JobID jobId) throws IOException {
+	private String getExternalizedCheckpointCheckpointPath(File checkpointDir, JobID jobId) throws IOException {
 		Optional<Path> checkpoint = findExternalizedCheckpoint(checkpointDir, jobId);
 		if (!checkpoint.isPresent()) {
 			throw new AssertionError("No complete checkpoint could be found.");
@@ -316,7 +328,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 		}
 	}
 
-	private static void waitUntilExternalizedCheckpointCreated(File checkpointDir, JobID jobId) throws InterruptedException, IOException {
+	private void waitUntilExternalizedCheckpointCreated(File checkpointDir, JobID jobId) throws InterruptedException, IOException {
 		while (true) {
 			Thread.sleep(50);
 			Optional<Path> externalizedCheckpoint = findExternalizedCheckpoint(checkpointDir, jobId);
@@ -326,19 +338,18 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 		}
 	}
 
-	private static Optional<Path> findExternalizedCheckpoint(File checkpointDir, JobID jobId) throws IOException {
-		try (Stream<Path> checkpoints = Files.list(checkpointDir.toPath().resolve(jobId.toString()))) {
-			return checkpoints
-				.filter(path -> path.getFileName().toString().startsWith("chk-"))
-				.filter(path -> {
-					try (Stream<Path> checkpointFiles = Files.list(path)) {
-						return checkpointFiles.anyMatch(child -> child.getFileName().toString().contains("meta"));
-					} catch (IOException ignored) {
-						return false;
-					}
-				})
-				.findAny();
-		}
+	private Optional<Path> findExternalizedCheckpoint(File checkpointDir, JobID jobId) throws IOException {
+		Path checkpointPath = createCheckpointSubDir ? checkpointDir.toPath().resolve(jobId.toString()) : checkpointDir.toPath();
+		return Files.list(checkpointPath)
+			.filter(path -> path.getFileName().toString().startsWith("chk-"))
+			.filter(path -> {
+				try {
+					return Files.list(path).anyMatch(child -> child.getFileName().toString().contains("meta"));
+				} catch (IOException ignored) {
+					return false;
+				}
+			})
+			.findAny();
 	}
 
 	private static void waitUntilCanceled(JobID jobId, ClusterClient<?> client) throws ExecutionException, InterruptedException {

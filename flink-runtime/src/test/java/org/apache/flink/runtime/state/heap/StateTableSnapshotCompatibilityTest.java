@@ -27,10 +27,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
-import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.StateSnapshot;
-import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
-
+import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -47,18 +44,18 @@ public class StateTableSnapshotCompatibilityTest {
 	@Test
 	public void checkCompatibleSerializationFormats() throws IOException {
 		final Random r = new Random(42);
-		RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-			new RegisteredKeyValueStateBackendMetaInfo<>(
-				StateDescriptor.Type.UNKNOWN,
-				"test",
-				IntSerializer.INSTANCE,
-				new ArrayListSerializer<>(IntSerializer.INSTANCE));
+		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+				new RegisteredKeyedBackendStateMetaInfo<>(
+						StateDescriptor.Type.UNKNOWN,
+						"test",
+						IntSerializer.INSTANCE,
+						new ArrayListSerializer<>(IntSerializer.INSTANCE));
 
 		final CopyOnWriteStateTableTest.MockInternalKeyContext<Integer> keyContext =
-			new CopyOnWriteStateTableTest.MockInternalKeyContext<>(IntSerializer.INSTANCE);
+				new CopyOnWriteStateTableTest.MockInternalKeyContext<>(IntSerializer.INSTANCE);
 
 		CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> cowStateTable =
-			new CopyOnWriteStateTable<>(keyContext, metaInfo);
+				new CopyOnWriteStateTable<>(keyContext, metaInfo);
 
 		for (int i = 0; i < 100; ++i) {
 			ArrayList<Integer> list = new ArrayList<>(5);
@@ -70,10 +67,10 @@ public class StateTableSnapshotCompatibilityTest {
 			cowStateTable.put(r.nextInt(10), r.nextInt(2), list);
 		}
 
-		StateSnapshot snapshot = cowStateTable.stateSnapshot();
+		StateTableSnapshot snapshot = cowStateTable.createSnapshot();
 
 		final NestedMapsStateTable<Integer, Integer, ArrayList<Integer>> nestedMapsStateTable =
-			new NestedMapsStateTable<>(keyContext, metaInfo);
+				new NestedMapsStateTable<>(keyContext, metaInfo);
 
 		restoreStateTableFromSnapshot(nestedMapsStateTable, snapshot, keyContext.getKeyGroupRange());
 		snapshot.release();
@@ -84,7 +81,7 @@ public class StateTableSnapshotCompatibilityTest {
 			Assert.assertEquals(entry.getState(), nestedMapsStateTable.get(entry.getKey(), entry.getNamespace()));
 		}
 
-		snapshot = nestedMapsStateTable.stateSnapshot();
+		snapshot = nestedMapsStateTable.createSnapshot();
 		cowStateTable = new CopyOnWriteStateTable<>(keyContext, metaInfo);
 
 		restoreStateTableFromSnapshot(cowStateTable, snapshot, keyContext.getKeyGroupRange());
@@ -97,22 +94,22 @@ public class StateTableSnapshotCompatibilityTest {
 	}
 
 	private static <K, N, S> void restoreStateTableFromSnapshot(
-		StateTable<K, N, S> stateTable,
-		StateSnapshot snapshot,
-		KeyGroupRange keyGroupRange) throws IOException {
+			StateTable<K, N, S> stateTable,
+			StateTableSnapshot snapshot,
+			KeyGroupRange keyGroupRange) throws IOException {
 
 		final ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos(1024 * 1024);
 		final DataOutputViewStreamWrapper dov = new DataOutputViewStreamWrapper(out);
-		final StateSnapshot.StateKeyGroupWriter keyGroupPartitionedSnapshot = snapshot.getKeyGroupWriter();
+
 		for (Integer keyGroup : keyGroupRange) {
-			keyGroupPartitionedSnapshot.writeStateInKeyGroup(dov, keyGroup);
+			snapshot.writeMappingsInKeyGroup(dov, keyGroup);
 		}
 
 		final ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(out.getBuf());
 		final DataInputViewStreamWrapper div = new DataInputViewStreamWrapper(in);
 
-		final StateSnapshotKeyGroupReader keyGroupReader =
-			StateTableByKeyGroupReaders.readerForVersion(stateTable, KeyedBackendSerializationProxy.VERSION);
+		final StateTableByKeyGroupReader keyGroupReader =
+				StateTableByKeyGroupReaders.readerForVersion(stateTable, KeyedBackendSerializationProxy.VERSION);
 
 		for (Integer keyGroup : keyGroupRange) {
 			keyGroupReader.readMappingsInKeyGroup(div, keyGroup);

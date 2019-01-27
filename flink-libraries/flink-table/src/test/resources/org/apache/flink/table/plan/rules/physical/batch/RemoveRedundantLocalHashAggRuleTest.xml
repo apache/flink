@@ -1,0 +1,85 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testRemoveRedundantLocalHashAgg">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
+SELECT sum(b) FROM r group by a
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+         +- LogicalFilter(condition=[AND(=($0, $3), LIKE($2, 'He%'))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[builtin, default, x, source: [selectedFields=[a, b, c]]]])
+               +- LogicalTableScan(table=[[builtin, default, y, source: [selectedFields=[d, e, f]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$0])
+   +- Calc(select=[a, b])
+      +- HashJoin(where=[=(a, d)], join=[a, b, d], joinType=[InnerJoin], build=[left])
+         :- Exchange(distribution=[hash[a]])
+         :  +- Calc(select=[a, b], where=[LIKE(c, 'He%')])
+         :     +- TableSourceScan(table=[[builtin, default, x, source: [selectedFields=[a, b, c]]]], fields=[a, b, c])
+         +- Exchange(distribution=[hash[d]])
+            +- TableSourceScan(table=[[builtin, default, y, source: [selectedFields=[d]]]], fields=[d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveRedundantLocalHashAgg1">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a, SUM(b) FROM (
+ SELECT * FROM (
+   SELECT a, b, c, RANK() OVER(PARTITION BY a, c ORDER BY b) rk FROM x)
+ WHERE rk <= 10
+) GROUP BY a
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], rk=[$3])
+      +- LogicalFilter(condition=[<=($3, 10)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], rk=[RANK() OVER (PARTITION BY $0, $2 ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+            +- LogicalTableScan(table=[[builtin, default, x, source: [selectedFields=[a, b, c]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$1])
++- Calc(select=[a, b])
+   +- Rank(rankFunction=[RANK], partitionBy=[a,c], orderBy=[b ASC], rankRange=[rankStart=1, rankEnd=10], global=[true], select=[a, b, c])
+      +- Sort(orderBy=[a ASC, c ASC, b ASC])
+         +- Exchange(distribution=[hash[a]])
+            +- Rank(rankFunction=[RANK], partitionBy=[a,c], orderBy=[b ASC], rankRange=[rankStart=1, rankEnd=10], global=[false], select=[a, b, c])
+               +- Sort(orderBy=[a ASC, c ASC, b ASC])
+                  +- TableSourceScan(table=[[builtin, default, x, source: [selectedFields=[a, b, c]]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

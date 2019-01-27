@@ -40,14 +40,17 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.placementconstraint.PlacementConstraint;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
-import org.apache.flink.runtime.taskexecutor.FileType;
+import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
+import org.apache.flink.runtime.util.FileOffsetRange;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
@@ -62,6 +65,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	private final ResourceManagerId resourceManagerId;
 
 	private final ResourceID ownResourceId;
+
+	private final long heartbeatInterval;
 
 	private final String address;
 
@@ -79,7 +84,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	private volatile Function<Tuple4<String, ResourceID, Integer, HardwareDescription>, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction;
 
-	private volatile Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadFunction;
+	private volatile Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadFunction;
 
 	private volatile Consumer<Tuple2<ResourceID, Throwable>> disconnectTaskExecutorConsumer;
 
@@ -93,6 +98,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this(
 			ResourceManagerId.generate(),
 			ResourceID.generate(),
+			10000L,
 			"localhost",
 			"localhost");
 	}
@@ -100,10 +106,12 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	public TestingResourceManagerGateway(
 			ResourceManagerId resourceManagerId,
 			ResourceID resourceId,
+			long heartbeatInterval,
 			String address,
 			String hostname) {
 		this.resourceManagerId = Preconditions.checkNotNull(resourceManagerId);
 		this.ownResourceId = Preconditions.checkNotNull(resourceId);
+		this.heartbeatInterval = heartbeatInterval;
 		this.address = Preconditions.checkNotNull(address);
 		this.hostname = Preconditions.checkNotNull(hostname);
 		this.slotFutureReference = new AtomicReference<>();
@@ -139,7 +147,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this.registerTaskExecutorFunction = registerTaskExecutorFunction;
 	}
 
-	public void setRequestTaskManagerFileUploadFunction(Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadFunction) {
+	public void setRequestTaskManagerFileUploadFunction(Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadFunction) {
 		this.requestTaskManagerFileUploadFunction = requestTaskManagerFileUploadFunction;
 	}
 
@@ -169,8 +177,17 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 		return CompletableFuture.completedFuture(
 			new JobMasterRegistrationSuccess(
+				heartbeatInterval,
 				resourceManagerId,
 				ownResourceId));
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> setPlacementConstraints(
+		JobID jobId,
+		List<PlacementConstraint> constraints,
+		@RpcTimeout Time timeout) {
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
 	@Override
@@ -221,6 +238,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 				new TaskExecutorRegistrationSuccess(
 					new InstanceID(),
 					ownResourceId,
+					heartbeatInterval,
 					new ClusterInformation("localhost", 1234)));
 		}
 	}
@@ -298,7 +316,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	@Override
 	public CompletableFuture<ResourceOverview> requestResourceOverview(Time timeout) {
-		return CompletableFuture.completedFuture(new ResourceOverview(1, 1, 1));
+		return FutureUtils.completedExceptionally(new UnsupportedOperationException("Not yet implemented"));
 	}
 
 	@Override
@@ -307,14 +325,42 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(ResourceID taskManagerId, FileType fileType, Time timeout) {
-		final Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> function = requestTaskManagerFileUploadFunction;
+	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(
+		ResourceID taskManagerId,
+		String filename,
+		FileOffsetRange fileOffsetRange,
+		Time timeout) {
 
+		final Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>> function = requestTaskManagerFileUploadFunction;
 		if (function != null) {
-			return function.apply(Tuple2.of(taskManagerId, fileType));
+			return function.apply(Tuple2.of(taskManagerId, filename));
 		} else {
 			return CompletableFuture.completedFuture(new TransientBlobKey());
 		}
+	}
+
+	@Override
+	public CompletableFuture<Tuple2<TransientBlobKey, Long>> requestTaskManagerFileUploadReturnLength(
+		ResourceID taskManagerId,
+		String filename,
+		FileOffsetRange fileOffsetRange,
+		Time timeout) {
+		return FutureUtils.completedExceptionally(new UnsupportedOperationException("Not yet implemented"));
+	}
+
+	@Override
+	public CompletableFuture<Collection<Tuple2<String, Long>>> requestTaskManagerLogList(ResourceID taskManagerId, Time timeout) {
+		return FutureUtils.completedExceptionally(new UnsupportedOperationException("Not yet implemented"));
+	}
+
+	@Override
+	public CompletableFuture<Tuple2<String, Long>> requestJmx(ResourceID taskManagerId, Time timeout) {
+		return FutureUtils.completedExceptionally(new UnsupportedOperationException("Not yet implemented"));
+	}
+
+	@Override
+	public CompletableFuture<Tuple2<String, String>> requestTmLogAndStdoutFileName(ResourceID taskManagerId, Time timeout) {
+		return FutureUtils.completedExceptionally(new UnsupportedOperationException("Not yet implemented"));
 	}
 
 	@Override

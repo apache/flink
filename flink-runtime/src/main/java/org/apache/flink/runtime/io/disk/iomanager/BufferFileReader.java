@@ -24,7 +24,15 @@ import java.io.IOException;
 
 public interface BufferFileReader extends FileIOChannel {
 
+	/**
+	 * Read data into the buffer, assume each buffer has a 8-bytes header ahead of its data.
+	 */
 	void readInto(Buffer buffer) throws IOException;
+
+	/**
+	 * Read data into the buffer, assume without header.
+	 */
+	void readInto(Buffer buffer, long length) throws IOException;
 
 	void seekToPosition(long position) throws IOException;
 

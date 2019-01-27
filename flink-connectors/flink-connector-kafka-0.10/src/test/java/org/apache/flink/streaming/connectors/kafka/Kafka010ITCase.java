@@ -39,7 +39,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -51,7 +50,6 @@ import java.io.IOException;
  * IT cases for Kafka 0.10 .
  */
 public class Kafka010ITCase extends KafkaConsumerTestBase {
-
 	// ------------------------------------------------------------------------
 	//  Suite of Tests
 	// ------------------------------------------------------------------------
@@ -167,10 +165,16 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		runAutoOffsetRetrievalAndCommitToKafka();
 	}
 
+	// ----- metric ----
+
+	@Test(timeout = 60000)
+	public void testMetrics() throws Throwable {
+		runMetricsTest();
+	}
+
 	/**
 	 * Kafka 0.10 specific test, ensuring Timestamps are properly written to and read from Kafka.
 	 */
-	@Ignore("This test is disabled because of: https://issues.apache.org/jira/browse/FLINK-9217")
 	@Test(timeout = 60000)
 	public void testTimestamps() throws Exception {
 
@@ -206,7 +210,9 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 			}
 		});
 
-		final TypeInformationSerializationSchema<Long> longSer = new TypeInformationSerializationSchema<>(Types.LONG, env.getConfig());
+		final TypeInformationSerializationSchema<Long> longSer = new TypeInformationSerializationSchema<>(Types.LONG,
+				env
+				.getConfig());
 		FlinkKafkaProducer010.FlinkKafkaProducer010Configuration prod = FlinkKafkaProducer010.writeToKafkaWithTimestamps(streamWithTimestamps, topic, new KeyedSerializationSchemaWrapper<>(longSer), standardProps, new FlinkKafkaPartitioner<Long>() {
 			private static final long serialVersionUID = -6730989584364230617L;
 

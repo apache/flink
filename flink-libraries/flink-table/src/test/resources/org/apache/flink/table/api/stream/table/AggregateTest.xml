@@ -1,0 +1,103 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testGroupAggregate">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[TMP_0])
++- StreamExecGroupAggregate(groupBy=[b], select=[b, COUNT(a) AS TMP_0])
+   +- StreamExecExchange(distribution=[hash[b]])
+      +- StreamExecCalc(select=[a, b])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregateWithAverage">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupAggregate(groupBy=[b], select=[b, AVG(a0) AS TMP_0])
++- StreamExecExchange(distribution=[hash[b]])
+   +- StreamExecCalc(select=[b, a, CAST(a) AS a0])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregateWithConstant1">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[4 AS four, TMP_0])
++- StreamExecGroupAggregate(groupBy=[a], select=[a, SUM(b) AS TMP_0])
+   +- StreamExecExchange(distribution=[hash[a]])
+      +- StreamExecCalc(select=[4 AS four, b, a])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregateWithConstant2">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[4 AS four, TMP_0])
++- StreamExecGroupAggregate(groupBy=[b], select=[b, SUM(a) AS TMP_0])
+   +- StreamExecExchange(distribution=[hash[b]])
+      +- StreamExecCalc(select=[4 AS four, a, b])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregateWithExpressionInSelect">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[TMP_0, TMP_1])
++- StreamExecGroupAggregate(groupBy=[d], select=[d, MIN(c) AS TMP_0, AVG(a) AS TMP_1])
+   +- StreamExecExchange(distribution=[hash[d]])
+      +- StreamExecCalc(select=[c, a, MOD(b, 3) AS d])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregateWithFilter">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupAggregate(groupBy=[b], select=[b, SUM(a) AS TMP_0])
++- StreamExecExchange(distribution=[hash[b]])
+   +- StreamExecCalc(select=[CAST(2) AS b, a], where=[=(b, 2)])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupDistinctAggregateWithUDAGG">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[TMP_0, TMP_1])
++- StreamExecGroupAggregate(groupBy=[c], select=[c, WeightedAvg(DISTINCT a, b) AS TMP_0, WeightedAvg(a, b) AS TMP_1])
+   +- StreamExecExchange(distribution=[hash[c]])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupDistinctAggregate">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[TMP_0, TMP_1])
++- StreamExecGroupAggregate(groupBy=[b], select=[b, SUM(DISTINCT a) AS TMP_0, COUNT(DISTINCT c) AS TMP_1])
+   +- StreamExecExchange(distribution=[hash[b]])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

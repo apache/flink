@@ -21,9 +21,9 @@ package org.apache.flink.table.expressions
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.functions.ScalarFunction
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.{ExpressionTestBase, Func3}
-import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.types.Row
 import org.junit.Test
 
@@ -173,7 +173,11 @@ class LiteralTest extends ExpressionTestBase {
       ">\\\\<")
   }
 
-  def testData: Any = {
+  override def functions: Map[String, ScalarFunction] = Map(
+    "Func3" -> Func3
+  )
+
+  override def rowTestData: Row = {
     val testData = new Row(4)
     testData.setField(0, "trUeX_value")
     testData.setField(1, "FALSE_A_value")
@@ -182,7 +186,7 @@ class LiteralTest extends ExpressionTestBase {
     testData
   }
 
-  def typeInfo: TypeInformation[Any] = {
+  override def rowType : RowTypeInfo = {
     new RowTypeInfo(
       Array(
         Types.STRING,
@@ -191,10 +195,6 @@ class LiteralTest extends ExpressionTestBase {
         Types.STRING
       ).asInstanceOf[Array[TypeInformation[_]]],
       Array("trUeX", "FALSE_A", "FALSE_AB", "f4")
-    ).asInstanceOf[TypeInformation[Any]]
+    )
   }
-
-  override def functions: Map[String, ScalarFunction] = Map(
-    "Func3" -> Func3
-  )
 }

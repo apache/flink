@@ -1,0 +1,108 @@
+{
+  "nodes" : [ {
+    "uid" : "table-0",
+    "name" : "SmallTable3",
+    "pact" : "Source",
+    "parallelism" : 1,
+    "maxParallelism" : 1,
+    "vcore" : 0.01,
+    "heap_memory" : 32
+  }, {
+    "uid" : "table-1",
+    "name" : "SourceConversion(table:[builtin, default, SmallTable3], fields:(a, b, c))",
+    "pact" : "Operator",
+    "parallelism" : 12,
+    "maxParallelism" : 32768,
+    "vcore" : 0.3,
+    "heap_memory" : 45
+  }, {
+    "uid" : "table-2",
+    "name" : "Calc(select: (c, a))",
+    "pact" : "Operator",
+    "parallelism" : 1,
+    "maxParallelism" : 32768,
+    "vcore" : 0.3,
+    "heap_memory" : 68
+  }, {
+    "uid" : "table-3",
+    "name" : "LocalHashAggregate(groupBy:(c),select:(c, Partial_SUM(a) AS sum$0),)",
+    "pact" : "Operator",
+    "parallelism" : 1,
+    "maxParallelism" : 32768,
+    "vcore" : 0.3,
+    "heap_memory" : 46,
+    "managed_memory" : 33,
+    "floating_managed_memory" : 4
+  }, {
+    "uid" : "table-4",
+    "name" : "GlobalHashAggregate(groupBy:(c),select:(c, Final_SUM(sum$0) AS sum_a),)",
+    "pact" : "Operator",
+    "parallelism" : 18,
+    "maxParallelism" : 32768,
+    "vcore" : 0.3,
+    "heap_memory" : 46,
+    "managed_memory" : 33,
+    "floating_managed_memory" : 40
+  }, {
+    "uid" : "table-5",
+    "name" : "LocalSortLimit(orderBy: [c ASC], offset: 0, limit: 2)",
+    "pact" : "Operator",
+    "parallelism" : 18,
+    "maxParallelism" : 32768,
+    "vcore" : 0.3,
+    "heap_memory" : 46
+  }, {
+    "uid" : "table-6",
+    "name" : "GlobalSortLimit(orderBy: [c ASC], offset: 0, limit: 2)",
+    "pact" : "Operator",
+    "parallelism" : 1,
+    "maxParallelism" : 32768,
+    "vcore" : 0.3,
+    "heap_memory" : 46
+  }, {
+    "uid" : "table-7",
+    "name" : "Calc(select: (sum_a, c))",
+    "pact" : "Operator",
+    "parallelism" : 1,
+    "maxParallelism" : 32768,
+    "vcore" : 0.3,
+    "heap_memory" : 46
+  }, {
+    "uid" : "table-8",
+    "name" : "csv sink: \\/tmp\\/test",
+    "pact" : "Sink",
+    "parallelism" : 1,
+    "maxParallelism" : 32768,
+    "vcore" : 0.01,
+    "heap_memory" : 32
+  } ],
+  "links" : [ {
+    "source" : "table-0",
+    "target" : "table-1",
+    "ship_strategy" : "REBALANCE"
+  }, {
+    "source" : "table-1",
+    "target" : "table-2",
+    "ship_strategy" : "REBALANCE"
+  }, {
+    "source" : "table-2",
+    "target" : "table-3"
+  }, {
+    "source" : "table-3",
+    "target" : "table-4",
+    "ship_strategy" : "HASH[c]"
+  }, {
+    "source" : "table-4",
+    "target" : "table-5"
+  }, {
+    "source" : "table-5",
+    "target" : "table-6",
+    "ship_strategy" : "GLOBAL"
+  }, {
+    "source" : "table-6",
+    "target" : "table-7"
+  }, {
+    "source" : "table-7",
+    "target" : "table-8"
+  } ]
+}

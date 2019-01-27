@@ -40,9 +40,4 @@ public class JobVertexIdPathParameter extends MessagePathParameter<JobVertexID> 
 	protected String convertToString(JobVertexID value) {
 		return value.toString();
 	}
-
-	@Override
-	public String getDescription() {
-		return "32-character hexadecimal string value that identifies a job vertex.";
-	}
 }

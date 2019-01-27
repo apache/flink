@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.calcite
 
+import org.apache.flink.table.plan.metadata.FlinkDefaultRelMetadataProvider
+
 import org.apache.calcite.plan.{RelOptCluster, RelOptPlanner}
 import org.apache.calcite.rel.metadata.{DefaultRelMetadataProvider, JaninoRelMetadataProvider, RelMetadataQuery}
 import org.apache.calcite.rex.RexBuilder
-import org.apache.flink.table.plan.cost.FlinkDefaultRelMetadataProvider
 
 /**
   * The utility class is to create special [[RelOptCluster]] instance which use
@@ -30,7 +31,7 @@ import org.apache.flink.table.plan.cost.FlinkDefaultRelMetadataProvider
 object FlinkRelOptClusterFactory {
 
   def create(planner: RelOptPlanner, rexBuilder: RexBuilder): RelOptCluster = {
-    val cluster = RelOptCluster.create(planner, rexBuilder)
+    val cluster = FlinkRelOptCluster.create(planner, rexBuilder)
     cluster.setMetadataProvider(FlinkDefaultRelMetadataProvider.INSTANCE)
     // just set metadataProvider is not enough, see
     // https://www.mail-archive.com/dev@calcite.apache.org/msg00930.html

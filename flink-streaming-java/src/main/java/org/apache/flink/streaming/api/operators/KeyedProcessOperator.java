@@ -86,6 +86,11 @@ public class KeyedProcessOperator<K, IN, OUT>
 		context.element = null;
 	}
 
+	@Override
+	public void endInput() throws Exception {
+
+	}
+
 	private void invokeUserFunction(
 			TimeDomain timeDomain,
 			InternalTimer<K, VoidNamespace> timer) throws Exception {
@@ -130,12 +135,6 @@ public class KeyedProcessOperator<K, IN, OUT>
 			}
 
 			output.collect(outputTag, new StreamRecord<>(value, element.getTimestamp()));
-		}
-
-		@Override
-		@SuppressWarnings("unchecked")
-		public K getCurrentKey() {
-			return (K) KeyedProcessOperator.this.getCurrentKey();
 		}
 	}
 

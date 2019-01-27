@@ -98,7 +98,8 @@ public class MethodForwardingTestUtil {
 		I delegate = delegateObjectSupplier.get();
 
 		//check if we need to wrap the delegate object as a spy, or if it is already testable with Mockito.
-		if (!MockUtil.isSpy(delegate) || !MockUtil.isMock(delegate)) {
+		MockUtil mockUtil = new MockUtil();
+		if (!mockUtil.isSpy(delegate) || !mockUtil.isMock(delegate)) {
 			delegate = spy(delegate);
 		}
 

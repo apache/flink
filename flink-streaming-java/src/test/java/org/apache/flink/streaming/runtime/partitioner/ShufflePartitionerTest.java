@@ -35,14 +35,16 @@ public class ShufflePartitionerTest extends StreamPartitionerTest {
 
 	@Test
 	public void testSelectChannelsInterval() {
-		assertSelectedChannelWithSetup(0, 1);
+		assertSelectedChannel(0, 1);
 
-		streamPartitioner.setup(2);
-		assertTrue(0 <= selectChannelAndAssertLength());
-		assertTrue(2 > selectChannelAndAssertLength());
+		assertTrue(0 <= selectChannel(2));
+		assertTrue(2 > selectChannel(2));
 
-		streamPartitioner.setup(1024);
-		assertTrue(0 <= selectChannelAndAssertLength());
-		assertTrue(1024 > selectChannelAndAssertLength());
+		assertTrue(0 <= selectChannel(1024));
+		assertTrue(1024 > selectChannel(1024));
+	}
+
+	private int selectChannel(int numberOfChannels) {
+		return streamPartitioner.selectChannel(streamRecord, numberOfChannels);
 	}
 }

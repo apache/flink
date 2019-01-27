@@ -22,8 +22,7 @@ import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.Weighted
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.Func1
 import org.apache.flink.table.api.Table
-import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
 import org.junit.Test
 
 class OverWindowTest extends TableTestBase {
@@ -32,7 +31,7 @@ class OverWindowTest extends TableTestBase {
     'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
   @Test
-  def testScalarFunctionsOnOverWindow() = {
+  def testScalarFunctionsOnOverWindow(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
     val plusOne = Func1
 
@@ -45,64 +44,22 @@ class OverWindowTest extends TableTestBase {
         "AVG:".toExpr + (weightedAvg('c, 'a) over 'w),
         array(weightedAvg('c, 'a) over 'w, 'a.count over 'w))
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "b", "c", "proctime")
-          ),
-          term("partitionBy", "b"),
-          term("orderBy", "proctime"),
-          term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "b", "c", "proctime",
-               "SUM(a) AS w0$o0",
-               "COUNT(a) AS w0$o1",
-               "WeightedAvgWithRetract(c, a) AS w0$o2")
-        ),
-        term("select",
-             s"Func1$$(w0$$o0) AS d",
-             "EXP(CAST(w0$o1)) AS _c1",
-             "+(w0$o2, 1) AS _c2",
-             "||('AVG:', CAST(w0$o2)) AS _c3",
-             "ARRAY(w0$o2, w0$o1) AS _c4")
-      )
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 
   @Test
-  def testProcTimeBoundedPartitionedRowsOver() = {
+  def testProcTimeBoundedPartitionedRowsOver(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
       .window(Over partitionBy 'b orderBy 'proctime preceding 2.rows following CURRENT_ROW as 'w)
       .select('c, weightedAvg('c, 'a) over 'w)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "b", "c", "proctime")
-          ),
-          term("partitionBy", "b"),
-          term("orderBy", "proctime"),
-          term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "b", "c", "proctime", "WeightedAvgWithRetract(c, a) AS w0$o0")
-        ),
-        term("select", "c", "w0$o0 AS _c1")
-      )
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 
   @Test
-  def testProcTimeBoundedPartitionedRangeOver() = {
+  def testProcTimeBoundedPartitionedRangeOver(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
@@ -110,134 +67,41 @@ class OverWindowTest extends TableTestBase {
         Over partitionBy 'a orderBy 'proctime preceding 2.hours following CURRENT_RANGE as 'w)
       .select('a, weightedAvg('c, 'a) over 'w as 'myAvg)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
-          term("partitionBy", "a"),
-          term("orderBy", "proctime"),
-          term("range", "BETWEEN 7200000 PRECEDING AND CURRENT ROW"),
-          term(
-            "select",
-            "a",
-            "c",
-            "proctime",
-            "WeightedAvgWithRetract(c, a) AS w0$o0"
-          )
-        ),
-        term("select", "a", "w0$o0 AS myAvg")
-      )
-
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 
   @Test
-  def testProcTimeBoundedNonPartitionedRangeOver() = {
+  def testProcTimeBoundedNonPartitionedRangeOver(): Unit = {
     val result = table
       .window(Over orderBy 'proctime preceding 10.second as 'w)
       .select('a, 'c.count over 'w)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
-          term("orderBy", "proctime"),
-          term("range", "BETWEEN 10000 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "proctime", "COUNT(c) AS w0$o0")
-        ),
-        term("select", "a", "w0$o0 AS _c1")
-      )
-
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 
   @Test
-  def testProcTimeBoundedNonPartitionedRowsOver() = {
+  def testProcTimeBoundedNonPartitionedRowsOver(): Unit = {
     val result = table
       .window(Over orderBy 'proctime preceding 2.rows as 'w)
       .select('c, 'a.count over 'w)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
-          term("orderBy", "proctime"),
-          term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "proctime", "COUNT(a) AS w0$o0")
-        ),
-        term("select", "c", "w0$o0 AS _c1")
-      )
-
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 
   @Test
-  def testProcTimeUnboundedPartitionedRangeOver() = {
+  def testProcTimeUnboundedPartitionedRangeOver(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
-      .window(Over partitionBy 'c orderBy 'proctime preceding UNBOUNDED_RANGE as 'w)
+      .window(Over partitionBy 'c orderBy 'proctime preceding UNBOUNDED_RANGE following
+         CURRENT_RANGE as 'w)
       .select('a, 'c, 'a.count over 'w, weightedAvg('c, 'a) over 'w)
 
-    val result2 = table
-      .window(Over partitionBy 'c orderBy 'proctime as 'w)
-      .select('a, 'c, 'a.count over 'w, weightedAvg('c, 'a) over 'w)
-
-    streamUtil.verify2Tables(result, result2)
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
-          term("partitionBy", "c"),
-          term("orderBy", "proctime"),
-          term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term(
-            "select",
-            "a",
-            "c",
-            "proctime",
-            "COUNT(a) AS w0$o0",
-            "WeightedAvgWithRetract(c, a) AS w0$o1"
-          )
-        ),
-        term(
-          "select",
-          "a",
-          "c",
-          "w0$o0 AS _c2",
-          "w0$o1 AS _c3"
-        )
-      )
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 
   @Test
-  def testProcTimeUnboundedPartitionedRowsOver() = {
+  def testProcTimeUnboundedPartitionedRowsOver(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
@@ -245,97 +109,30 @@ class OverWindowTest extends TableTestBase {
         Over partitionBy 'c orderBy 'proctime preceding UNBOUNDED_ROW following CURRENT_ROW as 'w)
       .select('c, 'a.count over 'w, weightedAvg('c, 'a) over 'w)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
-          term("partitionBy", "c"),
-          term("orderBy", "proctime"),
-          term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "proctime",
-               "COUNT(a) AS w0$o0",
-               "WeightedAvgWithRetract(c, a) AS w0$o1")
-        ),
-        term("select", "c", "w0$o0 AS _c1", "w0$o1 AS _c2")
-      )
-
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 
   @Test
-  def testProcTimeUnboundedNonPartitionedRangeOver() = {
+  def testProcTimeUnboundedNonPartitionedRangeOver(): Unit = {
     val result = table
       .window(
         Over orderBy 'proctime preceding UNBOUNDED_RANGE as 'w)
       .select('a, 'c, 'a.count over 'w, 'a.sum over 'w)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
-          term("orderBy", "proctime"),
-          term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term(
-            "select",
-            "a",
-            "c",
-            "proctime",
-            "COUNT(a) AS w0$o0",
-            "SUM(a) AS w0$o1"
-          )
-        ),
-        term(
-          "select",
-          "a",
-          "c",
-          "w0$o0 AS _c2",
-          "w0$o1 AS _c3"
-        )
-      )
-
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 
   @Test
-  def testProcTimeUnboundedNonPartitionedRowsOver() = {
+  def testProcTimeUnboundedNonPartitionedRowsOver(): Unit = {
     val result = table
       .window(Over orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
       .select('c, 'a.count over 'w)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
-          term("orderBy", "proctime"),
-          term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "proctime", "COUNT(a) AS w0$o0")
-        ),
-        term("select", "c", "w0$o0 AS _c1")
-      )
-
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 
   @Test
-  def testRowTimeBoundedPartitionedRowsOver() = {
+  def testRowTimeBoundedPartitionedRowsOver(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
@@ -343,31 +140,11 @@ class OverWindowTest extends TableTestBase {
         Over partitionBy 'b orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
       .select('c, 'b.count over 'w, weightedAvg('c, 'a) over 'w as 'wAvg)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "b", "c", "rowtime")
-          ),
-          term("partitionBy", "b"),
-          term("orderBy", "rowtime"),
-          term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "b", "c", "rowtime",
-               "COUNT(b) AS w0$o0",
-               "WeightedAvgWithRetract(c, a) AS w0$o1")
-        ),
-        term("select", "c", "w0$o0 AS _c1", "w0$o1 AS wAvg")
-      )
-
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 
   @Test
-  def testRowTimeBoundedPartitionedRangeOver() = {
+  def testRowTimeBoundedPartitionedRangeOver(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
@@ -375,88 +152,29 @@ class OverWindowTest extends TableTestBase {
         Over partitionBy 'a orderBy 'rowtime preceding 2.hours following CURRENT_RANGE as 'w)
       .select('a, 'c.avg over 'w, weightedAvg('c, 'a) over 'w as 'wAvg)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
-          term("partitionBy", "a"),
-          term("orderBy", "rowtime"),
-          term("range", "BETWEEN 7200000 PRECEDING AND CURRENT ROW"),
-          term(
-            "select",
-            "a",
-            "c",
-            "rowtime",
-            "AVG(c) AS w0$o0",
-            "WeightedAvgWithRetract(c, a) AS w0$o1"
-          )
-        ),
-        term("select", "a", "w0$o0 AS _c1", "w0$o1 AS wAvg")
-      )
-
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 
   @Test
-  def testRowTimeBoundedNonPartitionedRangeOver() = {
+  def testRowTimeBoundedNonPartitionedRangeOver(): Unit = {
     val result = table
       .window(Over orderBy 'rowtime preceding 10.second as 'w)
       .select('a, 'c.count over 'w)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
-          term("orderBy", "rowtime"),
-          term("range", "BETWEEN 10000 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "rowtime", "COUNT(c) AS w0$o0")
-        ),
-        term("select", "a", "w0$o0 AS _c1")
-      )
-
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 
   @Test
-  def testRowTimeBoundedNonPartitionedRowsOver() = {
+  def testRowTimeBoundedNonPartitionedRowsOver(): Unit = {
     val result = table
       .window(Over orderBy 'rowtime preceding 2.rows as 'w)
       .select('c, 'a.count over 'w)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
-          term("orderBy", "rowtime"),
-          term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "rowtime", "COUNT(a) AS w0$o0")
-        ),
-        term("select", "c", "w0$o0 AS _c1")
-      )
-
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 
   @Test
-  def testRowTimeUnboundedPartitionedRangeOver() = {
+  def testRowTimeUnboundedPartitionedRangeOver(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
@@ -464,48 +182,11 @@ class OverWindowTest extends TableTestBase {
          CURRENT_RANGE as 'w)
       .select('a, 'c, 'a.count over 'w, weightedAvg('c, 'a) over 'w as 'wAvg)
 
-    val result2 = table
-      .window(Over partitionBy 'c orderBy 'rowtime as 'w)
-      .select('a, 'c, 'a.count over 'w, weightedAvg('c, 'a) over 'w as 'wAvg)
-
-    streamUtil.verify2Tables(result, result2)
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
-          term("partitionBy", "c"),
-          term("orderBy", "rowtime"),
-          term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term(
-            "select",
-            "a",
-            "c",
-            "rowtime",
-            "COUNT(a) AS w0$o0",
-            "WeightedAvgWithRetract(c, a) AS w0$o1"
-          )
-        ),
-        term(
-          "select",
-          "a",
-          "c",
-          "w0$o0 AS _c2",
-          "w0$o1 AS wAvg"
-        )
-      )
-
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 
   @Test
-  def testRowTimeUnboundedPartitionedRowsOver() = {
+  def testRowTimeUnboundedPartitionedRowsOver(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
@@ -513,93 +194,26 @@ class OverWindowTest extends TableTestBase {
          CURRENT_ROW as 'w)
       .select('c, 'a.count over 'w, weightedAvg('c, 'a) over 'w as 'wAvg)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
-          term("partitionBy", "c"),
-          term("orderBy", "rowtime"),
-          term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "rowtime",
-               "COUNT(a) AS w0$o0",
-               "WeightedAvgWithRetract(c, a) AS w0$o1")
-        ),
-        term("select", "c", "w0$o0 AS _c1", "w0$o1 AS wAvg")
-      )
-
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 
   @Test
-  def testRowTimeUnboundedNonPartitionedRangeOver() = {
+  def testRowTimeUnboundedNonPartitionedRangeOver(): Unit = {
     val result = table
       .window(
         Over orderBy 'rowtime preceding UNBOUNDED_RANGE as 'w)
       .select('a, 'c, 'a.count over 'w, 'a.sum over 'w)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
-          term("orderBy", "rowtime"),
-          term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term(
-            "select",
-            "a",
-            "c",
-            "rowtime",
-            "COUNT(a) AS w0$o0",
-            "SUM(a) AS w0$o1"
-          )
-        ),
-        term(
-          "select",
-          "a",
-          "c",
-          "w0$o0 AS _c2",
-          "w0$o1 AS _c3"
-        )
-      )
-
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 
   @Test
-  def testRowTimeUnboundedNonPartitionedRowsOver() = {
+  def testRowTimeUnboundedNonPartitionedRowsOver(): Unit = {
     val result = table
       .window(Over orderBy 'rowtime preceding UNBOUNDED_ROW as 'w)
       .select('c, 'a.count over 'w)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
-          term("orderBy", "rowtime"),
-          term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "rowtime", "COUNT(a) AS w0$o0")
-        ),
-        term("select", "c", "w0$o0 AS _c1")
-      )
-
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifyPlan(result)
   }
 }
 

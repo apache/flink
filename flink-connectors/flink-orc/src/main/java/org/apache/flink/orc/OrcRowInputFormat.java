@@ -29,18 +29,18 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.common.type.HiveDecimal;
-import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
-import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
-import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
-import org.apache.hadoop.hive.ql.io.sarg.SearchArgumentFactory;
-import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import org.apache.orc.OrcConf;
 import org.apache.orc.OrcFile;
 import org.apache.orc.Reader;
 import org.apache.orc.RecordReader;
 import org.apache.orc.StripeInformation;
 import org.apache.orc.TypeDescription;
+import org.apache.orc.storage.common.type.HiveDecimal;
+import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
+import org.apache.orc.storage.ql.io.sarg.PredicateLeaf;
+import org.apache.orc.storage.ql.io.sarg.SearchArgument;
+import org.apache.orc.storage.ql.io.sarg.SearchArgumentFactory;
+import org.apache.orc.storage.serde2.io.HiveDecimalWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -303,6 +303,7 @@ public class OrcRowInputFormat extends FileInputFormat<Row> implements ResultTyp
 
 	@Override
 	public void closeInputFormat() throws IOException {
+		this.rows = null;
 		this.rows = null;
 		this.schema = null;
 		this.rowBatch = null;

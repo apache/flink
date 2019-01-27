@@ -18,46 +18,34 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
+import org.apache.flink.table.api.types.ArrayType;
+import org.apache.flink.table.api.types.DataTypes;
+import org.apache.flink.table.api.types.DecimalType;
+import org.apache.flink.table.api.types.InternalType;
 
 import java.sql.Types;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.BIG_DEC_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.BOOLEAN_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.BYTE_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.DOUBLE_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.FLOAT_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.SHORT_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
-import static org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
-
 class JDBCTypeUtil {
-	private static final Map<TypeInformation<?>, Integer> TYPE_MAPPING;
+	private static final Map<InternalType, Integer> TYPE_MAPPING;
 	private static final Map<Integer, String> SQL_TYPE_NAMES;
 
 	static {
-		HashMap<TypeInformation<?>, Integer> m = new HashMap<>();
-		m.put(STRING_TYPE_INFO, Types.VARCHAR);
-		m.put(BOOLEAN_TYPE_INFO, Types.BOOLEAN);
-		m.put(BYTE_TYPE_INFO, Types.TINYINT);
-		m.put(SHORT_TYPE_INFO, Types.SMALLINT);
-		m.put(INT_TYPE_INFO, Types.INTEGER);
-		m.put(LONG_TYPE_INFO, Types.BIGINT);
-		m.put(FLOAT_TYPE_INFO, Types.FLOAT);
-		m.put(DOUBLE_TYPE_INFO, Types.DOUBLE);
-		m.put(SqlTimeTypeInfo.DATE, Types.DATE);
-		m.put(SqlTimeTypeInfo.TIME, Types.TIME);
-		m.put(SqlTimeTypeInfo.TIMESTAMP, Types.TIMESTAMP);
-		m.put(BIG_DEC_TYPE_INFO, Types.DECIMAL);
-		m.put(BYTE_PRIMITIVE_ARRAY_TYPE_INFO, Types.BINARY);
+		HashMap<InternalType, Integer> m = new HashMap<>();
+		m.put(DataTypes.STRING, Types.VARCHAR);
+		m.put(DataTypes.BOOLEAN, Types.BOOLEAN);
+		m.put(DataTypes.BYTE, Types.TINYINT);
+		m.put(DataTypes.SHORT, Types.SMALLINT);
+		m.put(DataTypes.INT, Types.INTEGER);
+		m.put(DataTypes.LONG, Types.BIGINT);
+		m.put(DataTypes.FLOAT, Types.FLOAT);
+		m.put(DataTypes.DOUBLE, Types.DOUBLE);
+		m.put(DataTypes.DATE, Types.DATE);
+		m.put(DataTypes.TIME, Types.TIME);
+		m.put(DataTypes.TIMESTAMP, Types.TIMESTAMP);
+		m.put(DataTypes.BYTE_ARRAY, Types.BINARY);
 		TYPE_MAPPING = Collections.unmodifiableMap(m);
 
 		HashMap<Integer, String> names = new HashMap<>();
@@ -81,12 +69,14 @@ class JDBCTypeUtil {
 	private JDBCTypeUtil() {
 	}
 
-	static int typeInformationToSqlType(TypeInformation<?> type) {
+	static int typeInformationToSqlType(InternalType type) {
 
 		if (TYPE_MAPPING.containsKey(type)) {
 			return TYPE_MAPPING.get(type);
-		} else if (type instanceof ObjectArrayTypeInfo || type instanceof PrimitiveArrayTypeInfo) {
+		} else if (type instanceof ArrayType) {
 			return Types.ARRAY;
+		} else if (type instanceof DecimalType){
+			return Types.DECIMAL;
 		} else {
 			throw new IllegalArgumentException("Unsupported type: " + type);
 		}
@@ -96,7 +86,7 @@ class JDBCTypeUtil {
 		return SQL_TYPE_NAMES.get(type);
 	}
 
-	static String getTypeName(TypeInformation<?> type) {
+	static String getTypeName(InternalType type) {
 		return SQL_TYPE_NAMES.get(typeInformationToSqlType(type));
 	}
 

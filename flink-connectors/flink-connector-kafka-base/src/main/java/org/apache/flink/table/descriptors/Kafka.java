@@ -246,6 +246,9 @@ public class Kafka extends ConnectorDescriptor {
 		return this;
 	}
 
+	/**
+	 * Internal method for connector properties conversion.
+	 */
 	@Override
 	protected Map<String, String> toConnectorProperties() {
 		final DescriptorProperties properties = new DescriptorProperties();

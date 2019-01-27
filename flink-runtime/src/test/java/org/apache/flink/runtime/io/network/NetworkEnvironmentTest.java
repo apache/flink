@@ -21,15 +21,18 @@ package org.apache.flink.runtime.io.network;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
-import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.InternalResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.consumer.PartitionRequestManager;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
@@ -42,9 +45,12 @@ import org.junit.runners.Parameterized;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -77,60 +83,66 @@ public class NetworkEnvironmentTest {
 	 */
 	@Test
 	public void testRegisterTaskUsesBoundedBuffers() throws Exception {
+		int networkBuffersPerChannel = 2;
+		int extraNetworkBuffersPerGate = 8;
+		int networkBuffersPerBlockingChannel = 128;
+		int extraNetworkBuffersPerBlockingGate = 0;
+		int networkBuffersPerSubpartition = 2;
+
 		final NetworkEnvironment network = new NetworkEnvironment(
-			numBuffers, memorySegmentSize, 0, 0, 2, 8, enableCreditBasedFlowControl);
+			new NetworkBufferPool(numBuffers, memorySegmentSize),
+			new LocalConnectionManager(),
+			new ResultPartitionManager(),
+			new TaskEventDispatcher(),
+			new KvStateRegistry(),
+			null,
+			null,
+			IOManager.IOMode.SYNC,
+			0,
+			0,
+			networkBuffersPerChannel,
+			extraNetworkBuffersPerGate,
+			networkBuffersPerBlockingChannel,
+			extraNetworkBuffersPerBlockingGate,
+			networkBuffersPerSubpartition,
+			enableCreditBasedFlowControl);
 
 		// result partitions
-		ResultPartition rp1 = createResultPartition(ResultPartitionType.PIPELINED, 2);
-		ResultPartition rp2 = createResultPartition(ResultPartitionType.BLOCKING, 2);
-		ResultPartition rp3 = createResultPartition(ResultPartitionType.PIPELINED_BOUNDED, 2);
-		ResultPartition rp4 = createResultPartition(ResultPartitionType.PIPELINED_BOUNDED, 8);
-		final ResultPartition[] resultPartitions = new ResultPartition[] {rp1, rp2, rp3, rp4};
+		InternalResultPartition rp1 = createResultPartition(ResultPartitionType.PIPELINED, 2);
+		InternalResultPartition rp2 = createResultPartition(ResultPartitionType.BLOCKING, 2);
+		InternalResultPartition rp3 = createResultPartition(ResultPartitionType.PIPELINED, 2);
+		InternalResultPartition rp4 = createResultPartition(ResultPartitionType.PIPELINED, 8);
+		final InternalResultPartition[] internalResultPartitions = new InternalResultPartition[] {rp1, rp2, rp3, rp4};
 
 		// input gates
 		SingleInputGate ig1 = createSingleInputGate(ResultPartitionType.PIPELINED, 2);
 		SingleInputGate ig2 = createSingleInputGate(ResultPartitionType.BLOCKING, 2);
-		SingleInputGate ig3 = createSingleInputGate(ResultPartitionType.PIPELINED_BOUNDED, 2);
-		SingleInputGate ig4 = createSingleInputGate(ResultPartitionType.PIPELINED_BOUNDED, 8);
+		SingleInputGate ig3 = createSingleInputGate(ResultPartitionType.PIPELINED, 2);
+		SingleInputGate ig4 = createSingleInputGate(ResultPartitionType.PIPELINED, 8);
 		final SingleInputGate[] inputGates = new SingleInputGate[] {ig1, ig2, ig3, ig4};
 
 		// overall task to register
 		Task task = mock(Task.class);
-		when(task.getProducedPartitions()).thenReturn(resultPartitions);
+		when(task.getInternalPartitions()).thenReturn(Arrays.asList(internalResultPartitions));
 		when(task.getAllInputGates()).thenReturn(inputGates);
 
 		network.registerTask(task);
 
 		// verify buffer pools for the result partitions
-		assertEquals(rp1.getNumberOfSubpartitions(), rp1.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(rp2.getNumberOfSubpartitions(), rp2.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(rp3.getNumberOfSubpartitions(), rp3.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(rp4.getNumberOfSubpartitions(), rp4.getBufferPool().getNumberOfRequiredMemorySegments());
-
-		assertEquals(Integer.MAX_VALUE, rp1.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(Integer.MAX_VALUE, rp2.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(2 * 2 + 8, rp3.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(8 * 2 + 8, rp4.getBufferPool().getMaxNumberOfMemorySegments());
+		for (InternalResultPartition rp : internalResultPartitions) {
+			assertEquals(rp.getNumberOfSubpartitions() * networkBuffersPerSubpartition + extraNetworkBuffersPerGate, rp.getBufferPool().getNumberOfRequiredMemorySegments());
+			assertEquals(rp.getNumberOfSubpartitions() * networkBuffersPerSubpartition + extraNetworkBuffersPerGate, rp.getBufferPool().getMaxNumberOfMemorySegments());
+		}
 
 		// verify buffer pools for the input gates (NOTE: credit-based uses minimum required buffers
 		// for exclusive buffers not managed by the buffer pool)
-		assertEquals(enableCreditBasedFlowControl ? 0 : 2, ig1.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 0 : 2, ig2.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 0 : 2, ig3.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 0 : 8, ig4.getBufferPool().getNumberOfRequiredMemorySegments());
+		for (SingleInputGate ig: inputGates) {
+			assertEquals(enableCreditBasedFlowControl ? 0 : ig.getNumberOfInputChannels(), ig.getBufferPool().getNumberOfRequiredMemorySegments());
+			assertEquals(enableCreditBasedFlowControl ? extraNetworkBuffersPerGate : networkBuffersPerChannel * ig.getNumberOfInputChannels() + extraNetworkBuffersPerGate, ig.getBufferPool().getMaxNumberOfMemorySegments());
+			verify(ig, times(enableCreditBasedFlowControl ? 1 : 0)).setNetworkProperties(any(NetworkBufferPool.class), anyInt());
+		}
 
-		assertEquals(Integer.MAX_VALUE, ig1.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(Integer.MAX_VALUE, ig2.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 8 : 2 * 2 + 8, ig3.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 8 : 8 * 2 + 8, ig4.getBufferPool().getMaxNumberOfMemorySegments());
-
-		int invokations = enableCreditBasedFlowControl ? 1 : 0;
-		verify(ig1, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig2, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig3, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig4, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-
-		for (ResultPartition rp : resultPartitions) {
+		for (InternalResultPartition rp : internalResultPartitions) {
 			rp.release();
 		}
 		for (SingleInputGate ig : inputGates) {
@@ -150,10 +162,10 @@ public class NetworkEnvironmentTest {
 		// outgoing: 1 buffer per channel (always)
 		if (!enableCreditBasedFlowControl) {
 			// incoming: 1 buffer per channel
-			bufferCount = 20;
+			bufferCount = 10 + 10 * 2 + 8 * 4;
 		} else {
 			// incoming: 2 exclusive buffers per channel
-			bufferCount = 10 + 10 * TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
+			bufferCount = 10 * 2 + 2 * 128 + 8 * 3 + 2 * 8;
 		}
 
 		testRegisterTaskWithLimitedBuffers(bufferCount);
@@ -181,23 +193,44 @@ public class NetworkEnvironmentTest {
 	}
 
 	private void testRegisterTaskWithLimitedBuffers(int bufferPoolSize) throws Exception {
+		int networkBuffersPerChannel = 2;
+		int extraNetworkBuffersPerGate = 8;
+		int networkBuffersPerBlockingChannel = 128;
+		int extraNetworkBuffersPerBlockingGate = 0;
+		int networkBuffersPerSubpartition = 2;
+
 		final NetworkEnvironment network = new NetworkEnvironment(
-			bufferPoolSize, memorySegmentSize, 0, 0, 2, 8, enableCreditBasedFlowControl);
+			new NetworkBufferPool(bufferPoolSize, memorySegmentSize),
+			new LocalConnectionManager(),
+			new ResultPartitionManager(),
+			new TaskEventDispatcher(),
+			new KvStateRegistry(),
+			null,
+			null,
+			IOManager.IOMode.SYNC,
+			0,
+			0,
+			networkBuffersPerChannel,
+			extraNetworkBuffersPerGate,
+			networkBuffersPerBlockingChannel,
+			extraNetworkBuffersPerBlockingGate,
+			networkBuffersPerSubpartition,
+			enableCreditBasedFlowControl);
 
 		final ConnectionManager connManager = createDummyConnectionManager();
 
 		// result partitions
-		ResultPartition rp1 = createResultPartition(ResultPartitionType.PIPELINED, 2);
-		ResultPartition rp2 = createResultPartition(ResultPartitionType.BLOCKING, 2);
-		ResultPartition rp3 = createResultPartition(ResultPartitionType.PIPELINED_BOUNDED, 2);
-		ResultPartition rp4 = createResultPartition(ResultPartitionType.PIPELINED_BOUNDED, 4);
-		final ResultPartition[] resultPartitions = new ResultPartition[] {rp1, rp2, rp3, rp4};
+		InternalResultPartition rp1 = createResultPartition(ResultPartitionType.PIPELINED, 2);
+		InternalResultPartition rp2 = createResultPartition(ResultPartitionType.BLOCKING, 2);
+		InternalResultPartition rp3 = createResultPartition(ResultPartitionType.PIPELINED, 2);
+		InternalResultPartition rp4 = createResultPartition(ResultPartitionType.PIPELINED, 4);
+		final InternalResultPartition[] internalResultPartitions = new InternalResultPartition[] {rp1, rp2, rp3, rp4};
 
 		// input gates
 		SingleInputGate ig1 = createSingleInputGate(ResultPartitionType.PIPELINED, 2);
 		SingleInputGate ig2 = createSingleInputGate(ResultPartitionType.BLOCKING, 2);
-		SingleInputGate ig3 = createSingleInputGate(ResultPartitionType.PIPELINED_BOUNDED, 2);
-		SingleInputGate ig4 = createSingleInputGate(ResultPartitionType.PIPELINED_BOUNDED, 4);
+		SingleInputGate ig3 = createSingleInputGate(ResultPartitionType.PIPELINED, 2);
+		SingleInputGate ig4 = createSingleInputGate(ResultPartitionType.PIPELINED, 4);
 		final SingleInputGate[] inputGates = new SingleInputGate[] {ig1, ig2, ig3, ig4};
 
 		// set up remote input channels for the exclusive buffers of the credit-based flow control
@@ -220,41 +253,32 @@ public class NetworkEnvironmentTest {
 
 		// overall task to register
 		Task task = mock(Task.class);
-		when(task.getProducedPartitions()).thenReturn(resultPartitions);
+		when(task.getInternalPartitions()).thenReturn(Arrays.asList(internalResultPartitions));
 		when(task.getAllInputGates()).thenReturn(inputGates);
 
 		network.registerTask(task);
 
-		// verify buffer pools for the result partitions
-		assertEquals(Integer.MAX_VALUE, rp1.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(Integer.MAX_VALUE, rp2.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(2 * 2 + 8, rp3.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(4 * 2 + 8, rp4.getBufferPool().getMaxNumberOfMemorySegments());
-
-		for (ResultPartition rp : resultPartitions) {
-			assertEquals(rp.getNumberOfSubpartitions(), rp.getBufferPool().getNumberOfRequiredMemorySegments());
-			assertEquals(rp.getNumberOfSubpartitions(), rp.getBufferPool().getNumBuffers());
+		for (InternalResultPartition rp : internalResultPartitions) {
+			assertEquals(rp.getNumberOfSubpartitions() * networkBuffersPerSubpartition + extraNetworkBuffersPerGate, rp.getBufferPool().getNumberOfRequiredMemorySegments());
+			assertEquals(rp.getNumberOfSubpartitions() * networkBuffersPerSubpartition + extraNetworkBuffersPerGate, rp.getBufferPool().getNumBuffers());
+			assertEquals(rp.getNumberOfSubpartitions() * networkBuffersPerSubpartition + extraNetworkBuffersPerGate, rp.getBufferPool().getMaxNumberOfMemorySegments());
 		}
 
 		// verify buffer pools for the input gates (NOTE: credit-based uses minimum required buffers
 		// for exclusive buffers not managed by the buffer pool)
-		assertEquals(enableCreditBasedFlowControl ? 0 : 2, ig1.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 0 : 2, ig2.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 0 : 2, ig3.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 0 : 4, ig4.getBufferPool().getNumberOfRequiredMemorySegments());
+		for (SingleInputGate ig: inputGates) {
+			assertEquals(enableCreditBasedFlowControl ? 0 : ig.getNumberOfInputChannels(), ig.getBufferPool().getNumberOfRequiredMemorySegments());
+			assertEquals(enableCreditBasedFlowControl ? extraNetworkBuffersPerGate : networkBuffersPerChannel * ig.getNumberOfInputChannels() + extraNetworkBuffersPerGate, ig.getBufferPool().getMaxNumberOfMemorySegments());
+			verify(ig, times(enableCreditBasedFlowControl ? 1 : 0)).setNetworkProperties(any(NetworkBufferPool.class), anyInt());
+		}
 
-		assertEquals(Integer.MAX_VALUE, ig1.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(Integer.MAX_VALUE, ig2.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 8 : 2 * 2 + 8, ig3.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 8 : 4 * 2 + 8, ig4.getBufferPool().getMaxNumberOfMemorySegments());
+		if (enableCreditBasedFlowControl) {
+			for (SingleInputGate ig : inputGates) {
+				ig.assignExclusiveSegments();
+			}
+		}
 
-		int invokations = enableCreditBasedFlowControl ? 1 : 0;
-		verify(ig1, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig2, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig3, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig4, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-
-		for (ResultPartition rp : resultPartitions) {
+		for (InternalResultPartition rp : internalResultPartitions) {
 			rp.release();
 		}
 		for (SingleInputGate ig : inputGates) {
@@ -264,7 +288,81 @@ public class NetworkEnvironmentTest {
 	}
 
 	/**
-	 * Helper to create simple {@link ResultPartition} instance for use by a {@link Task} inside
+	 * Verifies that {@link NetworkEnvironment#registerTask(Task)} sets up buffer pool instances for
+	 * various types of input and output channels when the per-gate parameters are negative.
+	 */
+	@Test
+	public void registerTaskWithNegativeExtraGateBuffer() throws Exception {
+		int networkBuffersPerChannel = 2;
+		int extraNetworkBuffersPerGate = -1;
+		int networkBuffersPerBlockingChannel = 128;
+		int extraNetworkBuffersPerBlockingGate = -1;
+		int networkBuffersPerSubpartition = 2;
+
+		final NetworkEnvironment network = new NetworkEnvironment(
+			new NetworkBufferPool(numBuffers, memorySegmentSize),
+			new LocalConnectionManager(),
+			new ResultPartitionManager(),
+			new TaskEventDispatcher(),
+			new KvStateRegistry(),
+			null,
+			null,
+			IOManager.IOMode.SYNC,
+			0,
+			0,
+			networkBuffersPerChannel,
+			extraNetworkBuffersPerGate,
+			networkBuffersPerBlockingChannel,
+			extraNetworkBuffersPerBlockingGate,
+			networkBuffersPerSubpartition,
+			enableCreditBasedFlowControl);
+
+		// result partitions
+		InternalResultPartition rp1 = createResultPartition(ResultPartitionType.PIPELINED, 2);
+		InternalResultPartition rp2 = createResultPartition(ResultPartitionType.BLOCKING, 2);
+		InternalResultPartition rp3 = createResultPartition(ResultPartitionType.PIPELINED, 2);
+		InternalResultPartition rp4 = createResultPartition(ResultPartitionType.PIPELINED, 8);
+		final InternalResultPartition[] internalResultPartitions = new InternalResultPartition[] {rp1, rp2, rp3, rp4};
+
+		// input gates
+		SingleInputGate ig1 = createSingleInputGate(ResultPartitionType.PIPELINED, 2);
+		SingleInputGate ig2 = createSingleInputGate(ResultPartitionType.BLOCKING, 2);
+		SingleInputGate ig3 = createSingleInputGate(ResultPartitionType.PIPELINED, 2);
+		SingleInputGate ig4 = createSingleInputGate(ResultPartitionType.PIPELINED, 8);
+		final SingleInputGate[] inputGates = new SingleInputGate[] {ig1, ig2, ig3, ig4};
+
+		// overall task to register
+		Task task = mock(Task.class);
+		when(task.getInternalPartitions()).thenReturn(Arrays.asList(internalResultPartitions));
+		when(task.getAllInputGates()).thenReturn(inputGates);
+
+		network.registerTask(task);
+
+		// verify buffer pools for the result partitions
+		for (InternalResultPartition rp: internalResultPartitions) {
+			assertEquals(2 * rp.getNumberOfSubpartitions() * networkBuffersPerSubpartition, rp.getBufferPool().getNumberOfRequiredMemorySegments());
+			assertEquals(2 * rp.getNumberOfSubpartitions() * networkBuffersPerSubpartition, rp.getBufferPool().getMaxNumberOfMemorySegments());
+		}
+
+		// verify buffer pools for the input gates (NOTE: credit-based uses minimum required buffers
+		// for exclusive buffers not managed by the buffer pool)
+		for (SingleInputGate ig: inputGates) {
+			assertEquals(enableCreditBasedFlowControl ? 0 : ig.getNumberOfInputChannels(), ig.getBufferPool().getNumberOfRequiredMemorySegments());
+			assertEquals(enableCreditBasedFlowControl ? networkBuffersPerChannel * ig.getNumberOfInputChannels() : 2 * networkBuffersPerChannel * ig.getNumberOfInputChannels(), ig.getBufferPool().getMaxNumberOfMemorySegments());
+			verify(ig, times(enableCreditBasedFlowControl ? 1 : 0)).setNetworkProperties(any(NetworkBufferPool.class), anyInt());
+		}
+
+		for (InternalResultPartition rp : internalResultPartitions) {
+			rp.release();
+		}
+		for (SingleInputGate ig : inputGates) {
+			ig.releaseAllResources();
+		}
+		network.shutdown();
+	}
+
+	/**
+	 * Helper to create simple {@link InternalResultPartition} instance for use by a {@link Task} inside
 	 * {@link NetworkEnvironment#registerTask(Task)}.
 	 *
 	 * @param partitionType
@@ -275,9 +373,9 @@ public class NetworkEnvironmentTest {
 	 * @return instance with minimal data set and some mocks so that it is useful for {@link
 	 * NetworkEnvironment#registerTask(Task)}
 	 */
-	private static ResultPartition createResultPartition(
+	private static InternalResultPartition createResultPartition(
 			final ResultPartitionType partitionType, final int channels) {
-		return new ResultPartition(
+		return new InternalResultPartition(
 			"TestTask-" + partitionType + ":" + channels,
 			mock(TaskActions.class),
 			new JobID(),
@@ -286,7 +384,7 @@ public class NetworkEnvironmentTest {
 			channels,
 			channels,
 			mock(ResultPartitionManager.class),
-			new NoOpResultPartitionConsumableNotifier(),
+			mock(ResultPartitionConsumableNotifier.class),
 			mock(IOManager.class),
 			false);
 	}
@@ -313,23 +411,26 @@ public class NetworkEnvironmentTest {
 			channels,
 			mock(TaskActions.class),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-			enableCreditBasedFlowControl));
+			new PartitionRequestManager(Integer.MAX_VALUE, 1),
+			Executors.newSingleThreadExecutor(),
+			enableCreditBasedFlowControl,
+			false));
 	}
 
 	private static void createRemoteInputChannel(
 			SingleInputGate inputGate,
 			int channelIndex,
-			ResultPartition resultPartition,
+			InternalResultPartition internalResultPartition,
 			ConnectionManager connManager) {
 		RemoteInputChannel channel = new RemoteInputChannel(
 			inputGate,
 			channelIndex,
-			resultPartition.getPartitionId(),
+			internalResultPartition.getPartitionId(),
 			mock(ConnectionID.class),
 			connManager,
 			0,
 			0,
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
-		inputGate.setInputChannel(resultPartition.getPartitionId().getPartitionId(), channel);
+		inputGate.setInputChannel(internalResultPartition.getPartitionId().getPartitionId(), channel);
 	}
 }

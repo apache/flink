@@ -1,13 +1,12 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -35,9 +34,9 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.COMMITTED_OFFSETS_METRICS_GAUGE;
@@ -80,7 +79,7 @@ public abstract class AbstractFetcher<T, KPH> {
 
 	/**
 	 * Queue of partitions that are not yet assigned to any Kafka clients for consuming.
-	 * Kafka version-specific implementations of {@link AbstractFetcher#runFetchLoop()}
+	 * Kafka version-specific implementations of {@link AbstractFetcher#runFetchLoop(boolean)}
 	 * should continuously poll this queue for unassigned partitions, and start consuming
 	 * them accordingly.
 	 *
@@ -138,6 +137,7 @@ public abstract class AbstractFetcher<T, KPH> {
 	protected AbstractFetcher(
 			SourceContext<T> sourceContext,
 			Map<KafkaTopicPartition, Long> seedPartitionsWithInitialOffsets,
+			Map<KafkaTopicPartition, Long> seedPartitionsToEndOffsets,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			ProcessingTimeService processingTimeProvider,
@@ -178,6 +178,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		// initialize subscribed partition states with seed partitions
 		this.subscribedPartitionStates = createPartitionStateHolders(
 				seedPartitionsWithInitialOffsets,
+				seedPartitionsToEndOffsets,
 				timestampWatermarkMode,
 				watermarksPeriodic,
 				watermarksPunctuated,
@@ -240,8 +241,6 @@ public abstract class AbstractFetcher<T, KPH> {
 		}
 
 		for (KafkaTopicPartitionState<KPH> newPartitionState : newPartitionStates) {
-			// the ordering is crucial here; first register the state holder, then
-			// push it to the partitions queue to be read
 			subscribedPartitionStates.add(newPartitionState);
 			unassignedPartitionsQueue.add(newPartitionState);
 		}
@@ -264,7 +263,7 @@ public abstract class AbstractFetcher<T, KPH> {
 	//  Core fetcher work methods
 	// ------------------------------------------------------------------------
 
-	public abstract void runFetchLoop() throws Exception;
+	public abstract void runFetchLoop(boolean dynamicDiscoverEnabled) throws Exception;
 
 	public abstract void cancel();
 
@@ -350,29 +349,9 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * @param partitionState The state of the Kafka partition from which the record was fetched
 	 * @param offset The offset of the record
 	 */
-	protected void emitRecord(T record, KafkaTopicPartitionState<KPH> partitionState, long offset) throws Exception {
-
-		if (record != null) {
-			if (timestampWatermarkMode == NO_TIMESTAMPS_WATERMARKS) {
-				// fast path logic, in case there are no watermarks
-
-				// emit the record, using the checkpoint lock to guarantee
-				// atomicity of record emission and offset state update
-				synchronized (checkpointLock) {
-					sourceContext.collect(record);
-					partitionState.setOffset(offset);
-				}
-			} else if (timestampWatermarkMode == PERIODIC_WATERMARKS) {
-				emitRecordWithTimestampAndPeriodicWatermark(record, partitionState, offset, Long.MIN_VALUE);
-			} else {
-				emitRecordWithTimestampAndPunctuatedWatermark(record, partitionState, offset, Long.MIN_VALUE);
-			}
-		} else {
-			// if the record is null, simply just update the offset state for partition
-			synchronized (checkpointLock) {
-				partitionState.setOffset(offset);
-			}
-		}
+	protected void emitRecord(T record, KafkaTopicPartitionState<KPH> partitionState, long offset)
+			throws Exception {
+		emitRecordWithTimestamp(record, partitionState, offset, Long.MIN_VALUE);
 	}
 
 	/**
@@ -384,9 +363,10 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * @param record The record to emit
 	 * @param partitionState The state of the Kafka partition from which the record was fetched
 	 * @param offset The offset of the record
+	 * @param timestamp the timestamp of the record. It is ignored when the value is negative.
 	 */
 	protected void emitRecordWithTimestamp(
-			T record, KafkaTopicPartitionState<KPH> partitionState, long offset, long timestamp) throws Exception {
+		T record, KafkaTopicPartitionState<KPH> partitionState, long offset, long timestamp) throws Exception {
 
 		if (record != null) {
 			if (timestampWatermarkMode == NO_TIMESTAMPS_WATERMARKS) {
@@ -395,7 +375,11 @@ public abstract class AbstractFetcher<T, KPH> {
 				// emit the record, using the checkpoint lock to guarantee
 				// atomicity of record emission and offset state update
 				synchronized (checkpointLock) {
-					sourceContext.collectWithTimestamp(record, timestamp);
+					if (timestamp < 0) {
+						sourceContext.collect(record);
+					} else {
+						sourceContext.collectWithTimestamp(record, timestamp);
+					}
 					partitionState.setOffset(offset);
 				}
 			} else if (timestampWatermarkMode == PERIODIC_WATERMARKS) {
@@ -504,14 +488,20 @@ public abstract class AbstractFetcher<T, KPH> {
 	 */
 	private List<KafkaTopicPartitionState<KPH>> createPartitionStateHolders(
 			Map<KafkaTopicPartition, Long> partitionsToInitialOffsets,
+			Map<KafkaTopicPartition, Long> partitionEndOffsets,
 			int timestampWatermarkMode,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			ClassLoader userCodeClassLoader) throws IOException, ClassNotFoundException {
 
-		// CopyOnWrite as adding discovered partitions could happen in parallel
-		// while different threads iterate the partitions list
-		List<KafkaTopicPartitionState<KPH>> partitionStates = new CopyOnWriteArrayList<>();
+		List<KafkaTopicPartitionState<KPH>> partitionStates = new LinkedList<>();
+
+		if (partitionEndOffsets == null) {
+			partitionEndOffsets = new HashMap<>();
+			for (KafkaTopicPartition partition : partitionsToInitialOffsets.keySet()) {
+				partitionEndOffsets.put(partition, Long.MAX_VALUE);
+			}
+		}
 
 		switch (timestampWatermarkMode) {
 			case NO_TIMESTAMPS_WATERMARKS: {
@@ -521,7 +511,9 @@ public abstract class AbstractFetcher<T, KPH> {
 
 					KafkaTopicPartitionState<KPH> partitionState =
 							new KafkaTopicPartitionState<>(partitionEntry.getKey(), kafkaHandle);
+
 					partitionState.setOffset(partitionEntry.getValue());
+					partitionState.setEndOffset(partitionEndOffsets.get(partitionEntry.getKey()));
 
 					partitionStates.add(partitionState);
 				}
@@ -543,6 +535,7 @@ public abstract class AbstractFetcher<T, KPH> {
 									assignerInstance);
 
 					partitionState.setOffset(partitionEntry.getValue());
+					partitionState.setEndOffset(partitionEndOffsets.get(partitionEntry.getKey()));
 
 					partitionStates.add(partitionState);
 				}
@@ -564,6 +557,7 @@ public abstract class AbstractFetcher<T, KPH> {
 									assignerInstance);
 
 					partitionState.setOffset(partitionEntry.getValue());
+					partitionState.setEndOffset(partitionEndOffsets.get(partitionEntry.getKey()));
 
 					partitionStates.add(partitionState);
 				}
@@ -577,7 +571,7 @@ public abstract class AbstractFetcher<T, KPH> {
 	}
 
 	/**
-	 * Shortcut variant of {@link #createPartitionStateHolders(Map, int, SerializedValue, SerializedValue, ClassLoader)}
+	 * Shortcut variant of {@link #createPartitionStateHolders(Map, Map, int, SerializedValue, SerializedValue, ClassLoader)}
 	 * that uses the same offset for all partitions when creating their state holders.
 	 */
 	private List<KafkaTopicPartitionState<KPH>> createPartitionStateHolders(
@@ -595,6 +589,7 @@ public abstract class AbstractFetcher<T, KPH> {
 
 		return createPartitionStateHolders(
 				partitionsToInitialOffset,
+				null,
 				timestampWatermarkMode,
 				watermarksPeriodic,
 				watermarksPunctuated,
@@ -619,8 +614,10 @@ public abstract class AbstractFetcher<T, KPH> {
 
 		for (KafkaTopicPartitionState<KPH> ktp : partitionOffsetStates) {
 			MetricGroup topicPartitionGroup = consumerMetricGroup
-				.addGroup(OFFSETS_BY_TOPIC_METRICS_GROUP, ktp.getTopic())
-				.addGroup(OFFSETS_BY_PARTITION_METRICS_GROUP, Integer.toString(ktp.getPartition()));
+				.addGroup(OFFSETS_BY_TOPIC_METRICS_GROUP)
+				.addGroup(ktp.getTopic())
+				.addGroup(OFFSETS_BY_PARTITION_METRICS_GROUP)
+				.addGroup(Integer.toString(ktp.getPartition()));
 
 			topicPartitionGroup.gauge(CURRENT_OFFSETS_METRICS_GAUGE, new OffsetGauge(ktp, OffsetGaugeType.CURRENT_OFFSET));
 			topicPartitionGroup.gauge(COMMITTED_OFFSETS_METRICS_GAUGE, new OffsetGauge(ktp, OffsetGaugeType.COMMITTED_OFFSET));

@@ -19,10 +19,12 @@
 package org.apache.flink.contrib.streaming.state.benchmark;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.contrib.streaming.state.RocksDBMapState;
 import org.apache.flink.contrib.streaming.state.RocksDBWriteBatchWrapper;
 import org.apache.flink.testutils.junit.RetryOnFailure;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -35,6 +37,7 @@ import org.rocksdb.WriteOptions;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Test that validates that the performance of RocksDB's WriteBatch as expected.
@@ -61,7 +64,7 @@ import java.util.List;
  * restoring from savepoint, because we need to set disableWAL=true to avoid segfault bug, see FLINK-8859 for detail).
  *
  * <p>Write gives user 1.5x performance improvements when disableWAL is true, this is useful for batch writing scenario,
- * e.g. RocksDBMapState.putAll(Map) & RocksDBMapState.clear().
+ * e.g. {@link RocksDBMapState#putAll(Map)} & {@link RocksDBMapState#clear()}.
  */
 public class RocksDBWriteBatchPerformanceTest extends TestLogger {
 
@@ -72,6 +75,7 @@ public class RocksDBWriteBatchPerformanceTest extends TestLogger {
 
 	private static final String VALUE = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ7890654321";
 
+	@Ignore
 	@Test(timeout = 2000)
 	@RetryOnFailure(times = 3)
 	public void benchMark() throws Exception {

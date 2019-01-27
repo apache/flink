@@ -1,0 +1,479 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testNonEquiJoinCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT a, d FROM x, y WHERE a + 1 = c]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], d=[$3])
++- LogicalFilter(condition=[=(+($0, 1), $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, x]])
+      +- LogicalTableScan(table=[[builtin, default, y]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, d])
++- HashJoin(where=[=($f2, c)], join=[a, $f2, c, d], joinType=[InnerJoin], build=[left])
+   :- Exchange(distribution=[hash[$f2]])
+   :  +- Calc(select=[a, +(a, 1) AS $f2])
+   :     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b])
+   +- Exchange(distribution=[hash[c]])
+      +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewJoinEqualToField">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T5, T2 WHERE f5_1 = f4 and f5_1 = f5_3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(f5_1=[$0], f5_2=[$1], f5_3=[$2], f5_4=[$3], f5_5=[$4], f4=[$5], f5=[$6], f6=[$7])
++- LogicalFilter(condition=[AND(=($0, $5), =($0, $2))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, T5, source: [selectedFields=[f5_1, f5_2, f5_3, f5_4, f5_5]]]])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[f5_1, f5_2, f5_3, f5_4, f5_5, f4, f5, f6])
++- HashJoin(where=[=(f5_1, f4)], join=[f4, f5, f6, f5_1, f5_2, f5_3, f5_4, f5_5], joinType=[InnerJoin], build=[right])
+   :- Exchange(distribution=[hash[f4]])
+   :  +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+   +- Exchange(distribution=[hash[f5_1]])
+      +- Calc(select=[f5_1, f5_2, f5_3, f5_4, f5_5], where=[=(f5_1, f5_3)])
+         +- TableSourceScan(table=[[builtin, default, T5, source: [selectedFields=[f5_1, f5_2, f5_3, f5_4, f5_5]]]], fields=[f5_1, f5_2, f5_3, f5_4, f5_5])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE f1 = f4]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1], f3=[$2], f4=[$3], f5=[$4], f6=[$5])
++- LogicalFilter(condition=[=($0, $3)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[f1, f2, f3, f4, f5, f6])
+:- HashJoin(where=[=(f1, f4)], join=[f1, f2, f3, f4, f5, f6], joinType=[InnerJoin], build=[left])
+:  :- Exchange(distribution=[hash[f1]])
+:  :  +- Calc(select=[f1, f2, f3], where=[=(f1, 1)])
+:  :     +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+:  +- Exchange(distribution=[hash[f4]])
+:     +- Calc(select=[f4, f5, f6], where=[=(f4, 1)])
+:        +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
++- HashJoin(where=[=(f1, f4)], join=[f1, f2, f3, f4, f5, f6], joinType=[InnerJoin], build=[left])
+   :- Exchange(distribution=[hash[f1]])
+   :  +- Calc(select=[f1, f2, f3], where=[<>(f1, 1)])
+   :     +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+   +- Exchange(distribution=[hash[f4]])
+      +- Calc(select=[f4, f5, f6], where=[<>(f4, 1)])
+         +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewJoinEqual">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE f1 = f4 and f1 = 10086]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1], f3=[$2], f4=[$3], f5=[$4], f6=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), =($0, 10086))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[CAST(10086) AS f1, f2, f3, CAST(10086) AS f4, f5, f6])
++- NestedLoopJoin(where=[true], join=[f2, f3, f5, f6], joinType=[InnerJoin], build=[left])
+   :- Exchange(distribution=[broadcast])
+   :  +- Calc(select=[f2, f3], where=[=(f1, 10086)])
+   :     +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+   +- Calc(select=[f5, f6], where=[=(10086, f4)])
+      +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewJoinGreater">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE f1 = f4 and f1 > -500]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1], f3=[$2], f4=[$3], f5=[$4], f6=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), >($0, -500))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[f1, f2, f3, f4, f5, f6])
++- Union(all=[true], union=[f4, f5, f6, f1, f2, f3])
+   :- HashJoin(where=[=(f1, f4)], join=[f4, f5, f6, f1, f2, f3], joinType=[InnerJoin], build=[left])
+   :  :- Exchange(distribution=[hash[f4]])
+   :  :  +- Calc(select=[f4, f5, f6], where=[=(f4, 1)])
+   :  :     +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+   :  +- Exchange(distribution=[hash[f1]])
+   :     +- Calc(select=[f1, f2, f3], where=[=(f1, 1)])
+   :        +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+   +- HashJoin(where=[=(f1, f4)], join=[f4, f5, f6, f1, f2, f3], joinType=[InnerJoin], build=[right])
+      :- Exchange(distribution=[hash[f4]])
+      :  +- Calc(select=[f4, f5, f6], where=[<>(f4, 1)])
+      :     +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+      +- Exchange(distribution=[hash[f1]])
+         +- Calc(select=[f1, f2, f3], where=[AND(>(f1, -500), <>(f1, 1))])
+            +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewJoinGreaterNotMatch">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE f1 = f4 and f1 > 5]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1], f3=[$2], f4=[$3], f5=[$4], f6=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), >($0, 5))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[f1, f2, f3, f4, f5, f6])
++- HashJoin(where=[=(f1, f4)], join=[f4, f5, f6, f1, f2, f3], joinType=[InnerJoin], build=[right])
+   :- Exchange(distribution=[hash[f4]])
+   :  +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+   +- Exchange(distribution=[hash[f1]])
+      +- Calc(select=[f1, f2, f3], where=[>(f1, 5)])
+         +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewJoinGreaterOrEqual">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE f1 = f4 and f1 >= 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1], f3=[$2], f4=[$3], f5=[$4], f6=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), >=($0, 1))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[f1, f2, f3, f4, f5, f6])
++- Union(all=[true], union=[f4, f5, f6, f1, f2, f3])
+   :- HashJoin(where=[=(f1, f4)], join=[f4, f5, f6, f1, f2, f3], joinType=[InnerJoin], build=[left])
+   :  :- Exchange(distribution=[hash[f4]])
+   :  :  +- Calc(select=[f4, f5, f6], where=[=(f4, 1)])
+   :  :     +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+   :  +- Exchange(distribution=[hash[f1]])
+   :     +- Calc(select=[f1, f2, f3], where=[=(f1, 1)])
+   :        +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+   +- HashJoin(where=[=(f1, f4)], join=[f4, f5, f6, f1, f2, f3], joinType=[InnerJoin], build=[right])
+      :- Exchange(distribution=[hash[f4]])
+      :  +- Calc(select=[f4, f5, f6], where=[<>(f4, 1)])
+      :     +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+      +- Exchange(distribution=[hash[f1]])
+         +- Calc(select=[f1, f2, f3], where=[AND(>=(f1, 1), <>(f1, 1))])
+            +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewJoinLess">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE f1 = f4 and f1 < 10086]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1], f3=[$2], f4=[$3], f5=[$4], f6=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), <($0, 10086))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[f1, f2, f3, f4, f5, f6])
++- Union(all=[true], union=[f4, f5, f6, f1, f2, f3])
+   :- HashJoin(where=[=(f1, f4)], join=[f4, f5, f6, f1, f2, f3], joinType=[InnerJoin], build=[left])
+   :  :- Exchange(distribution=[hash[f4]])
+   :  :  +- Calc(select=[f4, f5, f6], where=[=(f4, 1)])
+   :  :     +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+   :  +- Exchange(distribution=[hash[f1]])
+   :     +- Calc(select=[f1, f2, f3], where=[=(f1, 1)])
+   :        +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+   +- HashJoin(where=[=(f1, f4)], join=[f4, f5, f6, f1, f2, f3], joinType=[InnerJoin], build=[right])
+      :- Exchange(distribution=[hash[f4]])
+      :  +- Calc(select=[f4, f5, f6], where=[<>(f4, 1)])
+      :     +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+      +- Exchange(distribution=[hash[f1]])
+         +- Calc(select=[f1, f2, f3], where=[AND(<(f1, 10086), <>(f1, 1))])
+            +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewJoinLessNotMatch">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE f1 = f4 and f1 < -1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1], f3=[$2], f4=[$3], f5=[$4], f6=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), <($0, -1))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[f1, f2, f3, f4, f5, f6])
++- HashJoin(where=[=(f1, f4)], join=[f4, f5, f6, f1, f2, f3], joinType=[InnerJoin], build=[right])
+   :- Exchange(distribution=[hash[f4]])
+   :  +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+   +- Exchange(distribution=[hash[f1]])
+      +- Calc(select=[f1, f2, f3], where=[<(f1, -1)])
+         +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewJoinLessOrEqual">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE f1 = f4 and f1 <= 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1], f3=[$2], f4=[$3], f5=[$4], f6=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), <=($0, 1))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[f1, f2, f3, f4, f5, f6])
++- Union(all=[true], union=[f4, f5, f6, f1, f2, f3])
+   :- HashJoin(where=[=(f1, f4)], join=[f4, f5, f6, f1, f2, f3], joinType=[InnerJoin], build=[left])
+   :  :- Exchange(distribution=[hash[f4]])
+   :  :  +- Calc(select=[f4, f5, f6], where=[=(f4, 1)])
+   :  :     +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+   :  +- Exchange(distribution=[hash[f1]])
+   :     +- Calc(select=[f1, f2, f3], where=[=(f1, 1)])
+   :        +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+   +- HashJoin(where=[=(f1, f4)], join=[f4, f5, f6, f1, f2, f3], joinType=[InnerJoin], build=[right])
+      :- Exchange(distribution=[hash[f4]])
+      :  +- Calc(select=[f4, f5, f6], where=[<>(f4, 1)])
+      :     +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+      +- Exchange(distribution=[hash[f1]])
+         +- Calc(select=[f1, f2, f3], where=[AND(<=(f1, 1), <>(f1, 1))])
+            +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewJoinNotEqual">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE f1 = f4 and f1 <> 10086]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1], f3=[$2], f4=[$3], f5=[$4], f6=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), <>($0, 10086))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[f1, f2, f3, f4, f5, f6])
++- Union(all=[true], union=[f4, f5, f6, f1, f2, f3])
+   :- HashJoin(where=[=(f1, f4)], join=[f4, f5, f6, f1, f2, f3], joinType=[InnerJoin], build=[right])
+   :  :- Exchange(distribution=[hash[f4]])
+   :  :  +- Calc(select=[f4, f5, f6], where=[=(f4, 1)])
+   :  :     +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+   :  +- Exchange(distribution=[hash[f1]])
+   :     +- Calc(select=[f1, f2, f3], where=[AND(<>(f1, 10086), =(f1, 1))])
+   :        +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+   +- HashJoin(where=[=(f1, f4)], join=[f4, f5, f6, f1, f2, f3], joinType=[InnerJoin], build=[right])
+      :- Exchange(distribution=[hash[f4]])
+      :  +- Calc(select=[f4, f5, f6], where=[<>(f4, 1)])
+      :     +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+      +- Exchange(distribution=[hash[f1]])
+         +- Calc(select=[f1, f2, f3], where=[AND(<>(f1, 10086), <>(f1, 1))])
+            +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewJoinThreeValue">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE f1 = f4]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1], f3=[$2], f4=[$3], f5=[$4], f6=[$5])
++- LogicalFilter(condition=[=($0, $3)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[f1, f2, f3, f4, f5, f6])
+:- HashJoin(where=[=(f1, f4)], join=[f1, f2, f3, f4, f5, f6], joinType=[InnerJoin], build=[left])
+:  :- Exchange(distribution=[hash[f1]])
+:  :  +- Calc(select=[f1, f2, f3], where=[OR(=(f1, 1), =(f1, 2), =(f1, 3))])
+:  :     +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+:  +- Exchange(distribution=[hash[f4]])
+:     +- Calc(select=[f4, f5, f6], where=[OR(=(f4, 1), =(f4, 2), =(f4, 3))])
+:        +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
++- HashJoin(where=[=(f1, f4)], join=[f1, f2, f3, f4, f5, f6], joinType=[InnerJoin], build=[left])
+   :- Exchange(distribution=[hash[f1]])
+   :  +- Calc(select=[f1, f2, f3], where=[AND(<>(f1, 1), <>(f1, 2), <>(f1, 3))])
+   :     +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+   +- Exchange(distribution=[hash[f4]])
+      +- Calc(select=[f4, f5, f6], where=[AND(<>(f4, 1), <>(f4, 2), <>(f4, 3))])
+         +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewJoinTwoField">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE f1 = f4 AND f2 = f5]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1], f3=[$2], f4=[$3], f5=[$4], f6=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), =($1, $4))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[f1, f2, f3, f4, f5, f6])
+:- HashJoin(where=[AND(=(f1, f4), =(f2, f5))], join=[f1, f2, f3, f4, f5, f6], joinType=[InnerJoin], build=[left])
+:  :- Exchange(distribution=[hash[f1, f2]])
+:  :  +- Calc(select=[f1, f2, f3], where=[OR(=(f2, 1), =(f1, 1))])
+:  :     +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+:  +- Exchange(distribution=[hash[f4, f5]])
+:     +- Calc(select=[f4, f5, f6], where=[OR(=(f5, 1), =(f4, 1))])
+:        +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
++- HashJoin(where=[AND(=(f1, f4), =(f2, f5))], join=[f1, f2, f3, f4, f5, f6], joinType=[InnerJoin], build=[left])
+   :- Exchange(distribution=[hash[f1, f2]])
+   :  +- Calc(select=[f1, f2, f3], where=[AND(<>(f2, 1), <>(f1, 1))])
+   :     +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+   +- Exchange(distribution=[hash[f4, f5]])
+      +- Calc(select=[f4, f5, f6], where=[AND(<>(f5, 1), <>(f4, 1))])
+         +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewJoinTwoTable">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE f1 = f4]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1], f3=[$2], f4=[$3], f5=[$4], f6=[$5])
++- LogicalFilter(condition=[=($0, $3)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[f1, f2, f3, f4, f5, f6])
+:- HashJoin(where=[=(f1, f4)], join=[f1, f2, f3, f4, f5, f6], joinType=[InnerJoin], build=[left])
+:  :- Exchange(distribution=[hash[f1]])
+:  :  +- Calc(select=[f1, f2, f3], where=[OR(=(f1, 1), =(f1, 5))])
+:  :     +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+:  +- Exchange(distribution=[hash[f4]])
+:     +- Calc(select=[f4, f5, f6], where=[OR(=(f4, 1), =(f4, 5))])
+:        +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
++- HashJoin(where=[=(f1, f4)], join=[f1, f2, f3, f4, f5, f6], joinType=[InnerJoin], build=[left])
+   :- Exchange(distribution=[hash[f1]])
+   :  +- Calc(select=[f1, f2, f3], where=[AND(<>(f1, 1), <>(f1, 5))])
+   :     +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+   +- Exchange(distribution=[hash[f4]])
+      +- Calc(select=[f4, f5, f6], where=[AND(<>(f4, 1), <>(f4, 5))])
+         +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewJoinTwoValue">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE f1 = f4]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1], f3=[$2], f4=[$3], f5=[$4], f6=[$5])
++- LogicalFilter(condition=[=($0, $3)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[f1, f2, f3, f4, f5, f6])
+:- HashJoin(where=[=(f1, f4)], join=[f1, f2, f3, f4, f5, f6], joinType=[InnerJoin], build=[left])
+:  :- Exchange(distribution=[hash[f1]])
+:  :  +- Calc(select=[f1, f2, f3], where=[OR(=(f1, 1), =(f1, 2))])
+:  :     +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+:  +- Exchange(distribution=[hash[f4]])
+:     +- Calc(select=[f4, f5, f6], where=[OR(=(f4, 1), =(f4, 2))])
+:        +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
++- HashJoin(where=[=(f1, f4)], join=[f1, f2, f3, f4, f5, f6], joinType=[InnerJoin], build=[left])
+   :- Exchange(distribution=[hash[f1]])
+   :  +- Calc(select=[f1, f2, f3], where=[AND(<>(f1, 1), <>(f1, 2))])
+   :     +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[f1, f2, f3]]]], fields=[f1, f2, f3])
+   +- Exchange(distribution=[hash[f4]])
+      +- Calc(select=[f4, f5, f6], where=[AND(<>(f4, 1), <>(f4, 2))])
+         +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[f4, f5, f6]]]], fields=[f4, f5, f6])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

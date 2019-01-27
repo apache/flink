@@ -27,24 +27,15 @@ import org.apache.flink.core.memory.{DataInputView, DataOutputView}
  */
 @Internal
 @SerialVersionUID(9219995873023657525L)
-class EitherSerializer[A, B](
+class EitherSerializer[A, B, T <: Either[A, B]](
     val leftSerializer: TypeSerializer[A],
     val rightSerializer: TypeSerializer[B])
-  extends TypeSerializer[Either[A, B]] {
+  extends TypeSerializer[T] {
 
-  override def duplicate: EitherSerializer[A,B] = {
-    val leftDup = leftSerializer.duplicate()
-    val rightDup = rightSerializer.duplicate()
+  override def duplicate: EitherSerializer[A,B,T] = this
 
-    if (leftDup.eq(leftSerializer) && rightDup.eq(rightSerializer)) {
-      this
-    } else {
-      new EitherSerializer[A, B](leftDup, rightDup)
-    }
-  }
-
-  override def createInstance: Either[A, B] = {
-    Left(null).asInstanceOf[Left[A, B]]
+  override def createInstance: T = {
+    Left(null).asInstanceOf[T]
   }
 
   override def isImmutableType: Boolean = {
@@ -54,12 +45,12 @@ class EitherSerializer[A, B](
 
   override def getLength: Int = -1
 
-  override def copy(from: Either[A, B]): Either[A, B] = from match {
-    case Left(a) => Left(leftSerializer.copy(a))
-    case Right(b) => Right(rightSerializer.copy(b))
+  override def copy(from: T): T = from match {
+    case Left(a) => Left(leftSerializer.copy(a)).asInstanceOf[T]
+    case Right(b) => Right(rightSerializer.copy(b)).asInstanceOf[T]
   }
 
-  override def copy(from: Either[A, B], reuse: Either[A, B]): Either[A, B] = copy(from)
+  override def copy(from: T, reuse: T): T = copy(from)
 
   override def copy(source: DataInputView, target: DataOutputView): Unit = {
     val isLeft = source.readBoolean()
@@ -71,7 +62,7 @@ class EitherSerializer[A, B](
     }
   }
 
-  override def serialize(either: Either[A, B], target: DataOutputView): Unit = either match {
+  override def serialize(either: T, target: DataOutputView): Unit = either match {
     case Left(a) =>
       target.writeBoolean(true)
       leftSerializer.serialize(a, target)
@@ -80,27 +71,27 @@ class EitherSerializer[A, B](
       rightSerializer.serialize(b, target)
   }
 
-  override def deserialize(source: DataInputView): Either[A, B] = {
+  override def deserialize(source: DataInputView): T = {
     val isLeft = source.readBoolean()
     if (isLeft) {
-      Left(leftSerializer.deserialize(source))
+      Left(leftSerializer.deserialize(source)).asInstanceOf[T]
     } else {
-      Right(rightSerializer.deserialize(source))
+      Right(rightSerializer.deserialize(source)).asInstanceOf[T]
     }
   }
 
-  override def deserialize(reuse: Either[A, B], source: DataInputView): Either[A, B] = {
+  override def deserialize(reuse: T, source: DataInputView): T = {
     val isLeft = source.readBoolean()
     if (isLeft) {
-      Left(leftSerializer.deserialize(source))
+      Left(leftSerializer.deserialize(source)).asInstanceOf[T]
     } else {
-      Right(rightSerializer.deserialize(source))
+      Right(rightSerializer.deserialize(source)).asInstanceOf[T]
     }
   }
 
   override def equals(obj: Any): Boolean = {
     obj match {
-      case eitherSerializer: EitherSerializer[_, _] =>
+      case eitherSerializer: EitherSerializer[_, _, _] =>
         eitherSerializer.canEqual(this) &&
         leftSerializer.equals(eitherSerializer.leftSerializer) &&
         rightSerializer.equals(eitherSerializer.rightSerializer)
@@ -109,63 +100,62 @@ class EitherSerializer[A, B](
   }
 
   override def canEqual(obj: Any): Boolean = {
-    obj.isInstanceOf[EitherSerializer[_, _]]
+    obj.isInstanceOf[EitherSerializer[_, _, _]]
   }
 
   override def hashCode(): Int = {
     31 * leftSerializer.hashCode() + rightSerializer.hashCode()
   }
 
-  def getLeftSerializer: TypeSerializer[A] = leftSerializer
-
-  def getRightSerializer: TypeSerializer[B] = rightSerializer
-
   // --------------------------------------------------------------------------------------------
   // Serializer configuration snapshotting & compatibility
   // --------------------------------------------------------------------------------------------
 
-  override def snapshotConfiguration(): ScalaEitherSerializerSnapshot[A, B] = {
-    new ScalaEitherSerializerSnapshot[A, B](this)
+  override def snapshotConfiguration(): EitherSerializerConfigSnapshot[A, B] = {
+    new EitherSerializerConfigSnapshot[A, B](leftSerializer, rightSerializer)
   }
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[Either[A, B]] = {
+      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[T] = {
 
     configSnapshot match {
-      // backwards compatibility path;
-      // Flink versions older or equal to 1.5.x uses a
-      // EitherSerializerConfigSnapshot as the snapshot
-      case legacyConfig: EitherSerializerConfigSnapshot[A, B] =>
-        checkCompatibility(legacyConfig)
+      case eitherSerializerConfig: EitherSerializerConfigSnapshot[A, B] =>
+        val previousLeftRightSerWithConfigs =
+          eitherSerializerConfig.getNestedSerializersAndConfigs
+
+        val leftCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+          previousLeftRightSerWithConfigs.get(0).f0,
+          classOf[UnloadableDummyTypeSerializer[_]],
+          previousLeftRightSerWithConfigs.get(0).f1,
+          leftSerializer)
+
+        val rightCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+          previousLeftRightSerWithConfigs.get(1).f0,
+          classOf[UnloadableDummyTypeSerializer[_]],
+          previousLeftRightSerWithConfigs.get(1).f1,
+          rightSerializer)
+
+        if (leftCompatResult.isRequiresMigration
+            || rightCompatResult.isRequiresMigration) {
+
+          if (leftCompatResult.getConvertDeserializer != null
+              && rightCompatResult.getConvertDeserializer != null) {
+
+            CompatibilityResult.requiresMigration(
+              new EitherSerializer[A, B, T](
+                new TypeDeserializerAdapter(leftCompatResult.getConvertDeserializer),
+                new TypeDeserializerAdapter(rightCompatResult.getConvertDeserializer)
+              )
+            )
+
+          } else {
+            CompatibilityResult.requiresMigration()
+          }
+        } else {
+          CompatibilityResult.compatible()
+        }
 
       case _ => CompatibilityResult.requiresMigration()
-    }
-  }
-
-  private def checkCompatibility(
-      configSnapshot: CompositeTypeSerializerConfigSnapshot[_]
-    ): CompatibilityResult[Either[A, B]] = {
-
-    val previousLeftRightSerWithConfigs =
-      configSnapshot.getNestedSerializersAndConfigs
-
-    val leftCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-      previousLeftRightSerWithConfigs.get(0).f0,
-      classOf[UnloadableDummyTypeSerializer[_]],
-      previousLeftRightSerWithConfigs.get(0).f1,
-      leftSerializer)
-
-    val rightCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-      previousLeftRightSerWithConfigs.get(1).f0,
-      classOf[UnloadableDummyTypeSerializer[_]],
-      previousLeftRightSerWithConfigs.get(1).f1,
-      rightSerializer)
-
-    if (leftCompatResult.isRequiresMigration
-      || rightCompatResult.isRequiresMigration) {
-      CompatibilityResult.requiresMigration()
-    } else {
-      CompatibilityResult.compatible()
     }
   }
 }

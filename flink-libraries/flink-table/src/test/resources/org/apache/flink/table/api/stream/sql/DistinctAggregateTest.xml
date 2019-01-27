@@ -1,0 +1,69 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testDistinct">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupAggregate(groupBy=[a, b, c], select=[a, b, c])
++- StreamExecExchange(distribution=[hash[a, b, c]])
+   +- StreamExecCalc(select=[a, b, c])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDistinctAggregateOnTumbleWindow">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(window=[TumblingGroupWindow('w$, 'rowtime, 900000.millis)], select=[COUNT(DISTINCT a) AS EXPR$0, SUM(a) AS EXPR$1])
++- StreamExecExchange(distribution=[single])
+   +- StreamExecCalc(select=[rowtime, a])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDistinctAggregate">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupAggregate(groupBy=[c], select=[c, SUM(DISTINCT a) AS EXPR$1, SUM(a) AS EXPR$2, COUNT(DISTINCT b) AS EXPR$3])
++- StreamExecExchange(distribution=[hash[c]])
+   +- StreamExecCalc(select=[c, a, b])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiDistinctAggregateSameFieldOnHopWindow">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(window=[SlidingGroupWindow('w$, 'rowtime, 3600000.millis, 900000.millis)], select=[COUNT(DISTINCT a) AS EXPR$0, SUM(DISTINCT a) AS EXPR$1, MAX(DISTINCT a) AS EXPR$2])
++- StreamExecExchange(distribution=[single])
+   +- StreamExecCalc(select=[rowtime, a])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDistinctAggregateWithGroupingOnSessionWindow">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(groupBy=[a], window=[SessionGroupWindow('w$, 'rowtime, 900000.millis)], select=[a, COUNT(a) AS EXPR$1, SUM(DISTINCT c) AS EXPR$2])
++- StreamExecExchange(distribution=[hash[a]])
+   +- StreamExecCalc(select=[a, rowtime, c])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

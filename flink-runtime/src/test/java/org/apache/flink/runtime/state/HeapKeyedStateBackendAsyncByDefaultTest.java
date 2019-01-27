@@ -24,7 +24,6 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
 
 import org.junit.Rule;
@@ -71,8 +70,7 @@ public class HeapKeyedStateBackendAsyncByDefaultTest {
 			IntSerializer.INSTANCE,
 			1,
 			new KeyGroupRange(0, 0),
-			null,
-			TtlTimeProvider.DEFAULT
+			null
 		);
 
 		assertTrue(keyedStateBackend.supportsAsynchronousSnapshots());

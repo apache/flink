@@ -826,6 +826,12 @@ File-based:
 - `readFileOfPrimitives(path, delimiter, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
    delimited primitive data types such as `String` or `Integer` using the given delimiter.
 
+- `readHadoopFile(FileInputFormat, Key, Value, path)` / `FileInputFormat` - Creates a JobConf and reads file from the specified
+   path with the specified FileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.
+
+- `readSequenceFile(Key, Value, path)` / `SequenceFileInputFormat` - Creates a JobConf and reads file from the specified path with
+   type SequenceFileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.
+
 
 Collection-based:
 
@@ -874,9 +880,14 @@ DataSet<Tuple2<String, Double>> csvInput = env.readCsvFile("hdfs:///the/CSV/file
 DataSet<Person>> csvInput = env.readCsvFile("hdfs:///the/CSV/file")
                          .pojoType(Person.class, "name", "age", "zipcode");
 
+
+// read a file from the specified path of type TextInputFormat
+DataSet<Tuple2<LongWritable, Text>> tuples =
+ env.readHadoopFile(new TextInputFormat(), LongWritable.class, Text.class, "hdfs://nnHost:nnPort/path/to/file");
+
 // read a file from the specified path of type SequenceFileInputFormat
 DataSet<Tuple2<IntWritable, Text>> tuples =
- env.createInput(HadoopInputs.readSequenceFile(IntWritable.class, Text.class, "hdfs://nnHost:nnPort/path/to/file"));
+ env.readSequenceFile(IntWritable.class, Text.class, "hdfs://nnHost:nnPort/path/to/file");
 
 // creates a set from some given elements
 DataSet<String> value = env.fromElements("Foo", "bar", "foobar", "fubar");
@@ -965,6 +976,9 @@ File-based:
 - `readFileOfPrimitives(path, delimiter)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
   delimited primitive data types such as `String` or `Integer` using the given delimiter.
 
+- `readHadoopFile(FileInputFormat, Key, Value, path)` / `FileInputFormat` - Creates a JobConf and reads file from the specified
+   path with the specified FileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.
+
 - `readSequenceFile(Key, Value, path)` / `SequenceFileInputFormat` - Creates a JobConf and reads file from the specified path with
    type SequenceFileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.
 
@@ -1026,6 +1040,10 @@ val values = env.fromElements("Foo", "bar", "foobar", "fubar")
 
 // generate a number sequence
 val numbers = env.generateSequence(1, 10000000)
+
+// read a file from the specified path of type TextInputFormat
+val tuples = env.readHadoopFile(new TextInputFormat, classOf[LongWritable],
+ classOf[Text], "hdfs://nnHost:nnPort/path/to/file")
 
 // read a file from the specified path of type SequenceFileInputFormat
 val tuples = env.readSequenceFile(classOf[IntWritable], classOf[Text],

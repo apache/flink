@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.api.validation
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableException, Types}
+import org.apache.flink.table.api.{TableAlreadyExistException, TableException}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.stream.table.TestAppendSink
-import org.apache.flink.table.utils.MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.api.types.{DataType, DataTypes}
+import org.apache.flink.table.runtime.utils.TestingAppendSink
+import org.apache.flink.table.util.MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
+import org.apache.flink.table.util.TableTestBase
+import org.apache.flink.types.Row
 import org.junit.Test
 
 class TableSinksValidationTest extends TableTestBase {
@@ -34,21 +35,20 @@ class TableSinksValidationTest extends TableTestBase {
     val util = streamTestUtil()
 
     val t = util.addTable[(Int, Long, String)]("MyTable", 'id, 'num, 'text)
-    util.tableEnv.registerTableSink("testSink", new TestAppendSink)
 
     t.groupBy('text)
     .select('text, 'id.count, 'num.sum)
+    .toAppendStream[Row].addSink(new TestingAppendSink)
     // must fail because table is not append-only
-    .insertInto("testSink")
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[TableAlreadyExistException])
   def testSinkTableRegistrationUsingExistedTableName(): Unit = {
     val util = streamTestUtil()
     util.addTable[(Int, String)]("TargetTable", 'id, 'text)
 
     val fieldNames = Array("a", "b", "c")
-    val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.INT, Types.LONG)
+    val fieldTypes: Array[DataType] = Array(DataTypes.STRING, DataTypes.INT, DataTypes.LONG)
     // table name already registered
     util.tableEnv
       .registerTableSink("TargetTable", fieldNames, fieldTypes, new UnsafeMemoryAppendTableSink)
@@ -60,9 +60,11 @@ class TableSinksValidationTest extends TableTestBase {
 
     // inconsistent length of field names and types
     val fieldNames = Array("a", "b", "c")
-    val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.LONG)
+    val fieldTypes: Array[DataType] = Array(DataTypes.STRING, DataTypes.LONG)
 
     util.tableEnv
       .registerTableSink("TargetTable", fieldNames, fieldTypes, new UnsafeMemoryAppendTableSink)
   }
+
+
 }

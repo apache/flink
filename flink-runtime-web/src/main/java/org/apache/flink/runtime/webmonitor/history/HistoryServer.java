@@ -26,32 +26,28 @@ import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.history.FsJobArchivist;
-import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
-import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
-import org.apache.flink.runtime.rest.handler.router.Router;
+import org.apache.flink.runtime.rest.handler.legacy.DashboardConfigHandler;
 import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
+import javax.net.ssl.SSLContext;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.nio.file.Files;
 import java.time.ZonedDateTime;
@@ -94,8 +90,7 @@ public class HistoryServer {
 
 	private final HistoryServerArchiveFetcher archiveFetcher;
 
-	@Nullable
-	private final SSLHandlerFactory serverSSLFactory;
+	private final SSLContext serverSSLContext;
 	private WebFrontendBootstrap netty;
 
 	private final Object startupShutdownLock = new Object();
@@ -128,10 +123,14 @@ public class HistoryServer {
 				}
 			});
 			System.exit(0);
-		} catch (Throwable t) {
-			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
-			LOG.error("Failed to run HistoryServer.", strippedThrowable);
-			strippedThrowable.printStackTrace();
+		} catch (UndeclaredThrowableException ute) {
+			Throwable cause = ute.getUndeclaredThrowable();
+			LOG.error("Failed to run HistoryServer.", cause);
+			cause.printStackTrace();
+			System.exit(1);
+		} catch (Exception e) {
+			LOG.error("Failed to run HistoryServer.", e);
+			e.printStackTrace();
 			System.exit(1);
 		}
 	}
@@ -145,15 +144,15 @@ public class HistoryServer {
 		Preconditions.checkNotNull(numFinishedPolls);
 
 		this.config = config;
-		if (config.getBoolean(HistoryServerOptions.HISTORY_SERVER_WEB_SSL_ENABLED) && SSLUtils.isRestSSLEnabled(config)) {
+		if (config.getBoolean(HistoryServerOptions.HISTORY_SERVER_WEB_SSL_ENABLED) && SSLUtils.getSSLEnabled(config)) {
 			LOG.info("Enabling SSL for the history server.");
 			try {
-				this.serverSSLFactory = SSLUtils.createRestServerSSLEngineFactory(config);
+				this.serverSSLContext = SSLUtils.createSSLServerContext(config);
 			} catch (Exception e) {
 				throw new IOException("Failed to initialize SSLContext for the history server.", e);
 			}
 		} else {
-			this.serverSSLFactory = null;
+			this.serverSSLContext = null;
 		}
 
 		webAddress = config.getString(HistoryServerOptions.HISTORY_SERVER_WEB_ADDRESS);
@@ -223,7 +222,7 @@ public class HistoryServer {
 			LOG.info("Using directory {} as local cache.", webDir);
 
 			Router router = new Router();
-			router.addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
+			router.GET("/:*", new HistoryServerStaticFileServerHandler(webDir));
 
 			if (!webDir.exists() && !webDir.mkdirs()) {
 				throw new IOException("Failed to create local directory " + webDir.getAbsoluteFile() + ".");
@@ -233,7 +232,7 @@ public class HistoryServer {
 
 			archiveFetcher.start();
 
-			netty = new WebFrontendBootstrap(router, LOG, webDir, serverSSLFactory, webAddress, webPort, config);
+			netty = new WebFrontendBootstrap(router, LOG, webDir, serverSSLContext, webAddress, webPort, config);
 		}
 	}
 
@@ -280,30 +279,12 @@ public class HistoryServer {
 
 	private void createDashboardConfigFile() throws IOException {
 		try (FileWriter fw = createOrGetFile(webDir, "config")) {
-			fw.write(createConfigJson(DashboardConfiguration.from(webRefreshIntervalMillis, ZonedDateTime.now())));
+			fw.write(DashboardConfigHandler.createConfigJson(DashboardConfiguration.from(webRefreshIntervalMillis, ZonedDateTime.now())));
 			fw.flush();
 		} catch (IOException ioe) {
 			LOG.error("Failed to write config file.");
 			throw ioe;
 		}
-	}
-
-	private static String createConfigJson(DashboardConfiguration dashboardConfiguration) throws IOException {
-		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
-
-		gen.writeStartObject();
-		gen.writeNumberField(DashboardConfiguration.FIELD_NAME_REFRESH_INTERVAL, dashboardConfiguration.getRefreshInterval());
-		gen.writeNumberField(DashboardConfiguration.FIELD_NAME_TIMEZONE_OFFSET, dashboardConfiguration.getTimeZoneOffset());
-		gen.writeStringField(DashboardConfiguration.FIELD_NAME_TIMEZONE_NAME, dashboardConfiguration.getTimeZoneName());
-		gen.writeStringField(DashboardConfiguration.FIELD_NAME_FLINK_VERSION, dashboardConfiguration.getFlinkVersion());
-		gen.writeStringField(DashboardConfiguration.FIELD_NAME_FLINK_REVISION, dashboardConfiguration.getFlinkRevision());
-
-		gen.writeEndObject();
-
-		gen.close();
-
-		return writer.toString();
 	}
 
 	/**

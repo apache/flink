@@ -24,8 +24,6 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -34,6 +32,7 @@ import org.apache.flink.streaming.connectors.fs.AvroKeyValueSinkWriter.AvroKeyVa
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
@@ -119,10 +118,10 @@ public class RollingSinkITCase extends TestLogger {
 				+ "/";
 
 		miniClusterResource = new MiniClusterResource(
-			new MiniClusterResourceConfiguration.Builder()
-				.setNumberTaskManagers(1)
-				.setNumberSlotsPerTaskManager(4)
-				.build());
+			new MiniClusterResource.MiniClusterResourceConfiguration(
+				new org.apache.flink.configuration.Configuration(),
+				1,
+				4));
 
 		miniClusterResource.before();
 	}
@@ -930,7 +929,7 @@ public class RollingSinkITCase extends TestLogger {
 		}
 
 		@Override
-		public StreamWriterWithConfigCheck<T> duplicate() {
+		public Writer<T> duplicate() {
 			return new StreamWriterWithConfigCheck<>(key, expect);
 		}
 	}

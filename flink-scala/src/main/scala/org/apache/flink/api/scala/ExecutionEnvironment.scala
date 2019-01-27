@@ -18,17 +18,17 @@
 package org.apache.flink.api.scala
 
 import com.esotericsoftware.kryo.Serializer
-import org.apache.flink.annotation.{PublicEvolving, Public}
+import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult, JobID}
+import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult, JobID, JobSubmissionResult}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfoBase, ValueTypeInfo}
-import org.apache.flink.api.java.{CollectionEnvironment, ExecutionEnvironment => JavaEnv}
+import org.apache.flink.api.java.{CollectionEnvironment, JobListener, ExecutionEnvironment => JavaEnv}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.Path
 import org.apache.flink.types.StringValue
@@ -69,6 +69,12 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def getConfig: ExecutionConfig = {
     javaEnv.getConfig
+  }
+
+  def getJobListeners : java.util.List[JobListener] = javaEnv.getJobListeners
+
+  def addJobListener(jobListener: JobListener) ={
+    javaEnv.addJobListener(jobListener)
   }
 
   /**
@@ -493,8 +499,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Registers a file at the distributed cache under the given name. The file will be accessible
    * from any user-defined function in the (distributed) runtime under a local path. Files
-   * may be local files (which will be distributed via BlobServer), or files in a distributed file
-   * system. The runtime will copy the files temporarily to a local cache, if needed.
+   * may be local files (as long as all relevant workers have access to it),
+   * or files in a distributed file system.
+   * The runtime will copy the files temporarily to a local cache, if needed.
    *
    * The [[org.apache.flink.api.common.functions.RuntimeContext]] can be obtained inside UDFs
    * via
@@ -537,6 +544,22 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def execute(jobName: String): JobExecutionResult = {
     javaEnv.execute(jobName)
+  }
+
+  def submit(): JobSubmissionResult = {
+    javaEnv.submit()
+  }
+
+  def submit(jobName: String): JobSubmissionResult = {
+    javaEnv.submit(jobName)
+  }
+
+  def cancel(jobId: JobID): Unit = {
+    javaEnv.cancel(jobId)
+  }
+
+  def stop(): Unit = {
+    javaEnv.stop()
   }
 
   /**
@@ -609,7 +632,7 @@ object ExecutionEnvironment {
    * This method sets the environment's default parallelism to given parameter, which
    * defaults to the value set via [[setDefaultLocalParallelism(Int)]].
    */
-  def createLocalEnvironment(parallelism: Int = JavaEnv.getDefaultLocalParallelism): 
+  def createLocalEnvironment(parallelism: Int = JavaEnv.getDefaultLocalParallelism):
       ExecutionEnvironment = {
     new ExecutionEnvironment(JavaEnv.createLocalEnvironment(parallelism))
   }

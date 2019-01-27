@@ -40,9 +40,10 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.testutils.migration.MigrationVersion;
+import org.apache.flink.streaming.util.migration.MigrationVersion;
 import org.apache.flink.util.Collector;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -57,6 +58,7 @@ import static org.junit.Assert.assertEquals;
  * migrating for multiple previous Flink versions, as well as for different state backends.
  */
 @RunWith(Parameterized.class)
+@Ignore
 public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestBase {
 
 	private static final int NUM_SOURCE_ELEMENTS = 4;
@@ -72,20 +74,13 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 	}
 
 	// TODO change this to PERFORM_SAVEPOINT to regenerate binary savepoints
-	// TODO Note: You should generate the savepoint based on the release branch instead of the master.
 	private final ExecutionMode executionMode = ExecutionMode.VERIFY_SAVEPOINT;
 
 	@Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")
 	public static Collection<Tuple2<MigrationVersion, String>> parameters () {
 		return Arrays.asList(
 			Tuple2.of(MigrationVersion.v1_4, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-			Tuple2.of(MigrationVersion.v1_4, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-			Tuple2.of(MigrationVersion.v1_5, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-			Tuple2.of(MigrationVersion.v1_5, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-			Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-			Tuple2.of(MigrationVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-			Tuple2.of(MigrationVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-			Tuple2.of(MigrationVersion.v1_7, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
+			Tuple2.of(MigrationVersion.v1_4, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
 	}
 
 	private final MigrationVersion testMigrateVersion;
@@ -259,10 +254,8 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 
 		@Override
 		public void processElement(StreamRecord<Tuple2<Long, Long>> element) throws Exception {
-			ValueState<Long> state = getKeyedStateBackend().getPartitionedState(
-				element.getValue().f0,
-				LongSerializer.INSTANCE,
-				stateDescriptor);
+			ValueState<Long> state =
+				getPartitionedState(element.getValue().f0, LongSerializer.INSTANCE, stateDescriptor);
 
 			state.update(element.getValue().f1);
 
@@ -285,6 +278,11 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		@Override
 		public void processWatermark(Watermark mark) {
 			output.emitWatermark(mark);
+		}
+
+		@Override
+		public void endInput() throws Exception {
+
 		}
 	}
 
@@ -317,10 +315,8 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 
 		@Override
 		public void processElement(StreamRecord<Tuple2<Long, Long>> element) throws Exception {
-			ValueState<Long> state = getKeyedStateBackend().getPartitionedState(
-				element.getValue().f0,
-				LongSerializer.INSTANCE,
-				stateDescriptor);
+			ValueState<Long> state =
+				getPartitionedState(element.getValue().f0, LongSerializer.INSTANCE, stateDescriptor);
 
 			assertEquals(state.value(), element.getValue().f1);
 			getRuntimeContext().getAccumulator(SUCCESSFUL_PROCESS_CHECK_ACCUMULATOR).add(1);
@@ -329,11 +325,14 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		}
 
 		@Override
+		public void endInput() throws Exception {
+
+		}
+
+		@Override
 		public void onEventTime(InternalTimer<Long, Long> timer) throws Exception {
-			ValueState<Long> state = getKeyedStateBackend().getPartitionedState(
-				timer.getNamespace(),
-				LongSerializer.INSTANCE,
-				stateDescriptor);
+			ValueState<Long> state =
+				getPartitionedState(timer.getNamespace(), LongSerializer.INSTANCE, stateDescriptor);
 
 			assertEquals(state.value(), timer.getNamespace());
 			getRuntimeContext().getAccumulator(SUCCESSFUL_EVENT_TIME_CHECK_ACCUMULATOR).add(1);
@@ -341,10 +340,8 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 
 		@Override
 		public void onProcessingTime(InternalTimer<Long, Long> timer) throws Exception {
-			ValueState<Long> state = getKeyedStateBackend().getPartitionedState(
-				timer.getNamespace(),
-				LongSerializer.INSTANCE,
-				stateDescriptor);
+			ValueState<Long> state =
+				getPartitionedState(timer.getNamespace(), LongSerializer.INSTANCE, stateDescriptor);
 
 			assertEquals(state.value(), timer.getNamespace());
 			getRuntimeContext().getAccumulator(SUCCESSFUL_PROCESSING_TIME_CHECK_ACCUMULATOR).add(1);

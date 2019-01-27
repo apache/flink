@@ -210,7 +210,7 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 		JobGraph testJob = new JobGraph(jobId, "test job", source, target);
 
 		final Time timeout = Time.seconds(10L);
-		return ExecutionGraphBuilder.buildGraph(
+		return ExecutionGraphTestUtils.createExecutionGraph(
 			null,
 			testJob,
 			new Configuration(),

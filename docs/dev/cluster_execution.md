@@ -25,7 +25,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-Flink programs can run distributed on clusters of many machines. There
+Flink programs can run distributedly on clusters of many machines. There
 are two ways to send a program to a cluster for execution:
 
 ## Command Line Interface
@@ -49,7 +49,7 @@ If you are developing your program as a Maven project, you have to add the
 
 {% highlight xml %}
 <dependency>
-  <groupId>org.apache.flink</groupId>
+  <groupId>com.alibaba.blink</groupId>
   <artifactId>flink-clients{{ site.scala_version_suffix }}</artifactId>
   <version>{{ site.version }}</version>
 </dependency>

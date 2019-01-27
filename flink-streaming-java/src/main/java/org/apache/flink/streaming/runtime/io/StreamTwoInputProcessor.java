@@ -28,15 +28,19 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
-import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
+import org.apache.flink.runtime.io.network.api.serialization.SerializerManagerUtility;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.SumAndCount;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
+import org.apache.flink.runtime.plugable.ReusingDeserializationDelegate;
 import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.operators.TwoInputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
@@ -52,9 +56,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.BitSet;
 import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Input reader for {@link org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask}.
@@ -76,14 +82,15 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamTwoInputProcessor.class);
 
-	private final RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers;
+	private final RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializerOfChannels;
 
-	private RecordDeserializer<DeserializationDelegate<StreamElement>> currentRecordDeserializer;
+	private RecordDeserializer<DeserializationDelegate<StreamElement>>[] currentRecordDeserializerOfInputs;
 
-	private final DeserializationDelegate<StreamElement> deserializationDelegate1;
-	private final DeserializationDelegate<StreamElement> deserializationDelegate2;
+	private final DeserializationDelegate<StreamElement>[] deserializationDelegateOfInputs;
 
-	private final CheckpointBarrierHandler barrierHandler;
+	private final InputGate[] inputs;
+
+	private final SelectedReadingBarrierHandler barrierHandler;
 
 	private final Object lock;
 
@@ -99,31 +106,47 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 	/**
 	 * Valves that control how watermarks and stream statuses from the 2 inputs are forwarded.
 	 */
-	private StatusWatermarkValve statusWatermarkValve1;
-	private StatusWatermarkValve statusWatermarkValve2;
+	private final StatusWatermarkValve[] statusWatermarkValveOfInputs;
 
 	/** Number of input channels the valves need to handle. */
-	private final int numInputChannels1;
-	private final int numInputChannels2;
+	private final int[] numChannelsOfInputs;
+
+	private final BitSet[] eopChannelsOfInputs;
 
 	/**
 	 * The channel from which a buffer came, tracked so that we can appropriately map
 	 * the watermarks and watermark statuses to the correct channel index of the correct valve.
 	 */
-	private int currentChannel = -1;
+	private int[] currentChannelOfInputs;
 
 	private final StreamStatusMaintainer streamStatusMaintainer;
 
 	private final TwoInputStreamOperator<IN1, IN2, ?> streamOperator;
 
+	private TwoInputSelection inputSelection;
+	private boolean[] isEndInputs;
+
+	private int lastReadingInputIndex = 0;
+
 	// ---------------- Metrics ------------------
 
-	private final WatermarkGauge input1WatermarkGauge;
-	private final WatermarkGauge input2WatermarkGauge;
+	private final WatermarkGauge[] watermarkGaugeOfInputs;
 
 	private Counter numRecordsIn;
 
 	private boolean isFinished;
+
+	private boolean enableTracingMetrics;
+	private int tracingMetricsInterval;
+
+	private SumAndCount taskLatency;
+
+	private SumAndCount waitInput;
+
+	private long lastProcessedTime = -1;
+
+	private IN1 reusedObject1;
+	private IN2 reusedObject2;
 
 	@SuppressWarnings("unchecked")
 	public StreamTwoInputProcessor(
@@ -131,6 +154,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			Collection<InputGate> inputGates2,
 			TypeSerializer<IN1> inputSerializer1,
 			TypeSerializer<IN2> inputSerializer2,
+			boolean isCheckpointingEnabled,
 			TwoInputStreamTask<IN1, IN2, ?> checkpointedTask,
 			CheckpointingMode checkpointMode,
 			Object lock,
@@ -140,37 +164,56 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
 			TaskIOMetricGroup metrics,
 			WatermarkGauge input1WatermarkGauge,
-			WatermarkGauge input2WatermarkGauge) throws IOException {
-
-		final InputGate inputGate = InputGateUtil.createInputGate(inputGates1, inputGates2);
+			WatermarkGauge input2WatermarkGauge,
+			boolean objectReuse,
+			boolean enableTracingMetrics,
+			int tracingMetricsInterval) throws IOException {
 
 		this.barrierHandler = InputProcessorUtil.createCheckpointBarrierHandler(
-			checkpointedTask, checkpointMode, ioManager, inputGate, taskManagerConfig);
+			isCheckpointingEnabled, checkpointedTask, checkpointMode, ioManager, taskManagerConfig, inputGates1, inputGates2);
+
+		checkState(barrierHandler.getSubInputGateCount() == 2);
+		int numberOfInputs = barrierHandler.getSubInputGateCount();
+
+		this.inputs = new InputGate[numberOfInputs];
+		for (int i = 0; i < numberOfInputs; i++) {
+			this.inputs[i] = barrierHandler.getSubInputGate(i);
+		}
 
 		this.lock = checkNotNull(lock);
 
 		StreamElementSerializer<IN1> ser1 = new StreamElementSerializer<>(inputSerializer1);
-		this.deserializationDelegate1 = new NonReusingDeserializationDelegate<>(ser1);
-
 		StreamElementSerializer<IN2> ser2 = new StreamElementSerializer<>(inputSerializer2);
-		this.deserializationDelegate2 = new NonReusingDeserializationDelegate<>(ser2);
+		this.deserializationDelegateOfInputs = new DeserializationDelegate[] {
+			objectReuse ?
+				new ReusingDeserializationDelegate<>(ser1) :
+				new NonReusingDeserializationDelegate<>(ser1),
+			objectReuse ?
+				new ReusingDeserializationDelegate<>(ser2) :
+				new NonReusingDeserializationDelegate<>(ser2)
+		};
+
+		this.reusedObject1 = objectReuse ? inputSerializer1.createInstance() : null;
+		this.reusedObject2 = objectReuse ? inputSerializer2.createInstance() : null;
+
+		int numberOfAllInputChannels = barrierHandler.getNumberOfInputChannels();
 
 		// Initialize one deserializer per input channel
-		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
-
-		for (int i = 0; i < recordDeserializers.length; i++) {
-			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<>(
-				ioManager.getSpillingDirectoriesPaths());
-		}
+		SerializerManagerUtility<DeserializationDelegate<StreamElement>> serializerManagerUtility =
+			new SerializerManagerUtility<>(taskManagerConfig);
+		this.recordDeserializerOfChannels = serializerManagerUtility.createRecordDeserializers(
+			barrierHandler.getAllInputChannels(), ioManager.getSpillingDirectoriesPaths());
 
 		// determine which unioned channels belong to input 1 and which belong to input 2
-		int numInputChannels1 = 0;
-		for (InputGate gate: inputGates1) {
-			numInputChannels1 += gate.getNumberOfInputChannels();
+		this.numChannelsOfInputs = new int[numberOfInputs];
+		for (int i = 0; i < numberOfInputs; i++) {
+			this.numChannelsOfInputs[i] = inputs[i].getNumberOfInputChannels();
 		}
 
-		this.numInputChannels1 = numInputChannels1;
-		this.numInputChannels2 = inputGate.getNumberOfInputChannels() - numInputChannels1;
+		this.eopChannelsOfInputs = new BitSet[numberOfInputs];
+		for (int i = 0; i < numberOfInputs; i++) {
+			this.eopChannelsOfInputs[i] = new BitSet(this.numChannelsOfInputs[i]);
+		}
 
 		this.firstStatus = StreamStatus.ACTIVE;
 		this.secondStatus = StreamStatus.ACTIVE;
@@ -178,12 +221,25 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
 		this.streamOperator = checkNotNull(streamOperator);
 
-		this.statusWatermarkValve1 = new StatusWatermarkValve(numInputChannels1, new ForwardingValveOutputHandler1(streamOperator, lock));
-		this.statusWatermarkValve2 = new StatusWatermarkValve(numInputChannels2, new ForwardingValveOutputHandler2(streamOperator, lock));
+		this.statusWatermarkValveOfInputs = new StatusWatermarkValve[] {
+			new StatusWatermarkValve(numChannelsOfInputs[0], new ForwardingValveOutputHandler1(streamOperator, lock)),
+			new StatusWatermarkValve(numChannelsOfInputs[1], new ForwardingValveOutputHandler2(streamOperator, lock))
+		};
 
-		this.input1WatermarkGauge = input1WatermarkGauge;
-		this.input2WatermarkGauge = input2WatermarkGauge;
+		this.watermarkGaugeOfInputs = new WatermarkGauge[] {
+			input1WatermarkGauge,
+			input2WatermarkGauge
+		};
 		metrics.gauge("checkpointAlignmentTime", barrierHandler::getAlignmentDurationNanos);
+
+		this.currentRecordDeserializerOfInputs = new RecordDeserializer[numberOfInputs];
+		this.currentChannelOfInputs = new int[]{-1, -1};
+
+		this.inputSelection = streamOperator.firstInputSelection();
+		this.isEndInputs = new boolean[]{false, false};
+
+		this.enableTracingMetrics = enableTracingMetrics;
+		this.tracingMetricsInterval = tracingMetricsInterval;
 	}
 
 	public boolean processInput() throws Exception {
@@ -198,91 +254,165 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 				numRecordsIn = new SimpleCounter();
 			}
 		}
+		if (enableTracingMetrics) {
+			if (taskLatency == null) {
+				taskLatency = new SumAndCount(MetricNames.TASK_LATENCY, streamOperator.getMetricGroup());
+			}
+			if (waitInput == null) {
+				waitInput = new SumAndCount(MetricNames.IO_WAIT_INPUT, streamOperator.getMetricGroup());
+			}
+		}
 
 		while (true) {
-			if (currentRecordDeserializer != null) {
-				DeserializationResult result;
-				if (currentChannel < numInputChannels1) {
-					result = currentRecordDeserializer.getNextRecord(deserializationDelegate1);
+			// select an input
+			int readingIndex;
+			if (inputSelection == TwoInputSelection.ANY) {
+				int flag = ((currentRecordDeserializerOfInputs[0] == null) ? 0 : 1)
+					| ((currentRecordDeserializerOfInputs[1] == null) ? 0 : 2);
+
+				if (flag == 3) {
+					readingIndex = lastReadingInputIndex;
+				} else if (flag > 0) {
+					readingIndex = (flag == 1) ? 0 : 1;
 				} else {
-					result = currentRecordDeserializer.getNextRecord(deserializationDelegate2);
+					readingIndex = 0;
 				}
+			} else {
+				readingIndex = getInputIndexFromInputSelection(inputSelection);
+			}
+
+			// read buffer of selected input
+			if (currentRecordDeserializerOfInputs[readingIndex] != null) {
+				lastReadingInputIndex = readingIndex;
+
+				if (readingIndex == 0 && reusedObject1 != null){
+					deserializationDelegateOfInputs[readingIndex].setInstance(new StreamRecord(reusedObject1));
+				} else if (readingIndex == 1 && reusedObject2 != null) {
+					deserializationDelegateOfInputs[readingIndex].setInstance(new StreamRecord(reusedObject2));
+				}
+				DeserializationResult result = currentRecordDeserializerOfInputs[readingIndex]
+					.getNextRecord(deserializationDelegateOfInputs[readingIndex]);
 
 				if (result.isBufferConsumed()) {
-					currentRecordDeserializer.getCurrentBuffer().recycleBuffer();
-					currentRecordDeserializer = null;
+					currentRecordDeserializerOfInputs[readingIndex].getCurrentBuffer().recycleBuffer();
+					currentRecordDeserializerOfInputs[readingIndex] = null;
 				}
 
 				if (result.isFullRecord()) {
-					if (currentChannel < numInputChannels1) {
-						StreamElement recordOrWatermark = deserializationDelegate1.getInstance();
-						if (recordOrWatermark.isWatermark()) {
-							statusWatermarkValve1.inputWatermark(recordOrWatermark.asWatermark(), currentChannel);
-							continue;
-						}
-						else if (recordOrWatermark.isStreamStatus()) {
-							statusWatermarkValve1.inputStreamStatus(recordOrWatermark.asStreamStatus(), currentChannel);
-							continue;
-						}
-						else if (recordOrWatermark.isLatencyMarker()) {
-							synchronized (lock) {
+					StreamElement recordOrWatermark = deserializationDelegateOfInputs[readingIndex].getInstance();
+					if (recordOrWatermark.isWatermark()) {
+						statusWatermarkValveOfInputs[readingIndex].inputWatermark(recordOrWatermark.asWatermark(),
+							currentChannelOfInputs[readingIndex] - (readingIndex == 0 ? 0 : numChannelsOfInputs[0]));
+						continue;
+					} else if (recordOrWatermark.isStreamStatus()) {
+						statusWatermarkValveOfInputs[readingIndex].inputStreamStatus(recordOrWatermark.asStreamStatus(),
+							currentChannelOfInputs[readingIndex] - (readingIndex == 0 ? 0 : numChannelsOfInputs[0]));
+						continue;
+					} else if (recordOrWatermark.isLatencyMarker()) {
+						synchronized (lock) {
+							if (readingIndex == 0) {
 								streamOperator.processLatencyMarker1(recordOrWatermark.asLatencyMarker());
-							}
-							continue;
-						}
-						else {
-							StreamRecord<IN1> record = recordOrWatermark.asRecord();
-							synchronized (lock) {
-								numRecordsIn.inc();
-								streamOperator.setKeyContextElement1(record);
-								streamOperator.processElement1(record);
-							}
-							return true;
-
-						}
-					}
-					else {
-						StreamElement recordOrWatermark = deserializationDelegate2.getInstance();
-						if (recordOrWatermark.isWatermark()) {
-							statusWatermarkValve2.inputWatermark(recordOrWatermark.asWatermark(), currentChannel - numInputChannels1);
-							continue;
-						}
-						else if (recordOrWatermark.isStreamStatus()) {
-							statusWatermarkValve2.inputStreamStatus(recordOrWatermark.asStreamStatus(), currentChannel - numInputChannels1);
-							continue;
-						}
-						else if (recordOrWatermark.isLatencyMarker()) {
-							synchronized (lock) {
+							} else {
 								streamOperator.processLatencyMarker2(recordOrWatermark.asLatencyMarker());
 							}
-							continue;
 						}
-						else {
-							StreamRecord<IN2> record = recordOrWatermark.asRecord();
-							synchronized (lock) {
-								numRecordsIn.inc();
-								streamOperator.setKeyContextElement2(record);
-								streamOperator.processElement2(record);
+						continue;
+					} else {
+						if (readingIndex == 0) {
+							reusedObject1 = ((StreamRecord<IN1>) recordOrWatermark).getValue();
+
+							StreamRecord<IN1> record = recordOrWatermark.asRecord();
+							// numRecordsIn counter is a SimpleCounter not a heavier SumCounter, so reuse it
+							if (enableTracingMetrics && numRecordsIn.getCount() % tracingMetricsInterval == 0) {
+								long start = System.nanoTime();
+								waitInput.update(start - lastProcessedTime);
+								synchronized (lock) {
+									numRecordsIn.inc();
+									streamOperator.setKeyContextElement1(record);
+									inputSelection = streamOperator.processElement1(record);
+									lastProcessedTime = System.nanoTime();
+									taskLatency.update(lastProcessedTime - start);
+								}
+							} else {
+								synchronized (lock) {
+									numRecordsIn.inc();
+									streamOperator.setKeyContextElement1(record);
+									inputSelection = streamOperator.processElement1(record);
+								}
 							}
-							return true;
+						} else {
+							reusedObject2 = ((StreamRecord<IN2>) recordOrWatermark).getValue();
+
+							StreamRecord<IN2> record = recordOrWatermark.asRecord();
+							// numRecordsIn counter is a SimpleCounter not a heavier SumCounter, so reuse it
+							if (enableTracingMetrics && numRecordsIn.getCount() % tracingMetricsInterval == 0) {
+								long start = System.nanoTime();
+								waitInput.update(start - lastProcessedTime);
+								synchronized (lock) {
+									numRecordsIn.inc();
+									streamOperator.setKeyContextElement2(record);
+									inputSelection = streamOperator.processElement2(record);
+									lastProcessedTime = System.nanoTime();
+									taskLatency.update(lastProcessedTime - start);
+								}
+							} else {
+								synchronized (lock) {
+									numRecordsIn.inc();
+									streamOperator.setKeyContextElement2(record);
+									inputSelection = streamOperator.processElement2(record);
+								}
+							}
 						}
+
+						return true;
 					}
 				}
 			}
 
-			final BufferOrEvent bufferOrEvent = barrierHandler.getNextNonBlocked();
+			// read InputGate(s) of selected input
+			final BufferOrEvent bufferOrEvent;
+			if (inputSelection == TwoInputSelection.ANY) {
+				bufferOrEvent = barrierHandler.getNextNonBlocked();
+			} else {
+				if (isEndInputs[readingIndex]) {
+					throw new IOException("Unexpected reading selection: " + inputSelection + ", because the input has finished.");
+				}
+
+				bufferOrEvent = barrierHandler.getNextNonBlocked(inputs[readingIndex]);
+			}
+
 			if (bufferOrEvent != null) {
 
 				if (bufferOrEvent.isBuffer()) {
-					currentChannel = bufferOrEvent.getChannelIndex();
-					currentRecordDeserializer = recordDeserializers[currentChannel];
-					currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
+					int channelIndex = bufferOrEvent.getChannelIndex();
 
+					int inputIndex = getInputIndexFromChannel(channelIndex);
+					currentRecordDeserializerOfInputs[inputIndex] = recordDeserializerOfChannels[channelIndex];
+					currentRecordDeserializerOfInputs[inputIndex].setNextBuffer(bufferOrEvent.getBuffer());
+
+					currentChannelOfInputs[inputIndex] = channelIndex;
+					lastReadingInputIndex = inputIndex;
 				} else {
 					// Event received
 					final AbstractEvent event = bufferOrEvent.getEvent();
 					if (event.getClass() != EndOfPartitionEvent.class) {
 						throw new IOException("Unexpected event: " + event);
+					}
+
+					int channelIndex = bufferOrEvent.getChannelIndex();
+					int inputIndex = getInputIndexFromChannel(channelIndex);
+					eopChannelsOfInputs[inputIndex].set(channelIndex);
+					if (eopChannelsOfInputs[inputIndex].cardinality() == numChannelsOfInputs[inputIndex]) {
+						synchronized (lock) {
+							if (inputIndex == 0) {
+								streamOperator.endInput1();
+							} else {
+								streamOperator.endInput2();
+							}
+
+							isEndInputs[inputIndex] = true;
+							inputSelection = TwoInputSelection.ANY;
+						}
 					}
 				}
 			}
@@ -296,9 +426,18 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		}
 	}
 
+	private int getInputIndexFromChannel(int channelIndex) {
+		return channelIndex < this.numChannelsOfInputs[0] ? 0 : 1;
+	}
+
+	private int getInputIndexFromInputSelection(TwoInputSelection inputSelection) {
+		return inputSelection == TwoInputSelection.FIRST ?
+			0 : (inputSelection == TwoInputSelection.SECOND ? 1 : -1);
+	}
+
 	public void cleanup() throws IOException {
 		// clear the buffers first. this part should not ever fail
-		for (RecordDeserializer<?> deserializer : recordDeserializers) {
+		for (RecordDeserializer<?> deserializer : recordDeserializerOfChannels) {
 			Buffer buffer = deserializer.getCurrentBuffer();
 			if (buffer != null && !buffer.isRecycled()) {
 				buffer.recycleBuffer();
@@ -323,7 +462,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		public void handleWatermark(Watermark watermark) {
 			try {
 				synchronized (lock) {
-					input1WatermarkGauge.setCurrentWatermark(watermark.getTimestamp());
+					watermarkGaugeOfInputs[0].setCurrentWatermark(watermark.getTimestamp());
 					operator.processWatermark1(watermark);
 				}
 			} catch (Exception e) {
@@ -367,7 +506,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		public void handleWatermark(Watermark watermark) {
 			try {
 				synchronized (lock) {
-					input2WatermarkGauge.setCurrentWatermark(watermark.getTimestamp());
+					watermarkGaugeOfInputs[1].setCurrentWatermark(watermark.getTimestamp());
 					operator.processWatermark2(watermark);
 				}
 			} catch (Exception e) {

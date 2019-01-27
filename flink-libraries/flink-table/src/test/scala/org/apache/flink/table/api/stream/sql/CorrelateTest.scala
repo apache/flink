@@ -21,10 +21,12 @@ package org.apache.flink.table.api.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.plan.batch.sql.StringSplit
+import org.apache.flink.table.expressions.utils.Func19
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaVarsArgTableFunc0
-import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.utils.{HierarchyTableFunction, PojoTableFunc, TableFunc2, _}
+import org.apache.flink.table.util._
 import org.apache.flink.types.Row
+
 import org.junit.Test
 
 class CorrelateTest extends TableTestBase {
@@ -38,43 +40,20 @@ class CorrelateTest extends TableTestBase {
 
     val sqlQuery = "SELECT c, s FROM MyTable, LATERAL TABLE(func1(c)) AS T(s)"
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", "func1($cor0.c)"),
-        term("correlate", s"table(func1($$cor0.c))"),
-        term("select", "a", "b", "c", "f0"),
-        term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
-        term("joinType", "INNER")
-      ),
-      term("select", "c", "f0 AS s")
-    )
+    util.verifyPlan(sqlQuery)
+  }
 
-    util.verifySql(sqlQuery, expected)
+  @Test
+  def testCrossJoinWithOverloading(): Unit = {
+    val util = streamTestUtil()
+    val func1 = new TableFunc1
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    // func1 has overloading eval function
+    util.addFunction("func1", func1)
 
-    // test overloading
+    val sql = "SELECT c, s FROM MyTable, LATERAL TABLE(func1(c, '$')) AS T(s)"
 
-    val sqlQuery2 = "SELECT c, s FROM MyTable, LATERAL TABLE(func1(c, '$')) AS T(s)"
-
-    val expected2 = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", "func1($cor0.c, '$')"),
-        term("correlate", s"table(func1($$cor0.c, '$$'))"),
-        term("select", "a", "b", "c", "f0"),
-        term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
-        term("joinType", "INNER")
-      ),
-      term("select", "c", "f0 AS s")
-    )
-
-    util.verifySql(sqlQuery2, expected2)
+    util.verifyPlan(sql)
   }
 
   @Test
@@ -86,22 +65,7 @@ class CorrelateTest extends TableTestBase {
 
     val sqlQuery = "SELECT c, s FROM MyTable LEFT JOIN LATERAL TABLE(func1(c)) AS T(s) ON TRUE"
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", "func1($cor0.c)"),
-        term("correlate", s"table(func1($$cor0.c))"),
-        term("select", "a", "b", "c", "f0"),
-        term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
-        term("joinType", "LEFT")
-      ),
-      term("select", "c", "f0 AS s")
-    )
-
-    util.verifySql(sqlQuery, expected)
+    util.verifyPlan(sqlQuery)
   }
 
   @Test
@@ -120,28 +84,24 @@ class CorrelateTest extends TableTestBase {
         |   FROM MyTable LEFT OUTER JOIN LATERAL TABLE(func1(c)) AS T(s) on true)
         | ON c2 = s """.stripMargin
 
-    val expected = binaryNode(
-      "DataStreamJoin",
-      streamTableNode(1),
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamCorrelate",
-          streamTableNode(0),
-          term("invocation", "func1($cor0.c)"),
-          term("correlate", "table(func1($cor0.c))"),
-          term("select", "a", "b", "c", "f0"),
-          term("rowType", "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
-          term("joinType","LEFT")
-        ),
-        term("select", "c", "f0 AS s")
-      ),
-      term("where", "=(c2, s)"),
-      term("join", "a2", "b2", "c2", "c", "s"),
-      term("joinType", "LeftOuterJoin")
-    )
+    util.verifyPlan(sqlQuery)
+  }
 
-    util.verifySql(sqlQuery, expected)
+  /**
+    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
+    * join predicate can only be empty or literal true (the restriction should be removed in
+    * FLINK-7865).
+    */
+  @Test(expected = classOf[org.apache.calcite.tools.ValidationException])
+  def testLeftOuterJoinWithPredicates(): Unit = {
+    val util = streamTestUtil()
+    val func1 = new TableFunc1
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.addFunction("func1", func1)
+
+    val sqlQuery = "SELECT c, s FROM MyTable LEFT JOIN LATERAL TABLE(func1(c)) AS T(s) ON c = s"
+
+    util.verifyPlan(sqlQuery)
   }
 
   @Test
@@ -153,23 +113,7 @@ class CorrelateTest extends TableTestBase {
 
     val sqlQuery = "SELECT c, name, len FROM MyTable, LATERAL TABLE(func2(c)) AS T(name, len)"
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", "func2($cor0.c)"),
-        term("correlate", s"table(func2($$cor0.c))"),
-        term("select", "a", "b", "c", "f0", "f1"),
-        term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, " +
-               "VARCHAR(65536) f0, INTEGER f1)"),
-        term("joinType", "INNER")
-      ),
-      term("select", "c", "f0 AS name", "f1 AS len")
-    )
-
-    util.verifySql(sqlQuery, expected)
+    util.verifyPlan(sqlQuery)
   }
 
   @Test
@@ -181,23 +125,7 @@ class CorrelateTest extends TableTestBase {
 
     val sqlQuery = "SELECT c, T.* FROM MyTable, LATERAL TABLE(hierarchy(c)) AS T(name, adult, len)"
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", "hierarchy($cor0.c)"),
-        term("correlate", s"table(hierarchy($$cor0.c))"),
-        term("select", "a", "b", "c", "f0", "f1", "f2"),
-        term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c," +
-               " VARCHAR(65536) f0, BOOLEAN f1, INTEGER f2)"),
-        term("joinType", "INNER")
-      ),
-      term("select", "c", "f0 AS name", "f1 AS adult", "f2 AS len")
-    )
-
-    util.verifySql(sqlQuery, expected)
+    util.verifyPlan(sqlQuery)
   }
 
   @Test
@@ -209,23 +137,7 @@ class CorrelateTest extends TableTestBase {
 
     val sqlQuery = "SELECT c, name, age FROM MyTable, LATERAL TABLE(pojo(c))"
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", "pojo($cor0.c)"),
-        term("correlate", s"table(pojo($$cor0.c))"),
-        term("select", "a", "b", "c", "age", "name"),
-        term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c," +
-               " INTEGER age, VARCHAR(65536) name)"),
-        term("joinType", "INNER")
-      ),
-      term("select", "c", "name", "age")
-    )
-
-    util.verifySql(sqlQuery, expected)
+    util.verifyPlan(sqlQuery)
   }
 
   @Test
@@ -233,32 +145,12 @@ class CorrelateTest extends TableTestBase {
     val util = streamTestUtil()
     val rowType = Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
     util.addTable[Row]("MyTable", 'a, 'b, 'c)(rowType)
-    val function = new TableFunc5
-    util.addFunction("tableFunc5", function)
+    val function = new TableFunc6
+    util.addFunction("tableFunc6", function)
 
-    val sqlQuery = "SELECT c, tf.f2 FROM MyTable, LATERAL TABLE(tableFunc5(c)) AS tf"
+    val sqlQuery = "SELECT c, tf.f2 FROM MyTable, LATERAL TABLE(tableFunc6(c)) AS tf"
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", "tableFunc5($cor0.c)"),
-        term("correlate", "table(tableFunc5($cor0.c))"),
-        term("select", "a", "b", "c", "f0", "f1", "f2"),
-        term("rowType", "RecordType(" +
-          "INTEGER a, " +
-          "BOOLEAN b, " +
-          "COMPOSITE(Row(f0: Integer, f1: Integer, f2: Integer)) c, " +
-          "INTEGER f0, " +
-          "INTEGER f1, " +
-          "INTEGER f2)"),
-        term("joinType", "INNER")
-      ),
-      term("select", "c", "f2")
-    )
-
-    util.verifySql(sqlQuery, expected)
+    util.verifyPlan(sqlQuery)
   }
 
   @Test
@@ -271,24 +163,7 @@ class CorrelateTest extends TableTestBase {
     val sqlQuery = "SELECT c, name, len FROM MyTable, LATERAL TABLE(func2(c)) AS T(name, len) " +
       "WHERE len > 2"
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", "func2($cor0.c)"),
-        term("correlate", s"table(func2($$cor0.c))"),
-        term("select", "a", "b", "c", "f0", "f1"),
-        term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, " +
-               "VARCHAR(65536) f0, INTEGER f1)"),
-        term("joinType", "INNER"),
-        term("condition", ">($1, 2)")
-      ),
-      term("select", "c", "f0 AS name", "f1 AS len")
-    )
-
-    util.verifySql(sqlQuery, expected)
+    util.verifyPlan(sqlQuery)
   }
 
   @Test
@@ -300,71 +175,196 @@ class CorrelateTest extends TableTestBase {
 
     val sqlQuery = "SELECT c, s FROM MyTable, LATERAL TABLE(func1(SUBSTRING(c, 2))) AS T(s)"
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", "func1(SUBSTRING($cor0.c, 2))"),
-        term("correlate", s"table(func1(SUBSTRING($$cor0.c, 2)))"),
-        term("select", "a", "b", "c", "f0"),
-        term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
-        term("joinType", "INNER")
-      ),
-      term("select", "c", "f0 AS s")
-    )
-
-    util.verifySql(sqlQuery, expected)
+    util.verifyPlan(sqlQuery)
   }
 
   @Test
-  def testTableFunctionWithVariableArguments(): Unit = {
+  def testTableFunctionWithJavaVariableArguments(): Unit = {
     val util = streamTestUtil()
     val func1 = new JavaVarsArgTableFunc0
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     util.addFunction("func1", func1)
 
-    var sqlQuery = "SELECT c, s FROM MyTable, LATERAL TABLE(func1('hello', 'world', c)) AS T(s)"
+    val sqlQuery = "SELECT c, s FROM MyTable, LATERAL TABLE(func1('hello', 'world', c)) AS T(s)"
 
-    var expected = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", "func1('hello', 'world', $cor0.c)"),
-        term("correlate", s"table(func1('hello', 'world', $$cor0.c))"),
-        term("select", "a", "b", "c", "f0"),
-        term("rowType",
-          "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
-        term("joinType", "INNER")
-      ),
-      term("select", "c", "f0 AS s")
-    )
+    util.verifyPlan(sqlQuery)
+  }
 
-    util.verifySql(sqlQuery, expected)
-
+  @Test
+  def testTableFunctionWithScalaVariableArguments(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     // test scala var arg function
     val func2 = new VarArgsFunc0
     util.addFunction("func2", func2)
 
-    sqlQuery = "SELECT c, s FROM MyTable, LATERAL TABLE(func2('hello', 'world', c)) AS T(s)"
+    val sqlQuery = "SELECT c, s FROM MyTable, LATERAL TABLE(func2('hello', 'world', c)) AS T(s)"
 
-    expected = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", "func2('hello', 'world', $cor0.c)"),
-        term("correlate", s"table(func2('hello', 'world', $$cor0.c))"),
-        term("select", "a", "b", "c", "f0"),
-        term("rowType",
-          "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
-        term("joinType", "INNER")
-      ),
-      term("select", "c", "f0 AS s")
-    )
+    util.verifyPlan(sqlQuery)
+  }
 
-    util.verifySql(sqlQuery, expected)
+  @Test
+  def testDynamicTypeWithSQL(): Unit = {
+    val util = streamTestUtil()
+    val funcDyna0 = new UDTFWithDynamicType0
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.addFunction("funcDyna0", funcDyna0)
+    val sqlQuery = "SELECT c,name,len0,len1,name1,len10 FROM MyTable JOIN " +
+        "LATERAL TABLE(funcDyna0(c, 'string,int,int')) AS T1(name,len0,len1) ON TRUE JOIN " +
+        "LATERAL TABLE(funcDyna0(c, 'string,int')) AS T2(name1,len10) ON TRUE"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testDynamicTypeWithSQLAndVariableArgs(): Unit = {
+    val util = streamTestUtil()
+    val funcDyna0 = new UDTFWithDynamicTypeAndVariableArgs
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.addFunction("funcDyna0", funcDyna0)
+    val sqlQuery = "SELECT c,name,len0,len1,name1,len10 FROM MyTable JOIN " +
+        "LATERAL TABLE(funcDyna0(c, 'string,int,int', 'a', 'b', 'c')) " +
+        "AS T1(name,len0,len1) ON TRUE JOIN " +
+        "LATERAL TABLE(funcDyna0(c, 'string,int', 'a', 'b', 'c')) AS T2(name1,len10) ON TRUE"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testDynamicTypeWithSQLAndVariableArgsWithMultiEval(): Unit = {
+    val util = streamTestUtil()
+    val funcDyna0 = new UDTFWithDynamicTypeAndVariableArgs
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.addFunction("funcDyna0", funcDyna0)
+    val sqlQuery = "SELECT a, b, c, d, e FROM MyTable JOIN " +
+        "LATERAL TABLE(funcDyna0(a)) AS T1(d, e) ON TRUE"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testCorrelate(): Unit = {
+    val util = streamTestUtil()
+    util.tableEnv.registerFunction("str_split", new StringSplit())
+    util.addTable[(Int, Long, String, Array[Byte])]("MyTable2", 'a, 'b, 'c, 'd)
+    val sqlQuery = "SELECT a, d, s FROM MyTable2, LATERAL TABLE(str_split(d)) as T(s)"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testCorrelateProjectable(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(String, Int, Array[Byte])]("MyTable", 'a, 'b, 'c)
+    val function = new TableFunc5
+    util.addFunction("parser", function)
+    util.addFunction("objHash", Func19)
+
+    val sqlQuery = "SELECT len, objHash(c, len) as hash FROM MyTable, LATERAL TABLE(parser(a)) AS" +
+      " T(name, len) where objHash(c, len) > 0"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testLeftInputAllProjectable(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Array[Byte])]("MyTable", 'a)
+    val function = new TableFunc5
+    util.addFunction("parser", function)
+
+    val sqlQuery = "SELECT name, len FROM MyTable, LATERAL TABLE(parser(a)) AS T(name, len)"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testLeftInputAllProjectable2(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Array[Byte])]("MyTable", 'a)
+    val function = new TableFunc5
+    util.addFunction("parser", function)
+    util.addFunction("objHash", Func19)
+
+    val sqlQuery = "SELECT name, objHash(name), len FROM MyTable, LATERAL TABLE(parser(a)) AS T" +
+      "(name, len) where objHash(name) > 0"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testLeftInputAllProjectableWithRowTime(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Array[Byte], Long)]("MyTable", 'a, 'b.rowtime)
+    val function = new TableFunc5
+    util.addFunction("parser", function)
+
+    val sqlQuery = "SELECT name, len FROM MyTable, LATERAL TABLE(parser(a)) AS T(name, len)"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testLeftInputAllProjectableWithProcTime(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Array[Byte])]("MyTable", 'a)
+    val function = new TableFunc5
+    util.addFunction("parser", function)
+
+    val sqlQuery = "SELECT name, len  FROM (select a, proctime() as proctime from " +
+      "MyTable), LATERAL TABLE(parser(a)) AS T(name, len)"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testLeftInputNotAllProjectable(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Array[Byte])]("MyTable", 'a)
+    util.addFunction("objHash", Func19)
+    val function = new TableFunc5
+    util.addFunction("parser", function)
+
+    val sqlQuery = "SELECT objHash(a) hash_a, name, len FROM MyTable, LATERAL TABLE(parser(a)) AS" +
+      " T(name, len)"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testLeftInputNotAllProjectable2(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Array[Byte], String, Int)]("MyTable", 'a, 'b, 'c)
+    util.addFunction("objHash", Func19)
+    val function = new TableFunc5
+    util.addFunction("parser", function)
+
+    val sqlQuery = "SELECT name, len, c FROM MyTable, LATERAL TABLE(parser(a)) AS" +
+      " T(name, len) where objHash(a, len) <> 0"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testLeftInputNotAllProjectableWithRowTime(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Array[Byte], Long)]("MyTable", 'a, 'b.rowtime)
+    val function = new TableFunc5
+    util.addFunction("parser", function)
+
+    val sqlQuery = "SELECT name, len, b FROM MyTable, LATERAL TABLE(parser(a)) AS T(name, len)"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testLeftInputNotAllProjectableWithProcTime(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Array[Byte])]("MyTable", 'a)
+    val function = new TableFunc5
+    util.addFunction("parser", function)
+
+    val sqlQuery = "SELECT name, len, proc  FROM (select a, proctime() as proc from " +
+      "MyTable), LATERAL TABLE(parser(a)) AS T(name, len)"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testCountStarOnCorrelate(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Array[Byte])]("MyTable", 'a)
+    val function = new TableFunc5
+    util.addFunction("parser", function)
+
+    val sqlQuery = "SELECT count(*) FROM MyTable, LATERAL TABLE(parser(a)) AS T(name, len)"
+    util.verifyPlan(sqlQuery)
   }
 }

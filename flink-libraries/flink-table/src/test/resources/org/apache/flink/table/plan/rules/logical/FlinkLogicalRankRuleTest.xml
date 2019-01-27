@@ -1,0 +1,136 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testMultiDiffRankFunctions">
+    <Resource name="plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0, w1$o0], where=[<(w0$o0, 10)])
++- FlinkLogicalOverWindow(window#0=[window(partition {1} order by [0 ASC-nulls-first] range between UNBOUNDED PRECEDING and CURRENT ROW aggs [RANK()])], window#1=[window(partition {1} order by [0 ASC-nulls-first] rows between UNBOUNDED PRECEDING and CURRENT ROW aggs [ROW_NUMBER()])])
+   +- FlinkLogicalNativeTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiSameRankFunctionsWithDiffGroup">
+    <Resource name="plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0, w1$o0], where=[<(w0$o0, 10)])
++- FlinkLogicalOverWindow(window#0=[window(partition {1} order by [0 ASC-nulls-first] range between UNBOUNDED PRECEDING and CURRENT ROW aggs [RANK()])], window#1=[window(partition {2} order by [0 ASC-nulls-first] range between UNBOUNDED PRECEDING and CURRENT ROW aggs [RANK()])])
+   +- FlinkLogicalNativeTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiSameRankFunctionsWithSameGroup">
+    <Resource name="plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0 AS rk1, w0$o0 AS rk2])
++- FlinkLogicalRank(rankFunction=[RANK], partitionBy=[b], orderBy=[a ASC], rankRange=[rankStart=1, rankEnd=9], select=[a, b, c, rk])
+   +- FlinkLogicalNativeTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithEquals">
+    <Resource name="plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, 2 AS rk])
++- FlinkLogicalRank(rankFunction=[RANK], partitionBy=[b], orderBy=[a ASC, c ASC], rankRange=[rankStart=2, rankEnd=2], select=[a, b, c])
+   +- FlinkLogicalNativeTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithRange">
+    <Resource name="plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0])
++- FlinkLogicalRank(rankFunction=[RANK], partitionBy=[b,c], orderBy=[a ASC], rankRange=[rankStart=-1, rankEnd=2], select=[a, b, c, rk])
+   +- FlinkLogicalNativeTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithUpperValue">
+    <Resource name="plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0], where=[>(a, 10)])
++- FlinkLogicalRank(rankFunction=[RANK], partitionBy=[b], orderBy=[a ASC], rankRange=[rankStart=1, rankEnd=2], select=[a, b, c, rk])
+   +- FlinkLogicalNativeTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowNumberFunc">
+    <Resource name="plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0])
++- FlinkLogicalRank(rankFunction=[ROW_NUMBER], partitionBy=[b], orderBy=[a ASC], rankRange=[rankStart=1, rankEnd=2], select=[a, b, c, rk])
+   +- FlinkLogicalNativeTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithVariableField1">
+    <Resource name="plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0])
++- FlinkLogicalRank(rankFunction=[RANK], partitionBy=[b], orderBy=[c ASC], rankRange=[rankEnd=a], select=[a, b, c, rk])
+   +- FlinkLogicalNativeTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithVariableField2">
+    <Resource name="plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0], where=[>(w0$o0, a)])
++- FlinkLogicalOverWindow(window#0=[window(partition {1} order by [2 ASC-nulls-first] range between UNBOUNDED PRECEDING and CURRENT ROW aggs [RANK()])])
+   +- FlinkLogicalNativeTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithVariableField3">
+    <Resource name="plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0], where=[>(b, 5)])
++- FlinkLogicalRank(rankFunction=[RANK], partitionBy=[b], orderBy=[c ASC], rankRange=[rankEnd=a], select=[a, b, c, rk])
+   +- FlinkLogicalNativeTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithVariableField4">
+    <Resource name="plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0])
++- FlinkLogicalRank(rankFunction=[RANK], partitionBy=[a], orderBy=[c ASC], rankRange=[rankEnd=b], select=[a, b, c, rk])
+   +- FlinkLogicalNativeTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithoutPartitionBy">
+    <Resource name="plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0])
++- FlinkLogicalRank(rankFunction=[RANK], partitionBy=[], orderBy=[a ASC], rankRange=[rankStart=1, rankEnd=9], select=[a, b, c, rk])
+   +- FlinkLogicalNativeTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithoutFilter">
+    <Resource name="plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, w0$o0 AS $2])
++- FlinkLogicalOverWindow(window#0=[window(partition {1} order by [0 ASC-nulls-first] range between UNBOUNDED PRECEDING and CURRENT ROW aggs [RANK()])])
+   +- FlinkLogicalNativeTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

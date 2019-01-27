@@ -19,42 +19,49 @@ package org.apache.flink.table.runtime.aggregate
 
 import java.lang.{Long => JLong}
 
-import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
-import org.apache.flink.api.common.state.State
+import org.apache.flink.api.common.state.ValueStateDescriptor
+import org.apache.flink.runtime.state.keyed.{KeyedState, KeyedValueState}
 import org.apache.flink.streaming.api.TimeDomain
-import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.api.{StreamQueryConfig, Types}
+import org.apache.flink.table.api.{TableConfig, Types}
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.runtime.functions.ProcessFunction
+import org.apache.flink.table.runtime.functions.ProcessFunction.{Context, OnTimerContext}
 
-abstract class ProcessFunctionWithCleanupState[IN,OUT](queryConfig: StreamQueryConfig)
-  extends ProcessFunction[IN, OUT]
-  with CleanupState {
+abstract class ProcessFunctionWithCleanupState[IN, OUT](tableConfig: TableConfig)
+  extends ProcessFunction[IN, OUT]{
 
-  protected val minRetentionTime: Long = queryConfig.getMinIdleStateRetentionTime
-  protected val maxRetentionTime: Long = queryConfig.getMaxIdleStateRetentionTime
+  protected val minRetentionTime: Long = tableConfig.getMinIdleStateRetentionTime
+  protected val maxRetentionTime: Long = tableConfig.getMaxIdleStateRetentionTime
   protected val stateCleaningEnabled: Boolean = minRetentionTime > 1
 
   // holds the latest registered cleanup timer
-  protected var cleanupTimeState: ValueState[JLong] = _
+  private var cleanupTimeState: KeyedValueState[BaseRow, JLong] = _
 
   protected def initCleanupTimeState(stateName: String) {
     if (stateCleaningEnabled) {
-      val cleanupTimeDescriptor: ValueStateDescriptor[JLong] =
+      val inputCntDescriptor: ValueStateDescriptor[JLong] =
         new ValueStateDescriptor[JLong](stateName, Types.LONG)
-      cleanupTimeState = getRuntimeContext.getState(cleanupTimeDescriptor)
+      cleanupTimeState = executionContext.getKeyedValueState(inputCntDescriptor)
     }
   }
 
-  protected def processCleanupTimer(
-    ctx: ProcessFunction[IN, OUT]#Context,
-    currentTime: Long): Unit = {
+  protected def registerProcessingCleanupTimer(ctx: Context, currentTime: Long): Unit = {
     if (stateCleaningEnabled) {
-      registerProcessingCleanupTimer(
-        cleanupTimeState,
-        currentTime,
-        minRetentionTime,
-        maxRetentionTime,
-        ctx.timerService()
-      )
+
+      val currentKey = executionContext.currentKey()
+
+      // last registered timer
+      val curCleanupTime = cleanupTimeState.get(currentKey)
+
+      // check if a cleanup timer is registered and
+      // that the current cleanup timer won't delete state we need to keep
+      if (curCleanupTime == null || (currentTime + minRetentionTime) > curCleanupTime) {
+        // we need to register a new (later) timer
+        val cleanupTime = currentTime + maxRetentionTime
+        // register timer and remember clean-up time
+        ctx.timerService().registerProcessingTimeTimer(cleanupTime)
+        cleanupTimeState.put(currentKey, cleanupTime)
+      }
     }
   }
 
@@ -62,9 +69,20 @@ abstract class ProcessFunctionWithCleanupState[IN,OUT](queryConfig: StreamQueryC
     ctx.timeDomain() == TimeDomain.PROCESSING_TIME
   }
 
-  protected def cleanupState(states: State*): Unit = {
+  protected def needToCleanupState(timestamp: Long): Boolean = {
+    if (stateCleaningEnabled) {
+      val cleanupTime = cleanupTimeState.get(executionContext.currentKey())
+      // check that the triggered timer is the last registered processing time timer.
+      null != cleanupTime && timestamp == cleanupTime
+    } else {
+      false
+    }
+  }
+
+  protected def cleanupState(states: KeyedState[BaseRow, _]*): Unit = {
+    val currentKey = executionContext.currentKey()
     // clear all state
-    states.foreach(_.clear())
-    this.cleanupTimeState.clear()
+    states.foreach(_.remove(currentKey))
+    this.cleanupTimeState.remove(currentKey)
   }
 }

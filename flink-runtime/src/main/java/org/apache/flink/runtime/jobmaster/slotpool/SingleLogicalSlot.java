@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -58,6 +59,10 @@ public class SingleLogicalSlot implements LogicalSlot, AllocatedSlot.Payload {
 	@Nullable
 	private final SlotSharingGroupId slotSharingGroupId;
 
+	// null if the logical slot does not have to a co location constraint, otherwise non-null
+	@Nullable
+	private final CoLocationConstraint coLocationConstraint;
+
 	// locality of this slot wrt the requested preferred locations
 	private final Locality locality;
 
@@ -75,11 +80,13 @@ public class SingleLogicalSlot implements LogicalSlot, AllocatedSlot.Payload {
 			SlotRequestId slotRequestId,
 			SlotContext slotContext,
 			@Nullable SlotSharingGroupId slotSharingGroupId,
+			@Nullable CoLocationConstraint coLocationConstraint,
 			Locality locality,
 			SlotOwner slotOwner) {
 		this.slotRequestId = Preconditions.checkNotNull(slotRequestId);
 		this.slotContext = Preconditions.checkNotNull(slotContext);
 		this.slotSharingGroupId = slotSharingGroupId;
+		this.coLocationConstraint = coLocationConstraint;
 		this.locality = Preconditions.checkNotNull(locality);
 		this.slotOwner = Preconditions.checkNotNull(slotOwner);
 		this.releaseFuture = new CompletableFuture<>();
@@ -148,6 +155,12 @@ public class SingleLogicalSlot implements LogicalSlot, AllocatedSlot.Payload {
 	@Override
 	public SlotSharingGroupId getSlotSharingGroupId() {
 		return slotSharingGroupId;
+	}
+
+	@Nullable
+	@Override
+	public CoLocationConstraint getCoLocationConstraint() {
+		return coLocationConstraint;
 	}
 
 	// -------------------------------------------------------------------------

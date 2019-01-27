@@ -17,13 +17,13 @@
  */
 package org.apache.flink.table.sinks
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.Table
+import org.apache.flink.table.api.types.{DataType, DataTypes, InternalType}
 
 trait TableSinkBase[T] extends TableSink[T] {
 
   private var fieldNames: Option[Array[String]] = None
-  private var fieldTypes: Option[Array[TypeInformation[_]]] = None
+  private var fieldTypes: Option[Array[DataType]] = None
 
   /** Return a deep copy of the [[TableSink]]. */
   protected def copy: TableSinkBase[T]
@@ -39,12 +39,16 @@ trait TableSinkBase[T] extends TableSink[T] {
   }
 
   /** Return the field types of the [[Table]] to emit. */
-  def getFieldTypes: Array[TypeInformation[_]] = {
+  def getFieldTypes: Array[DataType] = {
     fieldTypes match {
       case Some(t) => t
       case None => throw new IllegalStateException(
         "TableSink must be configured to retrieve field types.")
     }
+  }
+
+  def getFieldInternalTypes: Array[InternalType] = {
+    getFieldTypes.map(_.toInternalType)
   }
 
   /**
@@ -57,7 +61,7 @@ trait TableSinkBase[T] extends TableSink[T] {
     *         [[Table]] to emit.
     */
   final def configure(fieldNames: Array[String],
-                      fieldTypes: Array[TypeInformation[_]]): TableSink[T] = {
+                      fieldTypes: Array[DataType]): TableSink[T] = {
 
     val configuredSink = this.copy
     configuredSink.fieldNames = Some(fieldNames)

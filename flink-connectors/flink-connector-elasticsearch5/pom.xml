@@ -24,9 +24,9 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>org.apache.flink</groupId>
+		<groupId>com.alibaba.blink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.5.1</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -45,14 +45,14 @@ under the License.
 		<!-- core dependencies -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-connector-elasticsearch-base_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
@@ -87,14 +87,14 @@ under the License.
 		<!-- test dependencies -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
@@ -102,7 +102,7 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-connector-elasticsearch-base_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
@@ -232,13 +232,6 @@ under the License.
 							</relocations>
 							<filters>
 								<filter>
-									<!-- some dependencies bring their own LICENSE.txt which we don't need -->
-									<artifact>*:*</artifact>
-									<excludes>
-										<exclude>META-INF/LICENSE.txt</exclude>
-									</excludes>
-								</filter>
-								<filter>
 									<artifact>*</artifact>
 									<excludes>
 										<exclude>log4j.properties</exclude>
@@ -268,17 +261,6 @@ under the License.
 									<artifact>org.apache.logging.log4j:log4j-to-slf4j</artifact>
 									<excludes>
 										<exclude>META-INF/log4j-provider.properties</exclude>
-									</excludes>
-								</filter>
-								<filter>
-									<artifact>io.netty:netty</artifact>
-									<excludes>
-										<!-- Only some of these licenses actually apply to the JAR and have been manually
-										 	placed in this module's resources directory. -->
-										<exclude>META-INF/license</exclude>
-										<!-- Only parts of NOTICE file actually apply to the netty JAR and have been manually
-										 	copied into this modules's NOTICE file. -->
-										<exclude>META-INF/NOTICE.txt</exclude>
 									</excludes>
 								</filter>
 							</filters>

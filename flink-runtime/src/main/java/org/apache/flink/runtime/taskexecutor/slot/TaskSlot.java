@@ -22,11 +22,15 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.resourcemanager.placementconstraint.SlotTag;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -68,6 +72,15 @@ public class TaskSlot {
 	/** Allocation id of this slot; null if not allocated. */
 	private AllocationID allocationId;
 
+	/** The actual allocated resource in this slot */
+	private ResourceProfile allocationResourceProfile;
+
+	/** Tags of the task slot. */
+	private List<SlotTag> tags;
+
+	/** Version of the state of this slot */
+	private long version;
+
 	TaskSlot(final int index, final ResourceProfile resourceProfile) {
 		Preconditions.checkArgument(0 <= index, "The index must be greater than 0.");
 		this.index = index;
@@ -78,11 +91,24 @@ public class TaskSlot {
 
 		this.jobId = null;
 		this.allocationId = null;
+		this.allocationResourceProfile = null;
+		this.tags = new ArrayList<>();
+		this.version = 0L;
 	}
 
 	// ----------------------------------------------------------------------------------
 	// State accessors
 	// ----------------------------------------------------------------------------------
+
+	public long getVersion() {
+		return version;
+	}
+
+	public void updateVersion(long version) {
+		Preconditions.checkArgument(version > this.version);
+
+		this.version = version;
+	}
 
 	public int getIndex() {
 		return index;
@@ -99,6 +125,12 @@ public class TaskSlot {
 	public AllocationID getAllocationId() {
 		return allocationId;
 	}
+
+	public ResourceProfile getAllocationResourceProfile() {
+		return allocationResourceProfile;
+	}
+
+	public List<SlotTag> getSlotTags() { return tags; }
 
 	TaskSlotState getState() {
 		return state;
@@ -205,7 +237,7 @@ public class TaskSlot {
 	 * @param newAllocationId to identify the slot allocation
 	 * @return True if the slot was allocated for the given job and allocation id; otherwise false
 	 */
-	public boolean allocate(JobID newJobId, AllocationID newAllocationId) {
+	public boolean allocate(JobID newJobId, AllocationID newAllocationId, ResourceProfile newAllocationResourceProfile, List<SlotTag> newTags) {
 		if (TaskSlotState.FREE == state) {
 			// sanity checks
 			Preconditions.checkState(allocationId == null);
@@ -213,6 +245,8 @@ public class TaskSlot {
 
 			this.jobId = Preconditions.checkNotNull(newJobId);
 			this.allocationId = Preconditions.checkNotNull(newAllocationId);
+			this.allocationResourceProfile = Preconditions.checkNotNull(newAllocationResourceProfile);
+			this.tags.addAll(newTags);
 
 			state = TaskSlotState.ALLOCATED;
 
@@ -220,8 +254,13 @@ public class TaskSlot {
 		} else if (TaskSlotState.ALLOCATED == state || TaskSlotState.ACTIVE == state) {
 			Preconditions.checkNotNull(newJobId);
 			Preconditions.checkNotNull(newAllocationId);
+			Preconditions.checkNotNull(newAllocationResourceProfile);
+			Preconditions.checkNotNull(newTags);
 
-			return newJobId.equals(jobId) && newAllocationId.equals(allocationId);
+			return newJobId.equals(jobId) &&
+				newAllocationId.equals(allocationId) &&
+				newAllocationResourceProfile.equals(allocationResourceProfile) &&
+				new HashSet<>(newTags).equals(new HashSet<>(tags));
 		} else {
 			return false;
 		}
@@ -270,6 +309,8 @@ public class TaskSlot {
 			state = TaskSlotState.FREE;
 			this.jobId = null;
 			this.allocationId = null;
+			this.allocationResourceProfile = null;
+			this.tags.clear();
 
 			return true;
 		} else {
@@ -297,12 +338,17 @@ public class TaskSlot {
 				"The task slot is not in state active or allocated.");
 		Preconditions.checkState(allocationId != null, "The task slot are not allocated");
 
-		return new SlotOffer(allocationId, index, resourceProfile);
+		if (resourceProfile.equals(ResourceProfile.UNKNOWN)) {
+			return new SlotOffer(allocationId, index, allocationResourceProfile, tags);
+		}
+		return new SlotOffer(allocationId, index, resourceProfile, tags);
 	}
 
 	@Override
 	public String toString() {
 		return "TaskSlot(index:" + index + ", state:" + state + ", resource profile: " + resourceProfile +
-			", allocationId: " + (allocationId != null ? allocationId.toString() : "none") + ", jobId: " + (jobId != null ? jobId.toString() : "none") + ')';
+			", allocationId: " + (allocationId != null ? allocationId.toString() : "none") +
+			", jobId: " + (jobId != null ? jobId.toString() : "none") + ", version: " + version +
+			", allocationResourceProfile: " + (allocationResourceProfile != null ? allocationResourceProfile.toString() : "none")  + ")";
 	}
 }

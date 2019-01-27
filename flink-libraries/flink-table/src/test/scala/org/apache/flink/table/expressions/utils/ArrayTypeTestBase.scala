@@ -18,23 +18,22 @@
 
 package org.apache.flink.table.expressions.utils
 
-import java.sql.Date
-
-import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, PrimitiveArrayTypeInfo}
 import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.table.api.Types
+import org.apache.flink.table.util.DateTimeTestUtil._
 import org.apache.flink.types.Row
 
 class ArrayTypeTestBase extends ExpressionTestBase {
 
   case class MyCaseClass(string: String, int: Int)
 
-  override def testData: Any = {
+  override def rowTestData: Row = {
     val testData = new Row(12)
     testData.setField(0, null)
     testData.setField(1, 42)
     testData.setField(2, Array(1, 2, 3))
-    testData.setField(3, Array(Date.valueOf("1984-03-12"), Date.valueOf("1984-02-10")))
+    testData.setField(3, Array(UTCDate("1984-03-12"), UTCDate("1984-02-10")))
     testData.setField(4, null)
     testData.setField(5, Array(Array(1, 2, 3), null))
     testData.setField(6, Array[Integer](1, null, null, 4))
@@ -46,7 +45,7 @@ class ArrayTypeTestBase extends ExpressionTestBase {
     testData
   }
 
-  override def typeInfo: TypeInformation[Any] = {
+  override def rowType: RowTypeInfo = {
     new RowTypeInfo(
       Types.INT,
       Types.INT,
@@ -60,6 +59,6 @@ class ArrayTypeTestBase extends ExpressionTestBase {
       ObjectArrayTypeInfo.getInfoFor(Types.INT),
       ObjectArrayTypeInfo.getInfoFor(Types.INT),
       BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO
-    ).asInstanceOf[TypeInformation[Any]]
+    )
   }
 }

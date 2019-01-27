@@ -20,9 +20,12 @@ package org.apache.flink.runtime.taskexecutor.slot;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.resourcemanager.placementconstraint.SlotTag;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Describe the slot offering to job manager provided by task manager.
@@ -40,11 +43,19 @@ public class SlotOffer implements Serializable {
 	/** The resource profile of the offered slot */
 	private final ResourceProfile resourceProfile;
 
+	/** Tags of the slot */
+	private final List<SlotTag> tags;
+
 	public SlotOffer(final AllocationID allocationID, final int index, final ResourceProfile resourceProfile) {
+		this(allocationID, index, resourceProfile, Collections.emptyList());
+	}
+
+	public SlotOffer(final AllocationID allocationID, final int index, final ResourceProfile resourceProfile, List<SlotTag> tags) {
 		Preconditions.checkArgument(0 <= index, "The index must be greater than 0.");
 		this.allocationId = Preconditions.checkNotNull(allocationID);
 		this.slotIndex = index;
 		this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
+		this.tags = Preconditions.checkNotNull(tags);
 	}
 
 	public AllocationID getAllocationId() {
@@ -57,6 +68,10 @@ public class SlotOffer implements Serializable {
 
 	public ResourceProfile getResourceProfile() {
 		return resourceProfile;
+	}
+
+	public List<SlotTag> getTags() {
+		return tags;
 	}
 
 	@Override

@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.plan.schema
 
+import java.lang
+
 import org.apache.calcite.rel.`type`.RelDataTypeSystem
 import org.apache.calcite.sql.`type`.BasicSqlType
 
@@ -47,5 +49,9 @@ class TimeIndicatorRelDataType(
 
   override def toString: String = {
     s"TIME ATTRIBUTE(${if (isEventTime) "ROWTIME" else "PROCTIME"})"
+  }
+
+  override def generateTypeString(sb: lang.StringBuilder, withDetail: Boolean): Unit = {
+    sb.append(toString)
   }
 }

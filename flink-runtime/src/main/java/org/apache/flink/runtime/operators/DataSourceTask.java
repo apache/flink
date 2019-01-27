@@ -31,6 +31,7 @@ import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProviderException;
@@ -310,7 +311,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		this.eventualOutputs = new ArrayList<RecordWriter<?>>();
 
 		this.output = BatchTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs,
-				getExecutionConfig(), getEnvironment().getAccumulatorRegistry().getUserMap());
+				getExecutionConfig(), getEnvironment().getAccumulatorRegistry());
 	}
 
 	// ------------------------------------------------------------------------
@@ -362,7 +363,15 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 
 				final InputSplit split;
 				try {
-					split = provider.getNextInputSplit(getUserCodeClassLoader());
+					/**
+					 * Uses the job vertex id as the operator id.
+					 *
+					 * See {@link org.apache.flink.optimizer.plantranslate.JobGraphGenerator#createDataSourceVertex}
+					 * and {@link org.apache.flink.runtime.jobgraph.InputFormatVertex}.
+					 */
+					OperatorID operatorID = OperatorID.fromJobVertexID(getEnvironment().getJobVertexId());
+
+					split = provider.getNextInputSplit(operatorID, getUserCodeClassLoader());
 				} catch (InputSplitProviderException e) {
 					throw new RuntimeException("Could not retrieve next input split.", e);
 				}
@@ -401,7 +410,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		String sourceName =  getEnvironment().getTaskInfo().getTaskName().split("->")[0].trim();
 		sourceName = sourceName.startsWith("CHAIN") ? sourceName.substring(6) : sourceName;
 		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
-				getExecutionConfig(), env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap(), 
-				getEnvironment().getMetricGroup().getOrAddOperator(sourceName));
+				getExecutionConfig(), env.getDistributedCacheEntries(), env.getAccumulatorRegistry(),
+				getEnvironment().getMetricGroup().addOperator(sourceName));
 	}
 }

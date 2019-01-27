@@ -22,7 +22,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils._
+import org.apache.flink.table.util._
 import org.apache.flink.types.Row
 import org.junit.Test
 

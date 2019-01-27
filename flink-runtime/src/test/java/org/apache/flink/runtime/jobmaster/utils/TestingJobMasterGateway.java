@@ -19,10 +19,8 @@
 package org.apache.flink.runtime.jobmaster.utils;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -33,335 +31,226 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RescalingBehaviour;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.preaggregatedaccumulators.CommitAccumulator;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
+import org.apache.flink.runtime.rest.messages.job.JobPendingSlotRequestDetail;
+import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
+import org.apache.flink.runtime.taskexecutor.TaskExecutionStatus;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorReportResponse;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.function.TriConsumer;
-import org.apache.flink.util.function.TriFunction;
+import org.apache.flink.runtime.update.JobUpdateRequest;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
 /**
  * {@link JobMasterGateway} implementation for testing purposes.
  */
 public class TestingJobMasterGateway implements JobMasterGateway {
 
-	@Nonnull
-	private final String address;
-
-	@Nonnull
-	private final String hostname;
-
-	@Nonnull
-	private final Supplier<CompletableFuture<Acknowledge>> cancelFunction;
-
-	@Nonnull
-	private final Supplier<CompletableFuture<Acknowledge>> stopFunction;
-
-	@Nonnull
-	private final BiFunction<Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingJobFunction;
-
-	@Nonnull
-	private final TriFunction<Collection<JobVertexID>, Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingOperatorsFunction;
-
-	@Nonnull
-	private final Function<TaskExecutionState, CompletableFuture<Acknowledge>> updateTaskExecutionStateFunction;
-
-	@Nonnull
-	private final BiFunction<JobVertexID, ExecutionAttemptID, CompletableFuture<SerializedInputSplit>> requestNextInputSplitFunction;
-
-	@Nonnull
-	private final BiFunction<IntermediateDataSetID, ResultPartitionID, CompletableFuture<ExecutionState>> requestPartitionStateFunction;
-
-	@Nonnull
-	private final Function<ResultPartitionID, CompletableFuture<Acknowledge>> scheduleOrUpdateConsumersFunction;
-
-	@Nonnull
-	private final Function<ResourceID, CompletableFuture<Acknowledge>> disconnectTaskManagerFunction;
-
-	@Nonnull
-	private final Consumer<ResourceManagerId> disconnectResourceManagerConsumer;
-
-	@Nonnull
-	private final Supplier<CompletableFuture<ClassloadingProps>> classloadingPropsSupplier;
-
-	@Nonnull
-	private final BiFunction<ResourceID, Collection<SlotOffer>, CompletableFuture<Collection<SlotOffer>>> offerSlotsFunction;
-
-	@Nonnull
-	private final TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer;
-
-	@Nonnull
-	private final BiFunction<String, TaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction;
-
-	@Nonnull
-	private final BiConsumer<ResourceID, AccumulatorReport> taskManagerHeartbeatConsumer;
-
-	@Nonnull
-	private final Consumer<ResourceID> resourceManagerHeartbeatConsumer;
-
-	@Nonnull
-	private final Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier;
-
-	@Nonnull
-	private final Supplier<CompletableFuture<ArchivedExecutionGraph>> requestJobSupplier;
-
-	@Nonnull
-	private final BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction;
-
-	@Nonnull
-	private final Function<JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction;
-
-	@Nonnull
-	private final BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer;
-
-	@Nonnull
-	private final Consumer<Tuple5<JobID, ExecutionAttemptID, Long, CheckpointMetrics, TaskStateSnapshot>> acknowledgeCheckpointConsumer;
-
-	@Nonnull
-	private final Consumer<DeclineCheckpoint> declineCheckpointConsumer;
-
-	@Nonnull
-	private final Supplier<JobMasterId> fencingTokenSupplier;
-
-	@Nonnull
-	private final BiFunction<JobID, String, CompletableFuture<KvStateLocation>> requestKvStateLocationFunction;
-
-	@Nonnull
-	private final Function<Tuple6<JobID, JobVertexID, KeyGroupRange, String, KvStateID, InetSocketAddress>, CompletableFuture<Acknowledge>> notifyKvStateRegisteredFunction;
-
-	@Nonnull
-	private final Function<Tuple4<JobID, JobVertexID, KeyGroupRange, String>, CompletableFuture<Acknowledge>> notifyKvStateUnregisteredFunction;
-
-	public TestingJobMasterGateway(
-			@Nonnull String address,
-			@Nonnull String hostname,
-			@Nonnull Supplier<CompletableFuture<Acknowledge>> cancelFunction,
-			@Nonnull Supplier<CompletableFuture<Acknowledge>> stopFunction,
-			@Nonnull BiFunction<Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingJobFunction,
-			@Nonnull TriFunction<Collection<JobVertexID>, Integer, RescalingBehaviour, CompletableFuture<Acknowledge>> rescalingOperatorsFunction,
-			@Nonnull Function<TaskExecutionState, CompletableFuture<Acknowledge>> updateTaskExecutionStateFunction,
-			@Nonnull BiFunction<JobVertexID, ExecutionAttemptID, CompletableFuture<SerializedInputSplit>> requestNextInputSplitFunction,
-			@Nonnull BiFunction<IntermediateDataSetID, ResultPartitionID, CompletableFuture<ExecutionState>> requestPartitionStateFunction,
-			@Nonnull Function<ResultPartitionID, CompletableFuture<Acknowledge>> scheduleOrUpdateConsumersFunction,
-			@Nonnull Function<ResourceID, CompletableFuture<Acknowledge>> disconnectTaskManagerFunction,
-			@Nonnull Consumer<ResourceManagerId> disconnectResourceManagerConsumer,
-			@Nonnull Supplier<CompletableFuture<ClassloadingProps>> classloadingPropsSupplier,
-			@Nonnull BiFunction<ResourceID, Collection<SlotOffer>, CompletableFuture<Collection<SlotOffer>>> offerSlotsFunction,
-			@Nonnull TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer,
-			@Nonnull BiFunction<String, TaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction,
-			@Nonnull BiConsumer<ResourceID, AccumulatorReport> taskManagerHeartbeatConsumer,
-			@Nonnull Consumer<ResourceID> resourceManagerHeartbeatConsumer,
-			@Nonnull Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier,
-			@Nonnull Supplier<CompletableFuture<ArchivedExecutionGraph>> requestJobSupplier,
-			@Nonnull BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction,
-			@Nonnull Function<JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction,
-			@Nonnull BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer,
-			@Nonnull Consumer<Tuple5<JobID, ExecutionAttemptID, Long, CheckpointMetrics, TaskStateSnapshot>> acknowledgeCheckpointConsumer,
-			@Nonnull Consumer<DeclineCheckpoint> declineCheckpointConsumer,
-			@Nonnull Supplier<JobMasterId> fencingTokenSupplier,
-			@Nonnull BiFunction<JobID, String, CompletableFuture<KvStateLocation>> requestKvStateLocationFunction,
-			@Nonnull Function<Tuple6<JobID, JobVertexID, KeyGroupRange, String, KvStateID, InetSocketAddress>, CompletableFuture<Acknowledge>> notifyKvStateRegisteredFunction,
-			@Nonnull Function<Tuple4<JobID, JobVertexID, KeyGroupRange, String>, CompletableFuture<Acknowledge>> notifyKvStateUnregisteredFunction) {
-		this.address = address;
-		this.hostname = hostname;
-		this.cancelFunction = cancelFunction;
-		this.stopFunction = stopFunction;
-		this.rescalingJobFunction = rescalingJobFunction;
-		this.rescalingOperatorsFunction = rescalingOperatorsFunction;
-		this.updateTaskExecutionStateFunction = updateTaskExecutionStateFunction;
-		this.requestNextInputSplitFunction = requestNextInputSplitFunction;
-		this.requestPartitionStateFunction = requestPartitionStateFunction;
-		this.scheduleOrUpdateConsumersFunction = scheduleOrUpdateConsumersFunction;
-		this.disconnectTaskManagerFunction = disconnectTaskManagerFunction;
-		this.disconnectResourceManagerConsumer = disconnectResourceManagerConsumer;
-		this.classloadingPropsSupplier = classloadingPropsSupplier;
-		this.offerSlotsFunction = offerSlotsFunction;
-		this.failSlotConsumer = failSlotConsumer;
-		this.registerTaskManagerFunction = registerTaskManagerFunction;
-		this.taskManagerHeartbeatConsumer = taskManagerHeartbeatConsumer;
-		this.resourceManagerHeartbeatConsumer = resourceManagerHeartbeatConsumer;
-		this.requestJobDetailsSupplier = requestJobDetailsSupplier;
-		this.requestJobSupplier = requestJobSupplier;
-		this.triggerSavepointFunction = triggerSavepointFunction;
-		this.requestOperatorBackPressureStatsFunction = requestOperatorBackPressureStatsFunction;
-		this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
-		this.acknowledgeCheckpointConsumer = acknowledgeCheckpointConsumer;
-		this.declineCheckpointConsumer = declineCheckpointConsumer;
-		this.fencingTokenSupplier = fencingTokenSupplier;
-		this.requestKvStateLocationFunction = requestKvStateLocationFunction;
-		this.notifyKvStateRegisteredFunction = notifyKvStateRegisteredFunction;
-		this.notifyKvStateUnregisteredFunction = notifyKvStateUnregisteredFunction;
-	}
-
 	@Override
 	public CompletableFuture<Acknowledge> cancel(Time timeout) {
-		return cancelFunction.get();
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> stop(Time timeout) {
-		return stopFunction.get();
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public CompletableFuture<JobGraph> requestJobGraph(Time timeout) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> updateJob(JobUpdateRequest request, Time timeout) {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> rescaleJob(int newParallelism, RescalingBehaviour rescalingBehaviour, Time timeout) {
-		return rescalingJobFunction.apply(newParallelism, rescalingBehaviour);
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> rescaleOperators(Collection<JobVertexID> operators, int newParallelism, RescalingBehaviour rescalingBehaviour, Time timeout) {
-		return rescalingOperatorsFunction.apply(operators, newParallelism, rescalingBehaviour);
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> updateTaskExecutionState(TaskExecutionState taskExecutionState) {
-		return updateTaskExecutionStateFunction.apply(taskExecutionState);
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public CompletableFuture<SerializedInputSplit> requestNextInputSplit(JobVertexID vertexID, ExecutionAttemptID executionAttempt) {
-		return requestNextInputSplitFunction.apply(vertexID, executionAttempt);
+	public CompletableFuture<SerializedInputSplit> requestNextInputSplit(JobVertexID vertexID, OperatorID operatorID, ExecutionAttemptID executionAttempt) {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<ExecutionState> requestPartitionState(IntermediateDataSetID intermediateResultId, ResultPartitionID partitionId) {
-		return requestPartitionStateFunction.apply(intermediateResultId, partitionId);
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> scheduleOrUpdateConsumers(ResultPartitionID partitionID, Time timeout) {
-		return scheduleOrUpdateConsumersFunction.apply(partitionID);
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> disconnectTaskManager(ResourceID resourceID, Exception cause) {
-		return disconnectTaskManagerFunction.apply(resourceID);
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public void disconnectResourceManager(ResourceManagerId resourceManagerId, Exception cause) {
-		disconnectResourceManagerConsumer.accept(resourceManagerId);
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public CompletableFuture<ClassloadingProps> requestClassloadingProps() {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<Collection<SlotOffer>> offerSlots(ResourceID taskManagerId, Collection<SlotOffer> slots, Time timeout) {
-		return offerSlotsFunction.apply(taskManagerId, slots);
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public CompletableFuture<TaskExecutorReportResponse> reportTasksExecutionStatus(
+			final ResourceID taskManagerId,
+			final List<TaskExecutionStatus> tasksExecutionStatus,
+			@RpcTimeout final Time timeout) {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public void failSlot(ResourceID taskManagerId, AllocationID allocationId, Exception cause) {
-		failSlotConsumer.accept(taskManagerId, allocationId, cause);
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<RegistrationResponse> registerTaskManager(String taskManagerRpcAddress, TaskManagerLocation taskManagerLocation, Time timeout) {
-		return registerTaskManagerFunction.apply(taskManagerRpcAddress, taskManagerLocation);
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public void heartbeatFromTaskManager(ResourceID resourceID, AccumulatorReport accumulatorReport) {
-		taskManagerHeartbeatConsumer.accept(resourceID, accumulatorReport);
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public void heartbeatFromResourceManager(ResourceID resourceID) {
-		resourceManagerHeartbeatConsumer.accept(resourceID);
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
-		return requestJobDetailsSupplier.get();
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
-		return requestJobDetailsSupplier.get().thenApply(JobDetails::getStatus);
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<ArchivedExecutionGraph> requestJob(Time timeout) {
-		return requestJobSupplier.get();
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public CompletableFuture<Collection<JobPendingSlotRequestDetail>> requestPendingSlotRequestDetails(Time timeout) {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<String> triggerSavepoint(@Nullable final String targetDirectory, final boolean cancelJob, final Time timeout) {
-		return triggerSavepointFunction.apply(targetDirectory, cancelJob);
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(JobVertexID jobVertexId) {
-		return requestOperatorBackPressureStatsFunction.apply(jobVertexId);
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public void notifyAllocationFailure(AllocationID allocationID, Exception cause) {
-		notifyAllocationFailureConsumer.accept(allocationID, cause);
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void commitPreAggregatedAccumulator(List<CommitAccumulator> commitAccumulators) {
+
+	}
+
+	@Override
+	public <V, A extends Serializable> CompletableFuture<Accumulator<V, A>> queryPreAggregatedAccumulator(String name) {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public void acknowledgeCheckpoint(JobID jobID, ExecutionAttemptID executionAttemptID, long checkpointId, CheckpointMetrics checkpointMetrics, TaskStateSnapshot subtaskState) {
-		acknowledgeCheckpointConsumer.accept(Tuple5.of(jobID, executionAttemptID, checkpointId, checkpointMetrics, subtaskState));
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public void declineCheckpoint(DeclineCheckpoint declineCheckpoint) {
-		declineCheckpointConsumer.accept(declineCheckpoint);
+	public void declineCheckpoint(JobID jobID, ExecutionAttemptID executionAttemptID, long checkpointId, Throwable cause) {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public JobMasterId getFencingToken() {
-		return fencingTokenSupplier.get();
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<KvStateLocation> requestKvStateLocation(JobID jobId, String registrationName) {
-		return requestKvStateLocationFunction.apply(jobId, registrationName);
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> notifyKvStateRegistered(JobID jobId, JobVertexID jobVertexId, KeyGroupRange keyGroupRange, String registrationName, KvStateID kvStateId, InetSocketAddress kvStateServerAddress) {
-		return notifyKvStateRegisteredFunction.apply(Tuple6.of(jobId, jobVertexId, keyGroupRange, registrationName, kvStateId, kvStateServerAddress));
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> notifyKvStateUnregistered(JobID jobId, JobVertexID jobVertexId, KeyGroupRange keyGroupRange, String registrationName) {
-		return notifyKvStateUnregisteredFunction.apply(Tuple4.of(jobId, jobVertexId, keyGroupRange, registrationName));
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public String getAddress() {
-		return address;
+		return null;
 	}
 
 	@Override
 	public String getHostname() {
-		return hostname;
+		return null;
 	}
 }

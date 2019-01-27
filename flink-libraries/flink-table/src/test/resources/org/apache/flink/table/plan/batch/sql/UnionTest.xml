@@ -1,0 +1,184 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testTernaryUnion">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM (SELECT a FROM MyTable1 WHERE b > 2UNION (SELECT a FROM MyTable2 UNION (SELECT a FROM MyTable3)))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalUnion(all=[false])
+   :- LogicalProject(a=[$0])
+   :  +- LogicalFilter(condition=[>($1, 2)])
+   :     +- LogicalTableScan(table=[[builtin, default, MyTable1]])
+   +- LogicalUnion(all=[false])
+      :- LogicalProject(a=[$0])
+      :  +- LogicalTableScan(table=[[builtin, default, MyTable2]])
+      +- LogicalProject(a=[$0])
+         +- LogicalTableScan(table=[[builtin, default, MyTable3]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a], select=[a])
++- Exchange(distribution=[hash[a]])
+   +- LocalHashAggregate(groupBy=[a], select=[a])
+      +- Union(all=[true], union=[a])
+         :- Calc(select=[a], where=[>(b, 2)])
+         :  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+         +- Union(all=[true], union=[a])
+            :- Calc(select=[a])
+            :  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[a, b, c])
+            +- Calc(select=[a])
+               +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_2]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnion">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM (SELECT * FROM MyTable1 UNION (SELECT * FROM MyTable2))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalUnion(all=[false])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :  +- LogicalTableScan(table=[[builtin, default, MyTable1]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalTableScan(table=[[builtin, default, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- HashAggregate(isMerge=[true], groupBy=[a, b, c], select=[a, b, c])
+   +- Exchange(distribution=[hash[a, b, c]])
+      +- LocalHashAggregate(groupBy=[a, b, c], select=[a, b, c])
+         +- Union(all=[true], union=[a, b, c])
+            :- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionAll">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM (SELECT a, c FROM MyTable1 UNION ALL (SELECT a, c FROM MyTable2))WHERE a > 2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$1])
++- LogicalFilter(condition=[>($0, 2)])
+   +- LogicalUnion(all=[true])
+      :- LogicalProject(a=[$0], c=[$2])
+      :  +- LogicalTableScan(table=[[builtin, default, MyTable1]])
+      +- LogicalProject(a=[$0], c=[$2])
+         +- LogicalTableScan(table=[[builtin, default, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a, c])
+:- Calc(select=[a, c], where=[>(a, 2)])
+:  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
++- Calc(select=[a, c], where=[>(a, 2)])
+   +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionAllDiffType">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (select a, b from MyTable1 union all select a, cast(0 as decimal(2, 1)) from MyTable2)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalUnion(all=[true])
+   :- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalTableScan(table=[[builtin, default, MyTable1]])
+   +- LogicalProject(a=[$0], EXPR$1=[0])
+      +- LogicalTableScan(table=[[builtin, default, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a, b])
+:- Calc(select=[a, CAST(b) AS b])
+:  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
++- Calc(select=[a, CAST(0.0) AS EXPR$1])
+   +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionEmptyPrune">
+    <Resource name="sql">
+      <![CDATA[WITH tmp AS (SELECT a, b, c, 's' sale_type FROM MyTable1 UNION ALL SELECT a, b, c, 'w' sale_type FROM MyTable2)SELECT first_t1.a,  sec_t1.b / first_t1.b,  sec_t2.b / first_t2.b FROM tmp first_t1, tmp sec_t1, tmp first_t2, tmp sec_t2 WHERE first_t1.a = sec_t1.a AND first_t2.a = sec_t2.a AND first_t1.a = first_t2.a AND first_t1.sale_type = 's' AND first_t1.c = '2001' AND sec_t1.sale_type = 's' AND sec_t1.c = '2002' AND first_t2.sale_type = 'w' AND first_t2.c = '2001' AND sec_t2.sale_type = 'w' AND sec_t2.c = '2002']]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[/(CAST($5):DOUBLE, CAST($1):DOUBLE)], EXPR$2=[/(CAST($13):DOUBLE, CAST($9):DOUBLE)])
++- LogicalFilter(condition=[AND(=($0, $4), =($8, $12), =($0, $8), =($3, 's'), =($2, '2001'), =($7, 's'), =($6, '2002'), =($11, 'w'), =($10, '2001'), =($15, 'w'), =($14, '2002'))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :- LogicalUnion(all=[true])
+      :  :  :  :- LogicalProject(a=[$0], b=[$1], c=[$2], sale_type=['s'])
+      :  :  :  :  +- LogicalTableScan(table=[[builtin, default, MyTable1]])
+      :  :  :  +- LogicalProject(a=[$0], b=[$1], c=[$2], sale_type=['w'])
+      :  :  :     +- LogicalTableScan(table=[[builtin, default, MyTable2]])
+      :  :  +- LogicalUnion(all=[true])
+      :  :     :- LogicalProject(a=[$0], b=[$1], c=[$2], sale_type=['s'])
+      :  :     :  +- LogicalTableScan(table=[[builtin, default, MyTable1]])
+      :  :     +- LogicalProject(a=[$0], b=[$1], c=[$2], sale_type=['w'])
+      :  :        +- LogicalTableScan(table=[[builtin, default, MyTable2]])
+      :  +- LogicalUnion(all=[true])
+      :     :- LogicalProject(a=[$0], b=[$1], c=[$2], sale_type=['s'])
+      :     :  +- LogicalTableScan(table=[[builtin, default, MyTable1]])
+      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], sale_type=['w'])
+      :        +- LogicalTableScan(table=[[builtin, default, MyTable2]])
+      +- LogicalUnion(all=[true])
+         :- LogicalProject(a=[$0], b=[$1], c=[$2], sale_type=['s'])
+         :  +- LogicalTableScan(table=[[builtin, default, MyTable1]])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], sale_type=['w'])
+            +- LogicalTableScan(table=[[builtin, default, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, /(CAST(b0), CAST(b)) AS EXPR$1, /(CAST(b2), CAST(b1)) AS EXPR$2])
++- HashJoin(where=[=(a0, a1)], join=[a, b, b0, a0, b1, a1, b2], joinType=[InnerJoin], isBroadcast=[true], build=[left])
+   :- Exchange(distribution=[broadcast])
+   :  +- HashJoin(where=[=(a, a0)], join=[a, b, b0, a0, b1], joinType=[InnerJoin], isBroadcast=[true], build=[left])
+   :     :- Exchange(distribution=[broadcast])
+   :     :  +- Calc(select=[a, b, b0])
+   :     :     +- HashJoin(where=[=(a, a0)], join=[a, b, a0, b0], joinType=[InnerJoin], isBroadcast=[true], build=[right])
+   :     :        :- Exchange(distribution=[hash[a]], exchange_mode=[BATCH])
+   :     :        :  +- Calc(select=[a, b], where=[=(c, '2001')])
+   :     :        :     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+   :     :        +- Exchange(distribution=[broadcast])
+   :     :           +- Calc(select=[a, b], where=[=(c, '2002')])
+   :     :              +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+   :     +- Calc(select=[a, b], where=[=(c, '2001')])
+   :        +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[a]], exchange_mode=[BATCH])
+      +- Calc(select=[a, b], where=[=(c, '2002')])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

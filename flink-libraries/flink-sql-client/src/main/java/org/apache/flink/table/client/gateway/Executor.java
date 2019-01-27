@@ -41,7 +41,7 @@ public interface Executor {
 	Map<String, String> getSessionProperties(SessionContext session) throws SqlExecutionException;
 
 	/**
-	 * Lists all tables known to the executor.
+	 * Lists all tables in the default database.
 	 */
 	List<String> listTables(SessionContext session) throws SqlExecutionException;
 
@@ -49,6 +49,23 @@ public interface Executor {
 	 * Lists all user-defined functions known to the executor.
 	 */
 	List<String> listUserDefinedFunctions(SessionContext session) throws SqlExecutionException;
+
+	/**
+	 * Parse the namePath, and set the default  database.
+	 * If a catalog is not specified, the database is resolved relative to the current catalog.
+	 * Note! This method does not support setting default catalog only.
+	 */
+	void setDefaultDatabase(SessionContext session, String namePath) throws SqlExecutionException;
+
+	/**
+	 * Lists all registered catalogs.
+	 */
+	List<String> listCatalogs(SessionContext session) throws SqlExecutionException;
+
+	/**
+	 * Lists all databases in the default catalog.
+	 */
+	List<String> listDatabases(SessionContext session) throws SqlExecutionException;
 
 	/**
 	 * Returns the schema of a table. Throws an exception if the table could not be found. The
@@ -106,6 +123,21 @@ public interface Executor {
 	 * Validates the current session. For example, it checks whether all views are still valid.
 	 */
 	void validateSession(SessionContext session) throws SqlExecutionException;
+
+	/**
+	 * Create a table with a DDL.
+	 */
+	void createTable(SessionContext session, String ddl) throws SqlExecutionException;
+
+	/**
+	 * Create a view with a DDL.
+	 */
+	void createView(SessionContext session, String ddl) throws SqlExecutionException;
+
+	/**
+	 * Create a function with a DDL.
+	 */
+	void createFunction(SessionContext session, String ddl) throws SqlExecutionException;
 
 	/**
 	 * Stops the executor.

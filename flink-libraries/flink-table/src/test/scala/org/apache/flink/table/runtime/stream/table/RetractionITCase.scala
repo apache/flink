@@ -19,19 +19,21 @@
 package org.apache.flink.table.runtime.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
-import org.apache.flink.table.utils.TableFunc0
+import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink}
+import org.apache.flink.table.util.TableFunc0
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
 /**
   * tests for retraction
   */
-class RetractionITCase extends StreamingWithStateTestBase {
+@RunWith(classOf[Parameterized])
+class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
   // input data
   val data = List(
     ("Hello", 1),
@@ -43,18 +45,12 @@ class RetractionITCase extends StreamingWithStateTestBase {
     ("bark", 1),
     ("bark", 1),
     ("bark", 1),
-    ("flink", 1)
-  )
+    ("flink", 1))
 
   // keyed groupby + keyed groupby
   @Test
   def testWordCount(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
-    env.setStateBackend(getStateBackend)
-
-    val stream = env.fromCollection(data)
+    val stream = failingDataSource(data)
     val table = stream.toTable(tEnv, 'word, 'num)
     val resultTable = table
       .groupBy('word)
@@ -62,60 +58,48 @@ class RetractionITCase extends StreamingWithStateTestBase {
       .groupBy('count)
       .select('count, 'count.count as 'frequency)
 
-    val results = resultTable.toRetractStream[Row]
-    results.addSink(new StreamITCase.RetractingSink)
+    val sink = new TestingRetractSink
+    resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,2", "2,1", "6,1")
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
   // keyed groupby + non-keyed groupby
   @Test
   def testGroupByAndNonKeyedGroupBy(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
-    env.setStateBackend(getStateBackend)
-
-    val stream = env.fromCollection(data)
+    val stream = failingDataSource(data)
     val table = stream.toTable(tEnv, 'word, 'num)
     val resultTable = table
       .groupBy('word)
       .select('word as 'word, 'num.sum as 'cnt)
       .select('cnt.sum)
 
-    val results = resultTable.toRetractStream[Row]
-
-    results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    val sink = new TestingRetractSink
+    resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("10")
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
   // non-keyed groupby + keyed groupby
   @Test
   def testNonKeyedGroupByAndGroupBy(): Unit = {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
-    env.setStateBackend(getStateBackend)
-
-    val stream = env.fromCollection(data)
+    val stream = failingDataSource(data)
     val table = stream.toTable(tEnv, 'word, 'num)
     val resultTable = table
       .select('num.sum as 'count)
       .groupBy('count)
       .select('count, 'count.count)
 
-    val results = resultTable.toRetractStream[Row]
-    results.addSink(new StreamITCase.RetractingSink)
+    val sink = new TestingRetractSink
+    resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("10,1")
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
   // test unique process, if the current output message of unbounded groupby equals the
@@ -138,13 +122,8 @@ class RetractionITCase extends StreamingWithStateTestBase {
       (6, 6L),
       (7, 8L)
     )
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
-    env.setStateBackend(getStateBackend)
-    env.setParallelism(1)
 
-    val stream = env.fromCollection(data)
+    val stream = failingDataSource(data)
     val table = stream.toTable(tEnv, 'pk, 'value)
     val resultTable = table
       .groupBy('pk)
@@ -152,27 +131,23 @@ class RetractionITCase extends StreamingWithStateTestBase {
       .groupBy('sum)
       .select('sum, 'pk.count as 'count)
 
-    val results = resultTable.toRetractStream[Row]
-    results.addSink(new StreamITCase.RetractMessagesSink)
+    val sink = new TestingRetractSink
+    resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
-      "+1,1", "+2,1", "+3,1", "-3,1", "+6,1", "-1,1", "+1,2", "-1,2", "+1,3", "-6,1", "+6,2",
-      "-6,2", "+6,1", "+12,1", "-12,1", "+18,1", "+8,1")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+      "(true,1,1)", "(true,2,1)", "(true,3,1)", "(false,3,1)", "(true,6,1)", "(false,1,1)",
+      "(true,1,2)", "(false,1,2)", "(true,1,3)", "(false,6,1)", "(true,6,2)", "(false,6,2)",
+      "(true,6,1)", "(true,12,1)", "(false,12,1)", "(true,18,1)", "(true,8,1)")
+    assertEquals(expected.sorted, sink.getRawResults.sorted)
   }
 
   // correlate should handle retraction messages correctly
   @Test
   def testCorrelate(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
-    env.setStateBackend(getStateBackend)
-
     val func0 = new TableFunc0
 
-    val stream = env.fromCollection(data)
+    val stream = failingDataSource(data)
     val table = stream.toTable(tEnv, 'word, 'num)
     val resultTable = table
       .groupBy('word)
@@ -181,11 +156,11 @@ class RetractionITCase extends StreamingWithStateTestBase {
       .groupBy('cnt)
       .select('cnt, 'word.count as 'frequency)
 
-    val results = resultTable.toRetractStream[Row]
-    results.addSink(new StreamITCase.RetractingSink)
+    val sink = new TestingRetractSink
+    resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,2", "2,1", "6,1")
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 }

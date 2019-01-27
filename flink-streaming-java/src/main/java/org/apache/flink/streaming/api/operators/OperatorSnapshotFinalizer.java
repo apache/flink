@@ -19,10 +19,10 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.util.FutureUtil;
 
 import javax.annotation.Nonnull;
 
@@ -44,16 +44,16 @@ public class OperatorSnapshotFinalizer {
 		@Nonnull OperatorSnapshotFutures snapshotFutures) throws ExecutionException, InterruptedException {
 
 		SnapshotResult<KeyedStateHandle> keyedManaged =
-			FutureUtils.runIfNotDoneAndGet(snapshotFutures.getKeyedStateManagedFuture());
+			FutureUtil.runIfNotDoneAndGet(snapshotFutures.getKeyedStateManagedFuture());
 
 		SnapshotResult<KeyedStateHandle> keyedRaw =
-			FutureUtils.runIfNotDoneAndGet(snapshotFutures.getKeyedStateRawFuture());
+			FutureUtil.runIfNotDoneAndGet(snapshotFutures.getKeyedStateRawFuture());
 
 		SnapshotResult<OperatorStateHandle> operatorManaged =
-			FutureUtils.runIfNotDoneAndGet(snapshotFutures.getOperatorStateManagedFuture());
+			FutureUtil.runIfNotDoneAndGet(snapshotFutures.getOperatorStateManagedFuture());
 
 		SnapshotResult<OperatorStateHandle> operatorRaw =
-			FutureUtils.runIfNotDoneAndGet(snapshotFutures.getOperatorStateRawFuture());
+			FutureUtil.runIfNotDoneAndGet(snapshotFutures.getOperatorStateRawFuture());
 
 		jobManagerOwnedState = new OperatorSubtaskState(
 			operatorManaged.getJobManagerOwnedSnapshot(),

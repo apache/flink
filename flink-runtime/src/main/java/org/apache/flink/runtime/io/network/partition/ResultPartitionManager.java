@@ -41,18 +41,18 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResultPartitionManager.class);
 
-	public final Table<ExecutionAttemptID, IntermediateResultPartitionID, ResultPartition>
+	public final Table<ExecutionAttemptID, IntermediateResultPartitionID, InternalResultPartition>
 			registeredPartitions = HashBasedTable.create();
 
 	private boolean isShutdown;
 
-	public void registerResultPartition(ResultPartition partition) throws IOException {
+	public void registerResultPartition(InternalResultPartition partition) throws IOException {
 		synchronized (registeredPartitions) {
 			checkState(!isShutdown, "Result partition manager already shut down.");
 
 			ResultPartitionID partitionId = partition.getPartitionId();
 
-			ResultPartition previous = registeredPartitions.put(
+			InternalResultPartition previous = registeredPartitions.put(
 					partitionId.getProducerId(), partitionId.getPartitionId(), partition);
 
 			if (previous != null) {
@@ -70,7 +70,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 			BufferAvailabilityListener availabilityListener) throws IOException {
 
 		synchronized (registeredPartitions) {
-			final ResultPartition partition = registeredPartitions.get(partitionId.getProducerId(),
+			final InternalResultPartition partition = registeredPartitions.get(partitionId.getProducerId(),
 					partitionId.getPartitionId());
 
 			if (partition == null) {
@@ -89,10 +89,10 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 
 	public void releasePartitionsProducedBy(ExecutionAttemptID executionId, Throwable cause) {
 		synchronized (registeredPartitions) {
-			final Map<IntermediateResultPartitionID, ResultPartition> partitions =
+			final Map<IntermediateResultPartitionID, InternalResultPartition> partitions =
 					registeredPartitions.row(executionId);
 
-			for (ResultPartition partition : partitions.values()) {
+			for (InternalResultPartition partition : partitions.values()) {
 				partition.release(cause);
 			}
 
@@ -112,7 +112,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 			LOG.debug("Releasing {} partitions because of shutdown.",
 					registeredPartitions.values().size());
 
-			for (ResultPartition partition : registeredPartitions.values()) {
+			for (InternalResultPartition partition : registeredPartitions.values()) {
 				partition.release();
 			}
 
@@ -128,8 +128,8 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 	// Notifications
 	// ------------------------------------------------------------------------
 
-	void onConsumedPartition(ResultPartition partition) {
-		final ResultPartition previous;
+	void onConsumedPartition(InternalResultPartition partition) {
+		final InternalResultPartition previous;
 
 		LOG.debug("Received consume notification from {}.", partition);
 

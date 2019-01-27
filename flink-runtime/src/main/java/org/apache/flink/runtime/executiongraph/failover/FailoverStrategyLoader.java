@@ -63,7 +63,10 @@ public class FailoverStrategyLoader {
 					return new RestartAllStrategy.Factory();
 
 				case PIPELINED_REGION_RESTART_STRATEGY_NAME:
-					return new RestartPipelinedRegionStrategy.Factory();
+					int regionFailLimit = config.getInteger(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY_REGION_MAX_ATTEMPTS);
+					RestartPipelinedRegionStrategy.Factory factory = new RestartPipelinedRegionStrategy.Factory();
+					factory.setRegionFailLimit(regionFailLimit);
+					return factory;
 
 				case INDIVIDUAL_RESTART_STRATEGY_NAME:
 					return new RestartIndividualStrategy.Factory();

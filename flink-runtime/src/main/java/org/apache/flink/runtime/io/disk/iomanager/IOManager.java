@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +65,12 @@ public abstract class IOManager {
 	/** The number of the next path to use. */
 	private volatile int nextPath;
 
+	/** The number of the next thread to use. */
+	private volatile int nextThread;
+
+	/** The number of read/write threads. */
+	private final int numThreads;
+
 	// -------------------------------------------------------------------------
 	//               Constructors / Destructors
 	// -------------------------------------------------------------------------
@@ -73,11 +80,13 @@ public abstract class IOManager {
 	 *
 	 * @param tempDirs The basic directories for files underlying anonymous channels.
 	 */
-	protected IOManager(String[] tempDirs) {
-		if (tempDirs == null || tempDirs.length == 0) {
-			throw new IllegalArgumentException("The temporary directories must not be null or empty.");
-		}
+	protected IOManager(String[] tempDirs, int numThreads) {
+		Preconditions.checkArgument(numThreads > 0, "The number of read/write " +
+			"threads must be positive, but actual is " + numThreads);
+		Preconditions.checkArgument(tempDirs != null && tempDirs.length != 0,
+			"The temporary directories must not be null or empty.");
 
+		this.numThreads = numThreads;
 		this.random = new Random();
 		this.nextPath = 0;
 
@@ -142,8 +151,26 @@ public abstract class IOManager {
 	 * @return A channel to a temporary directory.
 	 */
 	public FileIOChannel.ID createChannel() {
-		final int num = getNextPathNum();
-		return new FileIOChannel.ID(this.paths[num], num, this.random);
+		final int pathNum = getNextPathNum();
+		final int threadNum = getNextThreadNum();
+		return new FileIOChannel.ID(this.paths[pathNum], threadNum, this.random);
+	}
+
+	/**
+	 * Creates a new {@link FileIOChannel.ID} out of all the tmp directories to avoid get cleared
+	 * unexpected.
+	 *
+	 * @param path The file to write
+	 * @return A channel in an directory out of all the tmp directories.
+	 */
+	public FileIOChannel.ID createChannel(File path) {
+		final int threadNum = getNextThreadNum();
+		for (File localPath : paths) {
+			if (path.getPath().startsWith(localPath.getPath())) {
+				throw new RuntimeException(path.getPath() + " is not allowed in path: " + localPath.toString());
+			}
+		}
+		return new FileIOChannel.ID(path, threadNum);
 	}
 
 	/**
@@ -153,13 +180,13 @@ public abstract class IOManager {
 	 * @return An enumerator for channels.
 	 */
 	public FileIOChannel.Enumerator createChannelEnumerator() {
-		return new FileIOChannel.Enumerator(this.paths, this.random);
+		return new FileIOChannel.Enumerator(this.paths, this.random, this.numThreads);
 	}
 
 	/**
 	 * Deletes the file underlying the given channel. If the channel is still open, this
 	 * call may fail.
-	 * 
+	 *
 	 * @param channel The channel to be deleted.
 	 * @throws IOException Thrown if the deletion fails.
 	 */
@@ -170,7 +197,7 @@ public abstract class IOManager {
 			}
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//                        Reader / Writer instantiations
 	// ------------------------------------------------------------------------
@@ -242,6 +269,10 @@ public abstract class IOManager {
 
 	public abstract BufferFileSegmentReader createBufferFileSegmentReader(FileIOChannel.ID channelID, RequestDoneCallback<FileSegment> callback) throws IOException;
 
+	public abstract BufferFileWriter createStreamFileWriter(FileIOChannel.ID channelID) throws IOException;
+
+	public abstract BufferFileReader createStreamFileReader(FileIOChannel.ID channelID, RequestDoneCallback<Buffer> callback) throws IOException;
+
 	/**
 	 * Creates a block channel reader that reads all blocks from the given channel directly in one bulk.
 	 * The reader draws segments to read the blocks into from a supplied list, which must contain as many
@@ -264,10 +295,10 @@ public abstract class IOManager {
 	// ------------------------------------------------------------------------
 	//                          Utilities
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Gets the number of directories across which the I/O manager rotates its files.
-	 * 
+	 *
 	 * @return The number of temporary file directories.
 	 */
 	public int getNumberOfSpillingDirectories() {
@@ -276,7 +307,7 @@ public abstract class IOManager {
 
 	/**
 	 * Gets the directories that the I/O manager spills to.
-	 * 
+	 *
 	 * @return The directories that the I/O manager spills to.
 	 */
 	public File[] getSpillingDirectories() {
@@ -295,11 +326,18 @@ public abstract class IOManager {
 		}
 		return strings;
 	}
-	
+
 	protected int getNextPathNum() {
 		final int next = this.nextPath;
 		final int newNext = next + 1;
 		this.nextPath = newNext >= this.paths.length ? 0 : newNext;
+		return next;
+	}
+
+	protected int getNextThreadNum() {
+		final int next = this.nextThread;
+		final int newNext = next + 1;
+		this.nextThread = newNext >= this.numThreads ? 0 : newNext;
 		return next;
 	}
 }

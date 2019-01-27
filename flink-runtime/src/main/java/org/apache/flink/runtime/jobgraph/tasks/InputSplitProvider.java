@@ -20,6 +20,10 @@ package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * An input split provider can be successively queried to provide a series of {@link InputSplit} objects a
@@ -29,12 +33,18 @@ import org.apache.flink.core.io.InputSplit;
 public interface InputSplitProvider {
 
 	/**
-	 * Requests the next input split to be consumed by the calling task.
+	 * Requests the next input split of the given operator to be consumed by the calling task.
 	 *
+	 * @param operatorID the operator id
 	 * @param userCodeClassLoader used to deserialize input splits
 	 * @return the next input split to be consumed by the calling task or <code>null</code> if the
 	 *         task shall not consume any further input splits.
 	 * @throws InputSplitProviderException if fetching the next input split fails
 	 */
-	InputSplit getNextInputSplit(ClassLoader userCodeClassLoader) throws InputSplitProviderException;
+	InputSplit getNextInputSplit(OperatorID operatorID, ClassLoader userCodeClassLoader) throws InputSplitProviderException;
+
+	/**
+	 * Get the input splits that have been assigned through this provider.
+	 */
+	Map<OperatorID, List<InputSplit>> getAssignedInputSplits();
 }

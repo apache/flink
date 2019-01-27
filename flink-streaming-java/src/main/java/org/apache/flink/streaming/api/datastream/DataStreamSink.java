@@ -21,6 +21,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
@@ -47,6 +50,16 @@ public class DataStreamSink<T> {
 	@Internal
 	public SinkTransformation<T> getTransformation() {
 		return transformation;
+	}
+
+	/**
+	 * Returns the ID of the {@link DataStreamSink} in the current {@link StreamExecutionEnvironment}.
+	 *
+	 * @return ID of the DataStreamSink
+	 */
+	@Internal
+	public int getId() {
+		return transformation.getId();
 	}
 
 	/**
@@ -126,7 +139,7 @@ public class DataStreamSink<T> {
 	 * @param preferredResources The preferred resources for this sink
 	 * @return The sink with set minimum and preferred resources.
 	 */
-	private DataStreamSink<T> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+	public DataStreamSink<T> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
 		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
 		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
 		Preconditions.checkArgument(minResources.isValid() && preferredResources.isValid() && minResources.lessThanOrEqual(preferredResources),
@@ -140,10 +153,15 @@ public class DataStreamSink<T> {
 	/**
 	 * Sets the resources for this sink, the minimum and preferred resources are the same by default.
 	 *
+	 * <p>Note: If the resources of the operator is explicitly set, the default resource settings will be used
+	 * by other operators in the same job that are not explicitly set required resources. Please see
+	 * {@link StreamExecutionEnvironment#setDefaultResources(ResourceSpec)}, {@link CoreOptions#DEFAULT_RESOURCE_CPU_CORES}
+	 * and {@link CoreOptions#DEFAULT_RESOURCE_HEAP_MEMORY} to set the default resources.
+	 *
 	 * @param resources The resources for this sink.
 	 * @return The sink with set minimum and preferred resources.
 	 */
-	private DataStreamSink<T> setResources(ResourceSpec resources) {
+	public DataStreamSink<T> setResources(ResourceSpec resources) {
 		Preconditions.checkNotNull(resources, "The resources must be not null.");
 		Preconditions.checkArgument(resources.isValid(), "The values in resources must be not less than 0.");
 
@@ -184,6 +202,34 @@ public class DataStreamSink<T> {
 	@PublicEvolving
 	public DataStreamSink<T> slotSharingGroup(String slotSharingGroup) {
 		transformation.setSlotSharingGroup(slotSharingGroup);
+		return this;
+	}
+
+
+	// ------------------------------------------------------------------------
+	//  Configuration
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Sets the value of the given option for the operator.
+	 *
+	 * @param key The option to be updated.
+	 * @param value The value of the option to be updated.
+	 */
+	@PublicEvolving
+	public DataStreamSink<T> setConfigItem(ConfigOption<String> key, String value) {
+		transformation.getCustomConfiguration().setString(key, value);
+		return this;
+	}
+
+	/**
+	 * Sets the value of the given option for the operator.
+	 *
+	 * @param key The name of the option to be updated.
+	 * @param value The value of the option to be updated.
+	 */
+	public DataStreamSink<T> setConfigItem(String key, String value) {
+		transformation.getCustomConfiguration().setString(key, value);
 		return this;
 	}
 }

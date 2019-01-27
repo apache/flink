@@ -148,41 +148,46 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		int newBacklog = 0; // this is always correct if current is non-null!
 		boolean isMoreAvailable = false;
 
-		synchronized (buffers) {
-			if (isReleased.get()) {
-				return null;
-			} else if (nextBuffer != null) {
-				current = nextBuffer.build();
-				checkState(nextBuffer.isFinished(),
-					"We can only read from SpillableSubpartition after it was finished");
+		try {
+			synchronized (buffers) {
+				if (isReleased.get()) {
+					return null;
+				} else if (nextBuffer != null) {
+					current = nextBuffer.build();
+					checkState(nextBuffer.isFinished(),
+						"We can only read from SpillableSubpartition after it was finished");
 
-				newBacklog = parent.decreaseBuffersInBacklogUnsafe(nextBuffer.isBuffer());
-				nextBuffer.close();
-				nextBuffer = buffers.poll();
+					newBacklog = parent.decreaseBuffersInBacklogUnsafe(nextBuffer.isBuffer());
+					nextBuffer.close();
+					nextBuffer = buffers.poll();
 
-				if (nextBuffer != null) {
-					nextBufferIsEvent = !nextBuffer.isBuffer();
-					isMoreAvailable = true;
+					if (nextBuffer != null) {
+						nextBufferIsEvent = !nextBuffer.isBuffer();
+						isMoreAvailable = true;
+					}
+
+					parent.updateStatistics(current);
+					// if we are spilled (but still process a non-spilled nextBuffer), we don't know the
+					// state of nextBufferIsEvent or whether more buffers are available
+					if (spilledView == null) {
+						return new BufferAndBacklog(current, isMoreAvailable, newBacklog, nextBufferIsEvent);
+					}
 				}
+			} // else: spilled
 
-				parent.updateStatistics(current);
-				// if we are spilled (but still process a non-spilled nextBuffer), we don't know the
-				// state of nextBufferIsEvent or whether more buffers are available
-				if (spilledView == null) {
-					return new BufferAndBacklog(current, isMoreAvailable, newBacklog, nextBufferIsEvent);
+			SpilledSubpartitionView spilled = spilledView;
+			if (spilled != null) {
+				if (current != null) {
+					return new BufferAndBacklog(current, spilled.isAvailable(), newBacklog, spilled.nextBufferIsEvent());
+				} else {
+					return spilled.getNextBuffer();
 				}
-			}
-		} // else: spilled
-
-		SpilledSubpartitionView spilled = spilledView;
-		if (spilled != null) {
-			if (current != null) {
-				return new BufferAndBacklog(current, spilled.isAvailable(), newBacklog, spilled.nextBufferIsEvent());
 			} else {
-				return spilled.getNextBuffer();
+				throw new IllegalStateException("No in-memory buffers available, but also nothing spilled.");
 			}
-		} else {
-			throw new IllegalStateException("No in-memory buffers available, but also nothing spilled.");
+		} catch (Throwable t) {
+			// Mark all data retrieval errors as DataConsumptionException.
+			throw new DataConsumptionException(parent.parent.getPartitionId(), t);
 		}
 	}
 
@@ -258,6 +263,11 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	}
 
 	@Override
+	public void notifyCreditAdded(int creditDeltas) {
+		// No operations.
+	}
+
+	@Override
 	public Throwable getFailureCause() {
 		SpilledSubpartitionView spilled = spilledView;
 		if (spilled != null) {
@@ -271,7 +281,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	public String toString() {
 		boolean hasSpilled = spilledView != null;
 
-		return String.format("SpillableSubpartitionView(index: %d, buffers: %d, spilled? %b) of ResultPartition %s",
+		return String.format("SpillableSubpartitionView(index: %d, buffers: %d, spilled? %b) of InternalResultPartition %s",
 			parent.index,
 			numBuffers,
 			hasSpilled,

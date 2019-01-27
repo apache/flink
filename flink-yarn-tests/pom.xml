@@ -21,9 +21,9 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>org.apache.flink</groupId>
+		<groupId>com.alibaba.blink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.5.1</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -42,7 +42,15 @@ under the License.
 		<!-- test dependencies -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-dist_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>pom</type>
+		</dependency>
+
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 		
@@ -53,14 +61,14 @@ under the License.
 		</dependency>
 		
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
@@ -68,7 +76,7 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
@@ -77,21 +85,21 @@ under the License.
 
 		<!-- Needed for the streaming wordcount example -->
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-yarn_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-yarn_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
@@ -99,7 +107,7 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>jar</type>
@@ -108,7 +116,7 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>jar</type>
@@ -117,14 +125,14 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-shaded-hadoop2</artifactId>
-			<version>${project.version}-${hadoop.version}</version>
+			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-shaded-yarn-tests</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
@@ -185,15 +193,6 @@ under the License.
 				</executions>
 			</plugin>
 
-			<!-- Skip the deployment of this module since it only contains yarn tests -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-deploy-plugin</artifactId>
-				<configuration>
-					<skip>true</skip>
-				</configuration>
-			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -235,10 +234,6 @@ under the License.
 								<relocation>
 									<pattern>org.jboss.netty</pattern>
 									<shadedPattern>org.apache.flink.hadoop.shaded.org.jboss.netty</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>io.netty</pattern>
-									<shadedPattern>org.apache.flink.hadoop.shaded.io.netty</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
@@ -384,7 +379,7 @@ under the License.
 				<configuration>
 					<artifactItems>
 						<artifactItem>
-							<groupId>org.apache.flink</groupId>
+							<groupId>com.alibaba.blink</groupId>
 							<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
 							<type>jar</type>
 							<classifier>WordCount</classifier>
@@ -392,7 +387,7 @@ under the License.
 							<destFileName>BatchWordCount.jar</destFileName>
 						</artifactItem>
 						<artifactItem>
-							<groupId>org.apache.flink</groupId>
+							<groupId>com.alibaba.blink</groupId>
 							<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
 							<type>jar</type>
 							<classifier>WordCount</classifier>
@@ -400,7 +395,7 @@ under the License.
 							<destFileName>StreamingWordCount.jar</destFileName>
 						</artifactItem>
 						<artifactItem>
-							<groupId>org.apache.flink</groupId>
+							<groupId>com.alibaba.blink</groupId>
 							<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
 							<type>jar</type>
 							<classifier>WindowJoin</classifier>

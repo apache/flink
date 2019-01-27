@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.types.InternalType;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.api.java.io.jdbc.JDBCOutputFormat.DEFAULT_BATCH_INTERVAL;
@@ -97,7 +97,7 @@ public class JDBCAppendTableSinkBuilder {
 	 * Specify the type of the rows that the sink will be accepting.
 	 * @param types the type of each field
 	 */
-	public JDBCAppendTableSinkBuilder setParameterTypes(TypeInformation<?>... types) {
+	public JDBCAppendTableSinkBuilder setParameterTypes(InternalType... types) {
 		int[] ty = new int[types.length];
 		for (int i = 0; i < types.length; ++i) {
 			ty[i] = JDBCTypeUtil.typeInformationToSqlType(types[i]);

@@ -19,12 +19,16 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.description.Description;
+import org.apache.flink.annotation.docs.ConfigGroup;
+import org.apache.flink.annotation.docs.ConfigGroups;
 
 /**
  * The set of configuration options relating to the ResourceManager.
  */
 @PublicEvolving
+@ConfigGroups(groups = {
+	@ConfigGroup(name = "SlotManager", keyPrefix = "slotmanager")
+})
 public class ResourceManagerOptions {
 
 	/**
@@ -35,19 +39,10 @@ public class ResourceManagerOptions {
 		.defaultValue("5 minutes")
 		.withDescription("Timeout for jobs which don't have a job manager as leader assigned.");
 
-	/**
-	 * The number of resource managers start.
-	 */
 	public static final ConfigOption<Integer> LOCAL_NUMBER_RESOURCE_MANAGER = ConfigOptions
 		.key("local.number-resourcemanager")
-		.defaultValue(1)
-		.withDescription("The number of resource managers start.");
+		.defaultValue(1);
 
-	/**
-	 * Defines the network port to connect to for communication with the resource manager.
-	 * By default, the port of the JobManager, because the same ActorSystem is used. Its not
-	 * possible to use this configuration key to define port ranges.
-	 */
 	public static final ConfigOption<Integer> IPC_PORT = ConfigOptions
 		.key("resourcemanager.rpc.port")
 		.defaultValue(0)
@@ -63,8 +58,11 @@ public class ResourceManagerOptions {
 		.key("containerized.heap-cutoff-ratio")
 		.defaultValue(0.25f)
 		.withDeprecatedKeys("yarn.heap-cutoff-ratio")
-		.withDescription("Percentage of heap space to remove from containers (YARN / Mesos), to compensate" +
-			" for other JVM memory usage.");
+		.withDescription("Percentage of heap space to remove from containers (YARN / Mesos), to compensate for other JVM memory usage. " +
+			"This config option will not take effect in all session mode of Yarn/Kubernetes/Standalone. " +
+			"Please use fine-grained config option instead. (" + TaskManagerOptions.TASK_MANAGER_PROCESS_HEAP_MEMORY.key() + "," +
+			TaskManagerOptions.TASK_MANAGER_PROCESS_NETTY_MEMORY.key() + "," +
+			TaskManagerOptions.TASK_MANAGER_PROCESS_NATIVE_MEMORY.key() + ")");
 
 	/**
 	 * Minimum amount of heap memory to remove in containers, as a safety margin.
@@ -73,38 +71,38 @@ public class ResourceManagerOptions {
 		.key("containerized.heap-cutoff-min")
 		.defaultValue(600)
 		.withDeprecatedKeys("yarn.heap-cutoff-min")
-		.withDescription("Minimum amount of heap memory to remove in containers, as a safety margin.");
+		.withDescription("Minimum amount of heap memory to remove in containers, as a safety margin. " +
+			"This config option will not take effect in all session mode of Yarn/Kubernetes/Standalone. " +
+			"Please use fine-grained config option instead. (" + TaskManagerOptions.TASK_MANAGER_PROCESS_HEAP_MEMORY.key() + "," +
+			TaskManagerOptions.TASK_MANAGER_PROCESS_NETTY_MEMORY.key() + "," +
+			TaskManagerOptions.TASK_MANAGER_PROCESS_NATIVE_MEMORY.key() + ")");
 
 	/**
 	 * The timeout for a slot request to be discarded, in milliseconds.
-	 * @deprecated Use {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT}.
 	 */
-	@Deprecated
 	public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT = ConfigOptions
 		.key("slotmanager.request-timeout")
-		.defaultValue(-1L)
+		.defaultValue(600000L)
 		.withDescription("The timeout for a slot request to be discarded.");
-
-	/**
-	 * The timeout for an idle task manager to be released, in milliseconds.
-	 * @deprecated Use {@link #TASK_MANAGER_TIMEOUT}.
-	 */
-	@Deprecated
-	public static final ConfigOption<Long> SLOT_MANAGER_TASK_MANAGER_TIMEOUT = ConfigOptions
-		.key("slotmanager.taskmanager-timeout")
-		.defaultValue(30000L)
-		.withDescription("The timeout for an idle task manager to be released.");
 
 	/**
 	 * The timeout for an idle task manager to be released, in milliseconds.
 	 */
 	public static final ConfigOption<Long> TASK_MANAGER_TIMEOUT = ConfigOptions
-		.key("resourcemanager.taskmanager-timeout")
+		.key("slotmanager.taskmanager-timeout")
 		.defaultValue(30000L)
-		.withDeprecatedKeys(SLOT_MANAGER_TASK_MANAGER_TIMEOUT.key())
-		.withDescription(Description.builder()
-			.text("The timeout for an idle task manager to be released.")
-			.build());
+		.withDescription("The timeout for an idle task manager to be released.");
+
+	/**
+	 * The timeout for an idle task manager to be released when slot manager starts, in milliseconds.
+	 */
+	public static final ConfigOption<Long> TASK_MANAGER_CHECKER_INITIAL_DELAY = ConfigOptions
+		.key("slotmanager.taskmanager.checker-initial-delay")
+		.defaultValue(180000L);
+
+	public static final ConfigOption<String> SLOT_PLACEMENT_POLICY = ConfigOptions
+		.key("slotmanager.slot-placement-policy")
+		.defaultValue("RANDOM");
 
 	/**
 	 * Prefix for passing custom environment variables to Flink's master process.

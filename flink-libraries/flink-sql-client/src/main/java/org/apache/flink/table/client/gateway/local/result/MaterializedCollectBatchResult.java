@@ -21,7 +21,9 @@ package org.apache.flink.table.client.gateway.local.result;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.api.types.DataType;
+import org.apache.flink.table.api.types.TypeConverters;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.local.CollectBatchTableSink;
@@ -39,7 +41,7 @@ import java.util.List;
  */
 public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements MaterializedResult<C> {
 
-	private final TypeInformation<Row> outputType;
+	private final DataType outputType;
 	private final String accumulatorName;
 	private final CollectBatchTableSink tableSink;
 	private final Object resultLock;
@@ -53,11 +55,13 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 
 	private volatile boolean snapshotted = false;
 
-	public MaterializedCollectBatchResult(TypeInformation<Row> outputType, ExecutionConfig config) {
+	public MaterializedCollectBatchResult(DataType outputType, ExecutionConfig config) {
 		this.outputType = outputType;
 
 		accumulatorName = new AbstractID().toString();
-		tableSink = new CollectBatchTableSink(accumulatorName, outputType.createSerializer(config));
+		tableSink = new CollectBatchTableSink(accumulatorName,
+				(TypeSerializer<Row>) TypeConverters.createExternalTypeInfoFromDataType(outputType)
+						.createSerializer(config));
 		resultLock = new Object();
 		retrievalThread = new ResultRetrievalThread();
 
@@ -70,7 +74,7 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 	}
 
 	@Override
-	public TypeInformation<Row> getOutputType() {
+	public DataType getOutputType() {
 		return outputType;
 	}
 

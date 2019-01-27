@@ -26,8 +26,6 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
-import java.util.Collections;
-
 /**
  * Mock {@link StreamingRuntimeContext} to use in tests.
  */
@@ -48,8 +46,7 @@ public class MockStreamingRuntimeContext extends StreamingRuntimeContext {
 			new MockEnvironmentBuilder()
 				.setTaskName("mockTask")
 				.setMemorySize(4 * MemoryManager.DEFAULT_PAGE_SIZE)
-				.build(),
-			Collections.emptyMap());
+				.build());
 
 		this.isCheckpointingEnabled = isCheckpointingEnabled;
 		this.numParallelSubtasks = numParallelSubtasks;

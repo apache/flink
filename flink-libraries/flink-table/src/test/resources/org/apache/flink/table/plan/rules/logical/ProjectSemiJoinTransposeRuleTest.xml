@@ -1,0 +1,831 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testNotNeedTransposeProject_Anti1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNeedTransposeProject_Anti1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[OR(=($0, $3), IS NULL(=($0, $3)))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNeedTransposeProject_Anti2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT b + 1, c FROM l WHERE a NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($1, 1)], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($1, 1)], c=[$2])
++- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNeedTransposeProject_Anti2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT b + 1, c FROM l WHERE a NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($1, 1)], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($1, 1)], c=[$2])
++- SemiJoin(condition=[OR(=($0, $3), IS NULL(=($0, $3)))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNeedTransposeProject_Anti3[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM l WHERE a NOT IN (SELECT d FROM r WHERE l.b = r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(c=[$2])
++- SemiJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNeedTransposeProject_Anti3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM l WHERE a NOT IN (SELECT d FROM r WHERE l.b = r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(c=[$2])
++- SemiJoin(condition=[AND(OR(=($0, $3), IS NULL(=($0, $3))), =($1, $4))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNeedTransposeProject_Semi1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[false])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNeedTransposeProject_Semi1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[false])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNeedTransposeProject_Semi2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT b + 1, c FROM l WHERE a IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($1, 1)], c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($1, 1)], c=[$2])
++- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[false])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNeedTransposeProject_Semi2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT b + 1, c FROM l WHERE a IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($1, 1)], c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($1, 1)], c=[$2])
++- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[false])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNeedTransposeProject_Semi3[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM l WHERE a IN (SELECT d FROM r WHERE l.b = r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(c=[$2])
++- SemiJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[inner], isAnti=[false])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotNeedTransposeProject_Semi3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM l WHERE a IN (SELECT d FROM r WHERE l.b = r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(c=[$2])
++- SemiJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[inner], isAnti=[false])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Anti1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE a NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SemiJoin(condition=[=($0, $1)], joinType=[inner], isAnti=[true])
+:- LogicalProject(a=[$0])
+:  +- LogicalTableScan(table=[[builtin, default, l]])
++- LogicalProject(d=[$0])
+   +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Anti1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE a NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SemiJoin(condition=[OR(=($0, $1), IS NULL(=($0, $1)))], joinType=[inner], isAnti=[true])
+:- LogicalProject(a=[$0])
+:  +- LogicalTableScan(table=[[builtin, default, l]])
++- LogicalProject(d=[$0])
+   +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Anti2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT a + 1 FROM l WHERE a NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 1)])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 1)])
++- SemiJoin(condition=[=($0, $1)], joinType=[inner], isAnti=[true])
+   :- LogicalProject(a=[$0])
+   :  +- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Anti2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT a + 1 FROM l WHERE a NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 1)])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 1)])
++- SemiJoin(condition=[OR(=($0, $1), IS NULL(=($0, $1)))], joinType=[inner], isAnti=[true])
+   :- LogicalProject(a=[$0])
+   :  +- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Anti3[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b FROM l WHERE a NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[true])
+:- LogicalProject(a=[$0], b=[$1])
+:  +- LogicalTableScan(table=[[builtin, default, l]])
++- LogicalProject(d=[$0])
+   +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Anti3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b FROM l WHERE a NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SemiJoin(condition=[OR(=($0, $2), IS NULL(=($0, $2)))], joinType=[inner], isAnti=[true])
+:- LogicalProject(a=[$0], b=[$1])
+:  +- LogicalTableScan(table=[[builtin, default, l]])
++- LogicalProject(d=[$0])
+   +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Anti4[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT b, a FROM l WHERE a NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1], a=[$0])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1], a=[$0])
++- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[true])
+   :- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Anti4[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT b, a FROM l WHERE a NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1], a=[$0])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1], a=[$0])
++- SemiJoin(condition=[OR(=($0, $2), IS NULL(=($0, $2)))], joinType=[inner], isAnti=[true])
+   :- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Anti5[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT d FROM (SELECT a, b, c, d FROM l, r) lr WHERE a NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(d=[$3])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+      +- LogicalJoin(condition=[true], joinType=[inner])
+         :- LogicalTableScan(table=[[builtin, default, l]])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(d=[$1])
++- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[true])
+   :- LogicalProject(a=[$0], d=[$3])
+   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   :     +- LogicalJoin(condition=[true], joinType=[inner])
+   :        :- LogicalTableScan(table=[[builtin, default, l]])
+   :        +- LogicalTableScan(table=[[builtin, default, r]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Anti5[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT d FROM (SELECT a, b, c, d FROM l, r) lr WHERE a NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(d=[$3])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+      +- LogicalJoin(condition=[true], joinType=[inner])
+         :- LogicalTableScan(table=[[builtin, default, l]])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(d=[$1])
++- SemiJoin(condition=[OR(=($0, $2), IS NULL(=($0, $2)))], joinType=[inner], isAnti=[true])
+   :- LogicalProject(a=[$0], d=[$3])
+   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   :     +- LogicalJoin(condition=[true], joinType=[inner])
+   :        :- LogicalTableScan(table=[[builtin, default, l]])
+   :        +- LogicalTableScan(table=[[builtin, default, r]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Semi1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE a IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SemiJoin(condition=[=($0, $1)], joinType=[inner], isAnti=[false])
+:- LogicalProject(a=[$0])
+:  +- LogicalTableScan(table=[[builtin, default, l]])
++- LogicalProject(d=[$0])
+   +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Semi1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE a IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SemiJoin(condition=[=($0, $1)], joinType=[inner], isAnti=[false])
+:- LogicalProject(a=[$0])
+:  +- LogicalTableScan(table=[[builtin, default, l]])
++- LogicalProject(d=[$0])
+   +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Semi2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT a + 1 FROM l WHERE a IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 1)])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 1)])
++- SemiJoin(condition=[=($0, $1)], joinType=[inner], isAnti=[false])
+   :- LogicalProject(a=[$0])
+   :  +- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Semi2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT a + 1 FROM l WHERE a IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 1)])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 1)])
++- SemiJoin(condition=[=($0, $1)], joinType=[inner], isAnti=[false])
+   :- LogicalProject(a=[$0])
+   :  +- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Semi3[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b FROM l WHERE a IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[false])
+:- LogicalProject(a=[$0], b=[$1])
+:  +- LogicalTableScan(table=[[builtin, default, l]])
++- LogicalProject(d=[$0])
+   +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Semi3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b FROM l WHERE a IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[false])
+:- LogicalProject(a=[$0], b=[$1])
+:  +- LogicalTableScan(table=[[builtin, default, l]])
++- LogicalProject(d=[$0])
+   +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Semi4[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT b, a FROM l WHERE a IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1], a=[$0])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1], a=[$0])
++- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[false])
+   :- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Semi4[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT b, a FROM l WHERE a IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1], a=[$0])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1], a=[$0])
++- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[false])
+   :- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Semi5[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT d FROM (SELECT a, b, c, d FROM l, r) lr WHERE a IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(d=[$3])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+      +- LogicalJoin(condition=[true], joinType=[inner])
+         :- LogicalTableScan(table=[[builtin, default, l]])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(d=[$1])
++- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[false])
+   :- LogicalProject(a=[$0], d=[$3])
+   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   :     +- LogicalJoin(condition=[true], joinType=[inner])
+   :        :- LogicalTableScan(table=[[builtin, default, l]])
+   :        +- LogicalTableScan(table=[[builtin, default, r]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTransposeProject_Semi5[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT d FROM (SELECT a, b, c, d FROM l, r) lr WHERE a IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(d=[$3])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+      +- LogicalJoin(condition=[true], joinType=[inner])
+         :- LogicalTableScan(table=[[builtin, default, l]])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(d=[$1])
++- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[false])
+   :- LogicalProject(a=[$0], d=[$3])
+   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   :     +- LogicalJoin(condition=[true], joinType=[inner])
+   :        :- LogicalTableScan(table=[[builtin, default, l]])
+   :        +- LogicalTableScan(table=[[builtin, default, r]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

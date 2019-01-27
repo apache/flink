@@ -20,8 +20,7 @@ package org.apache.flink.table.api.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.util.TableTestBase
 import org.junit.Test
 
 class CalcTest extends TableTestBase {
@@ -30,57 +29,7 @@ class CalcTest extends TableTestBase {
   def testMultipleFlattening(): Unit = {
     val util = batchTestUtil()
     util.addTable[((Int, Long), (String, Boolean), String)]("MyTable", 'a, 'b, 'c)
-
-    val expected = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      term("select",
-        "a._1 AS _1",
-        "a._2 AS _2",
-        "c",
-        "b._1 AS _10",
-        "b._2 AS _20"
-      )
-    )
-
-    util.verifySql(
-      "SELECT MyTable.a.*, c, MyTable.b.* FROM MyTable",
-      expected)
-  }
-
-  @Test
-  def testIn(): Unit = {
-    val util = batchTestUtil()
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-
-    val resultStr = (1 to 30).mkString(", ")
-    val expected = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      term("select", "a", "b", "c"),
-      term("where", s"IN(b, $resultStr)")
-    )
-
-    util.verifySql(
-      s"SELECT * FROM MyTable WHERE b in ($resultStr)",
-      expected)
-  }
-
-  @Test
-  def testNotIn(): Unit = {
-    val util = batchTestUtil()
-    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-
-    val resultStr = (1 to 30).mkString(", ")
-    val expected = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      term("select", "a", "b", "c"),
-      term("where", s"NOT IN(b, $resultStr)")
-    )
-
-    util.verifySql(
-      s"SELECT * FROM MyTable WHERE b NOT IN ($resultStr)",
-      expected)
+    util.verifyPlan(
+      "SELECT MyTable.a.*, c, MyTable.b.* FROM MyTable")
   }
 }

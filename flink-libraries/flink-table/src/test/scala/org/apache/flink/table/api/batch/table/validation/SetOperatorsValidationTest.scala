@@ -19,10 +19,10 @@
 package org.apache.flink.table.api.batch.table.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.util.CollectionDataSets
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableEnvironment, ValidationException}
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.util.{CollectionBatchExecTable, TableTestBase}
 import org.junit._
 
 class SetOperatorsValidationTest extends TableTestBase {
@@ -50,12 +50,12 @@ class SetOperatorsValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testUnionTablesFromDifferentEnvs(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv1 = TableEnvironment.getTableEnvironment(env)
-    val tEnv2 = TableEnvironment.getTableEnvironment(env)
+    val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv1 = TableEnvironment.getBatchTableEnvironment(env)
+    val tEnv2 = TableEnvironment.getBatchTableEnvironment(env)
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv1, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv2, 'a, 'b, 'c)
+    val ds1 = CollectionBatchExecTable.get3TupleDataSet(tEnv1)
+    val ds2 = CollectionBatchExecTable.get3TupleDataSet(tEnv2)
 
     // Must fail. Tables are bound to different TableEnvironments.
     ds1.unionAll(ds2).select('c)
@@ -74,12 +74,12 @@ class SetOperatorsValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testMinusAllTablesFromDifferentEnvs(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv1 = TableEnvironment.getTableEnvironment(env)
-    val tEnv2 = TableEnvironment.getTableEnvironment(env)
+    val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv1 = TableEnvironment.getBatchTableEnvironment(env)
+    val tEnv2 = TableEnvironment.getBatchTableEnvironment(env)
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv1, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv2, 'a, 'b, 'c)
+    val ds1 = CollectionBatchExecTable.get3TupleDataSet(tEnv1)
+    val ds2 = CollectionBatchExecTable.get3TupleDataSet(tEnv2)
 
     // Must fail. Tables are bound to different TableEnvironments.
     ds1.minusAll(ds2).select('c)
@@ -98,12 +98,12 @@ class SetOperatorsValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testIntersectTablesFromDifferentEnvs(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv1 = TableEnvironment.getTableEnvironment(env)
-    val tEnv2 = TableEnvironment.getTableEnvironment(env)
+    val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv1 = TableEnvironment.getBatchTableEnvironment(env)
+    val tEnv2 = TableEnvironment.getBatchTableEnvironment(env)
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv1, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv2, 'a, 'b, 'c)
+    val ds1 = CollectionBatchExecTable.get3TupleDataSet(tEnv1)
+    val ds2 = CollectionBatchExecTable.get3TupleDataSet(tEnv2)
 
     // Must fail. Tables are bound to different TableEnvironments.
     ds1.intersect(ds2).select('c)

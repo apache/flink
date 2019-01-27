@@ -21,22 +21,21 @@ package org.apache.flink.table.plan.logical
 import java.util
 
 import com.google.common.collect.ImmutableMap
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelCollation, RelNode}
+import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rex.RexNode
 
 /**
   * Describes MATCH RECOGNIZE clause.
   */
 case class MatchRecognize(
-  input: RelNode,
-  rowType: RelDataType,
   pattern: RexNode,
+  strictStart: Boolean,
+  strictEnd: Boolean,
   patternDefinitions: ImmutableMap[String, RexNode],
   measures: ImmutableMap[String, RexNode],
   after: RexNode,
   subsets: ImmutableMap[String, util.SortedSet[String]],
-  allRows: Boolean,
+  rowsPerMatch: RexNode,
   partitionKeys: util.List[RexNode],
   orderKeys: RelCollation,
   interval: RexNode)

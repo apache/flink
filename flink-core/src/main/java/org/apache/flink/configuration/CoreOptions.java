@@ -22,7 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
-import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -131,23 +130,15 @@ public class CoreOptions {
 
 	public static final ConfigOption<String> FLINK_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts")
-		.defaultValue("")
-		.withDescription(Description.builder().text("Java options to start the JVM of all Flink processes with.").build());
+		.defaultValue("");
 
 	public static final ConfigOption<String> FLINK_JM_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.jobmanager")
-		.defaultValue("")
-		.withDescription(Description.builder().text("Java options to start the JVM of the JobManager with.").build());
+		.defaultValue("");
 
 	public static final ConfigOption<String> FLINK_TM_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.taskmanager")
-		.defaultValue("")
-		.withDescription(Description.builder().text("Java options to start the JVM of the TaskManager with.").build());
-
-	public static final ConfigOption<String> FLINK_HS_JVM_OPTIONS = ConfigOptions
-		.key("env.java.opts.historyserver")
-		.defaultValue("")
-		.withDescription(Description.builder().text("Java options to start the JVM of the HistoryServer with.").build());
+		.defaultValue("");
 
 	/**
 	 * This options is here only for documentation generation, it is only
@@ -182,28 +173,6 @@ public class CoreOptions {
 			" TaskManager, and Zookeeper services (start-cluster.sh, stop-cluster.sh, start-zookeeper-quorum.sh," +
 			" stop-zookeeper-quorum.sh).");
 
-	/**
-	 * This options is here only for documentation generation, it is only
-	 * evaluated in the shell scripts.
-	 */
-	@SuppressWarnings("unused")
-	public static final ConfigOption<String> FLINK_HADOOP_CONF_DIR = ConfigOptions
-		.key("env.hadoop.conf.dir")
-		.noDefaultValue()
-		.withDescription("Path to hadoop configuration directory. It is required to read HDFS and/or YARN" +
-			" configuration. You can also set it via environment variable.");
-
-	/**
-	 * This options is here only for documentation generation, it is only
-	 * evaluated in the shell scripts.
-	 */
-	@SuppressWarnings("unused")
-	public static final ConfigOption<String> FLINK_YARN_CONF_DIR = ConfigOptions
-		.key("env.yarn.conf.dir")
-		.noDefaultValue()
-		.withDescription("Path to yarn configuration directory. It is required to run flink on YARN. You can also" +
-			" set it via environment variable.");
-
 	// ------------------------------------------------------------------------
 	//  generic io
 	// ------------------------------------------------------------------------
@@ -212,22 +181,52 @@ public class CoreOptions {
 	 * The config parameter defining the directories for temporary files, separated by
 	 * ",", "|", or the system's {@link java.io.File#pathSeparator}.
 	 */
-	@Documentation.OverrideDefault("'LOCAL_DIRS' on Yarn. '_FLINK_TMP_DIR' on Mesos. System.getProperty(\"java.io.tmpdir\") in standalone.")
+	@Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
 	public static final ConfigOption<String> TMP_DIRS =
 		key("io.tmp.dirs")
 			.defaultValue(System.getProperty("java.io.tmpdir"))
-			.withDeprecatedKeys("taskmanager.tmp.dirs")
-			.withDescription("Directories for temporary files, separated by\",\", \"|\", or the system's java.io.File.pathSeparator.");
+			.withDeprecatedKeys("taskmanager.tmp.dirs");
 
 	// ------------------------------------------------------------------------
 	//  program
 	// ------------------------------------------------------------------------
 
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_PARALLELISM_SLOTS)
 	public static final ConfigOption<Integer> DEFAULT_PARALLELISM = ConfigOptions
 		.key("parallelism.default")
-		.defaultValue(1)
-		.withDescription("Default parallelism for jobs.");
+		.defaultValue(1);
+
+	/**
+	 * The default stream partitioner, used when the upstream and downstream parallelisms are not equal
+	 * and partitioner is not specified.
+	 */
+	public static final ConfigOption<String> DEFAULT_PARTITIONER = ConfigOptions
+		.key("partitioner.default")
+		.defaultValue("REBALANCE")
+		.withDescription("The default stream partitioner, used when the upstream and downstream parallelisms are " +
+			"not equal and partitioner is not specified. Possible values are 'RESCALE' and 'REBALANCE'.");
+
+	public static final ConfigOption<Boolean> CHAIN_EAGERLY_ENABLED = ConfigOptions
+		.key("chain.eagerly.enabled")
+		.defaultValue(false)
+		.withDescription("Whether operators are chained more eagerly when the parallelism is one");
+
+	/**
+	 * The default cpu cores, used when the default resources of operators need to be set but without
+	 * the default resource settings for the job.
+	 */
+	public static final ConfigOption<Double> DEFAULT_RESOURCE_CPU_CORES = ConfigOptions
+			.key("resource.cpu.cores.default")
+			.defaultValue(0.01)
+			.withDescription("CPU cores for operators, use double so we can specify cpu like 0.1.");
+
+	/**
+	 * The default heap size, used when the default resources of operators need to be set but without
+	 * the default resource settings for the job.
+	 */
+	public static final ConfigOption<Integer> DEFAULT_RESOURCE_HEAP_MEMORY = ConfigOptions
+			.key("resource.heap.mb.default")
+			.defaultValue(16)
+			.withDescription("Java heap size (in megabytes) for operators.");
 
 	// ------------------------------------------------------------------------
 	//  file systems
@@ -306,4 +305,33 @@ public class CoreOptions {
 	public static ConfigOption<Long> fileSystemConnectionLimitStreamInactivityTimeout(String scheme) {
 		return ConfigOptions.key("fs." + scheme + ".limit.stream-timeout").defaultValue(0L);
 	}
+
+	// ------------------------------------------------------------------------
+	//  Distributed architecture
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Constant value for the new execution mode.
+	 */
+	public static final String NEW_MODE = "new";
+
+	/**
+	 * Constant value for the old execution mode.
+	 */
+	public static final String LEGACY_MODE = "legacy";
+
+	/**
+	 * Switch to select the execution mode. Possible values are {@link CoreOptions#NEW_MODE}
+	 * and {@link CoreOptions#LEGACY_MODE}.
+	 */
+	public static final ConfigOption<String> MODE = key("mode")
+		.defaultValue(NEW_MODE)
+		.withDescription("Switch to select the execution mode. Possible values are 'new' and 'legacy'.");
+
+	/**
+	 * Disable uploading the user jars.
+	 * In sql cases the main class has been stored in job graph.
+	 */
+	public static final ConfigOption<Boolean> DISABLE_UPLOAD_USER_JARS =
+			key("user-jars.upload.disabled").defaultValue(false);
 }

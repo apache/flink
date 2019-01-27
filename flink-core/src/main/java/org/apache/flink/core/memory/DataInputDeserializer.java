@@ -18,9 +18,6 @@
 
 package org.apache.flink.core.memory;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
@@ -32,7 +29,6 @@ import java.nio.ByteOrder;
  */
 public class DataInputDeserializer implements DataInputView, java.io.Serializable {
 
-	private static final byte[] EMPTY = new byte[0];
 	private static final long serialVersionUID = 1L;
 
 	// ------------------------------------------------------------------------
@@ -45,19 +41,17 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 
 	// ------------------------------------------------------------------------
 
-	public DataInputDeserializer() {
-		setBuffer(EMPTY);
+	public DataInputDeserializer() {}
+
+	public DataInputDeserializer(byte[] buffer) {
+		setBuffer(buffer, 0, buffer.length);
 	}
 
-	public DataInputDeserializer(@Nonnull byte[] buffer) {
-		setBufferInternal(buffer, 0, buffer.length);
-	}
-
-	public DataInputDeserializer(@Nonnull byte[] buffer, int start, int len) {
+	public DataInputDeserializer(byte[] buffer, int start, int len) {
 		setBuffer(buffer, start, len);
 	}
 
-	public DataInputDeserializer(@Nonnull ByteBuffer buffer) {
+	public DataInputDeserializer(ByteBuffer buffer) {
 		setBuffer(buffer);
 	}
 
@@ -65,7 +59,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 	//  Changing buffers
 	// ------------------------------------------------------------------------
 
-	public void setBuffer(@Nonnull ByteBuffer buffer) {
+	public void setBuffer(ByteBuffer buffer) {
 		if (buffer.hasArray()) {
 			this.buffer = buffer.array();
 			this.position = buffer.arrayOffset() + buffer.position();
@@ -82,20 +76,15 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 		}
 	}
 
-	public void setBuffer(@Nonnull byte[] buffer, int start, int len) {
-
-		if (start < 0 || len < 0 || start + len > buffer.length) {
-			throw new IllegalArgumentException("Invalid bounds.");
+	public void setBuffer(byte[] buffer, int start, int len) {
+		if (buffer == null) {
+			throw new NullPointerException();
 		}
 
-		setBufferInternal(buffer, start, len);
-	}
+		if (start < 0 || len < 0 || start + len > buffer.length) {
+			throw new IllegalArgumentException();
+		}
 
-	public void setBuffer(@Nonnull byte[] buffer) {
-		setBufferInternal(buffer, 0, buffer.length);
-	}
-
-	private void setBufferInternal(@Nonnull byte[] buffer, int start, int len) {
 		this.buffer = buffer;
 		this.position = start;
 		this.end = start + len;
@@ -103,6 +92,15 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 
 	public void releaseArrays() {
 		this.buffer = null;
+	}
+
+	public ByteBuffer wrapAsByteBuffer(int length) {
+		if (length <= (end - position)) {
+			return ByteBuffer.wrap(buffer, position, length);
+		} else {
+			throw new IllegalArgumentException("require more than remaining bytes, required length: "
+				+ length + ", bytes left: " + (end - position));
+		}
 	}
 
 	// ----------------------------------------------------------------------------------------
@@ -155,12 +153,12 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 	}
 
 	@Override
-	public void readFully(@Nonnull byte[] b) throws IOException {
+	public void readFully(byte[] b) throws IOException {
 		readFully(b, 0, b.length);
 	}
 
 	@Override
-	public void readFully(@Nonnull byte[] b, int off, int len) throws IOException {
+	public void readFully(byte[] b, int off, int len) throws IOException {
 		if (len >= 0) {
 			if (off <= b.length - len) {
 				if (this.position <= this.end - len) {
@@ -172,7 +170,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 			} else {
 				throw new ArrayIndexOutOfBoundsException();
 			}
-		} else {
+		} else if (len < 0) {
 			throw new IllegalArgumentException("Length may not be negative.");
 		}
 	}
@@ -193,7 +191,6 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 		}
 	}
 
-	@Nullable
 	@Override
 	public String readLine() throws IOException {
 		if (this.position < this.end) {
@@ -241,7 +238,6 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 		}
 	}
 
-	@Nonnull
 	@Override
 	public String readUTF() throws IOException {
 		int utflen = readUnsignedShort();
@@ -332,7 +328,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 	}
 
 	@Override
-	public int skipBytes(int n) {
+	public int skipBytes(int n) throws IOException {
 		if (this.position <= this.end - n) {
 			this.position += n;
 			return n;
@@ -353,7 +349,10 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 	}
 
 	@Override
-	public int read(@Nonnull byte[] b, int off, int len) throws IOException {
+	public int read(byte[] b, int off, int len) throws IOException {
+		if (b == null){
+			throw new NullPointerException("Byte array b cannot be null.");
+		}
 
 		if (off < 0){
 			throw new IndexOutOfBoundsException("Offset cannot be negative.");
@@ -380,12 +379,8 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 	}
 
 	@Override
-	public int read(@Nonnull byte[] b) throws IOException {
+	public int read(byte[] b) throws IOException {
 		return read(b, 0, b.length);
-	}
-
-	public int getPosition() {
-		return position;
 	}
 
 	// ------------------------------------------------------------------------

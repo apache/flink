@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListState;
@@ -31,12 +32,18 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
@@ -47,9 +54,9 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.connectors.kafka.testutils.TestPartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.testutils.TestSourceContext;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
-import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -216,7 +223,7 @@ public class FlinkKafkaConsumerBaseTest {
 			0,
 			1);
 
-		assertEquals(OffsetCommitMode.KAFKA_PERIODIC, consumer.getOffsetCommitMode());
+		assertEquals(OffsetCommitMode.ON_CHECKPOINTS, consumer.getOffsetCommitMode());
 	}
 
 	@Test
@@ -234,7 +241,7 @@ public class FlinkKafkaConsumerBaseTest {
 			0,
 			1);
 
-		assertEquals(OffsetCommitMode.DISABLED, consumer.getOffsetCommitMode());
+		assertEquals(OffsetCommitMode.KAFKA_PERIODIC, consumer.getOffsetCommitMode());
 	}
 
 	@Test
@@ -250,7 +257,7 @@ public class FlinkKafkaConsumerBaseTest {
 			0,
 			1);
 
-		assertEquals(OffsetCommitMode.DISABLED, consumer.getOffsetCommitMode());
+		assertEquals(OffsetCommitMode.ON_CHECKPOINTS, consumer.getOffsetCommitMode());
 	}
 
 	@Test
@@ -515,7 +522,7 @@ public class FlinkKafkaConsumerBaseTest {
 			testHarnesses[i] = createTestHarness(consumers[i], initialParallelism, i);
 
 			// initializeState() is always called, null signals that we didn't restore
-			testHarnesses[i].initializeEmptyState();
+			testHarnesses[i].initializeState(null);
 			testHarnesses[i].open();
 		}
 
@@ -638,7 +645,7 @@ public class FlinkKafkaConsumerBaseTest {
 			super(
 					Collections.singletonList("dummy-topic"),
 					null,
-					(KeyedDeserializationSchema < T >) mock(KeyedDeserializationSchema.class),
+					(KeyedDeserializationSchema< T >) mock(KeyedDeserializationSchema.class),
 					PARTITION_DISCOVERY_DISABLED,
 					false);
 
@@ -652,6 +659,7 @@ public class FlinkKafkaConsumerBaseTest {
 		protected AbstractFetcher<T, ?> createFetcher(
 				SourceContext<T> sourceContext,
 				Map<KafkaTopicPartition, Long> thisSubtaskPartitionsWithStartOffsets,
+				Map<KafkaTopicPartition, Long> thisSubtaskPartitionsWithEndOffsets,
 				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 				StreamingRuntimeContext runtimeContext,
@@ -712,14 +720,12 @@ public class FlinkKafkaConsumerBaseTest {
 			return clearCalled;
 		}
 
-		@Override
 		public void update(List<T> values) throws Exception {
 			clear();
 
 			addAll(values);
 		}
 
-		@Override
 		public void addAll(List<T> values) throws Exception {
 			if (values != null) {
 				values.forEach(v -> Preconditions.checkNotNull(v, "You cannot add null to a ListState."));
@@ -739,7 +745,7 @@ public class FlinkKafkaConsumerBaseTest {
 			int totalNumSubtasks) throws Exception {
 
 		// run setup procedure in operator life cycle
-		consumer.setRuntimeContext(new MockStreamingRuntimeContext(isCheckpointingEnabled, totalNumSubtasks, subtaskIndex));
+		consumer.setRuntimeContext(new MockRuntimeContext(isCheckpointingEnabled, totalNumSubtasks, subtaskIndex));
 		consumer.initializeState(new MockFunctionInitializationContext(isRestored, new MockOperatorStateStore(restoredListState)));
 		consumer.open(new Configuration());
 	}
@@ -761,6 +767,7 @@ public class FlinkKafkaConsumerBaseTest {
 					new HashMap<>(),
 					null,
 					null,
+					null,
 					new TestProcessingTimeService(),
 					0,
 					MockFetcher.class.getClassLoader(),
@@ -780,7 +787,7 @@ public class FlinkKafkaConsumerBaseTest {
 		}
 
 		@Override
-		public void runFetchLoop() throws Exception {
+		public void runFetchLoop(boolean dynamicDiscover) throws Exception {
 			runLatch.trigger();
 			stopLatch.await();
 		}
@@ -816,6 +823,90 @@ public class FlinkKafkaConsumerBaseTest {
 		}
 	}
 
+	private static class MockRuntimeContext extends StreamingRuntimeContext {
+		private static final MockEnvironment env = createEnv();
+		private final boolean isCheckpointingEnabled;
+
+		private final int numParallelSubtasks;
+		private final int subtaskIndex;
+
+		private MockRuntimeContext(
+				boolean isCheckpointingEnabled,
+				int numParallelSubtasks,
+				int subtaskIndex) {
+			super(new MockStreamOperator(env), env);
+
+			this.isCheckpointingEnabled = isCheckpointingEnabled;
+			this.numParallelSubtasks = numParallelSubtasks;
+			this.subtaskIndex = subtaskIndex;
+		}
+
+		private static MockEnvironment createEnv() {
+			return MockEnvironment.builder()
+					.setMemorySize(4 * MemoryManager.DEFAULT_PAGE_SIZE)
+					.setInputSplitProvider(null)
+					.setBufferSize(16).setTaskName("mockTask").build();
+		}
+
+		@Override
+		public MetricGroup getMetricGroup() {
+			return new UnregisteredMetricsGroup();
+		}
+
+		public boolean isCheckpointingEnabled() {
+			return isCheckpointingEnabled;
+		}
+
+		@Override
+		public int getIndexOfThisSubtask() {
+			return subtaskIndex;
+		}
+
+		@Override
+		public int getNumberOfParallelSubtasks() {
+			return numParallelSubtasks;
+		}
+
+		// ------------------------------------------------------------------------
+
+		private static class MockStreamOperator extends AbstractStreamOperator<Integer> {
+			private static final long serialVersionUID = -1153976702711944427L;
+
+			MockStreamOperator(MockEnvironment env) {
+				StreamTask<Object, StreamOperator<Object>> task = new StreamTask<Object, StreamOperator<Object>>(env) {
+					@Override
+					protected void init() throws Exception {
+
+					}
+
+					@Override
+					protected void run() throws Exception {
+
+					}
+
+					@Override
+					protected void cleanup() throws Exception {
+
+					}
+
+					@Override
+					protected void cancelTask() throws Exception {
+
+					}
+				};
+				Configuration config = new Configuration();
+				StreamConfig streamConfig = new StreamConfig(config);
+				streamConfig.setOperatorID(new OperatorID());
+				setup(task, streamConfig, null);
+			}
+
+			@Override
+			public ExecutionConfig getExecutionConfig() {
+				return new ExecutionConfig();
+			}
+		}
+	}
+
 	private static class MockOperatorStateStore implements OperatorStateStore {
 
 		private final ListState<?> mockRestoredUnionListState;
@@ -845,7 +936,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 		@Override
 		public <K, V> BroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> stateDescriptor) throws Exception {
-			throw new UnsupportedOperationException();
+			return null;
 		}
 
 		@Override
@@ -860,8 +951,9 @@ public class FlinkKafkaConsumerBaseTest {
 
 		@Override
 		public Set<String> getRegisteredBroadcastStateNames() {
-			throw new UnsupportedOperationException();
+			return null;
 		}
+
 	}
 
 	private static class MockFunctionInitializationContext implements FunctionInitializationContext {

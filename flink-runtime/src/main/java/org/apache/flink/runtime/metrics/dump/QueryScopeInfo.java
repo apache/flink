@@ -178,22 +178,24 @@ public abstract class QueryScopeInfo {
 		public final String vertexID;
 		public final int subtaskIndex;
 		public final String operatorName;
+		public final String operatorId;
 
-		public OperatorQueryScopeInfo(String jobID, String vertexid, int subtaskIndex, String operatorName) {
-			this(jobID, vertexid, subtaskIndex, operatorName, "");
+		public OperatorQueryScopeInfo(String jobID, String vertexid, int subtaskIndex, String operatorName, String operatorId) {
+			this(jobID, vertexid, subtaskIndex, operatorName, "", operatorId);
 		}
 
-		public OperatorQueryScopeInfo(String jobID, String vertexid, int subtaskIndex, String operatorName, String scope) {
+		public OperatorQueryScopeInfo(String jobID, String vertexid, int subtaskIndex, String operatorName, String scope, String operatorId) {
 			super(scope);
 			this.jobID = jobID;
 			this.vertexID = vertexid;
 			this.subtaskIndex = subtaskIndex;
 			this.operatorName = operatorName;
+			this.operatorId = operatorId;
 		}
 
 		@Override
 		public OperatorQueryScopeInfo copy(String additionalScope) {
-			return new OperatorQueryScopeInfo(this.jobID, this.vertexID, this.subtaskIndex, this.operatorName, concatScopes(additionalScope));
+			return new OperatorQueryScopeInfo(this.jobID, this.vertexID, this.subtaskIndex, this.operatorName, concatScopes(additionalScope), this.operatorId);
 		}
 
 		@Override

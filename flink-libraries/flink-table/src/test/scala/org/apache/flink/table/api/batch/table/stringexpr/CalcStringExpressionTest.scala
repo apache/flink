@@ -22,11 +22,10 @@ import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.Types._
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.types.DataTypes._
 import org.apache.flink.table.expressions.Literal
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.util.TableTestBase
 import org.junit._
 
 class CalcStringExpressionTest extends TableTestBase {
@@ -45,7 +44,7 @@ class CalcStringExpressionTest extends TableTestBase {
   @Test
   def testSimpleSelectWithNaming(): Unit = {
     val util = batchTestUtil()
-    val t = util.addTable[(Int, Long, String)]("Table3")
+    val t = util.addTable[(Int, Long, String)]("Table3", '_1, '_2, '_3)
 
     val t1 = t
       .select('_1 as 'a, '_2 as 'b, '_1 as 'c)
@@ -61,7 +60,7 @@ class CalcStringExpressionTest extends TableTestBase {
   @Test
   def testSimpleSelectRenameAll(): Unit = {
     val util = batchTestUtil()
-    val t = util.addTable[(Int, Long, String)]("Table3")
+    val t = util.addTable[(Int, Long, String)]("Table3", '_1, '_2, '_3)
 
     val t1 = t
       .select('_1 as 'a, '_2 as 'b, '_3 as 'c)
@@ -187,7 +186,7 @@ class CalcStringExpressionTest extends TableTestBase {
   @Test
   def testSimpleCalc(): Unit = {
     val util = batchTestUtil()
-    val t = util.addTable[(Int, Long, String)]("Table3")
+    val t = util.addTable[(Int, Long, String)]("Table3", '_1, '_2, '_3)
 
     val t1 = t.select('_1, '_2, '_3)
       .where('_1 < 7)
@@ -203,7 +202,7 @@ class CalcStringExpressionTest extends TableTestBase {
   @Test
   def testCalcWithTwoFilters(): Unit = {
     val util = batchTestUtil()
-    val t = util.addTable[(Int, Long, String)]("Table3")
+    val t = util.addTable[(Int, Long, String)]("Table3", '_1, '_2, '_3)
 
     val t1 = t.select('_1, '_2, '_3)
       .where('_1 < 7 && '_2 === 3)
@@ -223,7 +222,7 @@ class CalcStringExpressionTest extends TableTestBase {
   @Test
   def testCalcWithAggregation(): Unit = {
     val util = batchTestUtil()
-    val t = util.addTable[(Int, Long, String)]("Table3")
+    val t = util.addTable[(Int, Long, String)]("Table3", '_1, '_2, '_3)
 
     val t1 = t.select('_1, '_2, '_3)
       .where('_1 < 15)
@@ -262,8 +261,8 @@ class CalcStringExpressionTest extends TableTestBase {
       .addTable[(BigDecimal, BigDecimal, Date, Time, Timestamp)]("Table5", 'a, 'b, 'c, 'd, 'e)
 
     val t1 = t.select('a, 'b, 'c, 'd, 'e, BigDecimal("11.2"), BigDecimal("11.2").bigDecimal,
-        "1984-07-12".cast(Types.SQL_DATE), "14:34:24".cast(Types.SQL_TIME),
-        "1984-07-12 14:34:24".cast(Types.SQL_TIMESTAMP))
+        "1984-07-12".cast(DATE), "14:34:24".cast(TIME),
+        "1984-07-12 14:34:24".cast(TIMESTAMP))
     val t2 = t.select("a, b, c, d, e, 11.2p, 11.2p," +
       "'1984-07-12'.toDate, '14:34:24'.toTime," +
       "'1984-07-12 14:34:24'.toTimestamp")

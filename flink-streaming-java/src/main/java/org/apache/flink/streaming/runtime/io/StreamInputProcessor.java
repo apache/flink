@@ -28,14 +28,17 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
-import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
+import org.apache.flink.runtime.io.network.api.serialization.SerializerManagerUtility;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.SumAndCount;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
+import org.apache.flink.runtime.plugable.ReusingDeserializationDelegate;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -52,6 +55,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.BitSet;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -80,7 +84,7 @@ public class StreamInputProcessor<IN> {
 
 	private final DeserializationDelegate<StreamElement> deserializationDelegate;
 
-	private final CheckpointBarrierHandler barrierHandler;
+	private final SelectedReadingBarrierHandler barrierHandler;
 
 	private final Object lock;
 
@@ -91,6 +95,8 @@ public class StreamInputProcessor<IN> {
 
 	/** Number of input channels the valve needs to handle. */
 	private final int numInputChannels;
+
+	private final BitSet channelsWithEndOfPartitionEvents;
 
 	/**
 	 * The channel from which a buffer came, tracked so that we can appropriately map
@@ -107,12 +113,21 @@ public class StreamInputProcessor<IN> {
 	private final WatermarkGauge watermarkGauge;
 	private Counter numRecordsIn;
 
+	private boolean enableTracingMetrics;
+	private int tracingMetricsInterval;
+	private SumAndCount taskLatency;
+	private SumAndCount waitInput;
+	private long lastProcessedTime = -1;
+
 	private boolean isFinished;
+
+	private IN reusedObject;
 
 	@SuppressWarnings("unchecked")
 	public StreamInputProcessor(
 			InputGate[] inputGates,
 			TypeSerializer<IN> inputSerializer,
+			boolean isCheckpointingEnabled,
 			StreamTask<?, ?> checkpointedTask,
 			CheckpointingMode checkpointMode,
 			Object lock,
@@ -121,27 +136,32 @@ public class StreamInputProcessor<IN> {
 			StreamStatusMaintainer streamStatusMaintainer,
 			OneInputStreamOperator<IN, ?> streamOperator,
 			TaskIOMetricGroup metrics,
-			WatermarkGauge watermarkGauge) throws IOException {
-
-		InputGate inputGate = InputGateUtil.createInputGate(inputGates);
+			WatermarkGauge watermarkGauge,
+			boolean objectReuse,
+			boolean enableTracingMetrics,
+			int tracingMetricsInterval) throws IOException {
 
 		this.barrierHandler = InputProcessorUtil.createCheckpointBarrierHandler(
-			checkpointedTask, checkpointMode, ioManager, inputGate, taskManagerConfig);
+			isCheckpointingEnabled, checkpointedTask, checkpointMode, ioManager, taskManagerConfig, inputGates);
 
 		this.lock = checkNotNull(lock);
 
 		StreamElementSerializer<IN> ser = new StreamElementSerializer<>(inputSerializer);
-		this.deserializationDelegate = new NonReusingDeserializationDelegate<>(ser);
+		this.deserializationDelegate = objectReuse ?
+			new ReusingDeserializationDelegate<>(ser) :
+			new NonReusingDeserializationDelegate<>(ser);
+
+		this.reusedObject = objectReuse ? inputSerializer.createInstance() : null;
+
+		this.numInputChannels = this.barrierHandler.getNumberOfInputChannels();
 
 		// Initialize one deserializer per input channel
-		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
+		SerializerManagerUtility<DeserializationDelegate<StreamElement>> serializerManagerUtility =
+			new SerializerManagerUtility<>(taskManagerConfig);
+		this.recordDeserializers = serializerManagerUtility.createRecordDeserializers(
+			barrierHandler.getAllInputChannels(), ioManager.getSpillingDirectoriesPaths());
 
-		for (int i = 0; i < recordDeserializers.length; i++) {
-			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<>(
-				ioManager.getSpillingDirectoriesPaths());
-		}
-
-		this.numInputChannels = inputGate.getNumberOfInputChannels();
+		this.channelsWithEndOfPartitionEvents = new BitSet(this.numInputChannels);
 
 		this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
 		this.streamOperator = checkNotNull(streamOperator);
@@ -152,6 +172,9 @@ public class StreamInputProcessor<IN> {
 
 		this.watermarkGauge = watermarkGauge;
 		metrics.gauge("checkpointAlignmentTime", barrierHandler::getAlignmentDurationNanos);
+
+		this.enableTracingMetrics = enableTracingMetrics;
+		this.tracingMetricsInterval = tracingMetricsInterval;
 	}
 
 	public boolean processInput() throws Exception {
@@ -166,9 +189,20 @@ public class StreamInputProcessor<IN> {
 				numRecordsIn = new SimpleCounter();
 			}
 		}
+		if (enableTracingMetrics) {
+			if (taskLatency == null) {
+				taskLatency = new SumAndCount(MetricNames.TASK_LATENCY, streamOperator.getMetricGroup());
+			}
+			if (waitInput == null) {
+				waitInput = new SumAndCount(MetricNames.IO_WAIT_INPUT, streamOperator.getMetricGroup());
+			}
+		}
 
 		while (true) {
 			if (currentRecordDeserializer != null) {
+				if (reusedObject != null){
+					deserializationDelegate.setInstance(new StreamRecord(reusedObject));
+				}
 				DeserializationResult result = currentRecordDeserializer.getNextRecord(deserializationDelegate);
 
 				if (result.isBufferConsumed()) {
@@ -179,7 +213,34 @@ public class StreamInputProcessor<IN> {
 				if (result.isFullRecord()) {
 					StreamElement recordOrMark = deserializationDelegate.getInstance();
 
-					if (recordOrMark.isWatermark()) {
+					if (recordOrMark.isRecord()) {
+						reusedObject = ((StreamRecord<IN>) recordOrMark).getValue();
+
+						// numRecordsIn counter is a SimpleCounter not a heavier SumCounter, so reuse it
+						if (enableTracingMetrics && numRecordsIn.getCount() % tracingMetricsInterval == 0) {
+							long start = System.nanoTime();
+							waitInput.update(start - lastProcessedTime);
+							// now we can do the actual processing
+							StreamRecord<IN> record = recordOrMark.asRecord();
+							synchronized (lock) {
+								numRecordsIn.inc();
+								streamOperator.setKeyContextElement1(record);
+								streamOperator.processElement(record);
+								lastProcessedTime = System.nanoTime();
+								taskLatency.update(lastProcessedTime - start);
+							}
+						} else {
+							// now we can do the actual processing
+							StreamRecord<IN> record = recordOrMark.asRecord();
+							synchronized (lock) {
+								numRecordsIn.inc();
+								streamOperator.setKeyContextElement1(record);
+								streamOperator.processElement(record);
+							}
+						}
+
+						return true;
+					} else if (recordOrMark.isWatermark()) {
 						// handle watermark
 						statusWatermarkValve.inputWatermark(recordOrMark.asWatermark(), currentChannel);
 						continue;
@@ -194,14 +255,7 @@ public class StreamInputProcessor<IN> {
 						}
 						continue;
 					} else {
-						// now we can do the actual processing
-						StreamRecord<IN> record = recordOrMark.asRecord();
-						synchronized (lock) {
-							numRecordsIn.inc();
-							streamOperator.setKeyContextElement1(record);
-							streamOperator.processElement(record);
-						}
-						return true;
+						throw new RuntimeException("Unexpected stream element type " + recordOrMark);
 					}
 				}
 			}
@@ -218,6 +272,13 @@ public class StreamInputProcessor<IN> {
 					final AbstractEvent event = bufferOrEvent.getEvent();
 					if (event.getClass() != EndOfPartitionEvent.class) {
 						throw new IOException("Unexpected event: " + event);
+					}
+
+					channelsWithEndOfPartitionEvents.set(bufferOrEvent.getChannelIndex());
+					if (channelsWithEndOfPartitionEvents.cardinality() == numInputChannels) {
+						synchronized (lock) {
+							streamOperator.endInput();
+						}
 					}
 				}
 			}

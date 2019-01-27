@@ -34,12 +34,12 @@ import org.apache.flink.api.scala._
 
 @RunWith(classOf[Parameterized])
 class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
-  private var resultPath: String = null
-  private var expected: String = null
+  private var resultPath: String = _
+  private var expected: String = _
   private val _tempFolder = new TemporaryFolder()
 
   @Rule
-  def tempFolder = _tempFolder
+  def tempFolder: TemporaryFolder = _tempFolder
 
   @Before
   def before(): Unit = {
@@ -131,7 +131,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
-    val joinDs = ds1.join(ds2).where(1).equalTo(1) { (l, r) => l }
+    val joinDs = ds1.join(ds2).where(1).equalTo(1) { (l, _) => l }
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n"
@@ -145,7 +145,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
-    val joinDs = ds1.join(ds2).where(1).equalTo(1) { (l, r) => r }
+    val joinDs = ds1.join(ds2).where(1).equalTo(1) { (_, r) => r }
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "1,1,0,Hallo,1\n" + "2,2,1,Hallo Welt,2\n" + "2,2,1,Hallo Welt,2\n"
@@ -224,7 +224,8 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val joinDs = ds1.join(ds2).where(_.myInt).equalTo(_.myInt)
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
-    expected = "1,0,Hi,1,0,Hi\n" + "2,1,Hello,2,1,Hello\n" + "2,1,Hello,2,2,Hello world\n" + "2," +
+    expected = "1,0,Hi,1,0,Hi\n" + "2,1,Hello,2,1,Hello\n" +
+      "2,1,Hello,2,2,Hello world\n" + "2," +
       "2,Hello world,2,1,Hello\n" + "2,2,Hello world,2,2,Hello world\n"
   }
 
@@ -347,8 +348,8 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.setParallelism(1)
     env.execute()
-    expected = "((1,1),one),((1,1),one)\n" + "((2,2),two),((2,2),two)\n" + "((3,3),three),((3,3)," +
-      "three)\n"
+    expected = "((1,1),one),((1,1),one)\n" + "((2,2),two),((2,2),two)\n" +
+      "((3,3),three),((3,3)," + "three)\n"
 
   }
 
@@ -364,8 +365,8 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.setParallelism(1)
     env.execute()
-    expected = "((1,1),one),((1,1),one)\n" + "((2,2),two),((2,2),two)\n" + "((3,3),three),((3,3)," +
-      "three)\n"
+    expected = "((1,1),one),((1,1),one)\n" + "((2,2),two),((2,2),two)\n" +
+      "((3,3),three),((3,3)," + "three)\n"
   }
 
   @Test

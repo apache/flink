@@ -1,0 +1,25 @@
+== Abstract Syntax Tree ==
+LogicalUnion(all=[true])
+  LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+  LogicalTableScan(table=[[builtin, default, _DataStreamTable_1]])
+
+== Optimized Logical Plan ==
+StreamExecUnion(all=[true], union=[count, word])
+  StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+  StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:[builtin, default, _DataStreamTable_0], fields:(count, word))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : SourceConversion(table:[builtin, default, _DataStreamTable_1], fields:(count, word))
+			ship_strategy : FORWARD
+

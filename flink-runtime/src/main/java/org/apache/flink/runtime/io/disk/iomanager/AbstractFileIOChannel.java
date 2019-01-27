@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 
+import org.apache.flink.runtime.util.NioBufferedFileOutputStream;
+import org.apache.flink.runtime.util.NioBufferedFileInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,8 +40,10 @@ public abstract class AbstractFileIOChannel implements FileIOChannel {
 	
 	/** A file channel for NIO access to the file. */
 	protected final FileChannel fileChannel;
-	
-	
+
+	private NioBufferedFileInputStream inputStream;
+	private NioBufferedFileOutputStream outputStream;
+
 	/**
 	 * Creates a new channel to the path indicated by the given ID. The channel hands IO requests to
 	 * the given request queue to be processed.
@@ -64,6 +68,20 @@ public abstract class AbstractFileIOChannel implements FileIOChannel {
 	
 	// --------------------------------------------------------------------------------------------
 
+	public NioBufferedFileInputStream getBufferedInputStream(int size) throws IOException {
+		if (inputStream == null) {
+			this.inputStream = new NioBufferedFileInputStream(fileChannel, size);
+		}
+		return inputStream;
+	}
+
+	public NioBufferedFileOutputStream getBufferedOutputStream(int size) throws IOException {
+		if (outputStream == null) {
+			this.outputStream = new NioBufferedFileOutputStream(fileChannel, size);
+		}
+		return outputStream;
+	}
+
 	@Override
 	public final FileIOChannel.ID getChannelID() {
 		return this.id;
@@ -79,7 +97,20 @@ public abstract class AbstractFileIOChannel implements FileIOChannel {
 	public abstract boolean isClosed();
 	
 	@Override
-	public abstract void close() throws IOException;
+	public void close() throws IOException {
+		if (outputStream != null) {
+			outputStream.close();
+			outputStream = null;
+		}
+		// close the file
+		if (this.fileChannel.isOpen()) {
+			this.fileChannel.close();
+		}
+		if (inputStream != null) {
+			inputStream.close();
+			inputStream = null;
+		}
+	}
 
 	@Override
 	public void deleteChannel() {

@@ -20,8 +20,7 @@ package org.apache.flink.table.api.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.util.TableTestBase
 import org.junit.Test
 
 class SingleRowJoinTest extends TableTestBase {
@@ -35,29 +34,7 @@ class SingleRowJoinTest extends TableTestBase {
       "SELECT a1, asum " +
       "FROM A, (SELECT sum(a1) + sum(a2) AS asum FROM A)"
 
-    val expected =
-      binaryNode(
-        "DataSetSingleRowJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a1")
-        ),
-        unaryNode(
-          "DataSetCalc",
-          unaryNode(
-            "DataSetAggregate",
-            batchTableNode(0),
-            term("select", "SUM(a1) AS $f0", "SUM(a2) AS $f1")
-          ),
-          term("select", "+($f0, $f1) AS asum")
-        ),
-        term("where", "true"),
-        term("join", "a1", "asum"),
-        term("joinType", "NestedLoopInnerJoin")
-      )
-
-    util.verifySql(query, expected)
+    util.verifyPlan(query)
   }
 
   @Test
@@ -70,29 +47,7 @@ class SingleRowJoinTest extends TableTestBase {
       "FROM A, (SELECT count(a1) AS cnt FROM A) " +
       "WHERE a1 = cnt"
 
-    val expected =
-      unaryNode(
-        "DataSetCalc",
-        binaryNode(
-          "DataSetSingleRowJoin",
-          batchTableNode(0),
-          unaryNode(
-            "DataSetAggregate",
-            unaryNode(
-              "DataSetCalc",
-              batchTableNode(0),
-              term("select", "a1")
-            ),
-            term("select", "COUNT(a1) AS cnt")
-          ),
-          term("where", "=(CAST(a1), cnt)"),
-          term("join", "a1", "a2", "cnt"),
-          term("joinType", "NestedLoopInnerJoin")
-        ),
-        term("select", "a1", "a2")
-      )
-
-    util.verifySql(query, expected)
+    util.verifyPlan(query)
   }
 
   @Test
@@ -105,29 +60,7 @@ class SingleRowJoinTest extends TableTestBase {
       "FROM A, (SELECT count(a1) AS cnt FROM A) " +
       "WHERE a1 < cnt"
 
-    val expected =
-      unaryNode(
-        "DataSetCalc",
-        binaryNode(
-          "DataSetSingleRowJoin",
-          batchTableNode(0),
-          unaryNode(
-            "DataSetAggregate",
-            unaryNode(
-              "DataSetCalc",
-              batchTableNode(0),
-              term("select", "a1")
-            ),
-            term("select", "COUNT(a1) AS cnt")
-          ),
-          term("where", "<(a1, cnt)"),
-          term("join", "a1", "a2", "cnt"),
-          term("joinType", "NestedLoopInnerJoin")
-        ),
-        term("select", "a1", "a2")
-      )
-
-    util.verifySql(query, expected)
+    util.verifyPlan(query)
   }
 
   @Test
@@ -141,20 +74,7 @@ class SingleRowJoinTest extends TableTestBase {
         "FROM A, (SELECT min(b1) AS b1, max(b2) AS b2 FROM B) " +
         "WHERE a1 < b1 AND a2 = b2"
 
-    val expected = binaryNode(
-      "DataSetSingleRowJoin",
-      batchTableNode(0),
-      unaryNode(
-        "DataSetAggregate",
-        batchTableNode(1),
-        term("select", "MIN(b1) AS b1", "MAX(b2) AS b2")
-      ),
-      term("where", "AND(<(a1, b1)", "=(a2, b2))"),
-      term("join", "a1", "a2", "b1", "b2"),
-      term("joinType", "NestedLoopInnerJoin")
-    )
-
-    util.verifySql(query, expected)
+    util.verifyPlan(query)
   }
 
   @Test
@@ -170,28 +90,7 @@ class SingleRowJoinTest extends TableTestBase {
         "(SELECT COUNT(*) AS cnt FROM B) AS x " +
         "  ON a1 = cnt"
 
-    val expected =
-      unaryNode(
-        "DataSetCalc",
-        unaryNode(
-          "DataSetSingleRowJoin",
-          batchTableNode(0),
-          term("where", "=(a1, cnt)"),
-          term("join", "a1", "a2", "cnt"),
-          term("joinType", "NestedLoopLeftJoin")
-        ),
-        term("select", "a2")
-      ) + "\n" +
-        unaryNode(
-          "DataSetAggregate",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(1),
-            term("select", "0 AS $f0")),
-          term("select", "COUNT(*) AS cnt")
-        )
-
-    util.verifySql(queryLeftJoin, expected)
+    util.verifyPlan(queryLeftJoin)
   }
 
   @Test
@@ -207,28 +106,7 @@ class SingleRowJoinTest extends TableTestBase {
         "(SELECT COUNT(*) AS cnt FROM B) AS x " +
         "  ON a1 > cnt"
 
-    val expected =
-      unaryNode(
-        "DataSetCalc",
-        unaryNode(
-          "DataSetSingleRowJoin",
-          batchTableNode(0),
-          term("where", ">(a1, cnt)"),
-          term("join", "a1", "a2", "cnt"),
-          term("joinType", "NestedLoopLeftJoin")
-        ),
-        term("select", "a2")
-      ) + "\n" +
-        unaryNode(
-          "DataSetAggregate",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(1),
-            term("select", "0 AS $f0")),
-          term("select", "COUNT(*) AS cnt")
-        )
-
-    util.verifySql(queryLeftJoin, expected)
+    util.verifyPlan(queryLeftJoin)
   }
 
   @Test
@@ -244,28 +122,7 @@ class SingleRowJoinTest extends TableTestBase {
         "A " +
         "  ON cnt = a2"
 
-    val expected =
-      unaryNode(
-        "DataSetCalc",
-        unaryNode(
-          "DataSetSingleRowJoin",
-          "",
-          term("where", "=(cnt, a2)"),
-          term("join", "cnt", "a1", "a2"),
-          term("joinType", "NestedLoopRightJoin")
-        ),
-        term("select", "a1")
-      ) + unaryNode(
-        "DataSetAggregate",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(1),
-          term("select", "0 AS $f0")),
-        term("select", "COUNT(*) AS cnt")
-      ) + "\n" +
-        batchTableNode(0)
-
-    util.verifySql(queryRightJoin, expected)
+    util.verifyPlan(queryRightJoin)
   }
 
   @Test
@@ -281,29 +138,7 @@ class SingleRowJoinTest extends TableTestBase {
         "A " +
         "  ON cnt < a2"
 
-    val expected =
-      unaryNode(
-        "DataSetCalc",
-        unaryNode(
-          "DataSetSingleRowJoin",
-          "",
-          term("where", "<(cnt, a2)"),
-          term("join", "cnt", "a1", "a2"),
-          term("joinType", "NestedLoopRightJoin")
-        ),
-        term("select", "a1")
-      ) +
-        unaryNode(
-          "DataSetAggregate",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(1),
-            term("select", "0 AS $f0")),
-          term("select", "COUNT(*) AS cnt")
-        ) + "\n" +
-        batchTableNode(0)
-
-    util.verifySql(queryRightJoin, expected)
+    util.verifyPlan(queryRightJoin)
   }
 
   @Test
@@ -316,37 +151,6 @@ class SingleRowJoinTest extends TableTestBase {
         "GROUP BY a2 " +
         "HAVING sum(a1) > (SELECT sum(a1) * 0.1 FROM A)"
 
-    val expected =
-      unaryNode(
-        "DataSetCalc",
-        unaryNode(
-          "DataSetSingleRowJoin",
-          unaryNode(
-            "DataSetAggregate",
-            batchTableNode(0),
-            term("groupBy", "a2"),
-            term("select", "a2", "SUM(a1) AS EXPR$1")
-          ),
-          term("where", ">(EXPR$1, EXPR$0)"),
-          term("join", "a2", "EXPR$1", "EXPR$0"),
-          term("joinType", "NestedLoopInnerJoin")
-        ),
-        term("select", "a2", "EXPR$1")
-      ) + "\n" +
-        unaryNode(
-          "DataSetCalc",
-          unaryNode(
-            "DataSetAggregate",
-            unaryNode(
-              "DataSetCalc",
-              batchTableNode(0),
-              term("select", "a1")
-            ),
-            term("select", "SUM(a1) AS $f0")
-          ),
-          term("select", "*($f0, 0.1) AS EXPR$0")
-        )
-
-    util.verifySql(query, expected)
+    util.verifyPlan(query)
   }
 }

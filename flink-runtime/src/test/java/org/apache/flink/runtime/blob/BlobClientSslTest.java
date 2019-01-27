@@ -20,7 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.net.SSLUtilsTest;
+import org.apache.flink.configuration.SecurityOptions;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -55,25 +55,40 @@ public class BlobClientSslTest extends BlobClientTest {
 	 */
 	@BeforeClass
 	public static void startSSLServer() throws IOException {
-		Configuration config = SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores();
-		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporarySslFolder.newFolder().getAbsolutePath());
-
+		Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporarySslFolder.newFolder().getAbsolutePath());
+		config.setBoolean(SecurityOptions.SSL_ENABLED, true);
+		config.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
+		config.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
 		blobSslServer = new BlobServer(config, new VoidBlobStore());
 		blobSslServer.start();
 
-		sslClientConfig = config;
+		sslClientConfig = new Configuration();
+		sslClientConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
+		sslClientConfig.setString(SecurityOptions.SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
+		sslClientConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
 	}
 
 	@BeforeClass
 	public static void startNonSSLServer() throws IOException {
-		Configuration config = SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores();
-		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporarySslFolder.newFolder().getAbsolutePath());
+		Configuration config = new Configuration();
+		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
+			temporarySslFolder.newFolder().getAbsolutePath());
+		config.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		config.setBoolean(BlobServerOptions.SSL_ENABLED, false);
-
+		config.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
+		config.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
 		blobNonSslServer = new BlobServer(config, new VoidBlobStore());
 		blobNonSslServer.start();
 
-		nonSslClientConfig = config;
+		nonSslClientConfig = new Configuration();
+		nonSslClientConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
+		nonSslClientConfig.setBoolean(BlobServerOptions.SSL_ENABLED, false);
+		nonSslClientConfig.setString(SecurityOptions.SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
+		nonSslClientConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
 	}
 
 	/**

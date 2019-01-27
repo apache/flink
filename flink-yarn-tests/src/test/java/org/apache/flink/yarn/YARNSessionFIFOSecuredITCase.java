@@ -129,4 +129,7 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 
 	@Override
 	public void testfullAlloc() {}
+
+	@Override
+	public void testJavaAPI() {}
 }

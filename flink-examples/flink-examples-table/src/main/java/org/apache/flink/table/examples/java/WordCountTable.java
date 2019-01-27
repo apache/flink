@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.examples.java;
 
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
@@ -38,24 +38,21 @@ public class WordCountTable {
 	// *************************************************************************
 
 	public static void main(String[] args) throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
-		BatchTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
+		StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tEnv = TableEnvironment.getBatchTableEnvironment(execEnv);
 
-		DataSet<WC> input = env.fromElements(
+		DataStreamSource<WC> input = execEnv.fromElements(
 				new WC("Hello", 1),
 				new WC("Ciao", 1),
 				new WC("Hello", 1));
 
-		Table table = tEnv.fromDataSet(input);
+		Table table = tEnv.fromBoundedStream(input, "word, frequency");
 
-		Table filtered = table
-				.groupBy("word")
-				.select("word, frequency.sum as frequency")
-				.filter("frequency = 2");
-
-		DataSet<WC> result = tEnv.toDataSet(filtered, WC.class);
-
-		result.print();
+		table
+			.groupBy("word")
+			.select("word, frequency.sum as frequency")
+			.filter("frequency = 2")
+			.print();
 	}
 
 	// *************************************************************************

@@ -33,7 +33,6 @@ import org.apache.flink.runtime.jobmanager.ZooKeeperSubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
-import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.runtime.zookeeper.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.util.Preconditions;
 
@@ -42,7 +41,6 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.api.ACLProvider;
 import org.apache.curator.framework.imps.DefaultACLProvider;
-import org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.ACL;
@@ -56,9 +54,6 @@ import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Class containing helper functions to interact with ZooKeeper.
- */
 public class ZooKeeperUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperUtils.class);
@@ -232,12 +227,14 @@ public class ZooKeeperUtils {
 	 *
 	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration {@link Configuration} object
+	 * @param executor to run ZooKeeper callbacks
 	 * @return {@link ZooKeeperSubmittedJobGraphStore} instance
 	 * @throws Exception if the submitted job graph store cannot be created
 	 */
 	public static ZooKeeperSubmittedJobGraphStore createSubmittedJobGraphs(
 			CuratorFramework client,
-			Configuration configuration) throws Exception {
+			Configuration configuration,
+			Executor executor) throws Exception {
 
 		checkNotNull(configuration, "Configuration");
 
@@ -246,23 +243,8 @@ public class ZooKeeperUtils {
 		// ZooKeeper submitted jobs root dir
 		String zooKeeperSubmittedJobsPath = configuration.getString(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
 
-		// Ensure that the job graphs path exists
-		client.newNamespaceAwareEnsurePath(zooKeeperSubmittedJobsPath)
-			.ensure(client.getZookeeperClient());
-
-		// All operations will have the path as root
-		CuratorFramework facade = client.usingNamespace(client.getNamespace() + zooKeeperSubmittedJobsPath);
-
-		final String zooKeeperFullSubmittedJobsPath = client.getNamespace() + zooKeeperSubmittedJobsPath;
-
-		final ZooKeeperStateHandleStore<SubmittedJobGraph> zooKeeperStateHandleStore = new ZooKeeperStateHandleStore<>(facade, stateStorage);
-
-		final PathChildrenCache pathCache = new PathChildrenCache(facade, "/", false);
-
 		return new ZooKeeperSubmittedJobGraphStore(
-			zooKeeperFullSubmittedJobsPath,
-			zooKeeperStateHandleStore,
-			pathCache);
+				client, zooKeeperSubmittedJobsPath, stateStorage, executor);
 	}
 
 	/**
@@ -294,31 +276,12 @@ public class ZooKeeperUtils {
 
 		checkpointsPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
 
-		final ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
+		return new ZooKeeperCompletedCheckpointStore(
 			maxNumberOfCheckpointsToRetain,
-			createZooKeeperStateHandleStore(client, checkpointsPath, stateStorage),
+			client,
+			checkpointsPath,
+			stateStorage,
 			executor);
-
-		LOG.info("Initialized {} in '{}'.", ZooKeeperCompletedCheckpointStore.class.getSimpleName(), checkpointsPath);
-		return zooKeeperCompletedCheckpointStore;
-	}
-
-	/**
-	 * Creates an instance of {@link ZooKeeperStateHandleStore}.
-	 *
-	 * @param client       ZK client
-	 * @param path         Path to use for the client namespace
-	 * @param stateStorage RetrievableStateStorageHelper that persist the actual state and whose
-	 *                     returned state handle is then written to ZooKeeper
-	 * @param <T>          Type of state
-	 * @return {@link ZooKeeperStateHandleStore} instance
-	 * @throws Exception ZK errors
-	 */
-	public static <T extends Serializable> ZooKeeperStateHandleStore<T> createZooKeeperStateHandleStore(
-			final CuratorFramework client,
-			final String path,
-			final RetrievableStateStorageHelper<T> stateStorage) throws Exception {
-		return new ZooKeeperStateHandleStore<>(useNamespaceAndEnsurePath(client, path), stateStorage);
 	}
 
 	/**
@@ -381,30 +344,6 @@ public class ZooKeeperUtils {
 		return root + namespace;
 	}
 
-	/**
-	 * Returns a facade of the client that uses the specified namespace, and ensures that all nodes
-	 * in the path exist.
-	 *
-	 * @param client ZK client
-	 * @param path the new namespace
-	 * @return ZK Client that uses the new namespace
-	 * @throws Exception ZK errors
-	 */
-	public static CuratorFramework useNamespaceAndEnsurePath(final CuratorFramework client, final String path) throws Exception {
-		Preconditions.checkNotNull(client, "client must not be null");
-		Preconditions.checkNotNull(path, "path must not be null");
-
-		// Ensure that the checkpoints path exists
-		client.newNamespaceAwareEnsurePath(path)
-			.ensure(client.getZookeeperClient());
-
-		// All operations will have the path as root
-		return client.usingNamespace(generateZookeeperPath(client.getNamespace(), path));
-	}
-
-	/**
-	 * Secure {@link ACLProvider} implementation.
-	 */
 	public static class SecureAclProvider implements ACLProvider {
 		@Override
 		public List<ACL> getDefaultAcl() {
@@ -417,9 +356,6 @@ public class ZooKeeperUtils {
 		}
 	}
 
-	/**
-	 * ZooKeeper client ACL mode enum.
-	 */
 	public enum ZkClientACLMode {
 		CREATOR,
 		OPEN;

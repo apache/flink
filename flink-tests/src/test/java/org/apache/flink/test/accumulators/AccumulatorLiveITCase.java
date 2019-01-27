@@ -39,10 +39,9 @@ import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -84,12 +83,12 @@ public class AccumulatorLiveITCase extends TestLogger {
 	}
 
 	@ClassRule
-	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(getConfiguration())
-			.setNumberTaskManagers(1)
-			.setNumberSlotsPerTaskManager(1)
-			.build());
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResource.MiniClusterResourceConfiguration(
+			getConfiguration(),
+			1,
+			1),
+		true);
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
@@ -144,7 +143,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 		final CheckedThread submissionThread = new CheckedThread() {
 			@Override
 			public void go() throws Exception {
-				client.submitJob(jobGraph, AccumulatorLiveITCase.class.getClassLoader());
+				client.submitJob(jobGraph, AccumulatorLiveITCase.class.getClassLoader(), false);
 			}
 		};
 
@@ -153,7 +152,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 		try {
 			NotifyingMapper.notifyLatch.await();
 
-			FutureUtils.retrySuccessfulWithDelay(
+			FutureUtils.retrySuccesfulWithDelay(
 				() -> {
 					try {
 						return CompletableFuture.completedFuture(client.getAccumulators(jobGraph.getJobID()));

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobID;
@@ -33,6 +34,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -64,8 +66,14 @@ public class JobGraph implements Serializable {
 	/** List of task vertices included in this job graph. */
 	private final Map<JobVertexID, JobVertex> taskVertices = new LinkedHashMap<JobVertexID, JobVertex>();
 
+	/** Map of results produced by vertices in this job graph. */
+	private final Map<IntermediateDataSetID, IntermediateDataSet> results = new HashMap<>();
+
 	/** The job configuration attached to this job. */
 	private final Configuration jobConfiguration = new Configuration();
+
+	/** The configuration for scheduling. It's not visible to tasks. */
+	private final Configuration schedulingConfiguration = new Configuration();
 
 	/** ID of this job. May be set if specific job id is desired (e.g. session management) */
 	private final JobID jobID;
@@ -79,9 +87,6 @@ public class JobGraph implements Serializable {
 
 	/** flag to enable queued scheduling */
 	private boolean allowQueuedScheduling;
-
-	/** The mode in which the job is scheduled */
-	private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
 
 	// --- checkpointing ---
 
@@ -209,6 +214,27 @@ public class JobGraph implements Serializable {
 	}
 
 	/**
+	 * Adds custom configuration for this job.
+	 *
+	 * @param configuration The custom configuration for this job.
+	 */
+	public void addCustomConfiguration(Configuration configuration) {
+		if (configuration != null) {
+			this.jobConfiguration.addAll(configuration);
+		}
+	}
+
+	/**
+	 * Returns the configuration object for scheduling.
+	 * Parameters in this config will not be visible to tasks.
+	 *
+	 * @return The configuration object for scheduling.
+	 */
+	public Configuration getSchedulingConfiguration() {
+		return this.schedulingConfiguration;
+	}
+
+	/**
 	 * Returns the {@link ExecutionConfig}
 	 *
 	 * @return ExecutionConfig
@@ -243,12 +269,9 @@ public class JobGraph implements Serializable {
 		return allowQueuedScheduling;
 	}
 
+	@VisibleForTesting
 	public void setScheduleMode(ScheduleMode scheduleMode) {
-		this.scheduleMode = scheduleMode;
-	}
-
-	public ScheduleMode getScheduleMode() {
-		return scheduleMode;
+		this.schedulingConfiguration.setString(ScheduleMode.class.getName(), scheduleMode.toString());
 	}
 
 	/**
@@ -298,6 +321,19 @@ public class JobGraph implements Serializable {
 	}
 
 	/**
+	 * Adds new task vertices to the job graph.
+	 *
+	 * @param vertices the new task vertices to be added
+	 */
+	public void addVertices(Collection<JobVertex> vertices) {
+		checkNotNull(vertices);
+
+		for (JobVertex vertex : vertices) {
+			addVertex(vertex);
+		}
+	}
+
+	/**
 	 * Returns an Iterable to iterate all vertices registered with the job graph.
 	 *
 	 * @return an Iterable to iterate all vertices registered with the job graph
@@ -329,7 +365,7 @@ public class JobGraph implements Serializable {
 	 * Sets the settings for asynchronous snapshots. A value of {@code null} means that
 	 * snapshotting is not enabled.
 	 *
-	 * @param settings The snapshot settings
+	 * @param settings The snapshot settings, or null, to disable snapshotting.
 	 */
 	public void setSnapshotSettings(JobCheckpointingSettings settings) {
 		this.snapshotSettings = settings;
@@ -339,26 +375,10 @@ public class JobGraph implements Serializable {
 	 * Gets the settings for asynchronous snapshots. This method returns null, when
 	 * checkpointing is not enabled.
 	 *
-	 * @return The snapshot settings
+	 * @return The snapshot settings, or null, if checkpointing is not enabled.
 	 */
 	public JobCheckpointingSettings getCheckpointingSettings() {
 		return snapshotSettings;
-	}
-
-	/**
-	 * Checks if the checkpointing was enabled for this job graph
-	 *
-	 * @return true if checkpointing enabled
-	 */
-	public boolean isCheckpointingEnabled() {
-
-		if (snapshotSettings == null) {
-			return false;
-		}
-
-		long checkpointInterval = snapshotSettings.getCheckpointCoordinatorConfiguration().getCheckpointInterval();
-		return checkpointInterval > 0 &&
-			checkpointInterval < Long.MAX_VALUE;
 	}
 
 	/**
@@ -396,6 +416,58 @@ public class JobGraph implements Serializable {
 			maxParallelism = Math.max(vertex.getParallelism(), maxParallelism);
 		}
 		return maxParallelism;
+	}
+
+	public Collection<Collection<ExecutionVertexID>> getResultPartitionConsumerExecutionVertices(
+		IntermediateDataSetID resultID,
+		int partitionNumber) {
+
+		IntermediateDataSet result = getResult(resultID);
+		if (result == null) {
+			throw new IllegalArgumentException("Cannot find the given result " + resultID + " in job graph");
+		}
+		if (partitionNumber >= result.getProducer().getParallelism()) {
+			throw new IllegalArgumentException("Result partition index out of bounds: " + partitionNumber
+				+ "/" + result.getProducer().getParallelism());
+		}
+
+		Collection<Collection<ExecutionVertexID>> consumerVertices = new ArrayList<>();
+		for (JobEdge edge : getResult(resultID).getConsumers()) {
+			consumerVertices.add(edge.getConsumerExecutionVertices(partitionNumber));
+		}
+		return consumerVertices;
+	}
+
+	public JobVertexID getResultProducerID(IntermediateDataSetID resultID) {
+		IntermediateDataSet result = getResult(resultID);
+		if (result == null) {
+			throw new IllegalArgumentException("Cannot find the given result " + resultID + " in job graph");
+		}
+		return result.getProducer().getID();
+	}
+
+	public Collection<IntermediateDataSetID> getResultIDs() {
+		// Lazy build the result map if the result is not found, as edges may be late added
+		for (JobVertex vertex : getVertices()) {
+			for (IntermediateDataSet result : vertex.getProducedDataSets()) {
+				results.put(result.getId(), result);
+			}
+		}
+
+		return results.keySet();
+	}
+
+	public IntermediateDataSet getResult(IntermediateDataSetID resultID) {
+		// Lazy build the result map if the result is not found, as edges may be late added
+		if (!results.containsKey(resultID)) {
+			for (JobVertex vertex : getVertices()) {
+				for (IntermediateDataSet result : vertex.getProducedDataSets()) {
+					results.put(result.getId(), result);
+				}
+			}
+		}
+
+		return results.get(resultID);
 	}
 
 	// --------------------------------------------------------------------------------------------

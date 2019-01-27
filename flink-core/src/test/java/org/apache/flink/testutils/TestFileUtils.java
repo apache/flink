@@ -90,7 +90,8 @@ public class TestFileUtils {
 	
 	// ------------------------------------------------------------------------
 
-	public static String createTempFileDir(File tempDir, long ... bytes) throws IOException {
+	public static String createTempFileDir(long ... bytes) throws IOException {
+		File tempDir = new File(System.getProperty("java.io.tmpdir"));
 		File f = null;
 		do {
 			f = new File(tempDir, randomFileName());
@@ -111,11 +112,12 @@ public class TestFileUtils {
 		return f.toURI().toString();
 	}
 	
-	public static String createTempFileDir(File tempDir, String ... contents) throws IOException {
-		return createTempFileDirExtension(tempDir, FILE_SUFFIX, contents);
+	public static String createTempFileDir(String ... contents) throws IOException {
+		return createTempFileDirExtension(FILE_SUFFIX, contents);
 	}
 	
-	public static String createTempFileDirExtension(File tempDir, String fileExtension, String ... contents ) throws IOException {
+	public static String createTempFileDirExtension(String fileExtension, String ... contents ) throws IOException {
+		File tempDir = new File(System.getProperty("java.io.tmpdir"));
 		File f = null;
 		do {
 			f = new File(tempDir, randomFileName(FILE_SUFFIX));

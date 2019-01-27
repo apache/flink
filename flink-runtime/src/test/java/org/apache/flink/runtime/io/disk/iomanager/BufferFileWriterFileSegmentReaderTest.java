@@ -29,9 +29,13 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -43,6 +47,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+@RunWith(Parameterized.class)
 public class BufferFileWriterFileSegmentReaderTest {
 
 	private static final int BUFFER_SIZE = 32 * 1024;
@@ -51,7 +56,11 @@ public class BufferFileWriterFileSegmentReaderTest {
 
 	private static final Random random = new Random();
 
-	private static final IOManager ioManager = new IOManagerAsync();
+	private static final int NUM_READ_WRITE_THREADS = 10;
+
+	private final IOManager ioManager;
+	private static final IOManager staticIOManager = new IOManagerAsync(NUM_READ_WRITE_THREADS);
+	private static final IOManager bufferedIOManager = new IOManagerAsync(1024 * 1024, 1024 * 1024, NUM_READ_WRITE_THREADS);
 
 	private BufferFileWriter writer;
 
@@ -59,9 +68,19 @@ public class BufferFileWriterFileSegmentReaderTest {
 
 	private LinkedBlockingQueue<FileSegment> returnedFileSegments = new LinkedBlockingQueue<>();
 
+	public BufferFileWriterFileSegmentReaderTest(boolean useBufferedIO) {
+		ioManager = useBufferedIO ? bufferedIOManager : staticIOManager;
+	}
+
+	@Parameterized.Parameters(name = "useBufferedIO-{0}")
+	public static Collection<Boolean> parameters() {
+		return Arrays.asList(true, false);
+	}
+
 	@AfterClass
 	public static void shutdown() {
-		ioManager.shutdown();
+		staticIOManager.shutdown();
+		bufferedIOManager.shutdown();
 	}
 
 	@Before

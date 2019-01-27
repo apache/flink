@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
-import java.util.{List => JList}
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.plan.nodes.FlinkConventions
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -26,7 +27,8 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.{SetOp, Union}
 import org.apache.calcite.rel.logical.LogicalUnion
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.flink.table.plan.nodes.FlinkConventions
+
+import java.util.{List => JList}
 
 import scala.collection.JavaConverters._
 
@@ -42,13 +44,15 @@ class FlinkLogicalUnion(
     new FlinkLogicalUnion(cluster, traitSet, inputs, all)
   }
 
-  override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
+  override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val children = this.getInputs.asScala
     val rowCnt = children.foldLeft(0D) { (rows, child) =>
-      rows + metadata.getRowCount(child)
+      rows + mq.getRowCount(child)
     }
     planner.getCostFactory.makeCost(rowCnt, 0, 0)
   }
+
+  override def isDeterministic: Boolean = true
 }
 
 private class FlinkLogicalUnionConverter
@@ -68,11 +72,9 @@ private class FlinkLogicalUnionConverter
 
   override def convert(rel: RelNode): RelNode = {
     val union = rel.asInstanceOf[LogicalUnion]
-    val traitSet = rel.getTraitSet.replace(FlinkConventions.LOGICAL)
     val newInputs = union.getInputs.asScala
-        .map(input => RelOptRule.convert(input, FlinkConventions.LOGICAL)).asJava
-
-    new FlinkLogicalUnion(rel.getCluster, traitSet, newInputs, union.all)
+      .map(input => RelOptRule.convert(input, FlinkConventions.LOGICAL)).asJava
+    FlinkLogicalUnion.create(newInputs, union.all)
   }
 }
 
@@ -81,8 +83,14 @@ object FlinkLogicalUnion {
   val CONVERTER: ConverterRule = new FlinkLogicalUnionConverter()
 
   def create(inputs: JList[RelNode], all: Boolean): FlinkLogicalUnion = {
-    val cluster: RelOptCluster = inputs.get(0).getCluster
-    val traitSet: RelTraitSet = cluster.traitSetOf(FlinkConventions.LOGICAL)
-    new FlinkLogicalUnion(cluster, traitSet, inputs, all)
+    val cluster = inputs.get(0).getCluster
+    val traitSet = cluster.traitSetOf(Convention.NONE)
+    // FIXME: FlinkRelMdDistribution requires the current RelNode to compute
+    // the distribution trait, so we have to create FlinkLogicalUnion to
+    // calculate the distribution trait
+    val union = new FlinkLogicalUnion(cluster, traitSet, inputs, all)
+    val newTraitSet = FlinkRelMetadataQuery.traitSet(union)
+      .replace(FlinkConventions.LOGICAL).simplify()
+    union.copy(newTraitSet, union.getInputs).asInstanceOf[FlinkLogicalUnion]
   }
 }

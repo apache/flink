@@ -20,11 +20,9 @@ package org.apache.flink.table.sinks
 
 import java.lang.{Boolean => JBool}
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.api.java.typeutils.TupleTypeInfo
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{Table, Types}
+import org.apache.flink.table.api.Table
+import org.apache.flink.table.api.types.{DataType, DataTypes}
 
 /**
   * Defines an external [[TableSink]] to emit a streaming [[Table]] with insert, update, and delete
@@ -48,33 +46,10 @@ import org.apache.flink.table.api.{Table, Types}
   *
   * @tparam T Type of records that this [[TableSink]] expects and supports.
   */
-trait UpsertStreamTableSink[T] extends StreamTableSink[JTuple2[JBool, T]] {
-
-  /**
-    * Configures the unique key fields of the [[Table]] to write.
-    * The method is called after [[TableSink.configure()]].
-    *
-    * The keys array might be empty, if the table consists of a single (updated) record.
-    * If the table does not have a key and is append-only, the keys attribute is null.
-    *
-    * @param keys the field names of the table's keys, an empty array if the table has a single
-    *             row, and null if the table is append-only and has no key.
-    */
-  def setKeyFields(keys: Array[String]): Unit
-
-  /**
-    * Specifies whether the [[Table]] to write is append-only or not.
-    *
-    * @param isAppendOnly true if the table is append-only, false otherwise.
-    */
-  def setIsAppendOnly(isAppendOnly: JBool): Unit
+trait UpsertStreamTableSink[T] extends BaseUpsertStreamTableSink[JTuple2[JBool, T]] {
 
   /** Returns the requested record type */
-  def getRecordType: TypeInformation[T]
+  def getRecordType: DataType
 
-  /** Emits the DataStream. */
-  def emitDataStream(dataStream: DataStream[JTuple2[JBool, T]]): Unit
-
-  override def getOutputType: TypeInformation[JTuple2[JBool, T]] =
-    new TupleTypeInfo(Types.BOOLEAN, getRecordType)
+  override def getOutputType = DataTypes.createTupleType(DataTypes.BOOLEAN, getRecordType)
 }

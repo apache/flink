@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.api.batch.sql.validation
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Types, ValidationException}
-import org.apache.flink.table.utils.{MemoryTableSourceSinkUtil, TableTestBase}
+import org.apache.flink.table.api.types.{DataType, DataTypes}
+import org.apache.flink.table.util.{MemoryTableSourceSinkUtil, TableTestBase}
 import org.junit._
 
 class InsertIntoValidationTest extends TableTestBase {
@@ -33,7 +33,7 @@ class InsertIntoValidationTest extends TableTestBase {
     util.addTable[(Int, Long, String)]("sourceTable", 'a, 'b, 'c)
 
     val fieldNames = Array("d", "e")
-    val fieldTypes: Array[TypeInformation[_]] = Array(Types.INT, Types.LONG)
+    val fieldTypes: Array[DataType] = Array(DataTypes.INT, DataTypes.LONG)
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
     util.tableEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
 
@@ -49,7 +49,7 @@ class InsertIntoValidationTest extends TableTestBase {
     util.addTable[(Int, Long, String)]("sourceTable", 'a, 'b, 'c)
 
     val fieldNames = Array("d", "e", "f")
-    val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.INT, Types.LONG)
+    val fieldTypes: Array[DataType] = Array(DataTypes.STRING, DataTypes.INT, DataTypes.LONG)
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
     util.tableEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
 
@@ -59,19 +59,20 @@ class InsertIntoValidationTest extends TableTestBase {
     util.tableEnv.sqlUpdate(sql)
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testUnsupportedPartialInsert(): Unit = {
+  @Test
+  def testPartialInsert(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("sourceTable", 'a, 'b, 'c)
 
     val fieldNames = Array("d", "e", "f")
-    val fieldTypes = util.tableEnv.scan("sourceTable").getSchema.getFieldTypes
+    val fieldTypes = util.tableEnv.scan("sourceTable")
+        .getSchema.getTypes.asInstanceOf[Array[DataType]]
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
     util.tableEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
 
     val sql = "INSERT INTO targetTable (d, f) SELECT a, c FROM sourceTable"
 
     // must fail because partial insert is not supported yet.
-    util.tableEnv.sqlUpdate(sql, util.tableEnv.queryConfig)
+    util.tableEnv.sqlUpdate(sql)
   }
 }

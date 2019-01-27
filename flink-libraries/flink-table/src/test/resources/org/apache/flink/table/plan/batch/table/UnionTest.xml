@@ -1,0 +1,113 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testTernaryUnion">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalUnion(all=[false])
+:- LogicalProject(a=[$0])
+:  +- LogicalFilter(condition=[>($1, 2)])
+:     +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
++- LogicalUnion(all=[false])
+   :- LogicalProject(a=[$0])
+   :  +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_1]])
+   +- LogicalProject(a=[$0])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[a], select=[a])
++- Exchange(distribution=[hash[a]])
+   +- LocalHashAggregate(groupBy=[a], select=[a])
+      +- Union(all=[true], union=[a])
+         :- Calc(select=[a], where=[>(b, 2)])
+         :  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+         +- Union(all=[true], union=[a])
+            :- Calc(select=[a])
+            :  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[a, b, c])
+            +- Calc(select=[a])
+               +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_2]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnion">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalUnion(all=[false])
+   :- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+   +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- HashAggregate(isMerge=[true], groupBy=[a, b, c], select=[a, b, c])
+   +- Exchange(distribution=[hash[a, b, c]])
+      +- LocalHashAggregate(groupBy=[a, b, c], select=[a, b, c])
+         +- Union(all=[true], union=[a, b, c])
+            :- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionWithStats">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalUnion(all=[false])
+   :- LogicalTableScan(table=[[builtin, default, MyTable1, source: [selectedFields=[a, b, c]]]])
+   +- LogicalTableScan(table=[[builtin, default, MyTable2, source: [selectedFields=[a, b, c]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a])
++- HashAggregate(isMerge=[true], groupBy=[a, b, c], select=[a, b, c])
+   +- Exchange(distribution=[hash[a, b, c]])
+      +- LocalHashAggregate(groupBy=[a, b, c], select=[a, b, c])
+         +- Union(all=[true], union=[a, b, c])
+            :- TableSourceScan(table=[[builtin, default, MyTable1, source: [selectedFields=[a, b, c]]]], fields=[a, b, c])
+            +- TableSourceScan(table=[[builtin, default, MyTable2, source: [selectedFields=[a, b, c]]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionAll">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$1])
++- LogicalFilter(condition=[>($0, 2)])
+   +- LogicalUnion(all=[true])
+      :- LogicalProject(a=[$0], c=[$2])
+      :  +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+      +- LogicalProject(a=[$0], c=[$2])
+         +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Union(all=[true], union=[a, c])
+:- Calc(select=[a, c], where=[>(a, 2)])
+:  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
++- Calc(select=[a, c], where=[>(a, 2)])
+   +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

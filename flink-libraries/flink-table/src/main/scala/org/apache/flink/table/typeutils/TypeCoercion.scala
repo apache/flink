@@ -18,35 +18,35 @@
 
 package org.apache.flink.table.typeutils
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, NumericTypeInfo, TypeInformation}
+import org.apache.flink.table.api.types.{DataTypes, DecimalType, InternalType, TimestampType}
+import org.apache.flink.table.typeutils.TypeCheckUtils._
 
 /**
   * Utilities for type conversions.
   */
 object TypeCoercion {
 
-  val numericWideningPrecedence: IndexedSeq[TypeInformation[_]] =
+  val numericWideningPrecedence: IndexedSeq[InternalType] =
     IndexedSeq(
-      BYTE_TYPE_INFO,
-      SHORT_TYPE_INFO,
-      INT_TYPE_INFO,
-      LONG_TYPE_INFO,
-      FLOAT_TYPE_INFO,
-      DOUBLE_TYPE_INFO)
+      DataTypes.BYTE,
+      DataTypes.SHORT,
+      DataTypes.INT,
+      DataTypes.LONG,
+      DataTypes.FLOAT,
+      DataTypes.DOUBLE)
 
-  def widerTypeOf(tp1: TypeInformation[_], tp2: TypeInformation[_]): Option[TypeInformation[_]] = {
+  def widerTypeOf(tp1: InternalType, tp2: InternalType): Option[InternalType] = {
     (tp1, tp2) match {
       case (ti1, ti2) if ti1 == ti2 => Some(ti1)
 
-      case (_, STRING_TYPE_INFO) => Some(STRING_TYPE_INFO)
-      case (STRING_TYPE_INFO, _) => Some(STRING_TYPE_INFO)
+      case (_, DataTypes.STRING) => Some(DataTypes.STRING)
+      case (DataTypes.STRING, _) => Some(DataTypes.STRING)
 
-      case (_, BIG_DEC_TYPE_INFO) => Some(BIG_DEC_TYPE_INFO)
-      case (BIG_DEC_TYPE_INFO, _) => Some(BIG_DEC_TYPE_INFO)
+      case (_, dt: DecimalType) => Some(dt)
+      case (dt: DecimalType, _) => Some(dt)
 
-      case (stti: SqlTimeTypeInfo[_], _: TimeIntervalTypeInfo[_]) => Some(stti)
-      case (_: TimeIntervalTypeInfo[_], stti: SqlTimeTypeInfo[_]) => Some(stti)
+      case (a, b) if isTimePoint(a) && isTimeInterval(b) => Some(a)
+      case (a, b) if isTimeInterval(a) && isTimePoint(b) => Some(b)
 
       case tuple if tuple.productIterator.forall(numericWideningPrecedence.contains) =>
         val higherIndex = numericWideningPrecedence.lastIndexWhere(t => t == tp1 || t == tp2)
@@ -57,12 +57,12 @@ object TypeCoercion {
   }
 
   /**
-    * Test if we can do cast safely without lose of information.
+    * Test if we can do cast safely without lose of type.
     */
-  def canSafelyCast(from: TypeInformation[_], to: TypeInformation[_]): Boolean = (from, to) match {
-    case (_, STRING_TYPE_INFO) => true
+  def canSafelyCast(from: InternalType, to: InternalType): Boolean = (from, to) match {
+    case (_, DataTypes.STRING) => true
 
-    case (_: NumericTypeInfo[_], BIG_DEC_TYPE_INFO) => true
+    case (a, _: DecimalType) if isNumeric(a) => true
 
     case tuple if tuple.productIterator.forall(numericWideningPrecedence.contains) =>
       if (numericWideningPrecedence.indexOf(from) < numericWideningPrecedence.indexOf(to)) {
@@ -76,45 +76,84 @@ object TypeCoercion {
 
   /**
     * All the supported cast types in flink-table.
-    * Note: This may lose information during the cast.
+    * Note: No distinction between explicit and implicit conversions
+    * Note: This is a subset of SqlTypeAssignmentRule
+    * Note: This may lose type during the cast.
+    *
     */
-  def canCast(from: TypeInformation[_], to: TypeInformation[_]): Boolean = (from, to) match {
+  def canCast(from: InternalType, to: InternalType): Boolean = (from, to) match {
     case (fromTp, toTp) if fromTp == toTp => true
 
-    case (_, STRING_TYPE_INFO) => true
+    case (_, DataTypes.STRING) => true
 
-    case (_, CHAR_TYPE_INFO) => false // Character type not supported.
+    case (_, DataTypes.CHAR) => false // Character type not supported.
 
-    case (STRING_TYPE_INFO, _: NumericTypeInfo[_]) => true
-    case (STRING_TYPE_INFO, BOOLEAN_TYPE_INFO) => true
-    case (STRING_TYPE_INFO, BIG_DEC_TYPE_INFO) => true
-    case (STRING_TYPE_INFO, SqlTimeTypeInfo.DATE) => true
-    case (STRING_TYPE_INFO, SqlTimeTypeInfo.TIME) => true
-    case (STRING_TYPE_INFO, SqlTimeTypeInfo.TIMESTAMP) => true
+    case (DataTypes.STRING, b) if isNumeric(b) => true
+    case (DataTypes.STRING, DataTypes.BOOLEAN) => true
+    case (DataTypes.STRING, _: DecimalType) => true
+    case (DataTypes.STRING, DataTypes.DATE) => true
+    case (DataTypes.STRING, DataTypes.TIME) => true
+    case (DataTypes.STRING, _: TimestampType) => true
 
-    case (BOOLEAN_TYPE_INFO, _: NumericTypeInfo[_]) => true
-    case (BOOLEAN_TYPE_INFO, BIG_DEC_TYPE_INFO) => true
-    case (_: NumericTypeInfo[_], BOOLEAN_TYPE_INFO) => true
-    case (BIG_DEC_TYPE_INFO, BOOLEAN_TYPE_INFO) => true
+    case (DataTypes.BOOLEAN, b) if isNumeric(b) => true
+    case (DataTypes.BOOLEAN, _: DecimalType) => true
+    case (a, DataTypes.BOOLEAN) if isNumeric(a) => true
+    case (_: DecimalType, DataTypes.BOOLEAN) => true
 
-    case (_: NumericTypeInfo[_], _: NumericTypeInfo[_]) => true
-    case (BIG_DEC_TYPE_INFO, _: NumericTypeInfo[_]) => true
-    case (_: NumericTypeInfo[_], BIG_DEC_TYPE_INFO) => true
-    case (INT_TYPE_INFO, SqlTimeTypeInfo.DATE) => true
-    case (INT_TYPE_INFO, SqlTimeTypeInfo.TIME) => true
-    case (LONG_TYPE_INFO, SqlTimeTypeInfo.TIMESTAMP) => true
-    case (INT_TYPE_INFO, TimeIntervalTypeInfo.INTERVAL_MONTHS) => true
-    case (LONG_TYPE_INFO, TimeIntervalTypeInfo.INTERVAL_MILLIS) => true
+    case (a, b) if isNumeric(a) && isNumeric(b) => true
+    case (a, _: DecimalType) if isNumeric(a) => true
+    case (_: DecimalType, b) if isNumeric(b) => true
+    case (_: DecimalType, _: DecimalType) => true
+    case (DataTypes.INT, DataTypes.DATE) => true
+    case (DataTypes.INT, DataTypes.TIME) => true
+    case (DataTypes.BYTE, _: TimestampType) => true
+    case (DataTypes.SHORT, _: TimestampType) => true
+    case (DataTypes.INT, _: TimestampType) => true
+    case (DataTypes.LONG, _: TimestampType) => true
+    case (DataTypes.DOUBLE, _: TimestampType) => true
+    case (DataTypes.FLOAT, _: TimestampType) => true
+    case (DataTypes.INT, DataTypes.INTERVAL_MONTHS) => true
+    case (DataTypes.LONG, DataTypes.INTERVAL_MILLIS) => true
 
-    case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIME) => false
-    case (SqlTimeTypeInfo.TIME, SqlTimeTypeInfo.DATE) => false
-    case (_: SqlTimeTypeInfo[_], _: SqlTimeTypeInfo[_]) => true
-    case (SqlTimeTypeInfo.DATE, INT_TYPE_INFO) => true
-    case (SqlTimeTypeInfo.TIME, INT_TYPE_INFO) => true
-    case (SqlTimeTypeInfo.TIMESTAMP, LONG_TYPE_INFO) => true
+    case (DataTypes.DATE, DataTypes.TIME) => false
+    case (DataTypes.TIME, DataTypes.DATE) => false
+    case (a, b) if isTimePoint(a) && isTimePoint(b) => true
+    case (DataTypes.DATE, DataTypes.INT) => true
+    case (DataTypes.TIME, DataTypes.INT) => true
+    case (_: TimestampType, DataTypes.BYTE) => true
+    case (_: TimestampType, DataTypes.INT) => true
+    case (_: TimestampType, DataTypes.SHORT) => true
+    case (_: TimestampType, DataTypes.LONG) => true
+    case (_: TimestampType, DataTypes.DOUBLE) => true
+    case (_: TimestampType, DataTypes.FLOAT) => true
 
-    case (TimeIntervalTypeInfo.INTERVAL_MONTHS, INT_TYPE_INFO) => true
-    case (TimeIntervalTypeInfo.INTERVAL_MILLIS, LONG_TYPE_INFO) => true
+    case (DataTypes.INTERVAL_MONTHS, DataTypes.INT) => true
+    case (DataTypes.INTERVAL_MILLIS, DataTypes.LONG) => true
+
+    case _ => false
+  }
+
+  /**
+    * All the supported reinterpret types in flink-table.
+    *
+    */
+  def canReinterpret(from: InternalType, to: InternalType): Boolean = (from, to) match {
+    case (fromTp, toTp) if fromTp == toTp => true
+
+    case (DataTypes.DATE, DataTypes.INT) => true
+    case (DataTypes.TIME, DataTypes.INT) => true
+    case (_: TimestampType, DataTypes.LONG) => true
+    case (DataTypes.INT, DataTypes.DATE) => true
+    case (DataTypes.INT, DataTypes.TIME) => true
+    case (DataTypes.LONG, _: TimestampType) => true
+    case (DataTypes.INT, DataTypes.INTERVAL_MONTHS) => true
+    case (DataTypes.LONG, DataTypes.INTERVAL_MILLIS) => true
+    case (DataTypes.INTERVAL_MONTHS, DataTypes.INT) => true
+    case (DataTypes.INTERVAL_MILLIS, DataTypes.LONG) => true
+
+    case (DataTypes.DATE, DataTypes.LONG) => true
+    case (DataTypes.TIME, DataTypes.LONG) => true
+    case (DataTypes.INTERVAL_MONTHS, DataTypes.LONG) => true
 
     case _ => false
   }

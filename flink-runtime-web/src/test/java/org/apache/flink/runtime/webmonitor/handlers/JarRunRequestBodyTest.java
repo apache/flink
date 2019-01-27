@@ -20,8 +20,6 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.messages.RestRequestMarshallingTestBase;
 
-import java.util.Arrays;
-
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -35,11 +33,10 @@ public class JarRunRequestBodyTest extends RestRequestMarshallingTestBase<JarRun
 	}
 
 	@Override
-	protected JarRunRequestBody getTestRequestInstance() {
+	protected JarRunRequestBody getTestRequestInstance() throws Exception {
 		return new JarRunRequestBody(
 			"hello",
 			"world",
-			Arrays.asList("boo", "far"),
 			4,
 			true,
 			"foo/bar"
@@ -52,7 +49,6 @@ public class JarRunRequestBodyTest extends RestRequestMarshallingTestBase<JarRun
 			final JarRunRequestBody actual) {
 		assertEquals(expected.getEntryClassName(), actual.getEntryClassName());
 		assertEquals(expected.getProgramArguments(), actual.getProgramArguments());
-		assertEquals(expected.getProgramArgumentsList(), actual.getProgramArgumentsList());
 		assertEquals(expected.getParallelism(), actual.getParallelism());
 		assertEquals(expected.getAllowNonRestoredState(), actual.getAllowNonRestoredState());
 		assertEquals(expected.getSavepointPath(), actual.getSavepointPath());

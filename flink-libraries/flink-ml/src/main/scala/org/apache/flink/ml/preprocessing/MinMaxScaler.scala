@@ -149,7 +149,7 @@ object MinMaxScaler {
   : DataSet[(linalg.Vector[Double], linalg.Vector[Double])] = {
 
     val minMax = dataSet.map {
-      v: T => (v.asBreeze, v.asBreeze)
+      v => (v.asBreeze, v.asBreeze)
     }.reduce {
       (minMax1, minMax2) => {
 

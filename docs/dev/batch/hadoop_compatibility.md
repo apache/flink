@@ -58,8 +58,26 @@ and Reducers.
 
 {% highlight xml %}
 <dependency>
-	<groupId>org.apache.flink</groupId>
+	<groupId>com.alibaba.blink</groupId>
 	<artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
+	<version>{{site.version}}</version>
+</dependency>
+{% endhighlight %}
+
+In addition, if you want to compile the following example, add the following dependencies to your `pom.xml`.
+
+{% highlight xml %}
+<!--Dependency for java examples.-->
+<dependency>
+	<groupId>com.alibaba.blink</groupId>
+	<artifactId>flink-java</artifactId>
+	<version>{{site.version}}</version>
+</dependency>
+
+<!--Dependency for scala examples.-->
+<dependency>
+	<groupId>com.alibaba.blink</groupId>
+	<artifactId>flink-scala{{ site.scala_version_suffix }}</artifactId>
 	<version>{{site.version}}</version>
 </dependency>
 {% endhighlight %}
@@ -73,14 +91,11 @@ if you only want to use your Hadoop data types. See the
 
 ### Using Hadoop InputFormats
 
-To use Hadoop `InputFormats` with Flink the format must first be wrapped
-using either `readHadoopFile` or `createHadoopInput` of the
-`HadoopInputs` utility class.
-The former is used for input formats derived
+Hadoop input formats can be used to create a data source by using
+one of the methods `readHadoopFile` or `createHadoopInput` of the
+`ExecutionEnvironment`. The former is used for input formats derived
 from `FileInputFormat` while the latter has to be used for general purpose
 input formats.
-The resulting `InputFormat` can be used to create a data source by using
-`ExecutionEnvironmen#createInput`.
 
 The resulting `DataSet` contains 2-tuples where the first field
 is the key and the second field is the value retrieved from the Hadoop
@@ -95,8 +110,7 @@ The following example shows how to use Hadoop's `TextInputFormat`.
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 DataSet<Tuple2<LongWritable, Text>> input =
-    env.createInput(HadoopInputs.readHadoopFile(new TextInputFormat(),
-                        LongWritable.class, Text.class, textPath));
+    env.createInput(HadoopInputs.readHadoopFile(new TextInputFormat(), LongWritable.class, Text.class, textPath));
 
 // Do something with the data.
 [...]
@@ -109,12 +123,14 @@ DataSet<Tuple2<LongWritable, Text>> input =
 val env = ExecutionEnvironment.getExecutionEnvironment
 
 val input: DataSet[(LongWritable, Text)] =
-  env.createInput(HadoopInputs.readHadoopFile(
-                    new TextInputFormat, classOf[LongWritable], classOf[Text], textPath))
+  env.createInput(HadoopInputs.readHadoopFile(new TextInputFormat, classOf[LongWritable], classOf[Text], textPath))
 
 // Do something with the data.
 [...]
 {% endhighlight %}
+
+{% warn Note %}
+Please make sure package `org.apache.flink.api.scala._` is imported otherwise you will get the following exception while compiling: `could not find implicit value for parameter tpe: org.apache.flink.api.common.typeinfo.TypeInformation[(org.apache.hadoop.io.LongWritable, org.apache.hadoop.io.Text)]`.
 
 </div>
 
@@ -134,6 +150,8 @@ The following example shows how to use Hadoop's `TextOutputFormat`.
 <div data-lang="java" markdown="1">
 
 {% highlight java %}
+// This example uses mapreduce APIs
+
 // Obtain the result we want to emit
 DataSet<Tuple2<Text, IntWritable>> hadoopResult = [...]
 
@@ -155,6 +173,8 @@ hadoopResult.output(hadoopOF);
 <div data-lang="scala" markdown="1">
 
 {% highlight scala %}
+// This example uses mapred APIs
+
 // Obtain your result to emit.
 val hadoopResult: DataSet[(Text, IntWritable)] = [...]
 
@@ -162,12 +182,10 @@ val hadoopOF = new HadoopOutputFormat[Text,IntWritable](
   new TextOutputFormat[Text, IntWritable],
   new JobConf)
 
-hadoopOF.getJobConf.set("mapred.textoutputformat.separator", " ")
+hadoopOF.getJobConf.set("mapreduce.output.textoutputformat.separator", " ")
 FileOutputFormat.setOutputPath(hadoopOF.getJobConf, new Path(resultPath))
 
 hadoopResult.output(hadoopOF)
-
-
 {% endhighlight %}
 
 </div>
@@ -183,7 +201,7 @@ The wrappers take a `DataSet<Tuple2<KEYIN,VALUEIN>>` as input and produce a `Dat
 Flink's function wrappers are
 
 - `org.apache.flink.hadoopcompatibility.mapred.HadoopMapFunction`,
-- `org.apache.flink.hadoopcompatibility.mapred.HadoopReduceFunction`, and
+- `org.apache.flink.hadoopcompatibility.mapred.HadoopReduceFunction` and
 - `org.apache.flink.hadoopcompatibility.mapred.HadoopReduceCombineFunction`.
 
 and can be used as regular Flink [FlatMapFunctions](dataset_transformations.html#flatmap) or [GroupReduceFunctions](dataset_transformations.html#groupreduce-on-grouped-dataset).
@@ -192,16 +210,18 @@ The following example shows how to use Hadoop `Mapper` and `Reducer` functions.
 
 {% highlight java %}
 // Obtain data to process somehow.
-DataSet<Tuple2<Text, LongWritable>> text = [...]
+DataSet<Tuple2<LongWritable, Text>> text = [...]
 
 DataSet<Tuple2<Text, LongWritable>> result = text
   // use Hadoop Mapper (Tokenizer) as MapFunction
   .flatMap(new HadoopMapFunction<LongWritable, Text, Text, LongWritable>(
+    // Tokenizer implements Mapper<LongWritable, Text, Text, LongWritable>
     new Tokenizer()
   ))
   .groupBy(0)
   // use Hadoop Reducer (Counter) as Reduce- and CombineFunction
   .reduceGroup(new HadoopReduceCombineFunction<Text, LongWritable, Text, LongWritable>(
+    // Counter implements Reducer<Text, LongWritable, Text, LongWritable>
     new Counter(), new Counter()
   ));
 {% endhighlight %}
@@ -229,18 +249,20 @@ DataSet<Tuple2<LongWritable, Text>> text = env.createInput(hadoopIF);
 DataSet<Tuple2<Text, LongWritable>> result = text
   // use Hadoop Mapper (Tokenizer) as MapFunction
   .flatMap(new HadoopMapFunction<LongWritable, Text, Text, LongWritable>(
+    // Tokenizer implements Mapper<LongWritable, Text, Text, LongWritable>
     new Tokenizer()
   ))
   .groupBy(0)
   // use Hadoop Reducer (Counter) as Reduce- and CombineFunction
   .reduceGroup(new HadoopReduceCombineFunction<Text, LongWritable, Text, LongWritable>(
+    // Counter implements Reducer<Text, LongWritable, Text, LongWritable>
     new Counter(), new Counter()
   ));
 
 // Set up the Hadoop TextOutputFormat.
-HadoopOutputFormat<Text, IntWritable> hadoopOF =
-  new HadoopOutputFormat<Text, IntWritable>(
-    new TextOutputFormat<Text, IntWritable>(), job
+HadoopOutputFormat<Text, LongWritable> hadoopOF =
+  new HadoopOutputFormat<Text, LongWritable>(
+    new TextOutputFormat<Text, LongWritable>(), job
   );
 hadoopOF.getConfiguration().set("mapreduce.output.textoutputformat.separator", " ");
 TextOutputFormat.setOutputPath(job, new Path(outputPath));

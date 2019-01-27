@@ -20,12 +20,18 @@ package org.apache.flink.table.factories.utils
 
 import java.util
 
+import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
+import org.apache.flink.streaming.api.functions.sink.SinkFunction
+import org.apache.flink.table.api.RichTableSchema
+import org.apache.flink.table.api.types.DataType
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator._
-import org.apache.flink.table.descriptors.FormatDescriptorValidator._
 import org.apache.flink.table.factories.utils.TestTableSinkFactory._
 import org.apache.flink.table.factories.{StreamTableSinkFactory, TableFactory}
-import org.apache.flink.table.sinks.StreamTableSink
+import org.apache.flink.table.sinks.{AppendStreamTableSink, StreamTableSink, TableSinkBase}
+import org.apache.flink.table.util.TableProperties
 import org.apache.flink.types.Row
+
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * Test table sink factory.
@@ -35,14 +41,13 @@ class TestTableSinkFactory extends StreamTableSinkFactory[Row] with TableFactory
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
     context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_TEST)
-    context.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST)
     context.put(CONNECTOR_PROPERTY_VERSION, "1")
-    context.put(FORMAT_PROPERTY_VERSION, "1")
     context
   }
 
   override def supportedProperties(): util.List[String] = {
     val properties = new util.ArrayList[String]()
+    properties.add("schema")
     // connector
     properties.add(FORMAT_PATH)
     properties.add("schema.#.name")
@@ -51,9 +56,13 @@ class TestTableSinkFactory extends StreamTableSinkFactory[Row] with TableFactory
   }
 
   override def createStreamTableSink(
-      properties: util.Map[String, String])
+      props: util.Map[String, String])
     : StreamTableSink[Row] = {
-    throw new UnsupportedOperationException()
+    val properties = new TableProperties
+    properties.putProperties(props)
+    val schema = properties.readSchemaFromProperties(Thread.currentThread().getContextClassLoader)
+    val tableName = properties.readTableNameFromProperties()
+    TestingTableSink(tableName, schema, properties)
   }
 }
 
@@ -61,5 +70,32 @@ object TestTableSinkFactory {
   val CONNECTOR_TYPE_VALUE_TEST = "test"
   val FORMAT_TYPE_VALUE_TEST = "test"
   val FORMAT_PATH = "format.path"
+}
+
+case class TestingTableSink(
+     tableName: String,
+     schema: RichTableSchema,
+     properties: TableProperties) extends AppendStreamTableSink[Row] with TableSinkBase[Row] {
+  override def getOutputType: DataType = schema.getResultRowType
+
+  override def getFieldNames: Array[String] = schema.getColumnNames
+
+  override def getFieldTypes: Array[DataType] = schema.getColumnTypes.asInstanceOf[Array[DataType]]
+
+  override def emitDataStream(dataStream: DataStream[Row]): DataStreamSink[Row] = {
+    dataStream.addSink(new SinkFunction[Row] {
+      override def invoke(value: Row, context: SinkFunction.Context[_]): Unit = {
+        TestingTableSink.synchronized(
+          TestingTableSink.globalResults += value.toString
+        )
+      }
+    })
+  }
+
+  override protected def copy: TableSinkBase[Row] = TestingTableSink(tableName, schema, properties)
+}
+
+object TestingTableSink {
+  var globalResults: ArrayBuffer[String] = new ArrayBuffer[String]()
 }
 

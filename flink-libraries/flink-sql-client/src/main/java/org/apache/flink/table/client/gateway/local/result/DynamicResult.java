@@ -18,10 +18,9 @@
 
 package org.apache.flink.table.client.gateway.local.result;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.types.DataType;
 import org.apache.flink.table.client.gateway.local.ProgramDeployer;
 import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.types.Row;
 
 /**
  * A result of a dynamic table program.
@@ -41,7 +40,7 @@ public interface DynamicResult<C> extends Result<C> {
 	/**
 	 * Returns the output type as defined by the query.
 	 */
-	TypeInformation<Row> getOutputType();
+	DataType getOutputType();
 
 	/**
 	 * Starts the table program using the given deployer and monitors it's execution.

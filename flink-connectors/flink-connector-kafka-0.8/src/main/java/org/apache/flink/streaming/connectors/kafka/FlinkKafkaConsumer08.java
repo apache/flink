@@ -236,6 +236,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	protected AbstractFetcher<T, ?> createFetcher(
 			SourceContext<T> sourceContext,
 			Map<KafkaTopicPartition, Long> assignedPartitionsWithInitialOffsets,
+			Map<KafkaTopicPartition, Long> assignedPartitionsWithEndOffsets,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			StreamingRuntimeContext runtimeContext,
@@ -247,9 +248,10 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 				? PropertiesUtil.getLong(kafkaProperties, "auto.commit.interval.ms", 60000)
 				: -1; // this disables the periodic offset committer thread in the fetcher
 
-		return new Kafka08Fetcher<>(
+		return new Kafka08Fetcher<T>(
 				sourceContext,
 				assignedPartitionsWithInitialOffsets,
+				assignedPartitionsWithEndOffsets,
 				watermarksPeriodic,
 				watermarksPunctuated,
 				runtimeContext,

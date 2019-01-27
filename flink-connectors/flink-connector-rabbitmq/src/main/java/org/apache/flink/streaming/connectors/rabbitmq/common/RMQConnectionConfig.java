@@ -59,6 +59,8 @@ public class RMQConnectionConfig implements Serializable {
 	private Integer requestedFrameMax;
 	private Integer requestedHeartbeat;
 
+	private Boolean autoCreateQueue;
+
 	/**
 	*
 	* @param host host name

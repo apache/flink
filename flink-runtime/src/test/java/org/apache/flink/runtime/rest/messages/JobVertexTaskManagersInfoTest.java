@@ -53,12 +53,20 @@ public class JobVertexTaskManagersInfoTest extends RestResponseMarshallingTestBa
 			random.nextLong(),
 			random.nextBoolean(),
 			random.nextLong(),
+			random.nextBoolean(),
+			random.nextFloat(),
+			random.nextBoolean(),
+			random.nextFloat(),
+			random.nextBoolean(),
+			Math.abs(random.nextLong()),
+			random.nextBoolean(),
+			Math.abs(random.nextLong()),
 			random.nextBoolean());
 		int count = 100;
 		for (ExecutionState executionState : ExecutionState.values()) {
 			statusCounts.put(executionState, count++);
 		}
-		taskManagersInfoList.add(new TaskManagersInfo("host1", ExecutionState.CANCELING, 1L, 2L, 3L, jobVertexMetrics, statusCounts));
+		taskManagersInfoList.add(new TaskManagersInfo("host1", ExecutionState.CANCELING, 1L, 2L, 3L, jobVertexMetrics, statusCounts, "container_01_0001"));
 
 		return new JobVertexTaskManagersInfo(new JobVertexID(), "test", System.currentTimeMillis(), taskManagersInfoList);
 	}

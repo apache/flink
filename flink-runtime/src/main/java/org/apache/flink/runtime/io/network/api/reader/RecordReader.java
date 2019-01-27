@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.reader;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
@@ -43,7 +44,11 @@ public class RecordReader<T extends IOReadableWritable> extends AbstractRecordRe
 	 *                       reconstructs multiple large records.
 	 */
 	public RecordReader(InputGate inputGate, Class<T> recordType, String[] tmpDirectories) {
-		super(inputGate, tmpDirectories);
+		this(inputGate, recordType, tmpDirectories, new Configuration());
+	}
+
+	public RecordReader(InputGate inputGate, Class<T> recordType, String[] tmpDirectories, Configuration configuration) {
+		super(inputGate, tmpDirectories, configuration);
 
 		this.recordType = recordType;
 	}

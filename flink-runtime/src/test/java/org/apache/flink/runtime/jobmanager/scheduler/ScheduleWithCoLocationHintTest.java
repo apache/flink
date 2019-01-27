@@ -27,6 +27,8 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
@@ -38,7 +40,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+@RunWith(Parameterized.class)
 public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
+
+	public ScheduleWithCoLocationHintTest(SchedulerType schedulerType) {
+		super(schedulerType);
+	}
 
 	@Test
 	public void scheduleAllSharedAndCoLocated() throws Exception {

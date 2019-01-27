@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -33,27 +33,28 @@ import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnect
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
-import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 
-/**
- * Tests for the slot allocation protocol.
- */
 public class SlotProtocolTest extends TestLogger {
 
 	private static final long timeout = 10000L;
@@ -88,10 +89,7 @@ public class SlotProtocolTest extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime())) {
 
-			final CompletableFuture<ResourceProfile> resourceProfileFuture = new CompletableFuture<>();
-			ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
-				.setAllocateResourceConsumer(resourceProfileFuture::complete)
-				.build();
+			ResourceActions resourceManagerActions = mock(ResourceActions.class);
 
 			slotManager.start(rmLeaderID, Executors.directExecutor(), resourceManagerActions);
 
@@ -103,16 +101,23 @@ public class SlotProtocolTest extends TestLogger {
 
 			slotManager.registerSlotRequest(slotRequest);
 
-			assertThat(resourceProfileFuture.get(), is(equalTo(slotRequest.getResourceProfile())));
+			verify(resourceManagerActions).allocateResource(eq(slotRequest.getResourceProfile()));
 
 			// slot becomes available
-			final CompletableFuture<Tuple3<SlotID, JobID, AllocationID>> requestFuture = new CompletableFuture<>();
-			TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-				.setRequestSlotFunction(tuple5 -> {
-					requestFuture.complete(Tuple3.of(tuple5.f0, tuple5.f1, tuple5.f2));
-					return new CompletableFuture<>();
-				})
-				.createTestingTaskExecutorGateway();
+			TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
+			Mockito.when(
+				taskExecutorGateway
+					.requestSlot(
+						any(SlotID.class),
+						any(JobID.class),
+						any(AllocationID.class),
+						any(ResourceProfile.class),
+						any(String.class),
+						any(List.class),
+						any(ResourceManagerId.class),
+						anyLong(),
+						any(Time.class)))
+				.thenReturn(mock(CompletableFuture.class));
 
 			final ResourceID resourceID = ResourceID.generate();
 			final SlotID slotID = new SlotID(resourceID, 0);
@@ -125,7 +130,17 @@ public class SlotProtocolTest extends TestLogger {
 			slotManager.registerTaskManager(new TaskExecutorConnection(resourceID, taskExecutorGateway), slotReport);
 
 			// 4) Slot becomes available and TaskExecutor gets a SlotRequest
-			assertThat(requestFuture.get(), is(equalTo(Tuple3.of(slotID, jobID, allocationID))));
+			verify(taskExecutorGateway, timeout(5000L))
+				.requestSlot(
+					eq(slotID),
+					eq(jobID),
+					eq(allocationID),
+					eq(resourceProfile),
+					any(String.class),
+					any(List.class),
+					any(ResourceManagerId.class),
+					eq(1L),
+					any(Time.class));
 		}
 	}
 
@@ -142,13 +157,13 @@ public class SlotProtocolTest extends TestLogger {
 
 		final ResourceManagerId rmLeaderID = ResourceManagerId.generate();
 
-		final CompletableFuture<Tuple3<SlotID, JobID, AllocationID>> requestFuture = new CompletableFuture<>();
-		TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-			.setRequestSlotFunction(tuple5 -> {
-				requestFuture.complete(Tuple3.of(tuple5.f0, tuple5.f1, tuple5.f2));
-				return new CompletableFuture<>();
-			})
-			.createTestingTaskExecutorGateway();
+		TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
+		Mockito.when(
+			taskExecutorGateway
+				.requestSlot(any(SlotID.class), any(JobID.class),
+					any(AllocationID.class), any(ResourceProfile.class), any(String.class),
+					any(List.class), any(ResourceManagerId.class), anyLong(), any(Time.class)))
+			.thenReturn(mock(CompletableFuture.class));
 
 		try (SlotManager slotManager = new SlotManager(
 			scheduledExecutor,
@@ -156,7 +171,7 @@ public class SlotProtocolTest extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime())) {
 
-			ResourceActions resourceManagerActions = new TestingResourceActionsBuilder().build();
+			ResourceActions resourceManagerActions = mock(ResourceActions.class);
 
 			slotManager.start(rmLeaderID, Executors.directExecutor(), resourceManagerActions);
 
@@ -179,7 +194,17 @@ public class SlotProtocolTest extends TestLogger {
 			slotManager.registerSlotRequest(slotRequest);
 
 			// a SlotRequest is routed to the TaskExecutor
-			assertThat(requestFuture.get(), is(equalTo(Tuple3.of(slotID, jobID, allocationID))));
+			verify(taskExecutorGateway, timeout(5000))
+				.requestSlot(
+					eq(slotID),
+					eq(jobID),
+					eq(allocationID),
+					eq(resourceProfile),
+					any(String.class),
+					eq(Collections.emptyList()),
+					any(ResourceManagerId.class),
+					eq(1L),
+					any(Time.class));
 		}
 	}
 }

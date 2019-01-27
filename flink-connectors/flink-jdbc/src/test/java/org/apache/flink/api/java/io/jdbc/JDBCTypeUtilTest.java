@@ -18,9 +18,7 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.MapTypeInfo;
+import org.apache.flink.table.api.types.DataTypes;
 
 import org.junit.Test;
 
@@ -28,7 +26,6 @@ import java.sql.Types;
 
 import static org.apache.flink.api.java.io.jdbc.JDBCTypeUtil.typeInformationToSqlType;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 /**
  * Testing the type conversions from Flink to SQL types.
@@ -37,16 +34,6 @@ public class JDBCTypeUtilTest {
 
 	@Test
 	public void testTypeConversions() {
-		assertEquals(Types.INTEGER, typeInformationToSqlType(BasicTypeInfo.INT_TYPE_INFO));
-		testUnsupportedType(BasicTypeInfo.VOID_TYPE_INFO);
-		testUnsupportedType(new MapTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
-	}
-
-	private static void testUnsupportedType(TypeInformation<?> type) {
-		try {
-			typeInformationToSqlType(type);
-			fail();
-		} catch (IllegalArgumentException ignored) {
-		}
+		assertEquals(Types.INTEGER, typeInformationToSqlType(DataTypes.INT));
 	}
 }

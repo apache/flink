@@ -21,7 +21,6 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -69,16 +68,18 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	}
 
 	@Override
-	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
+	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader, boolean detached) throws ProgramInvocationException {
 		final CompletableFuture<JobSubmissionResult> jobSubmissionResultFuture = submitJob(jobGraph);
 
-		if (isDetached()) {
+		if (isDetached() || detached) {
 			try {
 				return jobSubmissionResultFuture.get();
 			} catch (InterruptedException | ExecutionException e) {
 				ExceptionUtils.checkInterrupted(e);
 
-				throw new ProgramInvocationException("Could not run job in detached mode.", jobGraph.getJobID(), e);
+				throw new ProgramInvocationException(
+					String.format("Could not run job %s in detached mode.", jobGraph.getJobID()),
+					e);
 			}
 		} else {
 			final CompletableFuture<JobResult> jobResultFuture = jobSubmissionResultFuture.thenCompose(
@@ -90,15 +91,17 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 			} catch (InterruptedException | ExecutionException e) {
 				ExceptionUtils.checkInterrupted(e);
 
-				throw new ProgramInvocationException("Could not run job", jobGraph.getJobID(), e);
+				throw new ProgramInvocationException(
+					String.format("Could not run job %s.", jobGraph.getJobID()),
+					e);
 			}
 
 			try {
 				return jobResult.toJobExecutionResult(classLoader);
-			} catch (JobExecutionException e) {
-				throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
+			} catch (JobResult.WrappedJobException e) {
+				throw new ProgramInvocationException(e.getCause());
 			} catch (IOException | ClassNotFoundException e) {
-				throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
+				throw new ProgramInvocationException(e);
 			}
 		}
 	}

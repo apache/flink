@@ -28,21 +28,20 @@ import org.apache.flink.util.MathUtils;
 
 
 public class RandomAccessInputView extends AbstractPagedInputView implements SeekableDataInputView {
-	
+
 	private final ArrayList<MemorySegment> segments;
-	
+
 	private int currentSegmentIndex;
-	
+
 	private final int segmentSizeBits;
-	
+
 	private final int segmentSizeMask;
-	
+
 	private final int segmentSize;
-	
-	private final int limitInLastSegment;
-	
-	public RandomAccessInputView(ArrayList<MemorySegment> segments, int segmentSize)
-	{
+
+	private int limitInLastSegment;
+
+	public RandomAccessInputView(ArrayList<MemorySegment> segments, int segmentSize) {
 		this(segments, segmentSize, segmentSize);
 	}
 
@@ -56,12 +55,11 @@ public class RandomAccessInputView extends AbstractPagedInputView implements See
 		this.limitInLastSegment = limitInLastSegment;
 	}
 
-
 	@Override
 	public void setReadPosition(long position) {
 		final int bufferNum = (int) (position >>> this.segmentSizeBits);
 		final int offset = (int) (position & this.segmentSizeMask);
-		
+
 		this.currentSegmentIndex = bufferNum;
 		seekInput(this.segments.get(bufferNum), offset, bufferNum < this.segments.size() - 1 ? this.segmentSize : this.limitInLastSegment);
 	}
@@ -69,7 +67,6 @@ public class RandomAccessInputView extends AbstractPagedInputView implements See
 	public long getReadPosition() {
 		return (((long) currentSegmentIndex) << segmentSizeBits) + getCurrentPositionInSegment();
 	}
-
 
 	@Override
 	protected MemorySegment nextSegment(MemorySegment current) throws EOFException {
@@ -80,9 +77,13 @@ public class RandomAccessInputView extends AbstractPagedInputView implements See
 		}
 	}
 
-
 	@Override
 	protected int getLimitForSegment(MemorySegment segment) {
 		return this.currentSegmentIndex == this.segments.size() - 1 ? this.limitInLastSegment : this.segmentSize;
+	}
+
+	public void updateLimitInLastSegment(int value) {
+		this.limitInLastSegment = value;
+		updateCurrentSegmentLimit();
 	}
 }

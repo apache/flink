@@ -185,20 +185,22 @@ public class JobLeaderService {
 
 		LOG.info("Add job {} for job leader monitoring.", jobId);
 
-		final LeaderRetrievalService leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(
-			jobId,
-			defaultTargetAddress);
+		if (!jobLeaderServices.containsKey(jobId)) {
+			final LeaderRetrievalService leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(
+					jobId,
+					defaultTargetAddress);
 
-		JobLeaderService.JobManagerLeaderListener jobManagerLeaderListener = new JobManagerLeaderListener(jobId);
+			JobLeaderService.JobManagerLeaderListener jobManagerLeaderListener = new JobManagerLeaderListener(jobId);
 
-		final Tuple2<LeaderRetrievalService, JobManagerLeaderListener> oldEntry = jobLeaderServices.put(jobId, Tuple2.of(leaderRetrievalService, jobManagerLeaderListener));
+			final Tuple2<LeaderRetrievalService, JobManagerLeaderListener> oldEntry = jobLeaderServices.put(jobId, Tuple2.of(leaderRetrievalService, jobManagerLeaderListener));
 
-		if (oldEntry != null) {
-			oldEntry.f0.stop();
-			oldEntry.f1.stop();
+			if (oldEntry != null) {
+				oldEntry.f0.stop();
+				oldEntry.f1.stop();
+			}
+
+			leaderRetrievalService.start(jobManagerLeaderListener);
 		}
-
-		leaderRetrievalService.start(jobManagerLeaderListener);
 	}
 
 	/**

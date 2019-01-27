@@ -23,6 +23,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
+import java.net.URI;
 import java.net.URL;
 import java.util.List;
 
@@ -39,6 +40,10 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 
 	private final List<URL> classpathsToAttach;
 
+	private final List<URI> libjars;
+
+	private final List<URI> files;
+
 	private final ClassLoader userCodeClassLoader;
 
 	private final int defaultParallelism;
@@ -50,11 +55,14 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 	private SavepointRestoreSettings savepointSettings;
 
 	public ContextEnvironmentFactory(ClusterClient<?> client, List<URL> jarFilesToAttach,
-			List<URL> classpathsToAttach, ClassLoader userCodeClassLoader, int defaultParallelism,
+			List<URL> classpathsToAttach, List<URI> libjars, List<URI> files,
+			ClassLoader userCodeClassLoader, int defaultParallelism,
 			boolean isDetached, SavepointRestoreSettings savepointSettings) {
 		this.client = client;
 		this.jarFilesToAttach = jarFilesToAttach;
 		this.classpathsToAttach = classpathsToAttach;
+		this.libjars = libjars;
+		this.files = files;
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.defaultParallelism = defaultParallelism;
 		this.isDetached = isDetached;
@@ -68,8 +76,8 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 		}
 
 		lastEnvCreated = isDetached
-			? new DetachedEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings)
-			: new ContextEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings);
+			? new DetachedEnvironment(client, jarFilesToAttach, classpathsToAttach, libjars, files, userCodeClassLoader, savepointSettings)
+			: new ContextEnvironment(client, jarFilesToAttach, classpathsToAttach, libjars, files, userCodeClassLoader, savepointSettings);
 		if (defaultParallelism > 0) {
 			lastEnvCreated.setParallelism(defaultParallelism);
 		}

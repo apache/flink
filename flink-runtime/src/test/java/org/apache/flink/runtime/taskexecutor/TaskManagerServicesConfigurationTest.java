@@ -20,9 +20,12 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.io.network.partition.BlockingShuffleType;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+
+import java.net.InetAddress;
 
 import static org.junit.Assert.*;
 
@@ -58,8 +61,8 @@ public class TaskManagerServicesConfigurationTest extends TestLogger {
 
 		// fully defined:
 		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "2048");
+		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, 1024);
+		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 2048);
 
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
 
@@ -67,19 +70,19 @@ public class TaskManagerServicesConfigurationTest extends TestLogger {
 		config = new Configuration();
 		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "1024");
+		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 1024);
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
 
 		config = new Configuration();
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
+		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, 1024);
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
 		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
 
 		config = new Configuration();
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "1024");
+		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 1024);
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
+		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, 1024);
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
 	}
 
@@ -102,12 +105,75 @@ public class TaskManagerServicesConfigurationTest extends TestLogger {
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config1));
 
 		config1 = config.clone();
-		config1.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
+		config1.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, 1024);
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config1));
 
 		config1 = config.clone();
-		config1.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "1024");
+		config1.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 1024);
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config1));
 	}
 
+	@Test
+	public void testConfigureReadWriteThreadsNumber() throws Exception {
+		// Test default value.
+		{
+			Configuration config = new Configuration();
+			TaskManagerServicesConfiguration servicesConfiguration =
+				TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLocalHost(), true);
+
+			assertEquals(1,servicesConfiguration.getIoManagerNumAsyncReadWriteThread());
+		}
+
+		// Test default value for TM shuffle.
+		{
+			Configuration config = new Configuration();
+			config.setString(TaskManagerOptions.TASK_BLOCKING_SHUFFLE_TYPE, BlockingShuffleType.TM.toString());
+			TaskManagerServicesConfiguration servicesConfiguration =
+				TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLocalHost(), true);
+
+			assertEquals(1,servicesConfiguration.getIoManagerNumAsyncReadWriteThread());
+		}
+
+		// Test default value for YARN shuffle.
+		{
+			Configuration config = new Configuration();
+			config.setString(TaskManagerOptions.TASK_BLOCKING_SHUFFLE_TYPE, BlockingShuffleType.YARN.toString());
+			TaskManagerServicesConfiguration servicesConfiguration =
+				TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLocalHost(), true);
+
+			assertEquals(2,servicesConfiguration.getIoManagerNumAsyncReadWriteThread());
+		}
+
+		// Test default value for YARN shuffle with multiple disks.
+		{
+			Configuration config = new Configuration();
+			config.setString(TaskManagerOptions.TASK_BLOCKING_SHUFFLE_TYPE, BlockingShuffleType.YARN.toString());
+			config.setString(TaskManagerOptions.TASK_MANAGER_OUTPUT_LOCAL_OUTPUT_DIRS, "/dump/1,/dump/2,/dump/3");
+			TaskManagerServicesConfiguration servicesConfiguration =
+				TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLocalHost(), true);
+
+			assertEquals(6,servicesConfiguration.getIoManagerNumAsyncReadWriteThread());
+		}
+
+		// Test customized configuration
+		{
+			Configuration config = new Configuration();
+			config.setInteger(TaskManagerOptions.IO_MANAGER_ASYNC_NUM_READ_WRITE_THREAD, 7);
+			TaskManagerServicesConfiguration servicesConfiguration =
+				TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLocalHost(), true);
+
+			assertEquals(7,servicesConfiguration.getIoManagerNumAsyncReadWriteThread());
+		}
+
+		{
+			Configuration config = new Configuration();
+			config.setInteger(TaskManagerOptions.IO_MANAGER_ASYNC_NUM_READ_WRITE_THREAD, 7);
+			config.setString(TaskManagerOptions.TASK_BLOCKING_SHUFFLE_TYPE, BlockingShuffleType.YARN.toString());
+			config.setString(TaskManagerOptions.TASK_MANAGER_OUTPUT_LOCAL_OUTPUT_DIRS, "/dump/1,/dump/2,/dump/3");
+			TaskManagerServicesConfiguration servicesConfiguration =
+				TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLocalHost(), true);
+
+			assertEquals(7,servicesConfiguration.getIoManagerNumAsyncReadWriteThread());
+		}
+	}
 }

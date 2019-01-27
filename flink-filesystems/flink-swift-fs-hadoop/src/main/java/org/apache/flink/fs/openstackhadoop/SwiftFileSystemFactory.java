@@ -123,7 +123,7 @@ public class SwiftFileSystemFactory implements FileSystemFactory {
 			final SwiftNativeFileSystem fs = new SwiftNativeFileSystem();
 			fs.initialize(fsUri, hadoopConfig);
 
-			return new HadoopFileSystem(fs);
+			return new HadoopFileSystem(hadoopConfig, fs);
 		}
 		catch (IOException e) {
 			throw e;

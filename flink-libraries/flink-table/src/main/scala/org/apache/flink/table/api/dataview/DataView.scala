@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.api.dataview
 
+import org.apache.flink.table.api.functions.AggregateFunction
+
+
 /**
   * A [[DataView]] is a collection type that can be used in the accumulator of an
-  * [[org.apache.flink.table.functions.AggregateFunction]].
+  * [[AggregateFunction]].
   *
-  * Depending on the context in which the [[org.apache.flink.table.functions.AggregateFunction]] is
+  * Depending on the context in which the [[AggregateFunction]] is
   * used, a [[DataView]] can be backed by a Java heap collection or a state backend.
   */
 trait DataView extends Serializable {

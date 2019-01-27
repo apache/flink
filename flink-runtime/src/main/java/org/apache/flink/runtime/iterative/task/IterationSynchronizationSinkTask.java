@@ -89,7 +89,8 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 	public void invoke() throws Exception {
 		this.headEventReader = new MutableRecordReader<>(
 				getEnvironment().getInputGate(0),
-				getEnvironment().getTaskManagerInfo().getTmpDirectories());
+				getEnvironment().getTaskManagerInfo().getTmpDirectories(),
+				getEnvironment().getTaskManagerInfo().getConfiguration());
 
 		TaskConfig taskConfig = new TaskConfig(getTaskConfiguration());
 

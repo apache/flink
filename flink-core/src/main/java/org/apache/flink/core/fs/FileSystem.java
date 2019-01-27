@@ -229,7 +229,9 @@ public abstract class FileSystem {
 
 	/** The default filesystem scheme to be used, configured during process-wide initialization.
 	 * This value defaults to the local file systems scheme {@code 'file:///'} or {@code 'file:/'}. */
-	private static URI defaultScheme;
+	//CHECKSTYLE.OFF: StaticVariableName
+	private static URI DEFAULT_SCHEME;
+	//CHECKSTYLE.ON: StaticVariableName
 
 	// ------------------------------------------------------------------------
 	//  Initialization
@@ -273,11 +275,11 @@ public abstract class FileSystem {
 			// also read the default file system scheme
 			final String stringifiedUri = config.getString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, null);
 			if (stringifiedUri == null) {
-				defaultScheme = null;
+				DEFAULT_SCHEME = null;
 			}
 			else {
 				try {
-					defaultScheme = new URI(stringifiedUri);
+					DEFAULT_SCHEME = new URI(stringifiedUri);
 				}
 				catch (URISyntaxException e) {
 					throw new IllegalConfigurationException("The default file system scheme ('" +
@@ -425,7 +427,7 @@ public abstract class FileSystem {
 	 * @return The default file system URI
 	 */
 	public static URI getDefaultFsUri() {
-		return defaultScheme != null ? defaultScheme : LocalFileSystem.getLocalFsURI();
+		return DEFAULT_SCHEME != null ? DEFAULT_SCHEME : LocalFileSystem.getLocalFsURI();
 	}
 
 	// ------------------------------------------------------------------------
@@ -494,24 +496,6 @@ public abstract class FileSystem {
 	public abstract FSDataInputStream open(Path f) throws IOException;
 
 	/**
-	 * Creates a new {@link RecoverableWriter}. A recoverable writer creates streams that can
-	 * persist and recover their intermediate state.
-	 * Persisting and recovering intermediate state is a core building block for writing to
-	 * files that span multiple checkpoints.
-	 *
-	 * <p>The returned object can act as a shared factory to open and recover multiple streams.
-	 *
-	 * <p>This method is optional on file systems and various file system implementations may
-	 * not support this method, throwing an {@code UnsupportedOperationException}.
-	 *
-	 * @return A RecoverableWriter for this file system.
-	 * @throws IOException Thrown, if the recoverable writer cannot be instantiated.
-	 */
-	public RecoverableWriter createRecoverableWriter() throws IOException {
-		throw new UnsupportedOperationException("This file system does not support recoverable writers.");
-	}
-
-	/**
 	 * Return the number of bytes that large input files should be optimally be split into to minimize I/O time.
 	 *
 	 * @return the number of bytes that large input files should be optimally be split into to minimize I/O time
@@ -533,6 +517,80 @@ public abstract class FileSystem {
 	 * @throws IOException
 	 */
 	public abstract FileStatus[] listStatus(Path f) throws IOException;
+
+	/**
+	 * List the statuses with location of the files/directories in the given path if the path is
+	 * a directory.
+	 *
+	 * @param f
+	 *        given path
+	 * @return the statuses of the files/directories in the given path
+	 * @throws IOException
+	 */
+	public LocatedFileStatus[] listLocatedStatus(Path f) throws IOException {
+		FileStatus[] fileStatuses = listStatus(f);
+		if (fileStatuses == null) {
+			return null;
+		}
+		LocatedFileStatus[] result = new LocatedFileStatus[fileStatuses.length];
+		for (int i = 0; i < fileStatuses.length; i++) {
+			result[i] = new DefaultLocatedFileStatus(
+				fileStatuses[i],
+				getFileBlockLocations(fileStatuses[i], 0, fileStatuses[i].getLen()));
+		}
+		return result;
+	}
+
+	static class DefaultLocatedFileStatus implements LocatedFileStatus {
+
+		FileStatus fileStatus;
+		BlockLocation[] locations;
+
+		public DefaultLocatedFileStatus(FileStatus fileStatus, BlockLocation[] blockLocations) {
+			this.fileStatus = fileStatus;
+			this.locations = blockLocations;
+		}
+
+		@Override
+		public BlockLocation[] getBlockLocation() {
+			return locations;
+		}
+
+		@Override
+		public long getLen() {
+			return fileStatus.getLen();
+		}
+
+		@Override
+		public long getBlockSize() {
+			return fileStatus.getBlockSize();
+		}
+
+		@Override
+		public short getReplication() {
+			return fileStatus.getReplication();
+		}
+
+		@Override
+		public long getModificationTime() {
+			return fileStatus.getModificationTime();
+		}
+
+		@Override
+		public long getAccessTime() {
+			return fileStatus.getAccessTime();
+		}
+
+		@Override
+		public boolean isDir() {
+			return fileStatus.isDir();
+		}
+
+		@Override
+		public Path getPath() {
+			return fileStatus.getPath();
+		}
+	}
 
 	/**
 	 * Check if exists.

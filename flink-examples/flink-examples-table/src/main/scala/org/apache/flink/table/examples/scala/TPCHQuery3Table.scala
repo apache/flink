@@ -17,9 +17,13 @@
  */
 package org.apache.flink.table.examples.scala
 
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api.{Table, TableEnvironment}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.types.DataTypes
+import org.apache.flink.table.api.java.{BatchTableEnvironment => JBatchTableEnv}
+import org.apache.flink.table.sinks.csv.CsvTableSink
+import org.apache.flink.table.sources.csv.CsvTableSource
 
 /**
   * This program implements a modified version of the TPC-H query 3. The
@@ -83,43 +87,37 @@ object TPCHQuery3Table {
     val date = "1995-03-12".toDate
 
     // get execution environment
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getBatchTableEnvironment(env)
 
-    val lineitems = getLineitemDataSet(env)
-      .toTable(tEnv, 'id, 'extdPrice, 'discount, 'shipDate)
-      .filter('shipDate.toDate > date)
+    val lineitems = getLineitemTable(tEnv, env)
+      .filter('l_shipdate.toDate > date)
 
-    val customers = getCustomerDataSet(env)
-      .toTable(tEnv, 'id, 'mktSegment)
-      .filter('mktSegment === "AUTOMOBILE")
+    val customers = getCustomerTable(tEnv, env)
+      .filter('c_mktsegment === "AUTOMOBILE")
 
-    val orders = getOrdersDataSet(env)
-      .toTable(tEnv, 'orderId, 'custId, 'orderDate, 'shipPrio)
-      .filter('orderDate.toDate < date)
+    val orders = getOrdersTable(tEnv, env)
+      .filter('o_orderdate.toDate < date)
 
     val items =
       orders.join(customers)
-        .where('custId === 'id)
-        .select('orderId, 'orderDate, 'shipPrio)
+        .where('c_custkey === 'o_orderkey)
+        .select('o_orderkey, 'o_orderdate, 'o_shippriority)
       .join(lineitems)
-        .where('orderId === 'id)
+        .where('o_orderkey === 'l_orderkey)
         .select(
-          'orderId,
-          'extdPrice * (1.0f.toExpr - 'discount) as 'revenue,
-          'orderDate,
-          'shipPrio)
+          'o_orderkey,
+          'l_extendedprice * (1.0f.toExpr - 'l_discount) as 'revenue,
+          'o_orderdate,
+          'o_shippriority)
 
-    val result = items
-      .groupBy('orderId, 'orderDate, 'shipPrio)
-      .select('orderId, 'revenue.sum as 'revenue, 'orderDate, 'shipPrio)
-      .orderBy('revenue.desc, 'orderDate.asc)
-
-    // emit result
-    result.writeAsCsv(outputPath, "\n", "|")
-
+    items
+      .groupBy('o_orderkey, 'o_orderdate, 'o_shippriority)
+      .select('o_orderkey, 'revenue.sum as 'revenue, 'o_orderdate, 'o_shippriority)
+      .orderBy('revenue.desc, 'o_orderdate.asc)
+      .writeToSink(new CsvTableSink(outputPath, "|", "\n", ""))
     // execute program
-    env.execute("Scala TPCH Query 3 (Table API Expression) Example")
+    tEnv.execute("Scala TPCH Query 3 (Table API Expression) Example")
   }
   
   // *************************************************************************
@@ -156,25 +154,109 @@ object TPCHQuery3Table {
     }
   }
 
-  private def getLineitemDataSet(env: ExecutionEnvironment): DataSet[Lineitem] = {
-    env.readCsvFile[Lineitem](
-        lineitemPath,
-        fieldDelimiter = "|",
-        includedFields = Array(0, 5, 6, 10) )
+  private def getLineitemTable(tEnv: JBatchTableEnv, execEnv: StreamExecutionEnvironment): Table = {
+    val fields = Array(
+      "l_orderkey",
+      "l_partkey",
+      "l_suppkey",
+      "l_linenumber",
+      "l_quantity",
+      "l_extendedprice",
+      "l_discount",
+      "l_tax",
+      "l_returnflag",
+      "l_linestatus",
+      "l_shipdate",
+      "l_commitdate",
+      "l_receiptdate",
+      "l_shipinstruct",
+      "l_shipmode",
+      "l_comment"
+    )
+    val tableSource = CsvTableSource.builder()
+      .path(lineitemPath)
+      .fieldDelimiter("|")
+      .fields(fields,
+        Array(
+          DataTypes.LONG,
+          DataTypes.LONG,
+          DataTypes.LONG,
+          DataTypes.INT,
+          DataTypes.DOUBLE,
+          DataTypes.DOUBLE,
+          DataTypes.DOUBLE,
+          DataTypes.DOUBLE,
+          DataTypes.STRING,
+          DataTypes.STRING,
+          DataTypes.DATE,
+          DataTypes.DATE,
+          DataTypes.DATE,
+          DataTypes.STRING,
+          DataTypes.STRING,
+          DataTypes.STRING
+        )).build()
+    val boundedStream = tableSource.getBoundedStream(execEnv)
+    tEnv.fromBoundedStream(boundedStream, fields.mkString(", "))
   }
 
-  private def getCustomerDataSet(env: ExecutionEnvironment): DataSet[Customer] = {
-    env.readCsvFile[Customer](
-        customerPath,
-        fieldDelimiter = "|",
-        includedFields = Array(0, 6) )
+  private def getCustomerTable(tEnv: JBatchTableEnv, execEnv: StreamExecutionEnvironment): Table = {
+    val fields = Array(
+      "c_custkey",
+      "c_name",
+      "c_address",
+      "c_nationkey",
+      "c_phone",
+      "c_acctbal",
+      "c_mktsegment",
+      "c_comment"
+    )
+    val tableSource = CsvTableSource.builder()
+      .path(lineitemPath)
+      .fieldDelimiter("|")
+      .fields(fields,
+        Array(
+          DataTypes.LONG,
+          DataTypes.STRING,
+          DataTypes.STRING,
+          DataTypes.LONG,
+          DataTypes.STRING,
+          DataTypes.DOUBLE,
+          DataTypes.STRING,
+          DataTypes.STRING
+        )).build()
+    val boundedStream = tableSource.getBoundedStream(execEnv)
+    tEnv.fromBoundedStream(boundedStream, fields.mkString(", "))
   }
 
-  private def getOrdersDataSet(env: ExecutionEnvironment): DataSet[Order] = {
-    env.readCsvFile[Order](
-        ordersPath,
-        fieldDelimiter = "|",
-        includedFields = Array(0, 1, 4, 7) )
+  private def getOrdersTable(tEnv: JBatchTableEnv, execEnv: StreamExecutionEnvironment): Table = {
+    val fields = Array(
+      "o_orderkey",
+      "o_custkey",
+      "o_orderstatus",
+      "o_totalprice",
+      "o_orderdate",
+      "o_orderpriority",
+      "o_clerk",
+      "o_shippriority",
+      "o_comment"
+    )
+    val tableSource = CsvTableSource.builder()
+      .path(lineitemPath)
+      .fieldDelimiter("|")
+      .fields(fields,
+        Array(
+          DataTypes.LONG,
+          DataTypes.LONG,
+          DataTypes.STRING,
+          DataTypes.DOUBLE,
+          DataTypes.DATE,
+          DataTypes.STRING,
+          DataTypes.STRING,
+          DataTypes.INT,
+          DataTypes.STRING
+        )).build()
+    val boundedStream = tableSource.getBoundedStream(execEnv)
+    tEnv.fromBoundedStream(boundedStream, fields.mkString(", "))
   }
   
 }

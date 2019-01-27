@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -40,15 +41,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Helper class to build StreamConfig for chain of operators.
  */
 public class StreamConfigChainer {
-	private final StreamConfig headConfig;
+	private StreamTaskConfigCache taskConfigCache;
 	private final Map<Integer, StreamConfig> chainedConfigs = new HashMap<>();
 
+	private final StreamConfig headConfig;
 	private StreamConfig tailConfig;
 	private int chainIndex = 0;
 
-	public StreamConfigChainer(OperatorID headOperatorID, StreamOperator<?> headOperator, StreamConfig headConfig) {
+	public StreamConfigChainer(OperatorID headOperatorID, StreamOperator<?> headOperator, StreamConfig headConfig, StreamTaskConfigCache taskConfigCache) {
+		this.taskConfigCache = checkNotNull(taskConfigCache);
+
 		this.headConfig = checkNotNull(headConfig);
-		this.tailConfig = checkNotNull(headConfig);
+		this.tailConfig = headConfig;
 
 		head(headOperator, headOperatorID);
 	}
@@ -58,6 +62,8 @@ public class StreamConfigChainer {
 		headConfig.setOperatorID(headOperatorID);
 		headConfig.setChainStart();
 		headConfig.setChainIndex(chainIndex);
+
+		chainedConfigs.put(chainIndex, headConfig);
 	}
 
 	public <T> StreamConfigChainer chain(
@@ -76,9 +82,9 @@ public class StreamConfigChainer {
 
 		tailConfig.setChainedOutputs(Collections.singletonList(
 			new StreamEdge(
-				new StreamNode(null, tailConfig.getChainIndex(), null, null, null, null, null, null),
-				new StreamNode(null, chainIndex, null, null, null, null, null, null),
-				0,
+				new StreamNode(tailConfig.getChainIndex(), null, null, null, null, null),
+				new StreamNode(chainIndex, null, null, null, null, null),
+				1,
 				Collections.<String>emptyList(),
 				null,
 				null)));
@@ -99,9 +105,9 @@ public class StreamConfigChainer {
 		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
 		outEdgesInOrder.add(
 			new StreamEdge(
-				new StreamNode(null, chainIndex, null, null, null, null, null, null),
-				new StreamNode(null, chainIndex , null, null, null, null, null, null),
-				0,
+				new StreamNode(chainIndex, null, null, null, null, null),
+				new StreamNode(chainIndex , null, null, null, null, null),
+				1,
 				Collections.<String>emptyList(),
 				new BroadcastPartitioner<Object>(),
 				null));
@@ -110,9 +116,10 @@ public class StreamConfigChainer {
 		tailConfig.setChainEnd();
 		tailConfig.setOutputSelectors(Collections.emptyList());
 		tailConfig.setNumberOfOutputs(1);
-		tailConfig.setOutEdgesInOrder(outEdgesInOrder);
 		tailConfig.setNonChainedOutputs(outEdgesInOrder);
-		headConfig.setTransitiveChainedTaskConfigs(chainedConfigs);
-		headConfig.setOutEdgesInOrder(outEdgesInOrder);
+
+		taskConfigCache.setChainedNodeConfigs(chainedConfigs);
+		taskConfigCache.setOutStreamEdgesOfChain(outEdgesInOrder);
+		taskConfigCache.setChainedHeadNodeIds(Arrays.asList(headConfig.getChainIndex()));
 	}
 }

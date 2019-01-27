@@ -20,6 +20,8 @@ package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.CodeAnalysisMode;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
@@ -32,7 +34,7 @@ import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.JobExecutor;
-import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.util.Preconditions;
 
 import java.net.URL;
@@ -42,7 +44,7 @@ import java.util.Collections;
 
 /**
  * A {@link ExecutionEnvironment} implementation which executes its jobs on a
- * {@link MiniCluster}.
+ * {@link LocalFlinkMiniCluster}.
  */
 public class TestEnvironment extends ExecutionEnvironment {
 
@@ -105,7 +107,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobSubmissionResult executeInternal(String jobName, boolean detached) throws Exception {
 		OptimizedPlan op = compileProgram(jobName);
 
 		JobGraphGenerator jgg = new JobGraphGenerator();
@@ -116,9 +118,22 @@ public class TestEnvironment extends ExecutionEnvironment {
 		}
 
 		jobGraph.setClasspaths(new ArrayList<>(classPaths));
+		JobSubmissionResult submissionResult = jobExecutor.executeJob(jobGraph, detached);
+		if (submissionResult.isJobExecutionResult()) {
+			this.lastJobExecutionResult = submissionResult.getJobExecutionResult();
+		}
 
-		this.lastJobExecutionResult = jobExecutor.executeJobBlocking(jobGraph);
-		return this.lastJobExecutionResult;
+		return submissionResult;
+	}
+
+	@Override
+	public void cancel(JobID jobId) throws Exception {
+
+	}
+
+	@Override
+	public void stop() {
+
 	}
 
 	@Override
@@ -140,7 +155,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 			@Override
 			public ExecutionEnvironment createExecutionEnvironment() {
-				lastEnv = new TestEnvironment(jobExecutor, getParallelism(), getConfig().isObjectReuseEnabled());
+				lastEnv = new TestEnvironment(jobExecutor, getParallelism(), getConfig().isObjectReuseEnabled(), jarFiles, classPaths);
 				return lastEnv;
 			}
 		};

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.deployment;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -37,8 +36,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class PartialInputChannelDeploymentDescriptor {
 
-	/** The result ID identifies the input gate to update. */
-	private final IntermediateDataSetID resultId;
+	/** The intermediate result. */
+	private final IntermediateResult intermediateResult;
 
 	/** The partition ID identifies the input channel to update. */
 	private final ResultPartitionID partitionID;
@@ -46,19 +45,14 @@ public class PartialInputChannelDeploymentDescriptor {
 	/** The partition connection info. */
 	private final TaskManagerLocation partitionTaskManagerLocation;
 
-	/** The partition connection index. */
-	private final int partitionConnectionIndex;
-
 	public PartialInputChannelDeploymentDescriptor(
-			IntermediateDataSetID resultId,
+			IntermediateResult intermediateResult,
 			ResultPartitionID partitionID,
-			TaskManagerLocation partitionTaskManagerLocation,
-			int partitionConnectionIndex) {
+			TaskManagerLocation partitionTaskManagerLocation) {
 
-		this.resultId = checkNotNull(resultId);
+		this.intermediateResult = checkNotNull(intermediateResult);
 		this.partitionID = checkNotNull(partitionID);
 		this.partitionTaskManagerLocation = checkNotNull(partitionTaskManagerLocation);
-		this.partitionConnectionIndex = partitionConnectionIndex;
 	}
 
 	/**
@@ -66,27 +60,23 @@ public class PartialInputChannelDeploymentDescriptor {
 	 *
 	 * @see InputChannelDeploymentDescriptor
 	 */
-	public InputChannelDeploymentDescriptor createInputChannelDeploymentDescriptor(Execution consumerExecution) {
+	public InputChannelDeploymentDescriptor createInputChannelDeploymentDescriptor(
+		Execution consumerExecution,
+		ResultPartitionLocationTrackerProxy resultPartitionLocationTrackerProxy) {
 		checkNotNull(consumerExecution, "consumerExecution");
 
 		TaskManagerLocation consumerLocation = consumerExecution.getAssignedResourceLocation();
 		checkNotNull(consumerLocation, "Consumer connection info null");
 
-		final ResultPartitionLocation partitionLocation;
-
-		if (consumerLocation.equals(partitionTaskManagerLocation)) {
-			partitionLocation = ResultPartitionLocation.createLocal();
-		}
-		else {
-			partitionLocation = ResultPartitionLocation.createRemote(
-					new ConnectionID(partitionTaskManagerLocation, partitionConnectionIndex));
-		}
+		final ResultPartitionLocation partitionLocation =
+			resultPartitionLocationTrackerProxy.getResultPartitionLocation(
+			partitionTaskManagerLocation, consumerLocation, intermediateResult);
 
 		return new InputChannelDeploymentDescriptor(partitionID, partitionLocation);
 	}
 
 	public IntermediateDataSetID getResultId() {
-		return resultId;
+		return intermediateResult.getId();
 	}
 
 	// ------------------------------------------------------------------------
@@ -103,11 +93,9 @@ public class PartialInputChannelDeploymentDescriptor {
 
 		final IntermediateResult result = partition.getIntermediateResult();
 
-		final IntermediateDataSetID resultId = result.getId();
 		final TaskManagerLocation partitionConnectionInfo = producer.getAssignedResourceLocation();
-		final int partitionConnectionIndex = result.getConnectionIndex();
 
 		return new PartialInputChannelDeploymentDescriptor(
-				resultId, partitionId, partitionConnectionInfo, partitionConnectionIndex);
+				result, partitionId, partitionConnectionInfo);
 	}
 }

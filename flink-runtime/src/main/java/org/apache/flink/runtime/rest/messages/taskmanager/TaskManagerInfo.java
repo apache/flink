@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.messages.taskmanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.HardwareDescription;
+import org.apache.flink.runtime.instance.TaskManagerResourceDescription;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.json.ResourceIDDeserializer;
 import org.apache.flink.runtime.rest.messages.json.ResourceIDSerializer;
@@ -53,6 +54,10 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 
 	public static final String FIELD_NAME_HARDWARE = "hardware";
 
+	public static final String FIELD_NAME_TOTAL_RESOURCES = "totalResources";
+
+	public static final String FIELD_NAME_AVAILABLE_RESOURCES = "availableResources";
+
 	private static final long serialVersionUID = 1L;
 
 	@JsonProperty(FIELD_NAME_RESOURCE_ID)
@@ -77,6 +82,12 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 	@JsonProperty(FIELD_NAME_HARDWARE)
 	private final HardwareDescription hardwareDescription;
 
+	@JsonProperty(FIELD_NAME_TOTAL_RESOURCES)
+	private final TaskManagerResourceDescription totalResources;
+
+	@JsonProperty(FIELD_NAME_AVAILABLE_RESOURCES)
+	private final TaskManagerResourceDescription availableResources;
+
 	@JsonCreator
 	public TaskManagerInfo(
 			@JsonDeserialize(using = ResourceIDDeserializer.class) @JsonProperty(FIELD_NAME_RESOURCE_ID) ResourceID resourceId,
@@ -85,7 +96,9 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 			@JsonProperty(FIELD_NAME_LAST_HEARTBEAT) long lastHeartbeat,
 			@JsonProperty(FIELD_NAME_NUMBER_SLOTS) int numberSlots,
 			@JsonProperty(FIELD_NAME_NUMBER_AVAILABLE_SLOTS) int numberAvailableSlots,
-			@JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription) {
+			@JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription,
+			@JsonProperty(FIELD_NAME_TOTAL_RESOURCES) TaskManagerResourceDescription totalResources,
+			@JsonProperty(FIELD_NAME_AVAILABLE_RESOURCES) TaskManagerResourceDescription availableResources) {
 		this.resourceId = Preconditions.checkNotNull(resourceId);
 		this.address = Preconditions.checkNotNull(address);
 		this.dataPort = dataPort;
@@ -93,6 +106,8 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 		this.numberSlots = numberSlots;
 		this.numberAvailableSlots = numberAvailableSlots;
 		this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);
+		this.totalResources = Preconditions.checkNotNull(totalResources);
+		this.availableResources = Preconditions.checkNotNull(availableResources);
 	}
 
 	public ResourceID getResourceId() {
@@ -123,6 +138,14 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 		return hardwareDescription;
 	}
 
+	public TaskManagerResourceDescription getTotalResources() {
+		return totalResources;
+	}
+
+	public TaskManagerResourceDescription getAvailableResources() {
+		return availableResources;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
@@ -138,7 +161,9 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 			numberAvailableSlots == that.numberAvailableSlots &&
 			Objects.equals(resourceId, that.resourceId) &&
 			Objects.equals(address, that.address) &&
-			Objects.equals(hardwareDescription, that.hardwareDescription);
+			Objects.equals(hardwareDescription, that.hardwareDescription) &&
+			Objects.equals(totalResources, that.totalResources) &&
+			Objects.equals(availableResources, that.availableResources);
 	}
 
 	@Override
@@ -150,6 +175,8 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 			lastHeartbeat,
 			numberSlots,
 			numberAvailableSlots,
-			hardwareDescription);
+			hardwareDescription,
+			totalResources,
+			availableResources);
 	}
 }

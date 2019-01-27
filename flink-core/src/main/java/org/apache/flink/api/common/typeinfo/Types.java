@@ -43,7 +43,6 @@ import java.math.BigInteger;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -150,12 +149,6 @@ public class Types {
 	 * Returns type information for {@link java.sql.Timestamp}. Supports a null value.
 	 */
 	public static final TypeInformation<Timestamp> SQL_TIMESTAMP = SqlTimeTypeInfo.TIMESTAMP;
-
-
-	/**
-	 * Returns type infomation for {@link java.time.Instant}. Supports a null value.
-	 */
-	public static final TypeInformation<Instant> INSTANT = BasicTypeInfo.INSTANT_TYPE_INFO;
 
 	//CHECKSTYLE.OFF: MethodName
 

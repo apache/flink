@@ -20,16 +20,15 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.AbstractInternalStateBackend;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -55,9 +54,7 @@ public class TestSpyWrapperStateBackend extends AbstractStateBackend {
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry,
-			TtlTimeProvider ttlTimeProvider,
-			MetricGroup metricGroup) throws IOException {
+			TaskKvStateRegistry kvStateRegistry) throws IOException {
 			return spy(delegate.createKeyedStateBackend(
 				env,
 				jobID,
@@ -65,9 +62,7 @@ public class TestSpyWrapperStateBackend extends AbstractStateBackend {
 				keySerializer,
 				numberOfKeyGroups,
 				keyGroupRange,
-				kvStateRegistry,
-				ttlTimeProvider,
-				metricGroup));
+				kvStateRegistry));
 		}
 
 		@Override
@@ -75,6 +70,19 @@ public class TestSpyWrapperStateBackend extends AbstractStateBackend {
 			Environment env, String operatorIdentifier) throws Exception {
 			return spy(delegate.createOperatorStateBackend(env, operatorIdentifier));
 		}
+
+	@Override
+	public AbstractInternalStateBackend createInternalStateBackend(
+		Environment env,
+		String operatorIdentifier,
+		int numberOfGroups,
+		KeyGroupRange keyGroupRange) throws Exception {
+		return spy(delegate.createInternalStateBackend(
+			env,
+			operatorIdentifier,
+			numberOfGroups,
+			keyGroupRange));
+	}
 
 	@Override
 	public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) throws IOException {

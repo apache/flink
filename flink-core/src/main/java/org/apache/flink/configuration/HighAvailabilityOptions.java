@@ -21,8 +21,6 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
-import org.apache.flink.annotation.docs.Documentation;
-import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -42,16 +40,14 @@ public class HighAvailabilityOptions {
 	/**
 	 * Defines high-availability mode used for the cluster execution.
 	 * A value of "NONE" signals no highly available setup.
-	 * To enable high-availability, set this mode to "ZOOKEEPER".
-	 * Can also be set to FQN of HighAvailability factory class.
+	 * To enable high-availability, set this mode to "FILESYSTEM" or "ZOOKEEPER".
 	 */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_HIGH_AVAILABILITY)
 	public static final ConfigOption<String> HA_MODE =
 			key("high-availability")
 			.defaultValue("NONE")
 			.withDeprecatedKeys("recovery.mode")
 			.withDescription("Defines high-availability mode used for the cluster execution." +
-				" To enable high-availability, set this mode to \"ZOOKEEPER\" or specify FQN of factory class.");
+				" To enable high-availability, set this mode to \"FILESYSTEM\" or \"ZOOKEEPER\".");
 
 	/**
 	 * The ID of the Flink cluster, used to separate multiple Flink clusters
@@ -67,12 +63,12 @@ public class HighAvailabilityOptions {
 	/**
 	 * File system path (URI) where Flink persists metadata in high-availability setups.
 	 */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_HIGH_AVAILABILITY)
 	public static final ConfigOption<String> HA_STORAGE_PATH =
 			key("high-availability.storageDir")
 			.noDefaultValue()
 			.withDeprecatedKeys("high-availability.zookeeper.storageDir", "recovery.zookeeper.storageDir")
 			.withDescription("File system path (URI) where Flink persists metadata in high-availability setups.");
+
 
 	// ------------------------------------------------------------------------
 	//  Recovery Options
@@ -158,9 +154,7 @@ public class HighAvailabilityOptions {
 			key("high-availability.zookeeper.path.mesos-workers")
 			.defaultValue("/mesos-workers")
 			.withDeprecatedKeys("recovery.zookeeper.path.mesos-workers")
-			.withDescription(Description.builder()
-				.text("The ZooKeeper root path for persisting the Mesos worker information.")
-				.build());
+			.withDescription("ZooKeeper root path (ZNode) for Mesos workers.");
 
 	// ------------------------------------------------------------------------
 	//  ZooKeeper Client Settings
@@ -200,6 +194,13 @@ public class HighAvailabilityOptions {
 			.withDescription("Defines the ACL (open|creator) to be configured on ZK node. The configuration value can be" +
 				" set to “creator” if the ZooKeeper server configuration has the “authProvider” property mapped to use" +
 				" SASLAuthenticationProvider and the cluster is configured to run in secure mode (Kerberos).");
+
+	// --------------------------- FileSystem ----------------------------------
+
+	public static final ConfigOption<String> HA_FILESYSTEM_JOBGRAPHS_PATH =
+		key("high-availability.filesystem.path.jobgraphs")
+			.defaultValue("/tmp/jobgraphs")
+			.withDescription("FileSystem root path for job graphs.");
 
 	// ------------------------------------------------------------------------
 

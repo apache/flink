@@ -17,14 +17,13 @@
  */
 package org.apache.flink.table.api
 
-import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.types.Row
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.DataSet
 import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.table.api.functions.TableFunction
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
-import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
-import org.apache.flink.table.functions.TableFunction
+import org.apache.flink.table.api.types.{DataType, InternalType, TypeConverters, TypeInfoWrappedDataType}
 
 import _root_.scala.language.implicitConversions
 
@@ -37,7 +36,7 @@ import _root_.scala.language.implicitConversions
   *   import org.apache.flink.table.api.scala._
   * }}}
   *
-  * imports implicit conversions for converting a [[DataSet]] and a [[DataStream]] to a
+  * imports implicit conversions for converting a [[DataStream]] to a
   * [[Table]]. This can be used to perform SQL-like queries on data. Please have
   * a look at [[Table]] to see which operations are supported and
   * [[org.apache.flink.table.api.scala.ImplicitExpressionOperations]] to see how an
@@ -72,15 +71,6 @@ package object scala extends ImplicitExpressionConversions {
     new TableConversions(table)
   }
 
-  implicit def dataSet2DataSetConversions[T](set: DataSet[T]): DataSetConversions[T] = {
-    new DataSetConversions[T](set, set.getType())
-  }
-
-  implicit def table2RowDataSet(table: Table): DataSet[Row] = {
-    val tableEnv = table.tableEnv.asInstanceOf[ScalaBatchTableEnv]
-    tableEnv.toDataSet[Row](table)
-  }
-
   implicit def dataStream2DataStreamConversions[T](set: DataStream[T]): DataStreamConversions[T] = {
     new DataStreamConversions[T](set, set.dataType)
   }
@@ -92,5 +82,25 @@ package object scala extends ImplicitExpressionConversions {
 
   implicit def tableFunctionCall2Table[T](tf: TableFunction[T]): TableFunctionConversions[T] = {
     new TableFunctionConversions[T](tf)
+  }
+
+  implicit def typeInfo2DataType[T](tp: TypeInformation[T]): DataType = {
+    new TypeInfoWrappedDataType(tp)
+  }
+
+  implicit def typeInfo2DataTypes(arr: Array[TypeInformation[_]]): Array[DataType] = {
+    arr.map(new TypeInfoWrappedDataType(_))
+  }
+
+  implicit def typeInfoSeq2DataTypes(arr: Seq[TypeInformation[_]]): Array[DataType] = {
+    arr.map(new TypeInfoWrappedDataType(_)).toArray
+  }
+
+  implicit def internalType2DataTypes[T](arr: Array[InternalType]): Array[DataType] = {
+    arr.toArray
+  }
+
+  implicit def dataType2ExternalTypeInfo(t: DataType): TypeInformation[_] = {
+    TypeConverters.createExternalTypeInfoFromDataType(t)
   }
 }

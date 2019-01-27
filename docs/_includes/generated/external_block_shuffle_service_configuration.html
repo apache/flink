@@ -1,0 +1,96 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 65%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>flink.shuffle-service.consumed-partition-ttl-in-seconds</h5></td>
+            <td style="word-wrap: break-word;">3600</td>
+            <td>The time interval to delete the fully consumed shuffle data directories since they become inactive.</td>
+        </tr>
+        <tr>
+            <td><h5>flink.shuffle-service.default-io-thread-number-per-disk</h5></td>
+            <td style="word-wrap: break-word;">4</td>
+            <td>The thread number for the default HDD disk type.</td>
+        </tr>
+        <tr>
+            <td><h5>flink.shuffle-service.direct-memory-limit-in-mb</h5></td>
+            <td style="word-wrap: break-word;">300</td>
+            <td>The direct memory consumed by the yarn shuffle service.</td>
+        </tr>
+        <tr>
+            <td><h5>flink.shuffle-service.disk-scan-interval-in-ms</h5></td>
+            <td style="word-wrap: break-word;">15000</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><h5>flink.shuffle-service.heap-memory-limit-in-mb</h5></td>
+            <td style="word-wrap: break-word;">64</td>
+            <td>The heap memory consumed by the yarn shuffle service</td>
+        </tr>
+        <tr>
+            <td><h5>flink.shuffle-service.internal.local-result-partition-resolver-class</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><h5>flink.shuffle-service.io-thread-number-for-disk-type</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>The list of disk types and thread numbers. Each disk type and the corresponding thread number is configured by TYPE_1: THREAD_1, TYPE_2: THREAD_2, ...</td>
+        </tr>
+        <tr>
+            <td><h5>flink.shuffle-service.local-dirs</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>The list of local directories separated by comma. Each directory can be configured with the disk type ([TYPE] directory,...) or without the disk type (directory, ...). If not configured, the NodeManager local directories will be used and each directory will be treated as on HDD.</td>
+        </tr>
+        <tr>
+            <td><h5>flink.shuffle-service.memory-size-per-buffer-in-bytes</h5></td>
+            <td style="word-wrap: break-word;">32768</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><h5>flink.shuffle-service.netty-memory-in-mb</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>The preferred number of netty IO threads. If it's positive, the netty memory size will be min(configured value, 4M * flink.shuffle-service.server-thread-number), otherwise the netty memory size will be min(1/2 * flink.shuffle-service.direct-memory-limit-in-mb, 4M * flink.shuffle-service.server-thread-number).</td>
+        </tr>
+        <tr>
+            <td><h5>flink.shuffle-service.partial-consumed-partition-ttl-in-seconds</h5></td>
+            <td style="word-wrap: break-word;">43200</td>
+            <td>The time interval to delete the partially consumed shuffle data directories since they become inactive.</td>
+        </tr>
+        <tr>
+            <td><h5>flink.shuffle-service.port</h5></td>
+            <td style="word-wrap: break-word;">14572</td>
+            <td>The port of the shuffle service.</td>
+        </tr>
+        <tr>
+            <td><h5>flink.shuffle-service.server-thread-number</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>The number of netty IO threads. If it's not positive, the thread number is equal to the overall IO thread number</td>
+        </tr>
+        <tr>
+            <td><h5>flink.shuffle-service.subpartition-request-comparator-class</h5></td>
+            <td style="word-wrap: break-word;">"org.<wbr>apache.<wbr>flink.<wbr>runtime.<wbr>io.<wbr>network.<wbr>partition.<wbr>external.<wbr>CreditBasedSubpartitionViewComparator"</td>
+            <td>The comparator to decide the next subpartition to serve.</td>
+        </tr>
+        <tr>
+            <td><h5>flink.shuffle-service.unconsumed-partition-ttl-in-seconds</h5></td>
+            <td style="word-wrap: break-word;">43200</td>
+            <td>TThe time interval to delete the unconsumed shuffle data directories since they are ready to consume.</td>
+        </tr>
+        <tr>
+            <td><h5>flink.shuffle-service.unfinished-partition-ttl-in-seconds</h5></td>
+            <td style="word-wrap: break-word;">3600</td>
+            <td>The time interval to delete the writing shuffle data directories since the last writing.</td>
+        </tr>
+        <tr>
+            <td><h5>flink.shuffle-service.wait-credit-delay-in-ms</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td></td>
+        </tr>
+    </tbody>
+</table>

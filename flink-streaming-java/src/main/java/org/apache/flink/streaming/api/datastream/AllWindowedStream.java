@@ -473,7 +473,7 @@ public class AllWindowedStream<T, W extends Window> {
 		}
 
 		return aggregate(function, new PassThroughAllWindowFunction<W, R>(),
-				accumulatorType, resultType);
+				accumulatorType, resultType, resultType);
 	}
 
 	/**
@@ -510,7 +510,7 @@ public class AllWindowedStream<T, W extends Window> {
 
 		TypeInformation<R> resultType = getAllWindowFunctionReturnType(windowFunction, aggResultType);
 
-		return aggregate(aggFunction, windowFunction, accumulatorType, resultType);
+		return aggregate(aggFunction, windowFunction, accumulatorType, aggResultType, resultType);
 	}
 
 	private static <IN, OUT> TypeInformation<OUT> getAllWindowFunctionReturnType(
@@ -521,6 +521,7 @@ public class AllWindowedStream<T, W extends Window> {
 			AllWindowFunction.class,
 			0,
 			1,
+			new int[]{1, 0},
 			new int[]{2, 0},
 			inType,
 			null,
@@ -535,6 +536,7 @@ public class AllWindowedStream<T, W extends Window> {
 			ProcessAllWindowFunction.class,
 			0,
 			1,
+			TypeExtractor.NO_INDEX,
 			TypeExtractor.NO_INDEX,
 			inType,
 			null,
@@ -566,11 +568,13 @@ public class AllWindowedStream<T, W extends Window> {
 			AggregateFunction<T, ACC, V> aggregateFunction,
 			AllWindowFunction<V, R, W> windowFunction,
 			TypeInformation<ACC> accumulatorType,
+			TypeInformation<V> aggregateResultType,
 			TypeInformation<R> resultType) {
 
 		checkNotNull(aggregateFunction, "aggregateFunction");
 		checkNotNull(windowFunction, "windowFunction");
 		checkNotNull(accumulatorType, "accumulatorType");
+		checkNotNull(aggregateResultType, "aggregateResultType");
 		checkNotNull(resultType, "resultType");
 
 		if (aggregateFunction instanceof RichFunction) {
@@ -855,7 +859,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @param resultType Type information for the result type of the window function
 	 * @return The data stream that is the result of applying the window function to the window.
 	 *
-	 * @deprecated use {@link #aggregate(AggregateFunction, AllWindowFunction, TypeInformation, TypeInformation)} instead
+	 * @deprecated use {@link #aggregate(AggregateFunction, AllWindowFunction, TypeInformation, TypeInformation, TypeInformation)} instead
 	 */
 	@PublicEvolving
 	@Deprecated

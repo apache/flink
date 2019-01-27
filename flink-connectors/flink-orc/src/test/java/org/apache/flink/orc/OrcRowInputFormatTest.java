@@ -31,14 +31,13 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
-import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
 import org.apache.orc.Reader;
 import org.apache.orc.StripeInformation;
+import org.apache.orc.storage.ql.io.sarg.PredicateLeaf;
+import org.apache.orc.storage.ql.io.sarg.SearchArgument;
 import org.junit.After;
 import org.junit.Test;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -53,6 +52,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
@@ -152,13 +152,19 @@ public class OrcRowInputFormatTest {
 			"map2:map<int,string>" +
 		">";
 
-	@Test(expected = FileNotFoundException.class)
-	public void testInvalidPath() throws IOException{
-		rowOrcInputFormat =
-			new OrcRowInputFormat("/does/not/exist", TEST_SCHEMA_FLAT, new Configuration());
-		rowOrcInputFormat.openInputFormat();
-		FileInputSplit[] inputSplits = rowOrcInputFormat.createInputSplits(1);
-		rowOrcInputFormat.open(inputSplits[0]);
+	@Test
+	public void testInvalidPath() {
+		try {
+			rowOrcInputFormat =
+				new OrcRowInputFormat("/does/not/exist", TEST_SCHEMA_FLAT, new Configuration());
+			rowOrcInputFormat.openInputFormat();
+			FileInputSplit[] inputSplits = rowOrcInputFormat.createInputSplits(1);
+			rowOrcInputFormat.open(inputSplits[0]);
+			fail("Should never reach here");
+		} catch (IOException e) {
+			assertEquals(
+				"/does/not/exist not existed", e.getCause().getMessage());
+		}
 	}
 
 	@Test(expected = IndexOutOfBoundsException.class)

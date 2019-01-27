@@ -23,9 +23,9 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>org.apache.flink</groupId>
+		<groupId>com.alibaba.blink</groupId>
 		<artifactId>flink-shaded-hadoop</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.5.1</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -33,7 +33,6 @@ under the License.
 	<name>flink-shaded-hadoop2</name>
 
 	<packaging>jar</packaging>
-	<version>1.8-SNAPSHOT-${hadoop.version}</version>
 
 	<dependencies>
 
@@ -162,8 +161,13 @@ under the License.
 				</exclusion>
 				<!--We have to exclude beanutils because it is overlapping with commons-collections-->
 				<exclusion>
-					<groupId>commons-beanutils</groupId>
 					<artifactId>commons-beanutils</artifactId>
+					<groupId>commons-beanutils</groupId>
+				</exclusion>
+				<!--We exclude digester because it has dependency of beanutils-->
+				<exclusion>
+					<artifactId>commons-digester</artifactId>
+					<groupId>commons-digester</groupId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -669,11 +673,6 @@ under the License.
 		<profile>
 			<!-- MapR build profile -->
 			<id>mapr</id>
-			<activation>
-				<property>
-					<name>mapr</name>
-				</property>
-			</activation>
 			<dependencies>
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>

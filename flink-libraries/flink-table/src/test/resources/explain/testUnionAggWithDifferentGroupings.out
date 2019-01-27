@@ -1,0 +1,53 @@
+== Abstract Syntax Tree ==
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0], b=[$1], c=[$2], a_sum=[AS($3, 'a_sum')])
+:  +- LogicalAggregate(group=[{0, 1, 2}], TMP_0=[SUM($0)])
+:     +- LogicalProject(a=[$0], b=[$1], c=[$2])
+:        +- LogicalProject(a=[$0], b=[$1], c=[$2])
+:           +- LogicalTableScan(table=[[builtin, default, t1]])
++- LogicalProject(a=[AS(1, 'a')], b=[$0], c=[$1], a_sum=[AS($2, 'a_sum')])
+   +- LogicalAggregate(group=[{0, 1}], TMP_1=[SUM($2)])
+      +- LogicalProject(b=[$1], c=[$2], a=[$0])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2])
+            +- LogicalTableScan(table=[[builtin, default, t1]])
+
+== Optimized Logical Plan ==
+StreamExecSink(fields=[a, b, c, a_sum], retract=[false], accMode=[Acc])
++- StreamExecUnion(all=[true], union=[a, b, c, a_sum], retract=[false], accMode=[Acc])
+   :- StreamExecCalc(select=[a, b, c, TMP_0 AS a_sum], retract=[false], accMode=[Acc])
+   :  +- StreamExecGroupAggregate(groupBy=[a, b, c], select=[a, b, c, SUM(a) AS TMP_0], retract=[false], accMode=[Acc])
+   :     +- StreamExecExchange(distribution=[hash[a, b, c]], retract=[true], accMode=[Acc])
+   :        +- StreamExecDataStreamScan(table=[[builtin, default, t1]], retract=[true], accMode=[Acc], reuse_id=[1])
+   +- StreamExecCalc(select=[CAST(1) AS a, b, c, TMP_1 AS a_sum], retract=[false], accMode=[Acc])
+      +- StreamExecGroupAggregate(groupBy=[b, c], select=[b, c, SUM(a) AS TMP_1], retract=[false], accMode=[Acc])
+         +- StreamExecExchange(distribution=[hash[b, c]], retract=[true], accMode=[Acc])
+            +- Reused(reference_id=[1])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:[builtin, default, t1], fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : GroupAggregate(groupBy: (a, b, c), select: (a, b, c, SUM(a) AS TMP_0))
+			ship_strategy : HASH
+
+			 : Operator
+				content : Calc(select: (a, b, c, TMP_0 AS a_sum))
+				ship_strategy : FORWARD
+
+				 : Operator
+					content : GroupAggregate(groupBy: (b, c), select: (b, c, SUM(a) AS TMP_1))
+					ship_strategy : HASH
+
+					 : Operator
+						content : Calc(select: (CAST(1) AS a, b, c, TMP_1 AS a_sum))
+						ship_strategy : FORWARD
+
+						 : Data Sink
+							content : Sink: TestingUpsertTableSink(keys=())
+							ship_strategy : REBALANCE
+

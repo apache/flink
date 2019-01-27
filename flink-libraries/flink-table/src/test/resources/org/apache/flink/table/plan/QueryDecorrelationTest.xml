@@ -1,0 +1,104 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testCorrelationScalarAggAndFilter">
+    <Resource name="sql">
+      <![CDATA[SELECT e1.empno
+FROM emp e1, dept d1 where e1.deptno = d1.deptno
+and e1.deptno < 10 and d1.deptno < 15
+and e1.salary > (select avg(salary) from emp e2 where e1.empno = e2.empno)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(empno=[$0])
++- LogicalFilter(condition=[AND(=($4, $5), <($4, 10), <($5, 15), >($3, $SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[AVG($0)])
+  LogicalProject(salary=[$3])
+    LogicalFilter(condition=[=($cor0.empno, $0)])
+      LogicalTableScan(table=[[builtin, default, emp]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, emp]])
+      +- LogicalTableScan(table=[[builtin, default, dept]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[empno])
++- HashJoin(where=[AND(=(empno, empno0), >(salary, EXPR$0))], join=[empno, salary, empno0, EXPR$0], joinType=[InnerJoin], isBroadcast=[true], build=[right])
+   :- Exchange(distribution=[hash[empno]], exchange_mode=[BATCH])
+   :  +- Calc(select=[empno, salary])
+   :     +- HashJoin(where=[=(deptno, deptno0)], join=[empno, salary, deptno, deptno0], joinType=[InnerJoin], isBroadcast=[true], build=[right])
+   :        :- Calc(select=[empno, salary, deptno], where=[<(deptno, 10)])
+   :        :  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[empno, ename, job, salary, deptno])
+   :        +- Exchange(distribution=[broadcast])
+   :           +- Calc(select=[deptno], where=[<(deptno, 15)])
+   :              +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[deptno, name])
+   +- Exchange(distribution=[broadcast])
+      +- HashAggregate(isMerge=[true], groupBy=[empno], select=[empno, Final_AVG(sum$0, count$1) AS EXPR$0])
+         +- Exchange(distribution=[hash[empno]])
+            +- LocalHashAggregate(groupBy=[empno], select=[empno, Partial_AVG(salary) AS (sum$0, count$1)])
+               +- Calc(select=[empno, salary], where=[IS NOT NULL(empno)])
+                  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[empno, ename, job, salary, deptno])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDecorrelateWithMultiAggregate">
+    <Resource name="sql">
+      <![CDATA[select sum(e1.empno) from emp e1, dept d1 where e1.deptno = d1.deptno and e1.salary > (    select avg(e2.salary) from emp e2 where e2.deptno = d1.deptno)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
++- LogicalProject(empno=[$0])
+   +- LogicalFilter(condition=[AND(=($4, $5), >($3, $SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[AVG($0)])
+  LogicalProject(salary=[$3])
+    LogicalFilter(condition=[=($4, $cor0.deptno0)])
+      LogicalTableScan(table=[[builtin, default, emp]])
+})))], variablesSet=[[$cor0]])
+      +- LogicalJoin(condition=[true], joinType=[inner])
+         :- LogicalTableScan(table=[[builtin, default, emp]])
+         +- LogicalTableScan(table=[[builtin, default, dept]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- LocalSortAggregate(select=[Partial_SUM(empno) AS sum$0])
+      +- Calc(select=[empno])
+         +- HashJoin(where=[AND(=(deptno0, deptno), >(salary, EXPR$0))], join=[empno, salary, deptno0, deptno, EXPR$0], joinType=[InnerJoin], isBroadcast=[true], build=[right])
+            :- Exchange(distribution=[hash[deptno0]], exchange_mode=[BATCH])
+            :  +- Calc(select=[empno, salary, deptno0])
+            :     +- HashJoin(where=[=(deptno, deptno0)], join=[empno, salary, deptno, deptno0], joinType=[InnerJoin], isBroadcast=[true], build=[right])
+            :        :- Calc(select=[empno, salary, deptno])
+            :        :  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[empno, ename, job, salary, deptno])
+            :        +- Exchange(distribution=[broadcast])
+            :           +- Calc(select=[deptno])
+            :              +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[deptno, name])
+            +- Exchange(distribution=[broadcast])
+               +- HashAggregate(isMerge=[true], groupBy=[deptno], select=[deptno, Final_AVG(sum$0, count$1) AS EXPR$0])
+                  +- Exchange(distribution=[hash[deptno]])
+                     +- LocalHashAggregate(groupBy=[deptno], select=[deptno, Partial_AVG(salary) AS (sum$0, count$1)])
+                        +- Calc(select=[deptno, salary], where=[IS NOT NULL(deptno)])
+                           +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[empno, ename, job, salary, deptno])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

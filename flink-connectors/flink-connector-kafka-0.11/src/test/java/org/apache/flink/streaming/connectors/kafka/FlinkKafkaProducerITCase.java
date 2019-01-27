@@ -42,6 +42,7 @@ import static org.junit.Assert.assertEquals;
  */
 @SuppressWarnings("serial")
 public class FlinkKafkaProducerITCase extends KafkaTestBase {
+
 	protected String transactionalId;
 	protected Properties extraProperties;
 

@@ -72,7 +72,7 @@ tableEnv.registerFunction("hashCode", new HashCode(10));
 myTable.select("string, string.hashCode(), hashCode(string)");
 
 // use the function in SQL API
-tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable");
+tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable");
 {% endhighlight %}
 </div>
 
@@ -93,14 +93,14 @@ myTable.select('string, hashCode('string))
 
 // register and use the function in SQL
 tableEnv.registerFunction("hashCode", new HashCode(10))
-tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable")
+tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable")
 {% endhighlight %}
 </div>
 </div>
 
-By default the result type of an evaluation method is determined by Flink's type extraction facilities. This is sufficient for basic types or simple POJOs but might be wrong for more complex, custom, or composite types. In these cases `TypeInformation` of the result type can be manually defined by overriding `ScalarFunction#getResultType()`.
+By default the result type of an evaluation method is determined by Flink's type extraction facilities. This is sufficient for basic types or simple POJOs but might be wrong for more complex, custom, or composite types. In these cases `DataType` of the result type can be manually defined by overriding `ScalarFunction#getResultType()`.
 
-The following example shows an advanced example which takes the internal timestamp representation and also returns the internal timestamp representation as a long value. By overriding `ScalarFunction#getResultType()` we define that the returned long value should be interpreted as a `Types.TIMESTAMP` by the code generation.
+The following example shows an advanced example which takes the internal timestamp representation and also returns the internal timestamp representation as a long value. By overriding `ScalarFunction#getResultType()` we define that the returned long value should be interpreted as a `DataTypes.TIMESTAMP` by the code generation.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -110,8 +110,8 @@ public static class TimestampModifier extends ScalarFunction {
     return t % 1000;
   }
 
-  public TypeInformation<?> getResultType(Class<?>[] signature) {
-    return Types.SQL_TIMESTAMP;
+  public DataType getResultType(Object[] arguments, Class[] argTypes) {
+    return DataTypes.TIMESTAMP;
   }
 }
 {% endhighlight %}
@@ -124,8 +124,8 @@ object TimestampModifier extends ScalarFunction {
     t % 1000
   }
 
-  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = {
-    Types.TIMESTAMP
+  override def getResultType(arguments: Array[Object], signature: Array[Class[_]]): DataType = {
+    DataTypes.TIMESTAMP
   }
 }
 {% endhighlight %}
@@ -164,7 +164,9 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
     }
 }
 
-BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+BatchTableEnvironment tableEnv = TableEnvironment.getBatchTableEnvironment(env);
+// or
+// StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 Table myTable = ...         // table schema: [a: String]
 
 // Register the function.
@@ -190,11 +192,13 @@ tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(s
 class Split(separator: String) extends TableFunction[(String, Int)] {
   def eval(str: String): Unit = {
     // use collect(...) to emit a row.
-    str.split(separator).foreach(x => collect((x, x.length)))
+    str.split(separator).foreach(x -> collect((x, x.length))
   }
 }
 
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = TableEnvironment.getBatchTableEnvironment(env)
+// or
+// val tableEnv = TableEnvironment.getTableEnvironment(env)
 val myTable = ...         // table schema: [a: String]
 
 // Use the table function in the Scala Table API (Note: No registration required in Scala Table API).
@@ -210,7 +214,7 @@ tableEnv.registerFunction("split", new Split("#"))
 // CROSS JOIN a table function (equivalent to "join" in Table API)
 tableEnv.sqlQuery("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
 // LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API)
-tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
+tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN TABLE(split(a)) as T(word, length) ON TRUE")
 {% endhighlight %}
 **IMPORTANT:** Do not implement TableFunction as a Scala object. Scala object is a singleton and will cause concurrency issues.
 </div>
@@ -218,9 +222,9 @@ tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(s
 
 Please note that POJO types do not have a deterministic field order. Therefore, you cannot rename the fields of POJO returned by a table function using `AS`.
 
-By default the result type of a `TableFunction` is determined by Flink’s automatic type extraction facilities. This works well for basic types and simple POJOs but might be wrong for more complex, custom, or composite types. In such a case, the type of the result can be manually specified by overriding `TableFunction#getResultType()` which returns its `TypeInformation`.
+By default the result type of a `TableFunction` is determined by Flink’s automatic type extraction facilities. This works well for basic types and simple POJOs but might be wrong for more complex, custom, or composite types. In such a case, the type of the result can be manually specified by overriding `TableFunction#getResultType()` which returns its `DataType`.
 
-The following example shows an example of a `TableFunction` that returns a `Row` type which requires explicit type information. We define that the returned table type should be `RowTypeInfo(String, Integer)` by overriding `TableFunction#getResultType()`.
+The following example shows an example of a `TableFunction` that returns a `Row` type which requires explicit data type. We define the returned table type by overriding `TableFunction#getResultType()`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -230,14 +234,14 @@ public class CustomTypeSplit extends TableFunction<Row> {
         for (String s : str.split(" ")) {
             Row row = new Row(2);
             row.setField(0, s);
-            row.setField(1, s.length());
+            row.setField(1, s.length);
             collect(row);
         }
     }
 
     @Override
-    public TypeInformation<Row> getResultType() {
-        return Types.ROW(Types.STRING(), Types.INT());
+    public DataType getResultType() {
+        return DataTypes.createRowType(DataTypes.STRING, DataTypes.INT);
     }
 }
 {% endhighlight %}
@@ -255,8 +259,8 @@ class CustomTypeSplit extends TableFunction[Row] {
     })
   }
 
-  override def getResultType: TypeInformation[Row] = {
-    Types.ROW(Types.STRING, Types.INT)
+  override def getResultType: DataType = {
+    DataTypes.createRowType(DataTypes.STRING, DataTypes.INT)
   }
 }
 {% endhighlight %}
@@ -269,7 +273,7 @@ class CustomTypeSplit extends TableFunction[Row] {
 Aggregation Functions
 ---------------------
 
-User-Defined Aggregate Functions (UDAGGs) aggregate a table (one ore more rows with one or more attributes) to a scalar value. 
+User-Defined Aggregate Functions (UDAGGs) aggregate a table (one or more rows with one or more attributes) to a scalar value. 
 
 <center>
 <img alt="UDAGG mechanism" src="{{ site.baseurl }}/fig/udagg-mechanism.png" width="80%">
@@ -277,7 +281,12 @@ User-Defined Aggregate Functions (UDAGGs) aggregate a table (one ore more rows w
 
 The above figure shows an example of an aggregation. Assume you have a table that contains data about beverages. The table consists of three columns, `id`, `name` and `price` and 5 rows. Imagine you need to find the highest price of all beverages in the table, i.e., perform a `max()` aggregation. You would need to check each of the 5 rows and the result would be a single numeric value.
 
-User-defined aggregation functions are implemented by extending the `AggregateFunction` class. An `AggregateFunction` works as follows. First, it needs an `accumulator`, which is the data structure that holds the intermediate result of the aggregation. An empty accumulator is created by calling the `createAccumulator()` method of the `AggregateFunction`. Subsequently, the `accumulate()` method of the function is called for each input row to update the accumulator. Once all rows have been processed, the `getValue()` method of the function is called to compute and return the final result. 
+User-defined aggregation functions are implemented by extending the `AggregateFunction` class or `DeclarativeAggregateFunction` class. 
+
+
+### AggregateFunction
+
+An `AggregateFunction` works as follows. First, it needs an `accumulator`, which is the data structure that holds the intermediate result of the aggregation. An empty accumulator is created by calling the `createAccumulator()` method of the `AggregateFunction`. Subsequently, the `accumulate()` method of the function is called for each input row to update the accumulator. Once all rows have been processed, the `getValue()` method of the function is called to compute and return the final result. 
 
 **The following methods are mandatory for each `AggregateFunction`:**
 
@@ -285,7 +294,7 @@ User-defined aggregation functions are implemented by extending the `AggregateFu
 - `accumulate()` 
 - `getValue()`
 
-Flink’s type extraction facilities can fail to identify complex data types, e.g., if they are not basic types or simple POJOs. So similar to `ScalarFunction` and `TableFunction`, `AggregateFunction` provides methods to specify the `TypeInformation` of the result type (through 
+Flink’s type extraction facilities can fail to identify complex data types, e.g., if they are not basic types or simple POJOs. So similar to `ScalarFunction` and `TableFunction`, `AggregateFunction` provides methods to specify the `DataType` of the result type (through 
  `AggregateFunction#getResultType()`) and the type of the accumulator (through `AggregateFunction#getAccumulatorType()`).
  
 Besides the above methods, there are a few contracted methods that can be 
@@ -297,7 +306,7 @@ optionally implemented. While some of these methods allow the system more effici
 - `merge()` is required for many batch aggregations and session window aggregations.
 - `resetAccumulator()` is required for many batch aggregations.
 
-All methods of `AggregateFunction` must be declared as `public`, not `static` and named exactly as the names mentioned above. The methods `createAccumulator`, `getValue`, `getResultType`, and `getAccumulatorType` are defined in the `AggregateFunction` abstract class, while others are contracted methods. In order to define a aggregate function, one has to extend the base class `org.apache.flink.table.functions.AggregateFunction` and implement one (or more) `accumulate` methods. The method `accumulate` can be overloaded with different parameter types and supports variable arguments.
+All methods of `AggregateFunction` must be declared as `public`, not `static` and named exactly as the names mentioned above. The methods `createAccumulator`, `getValue`, `getResultType`, and `getAccumulatorType` are defined in the `AggregateFunction` abstract class, while others are contracted methods. In order to define a aggregate function, one has to extend the base class `org.apache.flink.table.api.functions.AggregateFunction` and implement one (or more) `accumulate` methods. The method `accumulate` can be overloaded with different parameter types and supports variable arguments.
 
 Detailed documentation for all methods of `AggregateFunction` is given below. 
 
@@ -383,20 +392,20 @@ public abstract class AggregateFunction<T, ACC> extends UserDefinedFunction {
   public Boolean requiresOver = false; // PRE-DEFINED
 
   /**
-    * Returns the TypeInformation of the AggregateFunction's result.
+    * Returns the DataType of the AggregateFunction's result.
     *
-    * @return The TypeInformation of the AggregateFunction's result or null if the result type
+    * @return The DataType of the AggregateFunction's result or null if the result type
     *         should be automatically inferred.
     */
-  public TypeInformation<T> getResultType = null; // PRE-DEFINED
+  public DataType getResultType = null; // PRE-DEFINED
 
   /**
-    * Returns the TypeInformation of the AggregateFunction's accumulator.
+    * Returns the DataType of the AggregateFunction's accumulator.
     *
-    * @return The TypeInformation of the AggregateFunction's accumulator or null if the
+    * @return The DataType of the AggregateFunction's accumulator or null if the
     *         accumulator type should be automatically inferred.
     */
-  public TypeInformation<T> getAccumulatorType = null; // PRE-DEFINED
+  public DataType getAccumulatorType = null; // PRE-DEFINED
 }
 {% endhighlight %}
 </div>
@@ -466,7 +475,7 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedFunction {
     */
   def getValue(accumulator: ACC): T // MANDATORY
 
-  /**
+  h/**
     * Resets the accumulator for this [[AggregateFunction]]. This function must be implemented for
     * dataset grouping aggregate.
     *
@@ -482,20 +491,20 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedFunction {
   def requiresOver: Boolean = false // PRE-DEFINED
 
   /**
-    * Returns the TypeInformation of the AggregateFunction's result.
+    * Returns the DataType of the AggregateFunction's result.
     *
-    * @return The TypeInformation of the AggregateFunction's result or null if the result type
+    * @return The DataType of the AggregateFunction's result or null if the result type
     *         should be automatically inferred.
     */
-  def getResultType: TypeInformation[T] = null // PRE-DEFINED
+  def getResultType: DataType = null // PRE-DEFINED
 
   /**
-    * Returns the TypeInformation of the AggregateFunction's accumulator.
+    * Returns the DataType of the AggregateFunction's accumulator.
     *
-    * @return The TypeInformation of the AggregateFunction's accumulator or null if the
+    * @return The DataType of the AggregateFunction's accumulator or null if the
     *         accumulator type should be automatically inferred.
     */
-  def getAccumulatorType: TypeInformation[ACC] = null // PRE-DEFINED
+  def getAccumulatorType: DataType = null // PRE-DEFINED
 }
 {% endhighlight %}
 </div>
@@ -508,7 +517,7 @@ The following example shows how to
 - register the function in the `TableEnvironment`, and 
 - use the function in a query.  
 
-To calculate an weighted average value, the accumulator needs to store the weighted sum and count of all the data that has been accumulated. In our example we define a class `WeightedAvgAccum` to be the accumulator. Accumulators are automatically backup-ed by Flink's checkpointing mechanism and restored in case of a failure to ensure exactly-once semantics.
+To calculate a weighted average value, the accumulator needs to store the weighted sum and count of all the data that has been accumulated. In our example we define a class `WeightedAvgAccum` to be the accumulator. Accumulators are automatically backup-ed by Flink's checkpointing mechanism and restored in case of a failure to ensure exactly-once semantics.
 
 The `accumulate()` method of our `WeightedAvg` `AggregateFunction` has three inputs. The first one is the `WeightedAvgAccum` accumulator, the other two are user-defined inputs: input value `ivalue` and weight of the input `iweight`. Although the `retract()`, `merge()`, and `resetAccumulator()` methods are not mandatory for most aggregation types, we provide them below as examples. Please note that we used Java primitive types and defined `getResultType()` and `getAccumulatorType()` methods in the Scala example because Flink type extraction does not work very well for Scala types.
 
@@ -583,7 +592,7 @@ import java.lang.{Long => JLong, Integer => JInteger}
 import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.api.functions.AggregateFunction
 
 /**
  * Accumulator for WeightedAvg.
@@ -634,11 +643,11 @@ class WeightedAvg extends AggregateFunction[JLong, CountAccumulator] {
     acc.sum = 0L
   }
 
-  override def getAccumulatorType: TypeInformation[WeightedAvgAccum] = {
-    new TupleTypeInfo(classOf[WeightedAvgAccum], Types.LONG, Types.INT)
+  override def getAccumulatorType: DataType = {
+    DataTypes.of(new TupleTypeInfo(classOf[WeightedAvgAccum], Types.LONG, Types.INT))
   }
 
-  override def getResultType: TypeInformation[JLong] = Types.LONG
+  override def getResultType: DataType = DataTypes.LONG
 }
 
 // register function
@@ -652,13 +661,133 @@ tEnv.sqlQuery("SELECT user, wAvg(points, level) AS avgPoints FROM userScores GRO
 </div>
 </div>
 
+### DeclarativeAggregateFunction
+
+DeclarativeAggregationFunction expresses in terms of `Expression` of Flink Table API, which will be used while generating the code of aggregation operator for queries.
+
+When implementing a new expression-based aggregate function, you should firstly decide how many operands your function will have by implementing `inputCount` method. And then you can use `operands` fields to represent your operand, like `operands(0)`, `operands(2)`. Then you should declare all agg buffer attributes by implementing `aggBufferAttributes`. Agg buffer is used to cache the status of the Agg like `Accumulator` in `AggregateFunction`. You should declare all buffer attributes as `UnresolvedAggBufferReference`, and make sure the name of your attributes is unique within the function. You can implement `initialValuesExpressions` to define initial value of the agg buffers and `accumulateExpressions` to update the agg buffers by accumulate the input `operands`. `mergeExpressions` is used to merge the agg buffers from partial aggs. `getValueExpression` is used to get the final value of the Agg like `getValue` in `AggregationFunction`. 
+
+Detailed documentation for all methods of DeclarativeAggregateFunction is given below.
+
+<div class="codetabs" markdown="1">
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+/**
+ * API for aggregation functions that are expressed in terms of expressions.
+ */
+trait DeclarativeAggregateFunction extends UserDefinedFunction {
+
+  /**
+   * How many inputs your function will deal with.
+   */
+  def inputCount: Int
+
+  /**
+   * All fields of the aggregate buffer.
+   */
+  def aggBufferAttributes: Seq[UnresolvedAggBufferReference]
+
+  /**
+   * The result type of the function
+   */
+  def getResultType: InternalType
+
+  /**
+   * Expressions for initializing empty aggregation buffers.
+   */
+  def initialValuesExpressions: Seq[Expression]
+
+  /**
+   * Expressions for accumulating the mutable aggregation buffer based on an input row.
+   */
+  def accumulateExpressions: Seq[Expression]
+
+  /**
+    * Expressions for retracting the mutable aggregation buffer based on an input row.
+    */
+  def retractExpressions: Seq[Expression] = ???
+
+  /**
+   * A sequence of expressions for merging two aggregation buffers together. When defining these
+   * expressions, you can use the syntax `attributeName.left` and `attributeName.right` to refer
+   * to the attributes corresponding to each of the buffers being merged (this magic is enabled
+   * by the [[RichAggregateBufferAttribute]] implicit class).
+   */
+  def mergeExpressions: Seq[Expression]
+
+  /**
+   * An expression which returns the final value for this aggregate function.
+   */
+  def getValueExpression: Expression
+
+}
+{% endhighlight %}
+</div>
+</div>
+
+The following is an example of DeclarativeAggregateFunction which has the same function with the `WeightedAvg` example above.
+<div class="codetabs" markdown="1">
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+class WeightedAvg extends DeclarativeAggregateFunction {
+
+  protected lazy val sum = UnresolvedAggBufferReference("sum", DataTypes.LONG)
+  protected lazy val count = UnresolvedAggBufferReference("count", DataTypes.INT)
+
+  override def inputCount = 2
+
+  override def aggBufferAttributes = Seq(sum, count)
+
+  override def getResultType = DataTypes.DOUBLE
+
+  override def initialValuesExpressions = Seq(Literal(0L), Literal(0L))
+
+  override def accumulateExpressions = Seq(
+    /* sum = */ IsNull(operands(0)) ? (sum, sum + operands(0) * operands(1)),
+    /* count = */ IsNull(operands(0)) ? (count, count + operands(1))
+  )
+
+  override def retractExpressions: Seq[Expression] = Seq(
+    /* sum = */ IsNull(operands(0)) ? (sum, sum - operands(0) * operands(1)),
+    /* count = */ IsNull(operands(0)) ? (count, count - operands(1))
+
+  )
+
+  override def mergeExpressions = Seq(
+    /* sum = */ sum.left + sum.right,
+    /* count = */ count.left + count.right
+  )
+
+  override def getValueExpression =
+    If(count === Literal(0L), Null(getResultType), sum / count)
+}
+
+// register function
+val tEnv: StreamTableEnvironment = ???
+tEnv.registerFunction("wAvg", new WeightedAvg())
+
+// use function
+tEnv.sqlQuery("SELECT user, wAvg(points, level) AS avgPoints FROM userScores GROUP BY user")
+{% endhighlight %}
+</div>
+</div>
+
+
+
+### AggregateFunction VS DeclarativeAggregateFunction
+
+1. In `DeclarativeAggregateFunction`, `Expression` is used to declare the logic of the AGG, so we can make use of the [builtin scalar functions](tableApi.html#built-in-functions) of Flink table api. It also make it possible for the optimizer to reduce duplicate computation between different
+AGG functions.
+2. `AggregationFunction` we can use `DataView` to store complex states of the accumulator. `DataView` will be persisted in `State` which can cache a lot of data. That is needed by AGGs like DistinctCount.
+
 
 {% top %}
+
 
 Best Practices for Implementing UDFs
 ------------------------------------
 
-The Table API and SQL code generation internally tries to work with primitive values as much as possible. A user-defined function can introduce much overhead through object creation, casting, and (un)boxing. Therefore, it is highly recommended to declare parameters and result types as primitive types instead of their boxed classes. `Types.DATE` and `Types.TIME` can also be represented as `int`. `Types.TIMESTAMP` can be represented as `long`. 
+The Table API and SQL code generation internally tries to work with primitive values as much as possible. A user-defined function can introduce much overhead through object creation, casting, and (un)boxing. Therefore, it is highly recommended to declare parameters and result types as primitive types instead of their boxed classes. `DataTypes.DATE` and `DataTypes.TIME` can also be represented as `int`. `DataTypes.TIMESTAMP` can be represented as `long`. 
 
 We recommended that user-defined functions should be written by Java instead of Scala as Scala types pose a challenge for Flink's type extractor.
 
@@ -667,7 +796,7 @@ We recommended that user-defined functions should be written by Java instead of 
 Integrating UDFs with the Runtime
 ---------------------------------
 
-Sometimes it might be necessary for a user-defined function to get global runtime information or do some setup/clean-up work before the actual work. User-defined functions provide `open()` and `close()` methods that can be overridden and provide similar functionality as the methods in `RichFunction` of DataSet or DataStream API.
+Sometimes it might be necessary for a user-defined function to get global runtime information or do some setup/clean-up work before the actual work. User-defined functions provide `open()` and `close()` methods that can be overridden and provide similar functionality as the methods in `RichFunction` of DataStream API.
 
 The `open()` method is called once before the evaluation method. The `close()` method after the last call to the evaluation method.
 
@@ -703,7 +832,9 @@ public class HashCode extends ScalarFunction {
 }
 
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+BatchTableEnvironment tableEnv = TableEnvironment.getBatchTableEnvironment(env);
+// or
+// StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // set job parameter
 Configuration conf = new Configuration();

@@ -20,6 +20,7 @@ package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -28,6 +29,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.io.network.partition.external.ExternalBlockShuffleServiceOptions;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -38,6 +40,7 @@ import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -129,8 +132,18 @@ public class YarnEntrypointUtils {
 			configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 		}
 
-		final String localDirs = env.get(ApplicationConstants.Environment.LOCAL_DIRS.key());
-		BootstrapTools.updateTmpDirectoriesInConfiguration(configuration, localDirs);
+		// configure local directory
+		if (configuration.contains(CoreOptions.TMP_DIRS)) {
+			log.info("Overriding YARN's temporary file directories with those " +
+				"specified in the Flink config: " + configuration.getValue(CoreOptions.TMP_DIRS));
+		}
+		else {
+			final String localDirs = env.get(ApplicationConstants.Environment.LOCAL_DIRS.key());
+			log.info("Setting directories for temporary files to: {}", localDirs);
+			configuration.setString(CoreOptions.TMP_DIRS, localDirs);
+		}
+
+		configureShufflePort(configuration, log);
 
 		return configuration;
 	}
@@ -146,5 +159,13 @@ public class YarnEntrypointUtils {
 
 		log.info("YARN daemon is running as: {} Yarn client user obtainer: {}",
 			currentUser.getShortUserName(), yarnClientUsername);
+	}
+
+	private static void configureShufflePort(Configuration configuration, Logger log) {
+		int shufflePort = new YarnConfiguration(new org.apache.hadoop.conf.Configuration()).getInt(
+			ExternalBlockShuffleServiceOptions.FLINK_SHUFFLE_SERVICE_PORT_KEY.key(),
+			ExternalBlockShuffleServiceOptions.FLINK_SHUFFLE_SERVICE_PORT_KEY.defaultValue());
+		log.info("Update shuffle service port {} by yarn configuration.", shufflePort);
+		configuration.setInteger(ExternalBlockShuffleServiceOptions.FLINK_SHUFFLE_SERVICE_PORT_KEY.key(), shufflePort);
 	}
 }

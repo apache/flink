@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
 
+import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
 import org.junit.Before;
@@ -144,7 +145,8 @@ public class ReadOnlySlicedBufferTest {
 		ReadOnlySlicedNetworkBuffer slice1 = buffer.readOnlySlice();
 		buffer.readByte(); // should not influence the second slice at all
 		ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice();
-		assertSame(buffer, slice2.unwrap().unwrap());
+		ByteBuf unwrap = slice2.unwrap();
+		assertSame(buffer, unwrap);
 		assertSame(slice1.getMemorySegment(), slice2.getMemorySegment());
 		assertEquals(1, slice1.getMemorySegmentOffset());
 		assertEquals(slice1.getMemorySegmentOffset(), slice2.getMemorySegmentOffset());
@@ -159,7 +161,8 @@ public class ReadOnlySlicedBufferTest {
 		ReadOnlySlicedNetworkBuffer slice1 = buffer.readOnlySlice();
 		buffer.readByte(); // should not influence the second slice at all
 		ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice(1, 2);
-		assertSame(buffer, slice2.unwrap().unwrap());
+		ByteBuf unwrap = slice2.unwrap();
+		assertSame(buffer, unwrap);
 		assertSame(slice1.getMemorySegment(), slice2.getMemorySegment());
 		assertEquals(1, slice1.getMemorySegmentOffset());
 		assertEquals(2, slice2.getMemorySegmentOffset());
@@ -173,7 +176,8 @@ public class ReadOnlySlicedBufferTest {
 		ReadOnlySlicedNetworkBuffer slice1 = buffer.readOnlySlice(1, 2);
 		buffer.readByte(); // should not influence the second slice at all
 		ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice();
-		assertSame(buffer, slice2.unwrap().unwrap());
+		ByteBuf unwrap = slice2.unwrap();
+		assertSame(buffer, unwrap);
 		assertSame(slice1.getMemorySegment(), slice2.getMemorySegment());
 		assertEquals(1, slice1.getMemorySegmentOffset());
 		assertEquals(1, slice2.getMemorySegmentOffset());
@@ -187,7 +191,8 @@ public class ReadOnlySlicedBufferTest {
 		ReadOnlySlicedNetworkBuffer slice1 = buffer.readOnlySlice(1, 5);
 		buffer.readByte(); // should not influence the second slice at all
 		ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice(1, 2);
-		assertSame(buffer, slice2.unwrap().unwrap());
+		ByteBuf unwrap = slice2.unwrap();
+		assertSame(buffer, unwrap);
 		assertSame(slice1.getMemorySegment(), slice2.getMemorySegment());
 		assertEquals(1, slice1.getMemorySegmentOffset());
 		assertEquals(2, slice2.getMemorySegmentOffset());
@@ -322,22 +327,22 @@ public class ReadOnlySlicedBufferTest {
 
 	@Test
 	public void testGetNioBufferReadableThreadSafe1() {
-		NetworkBufferTest.testGetNioBufferReadableThreadSafe(buffer.readOnlySlice());
+		BufferTest.testGetNioBufferReadableThreadSafe(buffer.readOnlySlice());
 	}
 
 	@Test
 	public void testGetNioBufferReadableThreadSafe2() {
-		NetworkBufferTest.testGetNioBufferReadableThreadSafe(buffer.readOnlySlice(1, 2));
+		BufferTest.testGetNioBufferReadableThreadSafe(buffer.readOnlySlice(1, 2));
 	}
 
 	@Test
 	public void testGetNioBufferThreadSafe1() {
-		NetworkBufferTest.testGetNioBufferThreadSafe(buffer.readOnlySlice(), DATA_SIZE);
+		BufferTest.testGetNioBufferThreadSafe(buffer.readOnlySlice(), DATA_SIZE);
 	}
 
 	@Test
 	public void testGetNioBufferThreadSafe2() {
-		NetworkBufferTest.testGetNioBufferThreadSafe(buffer.readOnlySlice(1, 2), 2);
+		BufferTest.testGetNioBufferThreadSafe(buffer.readOnlySlice(1, 2), 2);
 	}
 
 	@Test

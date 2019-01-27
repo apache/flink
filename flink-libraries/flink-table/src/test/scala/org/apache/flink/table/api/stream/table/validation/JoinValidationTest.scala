@@ -21,34 +21,12 @@ package org.apache.flink.table.api.stream.table.validation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.stream.table.validation.JoinValidationTest.WithoutEqualsHashCode
 import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.runtime.utils.StreamTestData
-import org.apache.flink.table.utils.TableTestBase
-import org.apache.flink.types.Row
+import org.apache.flink.table.util.TableTestBase
 import org.junit.Test
 
 class JoinValidationTest extends TableTestBase {
-
-  /**
-    * Generic type cannot be used as key of map state.
-    */
-  @Test(expected = classOf[ValidationException])
-  def testInvalidStateTypes(): Unit = {
-    val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-    val tenv = TableEnvironment.getTableEnvironment(env)
-    val ds = env.fromElements(new WithoutEqualsHashCode) // no equals/hashCode
-    val t = tenv.fromDataStream(ds)
-
-    val left = t.select('f0 as 'l)
-    val right = t.select('f0 as 'r)
-
-    val resultTable = left.join(right)
-      .where('l === 'r)
-      .select('l)
-
-    resultTable.toRetractStream[Row]
-  }
 
   /**
     * At least one equi-join predicate required.
@@ -63,24 +41,7 @@ class JoinValidationTest extends TableTestBase {
       .where('ltime >= 'rtime - 5.minutes && 'ltime < 'rtime + 3.seconds)
       .select('a, 'e, 'ltime)
 
-    val expected = ""
-    util.verifyTable(resultTable, expected)
-  }
-
-  /**
-    * At least one equi-join predicate required for non-window inner join.
-    */
-  @Test(expected = classOf[TableException])
-  def testNonWindowInnerJoinWithoutEquiPredicate(): Unit = {
-    val util = streamTestUtil()
-    val left = util.addTable[(Long, Int, String)]('a, 'b, 'c)
-    val right = util.addTable[(Long, Int, String)]('d, 'e, 'f)
-
-    val resultTable = left.join(right)
-      .select('a, 'e)
-
-    val expected = ""
-    util.verifyTable(resultTable, expected)
+    util.tableEnv.optimize(resultTable.getRelNode, updatesAsRetraction = false)
   }
 
   /**
@@ -96,7 +57,7 @@ class JoinValidationTest extends TableTestBase {
       .where('a ==='d && 'ltime >= 'rtime - 5.minutes && 'ltime < 'ltime + 3.seconds)
       .select('a, 'e, 'ltime)
 
-    util.verifyTable(resultTable, "")
+    util.tableEnv.optimize(resultTable.getRelNode, updatesAsRetraction = false)
   }
 
   /**
@@ -112,7 +73,7 @@ class JoinValidationTest extends TableTestBase {
       .where('a ==='d && 'ltime >= 'rtime - 5.minutes && 'ltime > 'rtime + 3.seconds)
       .select('a, 'e, 'ltime)
 
-    util.verifyTable(resultTable, "")
+    util.tableEnv.optimize(resultTable.getRelNode, updatesAsRetraction = false)
   }
 
   /**
@@ -127,7 +88,7 @@ class JoinValidationTest extends TableTestBase {
     val resultTable = left.join(right)
       .where('a ==='d && 'ltime >= 'rtime - 5.minutes && 'ltime < 'rtime + 3.seconds)
 
-    util.verifyTable(resultTable, "")
+    util.tableEnv.optimize(resultTable.getRelNode, updatesAsRetraction = false)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -167,41 +128,6 @@ class JoinValidationTest extends TableTestBase {
       .select('c, 'g)
   }
 
-  @Test(expected = classOf[TableException])
-  def testNoEqualityJoinPredicate1(): Unit = {
-    val util = streamTestUtil()
-    val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
-    val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
-
-    ds1.join(ds2)
-      // must fail. No equality join predicate
-      .where('d === 'f)
-      .select('c, 'g)
-      .toRetractStream[Row]
-  }
-
-  @Test(expected = classOf[TableException])
-  def testNoEqualityJoinPredicate2(): Unit = {
-    val util = streamTestUtil()
-    val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
-    val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
-
-    ds1.join(ds2)
-      // must fail. No equality join predicate
-      .where('a < 'd)
-      .select('c, 'g)
-      .toRetractStream[Row]
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testNoEquiJoin(): Unit = {
-    val util = streamTestUtil()
-    val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
-    val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
-
-    ds2.join(ds1, 'b < 'd).select('c, 'g)
-  }
-
   @Test(expected = classOf[ValidationException])
   def testJoinTablesFromDifferentEnvs(): Unit = {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
@@ -228,8 +154,4 @@ class JoinValidationTest extends TableTestBase {
     // Must fail. Tables are bound to different TableEnvironments.
     in1.join(in2).where("a === d").select("g.count")
   }
-}
-
-object JoinValidationTest {
-  class WithoutEqualsHashCode
 }

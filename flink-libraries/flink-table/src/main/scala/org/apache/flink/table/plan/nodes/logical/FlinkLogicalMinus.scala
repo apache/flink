@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
-import java.util.{List => JList}
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.plan.nodes.FlinkConventions
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -26,7 +27,8 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.{Minus, SetOp}
 import org.apache.calcite.rel.logical.LogicalMinus
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.flink.table.plan.nodes.FlinkConventions
+
+import java.util.{List => JList}
 
 import scala.collection.JavaConverters._
 
@@ -42,14 +44,16 @@ class FlinkLogicalMinus(
     new FlinkLogicalMinus(cluster, traitSet, inputs, all)
   }
 
-  override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
+  override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val children = this.getInputs.asScala
     children.foldLeft(planner.getCostFactory.makeCost(0, 0, 0)) { (cost, child) =>
-      val rowCnt = metadata.getRowCount(child)
-      val rowSize = this.estimateRowSize(child.getRowType)
+      val rowCnt = mq.getRowCount(child)
+      val rowSize = mq.getAverageRowSize(child)
       cost.plus(planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize))
     }
   }
+
+  override def isDeterministic: Boolean = true
 }
 
 private class FlinkLogicalMinusConverter
@@ -61,14 +65,24 @@ private class FlinkLogicalMinusConverter
 
   override def convert(rel: RelNode): RelNode = {
     val minus = rel.asInstanceOf[LogicalMinus]
-    val traitSet = rel.getTraitSet.replace(FlinkConventions.LOGICAL)
     val newInputs = minus.getInputs.asScala
         .map(input => RelOptRule.convert(input, FlinkConventions.LOGICAL)).asJava
-
-    new FlinkLogicalMinus(rel.getCluster, traitSet, newInputs, minus.all)
+    FlinkLogicalMinus.create(newInputs, minus.all)
   }
 }
 
 object FlinkLogicalMinus {
   val CONVERTER: ConverterRule = new FlinkLogicalMinusConverter()
+
+  def create(inputs: JList[RelNode], all: Boolean): FlinkLogicalMinus = {
+    val cluster = inputs.get(0).getCluster
+    val traitSet = cluster.traitSetOf(Convention.NONE)
+    // FIXME: FlinkRelMdDistribution requires the current RelNode to compute
+    // the distribution trait, so we have to create FlinkLogicalMinus to
+    // calculate the distribution trait
+    val minus = new FlinkLogicalMinus(cluster, traitSet, inputs, all)
+    val newTraitSet = FlinkRelMetadataQuery.traitSet(minus)
+      .replace(FlinkConventions.LOGICAL).simplify()
+    minus.copy(newTraitSet, minus.getInputs).asInstanceOf[FlinkLogicalMinus]
+  }
 }

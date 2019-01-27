@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.disk.iomanager;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.util.NioBufferedFileInputStream;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -30,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * Helper class to read {@link Buffer}s from files into objects.
  */
 public class BufferFileChannelReader {
-	private final ByteBuffer header = ByteBuffer.allocateDirect(8);
+	private final ByteBuffer header = ByteBuffer.allocate(8);
 	private final FileChannel fileChannel;
 
 	BufferFileChannelReader(FileChannel fileChannel) {
@@ -68,5 +69,29 @@ public class BufferFileChannelReader {
 		}
 
 		return fileChannel.size() - fileChannel.position() == 0;
+	}
+
+	public boolean readBufferFromFileBufferedChannel(NioBufferedFileInputStream in, Buffer buffer) throws IOException {
+		// Read header
+		header.clear();
+		in.continuousRead(header);
+		header.flip();
+
+		final boolean isBuffer = header.getInt() == 1;
+		final int size = header.getInt();
+
+		if (size > buffer.getMaxCapacity()) {
+			throw new IllegalStateException("Buffer is too small for data: " + buffer.getMaxCapacity() + " bytes available, but " + size + " needed. This is most likely due to an serialized event, which is larger than the buffer size.");
+		}
+		checkArgument(buffer.getSize() == 0, "Buffer not empty");
+
+		in.continuousRead(buffer.getNioBuffer(0, size));
+		buffer.setSize(size);
+
+		if (!isBuffer) {
+			buffer.tagAsEvent();
+		}
+
+		return in.available() == 0;
 	}
 }

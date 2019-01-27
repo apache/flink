@@ -19,9 +19,36 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.messages.MessageParameters;
+import org.apache.flink.runtime.rest.messages.MessagePathParameter;
+import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
- * {@link MessageParameters} for {@link JarPlanHandler}.
+ * Message parameters for {@link JarPlanHandler}.
  */
-class JarPlanMessageParameters extends JarMessageParameters {
+public class JarPlanMessageParameters extends MessageParameters {
+
+	public final JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
+
+	private final EntryClassQueryParameter entryClassQueryParameter = new EntryClassQueryParameter();
+
+	private final ParallelismQueryParameter parallelismQueryParameter = new ParallelismQueryParameter();
+
+	private final ProgramArgsQueryParameter programArgsQueryParameter = new ProgramArgsQueryParameter();
+
+	@Override
+	public Collection<MessagePathParameter<?>> getPathParameters() {
+		return Collections.singletonList(jarIdPathParameter);
+	}
+
+	@Override
+	public Collection<MessageQueryParameter<?>> getQueryParameters() {
+		return Collections.unmodifiableCollection(Arrays.asList(
+			entryClassQueryParameter,
+			parallelismQueryParameter,
+			programArgsQueryParameter));
+	}
 }

@@ -22,98 +22,77 @@ import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.state.VoidNamespace
-import org.apache.flink.streaming.api.operators.{InternalTimer, TimestampedCollector}
+import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, TimestampedCollector, TwoInputSelection, TwoInputStreamOperator}
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.Compiler
-import org.apache.flink.table.runtime.CRowWrappingCollector
-import org.apache.flink.table.runtime.types.CRow
-import org.apache.flink.table.typeutils.TypeCheckUtils._
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.dataformat.util.BaseRowUtil
+import org.apache.flink.table.runtime.collector.HeaderCollector
 import org.apache.flink.table.util.Logging
-import org.apache.flink.types.Row
 
 class TemporalProcessTimeJoin(
-    leftType: TypeInformation[Row],
-    rightType: TypeInformation[Row],
+    leftType: TypeInformation[BaseRow],
+    rightType: TypeInformation[BaseRow],
     genJoinFuncName: String,
-    genJoinFuncCode: String,
-    queryConfig: StreamQueryConfig)
-  extends BaseTwoInputStreamOperatorWithStateRetention(queryConfig)
-  with Compiler[FlatJoinFunction[Row, Row, Row]]
+    genJoinFuncCode: String)
+  extends AbstractStreamOperator[BaseRow]
+  with TwoInputStreamOperator[BaseRow, BaseRow, BaseRow]
+  with Compiler[FlatJoinFunction[BaseRow, BaseRow, BaseRow]]
   with Logging {
 
-  validateEqualsHashCode("join", leftType)
-  validateEqualsHashCode("join", rightType)
+  protected var rightState: ValueState[BaseRow] = _
+  protected var collector: TimestampedCollector[BaseRow] = _
+  protected var headerCollector: HeaderCollector[BaseRow] = _
 
-  protected var rightState: ValueState[Row] = _
-  protected var cRowWrapper: CRowWrappingCollector = _
-  protected var collector: TimestampedCollector[CRow] = _
-
-  protected var joinFunction: FlatJoinFunction[Row, Row, Row] = _
+  protected var joinFunction: FlatJoinFunction[BaseRow, BaseRow, BaseRow] = _
 
   override def open(): Unit = {
-    LOG.debug(s"Compiling FlatJoinFunction: $genJoinFuncName \n\n Code:\n$genJoinFuncCode")
     val clazz = compile(
       getRuntimeContext.getUserCodeClassLoader,
       genJoinFuncName,
       genJoinFuncCode)
 
-    LOG.debug("Instantiating FlatJoinFunction.")
     joinFunction = clazz.newInstance()
     FunctionUtils.setFunctionRuntimeContext(joinFunction, getRuntimeContext)
-    FunctionUtils.openFunction(joinFunction, new Configuration())
+    FunctionUtils.openFunction(joinFunction, new Configuration)
 
-    val rightStateDescriptor = new ValueStateDescriptor[Row]("right", rightType)
+    val rightStateDescriptor = new ValueStateDescriptor[BaseRow]("right", rightType)
     rightState = getRuntimeContext.getState(rightStateDescriptor)
 
-    collector = new TimestampedCollector[CRow](output)
-    cRowWrapper = new CRowWrappingCollector()
-    cRowWrapper.out = collector
-
-    super.open()
+    collector = new TimestampedCollector[BaseRow](output)
+    headerCollector = new HeaderCollector[BaseRow]
+    headerCollector.out = collector
   }
 
-  override def processElement1(element: StreamRecord[CRow]): Unit = {
+  override def processElement1(element: StreamRecord[BaseRow]): TwoInputSelection = {
+
+    if (rightState.value() == null) {
+      return TwoInputSelection.ANY
+    }
+
+    headerCollector.setHeader(element.getValue.getHeader)
 
     val rightSideRow = rightState.value()
-    if (rightSideRow == null) {
-      return
-    }
+    joinFunction.join(element.getValue, rightSideRow, collector)
 
-    cRowWrapper.setChange(element.getValue.change)
-
-    joinFunction.join(element.getValue.row, rightSideRow, cRowWrapper)
-
-    registerProcessingCleanUpTimer()
+    TwoInputSelection.ANY
   }
 
-  override def processElement2(element: StreamRecord[CRow]): Unit = {
+  override def processElement2(element: StreamRecord[BaseRow]): TwoInputSelection = {
 
-    if (element.getValue.change) {
-      rightState.update(element.getValue.row)
-      registerProcessingCleanUpTimer()
+    if (BaseRowUtil.isAccumulateMsg(element.getValue)) {
+      rightState.update(element.getValue)
     } else {
       rightState.clear()
-      cleanUpLastTimer()
     }
+    TwoInputSelection.ANY
   }
 
-  override def close(): Unit = {
-    FunctionUtils.closeFunction(joinFunction)
+  override def firstInputSelection(): TwoInputSelection = {
+    TwoInputSelection.ANY
   }
 
-  /**
-    * The method to be called when a cleanup timer fires.
-    *
-    * @param time The timestamp of the fired timer.
-    */
-  override def cleanUpState(time: Long): Unit = {
-    rightState.clear()
-  }
+  override def endInput1(): Unit = {}
 
-  /**
-    * Invoked when an event-time timer fires.
-    */
-  override def onEventTime(timer: InternalTimer[Any, VoidNamespace]): Unit = ???
+  override def endInput2(): Unit = {}
 }

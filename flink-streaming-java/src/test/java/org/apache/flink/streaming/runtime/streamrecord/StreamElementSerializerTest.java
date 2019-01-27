@@ -23,8 +23,8 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 
 import org.junit.Test;
 
@@ -76,29 +76,42 @@ public class StreamElementSerializerTest {
 		final StreamElementSerializer<String> serializer =
 				new StreamElementSerializer<String>(StringSerializer.INSTANCE);
 
+		final StreamRecord<String> reusedObject = new StreamRecord<>("reusedObject");
+
 		StreamRecord<String> withoutTimestamp = new StreamRecord<>("test 1 2 分享基督耶穌的愛給們，開拓雙贏!");
-		assertEquals(withoutTimestamp, serializeAndDeserialize(withoutTimestamp, serializer));
+		assertEquals(withoutTimestamp, serializeAndDeserialize(withoutTimestamp, serializer, null));
+		assertEquals(withoutTimestamp, serializeAndDeserialize(withoutTimestamp, serializer, reusedObject));
 
 		StreamRecord<String> withTimestamp = new StreamRecord<>("one more test 拓 們 分", 77L);
-		assertEquals(withTimestamp, serializeAndDeserialize(withTimestamp, serializer));
+		assertEquals(withTimestamp, serializeAndDeserialize(withTimestamp, serializer, null));
+		assertEquals(withTimestamp, serializeAndDeserialize(withTimestamp, serializer, reusedObject));
 
 		StreamRecord<String> negativeTimestamp = new StreamRecord<>("他", Long.MIN_VALUE);
-		assertEquals(negativeTimestamp, serializeAndDeserialize(negativeTimestamp, serializer));
+		assertEquals(negativeTimestamp, serializeAndDeserialize(negativeTimestamp, serializer, null));
+		assertEquals(negativeTimestamp, serializeAndDeserialize(negativeTimestamp, serializer, reusedObject));
 
 		Watermark positiveWatermark = new Watermark(13);
-		assertEquals(positiveWatermark, serializeAndDeserialize(positiveWatermark, serializer));
+		assertEquals(positiveWatermark, serializeAndDeserialize(positiveWatermark, serializer, null));
+		assertEquals(positiveWatermark, serializeAndDeserialize(positiveWatermark, serializer, reusedObject));
 
 		Watermark negativeWatermark = new Watermark(-4647654567676555876L);
-		assertEquals(negativeWatermark, serializeAndDeserialize(negativeWatermark, serializer));
+		assertEquals(negativeWatermark, serializeAndDeserialize(negativeWatermark, serializer, null));
+		assertEquals(negativeWatermark, serializeAndDeserialize(negativeWatermark, serializer, reusedObject));
 
-		LatencyMarker latencyMarker = new LatencyMarker(System.currentTimeMillis(), new OperatorID(-1, -1), 1);
-		assertEquals(latencyMarker, serializeAndDeserialize(latencyMarker, serializer));
+		StreamStatus idleStreamStatus = StreamStatus.IDLE;
+		assertEquals(idleStreamStatus, serializeAndDeserialize(idleStreamStatus, serializer, null));
+		assertEquals(idleStreamStatus, serializeAndDeserialize(idleStreamStatus, serializer, reusedObject));
+
+		StreamStatus activeStreamStatus = StreamStatus.ACTIVE;
+		assertEquals(activeStreamStatus, serializeAndDeserialize(activeStreamStatus, serializer, null));
+		assertEquals(activeStreamStatus, serializeAndDeserialize(activeStreamStatus, serializer, reusedObject));
 	}
 
 	@SuppressWarnings("unchecked")
 	private static <T, X extends StreamElement> X serializeAndDeserialize(
 			X record,
-			StreamElementSerializer<T> serializer) throws IOException {
+			StreamElementSerializer<T> serializer,
+			StreamRecord<?> reusedObject) throws IOException {
 
 		DataOutputSerializer output = new DataOutputSerializer(32);
 		serializer.serialize(record, output);
@@ -109,6 +122,10 @@ public class StreamElementSerializerTest {
 		serializer.copy(copyInput, copyOutput);
 
 		DataInputDeserializer input = new DataInputDeserializer(copyOutput.getByteArray(), 0, copyOutput.length());
-		return (X) serializer.deserialize(input);
+		if (reusedObject == null) {
+			return (X) serializer.deserialize(input);
+		} else {
+			return (X) serializer.deserialize(reusedObject, input);
+		}
 	}
 }

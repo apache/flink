@@ -25,6 +25,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -73,7 +74,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -128,6 +128,8 @@ public abstract class ExecutionEnvironment {
 	/** Flag to indicate whether sinks have been cleared in previous executions. */
 	private boolean wasExecuted = false;
 
+	private List<JobListener> jobListeners = new ArrayList<>();
+
 	/**
 	 * Creates a new Execution Environment.
 	 */
@@ -177,6 +179,14 @@ public abstract class ExecutionEnvironment {
 	 */
 	public void setParallelism(int parallelism) {
 		config.setParallelism(parallelism);
+	}
+
+	public void addJobListener(JobListener jobListener) {
+		this.jobListeners.add(jobListener);
+	}
+
+	public List<JobListener> getJobListeners() {
+		return this.jobListeners;
 	}
 
 	/**
@@ -278,13 +288,13 @@ public abstract class ExecutionEnvironment {
 	 */
 	@PublicEvolving
 	public void setSessionTimeout(long timeout) {
-		throw new IllegalStateException("Support for sessions is currently disabled. " +
-				"It will be enabled in future Flink versions.");
+		//		throw new IllegalStateException("Support for sessions is currently disabled. " +
+		//				"It will be enabled in future Flink versions.");
 		// Session management is disabled, revert this commit to enable
-		//if (timeout < 0) {
-		//	throw new IllegalArgumentException("The session timeout must not be less than zero.");
-		//}
-		//this.sessionTimeout = timeout;
+		if (timeout < 0) {
+			throw new IllegalArgumentException("The session timeout must not be less than zero.");
+		}
+		this.sessionTimeout = timeout;
 	}
 
 	/**
@@ -385,7 +395,7 @@ public abstract class ExecutionEnvironment {
 
 	/**
 	 * Creates a {@link DataSet} that represents the Strings produced by reading the given file line wise.
-	 * The file will be read with the UTF-8 character set.
+	 * The file will be read with the system's default character set.
 	 *
 	 * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
 	 * @return A {@link DataSet} that represents the data read from the given file as text lines.
@@ -420,7 +430,7 @@ public abstract class ExecutionEnvironment {
 	 * {@link StringValue} objects, rather than Java Strings. StringValues can be used to tune implementations
 	 * to be less object and garbage collection heavy.
 	 *
-	 * <p>The file will be read with the UTF-8 character set.
+	 * <p>The file will be read with the system's default character set.
 	 *
 	 * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
 	 * @return A {@link DataSet} that represents the data read from the given file as text lines.
@@ -704,7 +714,7 @@ public abstract class ExecutionEnvironment {
 		catch (Exception e) {
 			throw new RuntimeException("Could not create TypeInformation for type " + data[0].getClass().getName()
 					+ "; please specify the TypeInformation manually via "
-					+ "ExecutionEnvironment#fromElements(Collection, TypeInformation)", e);
+					+ "ExecutionEnvironment#fromElements(Collection, TypeInformation)");
 		}
 
 		return fromCollection(Arrays.asList(data), typeInfo, Utils.getCallLocationName());
@@ -737,7 +747,7 @@ public abstract class ExecutionEnvironment {
 		catch (Exception e) {
 			throw new RuntimeException("Could not create TypeInformation for type " + type.getName()
 					+ "; please specify the TypeInformation manually via "
-					+ "ExecutionEnvironment#fromElements(Collection, TypeInformation)", e);
+					+ "ExecutionEnvironment#fromElements(Collection, TypeInformation)");
 		}
 
 		return fromCollection(Arrays.asList(data), typeInfo, Utils.getCallLocationName());
@@ -829,7 +839,53 @@ public abstract class ExecutionEnvironment {
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
-	public abstract JobExecutionResult execute(String jobName) throws Exception;
+	public JobExecutionResult execute(String jobName) throws Exception {
+		return (JobExecutionResult) executeInternal(jobName, false);
+	}
+
+	/**
+	 * Triggers the program execution. The environment will execute all parts of the program that have
+	 * resulted in a "sink" operation. Sink operations are for example printing results ({@link DataSet#print()},
+	 * writing results (e.g. {@link DataSet#writeAsText(String)},
+	 * {@link DataSet#write(org.apache.flink.api.common.io.FileOutputFormat, String)}, or other generic
+	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
+	 *
+	 * <p>The program execution will be logged and displayed with the given job name.
+	 * And it can run in either blocking or non-blocking mode (detached mode) which depends on the parameter {{@param detached}}
+	 *
+	 * @param jobName
+	 * @param detached
+	 * @return The result is {@link JobSubmissionResult} when it is detached, otherwise it is {@link JobExecutionResult}
+	 * when it is non-detached mode
+	 * @throws Exception
+	 */
+	protected abstract JobSubmissionResult executeInternal(String jobName, boolean detached) throws Exception;
+
+	/**
+	 * Similar with method {@link #execute()}, but just execute job in detached mode.
+	 *
+	 * @return JobSubmissionResult it only contains the JobId which you can use it to do follow up operations,
+	 * like query job status / cancel job
+	 * @throws Exception
+	 */
+	public JobSubmissionResult submit() throws Exception {
+		return submit(getDefaultName());
+	}
+
+	/**
+	 * Similar with method {@link #execute(String jobName)}, but just execute job in detached mode.
+	 *
+	 * @return JobSubmissionResult it only contains the JobId which you can use it to do follow up operations,
+	 * like query job status / cancel job
+	 * @throws Exception
+	 */
+	public JobSubmissionResult submit(String jobName) throws Exception {
+		return executeInternal(jobName, true);
+	}
+
+	public abstract void cancel(JobID jobId) throws Exception;
+
+	public abstract void stop() throws Exception;
 
 	/**
 	 * Creates the plan with which the system will execute the program, and returns it as
@@ -845,7 +901,7 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
 	 * from any user-defined function in the (distributed) runtime under a local path. Files
-	 * may be local files (which will be distributed via BlobServer), or files in a distributed file system.
+	 * may be local files (as long as all relevant workers have access to it), or files in a distributed file system.
 	 * The runtime will copy the files temporarily to a local cache, if needed.
 	 *
 	 * <p>The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
@@ -863,7 +919,7 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
 	 * from any user-defined function in the (distributed) runtime under a local path. Files
-	 * may be local files (which will be distributed via BlobServer), or files in a distributed file system.
+	 * may be local files (as long as all relevant workers have access to it), or files in a distributed file system.
 	 * The runtime will copy the files temporarily to a local cache, if needed.
 	 *
 	 * <p>The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
@@ -964,16 +1020,12 @@ public abstract class ExecutionEnvironment {
 		if (!config.isAutoTypeRegistrationDisabled()) {
 			plan.accept(new Visitor<org.apache.flink.api.common.operators.Operator<?>>() {
 
-				private final Set<Class<?>> registeredTypes = new HashSet<>();
-				private final Set<org.apache.flink.api.common.operators.Operator<?>> visitedOperators = new HashSet<>();
+				private final HashSet<Class<?>> deduplicator = new HashSet<>();
 
 				@Override
 				public boolean preVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {
-					if (!visitedOperators.add(visitable)) {
-						return false;
-					}
 					OperatorInformation<?> opInfo = visitable.getOperatorInfo();
-					Serializers.recursivelyRegisterType(opInfo.getOutputType(), config, registeredTypes);
+					Serializers.recursivelyRegisterType(opInfo.getOutputType(), config, deduplicator);
 					return true;
 				}
 

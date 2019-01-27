@@ -28,7 +28,6 @@ import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
@@ -53,7 +52,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -127,7 +126,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 				rmGateway.registerTaskExecutor(taskExecutorAddress, taskExecutorResourceID, dataPort, hardwareDescription, timeout);
 			RegistrationResponse duplicateResponse = duplicateFuture.get();
 			assertTrue(duplicateResponse instanceof TaskExecutorRegistrationSuccess);
-			assertNotEquals(((TaskExecutorRegistrationSuccess) response).getRegistrationId(), ((TaskExecutorRegistrationSuccess) duplicateResponse).getRegistrationId());
+			assertEquals(((TaskExecutorRegistrationSuccess) response).getRegistrationId(), ((TaskExecutorRegistrationSuccess) duplicateResponse).getRegistrationId());
 		} finally {
 			if (testingFatalErrorHandler.hasExceptionOccurred()) {
 				testingFatalErrorHandler.rethrowError();
@@ -189,7 +188,10 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
 		highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
-
+		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
+			Time.seconds(5L),
+			Time.seconds(5L));
+			
 		SlotManager slotManager = new SlotManager(
 			rpcService.getScheduledExecutor(),
 			TestingUtils.infiniteTime(),
@@ -207,14 +209,14 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 				rpcService,
 				FlinkResourceManager.RESOURCE_MANAGER_NAME,
 				resourceManagerResourceID,
+				resourceManagerConfiguration,
 				highAvailabilityServices,
 				heartbeatServices,
 				slotManager,
 				metricRegistry,
 				jobLeaderIdService,
 				new ClusterInformation("localhost", 1234),
-				fatalErrorHandler,
-				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
+				fatalErrorHandler);
 
 		resourceManager.start();
 

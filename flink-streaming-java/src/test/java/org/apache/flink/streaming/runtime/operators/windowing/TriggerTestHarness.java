@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -28,26 +28,32 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
-import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.heap.HeapInternalStateBackend;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
+import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.api.operators.TestInternalTimerService;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.util.MockStreamConfig;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Utility for testing {@link Trigger} behaviour.
@@ -59,7 +65,8 @@ public class TriggerTestHarness<T, W extends Window> {
 	private final Trigger<T, W> trigger;
 	private final TypeSerializer<W> windowSerializer;
 
-	private final HeapKeyedStateBackend<Integer> stateBackend;
+	private final AbstractStreamOperator<Integer> operator;
+
 	private final TestInternalTimerService<Integer, W> internalTimerService;
 
 	public TriggerTestHarness(
@@ -67,23 +74,17 @@ public class TriggerTestHarness<T, W extends Window> {
 			TypeSerializer<W> windowSerializer) throws Exception {
 		this.trigger = trigger;
 		this.windowSerializer = windowSerializer;
+		this.operator = new AbstractStreamOperator<Integer>() {
+			private static final long serialVersionUID = 1L;
+		};
+		MockStreamConfig streamConfig = new MockStreamConfig();
+		streamConfig.setStateKeySerializer(IntSerializer.INSTANCE);
+		operator.setup(createMockStreamTask(), streamConfig, mock(Output.class));
 
+		operator.initializeState();
 		// we only ever use one key, other tests make sure that windows work across different
 		// keys
-		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
-		MemoryStateBackend backend = new MemoryStateBackend();
-
-		@SuppressWarnings("unchecked")
-		HeapKeyedStateBackend<Integer> stateBackend = (HeapKeyedStateBackend<Integer>) backend.createKeyedStateBackend(dummyEnv,
-				new JobID(),
-				"test_op",
-				IntSerializer.INSTANCE,
-				1,
-				new KeyGroupRange(0, 0),
-				new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
-		this.stateBackend = stateBackend;
-
-		this.stateBackend.setCurrentKey(KEY);
+		operator.setCurrentKey(KEY);
 
 		this.internalTimerService = new TestInternalTimerService<>(new KeyContext() {
 			@Override
@@ -115,11 +116,11 @@ public class TriggerTestHarness<T, W extends Window> {
 	}
 
 	public int numStateEntries() {
-		return stateBackend.numKeyValueStateEntries();
+		return operator.getInternalStateBackend().numStateEntries();
 	}
 
 	public int numStateEntries(W window) {
-		return stateBackend.numKeyValueStateEntries(window);
+		return ((HeapInternalStateBackend) operator.getInternalStateBackend()).numStateEntries(window);
 	}
 
 	/**
@@ -131,7 +132,7 @@ public class TriggerTestHarness<T, W extends Window> {
 				KEY,
 				window,
 				internalTimerService,
-				stateBackend,
+				operator,
 				windowSerializer);
 		return trigger.onElement(element.getValue(), element.getTimestamp(), window, triggerContext);
 	}
@@ -193,7 +194,7 @@ public class TriggerTestHarness<T, W extends Window> {
 					KEY,
 					timer.getNamespace(),
 					internalTimerService,
-					stateBackend,
+					operator,
 					windowSerializer);
 
 			TriggerResult triggerResult =
@@ -228,7 +229,7 @@ public class TriggerTestHarness<T, W extends Window> {
 				KEY,
 				timer.getNamespace(),
 				internalTimerService,
-				stateBackend,
+				operator,
 				windowSerializer);
 
 		return trigger.onEventTime(timer.getTimestamp(), timer.getNamespace(), triggerContext);
@@ -256,7 +257,7 @@ public class TriggerTestHarness<T, W extends Window> {
 				targetWindow,
 				mergedWindows,
 				internalTimerService,
-				stateBackend,
+				operator,
 				windowSerializer);
 		trigger.onMerge(targetWindow, onMergeContext);
 
@@ -273,7 +274,7 @@ public class TriggerTestHarness<T, W extends Window> {
 				KEY,
 				window,
 				internalTimerService,
-				stateBackend,
+				operator,
 				windowSerializer);
 		trigger.clear(window, triggerContext);
 	}
@@ -281,21 +282,21 @@ public class TriggerTestHarness<T, W extends Window> {
 	private static class TestTriggerContext<K, W extends Window> implements Trigger.TriggerContext {
 
 		protected final InternalTimerService<W> timerService;
-		protected final KeyedStateBackend<Integer> stateBackend;
 		protected final K key;
 		protected final W window;
 		protected final TypeSerializer<W> windowSerializer;
+		protected final AbstractStreamOperator<Integer> operator;
 
 		TestTriggerContext(
 				K key,
 				W window,
 				InternalTimerService<W> timerService,
-				KeyedStateBackend<Integer> stateBackend,
-				TypeSerializer<W> windowSerializer) {
+				AbstractStreamOperator<Integer> operator,
+				TypeSerializer<W> windowSerializer) throws Exception {
 			this.key = key;
 			this.window = window;
 			this.timerService = timerService;
-			this.stateBackend = stateBackend;
+			this.operator = operator;
 			this.windowSerializer = windowSerializer;
 		}
 
@@ -337,7 +338,8 @@ public class TriggerTestHarness<T, W extends Window> {
 		@Override
 		public <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) {
 			try {
-				return stateBackend.getPartitionedState(window, windowSerializer, stateDescriptor);
+				return operator.getContextStateHelper()
+					.getPartitionedState(window, windowSerializer, stateDescriptor);
 			} catch (Exception e) {
 				throw new RuntimeException("Error getting state", e);
 			}
@@ -365,9 +367,9 @@ public class TriggerTestHarness<T, W extends Window> {
 				W targetWindow,
 				Collection<W> mergedWindows,
 				InternalTimerService<W> timerService,
-				KeyedStateBackend<Integer> stateBackend,
-				TypeSerializer<W> windowSerializer) {
-			super(key, targetWindow, timerService, stateBackend, windowSerializer);
+				AbstractStreamOperator<Integer> operator,
+				TypeSerializer<W> windowSerializer) throws Exception {
+			super(key, targetWindow, timerService, operator, windowSerializer);
 
 			this.mergedWindows = mergedWindows;
 		}
@@ -375,21 +377,43 @@ public class TriggerTestHarness<T, W extends Window> {
 		@Override
 		public <S extends MergingState<?, ?>> void mergePartitionedState(StateDescriptor<S, ?> stateDescriptor) {
 			try {
-				S rawState = stateBackend.getOrCreateKeyedState(windowSerializer, stateDescriptor);
-
+				S rawState = operator.getContextStateHelper().getOrCreateKeyedState(windowSerializer, stateDescriptor);
 				if (rawState instanceof InternalMergingState) {
 					@SuppressWarnings("unchecked")
 					InternalMergingState<K, W, ?, ?, ?> mergingState = (InternalMergingState<K, W, ?, ?, ?>) rawState;
 					mergingState.mergeNamespaces(window, mergedWindows);
-				}
-				else {
+				} else {
 					throw new IllegalArgumentException(
-							"The given state descriptor does not refer to a mergeable state (MergingState)");
+						"The given state descriptor does not refer to a mergeable state (MergingState)");
 				}
 			}
 			catch (Exception e) {
 				throw new RuntimeException("Error while merging state.", e);
 			}
 		}
+	}
+
+	private static StreamTask<?, ?> createMockStreamTask() throws Exception {
+		DummyEnvironment env = new DummyEnvironment("test", 1, 0);
+
+		final CloseableRegistry closeableRegistry = new CloseableRegistry();
+		StreamTask<?, ?> mockTask = mock(StreamTask.class);
+		when(mockTask.getCheckpointLock()).thenReturn(new Object());
+		when(mockTask.getConfiguration()).thenReturn(new MockStreamConfig());
+		when(mockTask.getEnvironment()).thenReturn(env);
+		when(mockTask.getExecutionConfig()).thenReturn(new ExecutionConfig());
+		when(mockTask.getCancelables()).thenReturn(closeableRegistry);
+
+		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+		processingTimeService.setCurrentTime(0);
+
+		StreamTaskStateInitializerImpl streamTaskStateInitializer = new StreamTaskStateInitializerImpl(
+			env,
+			new MemoryStateBackend(),
+			processingTimeService);
+
+		when(mockTask.createStreamTaskStateInitializer()).thenReturn(streamTaskStateInitializer);
+
+		return mockTask;
 	}
 }

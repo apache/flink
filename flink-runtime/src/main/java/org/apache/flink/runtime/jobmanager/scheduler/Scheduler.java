@@ -142,7 +142,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 	//  Scheduling
 	// ------------------------------------------------------------------------
 
-
 	@Override
 	public CompletableFuture<LogicalSlot> allocateSlot(
 			SlotRequestId slotRequestId,
@@ -172,7 +171,25 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
+	public List<CompletableFuture<LogicalSlot>> allocateSlots(
+			List<SlotRequestId> slotRequestIds,
+			List<ScheduledUnit> tasks,
+			boolean allowQueued,
+			List<SlotProfile> slotProfiles,
+			Time timeout) {
+		List<CompletableFuture<LogicalSlot>> allocationFutures = new ArrayList<>(slotRequestIds.size());
+		for (int i = 0; i < slotRequestIds.size(); i++) {
+			allocationFutures.add(allocateSlot(slotRequestIds.get(i), tasks.get(i), allowQueued, slotProfiles.get(i), timeout));
+		}
+		return allocationFutures;
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> cancelSlotRequest(
+			SlotRequestId slotRequestId,
+			@Nullable SlotSharingGroupId slotSharingGroupId,
+			@Nullable CoLocationConstraint coLocationConstraint,
+			Throwable cause) {
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 

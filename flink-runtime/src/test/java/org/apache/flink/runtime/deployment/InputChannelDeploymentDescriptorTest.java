@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.deployment;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -69,12 +70,14 @@ public class InputChannelDeploymentDescriptorTest {
 			// Local partition
 			ExecutionVertex localProducer = mockExecutionVertex(state, consumerResourceId);
 			IntermediateResultPartition localPartition = mockPartition(localProducer);
+			when(localPartition.getResultType()).thenReturn(ResultPartitionType.PIPELINED);
 			ResultPartitionID localPartitionId = new ResultPartitionID(localPartition.getPartitionId(), localProducer.getCurrentExecutionAttempt().getAttemptId());
 			ExecutionEdge localEdge = new ExecutionEdge(localPartition, consumer, 0);
 
 			// Remote partition
 			ExecutionVertex remoteProducer = mockExecutionVertex(state, ResourceID.generate()); // new resource ID
 			IntermediateResultPartition remotePartition = mockPartition(remoteProducer);
+			when(remotePartition.getResultType()).thenReturn(ResultPartitionType.PIPELINED);
 			ResultPartitionID remotePartitionId = new ResultPartitionID(remotePartition.getPartitionId(), remoteProducer.getCurrentExecutionAttempt().getAttemptId());
 			ConnectionID remoteConnectionId = new ConnectionID(remoteProducer.getCurrentAssignedResource().getTaskManagerLocation(), 0);
 			ExecutionEdge remoteEdge = new ExecutionEdge(remotePartition, consumer, 1);
@@ -82,12 +85,14 @@ public class InputChannelDeploymentDescriptorTest {
 			// Unknown partition
 			ExecutionVertex unknownProducer = mockExecutionVertex(state, null); // no assigned resource
 			IntermediateResultPartition unknownPartition = mockPartition(unknownProducer);
+			when(unknownPartition.getResultType()).thenReturn(ResultPartitionType.PIPELINED);
 			ResultPartitionID unknownPartitionId = new ResultPartitionID(unknownPartition.getPartitionId(), unknownProducer.getCurrentExecutionAttempt().getAttemptId());
 			ExecutionEdge unknownEdge = new ExecutionEdge(unknownPartition, consumer, 2);
 
 			InputChannelDeploymentDescriptor[] desc = InputChannelDeploymentDescriptor.fromEdges(
+				new ResultPartitionLocationTrackerProxy(new Configuration()),
 				new ExecutionEdge[]{localEdge, remoteEdge, unknownEdge},
-				consumerSlot.getTaskManagerLocation().getResourceID(),
+				consumerSlot.getTaskManagerLocation(),
 				allowLazyDeployment);
 
 			assertEquals(3, desc.length);
@@ -130,6 +135,7 @@ public class InputChannelDeploymentDescriptorTest {
 		// Unknown partition
 		ExecutionVertex unknownProducer = mockExecutionVertex(ExecutionState.CREATED, null); // no assigned resource
 		IntermediateResultPartition unknownPartition = mockPartition(unknownProducer);
+		when(unknownPartition.getResultType()).thenReturn(ResultPartitionType.PIPELINED);
 		ResultPartitionID unknownPartitionId = new ResultPartitionID(unknownPartition.getPartitionId(), unknownProducer.getCurrentExecutionAttempt().getAttemptId());
 		ExecutionEdge unknownEdge = new ExecutionEdge(unknownPartition, consumer, 2);
 
@@ -137,8 +143,9 @@ public class InputChannelDeploymentDescriptorTest {
 		boolean allowLazyDeployment = true;
 
 		InputChannelDeploymentDescriptor[] desc = InputChannelDeploymentDescriptor.fromEdges(
+			new ResultPartitionLocationTrackerProxy(new Configuration()),
 			new ExecutionEdge[]{unknownEdge},
-			consumerSlot.getTaskManagerLocation().getResourceID(),
+			consumerSlot.getTaskManagerLocation(),
 			allowLazyDeployment);
 
 		assertEquals(1, desc.length);
@@ -152,8 +159,9 @@ public class InputChannelDeploymentDescriptorTest {
 			allowLazyDeployment = false;
 
 			InputChannelDeploymentDescriptor.fromEdges(
+				new ResultPartitionLocationTrackerProxy(new Configuration()),
 				new ExecutionEdge[]{unknownEdge},
-				consumerSlot.getTaskManagerLocation().getResourceID(),
+				consumerSlot.getTaskManagerLocation(),
 				allowLazyDeployment);
 
 			fail("Did not throw expected ExecutionGraphException");
@@ -193,7 +201,6 @@ public class InputChannelDeploymentDescriptorTest {
 
 	private static IntermediateResultPartition mockPartition(ExecutionVertex producer) {
 		IntermediateResultPartition partition = mock(IntermediateResultPartition.class);
-		when(partition.getResultType()).thenReturn(ResultPartitionType.PIPELINED);
 		when(partition.isConsumable()).thenReturn(true);
 
 		IntermediateResult result = mock(IntermediateResult.class);

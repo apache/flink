@@ -95,4 +95,9 @@ public class ExtractTimestampsOperator<T>
 			output.emitWatermark(mark);
 		}
 	}
+
+	@Override
+	public void endInput() throws Exception {
+
+	}
 }

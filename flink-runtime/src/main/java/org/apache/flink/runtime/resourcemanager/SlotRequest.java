@@ -21,8 +21,11 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.resourcemanager.placementconstraint.SlotTag;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -45,15 +48,29 @@ public class SlotRequest implements Serializable {
 	/** Address of the emitting job manager */
 	private final String targetAddress;
 
+	/** Tags of the slot requested for */
+	private final List<SlotTag> tags;
+
 	public SlotRequest(
 			JobID jobId,
 			AllocationID allocationId,
 			ResourceProfile resourceProfile,
 			String targetAddress) {
+		this(jobId, allocationId, resourceProfile, targetAddress, Collections.emptyList());
+	}
+
+	public SlotRequest(
+			JobID jobId,
+			AllocationID allocationId,
+			ResourceProfile resourceProfile,
+			String targetAddress,
+			List<SlotTag> tags
+	) {
 		this.jobId = checkNotNull(jobId);
 		this.allocationId = checkNotNull(allocationId);
 		this.resourceProfile = checkNotNull(resourceProfile);
 		this.targetAddress = checkNotNull(targetAddress);
+		this.tags = checkNotNull(tags);
 	}
 
 	/**
@@ -83,4 +100,6 @@ public class SlotRequest implements Serializable {
 	public String getTargetAddress() {
 		return targetAddress;
 	}
+
+	public List<SlotTag> getTags() { return tags; }
 }

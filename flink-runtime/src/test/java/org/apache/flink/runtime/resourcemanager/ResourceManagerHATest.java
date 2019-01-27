@@ -26,14 +26,12 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -66,9 +64,14 @@ public class ResourceManagerHATest extends TestLogger {
 
 		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class);
 
+		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
+			Time.seconds(5L),
+			Time.seconds(5L));
+
 		ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration = new ResourceManagerRuntimeServicesConfiguration(
 			Time.seconds(5L),
 			new SlotManagerConfiguration(
+				TestingUtils.infiniteTime(),
 				TestingUtils.infiniteTime(),
 				TestingUtils.infiniteTime(),
 				TestingUtils.infiniteTime()));
@@ -88,14 +91,14 @@ public class ResourceManagerHATest extends TestLogger {
 				rpcService,
 				FlinkResourceManager.RESOURCE_MANAGER_NAME,
 				rmResourceId,
+				resourceManagerConfiguration,
 				highAvailabilityServices,
 				heartbeatServices,
 				resourceManagerRuntimeServices.getSlotManager(),
 				metricRegistry,
 				resourceManagerRuntimeServices.getJobLeaderIdService(),
 				new ClusterInformation("localhost", 1234),
-				testingFatalErrorHandler,
-				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup()) {
+				testingFatalErrorHandler) {
 
 				@Override
 				public void revokeLeadership() {

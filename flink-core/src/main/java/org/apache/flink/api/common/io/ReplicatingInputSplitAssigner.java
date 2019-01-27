@@ -21,9 +21,11 @@ package org.apache.flink.api.common.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Assigns each InputSplit to each requesting parallel instance.
@@ -54,7 +56,7 @@ public class ReplicatingInputSplitAssigner implements InputSplitAssigner {
 
 		// get assignment count
 		Integer assignCnt;
-		if(taskId < this.assignCounts.length) {
+		if (taskId < this.assignCounts.length) {
 			assignCnt = this.assignCounts[taskId];
 		} else {
 			int newSize = this.assignCounts.length * 2;
@@ -67,15 +69,39 @@ public class ReplicatingInputSplitAssigner implements InputSplitAssigner {
 			assignCnt = 0;
 		}
 
-		if(assignCnt >= inputSplits.length) {
+		if (assignCnt >= inputSplits.length) {
 			// all splits for this task have been assigned
 			return null;
 		} else {
 			// return next splits
 			InputSplit is = inputSplits[assignCnt];
-			assignCounts[taskId] = assignCnt+1;
+			assignCounts[taskId] = assignCnt + 1;
 			return is;
 		}
+	}
 
+	@Override
+	public void inputSplitsAssigned(int taskId, List<InputSplit> inputSplits) {
+
+		Integer assignCnt;
+		if (taskId < this.assignCounts.length) {
+			assignCnt = this.assignCounts[taskId];
+		} else {
+			int newSize = this.assignCounts.length * 2;
+			if (taskId >= newSize) {
+				newSize = taskId;
+			}
+			int[] newAssignCounts = Arrays.copyOf(assignCounts, newSize);
+			Arrays.fill(newAssignCounts, assignCounts.length, newSize, 0);
+
+			assignCnt = 0;
+		}
+
+		assignCnt += inputSplits.size();
+		if (assignCnt > this.inputSplits.length) {
+			throw new FlinkRuntimeException("Assigned input splits exceed total inputs for .");
+		}
+
+		assignCounts[taskId] = assignCnt;
 	}
 }

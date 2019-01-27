@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.sources.tsextractors
 
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.table.api.{Types, ValidationException}
-import org.apache.flink.table.expressions.{Cast, Expression, ResolvedFieldReference}
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.api.types._
 
 /**
   * Converts an existing [[Long]], [[java.sql.Timestamp]], or
@@ -34,14 +34,14 @@ final class ExistingField(val field: String) extends TimestampExtractor {
   override def getArgumentFields: Array[String] = Array(field)
 
   @throws[ValidationException]
-  override def validateArgumentFields(argumentFieldTypes: Array[TypeInformation[_]]): Unit = {
+  override def validateArgumentFields(argumentFieldTypes: Array[InternalType]): Unit = {
     val fieldType = argumentFieldTypes(0)
 
     fieldType match {
-      case Types.LONG => // OK
-      case Types.SQL_TIMESTAMP => // OK
-      case Types.STRING => // OK
-      case _: TypeInformation[_] =>
+      case DataTypes.LONG => // OK
+      case DataTypes.TIMESTAMP => // OK
+      case DataTypes.STRING => // OK
+      case _: InternalType =>
         throw new ValidationException(
           s"Field '$field' must be of type Long or Timestamp or String but is of type $fieldType.")
     }
@@ -56,14 +56,21 @@ final class ExistingField(val field: String) extends TimestampExtractor {
     val fieldAccess: Expression = fieldAccesses(0)
 
     fieldAccess.resultType match {
-      case Types.LONG =>
-        // access LONG field
+      case DataTypes.ROWTIME_INDICATOR =>
+        // rowtime field refers the same field in physical schema.
         fieldAccess
-      case Types.SQL_TIMESTAMP =>
-        // cast timestamp to long
-        Cast(fieldAccess, Types.LONG)
-      case Types.STRING =>
-        Cast(Cast(fieldAccess, SqlTimeTypeInfo.TIMESTAMP), Types.LONG)
+      case DataTypes.LONG =>
+        // access LONG field
+        Cast(
+          Div(
+            fieldAccess,
+            Literal(new java.math.BigDecimal(1000),
+              DecimalType.SYSTEM_DEFAULT)),
+          DataTypes.TIMESTAMP)
+      case _: TimestampType =>
+        fieldAccess
+      case DataTypes.STRING =>
+        Cast(fieldAccess, DataTypes.TIMESTAMP)
     }
   }
 

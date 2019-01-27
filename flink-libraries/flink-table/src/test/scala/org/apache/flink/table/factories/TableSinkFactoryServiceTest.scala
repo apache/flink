@@ -37,6 +37,8 @@ class TableSinkFactoryServiceTest {
   @Test
   def testValidProperties(): Unit = {
     val props = properties()
+    props.remove(FORMAT_TYPE)
+    props.remove(FORMAT_PROPERTY_VERSION)
     assertTrue(TableFactoryService.find(classOf[StreamTableSinkFactory[_]], props)
       .isInstanceOf[TestTableSinkFactory])
   }
@@ -46,15 +48,6 @@ class TableSinkFactoryServiceTest {
     val props = properties()
     props.put(CONNECTOR_TYPE, "unknown-connector-type")
     TableFactoryService.find(classOf[StreamTableSinkFactory[_]], props)
-  }
-
-  @Test
-  def testDifferentContextVersion(): Unit = {
-    val props = properties()
-    props.put(CONNECTOR_PROPERTY_VERSION, "2")
-    // the table source should still be found
-    assertTrue(TableFactoryService.find(classOf[StreamTableSinkFactory[_]], props)
-      .isInstanceOf[TestTableSinkFactory])
   }
 
   @Test(expected = classOf[NoMatchingTableFactoryException])

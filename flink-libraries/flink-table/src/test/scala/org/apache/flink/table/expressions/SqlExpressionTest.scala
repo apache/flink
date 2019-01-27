@@ -18,10 +18,8 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.types.Row
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
 import org.junit.Test
 
@@ -50,7 +48,6 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("NULLIF(1,1) IS DISTINCT FROM NULLIF(1,1)", "false")
     testSqlApi("NULLIF(1,1) IS NOT DISTINCT FROM NULLIF(1,1)", "true")
     testSqlApi("NULLIF(1,1) IS NOT DISTINCT FROM NULLIF(1,1)", "true")
-    testSqlApi("12 BETWEEN NULL AND 13", "null")
     testSqlApi("12 BETWEEN 11 AND 13", "true")
     testSqlApi("12 BETWEEN ASYMMETRIC 13 AND 11", "false")
     testSqlApi("12 BETWEEN SYMMETRIC 13 AND 11", "true")
@@ -58,7 +55,6 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("12 NOT BETWEEN ASYMMETRIC 13 AND 11", "true")
     testSqlApi("12 NOT BETWEEN SYMMETRIC 13 AND 11", "false")
     testSqlApi("'TEST' LIKE '%EST'", "true")
-    // The ESCAPE char has not been supported yet.
     //testSqlApi("'%EST' LIKE '.%EST' ESCAPE '.'", "true") // TODO
     testSqlApi("'TEST' NOT LIKE '%EST'", "false")
     //testSqlApi("'%EST' NOT LIKE '.%EST' ESCAPE '.'", "false") // TODO
@@ -94,17 +90,14 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("5+5", "10")
     testSqlApi("5-5", "0")
     testSqlApi("5*5", "25")
-    testSqlApi("5/5", "1")
+    testSqlApi("5/5", "1.0")
     testSqlApi("POWER(5, 5)", "3125.0")
     testSqlApi("ABS(-5)", "5")
     testSqlApi("MOD(-26, 5)", "-1")
     testSqlApi("SQRT(4)", "2.0")
-    testSqlApi("LN(2)", "0.6931471805599453")
-    testSqlApi("LOG10(10)", "1.0")
-    testSqlApi("LOG2(8)", "3.0")
-    testSqlApi("LOG(E())", "1.0")
-    testSqlApi("LOG(3,27)", "3.0")
-    testSqlApi("EXP(1)", "2.718281828459045")
+    testSqlApi("LN(1)", "0.0")
+    testSqlApi("LOG10(1)", "0.0")
+    testSqlApi("EXP(0)", "1.0")
     testSqlApi("CEIL(2.5)", "3")
     testSqlApi("CEILING(2.5)", "3")
     testSqlApi("FLOOR(2.5)", "2")
@@ -112,20 +105,43 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("SINH(2.5)", "6.0502044810397875")
     testSqlApi("COS(2.5)", "-0.8011436155469337")
     testSqlApi("TAN(2.5)", "-0.7470222972386603")
-    testSqlApi("TANH(2.5)", "0.9866142981514303")
     testSqlApi("COT(2.5)", "-1.3386481283041514")
     testSqlApi("ASIN(0.5)", "0.5235987755982989")
     testSqlApi("ACOS(0.5)", "1.0471975511965979")
     testSqlApi("ATAN(0.5)", "0.4636476090008061")
     testSqlApi("ATAN2(0.5, 0.5)", "0.7853981633974483")
     testSqlApi("COSH(2.5)", "6.132289479663686")
+    testSqlApi("TANH(2.5)", "0.9866142981514303")
     testSqlApi("DEGREES(0.5)", "28.64788975654116")
     testSqlApi("RADIANS(0.5)", "0.008726646259971648")
-    testSqlApi("SIGN(-1.1)", "-1")
+    testSqlApi("SIGN(-1.1)", "-1.0")  // calcite: SIGN(Decimal(p,s)) => Decimal(p,s)
     testSqlApi("ROUND(-12.345, 2)", "-12.35")
-    testSqlApi("PI", "3.141592653589793")
+    testSqlApi("PI()", "3.141592653589793")
     testSqlApi("E()", "2.718281828459045")
-    testSqlApi("BIN(12)", "1100")
+  }
+
+  @Test
+  def testDivideFunctions(): Unit = {
+
+    //slash
+
+    // Decimal(2,1) / Decimal(2,1) => Decimal(8,6)
+    testSqlApi("1.0/8.0", "0.125000")
+    testSqlApi("2.0/3.0", "0.666667")
+
+    // Integer => Decimal(10, 0)
+    // Decimal(10,0) / Decimal(2,1) => Decimal(17,6)
+    testSqlApi("-2/3.0", "-0.666667")
+
+    // Decimal(2,1) / Decimal(10,0) => Decimal(23,12)
+    testSqlApi("2.0/(-3)", "-0.666666666667")
+    testSqlApi("-7.9/2", "-3.950000000000")
+
+    //div function
+    testSqlApi("div(7, 2)", "3")
+    testSqlApi("div(7.9, 2.009)", "3")
+    testSqlApi("div(7, -2.009)", "-3")
+    testSqlApi("div(-7.9, 2)", "-3")
   }
 
   @Test
@@ -139,68 +155,33 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("TRIM(BOTH ' STRING ')", "STRING")
     testSqlApi("TRIM(LEADING 'x' FROM 'xxxxSTRINGxxxx')", "STRINGxxxx")
     testSqlApi("TRIM(TRAILING 'x' FROM 'xxxxSTRINGxxxx')", "xxxxSTRING")
-    testSqlApi("LTRIM(' This is a test String.')", "This is a test String.")
-    testSqlApi("RTRIM('This is a test String. ')", "This is a test String.")
     testSqlApi(
-      "OVERLAY('This is an old string' PLACING ' new' FROM 10 FOR 5)",
+      "OVERLAY('This is a old string' PLACING 'new' FROM 11 FOR 3)",
       "This is a new string")
     testSqlApi("SUBSTRING('hello world', 2)", "ello world")
     testSqlApi("SUBSTRING('hello world', 2, 3)", "ell")
-    testSqlApi("INITCAP('hello WORLD')", "Hello World")
-    testSqlApi("CONCAT('a', 'b')", "ab")
-    testSqlApi("CONCAT('a', NULLIF('a', 'a'), 'b')", "null")
-    testSqlApi("CONCAT_WS('~', 'a', NULLIF('a', 'a'), 'b')", "a~b")
-    testSqlApi("LPAD('hi',4,'??')", "??hi")
-    testSqlApi("RPAD('hi',4,'??')", "hi??")
-    testSqlApi("FROM_BASE64('aGVsbG8gd29ybGQ=')", "hello world")
-    testSqlApi("TO_BASE64('hello world')", "aGVsbG8gd29ybGQ=")
+    testSqlApi("SUBSTRING('hello world', 2, 300)", "ello world")
+    testSqlApi("SUBSTR('hello world', 2, 3)", "ell")
+    testSqlApi("SUBSTR('hello world', 2)", "ello world")
+    testSqlApi("SUBSTR('hello world', 2, 300)", "ello world")
+    testSqlApi("SUBSTR('hello world', 0, 3)", "hel")
+    testSqlApi("INITCAP('hello world')", "Hello World")
+    testSqlApi("REGEXP_REPLACE('foobar', 'oo|ar', '')", "fb")
+    testSqlApi("REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)", "bar")
     testSqlApi(
       "REPEAT('This is a test String.', 2)",
       "This is a test String.This is a test String.")
-    testSqlApi("REGEXP_REPLACE('foobar', 'oo|ar', '')", "fb")
     testSqlApi("REPLACE('hello world', 'world', 'flink')", "hello flink")
-    testSqlApi("REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)", "bar")
-  }
-
-  @Test
-  def testTemporalFunctions(): Unit = {
-    testSqlApi("DATE '1990-10-14'", "1990-10-14")
-    testSqlApi("TIME '12:12:12'", "12:12:12")
-    testSqlApi("TIMESTAMP '1990-10-14 12:12:12.123'", "1990-10-14 12:12:12.123")
-    testSqlApi("INTERVAL '10 00:00:00.004' DAY TO SECOND", "+10 00:00:00.004")
-    testSqlApi("INTERVAL '10 00:12' DAY TO MINUTE", "+10 00:12:00.000")
-    testSqlApi("INTERVAL '2-10' YEAR TO MONTH", "+2-10")
-    testSqlApi("EXTRACT(DAY FROM DATE '1990-12-01')", "1")
-    testSqlApi("EXTRACT(DAY FROM INTERVAL '19 12:10:10.123' DAY TO SECOND(3))", "19")
-    testSqlApi("YEAR(DATE '1994-09-27')", "1994")
-    testSqlApi("QUARTER(DATE '2016-04-12')", "2")
-    testSqlApi("MONTH(DATE '1994-09-27')", "9")
-    testSqlApi("WEEK(DATE '1994-09-27')", "39")
-    testSqlApi("DAYOFYEAR(DATE '1994-09-27')", "270")
-    testSqlApi("DAYOFMONTH(DATE '1994-09-27')", "27")
-    testSqlApi("DAYOFWEEK(DATE '1994-09-27')", "3")
-    testSqlApi("HOUR(TIMESTAMP '1994-09-27 13:14:15')", "13")
-    testSqlApi("MINUTE(TIMESTAMP '1994-09-27 13:14:15')", "14")
-    testSqlApi("SECOND(TIMESTAMP '1994-09-27 13:14:15')", "15")
-    testSqlApi("FLOOR(TIME '12:44:31' TO MINUTE)", "12:44:00")
-    testSqlApi("CEIL(TIME '12:44:31' TO MINUTE)", "12:45:00")
-    testSqlApi(
-      "(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)",
-      "true")
-    testSqlApi(
-      "(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:55:01', INTERVAL '1' HOUR)",
-      "false")
-    // The DATE_FORMAT function need to be fixed. See FLINK-10032
-    // testSqlApi("DATE_FORMAT(TIMESTAMP '1991-01-02 03:04:06', '%m/%d/%Y')", "01/02/1991")
-    testSqlApi("TIMESTAMPADD(WEEK, 1, DATE '2003-01-02')", "2003-01-09")
   }
 
   @Test
   def testConditionalFunctions(): Unit = {
     testSqlApi("CASE 2 WHEN 1, 2 THEN 2 ELSE 3 END", "2")
-    testSqlApi("CASE WHEN 1 = 2 THEN 2 WHEN 1 = 1 THEN 3 ELSE 4 END", "3")
+    testSqlApi("CASE WHEN 1 = 2 THEN 2 WHEN 1 = 1 THEN 3 ELSE 3 END", "3")
     testSqlApi("NULLIF(1, 1)", "null")
     testSqlApi("COALESCE(NULL, 5)", "5")
+    testSqlApi("COALESCE(keyvalue('', ';', ':', 'isB2C'), '5')", "5")
+    testSqlApi("COALESCE(json_value('xx', '$x'), '5')", "5")
   }
 
   @Test
@@ -209,21 +190,38 @@ class SqlExpressionTest extends ExpressionTestBase {
   }
 
   @Test
-  def testCollectionFunctions(): Unit = {
-    testSqlApi("CARDINALITY(ARRAY[TRUE, TRUE, FALSE])", "3")
-    testSqlApi("ARRAY[TRUE, FALSE][2]", "false")
-    testSqlApi("ELEMENT(ARRAY['HELLO WORLD'])", "HELLO WORLD")
-    testSqlApi("CARDINALITY(MAP['k1', 'v1', 'k2', 'v2'])", "2")
-    testSqlApi("MAP['k1', 'v1', 'k2', 'v2']['k2']", "v2")
-  }
-
-  @Test
   def testValueConstructorFunctions(): Unit = {
     testSqlApi("ROW('hello world', 12)", "hello world,12")
     testSqlApi("('hello world', 12)", "hello world,12")
     testSqlApi("('foo', ('bar', 12))", "foo,bar,12")
+    testSqlApi("ARRAY[TRUE, FALSE][2]", "false")
     testSqlApi("ARRAY[TRUE, TRUE]", "[true, true]")
-    testSqlApi("MAP['k1', CAST(true AS VARCHAR(256)), 'k2', 'foo']", "{k1=true, k2=foo}")
+    testSqlApi("MAP['k1', 'v1', 'k2', 'v2']['k2']", "v2")
+    testSqlApi("MAP['k1', CAST(true AS VARCHAR(256)), 'k2', 'foo']['k1']", "true")
+  }
+
+  @Test
+  def testDateTimeFunctions(): Unit = {
+    testSqlApi("DATE '1990-10-14'", "1990-10-14")
+    testSqlApi("TIME '12:12:12'", "12:12:12")
+    testSqlApi("TIMESTAMP '1990-10-14 12:12:12.123'", "1990-10-14 12:12:12.123")
+    testSqlApi("INTERVAL '10 00:00:00.004' DAY TO SECOND", "+10 00:00:00.004")
+    testSqlApi("INTERVAL '10 00:12' DAY TO MINUTE", "+10 00:12:00.000")
+    testSqlApi("INTERVAL '2-10' YEAR TO MONTH", "+2-10")
+    testSqlApi("EXTRACT(DAY FROM DATE '1990-12-01')", "1")
+    testSqlApi("EXTRACT(DAY FROM INTERVAL '19 12:10:10.123' DAY TO SECOND(3))", "19")
+    testSqlApi("FLOOR(TIME '12:44:31' TO MINUTE)", "12:44:00")
+    testSqlApi("CEIL(TIME '12:44:31' TO MINUTE)", "12:45:00")
+    testSqlApi("QUARTER(DATE '2016-04-12')", "2")
+    testSqlApi(
+      "(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)",
+      "true")
+  }
+
+  @Test
+  def testArrayFunctions(): Unit = {
+    testSqlApi("CARDINALITY(ARRAY[TRUE, TRUE, FALSE])", "3")
+    testSqlApi("ELEMENT(ARRAY['HELLO WORLD'])", "HELLO WORLD")
   }
 
   @Test
@@ -276,18 +274,40 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("SHA2(CAST(NULL AS VARCHAR), 256)", "null")
   }
 
-  @Test(expected = classOf[RuntimeException])
-  def testHashFunctionsUnsupportedLength(): Unit = {
-    testSqlApi("SHA2('', 333)", "")
+  @Test
+  def testNullableCases(): Unit = {
+    testSqlApi(
+      "BITAND(cast(NUll as bigInt), cast(NUll as bigInt))",
+      nullable
+    )
+
+    testSqlApi(
+      "BITNOT(cast(NUll as bigInt))",
+      nullable
+    )
+
+    testSqlApi(
+      "BITOR(cast(NUll as bigInt), cast(NUll as bigInt))",
+      nullable
+    )
+
+    testSqlApi(
+      "BITXOR(cast(NUll as bigInt), cast(NUll as bigInt))",
+      nullable
+    )
+
+    testSqlApi(
+      "TO_BASE64(FROM_BASE64(cast(NUll as varchar)))",
+      nullable
+    )
+
+    testSqlApi(
+      "FROM_BASE64(cast(NUll as varchar))",
+      nullable
+    )
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testHashFunctionSha2NoParam(): Unit = {
-    testSqlApi("SHA2('')", "")
-  }
+  override def rowTestData: Row = new Row(0)
 
-  override def testData: Any = new Row(0)
-
-  override def typeInfo: TypeInformation[Any] =
-    new RowTypeInfo().asInstanceOf[TypeInformation[Any]]
+  override def rowType: RowTypeInfo = new RowTypeInfo()
 }

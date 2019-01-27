@@ -182,6 +182,11 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 			}
 			return true;
 		}
+
+		@Override
+		public void endInput() throws Exception {
+
+		}
 	}
 
 	private static class SimpleCommitter extends CheckpointCommitter {
@@ -231,6 +236,11 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 				this.values.add(value.f0);
 			}
 			return true;
+		}
+
+		@Override
+		public void endInput() throws Exception {
+
 		}
 	}
 

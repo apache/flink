@@ -19,17 +19,23 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
 import org.junit.Assert;
@@ -75,6 +81,45 @@ public class SourceStreamTaskTest {
 
 		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
 		Assert.assertEquals(10, resultElements.size());
+	}
+
+	@Test
+	public void testEndInput() throws Exception {
+		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<>(
+			SourceStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
+		final EndInputOperator endInputOperator1 = new EndInputOperator("EndInput1");
+		final EndInputOperator endInputOperator2 = new EndInputOperator("EndInput2");
+
+		StreamConfig streamConfig = testHarness.getStreamConfig();
+		StreamSource<String, ?> sourceOperator = new StreamSource<>(new OpenCloseTestSource());
+		streamConfig.setStreamOperator(sourceOperator);
+
+		streamConfig.setChainStart();
+		streamConfig.setBufferTimeout(0);
+		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
+		streamConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
+		streamConfig.setNumberOfOutputs(1);
+		streamConfig.setTypeSerializerOut(new StringSerializer());
+		streamConfig.setVertexID(0);
+
+		final OperatorID operatorID1 = new OperatorID();
+		final OperatorID operatorID2 = new OperatorID();
+		final OperatorID operatorID3 = new OperatorID();
+
+		streamConfig.setOperatorID(operatorID1);
+		testHarness.setupOperatorChain(operatorID1, sourceOperator).
+			chain(operatorID2, endInputOperator1, new StringSerializer()).
+			chain(operatorID3, endInputOperator2, new StringSerializer()).
+			finish();
+
+		testHarness.invoke();
+		testHarness.waitForTaskCompletion();
+
+		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
+		Assert.assertEquals(12, resultElements.size());
+
+		Assert.assertEquals("EndInput1", resultElements.get(10));
+		Assert.assertEquals("EndInput2", resultElements.get(11));
 	}
 
 	/**
@@ -255,6 +300,11 @@ public class SourceStreamTaskTest {
 		public static boolean openCalled = false;
 		public static boolean closeCalled = false;
 
+		public OpenCloseTestSource() {
+			openCalled = false;
+			closeCalled = false;
+		}
+
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
@@ -285,6 +335,29 @@ public class SourceStreamTaskTest {
 
 		@Override
 		public void cancel() {}
+	}
+
+	private static class EndInputOperator extends AbstractStreamOperator<String> implements OneInputStreamOperator<String, String> {
+
+		public boolean endInputInvoked = false;
+
+		private String name;
+
+		public EndInputOperator(String name) {
+			this.name = name;
+		}
+
+		@Override
+		public void processElement(StreamRecord<String> element) throws Exception {
+			output.collect(element);
+		}
+
+		@Override
+		public void endInput() {
+			Assert.assertFalse(endInputInvoked);
+			endInputInvoked	= true;
+			output.collect(new StreamRecord<>(name));
+		}
 	}
 }
 

@@ -18,14 +18,19 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
+import org.apache.flink.table.api.{TableConfig, TableConfigOptions}
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.util.SortUtil
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rel.logical.LogicalSort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelCollation, RelNode}
+import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
-import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.calcite.sql.`type`.SqlTypeName
 
 class FlinkLogicalSort(
     cluster: RelOptCluster,
@@ -53,8 +58,8 @@ class FlinkLogicalSort(
     new FlinkLogicalSort(cluster, traitSet, newInput, newCollation, offset, fetch)
   }
 
-  override def estimateRowCount(metadata: RelMetadataQuery): Double = {
-    val inputRowCnt = metadata.getRowCount(this.getInput)
+  override def estimateRowCount(mq: RelMetadataQuery): Double = {
+    val inputRowCnt = mq.getRowCount(this.getInput)
     if (inputRowCnt == null) {
       inputRowCnt
     } else {
@@ -73,22 +78,22 @@ class FlinkLogicalSort(
     val rowCount: Double = mq.getRowCount(this)
     planner.getCostFactory.makeCost(rowCount, rowCount, 0)
   }
+
+  override def isDeterministic: Boolean = SortUtil.isDeterministic(offset, fetch)
 }
 
-class FlinkLogicalSortConverter
+class FlinkLogicalSortStreamConverter
   extends ConverterRule(
     classOf[LogicalSort],
     Convention.NONE,
     FlinkConventions.LOGICAL,
-    "FlinkLogicalSortConverter") {
+    "FlinkLogicalSortStreamConverter") {
 
   override def convert(rel: RelNode): RelNode = {
     val sort = rel.asInstanceOf[LogicalSort]
-    val traitSet = rel.getTraitSet.replace(FlinkConventions.LOGICAL)
     val newInput = RelOptRule.convert(sort.getInput, FlinkConventions.LOGICAL)
 
-    new FlinkLogicalSort(rel.getCluster,
-      traitSet,
+    FlinkLogicalSort.create(
       newInput,
       sort.getCollation,
       sort.offset,
@@ -96,6 +101,64 @@ class FlinkLogicalSortConverter
   }
 }
 
+class FlinkLogicalSortBatchConverter extends ConverterRule(
+    classOf[LogicalSort],
+    Convention.NONE,
+    FlinkConventions.LOGICAL,
+    "FlinkLogicalSortBatchConverter") {
+
+  override def convert(rel: RelNode): RelNode = {
+    val sort = rel.asInstanceOf[LogicalSort]
+    val newInput = RelOptRule.convert(sort.getInput, FlinkConventions.LOGICAL)
+
+    val conf = sort.getCluster.getPlanner.getContext.unwrap(classOf[TableConfig])
+    val enableRangeSort = conf.getConf.getBoolean(TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED)
+    val limitValue = conf.getConf.getInteger(TableConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT)
+    val (offset, fetch) = if (sort.fetch == null && sort.offset == null
+      && !enableRangeSort && limitValue > 0) {
+      //force the sort add limit
+      val typeFactory = rel.getCluster.getTypeFactory
+      val rexBuilder = rel.getCluster.getRexBuilder
+      val offset = rexBuilder.makeLiteral(0, typeFactory.createSqlType(SqlTypeName.INTEGER), true)
+      val limit = rexBuilder.makeLiteral(
+        limitValue, typeFactory.createSqlType(SqlTypeName.INTEGER), true)
+      (offset, limit)
+    } else {
+      (sort.offset, sort.fetch)
+    }
+
+    FlinkLogicalSort.create(
+      newInput,
+      sort.getCollation,
+      offset,
+      fetch)
+  }
+}
+
 object FlinkLogicalSort {
-  val CONVERTER: RelOptRule = new FlinkLogicalSortConverter
+  val BATCH_CONVERTER: RelOptRule = new FlinkLogicalSortBatchConverter
+  val STREAM_CONVERTER: RelOptRule = new FlinkLogicalSortStreamConverter
+
+  def create(
+      input: RelNode,
+      collation: RelCollation,
+      sortOffset: RexNode,
+      sortFetch: RexNode): FlinkLogicalSort = {
+    val cluster = input.getCluster
+    val collationTrait = RelCollationTraitDef.INSTANCE.canonize(collation)
+    val traitSet = input.getTraitSet.replace(Convention.NONE).replace(collationTrait)
+    // FIXME: FlinkRelMdDistribution requires the current RelNode to compute
+    // the distribution trait, so we have to create FlinkLogicalSort to
+    // calculate the distribution trait
+    val sort = new FlinkLogicalSort(
+      cluster,
+      traitSet,
+      input,
+      collation,
+      sortOffset,
+      sortFetch)
+    val newTraitSet = FlinkRelMetadataQuery.traitSet(sort)
+      .replace(FlinkConventions.LOGICAL).simplify()
+    sort.copy(newTraitSet, sort.getInputs).asInstanceOf[FlinkLogicalSort]
+  }
 }

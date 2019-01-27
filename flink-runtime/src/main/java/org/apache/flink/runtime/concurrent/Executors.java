@@ -18,15 +18,21 @@
 
 package org.apache.flink.runtime.concurrent;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
+
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 
 import scala.concurrent.ExecutionContext;
 
 /**
- * Collection of {@link Executor}, {@link ExecutorService} and {@link ExecutionContext} implementations.
+ * Collection of {@link Executor} implementations.
  */
 public class Executors {
+
+	private static final Logger LOG = LoggerFactory.getLogger(Executors.class);
 
 	/**
 	 * Return a direct executor. The direct executor directly executes the runnable in the calling
@@ -35,19 +41,22 @@ public class Executors {
 	 * @return Direct executor
 	 */
 	public static Executor directExecutor() {
-		return DirectExecutorService.INSTANCE;
+		return DirectExecutor.INSTANCE;
 	}
 
 	/**
-	 * Return a new direct executor service.
-	 *
-	 * <p>The direct executor service directly executes the runnables and the callables in the calling
-	 * thread.
-	 *
-	 * @return New direct executor service
+	 * Direct executor implementation.
 	 */
-	public static ExecutorService newDirectExecutorService() {
-		return new DirectExecutorService();
+	private static class DirectExecutor implements Executor {
+
+		static final DirectExecutor INSTANCE = new DirectExecutor();
+
+		private DirectExecutor() {}
+
+		@Override
+		public void execute(@Nonnull Runnable command) {
+			command.run();
+		}
 	}
 
 	/**

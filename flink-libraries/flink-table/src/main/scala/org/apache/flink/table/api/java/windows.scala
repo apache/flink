@@ -18,8 +18,7 @@
 
 package org.apache.flink.table.api.java
 
-import org.apache.flink.table.api.scala.{CURRENT_RANGE, UNBOUNDED_RANGE}
-import org.apache.flink.table.api.{OverWindow, TumbleWithSize, OverWindowWithPreceding, SlideWithSize, SessionWithGap}
+import org.apache.flink.table.api.{TumbleWithSize, OverWindowWithPreceding, SlideWithSize, SessionWithGap}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 
 /**
@@ -98,7 +97,7 @@ object Over {
     * For batch tables, refer to a timestamp or long attribute.
     */
   def orderBy(orderBy: String): OverWindowWithOrderBy = {
-    val orderByExpr = ExpressionParser.parseExpression(orderBy)
+    val orderByExpr = ExpressionParser.parseExpressionList(orderBy).toArray
     new OverWindowWithOrderBy(Array[Expression](), orderByExpr)
   }
 
@@ -124,7 +123,7 @@ class PartitionedOver(private val partitionByExpr: Array[Expression]) {
     * For batch tables, refer to a timestamp or long attribute.
     */
   def orderBy(orderBy: String): OverWindowWithOrderBy = {
-    val orderByExpr = ExpressionParser.parseExpression(orderBy)
+    val orderByExpr = ExpressionParser.parseExpressionList(orderBy).toArray
     new OverWindowWithOrderBy(partitionByExpr, orderByExpr)
   }
 }
@@ -132,7 +131,7 @@ class PartitionedOver(private val partitionByExpr: Array[Expression]) {
 
 class OverWindowWithOrderBy(
   private val partitionByExpr: Array[Expression],
-  private val orderByExpr: Expression) {
+  private val orderByExpr: Array[Expression]) {
 
   /**
     * Set the preceding offset (based on time or row-count intervals) for over window.
@@ -145,21 +144,4 @@ class OverWindowWithOrderBy(
     new OverWindowWithPreceding(partitionByExpr, orderByExpr, precedingExpr)
   }
 
-  /**
-    * Assigns an alias for this window that the following `select()` clause can refer to.
-    *
-    * @param alias alias for this over window
-    * @return over window
-    */
-  def as(alias: String): OverWindow = as(ExpressionParser.parseExpression(alias))
-
-  /**
-    * Assigns an alias for this window that the following `select()` clause can refer to.
-    *
-    * @param alias alias for this over window
-    * @return over window
-    */
-  def as(alias: Expression): OverWindow = {
-    OverWindow(alias, partitionByExpr, orderByExpr, UNBOUNDED_RANGE, CURRENT_RANGE)
-  }
 }

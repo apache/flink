@@ -111,3 +111,14 @@ deployment:
   gateway-port: 0
 
 
+#==============================================================================
+# Catalog properties
+#==============================================================================
+#catalogs:
+#  - name: myhive
+#    catalog:
+#      type: hive
+#      connector:
+#        hive.metastore.uris: thrift://localhost:9083
+#      is-default: false
+#      default-database: default

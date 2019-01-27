@@ -19,323 +19,93 @@
 package org.apache.flink.table.plan
 
 import org.apache.flink.table.api.Table
+import org.apache.flink.table.api.stream.sql.StreamPlanTestBase
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
-import org.apache.flink.table.utils.StreamTableTestUtil
-import org.junit.Assert._
-import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.scala._
+
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class UpdatingPlanCheckerTest {
+class UpdatingPlanCheckerTest extends StreamPlanTestBase {
+
+  streamUtil.addTable[(Int, String, Long)](
+    "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
+  streamUtil.addTable[(Int, Long, String)](
+    "AA", 'a1, 'a2, 'a3)
+  streamUtil.addTable[(Int, Long, Int, String, Long)](
+    "BB", 'b1, 'b2, 'b3, 'b4, 'b5)
 
   @Test
-  def testSelect(): Unit = {
-    val util = new UpdatePlanCheckerUtil()
-    val table = util.addTable[(String, Int)]('a, 'b)
-    val resultTable = table.select('a, 'b)
-
-    util.verifyTableUniqueKey(resultTable, Nil)
-  }
-
-  @Test
-  def testGroupByWithoutKey(): Unit = {
-    val util = new UpdatePlanCheckerUtil()
-    val table = util.addTable[(String, Int)]('a, 'b)
-
-    val resultTable = table
-      .groupBy('a)
-      .select('b.count)
-
-    util.verifyTableUniqueKey(resultTable, Nil)
-  }
-
-  @Test
-  def testGroupByWithoutKey2(): Unit = {
-    val util = new UpdatePlanCheckerUtil()
-    val table = util.addTable[(String, Int, Int)]('a, 'b, 'c)
-
-    val resultTable = table
-      .groupBy('a, 'b)
-      .select('a, 'c.count)
-
-    util.verifyTableUniqueKey(resultTable, Nil)
+  def testAppend(): Unit = {
+    val query = "SELECT * from AA "
+    verifySqlAppendOnly(query, true)
   }
 
   @Test
   def testGroupBy(): Unit = {
-    val util = new UpdatePlanCheckerUtil()
-    val table = util.addTable[(String, Int)]('a, 'b)
-
-    val resultTable = table
-      .groupBy('a)
-      .select('a, 'b.count)
-
-    util.verifyTableUniqueKey(resultTable, Seq("a"))
+    val query = "SELECT a1, max(a3) from (SELECT a1, a2, max(a3) as a3 FROM A GROUP BY a1, a2) " +
+      "group by a1"
+    verifySqlAppendOnly(query, false)
   }
 
   @Test
-  def testGroupByWithDuplicateKey(): Unit = {
-    val util = new UpdatePlanCheckerUtil()
-    val table = util.addTable[(String, Int)]('a, 'b)
-
-    val resultTable = table
-      .groupBy('a)
-      .select('a as 'a1, 'a as 'a2, 'b.count)
-
-    util.verifyTableUniqueKey(resultTable, Seq("a1", "a2"))
-    // both a1 and a2 belong to the same group, i.e., a1. We use the lexicographic smallest
-    // attribute as the common group id
-    util.verifyTableKeyGroups(resultTable, Seq(("a1", "a1"), ("a2", "a1")))
+  def testInnerJoin(): Unit = {
+    val query = "SELECT a1, b1 FROM AA JOIN BB ON a1 = b1"
+    verifySqlAppendOnly(query, true)
   }
 
   @Test
-  def testGroupWindow(): Unit = {
-    val util = new UpdatePlanCheckerUtil()
-    val table = util.addTable[(String, Int)]('a, 'b, 'proctime.proctime)
-
-    val resultTable = table
-      .window(Tumble over 5.milli on 'proctime as 'w)
-      .groupBy('w, 'a)
-      .select('a, 'b.count, 'w.proctime as 'p, 'w.start as 's, 'w.end as 'e)
-
-    util.verifyTableUniqueKey(resultTable, Seq("a", "s", "e"))
+  def testLeftJoin(): Unit = {
+    val query = "SELECT a1, b1 FROM AA LEFT JOIN BB ON a1 = b1 AND a2 > b2"
+    verifySqlAppendOnly(query, false)
   }
 
   @Test
-  def testForwardBothKeysForJoin1(): Unit = {
-    val util = new UpdatePlanCheckerUtil()
-    val table = util.addTable[(Int, Int)]('pk, 'a)
-
-    val lTableWithPk = table
-      .groupBy('pk)
-      .select('pk as 'l1, 'pk as 'l2, 'pk as 'l3, 'a.max as 'l4, 'a.min as 'l5)
-
-    val rTableWithPk = table
-      .groupBy('pk)
-      .select('pk as 'r2, 'pk as 'r3, 'a.max as 'r1, 'a.min as 'r4, 'a.count as 'r5)
-
-    val resultTable = lTableWithPk
-      .join(rTableWithPk)
-      .where('l2 === 'r2 && 'l4 === 'r3 && 'l4 === 'r5 && 'l5 === 'r4)
-      .select('l1, 'l2, 'l3, 'l4, 'l5, 'r1, 'r2, 'r3, 'r4, 'r5)
-
-    util.verifyTableUniqueKey(resultTable, Seq("l1", "l2", "l3", "l4", "r2", "r3", "r5"))
+  def testRightJoin(): Unit = {
+    val query = "SELECT a1, b1 FROM AA RIGHT JOIN BB ON a1 = b1 AND a2 > b2"
+    verifySqlAppendOnly(query, false)
   }
 
   @Test
-  def testForwardBothKeysForLeftJoin1(): Unit = {
-    val util = new UpdatePlanCheckerUtil()
-    val table = util.addTable[(Int, Int)]('pk, 'a)
-
-    val lTableWithPk = table
-      .groupBy('pk)
-      .select('pk as 'l1, 'pk as 'l2, 'pk as 'l3, 'a.max as 'l4, 'a.min as 'l5)
-
-    val rTableWithPk = table
-      .groupBy('pk)
-      .select('pk as 'r2, 'pk as 'r3, 'a.max as 'r1, 'a.min as 'r4, 'a.min as 'r5)
-
-    val resultTable = lTableWithPk
-      .leftOuterJoin(rTableWithPk)
-      .where('l2 === 'r2 && 'l4 === 'r3 && 'l4 === 'r5 && 'l5 === 'r4)
-      .select('l1, 'l2, 'l3, 'l4, 'l5, 'r1, 'r2, 'r3, 'r4, 'r5)
-
-    util.verifyTableUniqueKey(resultTable, Seq("l1", "l2", "l3", "l4", "r2", "r3", "r5"))
+  def testFullJoin(): Unit = {
+    val query = "SELECT a1, b1 FROM AA FULL JOIN BB ON a1 = b1 AND a2 > b2"
+    verifySqlAppendOnly(query, false)
   }
 
   @Test
-  def testForwardBothKeysForJoin2(): Unit = {
-    val util = new UpdatePlanCheckerUtil()
-    val table = util.addTable[(Int, Int)]('pk, 'a)
-
-    val lTableWithPk = table
-      .groupBy('pk)
-      .select('pk as 'l1, 'pk as 'l2, 'pk as 'l3, 'a.max as 'l4, 'a.min as 'l5)
-
-    val rTableWithPk = table
-      .groupBy('pk)
-      .select('pk as 'r2, 'pk as 'r3, 'a.max as 'r1, 'a.min as 'r4, 'a.count as 'r5)
-
-    val resultTable = lTableWithPk
-      .join(rTableWithPk)
-      .where('l5 === 'r4)
-      .select('l1, 'l2, 'l3, 'l4, 'l5, 'r1, 'r2, 'r3, 'r4, 'r5)
-
-    util.verifyTableUniqueKey(resultTable, Seq("l1", "l2", "l3", "r2", "r3"))
+  def testAntiJoin(): Unit = {
+    val query = "SELECT * FROM A WHERE NOT EXISTS (SELECT b1 from B WHERE a1 = b1)"
+    verifySqlAppendOnly(query, false)
   }
 
   @Test
-  def testForwardBothKeysForLeftJoin2(): Unit = {
-    val util = new UpdatePlanCheckerUtil()
-    val table = util.addTable[(Int, Int)]('pk, 'a)
-
-    val lTableWithPk = table
-      .groupBy('pk)
-      .select('pk as 'l1, 'pk as 'l2, 'pk as 'l3, 'a.max as 'l4, 'a.min as 'l5)
-
-    val rTableWithPk = table
-      .groupBy('pk)
-      .select('pk as 'r2, 'pk as 'r3, 'a.max as 'r1, 'a.min as 'r4, 'a.count as 'r5)
-
-    val resultTable = lTableWithPk
-      .leftOuterJoin(rTableWithPk)
-      .where('l5 === 'r4)
-      .select('l1, 'l2, 'l3, 'l4, 'l5, 'r1, 'r2, 'r3, 'r4, 'r5)
-
-    util.verifyTableUniqueKey(resultTable, Seq("l1", "l2", "l3", "r2", "r3"))
+  def testSemiJoin(): Unit = {
+    val query = "SELECT * FROM A WHERE EXISTS (SELECT b1 from B WHERE a1 = b1)"
+    verifySqlAppendOnly(query, true)
   }
 
   @Test
-  def testJoinKeysEqualsLeftKeys(): Unit = {
-    val util = new UpdatePlanCheckerUtil()
-    val table = util.addTable[(Int, Int)]('pk, 'a)
-
-    val lTableWithPk = table
-      .groupBy('pk)
-      .select('pk as 'leftpk, 'a.max as 'lefta)
-
-    val rTableWithPk = table
-      .groupBy('pk)
-      .select('pk as 'rightpk, 'a.max as 'righta)
-
-    val resultTable = lTableWithPk
-      .join(rTableWithPk)
-      .where('leftpk === 'righta)
-      .select('rightpk, 'lefta, 'righta)
-
-    util.verifyTableUniqueKey(resultTable, Seq("rightpk", "righta"))
+  def testRank(): Unit = {
+    val query =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT a, b, c,
+        |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) as rank_num
+        |  FROM MyTable)
+        |WHERE rank_num <= 10
+      """.stripMargin
+    verifySqlAppendOnly(query, false)
   }
 
-  @Test
-  def testJoinKeysEqualsLeftKeysForLeftJoin(): Unit = {
-    val util = new UpdatePlanCheckerUtil()
-    val table = util.addTable[(Int, Int)]('pk, 'a)
-
-    val lTableWithPk = table
-      .groupBy('pk)
-      .select('pk as 'leftpk, 'a.max as 'lefta)
-
-    val rTableWithPk = table
-      .groupBy('pk)
-      .select('pk as 'rightpk, 'a.max as 'righta)
-
-    val resultTable = lTableWithPk
-      .leftOuterJoin(rTableWithPk)
-      .where('leftpk === 'righta)
-      .select('rightpk, 'lefta, 'righta)
-
-    util.verifyTableUniqueKey(resultTable, Seq("rightpk", "righta"))
+  def verifySqlAppendOnly(query: String, isUpdating: Boolean): Unit = {
+    verifyTableAppendOnly(streamUtil.tableEnv.sqlQuery(query), isUpdating)
   }
 
-  @Test
-  def testJoinKeysEqualsRightKeys(): Unit = {
-    val util = new UpdatePlanCheckerUtil()
-    val table = util.addTable[(Int, Int)]('pk, 'a)
-
-    val lTableWithPk = table
-      .groupBy('pk)
-      .select('pk as 'leftpk, 'a.max as 'lefta)
-
-    val rTableWithPk = table
-      .groupBy('pk)
-      .select('pk as 'rightpk, 'a.max as 'righta)
-
-    val resultTable = lTableWithPk
-      .join(rTableWithPk)
-      .where('lefta === 'rightpk)
-      .select('leftpk, 'lefta, 'righta)
-
-    util.verifyTableUniqueKey(resultTable, Seq("leftpk", "lefta"))
-  }
-
-  @Test
-  def testJoinKeysEqualsRightKeysForLeftJoin(): Unit = {
-    val util = new UpdatePlanCheckerUtil()
-    val table = util.addTable[(Int, Int)]('pk, 'a)
-
-    val lTableWithPk = table
-      .groupBy('pk)
-      .select('pk as 'leftpk, 'a.max as 'lefta)
-
-    val rTableWithPk = table
-      .groupBy('pk)
-      .select('pk as 'rightpk, 'a.max as 'righta)
-
-    val resultTable = lTableWithPk
-      .join(rTableWithPk)
-      .where('lefta === 'rightpk)
-      .select('leftpk, 'lefta, 'righta)
-
-    util.verifyTableUniqueKey(resultTable, Seq("leftpk", "lefta"))
-  }
-
-
-  @Test
-  def testNonKeysJoin(): Unit = {
-    val util = new UpdatePlanCheckerUtil()
-    val table = util.addTable[(Int, Int)]('a, 'b)
-
-    val lTable = table
-      .select('a as 'a, 'b as 'b)
-
-    val rTable = table
-      .select('a as 'aa, 'b as 'bb)
-
-    val resultTable = lTable
-      .join(rTable)
-      .where('a === 'aa)
-      .select('a, 'aa, 'b, 'bb)
-
-    util.verifyTableUniqueKey(resultTable, Nil)
-  }
-
-  @Test
-  def testNonKeysJoin2(): Unit = {
-    val util = new UpdatePlanCheckerUtil()
-    val table = util.addTable[(Int, Int)]('a, 'b)
-
-    val lTable = table
-      .select('a as 'a, 'b as 'b)
-
-    val rTable = table
-      .select('a as 'aa, 'b as 'bb)
-
-    val resultTable = lTable
-      .leftOuterJoin(rTable, 'a === 'aa)
-      .select('a, 'aa, 'b, 'bb)
-
-    util.verifyTableUniqueKey(resultTable, Nil)
-  }
-}
-
-
-class UpdatePlanCheckerUtil extends StreamTableTestUtil {
-
-  def verifySqlUniqueKey(query: String, expected: Seq[String]): Unit = {
-    verifyTableUniqueKey(tableEnv.sqlQuery(query), expected)
-  }
-
-  def getKeyGroups(resultTable: Table): Option[Seq[(String, String)]] = {
+  def verifyTableAppendOnly(resultTable: Table, expected: Boolean): Unit = {
     val relNode = resultTable.getRelNode
-    val optimized = tableEnv.optimize(relNode, updatesAsRetraction = false)
-    UpdatingPlanChecker.getUniqueKeyGroups(optimized)
-  }
-
-  def verifyTableKeyGroups(resultTable: Table, expected: Seq[(String, String)]): Unit = {
-    val actual = getKeyGroups(resultTable)
-    if (actual.isDefined) {
-      assertEquals(expected.sorted, actual.get.sorted)
-    } else {
-      assertEquals(expected.sorted, Nil)
-    }
-  }
-
-  def verifyTableUniqueKey(resultTable: Table, expected: Seq[String]): Unit = {
-    val actual = getKeyGroups(resultTable).map(_.map(_._1))
-    if (actual.isDefined) {
-      assertEquals(expected.sorted, actual.get.sorted)
-    } else {
-      assertEquals(expected.sorted, Nil)
-    }
+    val optimized = streamUtil.tableEnv.optimize(relNode, updatesAsRetraction = false)
+    assertEquals(expected, UpdatingPlanChecker.isAppendOnly(optimized))
   }
 }

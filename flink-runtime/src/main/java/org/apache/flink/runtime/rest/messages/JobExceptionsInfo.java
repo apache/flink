@@ -87,12 +87,16 @@ public class JobExceptionsInfo implements ResponseBody {
 
 	/**
 	 * Nested class to encapsulate the task execution exception.
+	 * Sorted by timestamp field ASC ordering.
 	 */
-	public static final class ExecutionExceptionInfo {
+	public static final class ExecutionExceptionInfo implements Comparable<ExecutionExceptionInfo> {
 		public static final String FIELD_NAME_EXCEPTION = "exception";
 		public static final String FIELD_NAME_TASK = "task";
 		public static final String FIELD_NAME_LOCATION = "location";
 		public static final String FIELD_NAME_TIMESTAMP = "timestamp";
+		public static final String FIELD_NAME_VERTEX_ID = "vertex-id";
+		public static final String FIELD_NAME_SUBTASK_INDEX = "subtask-index";
+		public static final String FIELD_NAME_ATTEMPT_NUM = "attempt-num";
 
 		@JsonProperty(FIELD_NAME_EXCEPTION)
 		private final String exception;
@@ -106,16 +110,32 @@ public class JobExceptionsInfo implements ResponseBody {
 		@JsonProperty(FIELD_NAME_TIMESTAMP)
 		private final long timestamp;
 
+		@JsonProperty(FIELD_NAME_VERTEX_ID)
+		private final String vertexID;
+
+		@JsonProperty(FIELD_NAME_SUBTASK_INDEX)
+		private final int subtaskIndex;
+
+		@JsonProperty(FIELD_NAME_ATTEMPT_NUM)
+		private final int attemptNum;
+
 		@JsonCreator
 		public ExecutionExceptionInfo(
 			@JsonProperty(FIELD_NAME_EXCEPTION) String exception,
 			@JsonProperty(FIELD_NAME_TASK) String task,
 			@JsonProperty(FIELD_NAME_LOCATION) String location,
-			@JsonProperty(FIELD_NAME_TIMESTAMP) long timestamp) {
+			@JsonProperty(FIELD_NAME_TIMESTAMP) long timestamp,
+			@JsonProperty(FIELD_NAME_VERTEX_ID) String vertexID,
+			@JsonProperty(FIELD_NAME_SUBTASK_INDEX) int subtaskIndex,
+			@JsonProperty(FIELD_NAME_ATTEMPT_NUM) int attemptNum) {
+
 			this.exception = Preconditions.checkNotNull(exception);
 			this.task = Preconditions.checkNotNull(task);
 			this.location = Preconditions.checkNotNull(location);
 			this.timestamp = timestamp;
+			this.vertexID = vertexID;
+			this.subtaskIndex = subtaskIndex;
+			this.attemptNum = attemptNum;
 		}
 
 		@Override
@@ -130,12 +150,20 @@ public class JobExceptionsInfo implements ResponseBody {
 			return timestamp == that.timestamp &&
 				Objects.equals(exception, that.exception) &&
 				Objects.equals(task, that.task) &&
-				Objects.equals(location, that.location);
+				Objects.equals(location, that.location) &&
+				Objects.equals(vertexID, that.vertexID) &&
+				subtaskIndex == that.subtaskIndex &&
+				attemptNum == that.attemptNum;
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(timestamp, exception, task, location);
+			return Objects.hash(timestamp, exception, task, location, vertexID, subtaskIndex, attemptNum);
+		}
+
+		@Override
+		public int compareTo(ExecutionExceptionInfo o) {
+			return Long.compare(timestamp, o.timestamp);
 		}
 	}
 }

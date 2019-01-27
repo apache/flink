@@ -18,35 +18,39 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.QueryableStateOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.io.network.partition.BlockingShuffleType;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.NetUtils;
 
+import org.apache.commons.net.util.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
+import java.io.ByteArrayInputStream;
+import java.io.ObjectInputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.Optional;
+import java.util.LinkedList;
+import java.util.List;
 
-import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
-import static org.apache.flink.util.MathUtils.checkedDownCast;
+import static org.apache.flink.configuration.TaskManagerOptions.IO_MANAGER_BUFFERED_READ_SIZE;
+import static org.apache.flink.configuration.TaskManagerOptions.IO_MANAGER_BUFFERED_WRITE_SIZE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -67,7 +71,6 @@ public class TaskManagerServicesConfiguration {
 
 	private final NetworkEnvironmentConfiguration networkConfig;
 
-	@Nullable
 	private final QueryableStateConfiguration queryableStateConfig;
 
 	/**
@@ -76,6 +79,13 @@ public class TaskManagerServicesConfiguration {
 	 * @see TaskManagerOptions#MANAGED_MEMORY_SIZE
 	 */
 	private final long configuredMemory;
+
+	/**
+	 * Floating managed memory (in megabytes).
+	 *
+	 * @see TaskManagerOptions#FLOATING_MANAGED_MEMORY_SIZE
+	 */
+	private final long floatingManagedMemorySizeMB;
 
 	private final MemoryType memoryType;
 
@@ -87,7 +97,15 @@ public class TaskManagerServicesConfiguration {
 
 	private final boolean localRecoveryEnabled;
 
-	private Optional<Time> systemResourceMetricsProbingInterval;
+	private final List<ResourceProfile> resourceProfileList = new LinkedList<>();
+
+	private final ResourceProfile totalResourceProfile;
+
+	private final int ioManagerBufferedReadSize;
+
+	private final int ioManagerBufferedWriteSize;
+
+	private final int ioManagerNumAsyncReadWriteThread;
 
 	public TaskManagerServicesConfiguration(
 			InetAddress taskManagerAddress,
@@ -95,33 +113,44 @@ public class TaskManagerServicesConfiguration {
 			String[] localRecoveryStateRootDirectories,
 			boolean localRecoveryEnabled,
 			NetworkEnvironmentConfiguration networkConfig,
-			@Nullable QueryableStateConfiguration queryableStateConfig,
+			QueryableStateConfiguration queryableStateConfig,
 			int numberOfSlots,
 			long configuredMemory,
+			long floatingManagedMemorySizeMB,
 			MemoryType memoryType,
 			boolean preAllocateMemory,
 			float memoryFraction,
 			long timerServiceShutdownTimeout,
-			Optional<Time> systemResourceMetricsProbingInterval) {
+			List<ResourceProfile> resourceProfileList,
+			ResourceProfile totalResourceProfile,
+			int ioManagerBufferedReadSize,
+			int ioManagerBufferedWriteSize,
+			int ioManagerNumAsyncReadWriteThread) {
 
 		this.taskManagerAddress = checkNotNull(taskManagerAddress);
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
 		this.localRecoveryStateRootDirectories = checkNotNull(localRecoveryStateRootDirectories);
 		this.localRecoveryEnabled = checkNotNull(localRecoveryEnabled);
 		this.networkConfig = checkNotNull(networkConfig);
-		this.queryableStateConfig = queryableStateConfig;
+		this.queryableStateConfig = checkNotNull(queryableStateConfig);
 		this.numberOfSlots = checkNotNull(numberOfSlots);
 
 		this.configuredMemory = configuredMemory;
+		this.floatingManagedMemorySizeMB = floatingManagedMemorySizeMB;
 		this.memoryType = checkNotNull(memoryType);
 		this.preAllocateMemory = preAllocateMemory;
 		this.memoryFraction = memoryFraction;
+		this.ioManagerBufferedReadSize = ioManagerBufferedReadSize;
+		this.ioManagerBufferedWriteSize = ioManagerBufferedWriteSize;
+		this.ioManagerNumAsyncReadWriteThread = ioManagerNumAsyncReadWriteThread;
 
 		checkArgument(timerServiceShutdownTimeout >= 0L, "The timer " +
 			"service shutdown timeout must be greater or equal to 0.");
 		this.timerServiceShutdownTimeout = timerServiceShutdownTimeout;
 
-		this.systemResourceMetricsProbingInterval = checkNotNull(systemResourceMetricsProbingInterval);
+		this.resourceProfileList.addAll(checkNotNull(resourceProfileList));
+
+		this.totalResourceProfile = totalResourceProfile;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -160,6 +189,18 @@ public class TaskManagerServicesConfiguration {
 		return memoryFraction;
 	}
 
+	public int getIoManagerBufferedReadSize() {
+		return ioManagerBufferedReadSize;
+	}
+
+	public int getIoManagerBufferedWriteSize() {
+		return ioManagerBufferedWriteSize;
+	}
+
+	public int getIoManagerNumAsyncReadWriteThread() {
+		return ioManagerNumAsyncReadWriteThread;
+	}
+
 	/**
 	 * Returns the memory type to use.
 	 *
@@ -180,6 +221,17 @@ public class TaskManagerServicesConfiguration {
 		return configuredMemory;
 	}
 
+	/**
+	 * Returns the size of the floating managed memory (in megabytes), if configured.
+	 *
+	 * @return floating managed memory or a default value (currently <tt>0</tt>) if not configured
+	 *
+	 * @see TaskManagerOptions#FLOATING_MANAGED_MEMORY_SIZE
+	 */
+	public long getFloatingManagedMemory() {
+		return floatingManagedMemorySizeMB;
+	}
+
 	public boolean isPreAllocateMemory() {
 		return preAllocateMemory;
 	}
@@ -188,8 +240,12 @@ public class TaskManagerServicesConfiguration {
 		return timerServiceShutdownTimeout;
 	}
 
-	public Optional<Time> getSystemResourceMetricsProbingInterval() {
-		return systemResourceMetricsProbingInterval;
+	public List<ResourceProfile> getResourceProfileList() {
+		return resourceProfileList;
+	}
+
+	public ResourceProfile getTotalResourceProfile() {
+		return totalResourceProfile;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -239,26 +295,16 @@ public class TaskManagerServicesConfiguration {
 				parseQueryableStateConfiguration(configuration);
 
 		// extract memory settings
-		long configuredMemory;
-		String managedMemorySizeDefaultVal = TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue();
-		if (!configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(managedMemorySizeDefaultVal)) {
-			try {
-				configuredMemory = MemorySize.parse(configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE), MEGA_BYTES).getMebiBytes();
-			} catch (IllegalArgumentException e) {
-				throw new IllegalConfigurationException(
-					"Could not read " + TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), e);
-			}
-		} else {
-			configuredMemory = Long.valueOf(managedMemorySizeDefaultVal);
-		}
-
+		long configuredMemory = configuration.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE);
 		checkConfigParameter(
-			configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()) ||
+			configuredMemory == TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue() ||
 				configuredMemory > 0, configuredMemory,
 			TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
 			"MemoryManager needs at least one MB of memory. " +
 				"If you leave this config parameter empty, the system automatically " +
 				"pick a fraction of the available memory.");
+
+		final long floatingMemorySizeMB = configuration.getLong(TaskManagerOptions.FLOATING_MANAGED_MEMORY_SIZE);
 
 		// check whether we use heap or off-heap memory
 		final MemoryType memType;
@@ -277,6 +323,44 @@ public class TaskManagerServicesConfiguration {
 
 		long timerServiceShutdownTimeout = AkkaUtils.getTimeout(configuration).toMillis();
 
+		List<ResourceProfile> resourceProfiles = new ArrayList<>(slots);
+		String resource = configuration.getString(TaskManagerOptions.TASK_MANAGER_RESOURCE_PROFILE_KEY);
+		if (!resource.isEmpty()) {
+			ByteArrayInputStream input = new ByteArrayInputStream(Base64.decodeBase64(resource));
+			ObjectInputStream rpInput = new ObjectInputStream(input);
+			ResourceProfile resourceProfile = (ResourceProfile)rpInput.readObject();
+			rpInput.close();
+			for (int i = 0; i < slots; ++i) {
+				resourceProfiles.add(resourceProfile);
+			}
+		}
+
+		ResourceProfile totalResourceProfile = ResourceProfile.UNKNOWN;
+		String totalResource = configuration.getString(TaskManagerOptions.TASK_MANAGER_TOTAL_RESOURCE_PROFILE_KEY);
+		if (!totalResource.isEmpty()) {
+			ByteArrayInputStream input = new ByteArrayInputStream(Base64.decodeBase64(totalResource));
+			ObjectInputStream rpInput = new ObjectInputStream(input);
+			totalResourceProfile = (ResourceProfile)rpInput.readObject();
+		}
+
+		final int ioManagerBufferedReadSize = configuration.getInteger(IO_MANAGER_BUFFERED_READ_SIZE);
+		final int ioManagerBufferedWriteSize = configuration.getInteger(IO_MANAGER_BUFFERED_WRITE_SIZE);
+
+		int ioManagerNumAsyncReadWriteThread = configuration.getInteger(TaskManagerOptions.IO_MANAGER_ASYNC_NUM_READ_WRITE_THREAD);
+
+		if (ioManagerNumAsyncReadWriteThread <= 0) {
+			final BlockingShuffleType shuffleType = BlockingShuffleType.getBlockingShuffleTypeFromConfiguration(configuration, LOG);
+			if (BlockingShuffleType.YARN.equals(shuffleType)) {
+				String localDirs = configuration.getString(TaskManagerOptions.TASK_MANAGER_OUTPUT_LOCAL_OUTPUT_DIRS);
+				String[] dirs = localDirs.split(",");
+				ioManagerNumAsyncReadWriteThread = Math.max(2, 2 * dirs.length);
+			} else {
+				ioManagerNumAsyncReadWriteThread = Math.max(1, tmpDirs.length);
+			}
+		}
+
+		LOG.info("TaskManager will starts {} IO threads.", ioManagerNumAsyncReadWriteThread);
+
 		return new TaskManagerServicesConfiguration(
 			remoteAddress,
 			tmpDirs,
@@ -286,11 +370,16 @@ public class TaskManagerServicesConfiguration {
 			queryableStateConfig,
 			slots,
 			configuredMemory,
+			floatingMemorySizeMB,
 			memType,
 			preAllocateMemory,
 			memoryFraction,
 			timerServiceShutdownTimeout,
-			ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
+			resourceProfiles,
+			totalResourceProfile,
+			ioManagerBufferedReadSize,
+			ioManagerBufferedWriteSize,
+			ioManagerNumAsyncReadWriteThread);
 	}
 
 	// --------------------------------------------------------------------------
@@ -323,7 +412,7 @@ public class TaskManagerServicesConfiguration {
 		checkConfigParameter(slots >= 1, slots, TaskManagerOptions.NUM_TASK_SLOTS.key(),
 			"Number of task slots must be at least one.");
 
-		final int pageSize = checkedDownCast(MemorySize.parse(configuration.getString(TaskManagerOptions.MEMORY_SEGMENT_SIZE)).getBytes());
+		final int pageSize = configuration.getInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE);
 
 		// check page size of for minimum size
 		checkConfigParameter(pageSize >= MemoryManager.MIN_PAGE_SIZE, pageSize,
@@ -338,8 +427,8 @@ public class TaskManagerServicesConfiguration {
 		// network buffer memory fraction
 
 		float networkBufFraction = configuration.getFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
-		long networkBufMin = MemorySize.parse(configuration.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN)).getBytes();
-		long networkBufMax = MemorySize.parse(configuration.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX)).getBytes();
+		long networkBufMin = configuration.getLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN);
+		long networkBufMax = configuration.getLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX);
 		checkNetworkBufferConfig(pageSize, networkBufFraction, networkBufMin, networkBufMax);
 
 		// fallback: number of network buffers
@@ -388,6 +477,14 @@ public class TaskManagerServicesConfiguration {
 		int extraBuffersPerGate = configuration.getInteger(
 			TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
 
+		int buffersPerExternalBlockingChannel = configuration.getInteger(
+			TaskManagerOptions.NETWORK_BUFFERS_PER_EXTERNAL_BLOCKING_CHANNEL);
+		int extraBuffersPerExternalBlockingGate = configuration.getInteger(
+			TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_EXTERNAL_BLOCKING_GATE);
+
+		int buffersPerSubpartition = configuration.getInteger(
+			TaskManagerOptions.NETWORK_BUFFERS_PER_SUBPARTITION);
+
 		return new NetworkEnvironmentConfiguration(
 			networkBufFraction,
 			networkBufMin,
@@ -398,6 +495,9 @@ public class TaskManagerServicesConfiguration {
 			maxRequestBackoff,
 			buffersPerChannel,
 			extraBuffersPerGate,
+			buffersPerExternalBlockingChannel,
+			extraBuffersPerExternalBlockingGate,
+			buffersPerSubpartition,
 			nettyConfig);
 	}
 
@@ -468,9 +568,6 @@ public class TaskManagerServicesConfiguration {
 	 * Creates the {@link QueryableStateConfiguration} from the given Configuration.
 	 */
 	private static QueryableStateConfiguration parseQueryableStateConfiguration(Configuration config) {
-		if (!config.getBoolean(QueryableStateOptions.ENABLE_QUERYABLE_STATE_PROXY_SERVER)) {
-			return null;
-		}
 
 		final Iterator<Integer> proxyPorts = NetUtils.getPortRangeFromString(
 				config.getString(QueryableStateOptions.PROXY_PORT_RANGE));

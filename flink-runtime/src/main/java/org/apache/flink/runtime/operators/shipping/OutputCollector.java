@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.operators.shipping;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.util.Collector;
 
 import java.io.IOException;
@@ -35,22 +33,19 @@ import java.util.List;
 public class OutputCollector<T> implements Collector<T> {
 
 	// list of writers
-	private final RecordWriter<SerializationDelegate<T>>[] writers;
+	private final RecordWriter<T>[] writers;
 
-	private final SerializationDelegate<T> delegate;
 
-	
 	/**
-	 * Initializes the output collector with a set of writers. 
-	 * To specify for a writer that it must be fed with a deep-copy, set the bit in the copy flag bit mask to 1 that 
+	 * Initializes the output collector with a set of writers.
+	 * To specify for a writer that it must be fed with a deep-copy, set the bit in the copy flag bit mask to 1 that
 	 * corresponds to the position of the writer within the {@link List}.
-	 * 
+	 *
 	 * @param writers List of all writers.
 	 */
 	@SuppressWarnings("unchecked")
-	public OutputCollector(List<RecordWriter<SerializationDelegate<T>>> writers, TypeSerializer<T> serializer) {
-		this.delegate = new SerializationDelegate<T>(serializer);
-		this.writers = (RecordWriter<SerializationDelegate<T>>[]) writers.toArray(new RecordWriter[writers.size()]);
+	public OutputCollector(List<RecordWriter<T>> writers) {
+		this.writers = (RecordWriter<T>[]) writers.toArray(new RecordWriter[writers.size()]);
 	}
 
 	/**
@@ -59,10 +54,9 @@ public class OutputCollector<T> implements Collector<T> {
 	@Override
 	public void collect(T record)  {
 		if (record != null) {
-			this.delegate.setInstance(record);
 			try {
-				for (RecordWriter<SerializationDelegate<T>> writer : writers) {
-					writer.emit(this.delegate);
+				for (RecordWriter<T> writer : writers) {
+					writer.emit(record);
 				}
 			}
 			catch (IOException e) {
@@ -91,7 +85,7 @@ public class OutputCollector<T> implements Collector<T> {
 	 * @return list of writers
 	 */
 	@SuppressWarnings("unchecked")
-	public List<RecordWriter<SerializationDelegate<T>>> getWriters() {
+	public List<RecordWriter<T>> getWriters() {
 		return Collections.unmodifiableList(Arrays.asList(this.writers));
 	}
 }

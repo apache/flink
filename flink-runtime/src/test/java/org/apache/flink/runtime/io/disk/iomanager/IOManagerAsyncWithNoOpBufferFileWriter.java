@@ -42,7 +42,7 @@ public class IOManagerAsyncWithNoOpBufferFileWriter extends IOManagerAsync {
 		private NoOpAsynchronousBufferFileWriter(
 				ID channelID,
 				RequestQueue<WriteRequest> requestQueue) throws IOException {
-			super(channelID, requestQueue);
+			super(channelID, requestQueue, -1);
 		}
 
 		@Override

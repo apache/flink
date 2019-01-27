@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.api.batch.table
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.table.api.batch.table.CalcTest.{MyHashCode, TestCaseClass, WC, giveMeCaseClass}
+import org.apache.flink.table.api.functions.ScalarFunction
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.types.DataType
 import org.apache.flink.table.expressions.Upper
-import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.util.TableTestBase
+
 import org.junit.Test
 
 class CalcTest extends TableTestBase {
@@ -37,19 +37,7 @@ class CalcTest extends TableTestBase {
 
     val result = table.select('a.flatten(), 'c, 'b.flatten())
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      term("select",
-        "a._1 AS a$_1",
-        "a._2 AS a$_2",
-        "c",
-        "b._1 AS b$_1",
-        "b._2 AS b$_2"
-      )
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
   }
 
   @Test
@@ -60,17 +48,7 @@ class CalcTest extends TableTestBase {
 
     val result = table.select('a.flatten(), 'b.flatten())
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      term("select",
-        "a._1 AS a$_1",
-        "a._2 AS a$_2",
-        "b"
-      )
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
   }
 
   @Test
@@ -84,18 +62,7 @@ class CalcTest extends TableTestBase {
       giveMeCaseClass().get("clazz"),
       giveMeCaseClass().flatten())
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      term("select",
-        "giveMeCaseClass$().my AS _c0",
-        "giveMeCaseClass$().clazz AS _c1",
-        "giveMeCaseClass$().my AS _c2",
-        "giveMeCaseClass$().clazz AS _c3"
-      )
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -109,13 +76,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.select('a, 'b)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      term("select", "a", "b")
-    )
-
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -125,10 +86,7 @@ class CalcTest extends TableTestBase {
     val resultTable1 = sourceTable.select('*)
     val resultTable2 = sourceTable.select('a, 'b, 'c, 'd)
 
-    val expected = batchTableNode(0)
-
-    util.verifyTable(resultTable1, expected)
-    util.verifyTable(resultTable2, expected)
+    verifyTableEquals(resultTable1, resultTable2)
   }
 
   @Test
@@ -137,17 +95,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.select('a.sum, 'b.max)
 
-    val expected = unaryNode(
-      "DataSetAggregate",
-      unaryNode(
-        "DataSetCalc",
-        batchTableNode(0),
-        term("select", "a", "b")
-      ),
-      term("select", "SUM(a) AS TMP_0", "MAX(b) AS TMP_1")
-    )
-
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -159,13 +107,7 @@ class CalcTest extends TableTestBase {
 
     val resultTable = sourceTable.select("hashCode(c), b")
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      term("select", "MyHashCode$(c) AS _c0", "b")
-    )
-
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -174,21 +116,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.groupBy('a, 'c).select('a)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      unaryNode(
-        "DataSetDistinct",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "c")
-        ),
-        term("distinct", "a", "c")
-      ),
-      term("select", "a")
-    )
-
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -197,17 +125,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.groupBy('a, 'c).select('a, 'c)
 
-    val expected = unaryNode(
-      "DataSetDistinct",
-      unaryNode(
-        "DataSetCalc",
-        batchTableNode(0),
-        term("select", "a", "c")
-      ),
-      term("distinct", "a", "c")
-    )
-
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -216,23 +134,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.groupBy('c).select('a.sum)
 
-    val expected =
-      unaryNode(
-        "DataSetCalc",
-        unaryNode(
-          "DataSetAggregate",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(0),
-            term("select", "a", "c")
-          ),
-          term("groupBy", "c"),
-          term("select", "c", "SUM(a) AS TMP_0")
-        ),
-        term("select", "TMP_0")
-      )
-
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -241,25 +143,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.groupBy(Upper('c) as 'k).select('a.sum)
 
-    val expected =
-      unaryNode(
-        "DataSetCalc",
-        unaryNode(
-          "DataSetAggregate",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(0),
-            // As stated in https://issues.apache.org/jira/browse/CALCITE-1584
-            // Calcite planner doesn't promise to retain field names.
-            term("select", "a", "c", "UPPER(c) AS $f2")
-          ),
-          term("groupBy", "$f2"),
-          term("select", "$f2", "SUM(a) AS TMP_0")
-        ),
-        term("select", "TMP_0")
-      )
-
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -268,25 +152,7 @@ class CalcTest extends TableTestBase {
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.groupBy(MyHashCode('c) as 'k).select('a.sum)
 
-    val expected =
-      unaryNode(
-        "DataSetCalc",
-        unaryNode(
-          "DataSetAggregate",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(0),
-            // As stated in https://issues.apache.org/jira/browse/CALCITE-1584
-            // Calcite planner doesn't promise to retain field names.
-            term("select", "a", "c", "MyHashCode$(c) AS $f2")
-          ),
-          term("groupBy", "$f2"),
-          term("select", "$f2", "SUM(a) AS TMP_0")
-        ),
-        term("select", "TMP_0")
-      )
-
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -297,20 +163,8 @@ class CalcTest extends TableTestBase {
       .groupBy('word)
       .select('word, 'frequency.sum as 'frequency)
       .filter('frequency === 2)
-    val expected =
-      unaryNode(
-        "DataSetCalc",
-        unaryNode(
-          "DataSetAggregate",
-          batchTableNode(0),
-          term("groupBy", "word"),
-          term("select", "word", "SUM(frequency) AS TMP_0")
-        ),
-        term("select", "word, TMP_0 AS frequency"),
-        term("where", "=(TMP_0, 2)")
-      )
 
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -322,14 +176,7 @@ class CalcTest extends TableTestBase {
       .filter('b < 2)
       .filter(('a % 2) === 1)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      term("select", "a", "b"),
-      term("where", "AND(AND(>(a, 0), <(b, 2)), =(MOD(a, 2), 1))")
-    )
-
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 }
 
@@ -342,7 +189,7 @@ object CalcTest {
       TestCaseClass("hello", 42)
     }
 
-    override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = {
+    override def getResultType(arguments: Array[AnyRef], argTypes: Array[Class[_]]): DataType = {
       createTypeInformation[TestCaseClass]
     }
   }

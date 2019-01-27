@@ -1,9 +1,10 @@
 ---
 title: "Internals"
 nav-id: internals
-nav-pos: 9
+nav-pos: 8
 nav-title: '<i class="fa fa-book title dessert" aria-hidden="true"></i> Internals'
 nav-parent_id: root
+section-break: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

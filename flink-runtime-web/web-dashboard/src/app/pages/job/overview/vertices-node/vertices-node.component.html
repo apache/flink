@@ -1,0 +1,89 @@
+<!--
+  ~   Licensed to the Apache Software Foundation (ASF) under one
+  ~   or more contributor license agreements.  See the NOTICE file
+  ~   distributed with this work for additional information
+  ~   regarding copyright ownership.  The ASF licenses this file
+  ~   to you under the Apache License, Version 2.0 (the
+  ~   "License"); you may not use this file except in compliance
+  ~   with the License.  You may obtain a copy of the License at
+  ~       http://www.apache.org/licenses/LICENSE-2.0
+  ~   Unless required by applicable law or agreed to in writing, software
+  ~   distributed under the License is distributed on an "AS IS" BASIS,
+  ~   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~   See the License for the specific language governing permissions and
+  ~   limitations under the License.
+  -->
+
+<ng-container *ngIf="nodeInfo.node.isGroupNode">
+  <div class="group-wrapper"
+    [class.danger-node]="verticesDetail?.inQueue >=1 || verticesDetail?.outQueue >=1"
+    [class.expanded]="nodeInfo.expanded">
+    <div class="group-header">
+      <h4 class="node-title">
+      <span class="action-title">
+        <span *ngIf="!nodeInfo.expanded">
+          Vertex<ng-container *ngIf="canToggleExpand">({{nodeInfo.node.cardinality}} Operators)</ng-container>
+        </span>
+        <span *ngIf="nodeInfo.expanded">
+          Parallel: {{verticesDetail?.parallelism}}
+          <nz-divider nzType="vertical"></nz-divider> InQ: {{(verticesDetail?.inQueue | percent) || '-'}}
+          <nz-divider nzType="vertical"></nz-divider> OutQ: {{(verticesDetail?.outQueue | percent) || '-'}}
+        </span>
+      </span>
+        <a *ngIf="canToggleExpand" class="toggle-expand" (click)="toggleExpand($event)">
+          <i *ngIf="!nodeInfo.expanded" nz-icon type="plus" theme="outline"></i>
+          <i *ngIf="nodeInfo.expanded" nz-icon type="minus" theme="outline"></i>
+        </a>
+      </h4>
+    </div>
+    <div class="group-body">
+      <h5 class="sub-title" *ngIf="!canToggleExpand && verticesDetail?.name && verticesDetail?.name.length > 125; else fullVerticesName"
+        nz-popover
+        nzOverlayClassName="op-name-popover"
+        [nzOverlayStyle]="{
+          'max-width': '600px',
+          'max-height': '400px'
+        }"
+        [nzContent]="verticesDetail?.name">
+        {{verticesDetail?.displayName}}
+      </h5>
+      <ng-template #fullVerticesName>
+        <h5 class="sub-title">{{verticesDetail?.displayName}}</h5>
+      </ng-template>
+      <div class="attr-wrap">
+        <p class="attr"><span class="attr-name">Parallelism</span>: {{verticesDetail?.parallelism}} </p>
+        <p class="attr" [class.danger-attr]="verticesDetail?.inQueue  >= 1">
+          <span class="attr-name">In Queue</span>: {{(verticesDetail?.inQueue | percent) || '-'}}
+        </p>
+        <p class="attr" [class.danger-attr]="verticesDetail?.outQueue  >= 1">
+          <span class="attr-name">Out Queue</span>: {{(verticesDetail?.outQueue | percent) || '-'}}
+        </p>
+      </div>
+    </div>
+  </div>
+</ng-container>
+<ng-container *ngIf="!nodeInfo.node.isGroupNode">
+  <div
+    class="op-wrapper"
+    [class.danger-node]="operatorsDetail.abnormal">
+    <div class="attr-wrap">
+      <p class="attr"><span class="attr-name">Records Received</span>: {{operatorsDetail?.numRecordsIn}}</p>
+      <p class="attr"><span class="attr-name">Records Sent</span>: {{operatorsDetail?.numRecordsOut}}</p>
+    </div>
+    <div class="node-name">
+      <p *ngIf="operatorsDetail.name && operatorsDetail.name.length > 512; else fullName"
+        nz-popover
+        nzOverlayClassName="op-name-popover"
+        [nzOverlayStyle]="{
+          'max-width': '600px',
+          'max-height': '400px'
+        }"
+        [nzContent]="operatorsDetail.name">
+        {{operatorsDetail?.displayName}}
+      </p>
+      <ng-template #fullName>
+        <p>{{operatorsDetail?.displayName}}</p>
+      </ng-template>
+    </div>
+  </div>
+</ng-container>

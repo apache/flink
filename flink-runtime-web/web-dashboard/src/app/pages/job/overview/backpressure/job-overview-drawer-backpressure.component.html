@@ -1,0 +1,65 @@
+<!--
+  ~   Licensed to the Apache Software Foundation (ASF) under one
+  ~   or more contributor license agreements.  See the NOTICE file
+  ~   distributed with this work for additional information
+  ~   regarding copyright ownership.  The ASF licenses this file
+  ~   to you under the Apache License, Version 2.0 (the
+  ~   "License"); you may not use this file except in compliance
+  ~   with the License.  You may obtain a copy of the License at
+  ~       http://www.apache.org/licenses/LICENSE-2.0
+  ~   Unless required by applicable law or agreed to in writing, software
+  ~   distributed under the License is distributed on an "AS IS" BASIS,
+  ~   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~   See the License for the specific language governing permissions and
+  ~   limitations under the License.
+  -->
+
+<nz-table
+  class="no-border small"
+  [nzSize]="'small'"
+  [nzLoading]="isLoading"
+  [nzData]="listOfSubTaskBackpressure"
+  [nzScroll]="{y:'391px'}"
+  [nzFrontPagination]="false"
+  [nzShowPagination]="false">
+  <thead>
+    <tr>
+      <th colspan="3">
+        <span *ngIf="node?.detail?.status === 'RUNNING'">
+           Measurement:
+          <span *ngIf="backpressure['end-timestamp']">
+            {{ (now - backpressure['end-timestamp']) | nzHumanizeDuration: 's'}} ago
+          </span>
+          <span *ngIf="backpressure['status'] === 'deprecated'">
+            Sampling in progress...
+          </span>
+          <span *ngIf="(!backpressure['end-timestamp']) && (backpressure['status'] !== 'deprecated')">
+            -
+          </span>
+          <nz-divider [nzType]="'vertical'"></nz-divider>
+          Back Pressure Status:
+          <span>
+            <nz-badge [nzStatus]="labelState(backpressure['backpressure-level'])" [nzText]="backpressure['backpressure-level'] || '-'"></nz-badge>
+          </span>
+        </span>
+        <span *ngIf="node?.detail?.status !== 'RUNNING'">
+          Operator is not running. Cannot sample back pressure.
+        </span>
+      </th>
+    </tr>
+    <tr>
+      <th nzWidth="33.33%">SubTask</th>
+      <th nzWidth="33.33%">Ratio</th>
+      <th nzWidth="33.33%">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let subtask of listOfSubTaskBackpressure">
+      <td>{{ subtask['subtask'] + 1 }}</td>
+      <td>{{ subtask['ratio'] }}</td>
+      <td>
+        <nz-badge [nzStatus]="labelState(subtask['backpressure-level'])" [nzText]="subtask['backpressure-level'] || '-'"></nz-badge>
+      </td>
+    </tr>
+  </tbody>
+</nz-table>

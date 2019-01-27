@@ -19,52 +19,50 @@
 package org.apache.flink.table.runtime.join
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
-import org.apache.flink.table.runtime.types.CRow
-import org.apache.flink.types.Row
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.FlinkJoinRelType
 
 /**
   * The function to execute processing time bounded stream inner-join.
   */
 final class ProcTimeBoundedStreamJoin(
-    joinType: JoinType,
+    joinType: FlinkJoinRelType,
     leftLowerBound: Long,
     leftUpperBound: Long,
-    leftType: TypeInformation[Row],
-    rightType: TypeInformation[Row],
+    leftType: TypeInformation[BaseRow],
+    rightType: TypeInformation[BaseRow],
     genJoinFuncName: String,
     genJoinFuncCode: String)
-  extends TimeBoundedStreamJoin(
-    joinType,
+  extends TimeBoundedStreamJoin(joinType,
     leftLowerBound,
     leftUpperBound,
-    allowedLateness = 0L,
+    allowLateness = 0L,
     leftType,
     rightType,
     genJoinFuncName,
     genJoinFuncCode) {
 
-  override def updateOperatorTime(ctx: CoProcessFunction[CRow, CRow, CRow]#Context): Unit = {
+  override def updateOperatorTime(ctx: CoProcessFunction[BaseRow, BaseRow,
+      BaseRow]#Context): Unit = {
     leftOperatorTime = ctx.timerService().currentProcessingTime()
     rightOperatorTime = leftOperatorTime
   }
 
   override def getTimeForLeftStream(
-      context: CoProcessFunction[CRow, CRow, CRow]#Context,
-      row: Row): Long = {
+      ctx: CoProcessFunction[BaseRow, BaseRow, BaseRow]#Context,
+      row: BaseRow): Long = {
     leftOperatorTime
   }
 
-  override def getTimeForRightStream(
-      context: CoProcessFunction[CRow, CRow, CRow]#Context,
-      row: Row): Long = {
+  override def getTimeForRightStream(ctx: CoProcessFunction[BaseRow, BaseRow, BaseRow]#Context,
+      row: BaseRow): Long = {
     rightOperatorTime
   }
 
   override def registerTimer(
-      ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
+      ctx: CoProcessFunction[BaseRow, BaseRow, BaseRow]#Context,
       cleanupTime: Long): Unit = {
-    ctx.timerService.registerProcessingTimeTimer(cleanupTime)
+    ctx.timerService().registerProcessingTimeTimer(cleanupTime)
   }
 }

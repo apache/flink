@@ -22,14 +22,15 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.instance.TaskManagerResourceDescription;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
-import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 
@@ -51,7 +52,9 @@ public class TestingRestfulGateway implements RestfulGateway {
 	static final Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> DEFAULT_REQUEST_JOB_FUNCTION = jobId -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	static final Function<JobID, CompletableFuture<JobStatus>> DEFAULT_REQUEST_JOB_STATUS_FUNCTION = jobId -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	static final Supplier<CompletableFuture<MultipleJobsDetails>> DEFAULT_REQUEST_MULTIPLE_JOB_DETAILS_SUPPLIER = () -> CompletableFuture.completedFuture(new MultipleJobsDetails(Collections.emptyList()));
-	static final Supplier<CompletableFuture<ClusterOverview>> DEFAULT_REQUEST_CLUSTER_OVERVIEW_SUPPLIER = () -> CompletableFuture.completedFuture(new ClusterOverview(0, 0, 0, 0, 0, 0, 0));
+	static final Supplier<CompletableFuture<ClusterOverview>> DEFAULT_REQUEST_CLUSTER_OVERVIEW_SUPPLIER = () -> CompletableFuture.completedFuture(new ClusterOverview(0, 0, 0,
+		TaskManagerResourceDescription.fromResourceProfile(new ResourceProfile(0, 0)),
+		TaskManagerResourceDescription.fromResourceProfile(new ResourceProfile(0, 0)), 0, 0, 0, 0));
 	static final Supplier<CompletableFuture<Collection<String>>> DEFAULT_REQUEST_METRIC_QUERY_SERVICE_PATHS_SUPPLIER = () -> CompletableFuture.completedFuture(Collections.emptyList());
 	static final Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> DEFAULT_REQUEST_TASK_MANAGER_METRIC_QUERY_SERVICE_PATHS_SUPPLIER = () -> CompletableFuture.completedFuture(Collections.emptyList());
 	static final BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> DEFAULT_REQUEST_OPERATOR_BACK_PRESSURE_STATS_SUPPLIER = (jobId, jobVertexId) -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
@@ -90,6 +93,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 		this(
 			LOCALHOST,
 			LOCALHOST,
+			LOCALHOST,
 			DEFAULT_CANCEL_JOB_FUNCTION,
 			DEFAULT_STOP_JOB_FUNCTION,
 			DEFAULT_REQUEST_JOB_FUNCTION,
@@ -106,6 +110,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 	public TestingRestfulGateway(
 			String address,
 			String hostname,
+			String restAddress,
 			Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction,
 			Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction,
 			Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction,
@@ -119,6 +124,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 			BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction) {
 		this.address = address;
 		this.hostname = hostname;
+		this.restAddress = restAddress;
 		this.cancelJobFunction = cancelJobFunction;
 		this.stopJobFunction = stopJobFunction;
 		this.requestJobFunction = requestJobFunction;
@@ -140,6 +146,11 @@ public class TestingRestfulGateway implements RestfulGateway {
 	@Override
 	public CompletableFuture<Acknowledge> stopJob(JobID jobId, Time timeout) {
 		return stopJobFunction.apply(jobId);
+	}
+
+	@Override
+	public CompletableFuture<String> requestRestAddress(Time timeout) {
+		return CompletableFuture.completedFuture(restAddress);
 	}
 
 	@Override
@@ -207,6 +218,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 	public static class Builder {
 		protected String address = LOCALHOST;
 		protected String hostname = LOCALHOST;
+		protected String restAddress = LOCALHOST;
 		protected Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction;
 		protected Function<JobID, CompletableFuture<Acknowledge>> stopJobFunction;
 		protected Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction;
@@ -214,7 +226,6 @@ public class TestingRestfulGateway implements RestfulGateway {
 		protected Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction;
 		protected Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier;
 		protected Supplier<CompletableFuture<ClusterOverview>> requestClusterOverviewSupplier;
-		protected Supplier<CompletableFuture<JobsOverview>> requestOverviewForAllJobsSupplier;
 		protected Supplier<CompletableFuture<Collection<String>>> requestMetricQueryServicePathsSupplier;
 		protected Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>> requestTaskManagerMetricQueryServicePathsSupplier;
 		protected BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction;
@@ -241,6 +252,11 @@ public class TestingRestfulGateway implements RestfulGateway {
 
 		public Builder setHostname(String hostname) {
 			this.hostname = hostname;
+			return this;
+		}
+
+		public Builder setRestAddress(String restAddress) {
+			this.restAddress = restAddress;
 			return this;
 		}
 
@@ -303,6 +319,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 			return new TestingRestfulGateway(
 				address,
 				hostname,
+				restAddress,
 				cancelJobFunction,
 				stopJobFunction,
 				requestJobFunction,

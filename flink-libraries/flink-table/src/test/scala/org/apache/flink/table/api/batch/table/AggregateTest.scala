@@ -20,8 +20,7 @@ package org.apache.flink.table.api.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.util.TableTestBase
 import org.junit.Test
 
 /**
@@ -39,25 +38,7 @@ class AggregateTest extends TableTestBase {
       .select('a, 'a.avg, 'b.sum, 'c.count)
       .where('a === 1)
 
-    val calcNode = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      term("select", "a", "b", "c"),
-      term("where", "=(a, 1)")
-    )
-
-    val expected = unaryNode(
-      "DataSetAggregate",
-      calcNode,
-      term("groupBy", "a"),
-      term("select",
-        "a",
-        "AVG(a) AS TMP_0",
-        "SUM(b) AS TMP_1",
-        "COUNT(c) AS TMP_2")
-    )
-
-    util.verifyTable(resultTable,expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -65,16 +46,7 @@ class AggregateTest extends TableTestBase {
     val util = batchTestUtil()
     val sourceTable = util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable.select('a.avg,'b.sum,'c.count)
-
-    val expected = unaryNode(
-      "DataSetAggregate",
-      batchTableNode(0),
-      term("select",
-        "AVG(a) AS TMP_0",
-        "SUM(b) AS TMP_1",
-        "COUNT(c) AS TMP_2")
-    )
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -85,25 +57,7 @@ class AggregateTest extends TableTestBase {
     val resultTable = sourceTable.select('a,'b,'c).where('a === 1)
       .select('a.avg,'b.sum,'c.count)
 
-    val calcNode = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      // ReduceExpressionsRule will add cast for Project node by force
-      // if the input of the Project node has constant expression.
-      term("select", "CAST(1) AS a", "b", "c"),
-      term("where", "=(a, 1)")
-    )
-
-    val expected = unaryNode(
-      "DataSetAggregate",
-      calcNode,
-      term("select",
-        "AVG(a) AS TMP_0",
-        "SUM(b) AS TMP_1",
-        "COUNT(c) AS TMP_2")
-    )
-
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -113,26 +67,6 @@ class AggregateTest extends TableTestBase {
 
     val resultTable = sourceTable.select('a,'b,'c).where('a === 1)
       .select('a.avg,'b.sum,'c.count, 'c.get("_1").sum)
-
-    val calcNode = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      // ReduceExpressionsRule will add cast for Project node by force
-      // if the input of the Project node has constant expression.
-      term("select", "CAST(1) AS a", "b", "c", "c._1 AS $f3"),
-      term("where", "=(a, 1)")
-    )
-
-    val expected = unaryNode(
-      "DataSetAggregate",
-      calcNode,
-      term(
-        "select",
-        "AVG(a) AS TMP_0",
-        "SUM(b) AS TMP_1",
-        "COUNT(c) AS TMP_2",
-        "SUM($f3) AS TMP_3")
-    )
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 }

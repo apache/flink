@@ -18,42 +18,35 @@
 
 package org.apache.flink.table.runtime.batch.table
 
-import java.math.MathContext
-import java.sql.{Date, Time, Timestamp}
+import java.sql.Timestamp
 import java.util
-
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.api.Types._
+import org.apache.flink.table.api.functions.ScalarFunction
+import org.apache.flink.table.api.types.DataTypes._
+import org.apache.flink.table.api.types.DecimalType
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.dataformat.Decimal
 import org.apache.flink.table.expressions.Literal
-import org.apache.flink.table.expressions.utils._
-import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.runtime.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.expressions.utils.{Func13, SplitUDF}
+import org.apache.flink.table.runtime.batch.sql.BatchTestBase
+import org.apache.flink.table.util.CollectionBatchExecTable
+import org.apache.flink.table.util.DateTimeTestUtil._
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.test.util.TestBaseUtils.compareResultAsText
 import org.apache.flink.types.Row
-import org.junit.Assert.assertEquals
+
 import org.junit._
-import org.junit.runner.RunWith
+import org.junit.Assert.assertEquals
 import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
+import scala.collection.{Seq, mutable}
 
-@RunWith(classOf[Parameterized])
-class CalcITCase(
-    configMode: TableConfigMode)
-  extends TableProgramsCollectionTestBase(configMode) {
+class CalcITCase extends BatchTestBase {
 
   @Test
   def testSimpleSelectAll(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).select('_1, '_2, '_3)
+    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv).select('_1, '_2, '_3)
 
     val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
       "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
@@ -61,16 +54,13 @@ class CalcITCase(
       "11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" +
       "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" +
       "19,6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
-    val results = t.toDataSet[Row].collect()
+    val results = t.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testSimpleSelectAllWithAs(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c).select('a, 'b, 'c)
+    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c").select('a, 'b, 'c)
 
     val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
       "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
@@ -78,75 +68,64 @@ class CalcITCase(
       "11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" +
       "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" +
       "19,6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
-    val results = t.toDataSet[Row].collect()
+    val results = t.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testSimpleSelectWithNaming(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv)
       .select('_1 as 'a, '_2 as 'b, '_1 as 'c)
       .select('a, 'b)
 
     val expected = "1,1\n" + "2,2\n" + "3,2\n" + "4,3\n" + "5,3\n" + "6,3\n" + "7,4\n" +
       "8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" + "13,5\n" + "14,5\n" + "15,5\n" +
       "16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n"
-    val results = t.toDataSet[Row].collect()
+    val results = t.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testSimpleSelectRenameAll(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv)
       .select('_1 as 'a, '_2 as 'b, '_3 as 'c)
       .select('a, 'b)
 
     val expected = "1,1\n" + "2,2\n" + "3,2\n" + "4,3\n" + "5,3\n" + "6,3\n" + "7,4\n" +
       "8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" + "13,5\n" + "14,5\n" + "15,5\n" +
       "16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n"
-    val results = t.toDataSet[Row].collect()
+    val results = t.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testSelectStar(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c").select('*)
 
-    val t = CollectionDataSets.getSmallNestedTupleDataSet(env).toTable(tEnv, 'a, 'b).select('*)
-
-    val expected =
-      "(1,1),one\n" + "(2,2),two\n" + "(3,3),three\n"
-    val results = t.toDataSet[Row].collect()
+    val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
+      "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
+      "7,4,Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" +
+      "11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" +
+      "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" +
+      "19,6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
+    val results = t.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testAllRejectingFilter(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
 
     val filterDs = ds.filter( Literal(false) )
 
     val expected = "\n"
-    val results = filterDs.toDataSet[Row].collect()
+    val results = filterDs.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testAllPassingFilter(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
 
     val filterDs = ds.filter( Literal(true) )
     val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" + "4,3,Hello world, " +
@@ -155,29 +134,23 @@ class CalcITCase(
       "Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" + "15,5," +
       "Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" + "19," +
       "6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
-    val results = filterDs.toDataSet[Row].collect()
+    val results = filterDs.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testFilterOnStringTupleField(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
     val filterDs = ds.filter( 'c.like("%world%") )
 
     val expected = "3,2,Hello world\n" + "4,3,Hello world, how are you?\n"
-    val results = filterDs.toDataSet[Row].collect()
+    val results = filterDs.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testFilterOnIntegerTupleField(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
 
     val filterDs = ds.filter( 'a % 2 === 0 )
 
@@ -185,16 +158,13 @@ class CalcITCase(
       "6,3,Luke Skywalker\n" + "8,4," + "Comment#2\n" + "10,4,Comment#4\n" +
       "12,5,Comment#6\n" + "14,5,Comment#8\n" + "16,6," +
       "Comment#10\n" + "18,6,Comment#12\n" + "20,6,Comment#14\n"
-    val results = filterDs.toDataSet[Row].collect()
+    val results = filterDs.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testNotEquals(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
 
     val filterDs = ds.filter( 'a % 2 !== 0)
     val expected = "1,1,Hi\n" + "3,2,Hello world\n" +
@@ -207,10 +177,7 @@ class CalcITCase(
 
   @Test
   def testDisjunctivePredicate(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
 
     val filterDs = ds.filter( 'a < 2 || 'a > 20)
     val expected = "1,1,Hi\n" + "21,6,Comment#15\n"
@@ -220,10 +187,7 @@ class CalcITCase(
 
   @Test
   def testConsecutiveFilters(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
 
     val filterDs = ds.filter('a % 2 !== 0).filter('b % 2 === 0)
     val expected = "3,2,Hello world\n" + "7,4,Comment#1\n" +
@@ -235,54 +199,40 @@ class CalcITCase(
 
   @Test
   def testFilterBasicType(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val ds = CollectionBatchExecTable.getStringDataSet(tEnv)
 
-    val ds = CollectionDataSets.getStringDataSet(env)
-
-    val filterDs = ds.toTable(tEnv, 'a).filter( 'a.like("H%") )
+    val filterDs = ds.filter('f0.like("H%") )
 
     val expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hello world, how are you?\n"
-    val results = filterDs.toDataSet[Row].collect()
+    val results = filterDs.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testFilterOnCustomType(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds = CollectionDataSets.getCustomTypeDataSet(env)
-    val filterDs = ds.toTable(tEnv, 'myInt as 'i, 'myLong as 'l, 'myString as 's)
-      .filter( 's.like("%a%") )
-
+    val filterDs = CollectionBatchExecTable.getCustomTypeDataSet(tEnv)
+        .filter('myString.like("%a%"))
     val expected = "3,3,Hello world, how are you?\n" + "3,4,I am fine.\n" + "3,5,Luke Skywalker\n"
-    val results = filterDs.toDataSet[Row].collect()
+    val results = filterDs.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testSimpleCalc(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv)
         .select('_1, '_2, '_3)
         .where('_1 < 7)
         .select('_1, '_3)
 
     val expected = "1,Hi\n" + "2,Hello\n" + "3,Hello world\n" +
       "4,Hello world, how are you?\n" + "5,I am fine.\n" + "6,Luke Skywalker\n"
-      val results = t.toDataSet[Row].collect()
+      val results = t.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testCalcWithTwoFilters(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv)
         .select('_1, '_2, '_3)
         .where('_1 < 7 && '_2 === 3)
         .select('_1, '_3)
@@ -290,16 +240,13 @@ class CalcITCase(
         .select('_1)
 
     val expected = "4\n"
-    val results = t.toDataSet[Row].collect()
+    val results = t.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testCalcWithAggregation(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+    val t = CollectionBatchExecTable.get3TupleDataSet(tEnv)
         .select('_1, '_2, '_3)
         .where('_1 < 15)
         .groupBy('_2)
@@ -307,101 +254,88 @@ class CalcITCase(
         .where('cnt > 3)
 
     val expected = "7,4\n" + "11,4\n"
-    val results = t.toDataSet[Row].collect()
+    val results = t.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testCalcJoin(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
+    val ds2 = CollectionBatchExecTable.get5TupleDataSet(tEnv, "d, e, f, g, h")
 
     val joinT = ds1.select('a, 'b).join(ds2).where('b === 'e).select('a, 'b, 'd, 'e, 'f)
       .where('b > 1).select('a, 'd).where('d === 2)
 
     val expected = "2,2\n" + "3,2\n"
-    val results = joinT.toDataSet[Row].collect()
+    val results = joinT.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testAdvancedDataTypes(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    tEnv.getConfig.setDecimalContext(new MathContext(30))
 
-    val t = env
+    val bd1 = BigDecimal("78.454654654654654").bigDecimal
+    val bd2 = BigDecimal("4E+16").bigDecimal
+
+    val t = tEnv
       .fromElements((
-        BigDecimal("78.454654654654654").bigDecimal,
-        BigDecimal("4E+9999").bigDecimal,
-        Date.valueOf("1984-07-12"),
-        Time.valueOf("14:34:24"),
-        Timestamp.valueOf("1984-07-12 14:34:24")))
-      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
-      .select('a, 'b, 'c, 'd, 'e, BigDecimal("11.2"), BigDecimal("11.2").bigDecimal,
-        Date.valueOf("1984-07-12"), Time.valueOf("14:34:24"),
-        Timestamp.valueOf("1984-07-12 14:34:24"),
-        BigDecimal("1").toExpr / BigDecimal("3"))
+        bd1,
+        bd2,
+        UTCDate("1984-07-12"),
+        UTCTime("14:34:24"),
+        UTCTimestamp("1984-07-12 14:34:24")))
+      .select('_1, '_2, '_3, '_4, '_5, BigDecimal("11.2"), BigDecimal("11.2").bigDecimal,
+        UTCDate("1984-07-12"), UTCTime("14:34:24"),
+        UTCTimestamp("1984-07-12 14:34:24"))
 
-    val expected = "78.454654654654654,4E+9999,1984-07-12,14:34:24,1984-07-12 14:34:24.0," +
-      "11.2,11.2,1984-07-12,14:34:24,1984-07-12 14:34:24.0,0.333333333333333333333333333333"
-    val results = t.toDataSet[Row].collect()
+    // inferred Decimal(p,s) from BigDecimal.class
+    val bd1x = bd1.setScale(DecimalType.MAX_SCALE)
+    val bd2x = bd2.setScale(DecimalType.MAX_SCALE)
+
+    val expected = s"$bd1x,$bd2x,1984-07-12,14:34:24,1984-07-12 14:34:24.0," +
+      "11.2,11.2,1984-07-12,14:34:24,1984-07-12 14:34:24.0"
+    val results = t.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testUserDefinedScalarFunction() {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    tableEnv.registerFunction("hashCode", OldHashCode)
-    tableEnv.registerFunction("hashCode", HashCode)
-    val table = env.fromElements("a", "b", "c").toTable(tableEnv, 'text)
-    val result = table.select("text.hashCode()")
-    val results = result.toDataSet[Row].collect()
+    tEnv.registerFunction("hashCode", OldHashCode)
+    tEnv.registerFunction("hashCode", HashCode)
+    val table = tEnv.fromElements("a", "b", "c")
+    val result = table.select("f0.hashCode()")
+    val results = result.collect()
     val expected = "97\n98\n99"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testNumericAutocastInArithmetic() {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
-
-    val table = env.fromElements(
-      (1.toByte, 1.toShort, 1, 1L, 1.0f, 1.0d, 1L, 1001.1)).toTable(tableEnv)
+    val table = tEnv.fromElements(
+      (1.toByte, 1.toShort, 1, 1L, 1.0f, 1.0d, 1L, 1001.1))
       .select('_1 + 1, '_2 + 1, '_3 + 1L, '_4 + 1.0f,
         '_5 + 1.0d, '_6 + 1, '_7 + 1.0d, '_8 + '_1)
 
-    val results = table.toDataSet[Row].collect()
+    val results = table.collect()
     val expected = "2,2,2,2.0,2.0,2.0,2.0,1002.1"
     compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testNumericAutocastInComparison() {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
-
-    val table = env.fromElements(
+    val table = tEnv.fromElements(
       (1.toByte, 1.toShort, 1, 1L, 1.0f, 1.0d),
       (2.toByte, 2.toShort, 2, 2L, 2.0f, 2.0d))
-      .toTable(tableEnv, 'a, 'b, 'c, 'd, 'e, 'f)
-      .filter('a > 1 && 'b > 1 && 'c > 1L && 'd > 1.0f && 'e > 1.0d && 'f > 1)
+      .filter('_1 > 1 && '_2 > 1 && '_3 > 1L && '_4 > 1.0f && '_5 > 1.0d && '_6 > 1)
 
-    val results = table.toDataSet[Row].collect()
+    val results = table.collect()
     val expected: String = "2,2,2,2,2.0,2.0"
     compareResultAsText(results.asJava, expected)
   }
 
   @Test
   def testCasting() {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
-    val table = env.fromElements((1, 0.0, 1L, true)).toTable(tableEnv)
+    val table = tEnv.fromElements((1, 0.0, 1L, true))
       .select(
         // * -> String
       '_1.cast(STRING), '_2.cast(STRING), '_3.cast(STRING), '_4.cast(STRING),
@@ -414,7 +348,7 @@ class CalcITCase(
         // identity casting
       '_1.cast(INT), '_2.cast(DOUBLE), '_3.cast(LONG), '_4.cast(BOOLEAN))
 
-    val results = table.toDataSet[Row].collect()
+    val results = table.collect()
     val expected = "1,0.0,1,true," + "true,false,true," +
       "1.0,0,1," + "1.0," + "1,0.0,1,true\n"
     compareResultAsText(results.asJava, expected)
@@ -422,117 +356,23 @@ class CalcITCase(
 
   @Test
   def testCastFromString() {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
-    val table = env.fromElements(("1", "true", "2.0")).toTable(tableEnv)
+    val table = tEnv.fromElements(("1", "true", "2.0"))
       .select('_1.cast(BYTE), '_1.cast(SHORT), '_1.cast(INT), '_1.cast(LONG),
         '_3.cast(DOUBLE), '_3.cast(FLOAT), '_2.cast(BOOLEAN))
 
-    val results = table.toDataSet[Row].collect()
+    val results = table.collect()
     val expected = "1,1,1,1,2.0,2.0,true\n"
     compareResultAsText(results.asJava, expected)
   }
 
   @Test
-  def testUserDefinedScalarFunctionWithParameter(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    tEnv.registerFunction("RichFunc2", new RichFunc2)
-    UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "ABC"))
-
-    val ds = CollectionDataSets.getSmall3TupleDataSet(env)
-    tEnv.registerDataSet("t1", ds, 'a, 'b, 'c)
-
-    val sqlQuery = "SELECT c FROM t1 where RichFunc2(c)='ABC#Hello'"
-
-    val result = tEnv.sqlQuery(sqlQuery)
-
-    val expected = "Hello"
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testUserDefinedScalarFunctionWithDistributedCache(): Unit = {
-    val words = "Hello\nWord"
-    val filePath = UserDefinedFunctionTestUtils.writeCacheFile("test_words", words)
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    env.registerCachedFile(filePath, "words")
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    tEnv.registerFunction("RichFunc3", new RichFunc3)
-
-    val ds = CollectionDataSets.getSmall3TupleDataSet(env)
-    tEnv.registerDataSet("t1", ds, 'a, 'b, 'c)
-
-    val sqlQuery = "SELECT c FROM t1 where RichFunc3(c)=true"
-
-    val result = tEnv.sqlQuery(sqlQuery)
-
-    val expected = "Hello"
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testValueConstructor(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val rowValue = ("foo", 12, Timestamp.valueOf("1984-07-12 14:34:24"))
-
-    val table = env.fromElements(rowValue).toTable(tEnv, 'a, 'b, 'c)
-
-    val result = table.select(
-      row('a, 'b, 'c),
-      array(12, 'b),
-      map('a, 'c),
-      map('a, 'c).at('a) === 'c
-    )
-
-    val expected = "foo,12,1984-07-12 14:34:24.0,[12, 12],{foo=1984-07-12 14:34:24.0},true"
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-
-    // Compare actual object to avoid undetected Calcite flattening
-    val resultRow = results.asJava.get(0)
-    assertEquals(rowValue._1, resultRow.getField(0).asInstanceOf[Row].getField(0))
-    assertEquals(rowValue._2, resultRow.getField(1).asInstanceOf[Array[Integer]](1))
-    assertEquals(rowValue._3,
-      resultRow.getField(2).asInstanceOf[util.Map[String, Timestamp]].get(rowValue._1))
-  }
-
-  @Test
-  def testMultipleUserDefinedScalarFunctions(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    tEnv.registerFunction("RichFunc1", new RichFunc1)
-    tEnv.registerFunction("RichFunc2", new RichFunc2)
-    UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
-
-    val ds = CollectionDataSets.getSmall3TupleDataSet(env)
-    tEnv.registerDataSet("t1", ds, 'a, 'b, 'c)
-
-    val sqlQuery = "SELECT c FROM t1 where " +
-      "RichFunc2(c)='Abc#Hello' or RichFunc1(a)=3 and b=2"
-
-    val result = tEnv.sqlQuery(sqlQuery)
-
-    val expected = "Hello\nHello world"
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
   def testScalarFunctionConstructorWithParams(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Jack#22"))
     data.+=((2, 2L, "John#19"))
     data.+=((3, 2L, "Anna#44"))
     data.+=((4, 3L, "nosharp"))
-    val in = env.fromCollection(data).toTable(tableEnv).as('a, 'b, 'c)
+    val in = tEnv.fromCollection(data).as('a, 'b, 'c)
 
     val func0 = new Func13("default")
     val func1 = new Func13("Sunny")
@@ -550,59 +390,173 @@ class CalcITCase(
   }
 
   @Test
+  def testRowType(): Unit = {
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "Jack#22"))
+    data.+=((2, 2L, "John#19"))
+    data.+=((3, 2L, "Anna#44"))
+    data.+=((4, 3L, "nosharp"))
+    val in = tEnv.fromCollection(data).as('a, 'b, 'c)
+
+    // literals
+    in.select(row(1, "Hi", true))
+      .collect().foreach { record =>
+      val baseRow = record.getField(0).asInstanceOf[Row]
+      assertEquals(1, baseRow.getField(0))
+      assertEquals("Hi", baseRow.getField(1))
+      assertEquals(true, baseRow.getField(2))
+    }
+
+    // primitive type
+    in.select(row(1, 'a, 'b))
+      .collect().zipWithIndex.foreach { case (record, idx) =>
+      val baseRow = record.getField(0).asInstanceOf[Row]
+      assertEquals(1, baseRow.getField(0))
+      assertEquals(data(idx)._1, baseRow.getField(1))
+      assertEquals(data(idx)._2, baseRow.getField(2))
+    }
+
+    // non-primitive type
+    val d = Decimal.castFrom(2.0002, 5, 4)
+    in.select(row(BigDecimal(2.0002), 'a, 'c))
+      .collect().zipWithIndex.foreach { case (record, idx) =>
+      val baseRow = record.getField(0).asInstanceOf[Row]
+      assertEquals(d.toBigDecimal, baseRow.getField(0))
+      assertEquals(data(idx)._1, baseRow.getField(1))
+      assertEquals(data(idx)._3, baseRow.getField(2))
+    }
+  }
+
+  @Test
+  def testArrayType(): Unit = {
+    val in = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv)
+
+    // literals
+    val result1 = in.select(array("Hi", "Hello", "How are you")).collect()
+    val expected1 = "[Hi, Hello, How are you]\n" +
+      "[Hi, Hello, How are you]\n" +
+      "[Hi, Hello, How are you]\n"
+    TestBaseUtils.compareResultAsText(result1.asJava, expected1)
+
+    // primitive type
+    val result2 = in.select(array(30, '_1, 10)).collect()
+    val expected2 = "[30, 1, 10]\n" +
+      "[30, 2, 10]\n" +
+      "[30, 3, 10]\n"
+    TestBaseUtils.compareResultAsText(result2.asJava, expected2)
+
+    // non-primitive type
+    val result3 = in.select(array("Test", '_3)).collect()
+    val expected3 = "[Test, Hi]\n" +
+      "[Test, Hello]\n" +
+      "[Test, Hello world]\n"
+    TestBaseUtils.compareResultAsText(result3.asJava, expected3)
+  }
+
+  @Test
+  def testMapType(): Unit = {
+    val in = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv)
+
+    // literals
+    val result1 = in.select(map(1, "Hello", 2, "Hi")).collect()
+    val expected1 = "{1=Hello, 2=Hi}\n" +
+      "{1=Hello, 2=Hi}\n" +
+      "{1=Hello, 2=Hi}\n"
+    TestBaseUtils.compareResultAsText(result1.asJava, expected1)
+
+    // primitive type
+    val result2 = in.select(map('_2, 30, 10L, '_1)).collect()
+    val expected2 = "{1=30, 10=1}\n" +
+      "{2=30, 10=2}\n" +
+      "{2=30, 10=3}\n"
+    TestBaseUtils.compareResultAsText(result2.asJava, expected2)
+
+    // non-primitive type
+    val result3 = in.select(map('_1, '_3)).collect()
+    val expected3 = "{1=Hi}\n" +
+      "{2=Hello}\n" +
+      "{3=Hello world}\n"
+    TestBaseUtils.compareResultAsText(result3.asJava, expected3)
+
+    val data = new mutable.MutableList[(String, BigDecimal, String, BigDecimal)]
+    data.+=(("AAA", BigDecimal.valueOf(123.45), "BBB", BigDecimal.valueOf(234.56)))
+    data.+=(("CCC", BigDecimal.valueOf(345.67), "DDD", BigDecimal.valueOf(456.78)))
+    data.+=(("EEE", BigDecimal.valueOf(567.89), "FFF", BigDecimal.valueOf(678.99)))
+    val result4 = tEnv.fromCollection(data).as('a, 'b, 'c, 'd)
+      .select(map('a, 'b, 'c, 'd))
+      .collect()
+    val expected4 = "{AAA=123.45, BBB=234.56}\n" +
+      "{DDD=456.78, CCC=345.67}\n" +
+      "{EEE=567.89, FFF=678.99}\n"
+    TestBaseUtils.compareResultAsText(result4.asJava, expected4)
+  }
+
+  @Test
+  def testValueConstructor(): Unit = {
+    val data = new mutable.MutableList[(String, Int, Timestamp)]
+    data .+= (("foo", 12, UTCTimestamp("1984-07-12 14:34:24")))
+    val in = tEnv.fromCollection(data)
+
+    val result = in.select(row('_1, '_2, '_3), array(12, '_2), map('_1, '_3)).collect()
+
+    val baseRow = result.head.getField(0).asInstanceOf[Row]
+    assertEquals(data.head._1, baseRow.getField(0))
+    assertEquals(data.head._2, baseRow.getField(1))
+    assertEquals(data.head._3, baseRow.getField(2))
+
+    val arr = result.head.getField(1).asInstanceOf[Array[Integer]]
+    assertEquals(12, arr(0))
+    assertEquals(data.head._2, arr(1))
+
+    val hashMap = result.head.getField(2).asInstanceOf[util.HashMap[String, Timestamp]]
+    assertEquals(data.head._3, hashMap.get(data.head._1.asInstanceOf[String]))
+  }
+
+  @Test
+  def testSelectStarFromNestedTable(): Unit = {
+
+    val sqlQuery = "SELECT * FROM MyTable"
+
+    val table = tEnv.fromCollection(Seq(
+      ((0, 0), "0"),
+      ((1, 1), "1"),
+      ((2, 2), "2")
+    ))
+
+    val results = table.select('*).collect()
+    results.zipWithIndex.foreach {
+      case (row, i) =>
+        val baseRow = row.getField(0).asInstanceOf[Row]
+        assertEquals(i, baseRow.getField(0))
+        assertEquals(i, baseRow.getField(1))
+        assertEquals(i.toString, row.getField(1))
+    }
+  }
+
+  @Test
   def testFunctionWithUnicodeParameters(): Unit = {
     val data = List(
       ("a\u0001b", "c\"d", "e\\\"\u0004f"), // uses Java/Scala escaping
       ("x\u0001y", "y\"z", "z\\\"\u0004z")
     )
 
-    val env = ExecutionEnvironment.getExecutionEnvironment
-
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
     val splitUDF0 = new SplitUDF(deterministic = true)
     val splitUDF1 = new SplitUDF(deterministic = false)
 
-     // uses Java/Scala escaping
-    val ds = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
-      .select(
-        splitUDF0('a, "\u0001", 0) as 'a0,
-        splitUDF1('a, "\u0001", 0) as 'a1,
-        splitUDF0('b, "\"", 1) as 'b0,
-        splitUDF1('b, "\"", 1) as 'b1,
-        splitUDF0('c, "\\\"\u0004", 0) as 'c0,
-        splitUDF1('c, "\\\"\u0004", 0) as 'c1)
+    // uses Java/Scala escaping
+    val ds = tEnv.fromCollection(data, "a,b,c")
+        .select(
+          splitUDF0('a, "\u0001", 0) as 'a0,
+          splitUDF1('a, "\u0001", 0) as 'a1,
+          splitUDF0('b, "\"", 1) as 'b0,
+          splitUDF1('b, "\"", 1) as 'b1,
+          splitUDF0('c, "\\\"\u0004", 0) as 'c0,
+          splitUDF1('c, "\\\"\u0004", 0) as 'c1)
 
     val results = ds.collect()
 
     val expected = List("a,a,d,d,e,e", "x,x,z,z,z,z").mkString("\n")
     TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testSplitFieldsOnCustomType(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-    tEnv.getConfig.setMaxGeneratedCodeLength(1)  // splits fields
-
-    val ds = CollectionDataSets.getCustomTypeDataSet(env)
-    val filterDs = ds.toTable(tEnv, 'myInt as 'i, 'myLong as 'l, 'myString as 's)
-      .filter('s.like("%a%") && 's.charLength() > 12)
-      .select('i, 'l, 's.charLength())
-
-    val expected = "3,3,25\n" + "3,5,14\n"
-    val results = filterDs.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-}
-
-object CalcITCase {
-
-  @Parameterized.Parameters(name = "Table config = {0}")
-  def parameters(): util.Collection[Array[java.lang.Object]] = {
-    Seq[Array[AnyRef]](
-      Array(TableProgramsTestBase.DEFAULT),
-      Array(TableProgramsTestBase.NO_NULL)).asJava
   }
 }
 
