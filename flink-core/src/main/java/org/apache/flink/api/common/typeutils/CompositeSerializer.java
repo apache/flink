@@ -205,12 +205,9 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public TypeSerializerConfigSnapshot snapshotConfiguration() {
-		return new ConfigSnapshot(fieldSerializers);
-	}
-
-	@Override
 	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		// We can not remove this method, as long as we support restoring into CompositeTypeSerializerConfigSnapshot.
+		// Previously (pre 1.8), multiple composite serializers were using this class directly as their snapshot class.
 		if (configSnapshot instanceof ConfigSnapshot) {
 			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs =
 				((CompositeTypeSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
@@ -302,6 +299,7 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 	}
 
 	/** Snapshot field serializers of composite type. */
+	@Deprecated
 	public static class ConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
 		private static final int VERSION = 0;
 
