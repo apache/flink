@@ -292,9 +292,8 @@ public class TaskManagerOptions {
 			key("taskmanager.network.memory.buffers-per-channel")
 			.defaultValue(2)
 			.withDescription("Maximum number of network buffers to use for each outgoing/incoming channel (subpartition/input channel)." +
-				"In credit-based flow control mode, this indicates how many credits are exclusive in each input channel. It should be" +
-				" configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is" +
-				" for parallel serialization.");
+				" It should be configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition" +
+				" and 1 buffer is for parallel serialization.");
 
 	/**
 	 * Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate).
@@ -303,7 +302,6 @@ public class TaskManagerOptions {
 			key("taskmanager.network.memory.floating-buffers-per-gate")
 			.defaultValue(8)
 			.withDescription("Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate)." +
-				" In credit-based flow control mode, this indicates how many floating credits are shared among all the input channels." +
 				" The floating buffers are distributed based on backlog (real-time output buffers in the subpartition) feedback, and can" +
 				" help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be" +
 				" increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.");

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -77,8 +76,11 @@ public class NetworkEnvironmentTest {
 	 */
 	@Test
 	public void testRegisterTaskUsesBoundedBuffers() throws Exception {
+		final int buffersPerChannel = 2;
+		final int extraBuffersPerGate = 8;
 		final NetworkEnvironment network = new NetworkEnvironment(
-			numBuffers, memorySegmentSize, 0, 0, 2, 8, enableCreditBasedFlowControl);
+			numBuffers, memorySegmentSize, 0, 0,
+			buffersPerChannel, extraBuffersPerGate, enableCreditBasedFlowControl);
 
 		// result partitions
 		ResultPartition rp1 = createResultPartition(ResultPartitionType.PIPELINED, 2);
@@ -109,8 +111,8 @@ public class NetworkEnvironmentTest {
 
 		assertEquals(Integer.MAX_VALUE, rp1.getBufferPool().getMaxNumberOfMemorySegments());
 		assertEquals(Integer.MAX_VALUE, rp2.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(2 * 2 + 8, rp3.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(8 * 2 + 8, rp4.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(2 * buffersPerChannel + extraBuffersPerGate, rp3.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(8 * buffersPerChannel + extraBuffersPerGate, rp4.getBufferPool().getMaxNumberOfMemorySegments());
 
 		// verify buffer pools for the input gates (NOTE: credit-based uses minimum required buffers
 		// for exclusive buffers not managed by the buffer pool)
@@ -121,14 +123,20 @@ public class NetworkEnvironmentTest {
 
 		assertEquals(Integer.MAX_VALUE, ig1.getBufferPool().getMaxNumberOfMemorySegments());
 		assertEquals(Integer.MAX_VALUE, ig2.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 8 : 2 * 2 + 8, ig3.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 8 : 8 * 2 + 8, ig4.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(enableCreditBasedFlowControl ?
+			2 * (buffersPerChannel - 1) + extraBuffersPerGate :
+			2 * buffersPerChannel + extraBuffersPerGate,
+			ig3.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(enableCreditBasedFlowControl ?
+			8 * (buffersPerChannel - 1) + extraBuffersPerGate :
+			8 * buffersPerChannel + extraBuffersPerGate,
+			ig4.getBufferPool().getMaxNumberOfMemorySegments());
 
 		int invokations = enableCreditBasedFlowControl ? 1 : 0;
-		verify(ig1, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig2, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig3, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig4, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
+		verify(ig1, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 1);
+		verify(ig2, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 1);
+		verify(ig3, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 1);
+		verify(ig4, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 1);
 
 		for (ResultPartition rp : resultPartitions) {
 			rp.release();
@@ -146,16 +154,9 @@ public class NetworkEnvironmentTest {
 	 */
 	@Test
 	public void testRegisterTaskWithLimitedBuffers() throws Exception {
-		final int bufferCount;
-		// outgoing: 1 buffer per channel (always)
-		if (!enableCreditBasedFlowControl) {
-			// incoming: 1 buffer per channel
-			bufferCount = 20;
-		} else {
-			// incoming: 2 exclusive buffers per channel
-			bufferCount = 10 + 10 * TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
-		}
-
+		// outgoing: 1 buffer per channel * 10 channels
+		// incoming: 1 buffer per channel * 10 channels
+		final int bufferCount = 20;
 		testRegisterTaskWithLimitedBuffers(bufferCount);
 	}
 
@@ -165,24 +166,20 @@ public class NetworkEnvironmentTest {
 	 */
 	@Test
 	public void testRegisterTaskWithInsufficientBuffers() throws Exception {
-		final int bufferCount;
-		// outgoing: 1 buffer per channel (always)
-		if (!enableCreditBasedFlowControl) {
-			// incoming: 1 buffer per channel
-			bufferCount = 19;
-		} else {
-			// incoming: 2 exclusive buffers per channel
-			bufferCount = 10 + 10 * TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() - 1;
-		}
-
+		// outgoing: 1 buffer per channel * 10 channels
+		// incoming: 1 buffer per channel * 10 channels
+		final int bufferCount = 19;
 		expectedException.expect(IOException.class);
 		expectedException.expectMessage("Insufficient number of network buffers");
 		testRegisterTaskWithLimitedBuffers(bufferCount);
 	}
 
 	private void testRegisterTaskWithLimitedBuffers(int bufferPoolSize) throws Exception {
+		final int buffersPerChannel = 2;
+		final int extraBuffersPerGate = 8;
 		final NetworkEnvironment network = new NetworkEnvironment(
-			bufferPoolSize, memorySegmentSize, 0, 0, 2, 8, enableCreditBasedFlowControl);
+			bufferPoolSize, memorySegmentSize, 0, 0,
+			buffersPerChannel, extraBuffersPerGate, enableCreditBasedFlowControl);
 
 		final ConnectionManager connManager = createDummyConnectionManager();
 
@@ -228,8 +225,8 @@ public class NetworkEnvironmentTest {
 		// verify buffer pools for the result partitions
 		assertEquals(Integer.MAX_VALUE, rp1.getBufferPool().getMaxNumberOfMemorySegments());
 		assertEquals(Integer.MAX_VALUE, rp2.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(2 * 2 + 8, rp3.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(4 * 2 + 8, rp4.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(2 * buffersPerChannel + extraBuffersPerGate, rp3.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(4 * buffersPerChannel + extraBuffersPerGate, rp4.getBufferPool().getMaxNumberOfMemorySegments());
 
 		for (ResultPartition rp : resultPartitions) {
 			assertEquals(rp.getNumberOfSubpartitions(), rp.getBufferPool().getNumberOfRequiredMemorySegments());
@@ -245,14 +242,20 @@ public class NetworkEnvironmentTest {
 
 		assertEquals(Integer.MAX_VALUE, ig1.getBufferPool().getMaxNumberOfMemorySegments());
 		assertEquals(Integer.MAX_VALUE, ig2.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 8 : 2 * 2 + 8, ig3.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 8 : 4 * 2 + 8, ig4.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(enableCreditBasedFlowControl ?
+			2 * (buffersPerChannel - 1) + extraBuffersPerGate :
+			2 * buffersPerChannel + extraBuffersPerGate,
+			ig3.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(enableCreditBasedFlowControl ?
+			4 * (buffersPerChannel - 1) + extraBuffersPerGate :
+			4 * buffersPerChannel + extraBuffersPerGate,
+			ig4.getBufferPool().getMaxNumberOfMemorySegments());
 
 		int invokations = enableCreditBasedFlowControl ? 1 : 0;
-		verify(ig1, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig2, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig3, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
-		verify(ig4, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
+		verify(ig1, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 1);
+		verify(ig2, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 1);
+		verify(ig3, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 1);
+		verify(ig4, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 1);
 
 		for (ResultPartition rp : resultPartitions) {
 			rp.release();

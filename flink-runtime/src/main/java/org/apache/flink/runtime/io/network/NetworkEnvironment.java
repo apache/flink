@@ -264,11 +264,15 @@ public class NetworkEnvironment {
 		int maxNumberOfMemorySegments;
 		try {
 			if (enableCreditBased) {
+				Preconditions.checkArgument(networkBuffersPerChannel > 0,
+					"In credit-based flow control mode, networkBuffersPerChannel must be configured greater than 0.");
 				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
-					extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+					gate.getNumberOfInputChannels() * (networkBuffersPerChannel - 1) +
+						extraNetworkBuffersPerGate : Integer.MAX_VALUE;
 
 				// assign exclusive buffers to input channels directly and use the rest for floating buffers
-				gate.assignExclusiveSegments(networkBufferPool, networkBuffersPerChannel);
+				// (see FLINK-9142)
+				gate.assignExclusiveSegments(networkBufferPool, 1);
 				bufferPool = networkBufferPool.createBufferPool(0, maxNumberOfMemorySegments);
 			} else {
 				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?

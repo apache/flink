@@ -416,12 +416,11 @@ public class SingleInputGateTest {
 				RemoteInputChannel remote = (RemoteInputChannel) inputGate.getInputChannels()
 					.get(resultPartitionId.getPartitionId());
 				// only the exclusive buffers should be assigned/available now
-				assertEquals(buffersPerChannel, remote.getNumberOfAvailableBuffers());
-
-				assertEquals(bufferPool.getTotalNumberOfMemorySegments() - buffersPerChannel,
+				assertEquals(1, remote.getNumberOfAvailableBuffers());
+				assertEquals(bufferPool.getTotalNumberOfMemorySegments() - 1,
 					bufferPool.getNumberOfAvailableMemorySegments());
 				// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
-				assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
+				assertEquals(buffersPerChannel - 1 + extraNetworkBuffersPerGate, bufferPool.countBuffers());
 			} else {
 				assertEquals(buffersPerChannel + extraNetworkBuffersPerGate, bufferPool.countBuffers());
 			}
@@ -454,7 +453,7 @@ public class SingleInputGateTest {
 				assertEquals(bufferPool.getTotalNumberOfMemorySegments(),
 					bufferPool.getNumberOfAvailableMemorySegments());
 				// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
-				assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
+				assertEquals(buffersPerChannel - 1 + extraNetworkBuffersPerGate, bufferPool.countBuffers());
 			} else {
 				assertEquals(buffersPerChannel + extraNetworkBuffersPerGate, bufferPool.countBuffers());
 			}
@@ -469,12 +468,11 @@ public class SingleInputGateTest {
 				RemoteInputChannel remote = (RemoteInputChannel) inputGate.getInputChannels()
 					.get(resultPartitionId.getPartitionId());
 				// only the exclusive buffers should be assigned/available now
-				assertEquals(buffersPerChannel, remote.getNumberOfAvailableBuffers());
-
-				assertEquals(bufferPool.getTotalNumberOfMemorySegments() - buffersPerChannel,
+				assertEquals(1, remote.getNumberOfAvailableBuffers());
+				assertEquals(bufferPool.getTotalNumberOfMemorySegments() - 1,
 					bufferPool.getNumberOfAvailableMemorySegments());
 				// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
-				assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
+				assertEquals(buffersPerChannel - 1 + extraNetworkBuffersPerGate, bufferPool.countBuffers());
 			} else {
 				assertEquals(buffersPerChannel + extraNetworkBuffersPerGate, bufferPool.countBuffers());
 			}
