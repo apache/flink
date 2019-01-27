@@ -36,7 +36,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -94,7 +94,7 @@ public class BufferSpiller implements BufferBlocker {
 	/**
 	 * Creates a new buffer spiller, spilling to one of the I/O manager's temp directories.
 	 *
-	 * @param ioManager The I/O manager for access to the temp directories.
+	 * @param ioManager The I/O manager for access to teh temp directories.
 	 * @param pageSize The page size used to re-create spilled buffers.
 	 * @throws IOException Thrown if the temp files for spilling cannot be initialized.
 	 */
@@ -111,7 +111,7 @@ public class BufferSpiller implements BufferBlocker {
 		this.tempDir = tempDirs[DIRECTORY_INDEX.getAndIncrement() % tempDirs.length];
 
 		byte[] rndBytes = new byte[32];
-		ThreadLocalRandom.current().nextBytes(rndBytes);
+		new Random().nextBytes(rndBytes);
 		this.spillFilePrefix = StringUtils.byteToHexString(rndBytes) + '.';
 
 		// prepare for first contents
@@ -144,6 +144,7 @@ public class BufferSpiller implements BufferBlocker {
 
 			bytesWritten += (headBuffer.remaining() + contents.remaining());
 
+			// TODO Not using scatter-IO may cause one more write.
 			FileUtils.writeCompletely(currentChannel, headBuffer);
 			FileUtils.writeCompletely(currentChannel, contents);
 		}

@@ -1,0 +1,304 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testGroupingSets[aggStrategy=NONE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a, c, avg(b) as a FROM T1
+GROUP BY GROUPING SETS ((a), (a, c))
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$1], a0=[$2])
++- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}]], a=[AVG($2)])
+   +- LogicalProject(a=[$0], c=[$2], b=[$1])
+      +- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[a, b, c]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, c, a_0])
++- HashAggregate(isMerge=[true], groupBy=[a, c, $e], select=[a, c, $e, Final_AVG(sum$0, count$1) AS a_0])
+   +- Exchange(distribution=[hash[a, c, $e]])
+      +- LocalHashAggregate(groupBy=[a, c, $e], select=[a, c, $e, Partial_AVG(b) AS (sum$0, count$1)])
+         +- Expand(projects=[{a, b, c, 0 AS $e}, {a, b, null AS c, 1 AS $e}])
+            +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[a, b, c]]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewCausedByTableScan[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT SUM(b) FROM T1 GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[a, b, c]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$0])
+   +- Exchange(distribution=[hash[a]])
+      +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[a, b]]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupingSets[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a, c, avg(b) as a FROM T1
+GROUP BY GROUPING SETS ((a), (a, c))
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$1], a0=[$2])
++- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}]], a=[AVG($2)])
+   +- LogicalProject(a=[$0], c=[$2], b=[$1])
+      +- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[a, b, c]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, c, a_0])
++- HashAggregate(isMerge=[false], groupBy=[a, c, $e], select=[a, c, $e, AVG(b) AS a_0])
+   +- Exchange(distribution=[hash[a, c, $e]])
+      +- Expand(projects=[{a, b, c, 0 AS $e}, {a, b, null AS c, 1 AS $e}])
+         +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[a, b, c]]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupingSets[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a, c, avg(b) as a FROM T1
+GROUP BY GROUPING SETS ((a), (a, c))
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$1], a0=[$2])
++- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}]], a=[AVG($2)])
+   +- LogicalProject(a=[$0], c=[$2], b=[$1])
+      +- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[a, b, c]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, c, a_0])
++- HashAggregate(isMerge=[true], groupBy=[a, c, $e], select=[a, c, $e, Final_AVG(sum$0, count$1) AS a_0])
+   +- Exchange(distribution=[hash[a, c, $e]])
+      +- LocalHashAggregate(groupBy=[a, c, $e], select=[a, c, $e, Partial_AVG(b) AS (sum$0, count$1)])
+         +- Expand(projects=[{a, b, c, 0 AS $e}, {a, b, null AS c, 1 AS $e}])
+            +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[a, b, c]]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiDistinctAgg[aggStrategy=NONE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT MAX(DISTINCT a), SUM(DISTINCT b), MIN(DISTINCT c)
+FROM (VALUES (1, 2, 3)) T(a, b, c)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[MAX(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[MIN(DISTINCT $2)])
++- LogicalValues(tuples=[[{ 1, 2, 3 }]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2])
++- Exchange(distribution=[single])
+   +- LocalHashAggregate(select=[Partial_MAX(a) FILTER $g_3 AS max$0, Partial_SUM(b) FILTER $g_5 AS sum$1, Partial_MIN(c) FILTER $g_6 AS min$2])
+      +- Calc(select=[CAST(a) AS a, CAST(b) AS b, CAST(c) AS c, =(CASE(=($e, 3), 3, =($e, 5), 5, 6), 3) AS $g_3, =(CASE(=($e, 3), 3, =($e, 5), 5, 6), 5) AS $g_5, =(CASE(=($e, 3), 3, =($e, 5), 5, 6), 6) AS $g_6])
+         +- HashAggregate(isMerge=[true], groupBy=[a, b, c, $e], select=[a, b, c, $e])
+            +- Exchange(distribution=[hash[a, b, c, $e]])
+               +- LocalHashAggregate(groupBy=[a, b, c, $e], select=[a, b, c, $e])
+                  +- Expand(projects=[{a, null AS b, null AS c, 3 AS $e}, {null AS a, b, null AS c, 5 AS $e}, {null AS a, null AS b, c, 6 AS $e}])
+                     +- Values(tuples=[[{ 1, 2, 3 }]], values=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiDistinctAgg[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT MAX(DISTINCT a), SUM(DISTINCT b), MIN(DISTINCT c)
+FROM (VALUES (1, 2, 3)) T(a, b, c)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[MAX(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[MIN(DISTINCT $2)])
++- LogicalValues(tuples=[[{ 1, 2, 3 }]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[false], select=[MAX(a) FILTER $g_3 AS EXPR$0, SUM(b) FILTER $g_5 AS EXPR$1, MIN(c) FILTER $g_6 AS EXPR$2])
++- Exchange(distribution=[single])
+   +- Calc(select=[CAST(a) AS a, CAST(b) AS b, CAST(c) AS c, =(CASE(=($e, 3), 3, =($e, 5), 5, 6), 3) AS $g_3, =(CASE(=($e, 3), 3, =($e, 5), 5, 6), 5) AS $g_5, =(CASE(=($e, 3), 3, =($e, 5), 5, 6), 6) AS $g_6])
+      +- HashAggregate(isMerge=[false], groupBy=[a, b, c, $e], select=[a, b, c, $e])
+         +- Exchange(distribution=[hash[a, b, c, $e]])
+            +- Expand(projects=[{a, null AS b, null AS c, 3 AS $e}, {null AS a, b, null AS c, 5 AS $e}, {null AS a, null AS b, c, 6 AS $e}])
+               +- Values(tuples=[[{ 1, 2, 3 }]], values=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiDistinctAgg[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT MAX(DISTINCT a), SUM(DISTINCT b), MIN(DISTINCT c)
+FROM (VALUES (1, 2, 3)) T(a, b, c)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[MAX(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[MIN(DISTINCT $2)])
++- LogicalValues(tuples=[[{ 1, 2, 3 }]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2])
++- Exchange(distribution=[single])
+   +- LocalHashAggregate(select=[Partial_MAX(a) FILTER $g_3 AS max$0, Partial_SUM(b) FILTER $g_5 AS sum$1, Partial_MIN(c) FILTER $g_6 AS min$2])
+      +- Calc(select=[CAST(a) AS a, CAST(b) AS b, CAST(c) AS c, =(CASE(=($e, 3), 3, =($e, 5), 5, 6), 3) AS $g_3, =(CASE(=($e, 3), 3, =($e, 5), 5, 6), 5) AS $g_5, =(CASE(=($e, 3), 3, =($e, 5), 5, 6), 6) AS $g_6])
+         +- HashAggregate(isMerge=[true], groupBy=[a, b, c, $e], select=[a, b, c, $e])
+            +- Exchange(distribution=[hash[a, b, c, $e]])
+               +- LocalHashAggregate(groupBy=[a, b, c, $e], select=[a, b, c, $e])
+                  +- Expand(projects=[{a, null AS b, null AS c, 3 AS $e}, {null AS a, b, null AS c, 5 AS $e}, {null AS a, null AS b, c, 6 AS $e}])
+                     +- Values(tuples=[[{ 1, 2, 3 }]], values=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotSkewOnTableScan[aggStrategy=NONE]">
+    <Resource name="sql">
+      <![CDATA[SELECT SUM(b) FROM T2 GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[a, b, c]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$0])
+   +- Exchange(distribution=[hash[a]])
+      +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[a, b]]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotSkewOnTableScan[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT SUM(b) FROM T2 GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[a, b, c]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$0])
+   +- Exchange(distribution=[hash[a]])
+      +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[a, b]]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewCausedByTableScan[aggStrategy=NONE]">
+    <Resource name="sql">
+      <![CDATA[SELECT SUM(b) FROM T1 GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[a, b, c]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[a]])
+      +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+         +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[a, b]]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSkewCausedByTableScan[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT SUM(b) FROM T1 GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[builtin, default, T1, source: [selectedFields=[a, b, c]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[a]])
+      +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+         +- TableSourceScan(table=[[builtin, default, T1, source: [selectedFields=[a, b]]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotSkewOnTableScan[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT SUM(b) FROM T2 GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[builtin, default, T2, source: [selectedFields=[a, b, c]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[a]])
+      +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+         +- TableSourceScan(table=[[builtin, default, T2, source: [selectedFields=[a, b]]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

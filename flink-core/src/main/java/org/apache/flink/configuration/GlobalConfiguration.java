@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -157,7 +158,8 @@ public final class GlobalConfiguration {
 	 * @param file the YAML file to read from
 	 * @see <a href="http://www.yaml.org/spec/1.2/spec.html">YAML 1.2 specification</a>
 	 */
-	private static Configuration loadYAMLResource(File file) {
+	@VisibleForTesting
+	public static Configuration loadYAMLResource(File file) {
 		final Configuration config = new Configuration();
 
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)))){

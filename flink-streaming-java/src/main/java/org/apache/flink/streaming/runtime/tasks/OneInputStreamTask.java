@@ -26,8 +26,10 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -37,7 +39,7 @@ import javax.annotation.Nullable;
 @Internal
 public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamOperator<IN, OUT>> {
 
-	private StreamInputProcessor<IN> inputProcessor;
+	protected StreamInputProcessor<IN> inputProcessor;
 
 	private volatile boolean running = true;
 
@@ -73,6 +75,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	public void init() throws Exception {
 		StreamConfig configuration = getConfiguration();
 
+		final OneInputStreamOperator<IN, OUT> headOperator = getHeadOperator();
+
 		TypeSerializer<IN> inSerializer = configuration.getTypeSerializerIn1(getUserCodeClassLoader());
 		int numberOfInputs = configuration.getNumberOfInputs();
 
@@ -82,18 +86,21 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			inputProcessor = new StreamInputProcessor<>(
 					inputGates,
 					inSerializer,
+					configuration.isCheckpointingEnabled(),
 					this,
 					configuration.getCheckpointMode(),
 					getCheckpointLock(),
 					getEnvironment().getIOManager(),
 					getEnvironment().getTaskManagerInfo().getConfiguration(),
 					getStreamStatusMaintainer(),
-					this.headOperator,
+					headOperator,
 					getEnvironment().getMetricGroup().getIOMetricGroup(),
-					inputWatermarkGauge);
+					inputWatermarkGauge,
+					getExecutionConfig().isObjectReuseEnabled(),
+					getExecutionConfig().isTracingMetricsEnabled(),
+					getExecutionConfig().getTracingMetricsInterval());
 		}
 		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge);
-		// wrap watermark gauge since registered metrics must be unique
 		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge::getValue);
 	}
 
@@ -104,6 +111,21 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 		while (running && inputProcessor.processInput()) {
 			// all the work happens in the "processInput" method
+		}
+
+		// the input is finished, notify non-head operators
+		if (running) {
+			synchronized (getCheckpointLock()) {
+				OneInputStreamOperator<IN, OUT> headOperator = getHeadOperator();
+				for (StreamOperator<?> operator : operatorChain.getAllOperatorsTopologySorted()) {
+					if (operator.getOperatorID().equals(headOperator.getOperatorID())) {
+						continue;
+					}
+
+					Preconditions.checkState(operator instanceof OneInputStreamOperator);
+					((OneInputStreamOperator<?, ?>) operator).endInput();
+				}
+			}
 		}
 	}
 
@@ -117,5 +139,12 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	@Override
 	protected void cancelTask() {
 		running = false;
+	}
+
+	@SuppressWarnings("unchecked")
+	protected OneInputStreamOperator<IN, OUT> getHeadOperator() {
+		Preconditions.checkState(operatorChain.getHeadOperators().length == 1,
+			"There should only one head operator, not " + operatorChain.getHeadOperators().length);
+		return (OneInputStreamOperator<IN, OUT>) operatorChain.getHeadOperators()[0];
 	}
 }

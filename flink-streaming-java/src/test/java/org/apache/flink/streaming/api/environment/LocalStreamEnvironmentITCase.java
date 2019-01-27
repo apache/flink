@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.util.TestLogger;
 
@@ -42,6 +43,20 @@ public class LocalStreamEnvironmentITCase extends TestLogger {
 
 		addSmallBoundedJob(env, 3);
 		env.execute();
+	}
+
+	/**
+	 * Test test verifies that the execution environment can be used to execute a
+	 * single job with multiple slots.
+	 */
+	@Test
+	public void testSubmitJob() throws Exception {
+		LocalStreamEnvironment env = new LocalStreamEnvironment();
+		assertEquals(1, env.getParallelism());
+
+		addSmallBoundedJob(env, 3);
+		JobSubmissionResult submissionResult = env.submit();
+
 	}
 
 	/**

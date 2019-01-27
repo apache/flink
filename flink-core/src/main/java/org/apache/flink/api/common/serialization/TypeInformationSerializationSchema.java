@@ -81,9 +81,9 @@ public class TypeInformationSerializationSchema<T> implements DeserializationSch
 	@Override
 	public T deserialize(byte[] message) {
 		if (dis != null) {
-			dis.setBuffer(message);
+			dis.setBuffer(message, 0, message.length);
 		} else {
-			dis = new DataInputDeserializer(message);
+			dis = new DataInputDeserializer(message, 0, message.length);
 		}
 
 		try {

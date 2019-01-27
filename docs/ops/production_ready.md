@@ -95,6 +95,6 @@ By default, there is a single JobManager instance per Flink cluster. This create
 if the JobManager crashes, no new programs can be submitted and running programs fail.
 
 With JobManager High Availability, you can recover from JobManager failures and thereby eliminate the *SPOF*. 
-We **strongly recommend** you configure [high availability]({{ site.baseurl }}/ops/jobmanager_high_availability.html) for production.
+We **strongly recommend** you configure [high availability]({{ site.baseurl }}/ops/ha/jobmanager_high_availability.html) for production.
 
 {% top %}

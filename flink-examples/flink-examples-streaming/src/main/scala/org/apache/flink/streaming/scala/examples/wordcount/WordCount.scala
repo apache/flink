@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.scala.examples.wordcount
 
+import org.apache.flink.api.common.operators.ResourceSpec
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.examples.wordcount.util.WordCountData
@@ -56,6 +57,28 @@ object WordCount {
     // make parameters available in the web interface
     env.getConfig.setGlobalJobParameters(params)
 
+    var resourceSpec : ResourceSpec = null
+    if (params.has("resource")) {
+      val resConfig = params.get("resource")
+      if (resConfig != null) {
+        var cpuCores = 0.0
+        var heapMemory = 0
+        resConfig.split(",").foreach(i => {
+          val keyAndVal = i.split(":")
+          if (keyAndVal.size == 2) {
+            if (keyAndVal(0).equals("vcores")) {
+              cpuCores = keyAndVal(1).toDouble
+            } else if (keyAndVal(0).equals("memory")) {
+              heapMemory = keyAndVal(1).toInt
+            }
+          }
+        })
+        resourceSpec = ResourceSpec.newBuilder().setCpuCores(cpuCores)
+          .setHeapMemoryInMB(heapMemory).build()
+        println("cpuCores: " + cpuCores + ", heapMemory: " + heapMemory);
+      }
+    }
+
     // get input data
     val text =
     // read the text file from given input path
@@ -68,18 +91,36 @@ object WordCount {
       env.fromElements(WordCountData.WORDS: _*)
     }
 
-    val counts: DataStream[(String, Int)] = text
-      // split up the lines in pairs (2-tuples) containing: (word,1)
-      .flatMap(_.toLowerCase.split("\\W+"))
-      .filter(_.nonEmpty)
-      .map((_, 1))
-      // group by the tuple field "0" and sum up tuple field "1"
-      .keyBy(0)
-      .sum(1)
+    // split up the lines in pairs (2-tuples) containing: (word,1)
+    val counts: DataStream[(String, Int)] = {
+      if (resourceSpec != null) {
+        text.setResources(resourceSpec)
+          .flatMap(_.toLowerCase.split("\\W+")).setResources(resourceSpec)
+          .filter(_.nonEmpty).setResources(resourceSpec)
+          .map((_, 1)).setResources(resourceSpec)
+          // group by the tuple field "0" and sum up tuple field "1"
+          .keyBy(0)
+          .sum(1).setResources(resourceSpec)
+      }
+      else {
+        text
+          // split up the lines in pairs (2-tuples) containing: (word,1)
+          .flatMap(_.toLowerCase.split("\\W+"))
+          .filter(_.nonEmpty)
+          .map((_, 1))
+          // group by the tuple field "0" and sum up tuple field "1"
+          .keyBy(0)
+          .sum(1)
+      }
+    }
 
     // emit result
     if (params.has("output")) {
-      counts.writeAsText(params.get("output"))
+      if (resourceSpec != null) {
+        counts.writeAsText(params.get("output")).setResources(resourceSpec)
+      } else {
+        counts.writeAsText(params.get("output"))
+      }
     } else {
       println("Printing result to stdout. Use --output to specify output path.")
       counts.print()

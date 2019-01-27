@@ -146,6 +146,8 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 								currentRequest.setUri(encoder.toString());
 							}
 						}
+
+						data.release();
 					}
 				}
 				catch (EndOfDataDecoderException ignored) {}

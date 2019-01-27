@@ -25,6 +25,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -33,6 +34,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -435,11 +437,22 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 				.reduce(new NoOpReduceFunction()).name("reduce").setUidHash(userHashes.get(1));
 
 		StreamGraph streamGraph = env.getStreamGraph();
-		int idx = 1;
+
 		for (JobVertex jobVertex : streamGraph.getJobGraph().getVertices()) {
 			List<JobVertexID> idAlternatives = jobVertex.getIdAlternatives();
-			Assert.assertEquals(idAlternatives.get(idAlternatives.size() - 1).toString(), userHashes.get(idx));
-			--idx;
+			List<OperatorID> userDefinedOperatorIDs = jobVertex.getUserDefinedOperatorIDs();
+
+			if ("reduce".equals(jobVertex.getName())) {
+				int idx = 1;
+				Assert.assertEquals(idAlternatives.get(idAlternatives.size() - 1).toString(), userHashes.get(idx));
+				Assert.assertArrayEquals(ArrayUtils.toArray(userHashes.get(idx)),
+					userDefinedOperatorIDs.stream().map((o) -> o == null ? null : o.toString()).toArray());
+			} else {
+				int idx = 0;
+				Assert.assertEquals(idAlternatives.get(idAlternatives.size() - 1).toString(), userHashes.get(idx));
+				Assert.assertArrayEquals(ArrayUtils.toArray(null, null, userHashes.get(idx)),
+					userDefinedOperatorIDs.stream().map((o) -> o == null ? null : o.toString()).toArray());
+			}
 		}
 	}
 

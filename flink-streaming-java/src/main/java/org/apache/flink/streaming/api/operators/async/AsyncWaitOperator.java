@@ -112,6 +112,9 @@ public class AsyncWaitOperator<IN, OUT>
 	/** Thread running the emitter. */
 	private transient Thread emitterThread;
 
+	/** Whether object reuse has been enabled or disabled. */
+	private transient boolean isObjectReuseEnabled;
+
 	public AsyncWaitOperator(
 			AsyncFunction<IN, OUT> asyncFunction,
 			long timeout,
@@ -162,6 +165,8 @@ public class AsyncWaitOperator<IN, OUT>
 	public void open() throws Exception {
 		super.open();
 
+		this.isObjectReuseEnabled = getExecutionConfig().isObjectReuseEnabled();
+
 		// create the emitter
 		this.emitter = new Emitter<>(checkpointingLock, output, queue, this);
 
@@ -197,7 +202,15 @@ public class AsyncWaitOperator<IN, OUT>
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		final StreamRecordQueueEntry<OUT> streamRecordBufferEntry = new StreamRecordQueueEntry<>(element);
+		StreamRecord<IN> record;
+		// copy the element avoid the element is reused
+		if (isObjectReuseEnabled) {
+			//noinspection unchecked
+			record = (StreamRecord<IN>) inStreamElementSerializer.copy(element);
+		} else {
+			record = element;
+		}
+		final StreamRecordQueueEntry<OUT> streamRecordBufferEntry = new StreamRecordQueueEntry<>(record);
 
 		if (timeout > 0L) {
 			// register a timeout for this AsyncStreamRecordBufferEntry
@@ -208,7 +221,7 @@ public class AsyncWaitOperator<IN, OUT>
 				new ProcessingTimeCallback() {
 					@Override
 					public void onProcessingTime(long timestamp) throws Exception {
-						userFunction.timeout(element.getValue(), streamRecordBufferEntry);
+						userFunction.timeout(record.getValue(), streamRecordBufferEntry);
 					}
 				});
 
@@ -223,7 +236,7 @@ public class AsyncWaitOperator<IN, OUT>
 
 		addAsyncBufferEntry(streamRecordBufferEntry);
 
-		userFunction.asyncInvoke(element.getValue(), streamRecordBufferEntry);
+		userFunction.asyncInvoke(record.getValue(), streamRecordBufferEntry);
 	}
 
 	@Override
@@ -231,6 +244,11 @@ public class AsyncWaitOperator<IN, OUT>
 		WatermarkQueueEntry watermarkBufferEntry = new WatermarkQueueEntry(mark);
 
 		addAsyncBufferEntry(watermarkBufferEntry);
+	}
+
+	@Override
+	public void endInput() throws Exception {
+
 	}
 
 	@Override
@@ -409,5 +427,10 @@ public class AsyncWaitOperator<IN, OUT>
 	@Override
 	public void failOperator(Throwable throwable) {
 		getContainingTask().getEnvironment().failExternally(throwable);
+	}
+
+	@Override
+	public boolean requireState() {
+		return true;
 	}
 }

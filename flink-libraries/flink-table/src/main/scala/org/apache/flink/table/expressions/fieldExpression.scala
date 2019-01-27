@@ -17,14 +17,16 @@
  */
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.types.{DataTypes, InternalType}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
-import org.apache.flink.table.calcite.FlinkTypeFactory._
+import org.apache.flink.table.calcite.FlinkTypeFactory.isTimeIndicatorType
+import org.apache.flink.table.calcite.{FlinkTypeFactory, RexAggBufferVariable, RexAggLocalVariable}
 import org.apache.flink.table.functions.sql.StreamRecordTimestampSqlFunction
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.table.calcite._
+import org.apache.flink.table.plan.logical.LogicalExprVisitor
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 trait NamedExpression extends Expression {
@@ -45,16 +47,19 @@ case class UnresolvedFieldReference(name: String) extends Attribute {
   override private[flink] def withName(newName: String): Attribute =
     UnresolvedFieldReference(newName)
 
-  override private[flink] def resultType: TypeInformation[_] =
+  override private[flink] def resultType: InternalType =
     throw UnresolvedException(s"Calling resultType on ${this.getClass}.")
 
   override private[flink] def validateInput(): ValidationResult =
     ValidationFailure(s"Unresolved reference $name.")
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 case class ResolvedFieldReference(
     name: String,
-    resultType: TypeInformation[_]) extends Attribute {
+    resultType: InternalType) extends Attribute {
 
   override def toString = s"'$name"
 
@@ -69,6 +74,143 @@ case class ResolvedFieldReference(
       ResolvedFieldReference(newName, resultType)
     }
   }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
+}
+
+case class UnresolvedAggBufferReference(name: String, returnType: InternalType) extends Attribute {
+
+  override def toString = s"'$name"
+
+  override def resultType: InternalType = returnType
+
+  override private[flink] def withName(newName: String): Attribute =
+    UnresolvedAggBufferReference(newName, returnType)
+
+  override private[flink] def validateInput(): ValidationResult =
+    ValidationFailure(s"Unresolved reference $name.")
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
+}
+
+/**
+ * Normally we should use [[ResolvedFieldReference]] to represent an input field.
+ * [[ResolvedFieldReference]] uses name to locate the field, in aggregate case, we want to use
+ * field index.
+ */
+case class ResolvedAggInputReference(
+    name: String,
+    index: Int,
+    resultType: InternalType) extends Attribute {
+
+  override def toString = s"'$name"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    // using index to resolve field directly, name used in toString only
+    val typeFactory = relBuilder.getRexBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    new RexInputRef(
+      index,
+      typeFactory.createTypeFromInternalType(resultType, isNullable = true))
+  }
+
+  override private[flink] def withName(newName: String): Attribute = {
+    if (newName == name) this
+    else ResolvedAggInputReference(newName, index, resultType)
+  }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
+}
+
+/**
+ * Special reference which represent a filed from aggregate buffer. We may store the aggregate
+ * buffer as rows, or directly as class members. We should use an unique name to locate the field.
+ *
+ * See [[org.apache.flink.table.codegen.ExprCodeGenerator.visitLocalRef()]]
+ */
+case class ResolvedAggBufferReference(name: String, resultType: InternalType)
+  extends Attribute {
+
+  override def toString = s"'$name"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    val typeFactory = relBuilder.getRexBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    RexAggBufferVariable(
+      name,
+      typeFactory.createTypeFromInternalType(resultType, isNullable = true),
+      resultType)
+  }
+
+  override private[flink] def withName(newName: String): Attribute = {
+    if (newName == name) this
+    else ResolvedAggBufferReference(newName, resultType)
+  }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
+}
+
+/**
+  * Special reference which represent a local filed, such as aggregate buffers or constants.
+  * We are stored as class members, so the field can be referenced directly.
+  * We should use an unique name to locate the field.
+  *
+  * See [[org.apache.flink.table.codegen.ExprCodeGenerator.visitLocalRef()]]
+  */
+case class ResolvedAggLocalReference(
+    name: String,
+    nullTerm: String,
+    resultType: InternalType)
+  extends Attribute {
+
+  override def toString = s"'$name"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    val typeFactory = relBuilder.getRexBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    RexAggLocalVariable(
+      name,
+      nullTerm,
+      typeFactory.createTypeFromInternalType(resultType, isNullable = true),
+      resultType)
+  }
+
+  override private[flink] def withName(newName: String): Attribute = {
+    if (newName == name) this
+    else ResolvedAggLocalReference(newName, nullTerm, resultType)
+  }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
+}
+
+/**
+  * Special reference which represent a distinct key input filed,
+  * [[ResolvedDistinctKeyReference]] uses name to locate the field.
+  */
+case class ResolvedDistinctKeyReference(
+    name: String,
+    resultType: InternalType)
+  extends Attribute {
+
+  override def toString = s"'$name"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    val typeFactory = relBuilder.getRexBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    RexDistinctKeyVariable(
+      name,
+      typeFactory.createTypeFromInternalType(resultType, isNullable = true),
+      resultType)
+  }
+
+  override private[flink] def withName(newName: String): Attribute = {
+    if (newName == name) this
+    else ResolvedDistinctKeyReference(newName, resultType)
+  }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 case class Alias(child: Expression, name: String, extraNames: Seq[String] = Seq())
@@ -80,7 +222,7 @@ case class Alias(child: Expression, name: String, extraNames: Seq[String] = Seq(
     relBuilder.alias(child.toRexNode, name)
   }
 
-  override private[flink] def resultType: TypeInformation[_] = child.resultType
+  override private[flink] def resultType: InternalType = child.resultType
 
   override private[flink] def makeCopy(anyRefs: Array[AnyRef]): this.type = {
     val child: Expression = anyRefs.head.asInstanceOf[Expression]
@@ -104,6 +246,9 @@ case class Alias(child: Expression, name: String, extraNames: Seq[String] = Seq(
       ValidationSuccess
     }
   }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 case class UnresolvedAlias(child: Expression) extends UnaryExpression with NamedExpression {
@@ -114,18 +259,21 @@ case class UnresolvedAlias(child: Expression) extends UnaryExpression with Named
   override private[flink] def toAttribute: Attribute =
     throw UnresolvedException("Invalid call to toAttribute on UnresolvedAlias")
 
-  override private[flink] def resultType: TypeInformation[_] =
+  override private[flink] def resultType: InternalType =
     throw UnresolvedException("Invalid call to resultType on UnresolvedAlias")
 
   override private[flink] lazy val valid = false
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
-case class WindowReference(name: String, tpe: Option[TypeInformation[_]] = None) extends Attribute {
+case class WindowReference(name: String, tpe: Option[InternalType] = None) extends Attribute {
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
     throw new UnsupportedOperationException("A window reference can not be used solely.")
 
-  override private[flink] def resultType: TypeInformation[_] =
+  override private[flink] def resultType: InternalType =
     tpe.getOrElse(throw UnresolvedException("Could not resolve type of referenced window."))
 
   override private[flink] def withName(newName: String): Attribute = {
@@ -137,6 +285,9 @@ case class WindowReference(name: String, tpe: Option[TypeInformation[_]] = None)
   }
 
   override def toString: String = s"'$name"
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 case class TableReference(name: String, table: Table) extends LeafExpression with NamedExpression {
@@ -144,13 +295,16 @@ case class TableReference(name: String, table: Table) extends LeafExpression wit
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
     throw new UnsupportedOperationException(s"Table reference '$name' can not be used solely.")
 
-  override private[flink] def resultType: TypeInformation[_] =
+  override private[flink] def resultType: InternalType =
     throw UnresolvedException(s"Table reference '$name' has no result type.")
 
   override private[flink] def toAttribute =
     throw new UnsupportedOperationException(s"A table reference '$name' can not be an attribute.")
 
   override def toString: String = s"$name"
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 abstract class TimeAttribute(val expression: Expression)
@@ -164,12 +318,12 @@ case class RowtimeAttribute(expr: Expression) extends TimeAttribute(expr) {
 
   override private[flink] def validateInput(): ValidationResult = {
     child match {
-      case WindowReference(_, Some(tpe: TypeInformation[_])) if isProctimeIndicatorType(tpe) =>
+      case WindowReference(_, Some(tpe)) if tpe == DataTypes.PROCTIME_INDICATOR =>
         ValidationFailure("A proctime window cannot provide a rowtime attribute.")
-      case WindowReference(_, Some(tpe: TypeInformation[_])) if isRowtimeIndicatorType(tpe) =>
+      case WindowReference(_, Some(tpe)) if tpe == DataTypes.ROWTIME_INDICATOR =>
         // rowtime window
         ValidationSuccess
-      case WindowReference(_, Some(tpe)) if tpe == Types.LONG || tpe == Types.SQL_TIMESTAMP =>
+      case WindowReference(_, Some(tpe)) if tpe == DataTypes.LONG || tpe == DataTypes.TIMESTAMP =>
         // batch time window
         ValidationSuccess
       case WindowReference(_, _) =>
@@ -181,16 +335,17 @@ case class RowtimeAttribute(expr: Expression) extends TimeAttribute(expr) {
     }
   }
 
-  override def resultType: TypeInformation[_] = {
+  override def resultType: InternalType = {
     child match {
-      case WindowReference(_, Some(tpe: TypeInformation[_])) if isRowtimeIndicatorType(tpe) =>
+      case WindowReference(_, Some(tpe)) if tpe == DataTypes.ROWTIME_INDICATOR =>
         // rowtime window
-        TimeIndicatorTypeInfo.ROWTIME_INDICATOR
-      case WindowReference(_, Some(tpe)) if tpe == Types.LONG || tpe == Types.SQL_TIMESTAMP =>
+        DataTypes.ROWTIME_INDICATOR
+      case WindowReference(_, Some(tpe)) if tpe == DataTypes.LONG || tpe == DataTypes.TIMESTAMP =>
         // batch time window
-        Types.SQL_TIMESTAMP
+        DataTypes.TIMESTAMP
       case _ =>
-        throw new TableException("RowtimeAttribute has invalid type. Please report this bug.")
+        throw new TableException("WindowReference of RowtimeAttribute has invalid type. " +
+          "Please report this bug.")
     }
   }
 
@@ -198,13 +353,16 @@ case class RowtimeAttribute(expr: Expression) extends TimeAttribute(expr) {
     NamedWindowProperty(name, this)
 
   override def toString: String = s"rowtime($child)"
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 case class ProctimeAttribute(expr: Expression) extends TimeAttribute(expr) {
 
   override private[flink] def validateInput(): ValidationResult = {
     child match {
-      case WindowReference(_, Some(tpe: TypeInformation[_])) if isTimeIndicatorType(tpe) =>
+      case WindowReference(_, Some(tpe)) if isTimeIndicatorType(tpe) =>
         ValidationSuccess
       case WindowReference(_, _) =>
         ValidationFailure("Reference to a rowtime or proctime window required.")
@@ -215,21 +373,26 @@ case class ProctimeAttribute(expr: Expression) extends TimeAttribute(expr) {
     }
   }
 
-  override def resultType: TypeInformation[_] =
-    TimeIndicatorTypeInfo.PROCTIME_INDICATOR
+  override def resultType: InternalType = DataTypes.PROCTIME_INDICATOR
 
   override def toNamedWindowProperty(name: String): NamedWindowProperty =
     NamedWindowProperty(name, this)
 
   override def toString: String = s"proctime($child)"
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 /** Expression to access the timestamp of a StreamRecord. */
 case class StreamRecordTimestamp() extends LeafExpression {
 
-  override private[flink] def resultType = Types.LONG
+  override private[flink] def resultType = DataTypes.LONG
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.getRexBuilder.makeCall(StreamRecordTimestampSqlFunction)
+    relBuilder.call(StreamRecordTimestampSqlFunction)
   }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }

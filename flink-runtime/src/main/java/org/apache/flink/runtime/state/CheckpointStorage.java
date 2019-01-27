@@ -60,6 +60,21 @@ public interface CheckpointStorage {
 	CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) throws IOException;
 
 	/**
+	 * Resolves the given pointer to a checkpoint/savepoint into the latest completed checkpoint location.
+	 * The location supports reading the checkpoint metadata, or disposing the checkpoint storage location.
+	 *
+	 * <p>If the state backend cannot understand the format of the pointer (for example because it
+	 * was created by a different state backend) this method should throw an {@code IOException}.
+	 *
+	 * @param externalPointer The external checkpoint pointer to resolve.
+	 * @return The latest completed checkpoint location handle.
+	 *
+	 * @throws IOException Thrown, if the state backend does not understand the pointer, or if
+	 *                      the pointer could not be resolved due to an I/O error.
+	 */
+	CompletedCheckpointStorageLocation resolveLatestCheckpoint(String externalPointer) throws IOException;
+
+	/**
 	 * Initializes a storage location for new checkpoint with the given ID.
 	 *
 	 * <p>The returned storage location can be used to write the checkpoint data and metadata

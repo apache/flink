@@ -21,6 +21,7 @@ package org.apache.flink.client;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.common.Program;
@@ -37,9 +38,9 @@ import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.JobExecutorService;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
-import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 
 import java.util.List;
 
@@ -124,28 +125,39 @@ public class LocalExecutor extends PlanExecutor {
 	}
 
 	private JobExecutorService createJobExecutorService(Configuration configuration) throws Exception {
-		if (!configuration.contains(RestOptions.PORT)) {
-			configuration.setInteger(RestOptions.PORT, 0);
+		final JobExecutorService newJobExecutorService;
+		if (CoreOptions.NEW_MODE.equals(configuration.getString(CoreOptions.MODE))) {
+
+			if (!configuration.contains(RestOptions.PORT)) {
+				configuration.setInteger(RestOptions.PORT, 0);
+			}
+
+			final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
+				.setConfiguration(configuration)
+				.setNumTaskManagers(
+					configuration.getInteger(
+						ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
+						ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER))
+				.setRpcServiceSharing(MiniClusterConfiguration.RpcServiceSharing.SHARED)
+				.setNumSlotsPerTaskManager(
+					configuration.getInteger(
+						TaskManagerOptions.NUM_TASK_SLOTS, 1))
+				.build();
+
+			final MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration);
+			miniCluster.start();
+
+			configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
+
+			newJobExecutorService = miniCluster;
+		} else {
+			final LocalFlinkMiniCluster localFlinkMiniCluster = new LocalFlinkMiniCluster(configuration, true);
+			localFlinkMiniCluster.start();
+
+			newJobExecutorService = localFlinkMiniCluster;
 		}
 
-		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
-			.setConfiguration(configuration)
-			.setNumTaskManagers(
-				configuration.getInteger(
-					ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
-					ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER))
-			.setRpcServiceSharing(RpcServiceSharing.SHARED)
-			.setNumSlotsPerTaskManager(
-				configuration.getInteger(
-					TaskManagerOptions.NUM_TASK_SLOTS, 1))
-			.build();
-
-		final MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration);
-		miniCluster.start();
-
-		configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
-
-		return miniCluster;
+		return newJobExecutorService;
 	}
 
 	@Override
@@ -179,7 +191,7 @@ public class LocalExecutor extends PlanExecutor {
 	 *                   caused an exception.
 	 */
 	@Override
-	public JobExecutionResult executePlan(Plan plan) throws Exception {
+	public JobSubmissionResult executePlan(Plan plan, boolean detached) throws Exception {
 		if (plan == null) {
 			throw new IllegalArgumentException("The plan may not be null.");
 		}
@@ -220,10 +232,10 @@ public class LocalExecutor extends PlanExecutor {
 				JobGraphGenerator jgg = new JobGraphGenerator(jobExecutorServiceConfiguration);
 				JobGraph jobGraph = jgg.compileJobGraph(op, plan.getJobId());
 
-				return jobExecutorService.executeJobBlocking(jobGraph);
+				return jobExecutorService.executeJob(jobGraph, detached);
 			}
 			finally {
-				if (shutDownAtEnd) {
+				if (shutDownAtEnd && !detached) {
 					stop();
 				}
 			}
@@ -291,7 +303,15 @@ public class LocalExecutor extends PlanExecutor {
 	 *                   caused an exception.
 	 */
 	public static JobExecutionResult execute(Plan plan) throws Exception {
-		return new LocalExecutor().executePlan(plan);
+		return (JobExecutionResult) new LocalExecutor().executePlan(plan, false);
+	}
+
+	@Override
+	public void cancelPlan(JobID jobId) throws Exception {
+		while (jobExecutorService == null) {
+			Thread.sleep(1000);
+		}
+		jobExecutorService.cancel(jobId);
 	}
 
 	/**

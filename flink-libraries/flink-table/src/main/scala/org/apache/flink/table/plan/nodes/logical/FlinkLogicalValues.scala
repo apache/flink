@@ -18,19 +18,21 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
-import java.util.{List => JList}
-import java.util.function.Supplier
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.plan.nodes.FlinkConventions
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rel.logical.LogicalValues
 import org.apache.calcite.rel.metadata.{RelMdCollation, RelMetadataQuery}
+import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 import org.apache.calcite.rex.RexLiteral
-import org.apache.flink.table.plan.nodes.FlinkConventions
+
+import java.util
+import java.util.function.Supplier
 
 class FlinkLogicalValues(
     cluster: RelOptCluster,
@@ -40,6 +42,10 @@ class FlinkLogicalValues(
   extends Values(cluster, rowRelDataType, tuples, traitSet)
   with FlinkLogicalRel {
 
+  override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
+    new FlinkLogicalValues(cluster, traitSet, rowRelDataType, tuples)
+  }
+
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val dRows = mq.getRowCount(this)
     // Assume CPU is negligible since values are precomputed.
@@ -47,6 +53,8 @@ class FlinkLogicalValues(
     val dIo = 0
     planner.getCostFactory.makeCost(dRows, dCpu, dIo)
   }
+
+  override def isDeterministic: Boolean = true
 }
 
 private class FlinkLogicalValuesConverter
@@ -58,9 +66,7 @@ private class FlinkLogicalValuesConverter
 
   override def convert(rel: RelNode): RelNode = {
     val values = rel.asInstanceOf[LogicalValues]
-    val traitSet = rel.getTraitSet.replace(FlinkConventions.LOGICAL)
-
-    new FlinkLogicalValues(rel.getCluster, traitSet, values.getRowType, values.getTuples())
+    FlinkLogicalValues.create(rel.getCluster, values.getRowType, values.getTuples())
   }
 }
 
@@ -68,16 +74,21 @@ object FlinkLogicalValues {
 
   val CONVERTER: ConverterRule = new FlinkLogicalValuesConverter()
 
-  def create(cluster: RelOptCluster,
+  def create(
+      cluster: RelOptCluster,
       rowType: RelDataType,
       tuples: ImmutableList[ImmutableList[RexLiteral]]): FlinkLogicalValues = {
-    val mq: RelMetadataQuery = RelMetadataQuery.instance
-    val traitSet: RelTraitSet = cluster.traitSetOf(FlinkConventions.LOGICAL)
-        .replaceIfs(
-          RelCollationTraitDef.INSTANCE,
-          new Supplier[JList[RelCollation]]() {
-            def get: JList[RelCollation] = RelMdCollation.values(mq, rowType, tuples)
-          })
-    new FlinkLogicalValues(cluster, traitSet, rowType, tuples)
+    val mq = cluster.getMetadataQuery
+    val traitSet = cluster.traitSetOf(Convention.NONE).replaceIfs(
+      RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
+        def get: util.List[RelCollation] = RelMdCollation.values(mq, rowType, tuples)
+      })
+    // FIXME: FlinkRelMdDistribution requires the current RelNode to compute
+    // the distribution trait, so we have to create FlinkLogicalValues to
+    // calculate the distribution trait
+    val values = new FlinkLogicalValues(cluster, traitSet, rowType, tuples)
+    val newTraitSet = FlinkRelMetadataQuery.traitSet(values)
+      .replace(FlinkConventions.LOGICAL).simplify()
+    values.copy(newTraitSet, values.getInputs).asInstanceOf[FlinkLogicalValues]
   }
 }

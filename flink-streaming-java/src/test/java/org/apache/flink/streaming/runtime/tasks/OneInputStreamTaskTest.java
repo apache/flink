@@ -23,10 +23,15 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.Counter;
@@ -34,6 +39,9 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -72,7 +80,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import scala.concurrent.duration.Deadline;
@@ -364,6 +374,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
+		streamConfig.setCheckpointingEnabled(true);
 		StreamMap<String, String> mapOperator = new StreamMap<String, String>(new IdentityMap());
 		streamConfig.setStreamOperator(mapOperator);
 		streamConfig.setOperatorID(new OperatorID());
@@ -427,6 +438,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
+		streamConfig.setCheckpointingEnabled(true);
 		StreamMap<String, String> mapOperator = new StreamMap<String, String>(new IdentityMap());
 		streamConfig.setStreamOperator(mapOperator);
 		streamConfig.setOperatorID(new OperatorID());
@@ -507,8 +519,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 		int numberChainedTasks = 11;
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
+		configureChainedTestingStreamOperator(testHarness, streamConfig, numberChainedTasks);
 
-		configureChainedTestingStreamOperator(streamConfig, numberChainedTasks);
 		TestTaskStateManager taskStateManager = testHarness.taskStateManager;
 		OneShotLatch waitForAcknowledgeLatch = new OneShotLatch();
 
@@ -546,7 +558,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		StreamConfig restoredTaskStreamConfig = restoredTaskHarness.getStreamConfig();
 
-		configureChainedTestingStreamOperator(restoredTaskStreamConfig, numberChainedTasks);
+		configureChainedTestingStreamOperator(restoredTaskHarness, restoredTaskStreamConfig, numberChainedTasks);
 
 		TaskStateSnapshot stateHandles = taskStateManager.getLastJobManagerTaskStateSnapshot();
 		Assert.assertEquals(numberChainedTasks, stateHandles.getSubtaskStateMappings().size());
@@ -605,6 +617,11 @@ public class OneInputStreamTaskTest extends TestLogger {
 		}
 
 		@Override
+		public void endInput() throws Exception {
+
+		}
+
+		@Override
 		public void close() throws Exception {
 
 			// verify that the timer service is still running
@@ -626,7 +643,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		final TaskMetricGroup taskMetricGroup = new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
 			@Override
-			public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
+			public OperatorMetricGroup addOperator(OperatorID operatorID, String name) {
 				return new OperatorMetricGroup(NoOpMetricRegistry.INSTANCE, this, operatorID, name);
 			}
 		};
@@ -662,6 +679,11 @@ public class OneInputStreamTaskTest extends TestLogger {
 			output.collect(element);
 			output.collect(element);
 		}
+
+		@Override
+		public void endInput() throws Exception {
+
+		}
 	}
 
 	@Test
@@ -682,13 +704,13 @@ public class OneInputStreamTaskTest extends TestLogger {
 		InterceptingOperatorMetricGroup chainedOperatorMetricGroup = new InterceptingOperatorMetricGroup();
 		InterceptingTaskMetricGroup taskMetricGroup = new InterceptingTaskMetricGroup() {
 			@Override
-			public OperatorMetricGroup getOrAddOperator(OperatorID id, String name) {
+			public OperatorMetricGroup addOperator(OperatorID id, String name) {
 				if (id.equals(headOperatorId)) {
 					return headOperatorMetricGroup;
 				} else if (id.equals(chainedOperatorId)) {
 					return chainedOperatorMetricGroup;
 				} else {
-					return super.getOrAddOperator(id, name);
+					return super.addOperator(id, name);
 				}
 			}
 		};
@@ -757,6 +779,149 @@ public class OneInputStreamTaskTest extends TestLogger {
 		public void processWatermark(Watermark mark) throws Exception {
 			output.emitWatermark(new Watermark(mark.getTimestamp() * 2));
 		}
+
+		@Override
+		public void endInput() throws Exception {
+
+		}
+	}
+
+	@Test
+	public void testMutableObjectReuse() throws Exception {
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
+			env -> new OneInputStreamTask((Environment) env),
+			new TupleTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
+			new TupleTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO));
+
+		testHarness.setupOperatorChain(new OperatorID(), new TestMutableObjectReuseOperator(true))
+			.chain(new OperatorID(), new TestMutableObjectReuseOperator(),
+				new TupleSerializer(Tuple2.class,
+					new TypeSerializer<?>[]{BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()), BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig())}))
+			.finish();
+
+		ExecutionConfig executionConfig = testHarness.getExecutionConfig();
+		executionConfig.enableObjectReuse();
+
+		long initialTime = 0L;
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+
+		testHarness.invoke();
+		testHarness.waitForTaskRunning();
+
+		testHarness.processElement(new StreamRecord<>(Tuple2.of("Hello", 1)));
+		testHarness.processElement(new StreamRecord<>(Tuple2.of("Hello", 2), initialTime + 1));
+		testHarness.processElement(new Watermark(initialTime + 1));
+		testHarness.processElement(new StreamRecord<>(Tuple2.of("Ciao", 1), initialTime + 2));
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()));
+		testHarness.processElement(new StreamRecord<>(Tuple2.of("Ciao", 2), initialTime + 3));
+
+		expectedOutput.add(new StreamRecord<>(Tuple2.of("Hello", 1)));
+		expectedOutput.add(new StreamRecord<>(Tuple2.of("Hello", 2), initialTime + 1));
+		expectedOutput.add(new Watermark(initialTime + 1));
+		expectedOutput.add(new StreamRecord<>(Tuple2.of("Ciao", 1), initialTime + 2));
+		expectedOutput.add(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()));
+		expectedOutput.add(new StreamRecord<>(Tuple2.of("Ciao", 2), initialTime + 3));
+
+		testHarness.endInput();
+
+		testHarness.waitForTaskCompletion();
+
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+			expectedOutput,
+			testHarness.getOutput());
+	}
+
+	// This must only be used in one test, otherwise the static fields will be changed
+	// by several tests concurrently
+	private static class TestMutableObjectReuseOperator
+		extends AbstractStreamOperator<Tuple2<String, Integer>>
+		implements OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final boolean isHeadOperator;
+		private static Object headOperatorValue;
+
+		private Object prevRecord = null;
+		private Object prevValue = null;
+
+		public TestMutableObjectReuseOperator() {
+			this.isHeadOperator = false;
+		}
+
+		public TestMutableObjectReuseOperator(boolean isHeadOperator) {
+			this.isHeadOperator = isHeadOperator;
+		}
+
+		@Override
+		public void processElement(StreamRecord<Tuple2<String, Integer>> element) throws Exception {
+			if (isHeadOperator) {
+				if (prevRecord != null) {
+					assertTrue("Reuse StreamRecord object in the head operator.", element != prevRecord);
+					assertTrue("No reuse value object in the head operator.", element.getValue() == prevValue);
+				}
+
+				prevRecord = element;
+				prevValue = element.getValue();
+
+				headOperatorValue = element.getValue();
+			} else {
+				assertTrue("No reuse value object in chain.", element.getValue() == headOperatorValue);
+			}
+
+			output.collect(element);
+		}
+
+		@Override
+		public void endInput() throws Exception {
+
+		}
+	}
+
+	@Test
+	public void testEndInputNotification() throws Exception {
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
+			OneInputStreamTask::new,
+			2, 2,
+			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+
+		testHarness.setupOperatorChain(new OperatorID(), new TestEndInputNotificationOperator(0))
+			.chain(new OperatorID(),
+				new TestEndInputNotificationOperator(1),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+			.finish();
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+
+		testHarness.invoke();
+		testHarness.waitForTaskRunning();
+
+		TestEndInputNotificationOperator headOperator = (TestEndInputNotificationOperator) testHarness.getTask().operatorChain.getHeadOperators()[0];
+
+		testHarness.processElement(new StreamRecord<>("Hello-0-0"), 0, 0);
+		testHarness.endInput(0,  0);
+		testHarness.processElement(new StreamRecord<>("Hello-0-1"), 0, 1);
+		testHarness.endInput(0,  1);
+
+		headOperator.waitNumOutputRecords(2);
+
+		testHarness.processElement(new StreamRecord<>("Hello-1-0"), 1, 0);
+		testHarness.processElement(new StreamRecord<>("Hello-1-1"), 1, 1);
+		testHarness.endInput(1,  0);
+		testHarness.endInput(1,  1);
+
+		expectedOutput.add(new StreamRecord<>("Hello-0-0"));
+		expectedOutput.add(new StreamRecord<>("Hello-0-1"));
+		expectedOutput.add(new StreamRecord<>("Hello-1-0"));
+		expectedOutput.add(new StreamRecord<>("Hello-1-1"));
+		expectedOutput.add(new StreamRecord<>("Ciao-operator0"));
+		expectedOutput.add(new StreamRecord<>("Ciao-operator1"));
+
+		testHarness.waitForTaskCompletion();
+
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+			expectedOutput,
+			testHarness.getOutput());
 	}
 
 	//==============================================================================================
@@ -764,6 +929,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 	//==============================================================================================
 
 	private void configureChainedTestingStreamOperator(
+		StreamTaskTestHarness testHarness,
 		StreamConfig streamConfig,
 		int numberChainedTasks) {
 
@@ -773,9 +939,13 @@ public class OneInputStreamTaskTest extends TestLogger {
 		TestingStreamOperator<Integer, Integer> previousOperator = new TestingStreamOperator<>();
 		streamConfig.setStreamOperator(previousOperator);
 		streamConfig.setOperatorID(new OperatorID(0L, 0L));
+		streamConfig.setVertexID(0);
+		streamConfig.setTypeSerializerIn1(new IntSerializer());
 
 		// create the chain of operators
-		Map<Integer, StreamConfig> chainedTaskConfigs = new HashMap<>(numberChainedTasks - 1);
+		Map<Integer, StreamConfig> chainedTaskConfigs = new HashMap<>(numberChainedTasks);
+		chainedTaskConfigs.put(streamConfig.getVertexID(), streamConfig);
+
 		List<StreamEdge> outputEdges = new ArrayList<>(numberChainedTasks - 1);
 
 		for (int chainedIndex = 1; chainedIndex < numberChainedTasks; chainedIndex++) {
@@ -783,30 +953,28 @@ public class OneInputStreamTaskTest extends TestLogger {
 			StreamConfig chainedConfig = new StreamConfig(new Configuration());
 			chainedConfig.setStreamOperator(chainedOperator);
 			chainedConfig.setOperatorID(new OperatorID(0L, chainedIndex));
+			chainedConfig.setVertexID(chainedIndex);
+			chainedConfig.setTypeSerializerIn1(new IntSerializer());
 			chainedTaskConfigs.put(chainedIndex, chainedConfig);
 
 			StreamEdge outputEdge = new StreamEdge(
 				new StreamNode(
-					null,
 					chainedIndex - 1,
 					null,
 					null,
 					null,
 					null,
-					null,
 					null
 				),
 				new StreamNode(
-					null,
 					chainedIndex,
 					null,
 					null,
 					null,
 					null,
-					null,
 					null
 				),
-				0,
+				1,
 				Collections.<String>emptyList(),
 				null,
 				null
@@ -816,7 +984,10 @@ public class OneInputStreamTaskTest extends TestLogger {
 		}
 
 		streamConfig.setChainedOutputs(outputEdges);
-		streamConfig.setTransitiveChainedTaskConfigs(chainedTaskConfigs);
+
+		testHarness.streamTaskConfigCache.setOutStreamEdgesOfChain(null);
+		testHarness.streamTaskConfigCache.setChainedHeadNodeIds(Arrays.asList(streamConfig.getVertexID()));
+		testHarness.streamTaskConfigCache.setChainedNodeConfigs(chainedTaskConfigs);
 	}
 
 	private static class IdentityKeySelector<IN> implements KeySelector<IN, IN> {
@@ -876,6 +1047,11 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		@Override
 		public void processElement(StreamRecord<IN> element) throws Exception {
+
+		}
+
+		@Override
+		public void endInput() throws Exception {
 
 		}
 	}
@@ -991,12 +1167,81 @@ public class OneInputStreamTaskTest extends TestLogger {
 			}
 		}
 
+		@Override
+		public void endInput() throws Exception {
+
+		}
+
 		protected void handleElement(StreamRecord<String> element) {
 			// do nothing
 		}
 
 		protected void handleWatermark(Watermark mark) {
 			output.emitWatermark(mark);
+		}
+	}
+
+	/**
+	 * Using for test the endInput notification.
+	 */
+	protected static class TestEndInputNotificationOperator
+		extends AbstractStreamOperator<String>
+		implements OneInputStreamOperator<String, String> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final int index;
+
+		private volatile int numOutputRecords;
+
+		private static final CompletableFuture<Void> success = CompletableFuture.completedFuture(null);
+		private static final CompletableFuture<Void> failure = FutureUtils.completedExceptionally(new Exception("Not in line with expectations."));
+
+		public TestEndInputNotificationOperator(int index) {
+			this.index = index;
+		}
+
+		@Override
+		public void processElement(StreamRecord<String> element) throws Exception {
+			output.collect(element);
+
+			numOutputRecords++;
+			synchronized (this) {
+				this.notifyAll();
+			}
+		}
+
+		@Override
+		public void endInput() throws Exception {
+			output.collect(new StreamRecord<>("Ciao-operator" + index));
+
+			numOutputRecords++;
+			synchronized (this) {
+				this.notifyAll();
+			}
+		}
+
+		public void waitNumOutputRecords(int num) throws Exception {
+			FutureUtils.retryWithDelay(
+				() -> {
+					if (numOutputRecords == num) {
+						return success;
+					}
+					return failure;
+				},
+				5_000,
+				Time.milliseconds(0),
+				(throwable) -> {
+					synchronized (this) {
+						try {
+							this.wait(1L);
+						} catch (Throwable t) {
+						}
+					}
+					return true;
+				},
+				new ScheduledExecutorServiceAdapter(Executors.newSingleThreadScheduledExecutor()))
+				.get();
 		}
 	}
 }

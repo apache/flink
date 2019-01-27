@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.runtime.utils;
 
-import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.api.functions.FunctionContext;
+import org.apache.flink.table.api.functions.ScalarFunction;
 
 import java.util.Arrays;
 
@@ -77,6 +78,27 @@ public class JavaUserDefinedScalarFunctions {
 	public static class JavaFunc4 extends ScalarFunction {
 		public String eval(Integer[] a, String[] b) {
 			return Arrays.toString(a) + " and " + Arrays.toString(b);
+		}
+	}
+
+	/**
+	 * Testing open method is called.
+	 */
+	public static class UdfWithOpen extends ScalarFunction {
+
+		private boolean isOpened = false;
+
+		@Override
+		public void open(FunctionContext context) throws Exception {
+			super.open(context);
+			this.isOpened = true;
+		}
+
+		public String eval(String c) {
+			if (!isOpened) {
+				throw new IllegalStateException("Open method is not called!");
+			}
+			return "$" + c;
 		}
 	}
 

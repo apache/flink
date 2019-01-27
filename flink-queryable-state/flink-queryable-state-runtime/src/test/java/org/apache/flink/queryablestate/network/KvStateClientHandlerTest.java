@@ -30,7 +30,6 @@ import org.junit.Test;
 import java.nio.channels.ClosedChannelException;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -79,7 +78,7 @@ public class KvStateClientHandlerTest {
 
 		// Verify callback
 		channel.writeInbound(buf);
-		verify(callback, times(1)).onRequestFailure(eq(1222112278L), isA(RuntimeException.class));
+		verify(callback, times(1)).onRequestFailure(eq(1222112278L), any(RuntimeException.class));
 		assertEquals("Buffer not recycled", 0, buf.refCnt());
 
 		//
@@ -92,7 +91,7 @@ public class KvStateClientHandlerTest {
 
 		// Verify callback
 		channel.writeInbound(buf);
-		verify(callback, times(1)).onFailure(isA(RuntimeException.class));
+		verify(callback, times(1)).onFailure(any(RuntimeException.class));
 
 		//
 		// Unexpected messages
@@ -101,20 +100,20 @@ public class KvStateClientHandlerTest {
 
 		// Verify callback
 		channel.writeInbound(buf);
-		verify(callback, times(1)).onFailure(isA(IllegalStateException.class));
+		verify(callback, times(2)).onFailure(any(IllegalStateException.class));
 		assertEquals("Buffer not recycled", 0, buf.refCnt());
 
 		//
 		// Exception caught
 		//
 		channel.pipeline().fireExceptionCaught(new RuntimeException("Expected test Exception"));
-		verify(callback, times(3)).onFailure(isA(RuntimeException.class));
+		verify(callback, times(3)).onFailure(any(RuntimeException.class));
 
 		//
 		// Channel inactive
 		//
 		channel.pipeline().fireChannelInactive();
-		verify(callback, times(1)).onFailure(isA(ClosedChannelException.class));
+		verify(callback, times(4)).onFailure(any(ClosedChannelException.class));
 	}
 
 }

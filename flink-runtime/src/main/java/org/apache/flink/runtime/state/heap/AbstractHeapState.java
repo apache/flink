@@ -33,8 +33,10 @@ import org.apache.flink.util.Preconditions;
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <SV> The type of the values in the state.
+ * @param <S> The type of State
  */
-public abstract class AbstractHeapState<K, N, SV> implements InternalKvState<K, N, SV> {
+@Deprecated
+public abstract class AbstractHeapState<K, N, SV, S extends State> implements InternalKvState<K, N, SV> {
 
 	/** Map containing the actual key/value pairs. */
 	protected final StateTable<K, N, SV> stateTable;
@@ -59,7 +61,7 @@ public abstract class AbstractHeapState<K, N, SV> implements InternalKvState<K, 
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param defaultValue The default value for the state.
 	 */
-	AbstractHeapState(
+	protected AbstractHeapState(
 			StateTable<K, N, SV> stateTable,
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<SV> valueSerializer,

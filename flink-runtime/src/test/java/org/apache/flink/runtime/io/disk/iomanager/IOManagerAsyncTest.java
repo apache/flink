@@ -20,29 +20,41 @@ package org.apache.flink.runtime.io.disk.iomanager;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+@RunWith(Parameterized.class)
 public class IOManagerAsyncTest {
-	
+
 	private IOManagerAsync ioManager;
-	
+
+	private static final int NUM_READ_WRITE_THREADS = 10;
+
 	// ------------------------------------------------------------------------
 	//                           Setup & Shutdown
 	// ------------------------------------------------------------------------
-	
-	@Before
-	public void beforeTest() {
-		ioManager = new IOManagerAsync();
+
+	public IOManagerAsyncTest(boolean useBufferedIO) {
+		ioManager = useBufferedIO ? new IOManagerAsync(1024 * 1024, 1024 * 1024, NUM_READ_WRITE_THREADS) : new IOManagerAsync(NUM_READ_WRITE_THREADS);
+	}
+
+	@Parameterized.Parameters(name = "useBufferedIO-{0}")
+	public static Collection<Boolean> parameters() {
+		return Arrays.asList(true, false);
 	}
 
 	@After
@@ -54,40 +66,59 @@ public class IOManagerAsyncTest {
 	// ------------------------------------------------------------------------
 	//                           Test Methods
 	// ------------------------------------------------------------------------
-	
+
+	@Test
+	public void verifyNumReadWriteThread() {
+		try {
+			for (int i = 1; i <= NUM_READ_WRITE_THREADS; ++i) {
+				IOManagerAsync tempIOManager = new IOManagerAsync(i);
+				assertEquals(i, tempIOManager.getNumReaders());
+				assertEquals(i, tempIOManager.getNumWriters());
+				for (int j = 0; j < 1024; ++j) {
+					FileIOChannel.ID channelID = tempIOManager.createChannel();
+					assertEquals(j % i, channelID.getThreadNum());
+				}
+				tempIOManager.shutdown();
+				assertTrue("IO Manager has not properly shut down.", tempIOManager.isProperlyShutDown());
+			}
+		} catch (Exception ex) {
+			fail("Test encountered an exception: " + ex.getMessage());
+		}
+	}
+
 	@Test
 	public void channelReadWriteOneSegment() {
 		final int NUM_IOS = 1111;
-		
+
 		try {
 			final FileIOChannel.ID channelID = this.ioManager.createChannel();
 			final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channelID);
-			
+
 			MemorySegment memSeg = MemorySegmentFactory.allocateUnpooledSegment(32 * 1024);
-			
+
 			for (int i = 0; i < NUM_IOS; i++) {
 				for (int pos = 0; pos < memSeg.size(); pos += 4) {
 					memSeg.putInt(pos, i);
 				}
-				
+
 				writer.writeBlock(memSeg);
 				memSeg = writer.getNextReturnedBlock();
 			}
-			
+
 			writer.close();
-			
+
 			final BlockChannelReader<MemorySegment> reader = this.ioManager.createBlockChannelReader(channelID);
 			for (int i = 0; i < NUM_IOS; i++) {
 				reader.readBlock(memSeg);
 				memSeg = reader.getNextReturnedBlock();
-				
+
 				for (int pos = 0; pos < memSeg.size(); pos += 4) {
 					if (memSeg.getInt(pos) != i) {
 						fail("Read memory segment contains invalid data.");
 					}
 				}
 			}
-			
+
 			reader.closeAndDelete();
 		}
 		catch (Exception ex) {
@@ -95,45 +126,45 @@ public class IOManagerAsyncTest {
 			fail("Test encountered an exception: " + ex.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void channelReadWriteMultipleSegments() {
 		final int NUM_IOS = 1111;
 		final int NUM_SEGS = 16;
-		
+
 		try {
 			final List<MemorySegment> memSegs = new ArrayList<MemorySegment>();
 			for (int i = 0; i < NUM_SEGS; i++) {
 				memSegs.add(MemorySegmentFactory.allocateUnpooledSegment(32 * 1024));
 			}
-			
+
 			final FileIOChannel.ID channelID = this.ioManager.createChannel();
 			final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channelID);
-			
+
 			for (int i = 0; i < NUM_IOS; i++) {
 				final MemorySegment memSeg = memSegs.isEmpty() ? writer.getNextReturnedBlock() : memSegs.remove(memSegs.size() - 1);
-				
+
 				for (int pos = 0; pos < memSeg.size(); pos += 4) {
 					memSeg.putInt(pos, i);
 				}
-				
+
 				writer.writeBlock(memSeg);
 			}
 			writer.close();
-			
+
 			// get back the memory
 			while (memSegs.size() < NUM_SEGS) {
 				memSegs.add(writer.getNextReturnedBlock());
 			}
-			
+
 			final BlockChannelReader<MemorySegment> reader = this.ioManager.createBlockChannelReader(channelID);
 			while(!memSegs.isEmpty()) {
 				reader.readBlock(memSegs.remove(0));
 			}
-			
+
 			for (int i = 0; i < NUM_IOS; i++) {
 				final MemorySegment memSeg = reader.getNextReturnedBlock();
-				
+
 				for (int pos = 0; pos < memSeg.size(); pos += 4) {
 					if (memSeg.getInt(pos) != i) {
 						fail("Read memory segment contains invalid data.");
@@ -141,9 +172,9 @@ public class IOManagerAsyncTest {
 				}
 				reader.readBlock(memSeg);
 			}
-			
+
 			reader.closeAndDelete();
-			
+
 			// get back the memory
 			while (memSegs.size() < NUM_SEGS) {
 				memSegs.add(reader.getNextReturnedBlock());
@@ -154,35 +185,35 @@ public class IOManagerAsyncTest {
 			fail("TEst encountered an exception: " + ex.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testExceptionPropagationReader() {
 		try {
 			// use atomic boolean as a boolean reference
 			final AtomicBoolean handlerCalled = new AtomicBoolean();
 			final AtomicBoolean exceptionForwarded = new AtomicBoolean();
-			
+
 			ReadRequest req = new ReadRequest() {
-				
+
 				@Override
 				public void requestDone(IOException ioex) {
 					if (ioex instanceof TestIOException) {
 						exceptionForwarded.set(true);
 					}
-					
+
 					synchronized (handlerCalled) {
 						handlerCalled.set(true);
 						handlerCalled.notifyAll();
 					}
 				}
-				
+
 				@Override
 				public void read() throws IOException {
 					throw new TestIOException();
 				}
 			};
-			
-			
+
+
 			// test the read queue
 			RequestQueue<ReadRequest> rq = ioManager.getReadRequestQueue(ioManager.createChannel());
 			rq.add(req);
@@ -193,7 +224,7 @@ public class IOManagerAsyncTest {
 					handlerCalled.wait();
 				}
 			}
-			
+
 			assertTrue(exceptionForwarded.get());
 		}
 		catch (Exception e) {
@@ -201,35 +232,35 @@ public class IOManagerAsyncTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testExceptionPropagationWriter() {
 		try {
 			// use atomic boolean as a boolean reference
 			final AtomicBoolean handlerCalled = new AtomicBoolean();
 			final AtomicBoolean exceptionForwarded = new AtomicBoolean();
-			
+
 			WriteRequest req = new WriteRequest() {
-				
+
 				@Override
 				public void requestDone(IOException ioex) {
 					if (ioex instanceof TestIOException) {
 						exceptionForwarded.set(true);
 					}
-					
+
 					synchronized (handlerCalled) {
 						handlerCalled.set(true);
 						handlerCalled.notifyAll();
 					}
 				}
-				
+
 				@Override
 				public void write() throws IOException {
 					throw new TestIOException();
 				}
 			};
-			
-			
+
+
 			// test the read queue
 			RequestQueue<WriteRequest> rq = ioManager.getWriteRequestQueue(ioManager.createChannel());
 			rq.add(req);
@@ -240,7 +271,7 @@ public class IOManagerAsyncTest {
 					handlerCalled.wait();
 				}
 			}
-			
+
 			assertTrue(exceptionForwarded.get());
 		}
 		catch (Exception e) {
@@ -248,14 +279,14 @@ public class IOManagerAsyncTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testExceptionInCallbackRead() {
 		try {
 			final AtomicBoolean handlerCalled = new AtomicBoolean();
-			
+
 			ReadRequest regularRequest = new ReadRequest() {
-				
+
 				@Override
 				public void requestDone(IOException ioex) {
 					synchronized (handlerCalled) {
@@ -263,78 +294,29 @@ public class IOManagerAsyncTest {
 						handlerCalled.notifyAll();
 					}
 				}
-				
+
 				@Override
 				public void read() {}
 			};
-			
+
 			ReadRequest exceptionThrower = new ReadRequest() {
-				
+
 				@Override
 				public void requestDone(IOException ioex) {
 					throw new RuntimeException();
 				}
-				
+
 				@Override
 				public void read() {}
 			};
-			
+
 			RequestQueue<ReadRequest> rq = ioManager.getReadRequestQueue(ioManager.createChannel());
-			
+
 			// queue first an exception thrower, then a regular request.
 			// we check that the regular request gets successfully handled
 			rq.add(exceptionThrower);
 			rq.add(regularRequest);
-			
-			synchronized (handlerCalled) {
-				while (!handlerCalled.get()) {
-					handlerCalled.wait();
-				}
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
-	@Test
-	public void testExceptionInCallbackWrite() {
-		try {
-			final AtomicBoolean handlerCalled = new AtomicBoolean();
-			
-			WriteRequest regularRequest = new WriteRequest() {
-				
-				@Override
-				public void requestDone(IOException ioex) {
-					synchronized (handlerCalled) {
-						handlerCalled.set(true);
-						handlerCalled.notifyAll();
-					}
-				}
-				
-				@Override
-				public void write() {}
-			};
-			
-			WriteRequest exceptionThrower = new WriteRequest() {
-				
-				@Override
-				public void requestDone(IOException ioex) {
-					throw new RuntimeException();
-				}
-				
-				@Override
-				public void write() {}
-			};
-			
-			RequestQueue<WriteRequest> rq = ioManager.getWriteRequestQueue(ioManager.createChannel());
-			
-			// queue first an exception thrower, then a regular request.
-			// we check that the regular request gets successfully handled
-			rq.add(exceptionThrower);
-			rq.add(regularRequest);
-			
+
 			synchronized (handlerCalled) {
 				while (!handlerCalled.get()) {
 					handlerCalled.wait();
@@ -347,8 +329,57 @@ public class IOManagerAsyncTest {
 		}
 	}
 
-	
-	
+	@Test
+	public void testExceptionInCallbackWrite() {
+		try {
+			final AtomicBoolean handlerCalled = new AtomicBoolean();
+
+			WriteRequest regularRequest = new WriteRequest() {
+
+				@Override
+				public void requestDone(IOException ioex) {
+					synchronized (handlerCalled) {
+						handlerCalled.set(true);
+						handlerCalled.notifyAll();
+					}
+				}
+
+				@Override
+				public void write() {}
+			};
+
+			WriteRequest exceptionThrower = new WriteRequest() {
+
+				@Override
+				public void requestDone(IOException ioex) {
+					throw new RuntimeException();
+				}
+
+				@Override
+				public void write() {}
+			};
+
+			RequestQueue<WriteRequest> rq = ioManager.getWriteRequestQueue(ioManager.createChannel());
+
+			// queue first an exception thrower, then a regular request.
+			// we check that the regular request gets successfully handled
+			rq.add(exceptionThrower);
+			rq.add(regularRequest);
+
+			synchronized (handlerCalled) {
+				while (!handlerCalled.get()) {
+					handlerCalled.wait();
+				}
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+
+
 	final class TestIOException extends IOException {
 		private static final long serialVersionUID = -814705441998024472L;
 	}

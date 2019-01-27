@@ -20,8 +20,7 @@ package org.apache.flink.table.api.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestBase
-import org.apache.flink.table.utils.TableTestUtil._
+import org.apache.flink.table.util.TableTestBase
 import org.junit.Test
 
 /**
@@ -35,16 +34,7 @@ class AggregateTest extends TableTestBase {
     util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT avg(a), sum(b), count(c) FROM MyTable"
-
-    val aggregate = unaryNode(
-      "DataSetAggregate",
-      batchTableNode(0),
-      term("select",
-        "AVG(a) AS EXPR$0",
-        "SUM(b) AS EXPR$1",
-        "COUNT(c) AS EXPR$2")
-    )
-    util.verifySql(sqlQuery, aggregate)
+    util.verifyPlan(sqlQuery)
   }
 
   @Test
@@ -53,23 +43,7 @@ class AggregateTest extends TableTestBase {
     util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT avg(a), sum(b), count(c) FROM MyTable WHERE a = 1"
-
-    val calcNode = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      term("select", "a", "b", "c"),
-      term("where", "=(a, 1)")
-    )
-
-    val aggregate = unaryNode(
-      "DataSetAggregate",
-      calcNode,
-      term("select",
-        "AVG(a) AS EXPR$0",
-        "SUM(b) AS EXPR$1",
-        "COUNT(c) AS EXPR$2")
-    )
-    util.verifySql(sqlQuery, aggregate)
+    util.verifyPlan(sqlQuery)
   }
 
   @Test
@@ -78,25 +52,7 @@ class AggregateTest extends TableTestBase {
     util.addTable[(Int, Long, (Int, Long))]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT avg(a), sum(b), count(c), sum(c._1) FROM MyTable WHERE a = 1"
-
-    val calcNode = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      term("select", "CAST(1) AS a", "b", "c", "c._1 AS $f3"),
-      term("where", "=(a, 1)")
-    )
-
-    val aggregate = unaryNode(
-      "DataSetAggregate",
-      calcNode,
-      term("select",
-        "AVG(a) AS EXPR$0",
-        "SUM(b) AS EXPR$1",
-        "COUNT(c) AS EXPR$2",
-        "SUM($f3) AS EXPR$3")
-    )
-
-    util.verifySql(sqlQuery, aggregate)
+    util.verifyPlan(sqlQuery)
   }
 
   @Test
@@ -105,26 +61,7 @@ class AggregateTest extends TableTestBase {
     util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT avg(a), sum(b), count(c) FROM MyTable GROUP BY a"
-
-    val aggregate = unaryNode(
-        "DataSetAggregate",
-        batchTableNode(0),
-        term("groupBy", "a"),
-        term("select",
-          "a",
-          "AVG(a) AS EXPR$0",
-          "SUM(b) AS EXPR$1",
-          "COUNT(c) AS EXPR$2")
-    )
-    val expected = unaryNode(
-        "DataSetCalc",
-        aggregate,
-        term("select",
-          "EXPR$0",
-          "EXPR$1",
-          "EXPR$2")
-    )
-    util.verifySql(sqlQuery, expected)
+    util.verifyPlan(sqlQuery)
   }
 
   @Test
@@ -133,32 +70,6 @@ class AggregateTest extends TableTestBase {
     util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT avg(a), sum(b), count(c) FROM MyTable WHERE a = 1 GROUP BY a"
-
-    val calcNode = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      term("select","a", "b", "c") ,
-      term("where","=(a, 1)")
-    )
-
-    val aggregate = unaryNode(
-        "DataSetAggregate",
-        calcNode,
-        term("groupBy", "a"),
-        term("select",
-          "a",
-          "AVG(a) AS EXPR$0",
-          "SUM(b) AS EXPR$1",
-          "COUNT(c) AS EXPR$2")
-    )
-    val expected = unaryNode(
-        "DataSetCalc",
-        aggregate,
-        term("select",
-          "EXPR$0",
-          "EXPR$1",
-          "EXPR$2")
-    )
-    util.verifySql(sqlQuery, expected)
+    util.verifyPlan(sqlQuery)
   }
 }

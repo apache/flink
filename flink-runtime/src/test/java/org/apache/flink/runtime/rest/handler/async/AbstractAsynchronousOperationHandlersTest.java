@@ -65,6 +65,8 @@ import static org.junit.Assert.fail;
  */
 public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
+	private static final CompletableFuture<String> localRestAddress = CompletableFuture.completedFuture("localhost");
+
 	private static final Time TIMEOUT = Time.seconds(10L);
 
 	private TestingAsynchronousOperationHandlers testingAsynchronousOperationHandlers;
@@ -78,12 +80,14 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 		testingAsynchronousOperationHandlers = new TestingAsynchronousOperationHandlers();
 
 		testingTriggerHandler = testingAsynchronousOperationHandlers.new TestingTriggerHandler(
+			localRestAddress,
 			() -> null,
 			TIMEOUT,
 			Collections.emptyMap(),
 			TestingTriggerMessageHeaders.INSTANCE);
 
 		testingStatusHandler = testingAsynchronousOperationHandlers.new TestingStatusHandler(
+			localRestAddress,
 			() -> null,
 			TIMEOUT,
 			Collections.emptyMap(),
@@ -173,32 +177,6 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 			assertThat(restHandlerException.getMessage(), containsString("Operation not found"));
 			assertThat(restHandlerException.getHttpResponseStatus(), is(HttpResponseStatus.NOT_FOUND));
 		}
-	}
-
-	/**
-	 * Tests that the future returned by {@link AbstractAsynchronousOperationHandlers.StatusHandler#closeAsync()}
-	 * completes when the result of the asynchronous operation is served.
-	 */
-	@Test
-	public void testCloseShouldFinishOnFirstServedResult() throws Exception {
-		final CompletableFuture<String> savepointFuture = new CompletableFuture<>();
-		final TestingRestfulGateway testingRestfulGateway = new TestingRestfulGateway.Builder()
-			.setTriggerSavepointFunction((JobID jobId, String directory) -> savepointFuture)
-			.build();
-
-		final TriggerId triggerId = testingTriggerHandler.handleRequest(
-			triggerOperationRequest(),
-			testingRestfulGateway).get().getTriggerId();
-		final CompletableFuture<Void> closeFuture = testingStatusHandler.closeAsync();
-
-		testingStatusHandler.handleRequest(statusOperationRequest(triggerId), testingRestfulGateway).get();
-
-		assertThat(closeFuture.isDone(), is(false));
-
-		savepointFuture.complete("foobar");
-		testingStatusHandler.handleRequest(statusOperationRequest(triggerId), testingRestfulGateway).get();
-
-		assertThat(closeFuture.isDone(), is(true));
 	}
 
 	private static HandlerRequest<EmptyRequestBody, EmptyMessageParameters> triggerOperationRequest() throws HandlerRequestException {
@@ -331,8 +309,8 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
 		class TestingTriggerHandler extends TriggerHandler<RestfulGateway, EmptyRequestBody, EmptyMessageParameters> {
 
-			protected TestingTriggerHandler(GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, MessageHeaders<EmptyRequestBody, TriggerResponse, EmptyMessageParameters> messageHeaders) {
-				super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+			protected TestingTriggerHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, MessageHeaders<EmptyRequestBody, TriggerResponse, EmptyMessageParameters> messageHeaders) {
+				super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
 			}
 
 			@Override
@@ -348,8 +326,8 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
 		class TestingStatusHandler extends StatusHandler<RestfulGateway, OperationResult, TriggerMessageParameters> {
 
-			protected TestingStatusHandler(GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, MessageHeaders<EmptyRequestBody, AsynchronousOperationResult<OperationResult>, TriggerMessageParameters> messageHeaders) {
-				super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+			protected TestingStatusHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, MessageHeaders<EmptyRequestBody, AsynchronousOperationResult<OperationResult>, TriggerMessageParameters> messageHeaders) {
+				super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
 			}
 
 			@Override

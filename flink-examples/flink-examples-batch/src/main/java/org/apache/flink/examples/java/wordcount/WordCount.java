@@ -43,6 +43,7 @@ import org.apache.flink.util.Collector;
  * </ul>
  *
  */
+@SuppressWarnings("serial")
 public class WordCount {
 
 	// *************************************************************************
@@ -109,7 +110,7 @@ public class WordCount {
 			// emit the pairs
 			for (String token : tokens) {
 				if (token.length() > 0) {
-					out.collect(new Tuple2<>(token, 1));
+					out.collect(new Tuple2<String, Integer>(token, 1));
 				}
 			}
 		}

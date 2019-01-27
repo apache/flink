@@ -18,7 +18,6 @@
 
 package org.apache.flink.queryablestate.network;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -32,12 +31,14 @@ import org.apache.flink.queryablestate.network.messages.MessageType;
 import org.apache.flink.queryablestate.network.stats.AtomicKvStateRequestStats;
 import org.apache.flink.queryablestate.network.stats.KvStateRequestStats;
 import org.apache.flink.queryablestate.server.KvStateServerImpl;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.AbstractInternalStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackendWrapper;
+import org.apache.flink.runtime.state.context.ContextStateHelper;
+import org.apache.flink.runtime.state.heap.KeyContextImpl;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
@@ -96,41 +97,41 @@ public class KvStateServerTest {
 			KvStateRequestStats stats = new AtomicKvStateRequestStats();
 
 			server = new KvStateServerImpl(
-					InetAddress.getLocalHost(),
-					Collections.singletonList(0).iterator(),
-					1,
-					1,
-					registry,
-					stats);
+				InetAddress.getLocalHost(),
+				Collections.singletonList(0).iterator(),
+				1,
+				1,
+				registry,
+				stats);
 			server.start();
 
 			InetSocketAddress serverAddress = server.getServerAddress();
 			int numKeyGroups = 1;
+			KeyGroupRange groupRange = new KeyGroupRange(0, 0);
 			AbstractStateBackend abstractBackend = new MemoryStateBackend();
 			DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 			dummyEnv.setKvStateRegistry(registry);
-			final JobID jobId = new JobID();
-			AbstractKeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
+			AbstractInternalStateBackend internalStateBackend = abstractBackend.createInternalStateBackend(
 				dummyEnv,
-				jobId,
 				"test_op",
-				IntSerializer.INSTANCE,
 				numKeyGroups,
-				new KeyGroupRange(0, 0),
-				registry.createTaskRegistry(jobId, new JobVertexID()));
+				groupRange);
+			KeyContextImpl<Integer> keyContext = new KeyContextImpl<>(IntSerializer.INSTANCE, numKeyGroups, groupRange);
+			ContextStateHelper contextStateHelper = new ContextStateHelper(keyContext, dummyEnv.getExecutionConfig(), internalStateBackend);
+			KeyedStateBackendWrapper<Integer> backend = new KeyedStateBackendWrapper<>(contextStateHelper);
 
 			final KvStateServerHandlerTest.TestRegistryListener registryListener =
-					new KvStateServerHandlerTest.TestRegistryListener();
+				new KvStateServerHandlerTest.TestRegistryListener();
 
-			registry.registerListener(jobId, registryListener);
+			registry.registerListener(dummyEnv.getJobID(), registryListener);
 
 			ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE);
 			desc.setQueryable("vanilla");
 
 			ValueState<Integer> state = backend.getPartitionedState(
-					VoidNamespace.INSTANCE,
-					VoidNamespaceSerializer.INSTANCE,
-					desc);
+				VoidNamespace.INSTANCE,
+				VoidNamespaceSerializer.INSTANCE,
+				desc);
 
 			// Update KvState
 			int expectedValue = 712828289;
@@ -141,38 +142,38 @@ public class KvStateServerTest {
 
 			// Request
 			byte[] serializedKeyAndNamespace = KvStateSerializer.serializeKeyAndNamespace(
-					key,
-					IntSerializer.INSTANCE,
-					VoidNamespace.INSTANCE,
-					VoidNamespaceSerializer.INSTANCE);
+				key,
+				IntSerializer.INSTANCE,
+				VoidNamespace.INSTANCE,
+				VoidNamespaceSerializer.INSTANCE);
 
 			// Connect to the server
 			final BlockingQueue<ByteBuf> responses = new LinkedBlockingQueue<>();
 			bootstrap = createBootstrap(
-					new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4),
-					new ChannelInboundHandlerAdapter() {
-						@Override
-						public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-							responses.add((ByteBuf) msg);
-						}
-					});
+				new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4),
+				new ChannelInboundHandlerAdapter() {
+					@Override
+					public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+						responses.add((ByteBuf) msg);
+					}
+				});
 
 			Channel channel = bootstrap
-					.connect(serverAddress.getAddress(), serverAddress.getPort())
-					.sync().channel();
+				.connect(serverAddress.getAddress(), serverAddress.getPort())
+				.sync().channel();
 
 			long requestId = Integer.MAX_VALUE + 182828L;
 
 			assertTrue(registryListener.registrationName.equals("vanilla"));
 
 			final KvStateInternalRequest request = new KvStateInternalRequest(
-					registryListener.kvStateId,
-					serializedKeyAndNamespace);
+				registryListener.kvStateId,
+				serializedKeyAndNamespace);
 
 			ByteBuf serializeRequest = MessageSerializer.serializeRequest(
-					channel.alloc(),
-					requestId,
-					request);
+				channel.alloc(),
+				requestId,
+				request);
 
 			channel.writeAndFlush(serializeRequest);
 
@@ -204,12 +205,12 @@ public class KvStateServerTest {
 	 */
 	private Bootstrap createBootstrap(final ChannelHandler... handlers) {
 		return new Bootstrap().group(NIO_GROUP).channel(NioSocketChannel.class)
-				.handler(new ChannelInitializer<SocketChannel>() {
-					@Override
-					protected void initChannel(SocketChannel ch) throws Exception {
-						ch.pipeline().addLast(handlers);
-					}
-				});
+			.handler(new ChannelInitializer<SocketChannel>() {
+				@Override
+				protected void initChannel(SocketChannel ch) throws Exception {
+					ch.pipeline().addLast(handlers);
+				}
+			});
 	}
 
 }

@@ -41,7 +41,7 @@ that are common to both APIs but please see our
 writing programs with each API.
 
 **NOTE:** When showing actual examples of how the APIs can be used  we will use
-`StreamingExecutionEnvironment` and the `DataStream` API. The concepts are exactly the same
+`StreamExecutionEnvironment` and the `DataStream` API. The concepts are exactly the same
 in the `DataSet` API, just replace by `ExecutionEnvironment` and `DataSet`.
 
 * This will be replaced by the TOC
@@ -483,7 +483,7 @@ Specifying Transformation Functions
 --------------------------
 
 Most transformations require user-defined functions. This section lists different ways
-of how they can be specified
+of how they can be specified.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -510,7 +510,7 @@ data.map(new MapFunction<String, Integer> () {
 
 #### Java 8 Lambdas
 
-Flink also supports Java 8 Lambdas in the Java API.
+Flink also supports Java 8 Lambdas in the Java API. Please see the full [Java 8 Guide]({{ site.baseurl }}/dev/java8.html).
 
 {% highlight java %}
 data.filter(s -> s.startsWith("http://"));
@@ -759,13 +759,13 @@ Flink treats these data types as black boxes and is not able to access their con
 
 *Value* types describe their serialization and deserialization manually. Instead of going through a
 general purpose serialization framework, they provide custom code for those operations by means of
-implementing the `org.apache.flinktypes.Value` interface with the methods `read` and `write`. Using
+implementing the `org.apache.flink.types.Value` interface with the methods `read` and `write`. Using
 a Value type is reasonable when general purpose serialization would be highly inefficient. An
 example would be a data type that implements a sparse vector of elements as an array. Knowing that
 the array is mostly zero, one can use a special encoding for the non-zero elements, while the
 general purpose serialization would simply write all array elements.
 
-The `org.apache.flinktypes.CopyableValue` interface supports manual internal cloning logic in a
+The `org.apache.flink.types.CopyableValue` interface supports manual internal cloning logic in a
 similar way.
 
 Flink comes with pre-defined Value types that correspond to basic data types. (`ByteValue`,
@@ -783,7 +783,7 @@ defined in the `write()`and `readFields()` methods will be used for serializatio
 
 You can use special types, including Scala's `Either`, `Option`, and `Try`.
 The Java API has its own custom implementation of `Either`.
-Similarly to Scala's `Either`, it represents a value of one two possible types, *Left* or *Right*.
+Similarly to Scala's `Either`, it represents a value of one of two possible types, *Left* or *Right*.
 `Either` can be useful for error handling or operators that need to output two different types of records.
 
 #### Type Erasure & Type Inference

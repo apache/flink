@@ -19,17 +19,17 @@ package org.apache.flink.table.expressions
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.types.InternalType
 import org.apache.flink.table.plan.TreeNode
+import org.apache.flink.table.plan.logical.LogicalExprVisitable
 import org.apache.flink.table.validate.{ValidationResult, ValidationSuccess}
 
-abstract class Expression extends TreeNode[Expression] {
+abstract class Expression extends TreeNode[Expression] with LogicalExprVisitable {
   /**
-    * Returns the [[TypeInformation]] for evaluating this expression.
+    * Returns the [[InternalType]] for evaluating this expression.
     * It is sometimes not available until the expression is valid.
     */
-  private[flink] def resultType: TypeInformation[_]
+  private[flink] def resultType: InternalType
 
   /**
     * One pass validation of the expression tree in post order.

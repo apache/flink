@@ -24,7 +24,7 @@ package org.apache.flink.cep.nfa.aftermatch;
 public final class SkipToFirstStrategy extends SkipToElementStrategy {
 	private static final long serialVersionUID = 7127107527654629026L;
 
-	SkipToFirstStrategy(String patternName, boolean shouldThrowException) {
+	public SkipToFirstStrategy(String patternName, boolean shouldThrowException) {
 		super(patternName, shouldThrowException);
 	}
 

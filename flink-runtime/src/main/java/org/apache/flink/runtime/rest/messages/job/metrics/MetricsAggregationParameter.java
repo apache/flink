@@ -20,7 +20,6 @@ package org.apache.flink.runtime.rest.messages.job.metrics;
 
 import org.apache.flink.runtime.rest.messages.ConversionException;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
-import org.apache.flink.util.StringUtils;
 
 import java.util.Locale;
 
@@ -45,12 +44,6 @@ public class MetricsAggregationParameter extends MessageQueryParameter<MetricsAg
 	@Override
 	public String convertValueToString(AggregationMode value) {
 		return value.name().toLowerCase();
-	}
-
-	@Override
-	public String getDescription() {
-		return "Comma-separated list of aggregation modes which should be calculated. " +
-			"Available aggregations are: " + StringUtils.toQuotedListString(AggregationMode.values()) + '.';
 	}
 
 	/**

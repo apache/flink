@@ -19,22 +19,21 @@
 package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.calcite.schema.Statistic
-import org.apache.calcite.schema.impl.AbstractTable
+import org.apache.calcite.schema.TemporalTable
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.plan.stats.FlinkStatistic
 
 /**
   * Wrapper for both a [[TableSourceTable]] and [[TableSinkTable]] under a common name.
   *
   * @param tableSourceTable table source table (if available)
   * @param tableSinkTable table sink table (if available)
-  * @tparam T1 type of the table source table
-  * @tparam T2 type of the table sink table
+  * @tparam T1 type of the table sink table
   */
-class TableSourceSinkTable[T1, T2](
-    val tableSourceTable: Option[TableSourceTable[T1]],
-    val tableSinkTable: Option[TableSinkTable[T2]])
-  extends AbstractTable {
+class TableSourceSinkTable[T1](
+    val tableSourceTable: Option[TableSourceTable],
+    val tableSinkTable: Option[TableSinkTable[T1]])
+  extends FlinkTable {
 
   // In the streaming case, the table schema of source and sink can differ because of extra
   // rowtime/proctime fields. We will always return the source table schema if tableSourceTable
@@ -47,10 +46,16 @@ class TableSourceSinkTable[T1, T2](
       .getOrElse(throw new TableException("Unable to get row type of table source sink table."))
   }
 
-  override def getStatistic: Statistic = {
+  override def getStatistic: FlinkStatistic = {
     tableSourceTable.map(_.getStatistic)
       .orElse(tableSinkTable.map(_.getStatistic))
       .getOrElse(throw new TableException("Unable to get statistics of table source sink table."))
+  }
+
+  def isTemporalTable: Boolean = {
+    tableSourceTable.map(_.isInstanceOf[TemporalTable])
+      .orElse(tableSinkTable.map(_.isInstanceOf[TemporalTable]))
+      .getOrElse(false)
   }
 
   def isSourceTable: Boolean = tableSourceTable.isDefined
@@ -63,5 +68,25 @@ class TableSourceSinkTable[T1, T2](
   def isBatchSourceTable: Boolean = tableSourceTable match {
     case Some(_: BatchTableSourceTable[_]) => true
     case _ => false
+  }
+
+  override def copy(statistic: FlinkStatistic): FlinkTable = {
+    new TableSourceSinkTable[T1](tableSourceTable.map(source =>
+      source.copy(statistic).asInstanceOf[TableSourceTable]),
+      tableSinkTable.map(sink => sink.copy(statistic).asInstanceOf[TableSinkTable[T1]]))
+  }
+
+  // Look up the tableSourceTable and tableSinkTable to find proper table type, this method must be
+  // invoked every time to decide if the table source or sink can be deterministic.
+  override def unwrap[T](clazz: Class[T]): T = {
+    if (clazz.isInstance(this)) {
+      clazz.cast(this)
+    } else if (tableSourceTable.nonEmpty && clazz.isInstance(tableSourceTable.get)) {
+      clazz.cast(tableSourceTable.get)
+    } else if (tableSinkTable.nonEmpty && clazz.isInstance(tableSinkTable.get)) {
+      clazz.cast(tableSinkTable.get)
+    } else {
+      null.asInstanceOf[T]
+    }
   }
 }

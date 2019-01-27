@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -28,6 +29,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 
 import javax.annotation.Nullable;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -58,6 +60,23 @@ public interface SlotProvider {
 		ScheduledUnit task,
 		boolean allowQueued,
 		SlotProfile slotProfile,
+		Time timeout);
+
+	/**
+	 * Batch allocating slots with specific requirements.
+	 *
+	 * @param slotRequestIds identifying the slot requests
+	 * @param tasks The tasks to allocate the slots for
+	 * @param allowQueued Whether allow the task be queued if we do not have enough resource
+	 * @param slotProfiles profiles of the requested slot
+	 * @param timeout after which the allocation fails with a timeout exception
+	 * @return The future of the allocation
+	 */
+	List<CompletableFuture<LogicalSlot>> allocateSlots(
+		List<SlotRequestId> slotRequestIds,
+		List<ScheduledUnit> tasks,
+		boolean allowQueued,
+		List<SlotProfile> slotProfiles,
 		Time timeout);
 
 	/**
@@ -93,5 +112,6 @@ public interface SlotProvider {
 	CompletableFuture<Acknowledge> cancelSlotRequest(
 		SlotRequestId slotRequestId,
 		@Nullable SlotSharingGroupId slotSharingGroupId,
+		@Nullable CoLocationConstraint coLocationConstraint,
 		Throwable cause);
 }

@@ -82,6 +82,15 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	SerializationResult copyToBufferBuilder(BufferBuilder bufferBuilder);
 
 	/**
+	 * Flush all the intermediate data to the given target buffer.
+	 * @param bufferBuilder the new target buffer to use
+	 * @return how much information was written to the target buffer and
+	 *         whether this buffer is full
+	 * @throws IOException
+	 */
+	SerializationResult flushToBufferBuilder(BufferBuilder bufferBuilder);
+
+	/**
 	 * Clears the buffer and checks to decrease the size of intermediate data serialization buffer
 	 * after finishing the whole serialization process including
 	 * {@link #serializeRecord(IOReadableWritable)} and {@link #copyToBufferBuilder(BufferBuilder)}.
@@ -89,8 +98,8 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	void prune();
 
 	/**
-	 * Supports copying an intermediate data serialization buffer to multiple target buffers
-	 * by resetting its initial position before each copying.
+	 * Resets the initial position of intermediate data serialization buffer before
+	 * {@link #copyToBufferBuilder(BufferBuilder)}.
 	 */
 	void reset();
 

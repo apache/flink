@@ -18,27 +18,20 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.typeutils.BackwardsCompatibleSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerializationUtil;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.metainfo.StateMetaInfoReader;
-import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
-import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-
-import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters.CURRENT_STATE_META_INFO_SNAPSHOT_VERSION;
 
 /**
  * Serialization proxy for all meta data in keyed state backends. In the future we might also requiresMigration the actual state
@@ -46,55 +39,52 @@ import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReade
  */
 public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritable {
 
-	public static final int VERSION = 6;
-
-	private static final Map<Integer, Integer> META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER = new HashMap<>();
-	static {
-		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(1, 1);
-		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(2, 2);
-		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(3, 3);
-		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(4, 4);
-		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(5, 5);
-		META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.put(6, CURRENT_STATE_META_INFO_SNAPSHOT_VERSION);
-	}
+	public static final int VERSION = 4;
 
 	//TODO allow for more (user defined) compression formats + backwards compatibility story.
 	/** This specifies if we use a compressed format write the key-groups */
 	private boolean usingKeyGroupCompression;
 
-	// TODO the keySerializer field should be removed, once all serializers have the restoreSerializer() method implemented
-	private TypeSerializer<K> keySerializer;
-	private TypeSerializerSnapshot<K> keySerializerSnapshot;
+	/** This specifies whether or not to use dummy {@link UnloadableDummyTypeSerializer} when serializers cannot be read. */
+	private boolean isSerializerPresenceRequired;
 
-	private List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
+	private TypeSerializer<K> keySerializer;
+	private TypeSerializerConfigSnapshot keySerializerConfigSnapshot;
+
+	private List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots;
 
 	private ClassLoader userCodeClassLoader;
 
-	public KeyedBackendSerializationProxy(ClassLoader userCodeClassLoader) {
+	public KeyedBackendSerializationProxy(ClassLoader userCodeClassLoader, boolean isSerializerPresenceRequired) {
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
+		this.isSerializerPresenceRequired = isSerializerPresenceRequired;
 	}
 
 	public KeyedBackendSerializationProxy(
 			TypeSerializer<K> keySerializer,
-			List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
+			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots,
 			boolean compression) {
 
 		this.usingKeyGroupCompression = compression;
 
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
-		this.keySerializerSnapshot = Preconditions.checkNotNull(keySerializer.snapshotConfiguration());
+		this.keySerializerConfigSnapshot = Preconditions.checkNotNull(keySerializer.snapshotConfiguration());
 
 		Preconditions.checkNotNull(stateMetaInfoSnapshots);
 		Preconditions.checkArgument(stateMetaInfoSnapshots.size() <= Short.MAX_VALUE);
 		this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
 	}
 
-	public List<StateMetaInfoSnapshot> getStateMetaInfoSnapshots() {
+	public List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> getStateMetaInfoSnapshots() {
 		return stateMetaInfoSnapshots;
 	}
 
-	public TypeSerializerSnapshot<K> getKeySerializerSnapshot() {
-		return keySerializerSnapshot;
+	public TypeSerializer<K> getKeySerializer() {
+		return keySerializer;
+	}
+
+	public TypeSerializerConfigSnapshot getKeySerializerConfigSnapshot() {
+		return keySerializerConfigSnapshot;
 	}
 
 	public boolean isUsingKeyGroupCompression() {
@@ -108,7 +98,8 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
 	@Override
 	public int[] getCompatibleVersions() {
-		return new int[]{VERSION, 5, 4, 3, 2, 1};
+		// we are compatible with version 3 (Flink 1.3.x) and version 1 & 2 (Flink 1.2.x)
+		return new int[] {VERSION, 3, 2, 1};
 	}
 
 	@Override
@@ -118,12 +109,18 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 		// write the compression format used to write each key-group
 		out.writeBoolean(usingKeyGroupCompression);
 
-		TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(out, keySerializerSnapshot, keySerializer);
+		// write in a way to be fault tolerant of read failures when deserializing the key serializer
+		TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
+				out,
+				Collections.singletonList(
+					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(keySerializer, keySerializerConfigSnapshot)));
 
 		// write individual registered keyed state metainfos
 		out.writeShort(stateMetaInfoSnapshots.size());
-		for (StateMetaInfoSnapshot metaInfoSnapshot : stateMetaInfoSnapshots) {
-			StateMetaInfoSnapshotReadersWriters.getWriter().writeStateMetaInfoSnapshot(metaInfoSnapshot, out);
+		for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> metaInfo : stateMetaInfoSnapshots) {
+			KeyedBackendStateMetaInfoSnapshotReaderWriters
+				.getWriterForVersion(VERSION, metaInfo)
+				.writeStateMetaInfo(out);
 		}
 	}
 
@@ -141,34 +138,41 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 		}
 
 		// only starting from version 3, we have the key serializer and its config snapshot written
-		if (readVersion >= 6) {
-			this.keySerializerSnapshot = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
-				in, userCodeClassLoader, null);
-		} else if (readVersion >= 3) {
-			Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> keySerializerAndConfig =
+		if (readVersion >= 3) {
+			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> keySerializerAndConfig =
 					TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader).get(0);
-			this.keySerializerSnapshot = (TypeSerializerSnapshot<K>) keySerializerAndConfig.f1;
+			this.keySerializer = (TypeSerializer<K>) keySerializerAndConfig.f0;
+			this.keySerializerConfigSnapshot = keySerializerAndConfig.f1;
 		} else {
-			this.keySerializerSnapshot = new BackwardsCompatibleSerializerSnapshot<>(
-				TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader, true));
+			this.keySerializer = TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader, true);
+			this.keySerializerConfigSnapshot = null;
 		}
-		this.keySerializer = null;
 
-		Integer metaInfoSnapshotVersion = META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.get(readVersion);
-		if (metaInfoSnapshotVersion == null) {
-			// this should not happen; guard for the future
-			throw new IOException("Cannot determine corresponding meta info snapshot version for keyed backend serialization readVersion=" + readVersion);
+		if (isSerializerPresenceRequired) {
+			checkSerializerPresence(keySerializer);
 		}
-		final StateMetaInfoReader stateMetaInfoReader = StateMetaInfoSnapshotReadersWriters.getReader(
-			metaInfoSnapshotVersion,
-			StateMetaInfoSnapshotReadersWriters.StateTypeHint.KEYED_STATE);
 
 		int numKvStates = in.readShort();
 		stateMetaInfoSnapshots = new ArrayList<>(numKvStates);
 		for (int i = 0; i < numKvStates; i++) {
-			StateMetaInfoSnapshot snapshot = stateMetaInfoReader.readStateMetaInfoSnapshot(in, userCodeClassLoader);
+			RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> snapshot = KeyedBackendStateMetaInfoSnapshotReaderWriters
+				.getReaderForVersion(getReadVersion(), userCodeClassLoader)
+				.readStateMetaInfo(in);
 
+			if (isSerializerPresenceRequired) {
+				checkSerializerPresence(snapshot.getNamespaceSerializer());
+				checkSerializerPresence(snapshot.getStateSerializer());
+			}
 			stateMetaInfoSnapshots.add(snapshot);
+		}
+	}
+
+	private void checkSerializerPresence(TypeSerializer<?> serializer) throws IOException {
+		if (serializer instanceof UnloadableDummyTypeSerializer) {
+			throw new IOException("Unable to restore keyed state, because a previous serializer" +
+				" of the keyed state is not present The serializer could have been removed from the classpath, " +
+				" or its implementation have changed and could not be loaded. This is a temporary restriction that will" +
+				" be fixed in future versions.");
 		}
 	}
 }

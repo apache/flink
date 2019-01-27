@@ -30,7 +30,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.executiongraph.{AccessExecutionGraph, ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.{Instance, InstanceID}
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID
-import org.apache.flink.runtime.jobgraph.{IntermediateDataSetID, JobGraph, JobStatus, JobVertexID}
+import org.apache.flink.runtime.jobgraph._
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph
 import org.apache.flink.runtime.messages.checkpoint.AbstractCheckpointMessage
 import org.apache.flink.util.SerializedThrowable
@@ -146,6 +146,7 @@ object JobManagerMessages {
   case class RequestNextInputSplit(
       jobID: JobID,
       vertexID: JobVertexID,
+      operatorID: OperatorID,
       executionAttempt: ExecutionAttemptID)
     extends RequiresLeaderSessionID
 

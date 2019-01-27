@@ -23,6 +23,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 
 import java.util.ArrayList;
@@ -55,7 +56,21 @@ public class Kafka09PartitionDiscoverer extends AbstractPartitionDiscoverer {
 
 	@Override
 	protected void initializeConnections() {
-		this.kafkaConsumer = new KafkaConsumer<>(kafkaProperties);
+		this.kafkaConsumer = createKafkaConsumer(kafkaProperties);
+	}
+
+	private KafkaConsumer createKafkaConsumer(Properties kafkaProperties) {
+		try {
+			return new KafkaConsumer<>(kafkaProperties);
+		} catch (KafkaException e) {
+			ClassLoader original = Thread.currentThread().getContextClassLoader();
+			try {
+				Thread.currentThread().setContextClassLoader(null);
+				return new KafkaConsumer<>(kafkaProperties);
+			} finally {
+				Thread.currentThread().setContextClassLoader(original);
+			}
+		}
 	}
 
 	@Override

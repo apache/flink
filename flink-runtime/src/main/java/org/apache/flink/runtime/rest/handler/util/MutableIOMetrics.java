@@ -22,15 +22,18 @@ import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.metrics.MetricNames;
-import org.apache.flink.runtime.rest.handler.job.JobVertexDetailsHandler;
+import org.apache.flink.runtime.rest.handler.legacy.JobVertexDetailsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 
+import org.apache.commons.lang3.StringUtils;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * This class is a mutable version of the {@link IOMetrics} class that allows adding up IO-related metrics.
@@ -49,6 +52,14 @@ public class MutableIOMetrics extends IOMetrics {
 	private boolean numBytesOutComplete = true;
 	private boolean numRecordsInComplete = true;
 	private boolean numRecordsOutComplete = true;
+	private float bufferInPoolUsageMax = 0.0f;
+	private float bufferOutPoolUsageMax = 0.0f;
+	private boolean bufferInPoolUsageMaxComplete = true;
+	private boolean bufferOutPoolUsageMaxComplete = true;
+	private double tps = -1D;
+	private boolean tpsComplete = true;
+	private long delay = -1L;
+	private boolean delayComplete = true;
 
 	public MutableIOMetrics() {
 		super(0, 0, 0, 0, 0, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D);
@@ -72,6 +83,38 @@ public class MutableIOMetrics extends IOMetrics {
 
 	public boolean isNumRecordsOutComplete() {
 		return numRecordsOutComplete;
+	}
+
+	public boolean isBufferInPoolUsageMaxComplete() {
+		return bufferInPoolUsageMaxComplete;
+	}
+
+	public boolean isBufferOutPoolUsageMaxComplete() {
+		return bufferOutPoolUsageMaxComplete;
+	}
+
+	public float getBufferInPoolUsageMax() {
+		return bufferInPoolUsageMax;
+	}
+
+	public float getBufferOutPoolUsageMax() {
+		return bufferOutPoolUsageMax;
+	}
+
+	public double getTps() {
+		return tps;
+	}
+
+	public boolean isTpsComplete() {
+		return tpsComplete;
+	}
+
+	public long getDelay() {
+		return delay;
+	}
+
+	public boolean isDelayComplete() {
+		return delayComplete;
 	}
 
 	/**
@@ -106,6 +149,19 @@ public class MutableIOMetrics extends IOMetrics {
 					 * In case a metric is missing for a parallel instance of a task, we set the complete flag as
 					 * false.
 					 */
+					boolean findTps = false;
+					double tps = 0.0D;
+					for (Map.Entry<String, String> entry : metrics.getMetrics().entrySet()) {
+						if (entry.getKey().endsWith("." + MetricNames.IO_NUM_TPS) &&
+							StringUtils.isNotBlank(entry.getValue())) {
+							tps = Double.valueOf(entry.getValue());
+							findTps = true;
+						} else if (entry.getKey().endsWith("." + MetricNames.IO_NUM_DELAY) &&
+							StringUtils.isNotBlank(entry.getValue())) {
+							long delay = Long.valueOf(entry.getValue());
+							this.delay = Math.max(delay, this.delay);
+						}
+					}
 					if (metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_LOCAL) == null){
 						this.numBytesInLocalComplete = false;
 					}
@@ -140,6 +196,32 @@ public class MutableIOMetrics extends IOMetrics {
 					else {
 						this.numRecordsOut += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_RECORDS_OUT));
 					}
+
+					if (metrics.getMetric(MetricNames.BUFFERS_IN_POOL_USAGE_NAME) == null) {
+						this.bufferInPoolUsageMaxComplete = false;
+					} else {
+						float bufferInQueue = Float.valueOf(metrics.getMetric(MetricNames.BUFFERS_IN_POOL_USAGE_NAME));
+						this.bufferInPoolUsageMax = Math.max(bufferInQueue, this.bufferInPoolUsageMax);
+					}
+
+					if (metrics.getMetric(MetricNames.BUFFERS_OUT_POOL_USAGE_NAME) == null) {
+						this.bufferOutPoolUsageMaxComplete = false;
+					} else {
+						float bufferOutQueue = Float.valueOf(metrics.getMetric(MetricNames.BUFFERS_OUT_POOL_USAGE_NAME));
+						this.bufferOutPoolUsageMax = Math.max(bufferOutQueue, this.bufferOutPoolUsageMax);
+					}
+
+					if (!findTps && metrics.getMetric(MetricNames.IO_NUM_RECORDS_IN_RATE) != null) {
+						tps = Double.valueOf(metrics.getMetric(MetricNames.IO_NUM_RECORDS_IN_RATE));
+						findTps = true;
+					}
+					if (findTps) {
+						if (this.tps == -1D) {
+							this.tps = tps;
+						} else {
+							this.tps += tps;
+						}
+					}
 				}
 				else {
 					this.numBytesInLocalComplete = false;
@@ -147,6 +229,10 @@ public class MutableIOMetrics extends IOMetrics {
 					this.numBytesOutComplete = false;
 					this.numRecordsInComplete = false;
 					this.numRecordsOutComplete = false;
+					this.bufferInPoolUsageMaxComplete = false;
+					this.bufferOutPoolUsageMaxComplete = false;
+					this.tpsComplete = false;
+					this.delayComplete = false;
 				}
 			}
 		}
@@ -188,6 +274,10 @@ public class MutableIOMetrics extends IOMetrics {
 		gen.writeBooleanField("read-records-complete", this.numRecordsInComplete);
 		gen.writeNumberField("write-records", this.numRecordsOut);
 		gen.writeBooleanField("write-records-complete", this.numRecordsOutComplete);
+		gen.writeNumberField("buffers-in-pool-usage-max", this.bufferInPoolUsageMax);
+		gen.writeBooleanField("buffers-in-pool-usage_max-complete", this.bufferInPoolUsageMaxComplete);
+		gen.writeNumberField("buffers-out-pool-usage-max", this.bufferOutPoolUsageMax);
+		gen.writeBooleanField("buffers-out-pool-usage-max-complete", this.bufferOutPoolUsageMaxComplete);
 
 		gen.writeEndObject();
 	}

@@ -42,4 +42,9 @@ public class QueryableValueStateOperator<IN> extends AbstractQueryableStateOpera
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		state.update(element.getValue());
 	}
+
+	@Override
+	public void endInput() throws Exception {
+
+	}
 }

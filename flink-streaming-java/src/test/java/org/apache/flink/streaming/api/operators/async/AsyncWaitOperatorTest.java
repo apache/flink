@@ -18,10 +18,14 @@
 
 package org.apache.flink.streaming.api.operators.async;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -57,6 +61,8 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskConfig;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskConfigCache;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.MockStreamConfig;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -117,7 +123,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 	private static final long TIMEOUT = 1000L;
 
-	private static class MyAsyncFunction extends RichAsyncFunction<Integer, Integer> {
+	private abstract static class MyAbstractAsyncFunction<IN> extends RichAsyncFunction<IN, Integer> {
 		private static final long serialVersionUID = 8522411971886428444L;
 
 		private static final long TERMINATION_TIMEOUT = 5000L;
@@ -130,7 +136,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
 
-			synchronized (MyAsyncFunction.class) {
+			synchronized (MyAbstractAsyncFunction.class) {
 				if (counter == 0) {
 					executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 				}
@@ -147,7 +153,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		}
 
 		private void freeExecutor() {
-			synchronized (MyAsyncFunction.class) {
+			synchronized (MyAbstractAsyncFunction.class) {
 				--counter;
 
 				if (counter == 0) {
@@ -165,7 +171,9 @@ public class AsyncWaitOperatorTest extends TestLogger {
 				}
 			}
 		}
+	}
 
+	private static class MyAsyncFunction extends MyAbstractAsyncFunction<Integer> {
 		@Override
 		public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture) throws Exception {
 			executorService.submit(new Runnable() {
@@ -196,7 +204,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		@Override
 		public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture) throws Exception {
-			this.executorService.submit(new Runnable() {
+			executorService.submit(new Runnable() {
 				@Override
 				public void run() {
 					try {
@@ -207,6 +215,56 @@ public class AsyncWaitOperatorTest extends TestLogger {
 					}
 
 					resultFuture.complete(Collections.singletonList(input));
+				}
+			});
+		}
+
+		public static void countDown() {
+			latch.countDown();
+		}
+	}
+
+	private static class InputReusedAsyncFunction extends MyAbstractAsyncFunction<Tuple1<Integer>> {
+
+		@Override
+		public void asyncInvoke(Tuple1<Integer> input, ResultFuture<Integer> resultFuture) throws Exception {
+			executorService.submit(new Runnable() {
+				@Override
+				public void run() {
+					resultFuture.complete(Collections.singletonList(input.f0 * 2));
+				}
+			});
+		}
+	}
+
+	/**
+	 * This is similar to {@link LazyAsyncFunction} but different in input type.
+	 * This {@link AsyncFunction} use {@link Tuple1} as input type which may be reused.
+	 * This function is used in the testStateSnapshotAndRestoreWithObjectReuseEnabled, ensuring
+	 * that AsyncWaitOperator can work fine with object reuse mode enabled.
+	 */
+	private static class InputReusedLazyAsyncFunction extends MyAbstractAsyncFunction<Tuple1<Integer>> {
+		private static final long serialVersionUID = 8522411971886428444L;
+
+		private static CountDownLatch latch;
+
+		public InputReusedLazyAsyncFunction() {
+			latch = new CountDownLatch(1);
+		}
+
+		@Override
+		public void asyncInvoke(final Tuple1<Integer> input, final ResultFuture<Integer> resultFuture) throws Exception {
+			executorService.submit(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						latch.await();
+					}
+					catch (InterruptedException e) {
+						// do nothing
+					}
+
+					resultFuture.complete(Collections.singletonList(input.f0));
 				}
 			});
 		}
@@ -397,13 +455,12 @@ public class AsyncWaitOperatorTest extends TestLogger {
 				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
-		testHarness.taskConfig = chainedVertex.getConfiguration();
-
-		final StreamConfig streamConfig = testHarness.getStreamConfig();
-		final StreamConfig operatorChainStreamConfig = new StreamConfig(chainedVertex.getConfiguration());
-		final AsyncWaitOperator<Integer, Integer> headOperator =
-				operatorChainStreamConfig.getStreamOperator(AsyncWaitOperatorTest.class.getClassLoader());
-		streamConfig.setStreamOperator(headOperator);
+		ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+		testHarness.streamTaskConfigCache = StreamTaskConfigCache.deserializeFrom(new StreamTaskConfig(chainedVertex.getConfiguration()), classLoader);
+		testHarness.getStreamConfig().setStreamOperator(
+			testHarness.streamTaskConfigCache.getChainedHeadNodeConfigs()
+				.get(0)
+				.getStreamOperator(AsyncWaitOperatorTest.class.getClassLoader()));
 
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
@@ -616,6 +673,117 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	}
 
 	@Test
+	public void testStateSnapshotAndRestoreWithObjectReused() throws Exception {
+		TypeSerializer[] fieldSerializers = new TypeSerializer[]{IntSerializer.INSTANCE};
+		TupleSerializer<Tuple1> inputSerializer = new TupleSerializer<Tuple1>(
+			Tuple1.class,
+			fieldSerializers);
+		AsyncWaitOperator<Tuple1<Integer>, Integer> asyncWaitOperator = new AsyncWaitOperator<>(
+			new InputReusedLazyAsyncFunction(),
+			TIMEOUT,
+			4,
+			AsyncDataStream.OutputMode.ORDERED);
+
+		//noinspection unchecked
+		final OneInputStreamOperatorTestHarness<Tuple1<Integer>, Integer> testHarness = new OneInputStreamOperatorTestHarness(
+			asyncWaitOperator,
+			inputSerializer);
+		// enable object reuse
+		testHarness.getExecutionConfig().enableObjectReuse();
+
+		final long initialTime = 0L;
+		Tuple1<Integer> reusedTuple = new Tuple1<>();
+		StreamRecord<Tuple1<Integer>> reusedRecord = new StreamRecord<>(reusedTuple, -1L);
+
+		final OperatorSubtaskState snapshot;
+		synchronized (testHarness.getCheckpointLock()) {
+			testHarness.setup();
+			testHarness.open();
+
+			reusedTuple.setFields(1);
+			reusedRecord.setTimestamp(initialTime + 1);
+			testHarness.processElement(reusedRecord);
+
+			reusedTuple.setFields(2);
+			reusedRecord.setTimestamp(initialTime + 2);
+			testHarness.processElement(reusedRecord);
+
+			reusedTuple.setFields(3);
+			reusedRecord.setTimestamp(initialTime + 3);
+			testHarness.processElement(reusedRecord);
+
+			reusedTuple.setFields(4);
+			reusedRecord.setTimestamp(initialTime + 4);
+			testHarness.processElement(reusedRecord);
+
+			snapshot = testHarness.snapshot(0L, 0L);
+
+			InputReusedLazyAsyncFunction.countDown();
+
+			testHarness.close();
+		}
+
+		testHarness.setProcessingTime(1L);
+
+		AsyncWaitOperator<Tuple1<Integer>, Integer> restoredOperator = new AsyncWaitOperator<>(
+			new InputReusedAsyncFunction(),
+			TIMEOUT,
+			4,
+			AsyncDataStream.OutputMode.ORDERED);
+
+		//noinspection unchecked
+		final OneInputStreamOperatorTestHarness<Tuple1<Integer>, Integer> restoredHarness = new OneInputStreamOperatorTestHarness(
+			restoredOperator,
+			inputSerializer);
+		// enable object reuse
+		restoredHarness.getExecutionConfig().enableObjectReuse();
+
+		synchronized (restoredHarness.getCheckpointLock()) {
+			restoredHarness.setup();
+			restoredHarness.initializeState(snapshot);
+			restoredHarness.open();
+
+			reusedTuple.setFields(5);
+			reusedRecord.setTimestamp(initialTime + 5);
+			restoredHarness.processElement(reusedRecord);
+
+			reusedTuple.setFields(6);
+			reusedRecord.setTimestamp(initialTime + 6);
+			restoredHarness.processElement(reusedRecord);
+
+			reusedTuple.setFields(7);
+			reusedRecord.setTimestamp(initialTime + 7);
+			restoredHarness.processElement(reusedRecord);
+
+			// trigger the checkpoint while processing stream elements
+			restoredHarness.snapshot(1L, 1L);
+
+			reusedTuple.setFields(8);
+			reusedRecord.setTimestamp(initialTime + 8);
+			restoredHarness.processElement(reusedRecord);
+
+			restoredHarness.close();
+		}
+
+		restoredHarness.setProcessingTime(2L);
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+		expectedOutput.add(new StreamRecord<>(2, initialTime + 1));
+		expectedOutput.add(new StreamRecord<>(4, initialTime + 2));
+		expectedOutput.add(new StreamRecord<>(6, initialTime + 3));
+		expectedOutput.add(new StreamRecord<>(8, initialTime + 4));
+		expectedOutput.add(new StreamRecord<>(10, initialTime + 5));
+		expectedOutput.add(new StreamRecord<>(12, initialTime + 6));
+		expectedOutput.add(new StreamRecord<>(14, initialTime + 7));
+		expectedOutput.add(new StreamRecord<>(16, initialTime + 8));
+
+		TestHarnessUtil.assertOutputEquals(
+			"StateAndRestoredWithObjectReuse Test Output was not correct.",
+			expectedOutput,
+			restoredHarness.getOutput());
+	}
+
+	@Test
 	public void testAsyncTimeoutFailure() throws Exception {
 		testAsyncTimeout(
 			new LazyAsyncFunction(),
@@ -710,8 +878,10 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		ArgumentCaptor<Throwable> failureReason = ArgumentCaptor.forClass(Throwable.class);
 
 		MockEnvironment environment = createMockEnvironment();
+		ExecutionConfig config = environment.getExecutionConfig();
 
 		StreamTask<?, ?> containingTask = mock(StreamTask.class);
+		when(containingTask.getExecutionConfig()).thenReturn(config);
 		when(containingTask.getEnvironment()).thenReturn(environment);
 		when(containingTask.getCheckpointLock()).thenReturn(lock);
 		when(containingTask.getProcessingTimeService()).thenReturn(new TestProcessingTimeService());
@@ -807,6 +977,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		final long timestamp = 1L;
 
 		Environment environment = createMockEnvironment();
+		ExecutionConfig config = environment.getExecutionConfig();
 
 		ScheduledFuture<?> scheduledFuture = mock(ScheduledFuture.class);
 
@@ -818,6 +989,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		when(containingTask.getEnvironment()).thenReturn(environment);
 		when(containingTask.getCheckpointLock()).thenReturn(lock);
 		when(containingTask.getProcessingTimeService()).thenReturn(processingTimeService);
+		when(containingTask.getJobConfiguration()).thenReturn(new Configuration());
+		when(containingTask.getExecutionConfig()).thenReturn(config);
 
 		StreamConfig streamConfig = new MockStreamConfig();
 		streamConfig.setTypeSerializerIn1(IntSerializer.INSTANCE);

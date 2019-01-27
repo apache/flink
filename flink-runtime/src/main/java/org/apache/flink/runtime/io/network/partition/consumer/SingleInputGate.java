@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.BlockingShuffleType;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
@@ -41,6 +43,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
+import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -62,10 +66,10 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * An input gate consumes one or more partitions of a single produced intermediate result.
  *
- * <p>Each intermediate result is partitioned over its producing parallel subtasks; each of these
+ * <p> Each intermediate result is partitioned over its producing parallel subtasks; each of these
  * partitions is furthermore partitioned into one or more subpartitions.
  *
- * <p>As an example, consider a map-reduce program, where the map operator produces data and the
+ * <p> As an example, consider a map-reduce program, where the map operator produces data and the
  * reduce operator consumes the produced data.
  *
  * <pre>{@code
@@ -74,7 +78,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * +-----+              +---------------------+              +--------+
  * }</pre>
  *
- * <p>When deploying such a program in parallel, the intermediate result will be partitioned over its
+ * <p> When deploying such a program in parallel, the intermediate result will be partitioned over its
  * producing parallel subtasks; each of these partitions is furthermore partitioned into one or more
  * subpartitions.
  *
@@ -95,7 +99,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *               +-----------------------------------------+
  * }</pre>
  *
- * <p>In the above example, two map subtasks produce the intermediate result in parallel, resulting
+ * <p> In the above example, two map subtasks produce the intermediate result in parallel, resulting
  * in two partitions (Partition 1 and 2). Each of these partitions is further partitioned into two
  * subpartitions -- one for each parallel reduce subtask.
  */
@@ -160,6 +164,9 @@ public class SingleInputGate implements InputGate {
 	/** Global network buffer pool to request and recycle exclusive buffers (only for credit-based). */
 	private NetworkBufferPool networkBufferPool;
 
+	/** Executor service for time-consuming tasks (e.g. tcp connection setup). */
+	private final ExecutorService executorService;
+
 	private final boolean isCreditBased;
 
 	private boolean hasReceivedAllEndOfPartitionEvents;
@@ -170,8 +177,8 @@ public class SingleInputGate implements InputGate {
 	/** Flag indicating whether all resources have been released. */
 	private volatile boolean isReleased;
 
-	/** Registered listener to forward buffer notifications to. */
-	private volatile InputGateListener inputGateListener;
+	/** Registered listeners to forward buffer notifications to. */
+	private final List<InputGateListener> inputGateListeners = new ArrayList<>();
 
 	private final List<TaskEvent> pendingEvents = new ArrayList<>();
 
@@ -183,6 +190,12 @@ public class SingleInputGate implements InputGate {
 	/** A timer to retrigger local partition requests. Only initialized if actually needed. */
 	private Timer retriggerLocalRequestTimer;
 
+	/** The partition request manager which manages all partition request of this input gate. */
+	private final PartitionRequestManager partitionRequestManager;
+
+	/** Whether the partition request is restricted by quota. */
+	private final boolean isPartitionRequestRestricted;
+
 	public SingleInputGate(
 		String owningTaskName,
 		JobID jobId,
@@ -192,7 +205,10 @@ public class SingleInputGate implements InputGate {
 		int numberOfInputChannels,
 		TaskActions taskActions,
 		TaskIOMetricGroup metrics,
-		boolean isCreditBased) {
+		PartitionRequestManager partitionRequestManager,
+		ExecutorService executorService,
+		boolean isCreditBased,
+		boolean isPartitionRequestRestricted) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
 		this.jobId = checkNotNull(jobId);
@@ -211,7 +227,19 @@ public class SingleInputGate implements InputGate {
 		this.enqueuedInputChannelsWithData = new BitSet(numberOfInputChannels);
 
 		this.taskActions = checkNotNull(taskActions);
+
+		this.executorService = checkNotNull(executorService);
+
+		this.partitionRequestManager = checkNotNull(partitionRequestManager);
+		this.isPartitionRequestRestricted = isPartitionRequestRestricted;
+
 		this.isCreditBased = isCreditBased;
+
+		if (isPartitionRequestRestricted) {
+			checkArgument(isCreditBased, "Yarn external shuffle service must use credit based back pressure.");
+		}
+
+		partitionRequestManager.registerSingleInputGate(this);
 	}
 
 	// ------------------------------------------------------------------------
@@ -221,6 +249,15 @@ public class SingleInputGate implements InputGate {
 	@Override
 	public int getNumberOfInputChannels() {
 		return numberOfInputChannels;
+	}
+
+	@Override
+	public InputChannel[] getAllInputChannels() {
+		InputChannel[] channelArr = new InputChannel[numberOfInputChannels];
+		for (InputChannel channel : this.inputChannels.values()) {
+			channelArr[channel.channelIndex] = channel;
+		}
+		return channelArr;
 	}
 
 	public IntermediateDataSetID getConsumedResultId() {
@@ -234,6 +271,14 @@ public class SingleInputGate implements InputGate {
 	 */
 	public ResultPartitionType getConsumedPartitionType() {
 		return consumedPartitionType;
+	}
+
+	int getConsumedSubpartitionIndex() {
+		return consumedSubpartitionIndex;
+	}
+
+	public boolean isPartitionRequestRestricted() {
+		return isPartitionRequestRestricted;
 	}
 
 	BufferProvider getBufferProvider() {
@@ -252,6 +297,16 @@ public class SingleInputGate implements InputGate {
 		else {
 			throw new IllegalStateException("Input gate has not been initialized with buffers.");
 		}
+	}
+
+	@Override
+	public int getSubInputGateCount() {
+		return 0;
+	}
+
+	@Override
+	public InputGate getSubInputGate(int index) {
+		return null;
 	}
 
 	public int getNumberOfQueuedBuffers() {
@@ -274,11 +329,6 @@ public class SingleInputGate implements InputGate {
 		return 0;
 	}
 
-	@Override
-	public String getOwningTaskName() {
-		return owningTaskName;
-	}
-
 	// ------------------------------------------------------------------------
 	// Setup/Life-cycle
 	// ------------------------------------------------------------------------
@@ -291,27 +341,34 @@ public class SingleInputGate implements InputGate {
 	}
 
 	/**
-	 * Assign the exclusive buffers to all remote input channels directly for credit-based mode.
+	 * Assign the exclusive buffers to one remote input channels directly for credit-based mode.
 	 *
-	 * @param networkBufferPool The global pool to request and recycle exclusive buffers
+	 * @param inputChannel The channel to assign exclusive buffers to
+	 */
+	public void assignExclusiveSegments(InputChannel inputChannel) throws IOException {
+		Preconditions.checkNotNull(inputChannel);
+		Preconditions.checkArgument(inputChannel instanceof RemoteInputChannel, "InputChannel should be remote input channel only.");
+		checkState(this.networkBufferPool != null, "Bug in input gate setup logic: global buffer pool has " +
+			"not been set for this input gate.");
+
+		if (isCreditBased) {
+			((RemoteInputChannel) inputChannel).assignExclusiveSegments(
+				networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
+		}
+	}
+
+	/**
+	 * Set the network buffer pool and the configuration of exclusive and floating buffers for this gate.
+	 *
+	 * @param networkBufferPool         The global pool to request and recycle exclusive buffers
 	 * @param networkBuffersPerChannel The number of exclusive buffers for each channel
 	 */
-	public void assignExclusiveSegments(NetworkBufferPool networkBufferPool, int networkBuffersPerChannel) throws IOException {
-		checkState(this.isCreditBased, "Bug in input gate setup logic: exclusive buffers only exist with credit-based flow control.");
+	public void setNetworkProperties(NetworkBufferPool networkBufferPool, int networkBuffersPerChannel) {
 		checkState(this.networkBufferPool == null, "Bug in input gate setup logic: global buffer pool has" +
 			"already been set for this input gate.");
 
 		this.networkBufferPool = checkNotNull(networkBufferPool);
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
-
-		synchronized (requestLock) {
-			for (InputChannel inputChannel : inputChannels.values()) {
-				if (inputChannel instanceof RemoteInputChannel) {
-					((RemoteInputChannel) inputChannel).assignExclusiveSegments(
-						networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
-				}
-			}
-		}
 	}
 
 	/**
@@ -326,7 +383,7 @@ public class SingleInputGate implements InputGate {
 	public void setInputChannel(IntermediateResultPartitionID partitionId, InputChannel inputChannel) {
 		synchronized (requestLock) {
 			if (inputChannels.put(checkNotNull(partitionId), checkNotNull(inputChannel)) == null
-					&& inputChannel instanceof UnknownInputChannel) {
+				&& inputChannel instanceof UnknownInputChannel) {
 
 				numberOfUninitializedChannels++;
 			}
@@ -357,24 +414,17 @@ public class SingleInputGate implements InputGate {
 				}
 				else if (partitionLocation.isRemote()) {
 					newChannel = unknownChannel.toRemoteInputChannel(partitionLocation.getConnectionId());
-
-					if (this.isCreditBased) {
-						checkState(this.networkBufferPool != null, "Bug in input gate setup logic: " +
-							"global buffer pool has not been set for this input gate.");
-						((RemoteInputChannel) newChannel).assignExclusiveSegments(
-							networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
-					}
 				}
 				else {
 					throw new IllegalStateException("Tried to update unknown channel with unknown channel.");
 				}
 
-				LOG.debug("{}: Updated unknown input channel to {}.", owningTaskName, newChannel);
+				LOG.debug("Updated unknown input channel to {}.", newChannel);
 
 				inputChannels.put(partitionId, newChannel);
 
 				if (requestedPartitionsFlag) {
-					newChannel.requestSubpartition(consumedSubpartitionIndex);
+					partitionRequestManager.updateInputChannel(this, newChannel);
 				}
 
 				for (TaskEvent event : pendingEvents) {
@@ -398,7 +448,7 @@ public class SingleInputGate implements InputGate {
 
 				checkNotNull(ch, "Unknown input channel with ID " + partitionId);
 
-				LOG.debug("{}: Retriggering partition request {}:{}.", owningTaskName, ch.partitionId, consumedSubpartitionIndex);
+				LOG.debug("Retriggering partition request {}:{}.", ch.partitionId, consumedSubpartitionIndex);
 
 				if (ch.getClass() == RemoteInputChannel.class) {
 					final RemoteInputChannel rch = (RemoteInputChannel) ch;
@@ -432,20 +482,19 @@ public class SingleInputGate implements InputGate {
 						retriggerLocalRequestTimer.cancel();
 					}
 
+					// The buffer pool can actually be destroyed immediately after the
+					// reader received all of the data from the input channels.
+					if (bufferPool != null) {
+						bufferPool.lazyDestroy();
+					}
+
 					for (InputChannel inputChannel : inputChannels.values()) {
 						try {
 							inputChannel.releaseAllResources();
 						}
 						catch (IOException e) {
-							LOG.warn("{}: Error during release of channel resources: {}.",
-								owningTaskName, e.getMessage(), e);
+							LOG.warn("Error during release of channel resources: " + e.getMessage(), e);
 						}
-					}
-
-					// The buffer pool can actually be destroyed immediately after the
-					// reader received all of the data from the input channels.
-					if (bufferPool != null) {
-						bufferPool.lazyDestroy();
 					}
 				}
 				finally {
@@ -476,6 +525,14 @@ public class SingleInputGate implements InputGate {
 	}
 
 	@Override
+	public boolean moreAvailable() {
+		// inputChannelsWithData is an ArrayDeque, isEmpty is not a thread-safe operation
+		synchronized (inputChannelsWithData) {
+			return !inputChannelsWithData.isEmpty();
+		}
+	}
+
+	@Override
 	public void requestPartitions() throws IOException, InterruptedException {
 		synchronized (requestLock) {
 			if (!requestedPartitionsFlag) {
@@ -490,9 +547,7 @@ public class SingleInputGate implements InputGate {
 							"channels.");
 				}
 
-				for (InputChannel inputChannel : inputChannels.values()) {
-					inputChannel.requestSubpartition(consumedSubpartitionIndex);
-				}
+				partitionRequestManager.requestPartitions(this);
 			}
 
 			requestedPartitionsFlag = true;
@@ -509,7 +564,17 @@ public class SingleInputGate implements InputGate {
 	}
 
 	@Override
+	public Optional<BufferOrEvent> getNextBufferOrEvent(InputGate subInputGate) throws IOException, InterruptedException {
+		return getNextBufferOrEvent(true);
+	}
+
+	@Override
 	public Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException {
+		return getNextBufferOrEvent(false);
+	}
+
+	@Override
+	public Optional<BufferOrEvent> pollNextBufferOrEvent(InputGate subInputGate) throws IOException, InterruptedException {
 		return getNextBufferOrEvent(false);
 	}
 
@@ -545,7 +610,7 @@ public class SingleInputGate implements InputGate {
 
 				currentChannel = inputChannelsWithData.remove();
 				enqueuedInputChannelsWithData.clear(currentChannel.getChannelIndex());
-				moreAvailable = !inputChannelsWithData.isEmpty();
+				moreAvailable = inputChannelsWithData.size() > 0;
 			}
 
 			result = currentChannel.getNextBuffer();
@@ -582,6 +647,9 @@ public class SingleInputGate implements InputGate {
 				currentChannel.notifySubpartitionConsumed();
 
 				currentChannel.releaseAllResources();
+
+				partitionRequestManager.onInputChannelFinish(
+					this, currentChannel, hasReceivedAllEndOfPartitionEvents);
 			}
 
 			return Optional.of(new BufferOrEvent(event, currentChannel.getChannelIndex(), moreAvailable));
@@ -607,10 +675,8 @@ public class SingleInputGate implements InputGate {
 
 	@Override
 	public void registerListener(InputGateListener inputGateListener) {
-		if (this.inputGateListener == null) {
-			this.inputGateListener = inputGateListener;
-		} else {
-			throw new IllegalStateException("Multiple listeners");
+		synchronized (inputGateListeners) {
+			inputGateListeners.add(inputGateListener);
 		}
 	}
 
@@ -640,9 +706,10 @@ public class SingleInputGate implements InputGate {
 		}
 
 		if (availableChannels == 0) {
-			InputGateListener listener = inputGateListener;
-			if (listener != null) {
-				listener.notifyInputGateNonEmpty(this);
+			synchronized (inputGateListeners) {
+				for (InputGateListener listener : inputGateListeners) {
+					listener.notifyInputGateNonEmpty(this);
+				}
 			}
 		}
 	}
@@ -655,6 +722,14 @@ public class SingleInputGate implements InputGate {
 
 	// ------------------------------------------------------------------------
 
+	//----------------------------------------------------------------------------------------------
+	// Utility methods
+	//----------------------------------------------------------------------------------------------
+
+	public void runAsync(Runnable runnable) {
+		executorService.submit(runnable);
+	}
+
 	/**
 	 * Creates an input gate and all of its input channels.
 	 */
@@ -665,7 +740,10 @@ public class SingleInputGate implements InputGate {
 		InputGateDeploymentDescriptor igdd,
 		NetworkEnvironment networkEnvironment,
 		TaskActions taskActions,
-		TaskIOMetricGroup metrics) {
+		TaskIOMetricGroup metrics,
+		PartitionRequestManager partitionRequestManager,
+		BlockingShuffleType shuffleType,
+		ExecutorService executorService) {
 
 		final IntermediateDataSetID consumedResultId = checkNotNull(igdd.getConsumedResultId());
 		final ResultPartitionType consumedPartitionType = checkNotNull(igdd.getConsumedPartitionType());
@@ -675,9 +753,12 @@ public class SingleInputGate implements InputGate {
 
 		final InputChannelDeploymentDescriptor[] icdd = checkNotNull(igdd.getInputChannelDeploymentDescriptors());
 
+		final boolean isPartitionRequestRestricted =
+			shuffleType == BlockingShuffleType.YARN && consumedPartitionType.isBlocking();
 		final SingleInputGate inputGate = new SingleInputGate(
-			owningTaskName, jobId, consumedResultId, consumedPartitionType, consumedSubpartitionIndex,
-			icdd.length, taskActions, metrics, networkEnvironment.isCreditBased());
+			owningTaskName, jobId, consumedResultId, consumedPartitionType,
+			consumedSubpartitionIndex, icdd.length, taskActions, metrics,
+			partitionRequestManager, executorService, networkEnvironment.isCreditBased(), isPartitionRequestRestricted);
 
 		// Create the input channels. There is one input channel for each consumed partition.
 		final InputChannel[] inputChannels = new InputChannel[icdd.length];
@@ -731,13 +812,33 @@ public class SingleInputGate implements InputGate {
 			inputGate.setInputChannel(partitionId.getPartitionId(), inputChannels[i]);
 		}
 
-		LOG.debug("{}: Created {} input channels (local: {}, remote: {}, unknown: {}).",
-			owningTaskName,
+		LOG.info("Created {} input channels (local: {}, remote: {}, unknown: {}).",
 			inputChannels.length,
 			numLocalChannels,
 			numRemoteChannels,
 			numUnknownChannels);
 
 		return inputGate;
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Assign the exclusive buffers to all remote input channels directly for credit-based mode.
+	 */
+	@VisibleForTesting
+	public void assignExclusiveSegments() throws IOException {
+		checkState(this.isCreditBased, "Bug in input gate setup logic: exclusive buffers only exist with credit-based flow control.");
+		checkState(this.networkBufferPool != null, "Bug in input gate setup logic: global buffer pool has" +
+			"not been set for this input gate.");
+
+		synchronized (requestLock) {
+			for (InputChannel inputChannel : inputChannels.values()) {
+				if (inputChannel instanceof RemoteInputChannel) {
+					((RemoteInputChannel) inputChannel).assignExclusiveSegments(
+						networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
+				}
+			}
+		}
 	}
 }

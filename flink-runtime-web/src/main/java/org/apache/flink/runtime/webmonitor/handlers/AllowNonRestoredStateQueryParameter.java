@@ -42,10 +42,4 @@ public class AllowNonRestoredStateQueryParameter extends MessageQueryParameter<B
 	public String convertValueToString(final Boolean value) {
 		return value.toString();
 	}
-
-	@Override
-	public String getDescription() {
-		return "Boolean value that specifies whether the job submission should be rejected " +
-			"if the savepoint contains state that cannot be mapped back to the job.";
-	}
 }

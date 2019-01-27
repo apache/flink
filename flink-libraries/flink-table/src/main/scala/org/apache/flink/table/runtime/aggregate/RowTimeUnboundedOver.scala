@@ -17,76 +17,73 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import java.util
-import java.util.{List => JList}
-
-import org.apache.flink.api.common.state._
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import java.lang.{Long => JLong}
+import java.util.{ArrayList => JArrayList, LinkedList => JLinkedList, List => JList}
+import org.apache.flink.api.common.state.{MapStateDescriptor, ValueStateDescriptor}
 import org.apache.flink.api.java.typeutils.ListTypeInfo
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.operators.TimestampedCollector
-import org.apache.flink.table.api.StreamQueryConfig
-import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
-import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
-import org.apache.flink.table.util.Logging
-import org.apache.flink.types.Row
+import org.apache.flink.runtime.state.keyed.{KeyedMapState, KeyedValueState}
+import org.apache.flink.table.api.types.{InternalType, RowType, TypeConverters}
+import org.apache.flink.table.api.{TableConfig, Types}
+import org.apache.flink.table.codegen.GeneratedAggsHandleFunction
+import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
+import org.apache.flink.table.runtime.functions.ProcessFunction.{Context, OnTimerContext}
+import org.apache.flink.table.runtime.functions.{AggsHandleFunction, ExecutionContext}
+import org.apache.flink.table.typeutils.TypeUtils
+import org.apache.flink.table.util.{Logging, StateUtil}
 import org.apache.flink.util.Collector
 
 
 /**
   * A ProcessFunction to support unbounded event-time over-window
   *
-  * @param genAggregations Generated aggregate helper function
-  * @param intermediateType         the intermediate row tye which the state saved
-  * @param inputType                the input row tye which the state saved
+  * @param genAggsHandler           Generated aggregate helper function
+  * @param accTypes                 accumulator types of aggregation
+  * @param inputFieldTypes          input field type infos of input row
   */
 abstract class RowTimeUnboundedOver(
-    genAggregations: GeneratedAggregationsFunction,
-    intermediateType: TypeInformation[Row],
-    inputType: TypeInformation[CRow],
+    genAggsHandler: GeneratedAggsHandleFunction,
+    accTypes: Seq[InternalType],
+    inputFieldTypes: Seq[InternalType],
     rowTimeIdx: Int,
-    queryConfig: StreamQueryConfig)
-  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
-    with Compiler[GeneratedAggregations]
-    with Logging {
+    tableConfig: TableConfig)
+  extends ProcessFunctionWithCleanupState[BaseRow, BaseRow](tableConfig)
+  with Logging {
 
-  protected var output: CRow = _
+  protected var output: JoinedRow = _
   // state to hold the accumulators of the aggregations
-  private var accumulatorState: ValueState[Row] = _
+  private var accState: KeyedValueState[BaseRow, BaseRow] = _
   // state to hold rows until the next watermark arrives
-  private var rowMapState: MapState[Long, JList[Row]] = _
+  private var inputState: KeyedMapState[BaseRow, JLong, JList[BaseRow]] = _
   // list to sort timestamps to access rows in timestamp order
-  private var sortedTimestamps: util.LinkedList[Long] = _
+  private var sortedTimestamps: JLinkedList[JLong] = _
 
-  protected var function: GeneratedAggregations = _
+  protected var function: AggsHandleFunction = _
 
-  override def open(config: Configuration) {
-    LOG.debug(s"Compiling AggregateHelper: ${genAggregations.name} \n\n" +
-                s"Code:\n${genAggregations.code}")
-    val clazz = compile(
-      getRuntimeContext.getUserCodeClassLoader,
-      genAggregations.name,
-      genAggregations.code)
-    LOG.debug("Instantiating AggregateHelper.")
-    function = clazz.newInstance()
-    function.open(getRuntimeContext)
+  override def open(ctx: ExecutionContext) {
+    super.open(ctx)
+    LOG.debug(s"Compiling AggregateHelper: ${genAggsHandler.name}\n" +
+        s"Code:\n${genAggsHandler.code}")
+    function = genAggsHandler.newInstance(getRuntimeContext.getUserCodeClassLoader)
+    function.open(ctx)
 
-    output = new CRow(function.createOutputRow(), true)
-    sortedTimestamps = new util.LinkedList[Long]()
+    output = new JoinedRow()
+
+    sortedTimestamps = new JLinkedList[JLong]()
 
     // initialize accumulator state
-    val accDescriptor: ValueStateDescriptor[Row] =
-      new ValueStateDescriptor[Row]("accumulatorstate", intermediateType)
-    accumulatorState = getRuntimeContext.getState[Row](accDescriptor)
+    val accStateDesc = new ValueStateDescriptor[BaseRow](
+      "accState",
+      TypeConverters.toBaseRowTypeInfo(new RowType(accTypes: _*)))
+    accState = ctx.getKeyedValueState(accStateDesc)
 
-    // initialize row state
-    val rowListTypeInfo: TypeInformation[JList[Row]] =
-      new ListTypeInfo[Row](inputType.asInstanceOf[CRowTypeInfo].rowType)
-    val mapStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
-      new MapStateDescriptor[Long, JList[Row]]("rowmapstate",
-        BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]], rowListTypeInfo)
-    rowMapState = getRuntimeContext.getMapState(mapStateDescriptor)
+    // input element are all binary row as they are came from network
+    val rowListTypeInfo = new ListTypeInfo[BaseRow](
+      TypeConverters.toBaseRowTypeInfo(new RowType(inputFieldTypes: _*)))
+    val inputStateDesc = new MapStateDescriptor[JLong, JList[BaseRow]](
+      "inputState",
+      Types.LONG,
+      rowListTypeInfo)
+    inputState = ctx.getKeyedMapState(inputStateDesc)
 
     initCleanupTimeState("RowTimeUnboundedOverCleanupTime")
   }
@@ -95,36 +92,37 @@ abstract class RowTimeUnboundedOver(
     * Puts an element from the input stream into state if it is not late.
     * Registers a timer for the next watermark.
     *
-    * @param inputC The input value.
-    * @param ctx   The ctx to register timer or get current time
-    * @param out   The collector for returning result values.
+    * @param input The input value.
+    * @param ctx    The ctx to register timer or get current time
+    * @param out    The collector for returning result values.
     *
     */
   override def processElement(
-     inputC: CRow,
-     ctx:  ProcessFunction[CRow, CRow]#Context,
-     out: Collector[CRow]): Unit = {
+      input: BaseRow,
+      ctx: Context,
+      out: Collector[BaseRow]): Unit = {
 
-    val input = inputC.row
-
+    val currentKey = executionContext.currentKey()
     // register state-cleanup timer
-    processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
-    val timestamp = input.getField(rowTimeIdx).asInstanceOf[Long]
+    val timestamp = input.getLong(rowTimeIdx)
     val curWatermark = ctx.timerService().currentWatermark()
 
     // discard late record
     if (timestamp > curWatermark) {
       // ensure every key just registers one timer
-      ctx.timerService.registerEventTimeTimer(curWatermark + 1)
+      // default watermark is Long.Min, avoid overflow we use zero when watermark < 0
+      val triggerTs = if (curWatermark < 0) 0 else curWatermark + 1
+      ctx.timerService.registerEventTimeTimer(triggerTs)
 
       // put row into state
-      var rowList = rowMapState.get(timestamp)
+      var rowList = inputState.get(currentKey, timestamp)
       if (rowList == null) {
-        rowList = new util.ArrayList[Row]()
+        rowList = new JArrayList[BaseRow]()
       }
       rowList.add(input)
-      rowMapState.put(timestamp, rowList)
+      inputState.add(currentKey, timestamp, rowList)
     }
   }
 
@@ -139,39 +137,38 @@ abstract class RowTimeUnboundedOver(
     */
   override def onTimer(
       timestamp: Long,
-      ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
-      out: Collector[CRow]): Unit = {
+      ctx: OnTimerContext,
+      out: Collector[BaseRow]): Unit = {
+
+    val currentKey = executionContext.currentKey()
 
     if (isProcessingTimeTimer(ctx.asInstanceOf[OnTimerContext])) {
-      if (stateCleaningEnabled) {
+      if (needToCleanupState(timestamp)) {
 
         // we check whether there are still records which have not been processed yet
-        val noRecordsToProcess = !rowMapState.keys.iterator().hasNext
+        val noRecordsToProcess = !inputState.contains(currentKey)
         if (noRecordsToProcess) {
           // we clean the state
-          cleanupState(rowMapState, accumulatorState)
+          cleanupState(inputState, accState)
           function.cleanup()
         } else {
           // There are records left to process because a watermark has not been received yet.
           // This would only happen if the input stream has stopped. So we don't need to clean up.
           // We leave the state as it is and schedule a new cleanup timer
-          processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+          registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
         }
       }
       return
     }
 
-    // remove timestamp set outside of ProcessFunction.
-    out.asInstanceOf[TimestampedCollector[_]].eraseTimestamp()
-
-    val keyIterator = rowMapState.keys.iterator
-    if (keyIterator.hasNext) {
+    val keyIterator = inputState.iterator(currentKey)
+    if (keyIterator != null && keyIterator.hasNext) {
       val curWatermark = ctx.timerService.currentWatermark
       var existEarlyRecord: Boolean = false
 
       // sort the record timestamps
       do {
-        val recordTime = keyIterator.next
+        val recordTime = keyIterator.next.getKey
         // only take timestamps smaller/equal to the watermark
         if (recordTime <= curWatermark) {
           insertToSortedList(recordTime)
@@ -181,24 +178,31 @@ abstract class RowTimeUnboundedOver(
       } while (keyIterator.hasNext)
 
       // get last accumulator
-      var lastAccumulator = accumulatorState.value
+      var lastAccumulator = accState.get(currentKey)
       if (lastAccumulator == null) {
         // initialize accumulator
         lastAccumulator = function.createAccumulators()
       }
+      // set accumulator in function context first
+      function.setAccumulators(lastAccumulator)
 
       // emit the rows in order
       while (!sortedTimestamps.isEmpty) {
         val curTimestamp = sortedTimestamps.removeFirst()
-        val curRowList = rowMapState.get(curTimestamp)
-
-        // process the same timestamp data, the mechanism is different according ROWS or RANGE
-        processElementsWithSameTimestamp(curRowList, lastAccumulator, out)
-
-        rowMapState.remove(curTimestamp)
+        val curRowList = inputState.get(currentKey, curTimestamp)
+        if (curRowList != null) {
+          // process the same timestamp datas, the mechanism is different according ROWS or RANGE
+          processElementsWithSameTimestamp(curRowList, out)
+        } else {
+          // Ignore the same timestamp datas if the state is cleared already.
+          LOG.warn(StateUtil.STATE_CLEARED_WARN_MSG)
+        }
+        inputState.remove(currentKey, curTimestamp)
       }
 
-      accumulatorState.update(lastAccumulator)
+      // update acc state
+      lastAccumulator = function.getAccumulators
+      accState.put(currentKey, lastAccumulator)
 
       // if are are rows with timestamp > watermark, register a timer for the next watermark
       if (existEarlyRecord) {
@@ -207,16 +211,16 @@ abstract class RowTimeUnboundedOver(
     }
 
     // update cleanup timer
-    processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
   }
 
   /**
-   * Inserts timestamps in order into a linked list.
-   *
-   * If timestamps arrive in order (as in case of using the RocksDB state backend) this is just
-   * an append with O(1).
-   */
-  private def insertToSortedList(recordTimestamp: Long) = {
+    * Inserts timestamps in order into a linked list.
+    *
+    * If timestamps arrive in order (as in case of using the RocksDB state backend) this is just
+    * an append with O(1).
+    */
+  private def insertToSortedList(recordTimestamp: Long): Unit = {
     val listIterator = sortedTimestamps.listIterator(sortedTimestamps.size)
     var continue = true
     while (listIterator.hasPrevious && continue) {
@@ -234,13 +238,12 @@ abstract class RowTimeUnboundedOver(
   }
 
   /**
-   * Process the same timestamp data, the mechanism is different between
-   * rows and range window.
-   */
+    * Process the same timestamp datas, the mechanism is different between
+    * rows and range window.
+    */
   def processElementsWithSameTimestamp(
-    curRowList: JList[Row],
-    lastAccumulator: Row,
-    out: Collector[CRow]): Unit
+      curRowList: JList[BaseRow],
+      out: Collector[BaseRow]): Unit
 
   override def close(): Unit = {
     function.close()
@@ -252,33 +255,29 @@ abstract class RowTimeUnboundedOver(
   * The ROWS clause defines on a physical level how many rows are included in a window frame.
   */
 class RowTimeUnboundedRowsOver(
-    genAggregations: GeneratedAggregationsFunction,
-    intermediateType: TypeInformation[Row],
-    inputType: TypeInformation[CRow],
+    genAggsHandler: GeneratedAggsHandleFunction,
+    accTypes: Seq[InternalType],
+    inputFieldTypes: Seq[InternalType],
     rowTimeIdx: Int,
-    queryConfig: StreamQueryConfig)
+    tableConfig: TableConfig)
   extends RowTimeUnboundedOver(
-    genAggregations: GeneratedAggregationsFunction,
-    intermediateType,
-    inputType,
+    genAggsHandler,
+    accTypes,
+    inputFieldTypes,
     rowTimeIdx,
-    queryConfig) {
+    tableConfig) {
 
   override def processElementsWithSameTimestamp(
-    curRowList: JList[Row],
-    lastAccumulator: Row,
-    out: Collector[CRow]): Unit = {
+      curRowList: JList[BaseRow],
+      out: Collector[BaseRow]): Unit = {
 
     var i = 0
     while (i < curRowList.size) {
       val curRow = curRowList.get(i)
-
-      // copy forwarded fields to output row
-      function.setForwardedFields(curRow, output.row)
-
-      // update accumulators and copy aggregates to output row
-      function.accumulate(lastAccumulator, curRow)
-      function.setAggregationResults(lastAccumulator, output.row)
+      // accumulate current row
+      function.accumulate(curRow)
+      // prepare output row
+      output.replace(curRow, function.getValue)
       // emit output row
       out.collect(output)
       i += 1
@@ -293,42 +292,37 @@ class RowTimeUnboundedRowsOver(
   * that have the same ORDER BY values as the current row.
   */
 class RowTimeUnboundedRangeOver(
-    genAggregations: GeneratedAggregationsFunction,
-    intermediateType: TypeInformation[Row],
-    inputType: TypeInformation[CRow],
+    genAggsHandler: GeneratedAggsHandleFunction,
+    accTypes: Seq[InternalType],
+    inputFieldTypes: Seq[InternalType],
     rowTimeIdx: Int,
-    queryConfig: StreamQueryConfig)
+    tableConfig: TableConfig)
   extends RowTimeUnboundedOver(
-    genAggregations: GeneratedAggregationsFunction,
-    intermediateType,
-    inputType,
+    genAggsHandler,
+    accTypes,
+    inputFieldTypes,
     rowTimeIdx,
-    queryConfig) {
+    tableConfig) {
 
   override def processElementsWithSameTimestamp(
-    curRowList: JList[Row],
-    lastAccumulator: Row,
-    out: Collector[CRow]): Unit = {
+      curRowList: JList[BaseRow],
+      out: Collector[BaseRow]): Unit = {
 
     var i = 0
     // all same timestamp data should have same aggregation value.
     while (i < curRowList.size) {
       val curRow = curRowList.get(i)
-
-      function.accumulate(lastAccumulator, curRow)
+      function.accumulate(curRow)
       i += 1
     }
 
     // emit output row
     i = 0
+    val aggValue = function.getValue
     while (i < curRowList.size) {
       val curRow = curRowList.get(i)
-
-      // copy forwarded fields to output row
-      function.setForwardedFields(curRow, output.row)
-
-      //copy aggregates to output row
-      function.setAggregationResults(lastAccumulator, output.row)
+      // prepare output row
+      output.replace(curRow, aggValue)
       out.collect(output)
       i += 1
     }

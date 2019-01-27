@@ -34,6 +34,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.FileNotFoundException;
+import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
 
@@ -71,7 +72,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		final Configuration configuration = new Configuration();
 		frontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(new DefaultCLI(configuration)));
+			Collections.singletonList(new LegacyCLI(configuration)));
 	}
 
 	@Test
@@ -294,5 +295,34 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 			}
 			assertTrue("Classloader was not called", callme[0]);
 		}
+	}
+
+	@Test
+	public void testAttachment() throws Exception {
+		final String libjar1 = "file:///tmp/libjar1.jar";
+		final String libjar2 = "hdfs:///tmp/libjar2.jar";
+		final String file = "/tmp/file.txt";
+
+		String[] arguments = {
+			"--libjars", libjar1 + "," + libjar2,
+			"--files", file,
+			getTestJarPath()};
+
+		final URI[] libjars = new URI[] { new URI(libjar1), new URI(libjar2) };
+		final URI[] files = new URI[] { new URI("file://" + file) };
+
+		RunOptions options = CliFrontendParser.parseRunCommand(arguments);
+
+		assertEquals(getTestJarPath(), options.getJarFilePath());
+
+		assertArrayEquals(libjars, options.getLibjars().toArray());
+		assertArrayEquals(files, options.getFiles().toArray());
+
+		PackagedProgram prog = frontend.buildProgram(options);
+
+		assertArrayEquals(libjars, prog.getLibjars().toArray());
+		assertArrayEquals(files, prog.getFiles().toArray());
+
+		Assert.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
 	}
 }

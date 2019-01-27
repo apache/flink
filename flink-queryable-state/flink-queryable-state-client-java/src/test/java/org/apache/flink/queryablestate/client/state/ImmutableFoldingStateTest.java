@@ -20,7 +20,6 @@ package org.apache.flink.queryablestate.client.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FoldFunction;
-import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -44,7 +43,7 @@ public class ImmutableFoldingStateTest {
 					new SumFold(),
 					StringSerializer.INSTANCE);
 
-	private FoldingState<Long, String> foldingState;
+	private ImmutableFoldingState<Long, String> foldingState;
 
 	@Before
 	public void setUp() throws Exception {
@@ -62,7 +61,7 @@ public class ImmutableFoldingStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testUpdate() throws Exception {
+	public void testUpdate() {
 		String value = foldingState.get();
 		assertEquals("42", value);
 
@@ -70,7 +69,7 @@ public class ImmutableFoldingStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testClear() throws Exception {
+	public void testClear() {
 		String value = foldingState.get();
 		assertEquals("42", value);
 

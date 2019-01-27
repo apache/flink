@@ -21,8 +21,9 @@ package org.apache.flink.table.api.dataview
 import java.lang.{Iterable => JIterable}
 import java.util
 
-import org.apache.flink.api.common.typeinfo.{TypeInfo, TypeInformation}
-import org.apache.flink.table.dataview.ListViewTypeInfoFactory
+import org.apache.flink.api.common.typeinfo.TypeInfo
+import org.apache.flink.table.api.types.DataType
+import org.apache.flink.table.typeutils.ListViewTypeInfoFactory
 
 /**
   * A [[ListView]] provides List functionality for accumulators used by user-defined aggregate
@@ -31,8 +32,8 @@ import org.apache.flink.table.dataview.ListViewTypeInfoFactory
   * A [[ListView]] can be backed by a Java ArrayList or a state backend, depending on the context in
   * which the aggregate function is used.
   *
-  * At runtime [[ListView]] will be replaced by a [[org.apache.flink.table.dataview.StateListView]]
-  * if it is backed by a state backend.
+  * At runtime [[ListView]] will be replaced by a
+  * [[org.apache.flink.table.dataview.KeyedStateListView]] if it is backed by a state backend.
   *
   * Example of an accumulator type with a [[ListView]] and an aggregate function that uses it:
   * {{{
@@ -71,22 +72,22 @@ import org.apache.flink.table.dataview.ListViewTypeInfoFactory
   *
   * }}}
   *
-  * @param elementTypeInfo element type information
+  * @param elementType element type
   * @tparam T element type
   */
 @TypeInfo(classOf[ListViewTypeInfoFactory[_]])
 class ListView[T](
-    @transient private[flink] val elementTypeInfo: TypeInformation[T],
+    @transient private[flink] val elementType: DataType,
     private[flink] val list: util.List[T])
   extends DataView {
 
   /**
     * Creates a list view for elements of the specified type.
     *
-    * @param elementTypeInfo The type of the list view elements.
+    * @param elementType The type of the list view elements.
     */
-  def this(elementTypeInfo: TypeInformation[T]) {
-    this(elementTypeInfo, new util.ArrayList[T]())
+  def this(elementType: DataType) {
+    this(elementType, new util.ArrayList[T]())
   }
 
   /**
@@ -103,7 +104,7 @@ class ListView[T](
   @throws[Exception]
   def get: JIterable[T] = {
     if (!list.isEmpty) {
-      list
+      new util.ArrayList[T](list)
     } else {
       null
     }
@@ -126,6 +127,13 @@ class ListView[T](
     */
   @throws[Exception]
   def addAll(list: util.List[T]): Unit = this.list.addAll(list)
+
+  /**
+    * Removes the given value from the list.
+    *
+    * @param value The element to be removed from this list view.
+    */
+  def remove(value: T): Boolean = this.list.remove(value)
 
   /**
     * Removes all of the elements from this list view.

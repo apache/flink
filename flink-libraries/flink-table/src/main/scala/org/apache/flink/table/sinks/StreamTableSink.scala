@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.sinks
 
-import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 
 /**
   * Defines an external stream table and provides write access to its data.
@@ -28,6 +28,6 @@ import org.apache.flink.streaming.api.datastream.DataStream
 trait StreamTableSink[T] extends TableSink[T] {
 
   /** Emits the DataStream. */
-  def emitDataStream(dataStream: DataStream[T]): Unit
+  def emitDataStream(dataStream: DataStream[T]): DataStreamSink[_]
 
 }

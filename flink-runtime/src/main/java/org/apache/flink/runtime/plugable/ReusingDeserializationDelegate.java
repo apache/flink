@@ -54,6 +54,10 @@ public class ReusingDeserializationDelegate<T> implements DeserializationDelegat
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		this.instance = this.serializer.deserialize(this.instance, in);
+		if (instance == null) {
+			this.instance = this.serializer.deserialize(in);
+		} else {
+			this.instance = this.serializer.deserialize(this.instance, in);
+		}
 	}
 }

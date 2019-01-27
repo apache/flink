@@ -37,35 +37,35 @@ import java.nio.ByteBuffer;
 public class KvStateInternalRequest extends MessageBody {
 
 	private final KvStateID kvStateId;
-	private final byte[] serializedKeyAndNamespace;
+	private final byte[] serializedKey;
 
 	public KvStateInternalRequest(
 			final KvStateID stateId,
 			final byte[] serializedKeyAndNamespace) {
 
 		this.kvStateId = Preconditions.checkNotNull(stateId);
-		this.serializedKeyAndNamespace = Preconditions.checkNotNull(serializedKeyAndNamespace);
+		this.serializedKey = Preconditions.checkNotNull(serializedKeyAndNamespace);
 	}
 
 	public KvStateID getKvStateId() {
 		return kvStateId;
 	}
 
-	public byte[] getSerializedKeyAndNamespace() {
-		return serializedKeyAndNamespace;
+	public byte[] getSerializedKey() {
+		return serializedKey;
 	}
 
 	@Override
 	public byte[] serialize() {
 
-		// KvStateId + sizeOf(serializedKeyAndNamespace) + serializedKeyAndNamespace
-		final int size = KvStateID.SIZE + Integer.BYTES + serializedKeyAndNamespace.length;
+		// KvStateId + sizeOf(serializedKey) + serializedKey
+		final int size = KvStateID.SIZE + Integer.BYTES + serializedKey.length;
 
 		return ByteBuffer.allocate(size)
 				.putLong(kvStateId.getLowerPart())
 				.putLong(kvStateId.getUpperPart())
-				.putInt(serializedKeyAndNamespace.length)
-				.put(serializedKeyAndNamespace)
+				.putInt(serializedKey.length)
+				.put(serializedKey)
 				.array();
 	}
 

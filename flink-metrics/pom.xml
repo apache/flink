@@ -23,9 +23,9 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>org.apache.flink</groupId>
+		<groupId>com.alibaba.blink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.5.1</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -36,6 +36,7 @@ under the License.
 	<modules>
 		<module>flink-metrics-core</module>
 		<module>flink-metrics-dropwizard</module>
+		<module>flink-metrics-ganglia</module>
 		<module>flink-metrics-graphite</module>
 		<module>flink-metrics-jmx</module>
 		<module>flink-metrics-prometheus</module>
@@ -58,6 +59,10 @@ under the License.
 			<groupId>com.google.code.findbugs</groupId>
 			<artifactId>jsr305</artifactId>
 			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 	</dependencies>
 

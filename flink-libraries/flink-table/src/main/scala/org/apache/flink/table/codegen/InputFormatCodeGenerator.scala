@@ -18,51 +18,49 @@
 package org.apache.flink.table.codegen
 
 import org.apache.flink.api.common.io.GenericInputFormat
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.types.InternalType
 import org.apache.flink.table.codegen.CodeGenUtils.newName
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.types.Row
+import org.apache.flink.table.dataformat.GenericRow
 
 /**
   * A code generator for generating Flink [[GenericInputFormat]]s.
-  *
-  * @param config configuration that determines runtime behavior
   */
-class InputFormatCodeGenerator(
-    config: TableConfig)
-  extends CodeGenerator(config, false, new RowTypeInfo(), None, None) {
-
+object InputFormatCodeGenerator {
 
   /**
-    * Generates a values input format that can be passed to Java compiler.
-    *
-    * @param name Class name of the input format. Must not be unique but has to be a
-    *             valid Java class identifier.
-    * @param records code for creating records
-    * @param returnType expected return type
-    * @tparam T Return type of the Flink Function.
-    * @return instance of GeneratedFunction
-    */
-  def generateValuesInputFormat[T <: Row](
-    name: String,
-    records: Seq[String],
-    returnType: TypeInformation[T])
-  : GeneratedInput[GenericInputFormat[T], T] = {
+   * Generates a values input format that can be passed to Java compiler.
+   *
+   * @param ctx The code generator context
+   * @param name Class name of the input format. Must not be unique but has to be a
+   *             valid Java class identifier.
+   * @param records code for creating records
+   * @param returnType expected return type
+   * @param outRecordTerm term of the output
+   * @tparam T Return type of the Flink Function.
+   * @return instance of GeneratedFunction
+   */
+  def generateValuesInputFormat[T](
+      ctx: CodeGeneratorContext,
+      name: String,
+      records: Seq[String],
+      returnType: InternalType,
+      outRecordTerm: String = CodeGeneratorContext.DEFAULT_OUT_RECORD_TERM,
+      outRecordWriterTerm: String = CodeGeneratorContext.DEFAULT_OUT_RECORD_WRITER_TERM)
+    : GeneratedInput[GenericInputFormat[T], T] = {
     val funcName = newName(name)
 
-    addReusableOutRecord(returnType)
+    ctx.addOutputRecord(returnType, classOf[GenericRow], outRecordTerm, Some(outRecordWriterTerm))
 
     val funcCode = j"""
       public class $funcName extends ${classOf[GenericInputFormat[_]].getCanonicalName} {
 
         private int nextIdx = 0;
 
-        ${reuseMemberCode()}
+        ${ctx.reuseMemberCode()}
 
         public $funcName() throws Exception {
-          ${reuseInitCode()}
+          ${ctx.reuseInitCode()}
         }
 
         @Override
@@ -71,16 +69,12 @@ class InputFormatCodeGenerator(
         }
 
         @Override
-        public Object nextRecord(Object reuse) throws java.io.IOException {
+        public Object nextRecord(Object reuse) {
           switch (nextIdx) {
             ${records.zipWithIndex.map { case (r, i) =>
               s"""
                  |case $i:
-                 |try {
                  |  $r
-                 |} catch (Exception e) {
-                 |  throw new java.io.IOException(e);
-                 |}
                  |break;
                        """.stripMargin
             }.mkString("\n")}
@@ -91,6 +85,6 @@ class InputFormatCodeGenerator(
       }
     """.stripMargin
 
-    GeneratedInput(funcName, returnType, funcCode)
+    GeneratedInput(funcName, funcCode)
   }
 }

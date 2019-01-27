@@ -87,7 +87,7 @@ stream.writeAsText("s3://<bucket>/<endpoint>");
 env.setStateBackend(new FsStateBackend("s3://<your-bucket>/<endpoint>"));
 {% endhighlight %}
 
-Note that these examples are *not* exhaustive and you can use S3 in other places as well, including your [high availability setup](../jobmanager_high_availability.html) or the [RocksDBStateBackend]({{ site.baseurl }}/ops/state/state_backends.html#the-rocksdbstatebackend); everywhere that Flink expects a FileSystem URI.
+Note that these examples are *not* exhaustive and you can use S3 in other places as well, including your [high availability setup](../ha/jobmanager_high_availability.html) or the [RocksDBStateBackend]({{ site.baseurl }}/ops/state/state_backends.html#the-rocksdbstatebackend); everywhere that Flink expects a FileSystem URI.
 
 For most use cases, you may use one of our shaded `flink-s3-fs-hadoop` and `flink-s3-fs-presto` S3
 filesystem wrappers which are fairly easy to set up. For some cases, however, e.g. for using S3 as
@@ -104,11 +104,6 @@ To use either `flink-s3-fs-hadoop` or `flink-s3-fs-presto`, copy the respective 
 {% highlight bash %}
 cp ./opt/flink-s3-fs-presto-{{ site.version }}.jar ./lib/
 {% endhighlight %}
-
-Both `flink-s3-fs-hadoop` and `flink-s3-fs-presto` register default FileSystem
-wrappers for URIs with the `s3://` scheme, `flink-s3-fs-hadoop` also registers
-for `s3a://` and `flink-s3-fs-presto` also registers for `s3p://`, so you can
-use this to use both at the same time.
 
 #### Configure Access Credentials
 

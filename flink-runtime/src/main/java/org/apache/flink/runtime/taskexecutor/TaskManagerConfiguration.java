@@ -34,6 +34,8 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+
 import javax.annotation.Nullable;
 
 import scala.concurrent.duration.Duration;
@@ -58,6 +60,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	private final Time initialRegistrationPause;
 	private final Time maxRegistrationPause;
 	private final Time refusedRegistrationPause;
+	private final Time maxReconnectionDuration;
 
 	private final UnmodifiableConfiguration configuration;
 
@@ -73,6 +76,9 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	@Nullable
 	private final String taskManagerStdoutPath;
 
+	@Nullable
+	private final String taskManagerLogDir;
+
 	public TaskManagerConfiguration(
 		int numberSlots,
 		String[] tmpDirectories,
@@ -81,12 +87,14 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		Time initialRegistrationPause,
 		Time maxRegistrationPause,
 		Time refusedRegistrationPause,
+		Time maxReconnectionDuration,
 		Configuration configuration,
 		boolean exitJvmOnOutOfMemory,
 		FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
 		String[] alwaysParentFirstLoaderPatterns,
 		@Nullable String taskManagerLogPath,
-		@Nullable String taskManagerStdoutPath) {
+		@Nullable String taskManagerStdoutPath,
+		@Nullable String taskManagerLogDir) {
 
 		this.numberSlots = numberSlots;
 		this.tmpDirectories = Preconditions.checkNotNull(tmpDirectories);
@@ -95,12 +103,14 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		this.initialRegistrationPause = Preconditions.checkNotNull(initialRegistrationPause);
 		this.maxRegistrationPause = Preconditions.checkNotNull(maxRegistrationPause);
 		this.refusedRegistrationPause = Preconditions.checkNotNull(refusedRegistrationPause);
+		this.maxReconnectionDuration = Preconditions.checkNotNull(maxReconnectionDuration);
 		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
 		this.exitJvmOnOutOfMemory = exitJvmOnOutOfMemory;
 		this.classLoaderResolveOrder = classLoaderResolveOrder;
 		this.alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderPatterns;
 		this.taskManagerLogPath = taskManagerLogPath;
 		this.taskManagerStdoutPath = taskManagerStdoutPath;
+		this.taskManagerLogDir = taskManagerLogDir;
 	}
 
 	public int getNumberSlots() {
@@ -129,6 +139,10 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		return refusedRegistrationPause;
 	}
 
+	public Time getMaxReconnectionDuration() {
+		return maxReconnectionDuration;
+	}
+
 	@Override
 	public Configuration getConfiguration() {
 		return configuration;
@@ -150,6 +164,11 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	public String[] getAlwaysParentFirstLoaderPatterns() {
 		return alwaysParentFirstLoaderPatterns;
+	}
+
+	@Nullable
+	public String getTaskManagerLogDir() {
+		return taskManagerLogDir;
 	}
 
 	@Nullable
@@ -241,6 +260,15 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 				TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF.key(), e);
 		}
 
+		final Time maxReconnectionDuration;
+		try {
+			Duration reconnectionDuration = Duration.create(configuration.getString(TaskManagerOptions.RECONNECTION_TIMEOUT));
+			maxReconnectionDuration = Time.milliseconds(reconnectionDuration.toMillis());
+		} catch (NumberFormatException e) {
+			throw new IllegalArgumentException("Invalid format for parameter " +
+					TaskManagerOptions.RECONNECTION_TIMEOUT.key(), e);
+		}
+
 		final boolean exitOnOom = configuration.getBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY);
 
 		final String classLoaderResolveOrder =
@@ -263,6 +291,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			taskManagerStdoutPath = null;
 		}
 
+		final String taskManagerLogDir = taskManagerLogPath == null ? null : new File(taskManagerLogPath).getParent();
+
 		return new TaskManagerConfiguration(
 			numberSlots,
 			tmpDirPaths,
@@ -271,11 +301,13 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			initialRegistrationPause,
 			maxRegistrationPause,
 			refusedRegistrationPause,
+			maxReconnectionDuration,
 			configuration,
 			exitOnOom,
 			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),
 			alwaysParentFirstLoaderPatterns,
 			taskManagerLogPath,
-			taskManagerStdoutPath);
+			taskManagerStdoutPath,
+			taskManagerLogDir);
 	}
 }

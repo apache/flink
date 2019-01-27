@@ -95,16 +95,6 @@ public abstract class TypeInformationTestBase<T extends TypeInformation<?>> exte
 		}
 	}
 
-	@Test
-	public void testGetTotalFields() {
-		final T[] testData = getTestData();
-		for (T typeInfo : testData) {
-			assertTrue(
-				"Number of total fields must be at least 1",
-				typeInfo.getTotalFields() > 0);
-		}
-	}
-
 	private static class UnrelatedTypeInfo extends TypeInformation<Object> {
 
 		@Override

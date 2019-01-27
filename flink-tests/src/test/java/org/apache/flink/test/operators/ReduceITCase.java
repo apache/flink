@@ -90,11 +90,7 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds.
-				groupBy(4, 0).reduce((in1, in2) -> {
-					Tuple5<Integer, Long, Integer, String, Long> out = new Tuple5<>();
-					out.setFields(in1.f0, in1.f1 + in2.f1, 0, "P-)", in1.f4);
-					return out;
-				});
+				groupBy(4, 0).reduce(new Tuple5Reduce());
 
 		List<Tuple5<Integer, Long, Integer, String, Long>> result = reduceDs
 				.collect();

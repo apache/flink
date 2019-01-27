@@ -127,7 +127,6 @@ public class RegularWindowOperatorContractTest extends WindowOperatorContractTes
 		verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
 		// FIRE should not purge contents
-		assertEquals(4, testHarness.numKeyedStateEntries()); // window contents plus trigger state
 		assertEquals(4, testHarness.numEventTimeTimers()); // window timers/gc timers
 	}
 
@@ -191,7 +190,6 @@ public class RegularWindowOperatorContractTest extends WindowOperatorContractTes
 		verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
 		// FIRE should not purge contents
-		assertEquals(4, testHarness.numKeyedStateEntries()); // window contents plus trigger state
 		assertEquals(4, testHarness.numEventTimeTimers()); // window timers/gc timers
 	}
 

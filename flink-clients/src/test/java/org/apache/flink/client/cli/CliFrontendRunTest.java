@@ -27,7 +27,9 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.net.URI;
 import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
 import static org.junit.Assert.assertEquals;
@@ -84,6 +86,18 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 			assertTrue(savepointSettings.restoreSavepoint());
 			assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
 			assertFalse(savepointSettings.allowNonRestoredState());
+			assertFalse(savepointSettings.resumeFromLatestCheckpoint());
+		}
+
+		{
+			String resumeJobPath = "resumeJobPath";
+			String[] parameters = {"-r", resumeJobPath, getTestJarPath()};
+			RunOptions options = CliFrontendParser.parseRunCommand(parameters);
+			SavepointRestoreSettings savepointSettings = options.getSavepointRestoreSettings();
+			assertTrue(savepointSettings.restoreSavepoint());
+			assertEquals(resumeJobPath, savepointSettings.getRestorePath());
+			assertFalse(savepointSettings.allowNonRestoredState());
+			assertTrue(savepointSettings.resumeFromLatestCheckpoint());
 		}
 
 		// test configure savepoint path (with ignore flag)
@@ -107,39 +121,56 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 			assertEquals("--arg2", options.getProgramArgs()[3]);
 			assertEquals("value2", options.getProgramArgs()[4]);
 		}
+
+		// test libjars, files
+		{
+			final String libjar1 = "file:///tmp/libjar1.jar";
+			final String file = "/tmp/file.txt#newname";
+
+			String[] parameters = {
+				"--libjars", libjar1,
+				"--files", file,
+				getTestJarPath()};
+
+			RunOptions options = CliFrontendParser.parseRunCommand(parameters);
+
+			final List<URI> libjars = options.getLibjars();
+			assertEquals(1, libjars.size());
+			assertEquals(new URI(libjar1), libjars.get(0));
+
+			final List<URI> files = options.getFiles();
+			assertEquals(1, files.size());
+			assertEquals(new URI("file://" + file), files.get(0));
+			assertEquals("newname", files.get(0).getFragment());
+		}
 	}
 
 	@Test(expected = CliArgsException.class)
 	public void testUnrecognizedOption() throws Exception {
 		// test unrecognized option
 		String[] parameters = {"-v", "-l", "-a", "some", "program", "arguments"};
-		Configuration configuration = getConfiguration();
-		CliFrontend testFrontend = new CliFrontend(
-			configuration,
-			Collections.singletonList(getCli(configuration)));
-		testFrontend.run(parameters);
+		verifyParameters(parameters);
 	}
 
 	@Test(expected = CliArgsException.class)
 	public void testInvalidParallelismOption() throws Exception {
 		// test configure parallelism with non integer value
 		String[] parameters = {"-v", "-p", "text",  getTestJarPath()};
-		Configuration configuration = getConfiguration();
-		CliFrontend testFrontend = new CliFrontend(
-			configuration,
-			Collections.singletonList(getCli(configuration)));
-		testFrontend.run(parameters);
+		verifyParameters(parameters);
 	}
 
 	@Test(expected = CliArgsException.class)
 	public void testParallelismWithOverflow() throws Exception {
 		// test configure parallelism with overflow integer value
 		String[] parameters = {"-v", "-p", "475871387138",  getTestJarPath()};
-		Configuration configuration = new Configuration();
-		CliFrontend testFrontend = new CliFrontend(
-			configuration,
-			Collections.singletonList(getCli(configuration)));
-		testFrontend.run(parameters);
+		verifyParameters(parameters);
+	}
+
+	@Test(expected = CliArgsException.class)
+	public void testBothRestoreAndResumeOptions() throws Exception {
+		// test configure both fromSavepoint and resume
+		String[] parameters = {"-s", "hdfs:///checkpoint/job-id1/chk-18", "-r", "hdfs:///checkpoint/job-id1",  getTestJarPath()};
+		verifyParameters(parameters);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -181,5 +212,13 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 			assertEquals(sysoutLogging, client.getPrintStatusDuringExecution());
 			assertEquals(expectedParallelism, parallelism);
 		}
+	}
+
+	private static void verifyParameters(String[] parameters) throws Exception {
+		Configuration configuration = new Configuration();
+		CliFrontend testFrontend = new CliFrontend(
+			configuration,
+			Collections.singletonList(getCli(configuration)));
+		testFrontend.run(parameters);
 	}
 }

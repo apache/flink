@@ -23,6 +23,7 @@ import org.rocksdb.BloomFilter;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
+import org.rocksdb.util.SizeUnit;
 
 /**
  * The {@code PredefinedOptions} are configuration settings for the {@link RocksDBStateBackend}.
@@ -187,6 +188,66 @@ public enum PredefinedOptions {
 		@Override
 		public ColumnFamilyOptions createColumnOptions() {
 			return new ColumnFamilyOptions();
+		}
+	},
+
+	/**
+	 * Pre-defined options for better performance on FLASH_SSD,
+	 * at the cost of a higher memory consumption.
+	 *
+	 * <p>The following options are set:
+	 * <ul>
+	 *     <li>setTargetFileSizeBase(64 MBytes)</li>
+	 *     <li>setMaxBytesForLevelBase(512 MBytes)</li>
+	 *     <li>setMaxWriteBufferNumber(4)</li>
+	 *     <li>setWriteBufferSize(32 MBytes)</li>
+	 *     <li>setMaxBackgroundFlushes(2)</li>
+	 *     <li>setMaxBackgroundCompactions(2)</li>
+	 *     <li>setLevel0FileNumCompactionTrigger(4)</li>
+	 *     <li>setUseFsync(false)</li>
+	 *     <li>setMaxOpenFiles(-1)</li>
+	 *     <li>BlockBasedTableConfig.setBlockCacheSize(512 MBytes)</li>
+	 *     <li>BlockBasedTableConfig.setBlockSize(4 KBytes)</li>
+	 *     <li>BlockBasedTableConfig.setFilter(BloomFilter(10, false))</li>
+	 * </ul>
+	 *
+	 * <p>Note: Because Flink does not rely on RocksDB data on disk for recovery,
+	 * there is no need to sync data to stable storage.
+	 */
+	FLASH_SSD_OPTIMIZED_HIGH_MEM {
+
+		@Override
+		public DBOptions createDBOptions() {
+			return new DBOptions()
+				.setUseFsync(false)
+				.setMaxOpenFiles(-1)
+				.setMaxBackgroundCompactions(2)
+				.setMaxBackgroundFlushes(2)
+				.setStatsDumpPeriodSec(60);
+		}
+
+		@Override
+		public ColumnFamilyOptions createColumnOptions() {
+			final long targetFileSize = 64 * SizeUnit.MB;
+			final long maxBytesForLevelBase = 512 * SizeUnit.MB;
+			final long writeBufferSize = 32 * SizeUnit.MB;
+			final long blockCacheSize = 512 * SizeUnit.MB;
+			final long blockSize = 4 * SizeUnit.KB;
+
+			return new ColumnFamilyOptions()
+				.setCompactionStyle(CompactionStyle.LEVEL)
+				.setLevelCompactionDynamicLevelBytes(true)
+				.setTargetFileSizeBase(targetFileSize)
+				.setMaxBytesForLevelBase(maxBytesForLevelBase)
+				.setWriteBufferSize(writeBufferSize)
+				.setMaxWriteBufferNumber(4)
+				.setLevel0FileNumCompactionTrigger(4)
+				.setTableFormatConfig(
+					new BlockBasedTableConfig()
+						.setFilter(new BloomFilter(10, false))
+						.setBlockCacheSize(blockCacheSize)
+						.setBlockSize(blockSize)
+				);
 		}
 	};
 

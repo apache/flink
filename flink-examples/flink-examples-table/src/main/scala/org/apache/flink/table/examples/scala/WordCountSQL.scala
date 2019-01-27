@@ -18,7 +18,8 @@
 package org.apache.flink.table.examples.scala
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.{TableConfigOptions, TableEnvironment}
 import org.apache.flink.table.api.scala._
 
 /**
@@ -39,18 +40,16 @@ object WordCountSQL {
   def main(args: Array[String]): Unit = {
 
     // set up execution environment
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getBatchTableEnvironment(execEnv)
+    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+    val input = execEnv.fromCollection(List(WC("hello", 1), WC("hello", 1), WC("ciao", 1)))
 
-    val input = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1))
-
-    // register the DataSet as table "WordCount"
-    tEnv.registerDataSet("WordCount", input, 'word, 'frequency)
+    // register the BoundedStream as table "WordCount"
+    tEnv.registerBoundedStream("WordCount", input, 'word, 'frequency)
 
     // run a SQL query on the Table and retrieve the result as a new Table
-    val table = tEnv.sqlQuery("SELECT word, SUM(frequency) FROM WordCount GROUP BY word")
-
-    table.toDataSet[WC].print()
+    tEnv.sqlQuery("SELECT word, SUM(frequency) FROM WordCount GROUP BY word").print()
   }
 
   // *************************************************************************

@@ -1,0 +1,106 @@
+<!--
+  ~   Licensed to the Apache Software Foundation (ASF) under one
+  ~   or more contributor license agreements.  See the NOTICE file
+  ~   distributed with this work for additional information
+  ~   regarding copyright ownership.  The ASF licenses this file
+  ~   to you under the Apache License, Version 2.0 (the
+  ~   "License"); you may not use this file except in compliance
+  ~   with the License.  You may obtain a copy of the License at
+  ~       http://www.apache.org/licenses/LICENSE-2.0
+  ~   Unless required by applicable law or agreed to in writing, software
+  ~   distributed under the License is distributed on an "AS IS" BASIS,
+  ~   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~   See the License for the specific language governing permissions and
+  ~   limitations under the License.
+  -->
+
+<nz-table
+  class="no-border small full-height"
+  [nzSize]="'small'"
+  [nzLoading]="isLoading"
+  [nzData]="listOfTask"
+  [nzScroll]="{x:'2200px',y:'calc( 100% - 35px )'}"
+  [nzFrontPagination]="false"
+  [nzShowPagination]="false">
+  <thead (nzSortChange)="sort($event)" nzSingleSort>
+    <tr>
+      <th nzWidth="100px" nzLeft="0px">ID</th>
+      <th nzWidth="100px">JMX</th>
+      <th nzSortKey="metrics.buffers-in-pool-usage-max" nzShowSort nzWidth="100px">In Queue</th>
+      <th nzSortKey="metrics.buffers-out-pool-usage-max" nzShowSort nzWidth="150px">Out Queue</th>
+      <th nzSortKey="metrics.tps" nzShowSort nzWidth="100px">TPS</th>
+      <th nzSortKey="metrics.delay" nzShowSort nzWidth="120px">Delay(ms)</th>
+      <th nzSortKey="metrics.read-bytes" nzShowSort nzWidth="140px">Bytes Received</th>
+      <th nzSortKey="metrics.read-records" nzShowSort nzWidth="150px">Records Received</th>
+      <th nzSortKey="metrics.write-bytes" nzShowSort nzWidth="120px">Bytes Sent</th>
+      <th nzSortKey="metrics.write-records" nzShowSort nzWidth="150px">Records Sent</th>
+      <th nzSortKey="attempt" nzShowSort nzWidth="100px">Attempt</th>
+      <th nzSortKey="host" nzShowSort nzWidth="200px">Host</th>
+      <th nzSortKey="start_time" nzShowSort nzWidth="160px">Start Time</th>
+      <th nzSortKey="duration" nzShowSort nzWidth="100px">Duration</th>
+      <th nzSortKey="end-time" nzShowSort nzWidth="160px">End Time</th>
+      <th nzSortKey="status" nzShowSort nzWidth="120px" nzRight="0px">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let task of listOfTask; trackBy:trackTaskBy;">
+      <td nzLeft="0">
+        <a [routerLink]="getSubTaskLog(task)" target="_blank">LOG {{ task.subtask }}</a>
+      </td>
+      <td>
+        <a (click)="getJMX(task['resource-id'])">JMX</a>
+      </td>
+      <td>
+        <span *ngIf="task.metrics['buffers-in-pool-usage-max-complete'];else loadingTemplate">
+          {{ task.metrics['buffers-in-pool-usage-max'] | percent | nzHumanizeCheckNull }}
+        </span>
+      </td>
+      <td>
+        <span *ngIf="task.metrics['buffers-out-pool-usage-max-complete'];else loadingTemplate">
+          {{ task.metrics['buffers-out-pool-usage-max'] | percent | nzHumanizeCheckNull }}
+        </span>
+      </td>
+      <td>
+        <span *ngIf="task.metrics['tps-complete'];else loadingTemplate">
+          {{ task.metrics['tps'] | number:'1.0-1' | nzHumanizeCheckNull }}
+        </span>
+      </td>
+      <td>
+        <span *ngIf="task.metrics['delay-complete'];else loadingTemplate">
+          {{ task.metrics['delay'] | number:'1.0-1' | nzHumanizeCheckNull }}
+        </span>
+      </td>
+      <td>
+        <span *ngIf="task.metrics['read-bytes-complete'];else loadingTemplate">
+          {{ task.metrics['read-bytes'] | nzHumanizeBytes | nzHumanizeCheckNull}}
+        </span>
+      </td>
+      <td>
+        <span *ngIf="task.metrics['read-records-complete'];else loadingTemplate">
+          {{ task.metrics['read-records'] | number:'1.0-1' | nzHumanizeCheckNull}}
+        </span>
+      </td>
+      <td>
+        <span *ngIf="task.metrics['write-bytes-complete'];else loadingTemplate">
+          {{ task.metrics['write-bytes'] | nzHumanizeBytes | nzHumanizeCheckNull}}
+        </span>
+      </td>
+      <td>
+        <span *ngIf="task.metrics['write-records-complete'];else loadingTemplate">
+          {{ task.metrics['write-records'] | number:'1.0-1' | nzHumanizeCheckNull }}
+        </span>
+      </td>
+      <td>{{ task.attempt + 1 }}</td>
+      <td>{{ task.host }}</td>
+      <td>{{ task["start-time"] | nzHumanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+      <td>{{ task.duration | nzHumanizeDuration: 's'}}</td>
+      <td>{{ task["end-time"] | nzHumanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+      <td nzRight="0px">
+        <flink-job-badge [state]="task.status"></flink-job-badge>
+      </td>
+    </tr>
+  </tbody>
+</nz-table>
+<ng-template #loadingTemplate>
+  <i nz-icon type="loading"></i>
+</ng-template>

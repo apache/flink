@@ -25,6 +25,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Random;
 import java.util.concurrent.TimeoutException;
 
@@ -80,7 +81,7 @@ public class HandoverTest {
 	@Test
 	public void testPublishErrorOnFullHandover() throws Exception {
 		final Handover handover = new Handover();
-		handover.produce(createTestRecords());
+		handover.produce(createTestRecords(), Collections.emptyMap());
 
 		IOException error = new IOException();
 		handover.reportError(error);
@@ -102,7 +103,7 @@ public class HandoverTest {
 		handover.reportError(error);
 
 		try {
-			handover.produce(createTestRecords());
+			handover.produce(createTestRecords(), Collections.emptyMap());
 			fail("should throw an exception");
 		}
 		catch (Handover.ClosedException e) {
@@ -113,13 +114,13 @@ public class HandoverTest {
 	@Test
 	public void testExceptionMarksClosedOnFull() throws Exception {
 		final Handover handover = new Handover();
-		handover.produce(createTestRecords());
+		handover.produce(createTestRecords(), Collections.emptyMap());
 
 		LinkageError error = new LinkageError();
 		handover.reportError(error);
 
 		try {
-			handover.produce(createTestRecords());
+			handover.produce(createTestRecords(), Collections.emptyMap());
 			fail("should throw an exception");
 		}
 		catch (Handover.ClosedException e) {
@@ -148,7 +149,7 @@ public class HandoverTest {
 	@Test
 	public void testCloseFullForConsumer() throws Exception {
 		final Handover handover = new Handover();
-		handover.produce(createTestRecords());
+		handover.produce(createTestRecords(), Collections.emptyMap());
 		handover.close();
 
 		try {
@@ -166,7 +167,7 @@ public class HandoverTest {
 		handover.close();
 
 		try {
-			handover.produce(createTestRecords());
+			handover.produce(createTestRecords(), Collections.emptyMap());
 			fail("should throw an exception");
 		}
 		catch (Handover.ClosedException e) {
@@ -177,11 +178,11 @@ public class HandoverTest {
 	@Test
 	public void testCloseFullForProducer() throws Exception {
 		final Handover handover = new Handover();
-		handover.produce(createTestRecords());
+		handover.produce(createTestRecords(), Collections.emptyMap());
 		handover.close();
 
 		try {
-			handover.produce(createTestRecords());
+			handover.produce(createTestRecords(), Collections.emptyMap());
 			fail("should throw an exception");
 		}
 		catch (Handover.ClosedException e) {
@@ -200,9 +201,9 @@ public class HandoverTest {
 
 		// produce into a woken but empty handover
 		try {
-			handover.produce(createTestRecords());
+			handover.produce(createTestRecords(), Collections.emptyMap());
 		}
-		catch (Handover.WakeupException e) {
+		catch (WakeupException e) {
 			fail();
 		}
 
@@ -210,10 +211,10 @@ public class HandoverTest {
 		// to throw an exception
 		handover.wakeupProducer();
 		try {
-			handover.produce(createTestRecords());
+			handover.produce(createTestRecords(), Collections.emptyMap());
 			fail("should throw an exception");
 		}
-		catch (Handover.WakeupException e) {
+		catch (WakeupException e) {
 			// expected
 		}
 
@@ -222,9 +223,9 @@ public class HandoverTest {
 
 		// producing into an empty handover should work
 		try {
-			handover.produce(createTestRecords());
+			handover.produce(createTestRecords(), Collections.emptyMap());
 		}
-		catch (Handover.WakeupException e) {
+		catch (WakeupException e) {
 			fail();
 		}
 	}
@@ -233,12 +234,12 @@ public class HandoverTest {
 	public void testWakeupWakesOnlyOnce() throws Exception {
 		// create a full handover
 		final Handover handover = new Handover();
-		handover.produce(createTestRecords());
+		handover.produce(createTestRecords(), Collections.emptyMap());
 
 		handover.wakeupProducer();
 
 		try {
-			handover.produce(createTestRecords());
+			handover.produce(createTestRecords(), Collections.emptyMap());
 			fail();
 		} catch (WakeupException e) {
 			// expected
@@ -247,7 +248,7 @@ public class HandoverTest {
 		CheckedThread producer = new CheckedThread() {
 			@Override
 			public void go() throws Exception {
-				handover.produce(createTestRecords());
+				handover.produce(createTestRecords(), Collections.emptyMap());
 			}
 		};
 		producer.start();
@@ -349,7 +350,7 @@ public class HandoverTest {
 		@Override
 		public void go() throws Exception {
 			for (ConsumerRecords<byte[], byte[]> rec : data) {
-				handover.produce(rec);
+				handover.produce(rec, Collections.emptyMap());
 
 				if (maxDelay > 0) {
 					int delay = rnd.nextInt(maxDelay);
@@ -375,9 +376,9 @@ public class HandoverTest {
 		@Override
 		public void go() throws Exception {
 			for (ConsumerRecords<byte[], byte[]> rec : data) {
-				ConsumerRecords<byte[], byte[]> next = handover.pollNext();
+				Handover.ConsumerRecordsAndPositions next = handover.pollNext();
 
-				assertEquals(rec, next);
+				assertEquals(rec, next.records());
 
 				if (maxDelay > 0) {
 					int delay = rnd.nextInt(maxDelay);

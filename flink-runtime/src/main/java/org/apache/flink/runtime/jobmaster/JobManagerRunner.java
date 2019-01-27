@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -31,6 +33,7 @@ import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobSchedulingStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
@@ -38,6 +41,7 @@ import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.rpc.LeaderShipLostHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
@@ -66,8 +70,9 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	/** Lock to ensure that this runner can deal with leader election event and job completion notifies simultaneously. */
 	private final Object lock = new Object();
 
-	/** The job graph needs to run. */
-	private final JobGraph jobGraph;
+	private final String jobName;
+
+	private final JobID jobID;
 
 	/** Used to check whether a job needs to be run. */
 	private final RunningJobsRegistry runningJobsRegistry;
@@ -80,6 +85,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	private final JobMaster jobMaster;
 
 	private final FatalErrorHandler fatalErrorHandler;
+
+	private final LeaderShipLostHandler leaderShipLostHandler;
 
 	private final Time rpcTimeout;
 
@@ -99,27 +106,33 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	 * thrown and not reported to the given {@code FatalErrorHandler}.
 	 *
 	 * @throws Exception Thrown if the runner cannot be set up, because either one of the
-	 *                   required services could not be started, or the Job could not be initialized.
+	 *                   required services could not be started, ot the Job could not be initialized.
 	 */
 	public JobManagerRunner(
-			final ResourceID resourceId,
-			final JobGraph jobGraph,
-			final Configuration configuration,
-			final RpcService rpcService,
-			final HighAvailabilityServices haServices,
-			final HeartbeatServices heartbeatServices,
-			final JobManagerSharedServices jobManagerSharedServices,
-			final JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-			final FatalErrorHandler fatalErrorHandler) throws Exception {
+		final ResourceID resourceId,
+		final JobGraph jobGraph,
+		final Configuration configuration,
+		final RpcService rpcService,
+		final HighAvailabilityServices haServices,
+		final HeartbeatServices heartbeatServices,
+		final BlobServer blobServer,
+		final JobManagerSharedServices jobManagerSharedServices,
+		final JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+		final FatalErrorHandler fatalErrorHandler,
+		final LeaderShipLostHandler leaderShipLostHandler,
+		final SubmittedJobGraphStore submittedJobGraphStore) throws Exception {
 
 		this.resultFuture = new CompletableFuture<>();
 		this.terminationFuture = new CompletableFuture<>();
 
 		// make sure we cleanly shut down out JobManager services if initialization fails
 		try {
-			this.jobGraph = checkNotNull(jobGraph);
+			checkNotNull(jobGraph);
+			this.jobName = jobGraph.getName();
+			this.jobID = jobGraph.getJobID();
 			this.jobManagerSharedServices = checkNotNull(jobManagerSharedServices);
 			this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
+			this.leaderShipLostHandler = checkNotNull(leaderShipLostHandler);
 
 			checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
 
@@ -127,19 +140,19 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 			final LibraryCacheManager libraryCacheManager = jobManagerSharedServices.getLibraryCacheManager();
 			try {
 				libraryCacheManager.registerJob(
-						jobGraph.getJobID(), jobGraph.getUserJarBlobKeys(), jobGraph.getClasspaths());
+						jobID, jobGraph.getUserJarBlobKeys(), jobGraph.getClasspaths());
 			} catch (IOException e) {
 				throw new Exception("Cannot set up the user code libraries: " + e.getMessage(), e);
 			}
 
-			final ClassLoader userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID());
+			final ClassLoader userCodeLoader = libraryCacheManager.getClassLoader(jobID);
 			if (userCodeLoader == null) {
 				throw new Exception("The user code class loader could not be initialized.");
 			}
 
 			// high availability services next
 			this.runningJobsRegistry = haServices.getRunningJobsRegistry();
-			this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
+			this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobID);
 
 			final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
@@ -161,10 +174,12 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 				slotPoolFactory,
 				jobManagerSharedServices,
 				heartbeatServices,
+				blobServer,
 				jobManagerJobMetricGroupFactory,
 				this,
 				fatalErrorHandler,
-				userCodeLoader);
+				userCodeLoader,
+				submittedJobGraphStore);
 		}
 		catch (Throwable t) {
 			terminationFuture.completeExceptionally(t);
@@ -180,10 +195,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 
 	public CompletableFuture<JobMasterGateway> getLeaderGatewayFuture() {
 		return leaderGatewayFuture;
-	}
-
-	public JobGraph getJobGraph() {
-		return jobGraph;
 	}
 
 	public CompletableFuture<ArchivedExecutionGraph> getResultFuture() {
@@ -224,7 +235,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 						}
 
 						final LibraryCacheManager libraryCacheManager = jobManagerSharedServices.getLibraryCacheManager();
-						libraryCacheManager.unregisterJob(jobGraph.getJobID());
+						libraryCacheManager.unregisterJob(jobID);
 
 						if (throwable != null) {
 							terminationFuture.completeExceptionally(
@@ -236,7 +247,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 
 				terminationFuture.whenComplete(
 					(Void ignored, Throwable throwable) -> {
-						resultFuture.completeExceptionally(new JobNotFinishedException(jobGraph.getJobID()));
+						resultFuture.completeExceptionally(new JobNotFinishedException(jobID));
 					});
 			}
 
@@ -263,7 +274,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	 */
 	@Override
 	public void jobFinishedByOther() {
-		resultFuture.completeExceptionally(new JobNotFinishedException(jobGraph.getJobID()));
+		resultFuture.completeExceptionally(new JobNotFinishedException(jobID));
 	}
 
 	@Override
@@ -287,12 +298,12 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	 */
 	private void unregisterJobFromHighAvailability() {
 		try {
-			runningJobsRegistry.setJobFinished(jobGraph.getJobID());
+			runningJobsRegistry.setJobFinished(jobID);
 		}
 		catch (Throwable t) {
 			log.error("Could not un-register from high-availability services job {} ({})." +
 					"Other JobManager's may attempt to recover it and re-execute it.",
-					jobGraph.getName(), jobGraph.getJobID(), t);
+					jobName, jobID, t);
 		}
 	}
 
@@ -317,16 +328,21 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	}
 
 	private void verifyJobSchedulingStatusAndStartJobManager(UUID leaderSessionId) throws Exception {
-		final JobSchedulingStatus jobSchedulingStatus = runningJobsRegistry.getJobSchedulingStatus(jobGraph.getJobID());
+		final JobSchedulingStatus jobSchedulingStatus = runningJobsRegistry.getJobSchedulingStatus(jobID);
 
 		if (jobSchedulingStatus == JobSchedulingStatus.DONE) {
-			log.info("Granted leader ship but job {} has been finished. ", jobGraph.getJobID());
+			log.info("Granted leader ship but job {} has been finished. ", jobID);
 			jobFinishedByOther();
 		} else {
 			log.info("JobManager runner for job {} ({}) was granted leadership with session id {} at {}.",
-				jobGraph.getName(), jobGraph.getJobID(), leaderSessionId, getAddress());
+				jobName, jobID, leaderSessionId, getAddress());
 
-			runningJobsRegistry.setJobRunning(jobGraph.getJobID());
+			if (jobSchedulingStatus == JobSchedulingStatus.RUNNING) {
+				// If finding the job status is running, it means someone has already started the job, need recover.
+				jobMaster.reconcile();
+			} else if (jobSchedulingStatus == JobSchedulingStatus.PENDING) {
+				runningJobsRegistry.setJobRunning(jobID);
+			}
 
 			final CompletableFuture<Acknowledge> startFuture = jobMaster.start(new JobMasterId(leaderSessionId), rpcTimeout);
 			final CompletableFuture<JobMasterGateway> currentLeaderGatewayFuture = leaderGatewayFuture;
@@ -361,7 +377,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 			}
 
 			log.info("JobManager for job {} ({}) was revoked leadership at {}.",
-				jobGraph.getName(), jobGraph.getJobID(), getAddress());
+				jobName, jobID, getAddress());
 
 			setNewLeaderGatewayFuture();
 
@@ -371,6 +387,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 				(Acknowledge ack, Throwable throwable) -> {
 					if (throwable != null) {
 						handleJobManagerRunnerError(new FlinkException("Could not suspend the job manager.", throwable));
+					} else {
+						leaderShipLostHandler.onLeaderShipLost(new Exception("Job manager runner was revoked leader ship."));
 					}
 				},
 				jobManagerSharedServices.getScheduledExecutorService());

@@ -20,8 +20,10 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorDescriptor;
 
 import java.io.Serializable;
+import java.util.List;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionJobVertex.getAggregateJobVertexState;
 
@@ -40,6 +42,8 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 
 	private final StringifiedAccumulatorResult[] archivedUserAccumulators;
 
+	private final List<OperatorDescriptor> operatorDescriptors;
+
 	public ArchivedExecutionJobVertex(ExecutionJobVertex jobVertex) {
 		this.taskVertices = new ArchivedExecutionVertex[jobVertex.getTaskVertices().length];
 		for (int x = 0; x < taskVertices.length; x++) {
@@ -52,6 +56,7 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 		this.name = jobVertex.getJobVertex().getName();
 		this.parallelism = jobVertex.getParallelism();
 		this.maxParallelism = jobVertex.getMaxParallelism();
+		this.operatorDescriptors = jobVertex.getOperatorDescriptors();
 	}
 
 	public ArchivedExecutionJobVertex(
@@ -60,13 +65,15 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 			String name,
 			int parallelism,
 			int maxParallelism,
-			StringifiedAccumulatorResult[] archivedUserAccumulators) {
+			StringifiedAccumulatorResult[] archivedUserAccumulators,
+			List<OperatorDescriptor> operatorDescriptors) {
 		this.taskVertices = taskVertices;
 		this.id = id;
 		this.name = name;
 		this.parallelism = parallelism;
 		this.maxParallelism = maxParallelism;
 		this.archivedUserAccumulators = archivedUserAccumulators;
+		this.operatorDescriptors = operatorDescriptors;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -115,6 +122,11 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 	@Override
 	public StringifiedAccumulatorResult[] getAggregatedUserAccumulatorsStringified() {
 		return archivedUserAccumulators;
+	}
+
+	@Override
+	public List<OperatorDescriptor> getOperatorDescriptors() {
+		return operatorDescriptors;
 	}
 
 }

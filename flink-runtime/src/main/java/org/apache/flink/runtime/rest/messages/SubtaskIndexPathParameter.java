@@ -44,9 +44,4 @@ public class SubtaskIndexPathParameter extends MessagePathParameter<Integer> {
 		return value.toString();
 	}
 
-	@Override
-	public String getDescription() {
-		return "Positive integer value that identifies a subtask.";
-	}
-
 }

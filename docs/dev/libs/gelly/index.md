@@ -46,7 +46,7 @@ Add the following dependency to your `pom.xml` to use Gelly.
 <div data-lang="java" markdown="1">
 {% highlight xml %}
 <dependency>
-    <groupId>org.apache.flink</groupId>
+    <groupId>com.alibaba.blink</groupId>
     <artifactId>flink-gelly{{ site.scala_version_suffix }}</artifactId>
     <version>{{site.version}}</version>
 </dependency>
@@ -55,7 +55,7 @@ Add the following dependency to your `pom.xml` to use Gelly.
 <div data-lang="scala" markdown="1">
 {% highlight xml %}
 <dependency>
-    <groupId>org.apache.flink</groupId>
+    <groupId>com.alibaba.blink</groupId>
     <artifactId>flink-gelly-scala{{ site.scala_version_suffix }}</artifactId>
     <version>{{site.version}}</version>
 </dependency>

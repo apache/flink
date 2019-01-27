@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.runtime.utils
 
+import java.sql.{Date, Time, Timestamp}
+
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 
@@ -25,21 +27,15 @@ import scala.collection.mutable
 
 object StreamTestData {
 
-  def getSingletonDataStream(env: StreamExecutionEnvironment): DataStream[(Int, Long, String)] = {
-    val data = new mutable.MutableList[(Int, Long, String)]
-    data.+=((1, 42L, "Hi"))
-    env.fromCollection(data)
-  }
-
-  def getSmall3TupleDataStream(env: StreamExecutionEnvironment): DataStream[(Int, Long, String)] = {
+  def getSmall3TupleData: Seq[(Int, Long, String)] = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Hi"))
     data.+=((2, 2L, "Hello"))
     data.+=((3, 2L, "Hello world"))
-    env.fromCollection(data)
+    data
   }
 
-  def get3TupleDataStream(env: StreamExecutionEnvironment): DataStream[(Int, Long, String)] = {
+  def get3TupleData: Seq[(Int, Long, String)] = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Hi"))
     data.+=((2, 2L, "Hello"))
@@ -62,12 +58,10 @@ object StreamTestData {
     data.+=((19, 6L, "Comment#13"))
     data.+=((20, 6L, "Comment#14"))
     data.+=((21, 6L, "Comment#15"))
-    env.fromCollection(data)
+    data
   }
 
-  def get5TupleDataStream(env: StreamExecutionEnvironment):
-      DataStream[(Int, Long, Int, String, Long)] = {
-
+  def get5TupleData: Seq[(Int, Long, Int, String, Long)] = {
     val data = new mutable.MutableList[(Int, Long, Int, String, Long)]
     data.+=((1, 1L, 0, "Hallo", 1L))
     data.+=((2, 2L, 1, "Hallo Welt", 2L))
@@ -84,15 +78,32 @@ object StreamTestData {
     data.+=((5, 13L, 12, "IJK", 3L))
     data.+=((5, 14L, 13, "JKL", 2L))
     data.+=((5, 15L, 14, "KLM", 2L))
-    env.fromCollection(data)
+    data
   }
 
-  def getSmallNestedTupleDataStream(env: StreamExecutionEnvironment):
-      DataStream[((Int, Int), String)] = {
-    val data = new mutable.MutableList[((Int, Int), String)]
-    data.+=(((1, 1), "one"))
-    data.+=(((2, 2), "two"))
-    data.+=(((3, 3), "three"))
+  def getSmall3TupleDataStream(env: StreamExecutionEnvironment): DataStream[(Int, Long, String)] = {
+    env.fromCollection(getSmall3TupleData)
+  }
+
+  def get3TupleDataStream(env: StreamExecutionEnvironment): DataStream[(Int, Long, String)] = {
+    env.fromCollection(get3TupleData)
+  }
+
+  def get5TupleDataStream(env: StreamExecutionEnvironment):
+      DataStream[(Int, Long, Int, String, Long)] = {
+    env.fromCollection(get5TupleData)
+  }
+
+
+  def getTimeZoneTestData(env: StreamExecutionEnvironment):
+      DataStream[(Int, Date, Time, Timestamp)] = {
+    val MiLLIS_PER_DAY  = 24 * 3600 * 1000
+    val MiLLIS_PER_HOUR  = 3600 * 1000
+    val data = new mutable.MutableList[(Int, Date, Time, Timestamp)]
+    data.+=((1, new Date(0), new Time(0), new Timestamp(1)))
+    data.+=((2, new Date(1*MiLLIS_PER_DAY), new Time(MiLLIS_PER_HOUR), new Timestamp(2)))
+    data.+=((3, new Date(2*MiLLIS_PER_DAY), new Time(2*MiLLIS_PER_HOUR), new Timestamp(3)))
+
     env.fromCollection(data)
   }
 }

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.messages.webmonitor;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.instance.TaskManagerResourceDescription;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -34,6 +36,8 @@ public class ClusterOverview extends JobsOverview {
 	public static final String FIELD_NAME_TASKMANAGERS = "taskmanagers";
 	public static final String FIELD_NAME_SLOTS_TOTAL = "slots-total";
 	public static final String FIELD_NAME_SLOTS_AVAILABLE = "slots-available";
+	public static final String FIELD_NAME_TOTAL_RESOURCES = "total-resources";
+	public static final String FIELD_NAME_AVAILABLE_RESOURCES = "available-resources";
 
 	@JsonProperty(FIELD_NAME_TASKMANAGERS)
 	private final int numTaskManagersConnected;
@@ -44,11 +48,19 @@ public class ClusterOverview extends JobsOverview {
 	@JsonProperty(FIELD_NAME_SLOTS_AVAILABLE)
 	private final int numSlotsAvailable;
 
+	@JsonProperty(FIELD_NAME_TOTAL_RESOURCES)
+	private final TaskManagerResourceDescription totalResources;
+
+	@JsonProperty(FIELD_NAME_AVAILABLE_RESOURCES)
+	private final TaskManagerResourceDescription availableResources;
+
 	@JsonCreator
 	public ClusterOverview(
 			@JsonProperty(FIELD_NAME_TASKMANAGERS) int numTaskManagersConnected,
 			@JsonProperty(FIELD_NAME_SLOTS_TOTAL) int numSlotsTotal,
 			@JsonProperty(FIELD_NAME_SLOTS_AVAILABLE) int numSlotsAvailable,
+			@JsonProperty(FIELD_NAME_TOTAL_RESOURCES) TaskManagerResourceDescription totalResources,
+			@JsonProperty(FIELD_NAME_AVAILABLE_RESOURCES) TaskManagerResourceDescription availableResources,
 			@JsonProperty(FIELD_NAME_JOBS_RUNNING) int numJobsRunningOrPending,
 			@JsonProperty(FIELD_NAME_JOBS_FINISHED) int numJobsFinished,
 			@JsonProperty(FIELD_NAME_JOBS_CANCELLED) int numJobsCancelled,
@@ -59,14 +71,19 @@ public class ClusterOverview extends JobsOverview {
 		this.numTaskManagersConnected = numTaskManagersConnected;
 		this.numSlotsTotal = numSlotsTotal;
 		this.numSlotsAvailable = numSlotsAvailable;
+		this.totalResources = totalResources;
+		this.availableResources = availableResources;
 	}
 
+	@Deprecated
 	public ClusterOverview(int numTaskManagersConnected, int numSlotsTotal, int numSlotsAvailable,
 						   JobsOverview jobs1, JobsOverview jobs2) {
 		super(jobs1, jobs2);
 		this.numTaskManagersConnected = numTaskManagersConnected;
 		this.numSlotsTotal = numSlotsTotal;
 		this.numSlotsAvailable = numSlotsAvailable;
+		this.totalResources = TaskManagerResourceDescription.fromResourceProfile(ResourceProfile.UNKNOWN);
+		this.availableResources = TaskManagerResourceDescription.fromResourceProfile(ResourceProfile.UNKNOWN);
 	}
 
 	public ClusterOverview(ResourceOverview resourceOverview, JobsOverview jobsOverview) {
@@ -74,6 +91,8 @@ public class ClusterOverview extends JobsOverview {
 			resourceOverview.getNumberTaskManagers(),
 			resourceOverview.getNumberRegisteredSlots(),
 			resourceOverview.getNumberFreeSlots(),
+			TaskManagerResourceDescription.fromResourceProfile(resourceOverview.getTotalResources()),
+			TaskManagerResourceDescription.fromResourceProfile(resourceOverview.getAvailableResources()),
 			jobsOverview.getNumJobsRunningOrPending(),
 			jobsOverview.getNumJobsFinished(),
 			jobsOverview.getNumJobsCancelled(),
@@ -90,6 +109,14 @@ public class ClusterOverview extends JobsOverview {
 
 	public int getNumSlotsAvailable() {
 		return numSlotsAvailable;
+	}
+
+	public TaskManagerResourceDescription getTotalResources() {
+		return totalResources;
+	}
+
+	public TaskManagerResourceDescription getAvailableResources() {
+		return availableResources;
 	}
 	
 	// ------------------------------------------------------------------------

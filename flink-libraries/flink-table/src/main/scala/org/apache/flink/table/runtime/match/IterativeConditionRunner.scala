@@ -21,32 +21,37 @@ package org.apache.flink.table.runtime.`match`
 import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.cep.pattern.conditions.{IterativeCondition, RichIterativeCondition}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.codegen.Compiler
+import org.apache.flink.table.codegen.{GeneratedClass, GeneratedIterativeCondition}
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.util.Logging
-import org.apache.flink.types.Row
 
 /**
-  * IterativeConditionRunner with [[Row]] value.
+  * IterativeConditionRunner with [[BaseRow]] value.
   */
 class IterativeConditionRunner(
-    name: String,
-    code: String)
-  extends RichIterativeCondition[Row]
-  with Compiler[RichIterativeCondition[Row]]
+    genCondition: GeneratedClass[_])
+  extends RichIterativeCondition[BaseRow]
   with Logging {
 
-  @transient private var function: RichIterativeCondition[Row] = _
+  @transient private var function: IterativeCondition[BaseRow] = _
+  @transient private var isOpened: Boolean = false
 
   override def open(parameters: Configuration): Unit = {
-    LOG.debug(s"Compiling IterativeCondition: $name \n\n Code:\n$code")
-    val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
-    LOG.debug("Instantiating IterativeCondition.")
-    function = clazz.newInstance()
-    FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
-    FunctionUtils.openFunction(function, parameters)
+    if (!isOpened) {
+      LOG.debug(
+        s"Compiling IterativeCondition: ${genCondition.name} \n\n" +
+          s"Code:\n${genCondition.code}")
+      LOG.debug("Instantiating IterativeCondition.")
+      function = genCondition.asInstanceOf[GeneratedIterativeCondition]
+        .newInstance(Thread.currentThread().getContextClassLoader)
+      FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
+      FunctionUtils.openFunction(function, parameters)
+
+      isOpened = true
+    }
   }
 
-  override def filter(value: Row, ctx: IterativeCondition.Context[Row]): Boolean = {
+  override def filter(value: BaseRow, ctx: IterativeCondition.Context[BaseRow]): Boolean = {
     function.filter(value, ctx)
   }
 

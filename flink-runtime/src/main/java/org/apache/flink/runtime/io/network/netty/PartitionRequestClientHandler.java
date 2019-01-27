@@ -85,7 +85,9 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 	public void addInputChannel(RemoteInputChannel listener) throws IOException {
 		checkError();
 
-		inputChannels.putIfAbsent(listener.getInputChannelId(), listener);
+		if (!inputChannels.containsKey(listener.getInputChannelId())) {
+			inputChannels.put(listener.getInputChannelId(), listener);
+		}
 	}
 
 	@Override
@@ -162,11 +164,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 								+ "that the remote task manager was lost.", remoteAddr, cause);
 			}
 			else {
-				SocketAddress localAddr = ctx.channel().localAddress();
-				tex = new LocalTransportException(
-					String.format("%s (connection to '%s')", cause.getMessage(), remoteAddr),
-					localAddr,
-					cause);
+				tex = new LocalTransportException(cause.getMessage(), ctx.channel().localAddress(), cause);
 			}
 
 			notifyAllChannelsOfErrorAndClose(tex);
@@ -288,7 +286,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 		boolean releaseNettyBuffer = true;
 
 		try {
-			ByteBuf nettyBuffer = bufferOrEvent.getNettyBuffer();
+			ByteBuf nettyBuffer = bufferOrEvent.getBuffer();
 			final int receivedSize = nettyBuffer.readableBytes();
 			if (bufferOrEvent.isBuffer()) {
 				// ---- Buffer ------------------------------------------------
@@ -335,7 +333,8 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 				nettyBuffer.readBytes(byteArray);
 
 				MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
-				Buffer buffer = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false, receivedSize);
+				Buffer buffer = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false);
+				buffer.setSize(receivedSize);
 
 				inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, -1);
 
@@ -420,14 +419,14 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 		public NotificationResult notifyBufferAvailable(Buffer buffer) {
 			if (availableBuffer.compareAndSet(null, buffer)) {
 				ctx.channel().eventLoop().execute(this);
+				return NotificationResult.BUFFER_USED_FINISHED;
+			} else {
+				ctx.channel().eventLoop().execute(
+					new AsyncErrorNotificationTask(
+						new IllegalStateException("Received a buffer notification, " +
+							" but the previous one has not been handled yet.")));
 
-				return NotificationResult.BUFFER_USED_NO_NEED_MORE;
-			}
-			else {
-				ctx.channel().eventLoop().execute(new AsyncErrorNotificationTask(
-					new IllegalStateException("Received a buffer notification, " +
-						" but the previous one has not been handled yet.")));
-				return NotificationResult.BUFFER_NOT_USED;
+				return NotificationResult.NONE;
 			}
 		}
 
@@ -447,7 +446,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 					throw new IllegalStateException("Running buffer availability task w/o a buffer.");
 				}
 
-				ByteBuf nettyBuffer = stagedBufferResponse.getNettyBuffer();
+				ByteBuf nettyBuffer = stagedBufferResponse.getBuffer();
 				nettyBuffer.readBytes(buffer.asByteBuf(), nettyBuffer.readableBytes());
 				stagedBufferResponse.releaseBuffer();
 

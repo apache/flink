@@ -27,7 +27,7 @@ under the License.
 {:toc}
 
 
-This connector provides sinks that writes data into a [Apache Cassandra](https://cassandra.apache.org/) database.
+This connector provides sinks that write data into an [Apache Cassandra](https://cassandra.apache.org/) database.
 
 <!--
   TODO: Perhaps worth mentioning current DataStax Java Driver version to match Cassandra version on user side.
@@ -37,7 +37,7 @@ To use this connector, add the following dependency to your project:
 
 {% highlight xml %}
 <dependency>
-  <groupId>org.apache.flink</groupId>
+  <groupId>com.alibaba.blink</groupId>
   <artifactId>flink-connector-cassandra{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
@@ -55,7 +55,7 @@ There are multiple ways to bring up a Cassandra instance on local machine:
 
 ### Configurations
 
-Flink's Cassandra sink are created by using the static CassandraSink.addSink(DataStream<IN> input) method.
+Flink's Cassandra sink is created by using the static CassandraSink.addSink(DataStream<IN> input) method.
 This method returns a CassandraSinkBuilder, which offers methods to further configure the sink, and finally `build()` the sink instance.
 
 The following configuration methods can be used:
@@ -66,22 +66,16 @@ The following configuration methods can be used:
     * __DO__ set the upsert query for processing __Tuple__ data type.
     * __DO NOT__ set the query for processing __POJO__ data types.
 2. _setClusterBuilder()_
-    * Sets the cluster builder that is used to configure the connection to cassandra with more sophisticated settings such as consistency level, retry policy and etc.
+    * Sets the cluster builder that is used to configure the connection to Cassandra with more sophisticated settings such as consistency level, retry policy and etc.
 3. _setHost(String host[, int port])_
-    * Simple version of setClusterBuilder() with host/port information to connect to Cassandra instances
+    * A simple version of setClusterBuilder() with host/port information to connect to Cassandra instances
 4. _setMapperOptions(MapperOptions options)_
     * Sets the mapper options that are used to configure the DataStax ObjectMapper.
     * Only applies when processing __POJO__ data types.
-5. _setMaxConcurrentRequests(int maxConcurrentRequests, Duration timeout)_
-    * Sets the maximum allowed number of concurrent requests with a timeout for acquiring permits to execute.
-    * Only applies when __enableWriteAheadLog()__ is not configured.
-6. _enableWriteAheadLog([CheckpointCommitter committer])_
+5. _enableWriteAheadLog([CheckpointCommitter committer])_
     * An __optional__ setting
     * Allows exactly-once processing for non-deterministic algorithms.
-7. _setFailureHandler([CassandraFailureHandler failureHandler])_
-    * An __optional__ setting
-    * Sets the custom failure handler.
-8. _build()_
+6. _build()_
     * Finalizes the configuration and constructs the CassandraSink instance.
 
 ### Write-ahead Log
@@ -89,20 +83,20 @@ The following configuration methods can be used:
 A checkpoint committer stores additional information about completed checkpoints
 in some resource. This information is used to prevent a full replay of the last
 completed checkpoint in case of a failure.
-You can use a `CassandraCommitter` to store these in a separate table in cassandra.
+You can use a `CassandraCommitter` to store these in a separate table in Cassandra.
 Note that this table will NOT be cleaned up by Flink.
 
 Flink can provide exactly-once guarantees if the query is idempotent (meaning it can be applied multiple
-times without changing the result) and checkpointing is enabled. In case of a failure the failed
+times without changing the result) and checkpointing is enabled. In case of a failure, the failed
 checkpoint will be replayed completely.
 
-Furthermore, for non-deterministic programs the write-ahead log has to be enabled. For such a program
-the replayed checkpoint may be completely different than the previous attempt, which may leave the
+Furthermore, for non-deterministic programs, the write-ahead log has to be enabled. For such a program
+the replayed checkpoint may be completely different from the previous attempt, which may leave the
 database in an inconsistent state since part of the first attempt may already be written.
 The write-ahead log guarantees that the replayed checkpoint is identical to the first attempt.
 Note that that enabling this feature will have an adverse impact on latency.
 
-<p style="border-radius: 5px; padding: 5px" class="bg-danger"><b>Note</b>: The write-ahead log functionality is currently experimental. In many cases it is sufficient to use the connector without enabling it. Please report problems to the development mailing list.</p>
+<p style="border-radius: 5px; padding: 5px" class="bg-danger"><b>Note</b>: The write-ahead log functionality is currently experimental. In many cases, it is sufficient to use the connector without enabling it. Please report problems to the development mailing list.</p>
 
 ### Checkpointing and Fault Tolerance
 With checkpointing enabled, Cassandra Sink guarantees at-least-once delivery of action requests to C* instance.
@@ -204,7 +198,7 @@ result.print().setParallelism(1)
 ### Cassandra Sink Example for Streaming POJO Data Type
 An example of streaming a POJO data type and store the same POJO entity back to Cassandra. In addition, this POJO implementation needs to follow [DataStax Java Driver Manual](http://docs.datastax.com/en/developer/java-driver/2.1/manual/object_mapper/creating/) to annotate the class as each field of this entity is mapped to an associated column of the designated table using the DataStax Java Driver `com.datastax.driver.mapping.Mapper` class.
 
-The mapping of each table column can be defined through annotations placed on a field declaration in the Pojo class.  For details of the mapping, please refer to CQL documentation on [Definition of Mapped Classes](http://docs.datastax.com/en/developer/java-driver/3.1/manual/object_mapper/creating/) and [CQL Data types](https://docs.datastax.com/en/cql/3.1/cql/cql_reference/cql_data_types_c.html)
+The mapping of each table column can be defined through annotations placed on a field declaration in the Pojo class.  For details of the mapping, please refer to CQL documentation on [Definition of Mapped Classes](http://docs.datastax.com/en/developer/java-driver/3.1/manual/object_mapper/creating/) and [CQL Datatypes](https://docs.datastax.com/en/cql/3.1/cql/cql_reference/cql_data_types_c.html)
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

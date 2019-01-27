@@ -63,7 +63,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 		final JobVertex[] jobVertices = createVerticesForSimpleBipartiteJobGraph(initialParallelism, maxParallelism);
 		final JobGraph jobGraph = new JobGraph(jobVertices);
 
-		ExecutionGraph eg = ExecutionGraphBuilder.buildGraph(
+		ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraph(
 			null,
 			jobGraph,
 			config,
@@ -75,6 +75,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
 			new UnregisteredMetricsGroup(),
+			-1,
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
 			TEST_LOGGER);
@@ -92,7 +93,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			jv.setParallelism(scaleDownParallelism);
 		}
 
-		eg = ExecutionGraphBuilder.buildGraph(
+		eg = ExecutionGraphTestUtils.createExecutionGraph(
 			null,
 			jobGraph,
 			config,
@@ -104,6 +105,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
 			new UnregisteredMetricsGroup(),
+			-1,
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
 			TEST_LOGGER);
@@ -121,7 +123,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			jv.setParallelism(scaleUpParallelism);
 		}
 
-		eg = ExecutionGraphBuilder.buildGraph(
+		eg = ExecutionGraphTestUtils.createExecutionGraph(
 			null,
 			jobGraph,
 			config,
@@ -133,6 +135,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
 			new UnregisteredMetricsGroup(),
+			-1,
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
 			TEST_LOGGER);
@@ -163,7 +166,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 
 		try {
 			// this should fail since we set the parallelism to maxParallelism + 1
-			ExecutionGraphBuilder.buildGraph(
+			ExecutionGraphTestUtils.createExecutionGraph(
 				null,
 				jobGraph,
 				config,
@@ -175,6 +178,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy(),
 				new UnregisteredMetricsGroup(),
+				-1,
 				VoidBlobWriter.getInstance(),
 				AkkaUtils.getDefaultTimeout(),
 				TEST_LOGGER);

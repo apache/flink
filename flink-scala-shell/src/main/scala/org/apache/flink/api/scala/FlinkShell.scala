@@ -20,14 +20,16 @@ package org.apache.flink.api.scala
 
 import java.io._
 
+import org.apache.commons.cli.{CommandLine, Options}
 import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
 import org.apache.flink.client.deployment.ClusterDescriptor
 import org.apache.flink.client.program.ClusterClient
-import org.apache.flink.configuration.{Configuration, GlobalConfiguration, JobManagerOptions}
+import org.apache.flink.configuration._
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration}
+import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration, StandaloneMiniCluster}
 
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConverters._
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interpreter._
 
@@ -50,11 +52,11 @@ object FlinkShell {
   /** YARN configuration object */
   case class YarnConfig(
     containers: Option[Int] = None,
-    jobManagerMemory: Option[String] = None,
+    jobManagerMemory: Option[Int] = None,
     name: Option[String] = None,
     queue: Option[String] = None,
     slots: Option[Int] = None,
-    taskManagerMemory: Option[String] = None
+    taskManagerMemory: Option[Int] = None
   )
 
   /** Buffered reader to substitute input in test */
@@ -97,10 +99,10 @@ object FlinkShell {
           (x, c) =>
             c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(containers = Some(x))))
         } text "Number of YARN container to allocate (= Number of TaskManagers)",
-        opt[String]("jobManagerMemory") abbr ("jm") valueName ("arg") action {
+        opt[Int]("jobManagerMemory") abbr ("jm") valueName ("arg") action {
           (x, c) =>
             c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(jobManagerMemory = Some(x))))
-        } text "Memory for JobManager container",
+        } text "Memory for JobManager container [in MB]",
         opt[String]("name") abbr ("nm") action {
           (x, c) => c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(name = Some(x))))
         } text "Set a custom name for the application on YARN",
@@ -110,10 +112,10 @@ object FlinkShell {
         opt[Int]("slots") abbr ("s") valueName ("<arg>") action {
           (x, c) => c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(slots = Some(x))))
         } text "Number of slots per TaskManager",
-        opt[String]("taskManagerMemory") abbr ("tm") valueName ("<arg>") action {
+        opt[Int]("taskManagerMemory") abbr ("tm") valueName ("<arg>") action {
           (x, c) =>
             c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(taskManagerMemory = Some(x))))
-        } text "Memory per TaskManager container",
+        } text "Memory per TaskManager container [in MB]",
         opt[(String)] ("addclasspath") abbr("a") valueName("<path/to/jar>") action {
           case (x, c) =>
             val xArray = x.split(":")
@@ -137,24 +139,41 @@ object FlinkShell {
     }
   }
 
+  private type LocalCluster = Either[StandaloneMiniCluster, MiniCluster]
+
   def fetchConnectionInfo(
     configuration: Configuration,
     config: Config
-  ): (String, Int, Option[Either[MiniCluster , ClusterClient[_]]]) = {
+  ): (String, Int, Option[Either[LocalCluster , ClusterClient[_]]]) = {
     config.executionMode match {
       case ExecutionMode.LOCAL => // Local mode
         val config = configuration
         config.setInteger(JobManagerOptions.PORT, 0)
 
-        val miniClusterConfig = new MiniClusterConfiguration.Builder()
-          .setConfiguration(config)
-          .build()
-        val cluster = new MiniCluster(miniClusterConfig)
-        cluster.start()
-        val port = cluster.getRestAddress.getPort
+        val (miniCluster, port) = config.getString(CoreOptions.MODE) match {
+          case CoreOptions.LEGACY_MODE => {
+            val cluster = new StandaloneMiniCluster(config)
+
+            (Left(cluster), cluster.getPort)
+          }
+          case CoreOptions.NEW_MODE => {
+            val miniClusterConfig = new MiniClusterConfiguration.Builder()
+              .setConfiguration(config)
+              .setNumTaskManagers(configuration.getInteger(
+                ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
+                ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER))
+              .setNumSlotsPerTaskManager(
+                configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1))
+              .build()
+            val cluster = new MiniCluster(miniClusterConfig)
+            cluster.start()
+
+            (Right(cluster), cluster.getRestAddress.getPort)
+          }
+        }
 
         println(s"\nStarting local Flink cluster (host: localhost, port: $port).\n")
-        ("localhost", port, Some(Left(cluster)))
+        ("localhost", port, Some(Left(miniCluster)))
 
       case ExecutionMode.REMOTE => // Remote mode
         if (config.host.isEmpty || config.port.isEmpty) {
@@ -193,11 +212,14 @@ object FlinkShell {
 
     val configDirectory = new File(confDirPath)
     val configuration = GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath)
+    configuration.setString("flink.yarn.jars",
+      config.externalJars.getOrElse(Array.empty[String]).mkString(":"))
 
     val (repl, cluster) = try {
       val (host, port, cluster) = fetchConnectionInfo(configuration, config)
       val conf = cluster match {
-        case Some(Left(_)) => configuration
+        case Some(Left(Left(miniCluster))) => miniCluster.getConfiguration
+        case Some(Left(Right(_))) => configuration
         case Some(Right(yarnCluster)) => yarnCluster.getFlinkConfiguration
         case None => configuration
       }
@@ -218,16 +240,26 @@ object FlinkShell {
         sys.exit()
     }
 
+    if(config.executionMode.equals(ExecutionMode.YARN)
+      ||config.executionMode.equals(ExecutionMode.REMOTE)){
+      repl.saveEnvAsContext()
+    }
+
     val settings = new Settings()
     settings.usejavacp.value = true
     settings.Yreplsync.value = true
+
+    Runtime.getRuntime.addShutdownHook(new Thread {
+      override def run(): Unit = repl.closeInterpreter()
+    })
 
     try {
       repl.process(settings)
     } finally {
       repl.closeInterpreter()
       cluster match {
-        case Some(Left(miniCluster)) => miniCluster.close()
+        case Some(Left(Left(legacyMiniCluster))) => legacyMiniCluster.close()
+        case Some(Left(Right(newMiniCluster))) => newMiniCluster.close()
         case Some(Right(yarnCluster)) =>
           yarnCluster.shutDownCluster()
           yarnCluster.shutdown()
@@ -276,7 +308,7 @@ object FlinkShell {
     val clusterSpecification = customCLI.getClusterSpecification(commandLine)
 
     val cluster = clusterDescriptor.deploySessionCluster(clusterSpecification)
-
+    cluster.setDetached(true)
     val inetSocketAddress = AkkaUtils.getInetSocketAddressFromAkkaURL(
       cluster.getClusterConnectionInfo.getAddress)
 

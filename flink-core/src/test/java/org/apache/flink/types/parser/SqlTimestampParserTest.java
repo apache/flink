@@ -20,6 +20,8 @@
 package org.apache.flink.types.parser;
 
 
+import org.apache.flink.util.TimeConvertUtils;
+
 import java.sql.Timestamp;
 
 public class SqlTimestampParserTest extends ParserTestBase<Timestamp> {
@@ -36,10 +38,14 @@ public class SqlTimestampParserTest extends ParserTestBase<Timestamp> {
 	@Override
 	public Timestamp[] getValidTestResults() {
 		return new Timestamp[] {
-			Timestamp.valueOf("1970-01-01 00:00:00.000"), Timestamp.valueOf("1990-10-14 02:42:25"), Timestamp.valueOf("1990-10-14 02:42:25.123"),
-			Timestamp.valueOf("1990-10-14 02:42:25.123000001"), Timestamp.valueOf("1990-10-14 02:42:25.123000002"),
-			Timestamp.valueOf("2013-08-12 14:15:59.478"), Timestamp.valueOf("2013-08-12 14:15:59.47"),
-			Timestamp.valueOf("0000-01-01 00:00:00.000")
+			new Timestamp(TimeConvertUtils.timestampStringToUnixDate("1970-01-01 00:00:00.000")),
+			new Timestamp(TimeConvertUtils.timestampStringToUnixDate("1990-10-14 02:42:25")),
+			new Timestamp(TimeConvertUtils.timestampStringToUnixDate("1990-10-14 02:42:25.123")),
+			new Timestamp(TimeConvertUtils.timestampStringToUnixDate("1990-10-14 02:42:25.123000001")),
+			new Timestamp(TimeConvertUtils.timestampStringToUnixDate("1990-10-14 02:42:25.123000002")),
+			new Timestamp(TimeConvertUtils.timestampStringToUnixDate("2013-08-12 14:15:59.478")),
+			new Timestamp(TimeConvertUtils.timestampStringToUnixDate("2013-08-12 14:15:59.47")),
+			new Timestamp(TimeConvertUtils.timestampStringToUnixDate("0000-01-01 00:00:00.000"))
 		};
 	}
 
@@ -47,7 +53,7 @@ public class SqlTimestampParserTest extends ParserTestBase<Timestamp> {
 	public String[] getInvalidTestValues() {
 		return new String[] {
 			" 2013-08-12 14:15:59.479", "2013-08-12 14:15:59.479 ", "1970-01-01 00:00::00",
-			"00x00:00", "2013/08/12", "0000-01-01 00:00:00.f00", "2013-08-12 14:15:59.4788888888888888",
+			"00x00:00", "2013/08/12",
 			" ", "\t"
 		};
 	}

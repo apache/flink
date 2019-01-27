@@ -25,9 +25,6 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.typeinfo.TypeHint;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
@@ -164,8 +161,8 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testEnumTrianglesBasicExamplesTriadBuilder() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(GroupReduceFunction.class, TriadBuilder.class,
-				TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}),
-				TypeInformation.of(new TypeHint<Tuple3<Integer, Integer, Integer>>(){}),
+				"Tuple2<Integer, Integer>",
+				"Tuple3<Integer, Integer, Integer>",
 				new String[] { "0" });
 	}
 
@@ -183,8 +180,8 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testEnumTrianglesBasicExamplesTupleEdgeConverter() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, TupleEdgeConverter.class,
-				TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}),
-				TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}));
+				"Tuple2<Integer, Integer>",
+				"Tuple2<Integer, Integer>");
 	}
 
 	private static class EdgeDuplicator implements FlatMapFunction<Edge, Edge> {
@@ -199,8 +196,8 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testEnumTrianglesOptExamplesEdgeDuplicator() {
 		compareAnalyzerResultWithAnnotationsSingleInput(FlatMapFunction.class, EdgeDuplicator.class,
-				TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}),
-				TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}));
+				"Tuple2<Integer, Integer>",
+				"Tuple2<Integer, Integer>");
 	}
 
 	private static class DegreeCounter implements GroupReduceFunction<Edge, Edge> {
@@ -245,8 +242,8 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testEnumTrianglesOptExamplesDegreeCounter() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(GroupReduceFunction.class, DegreeCounter.class,
-				TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}),
-				TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}),
+				"Tuple2<Integer, Integer>",
+				"Tuple2<Integer, Integer>",
 				new String[] { "0" });
 	}
 
@@ -324,8 +321,8 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testKMeansExamplesCentroidAccumulator() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(ReduceFunction.class, CentroidAccumulator.class,
-				TypeInformation.of(new TypeHint<Tuple3<Integer, Point, Long>>(){}),
-				TypeInformation.of(new TypeHint<Tuple3<Integer, Point, Long>>(){}),
+				"Tuple3<Integer, org.apache.flink.api.java.sca.UdfAnalyzerExamplesTest$Point<x=double,y=double>, Long>",
+				"Tuple3<Integer, org.apache.flink.api.java.sca.UdfAnalyzerExamplesTest$Point<x=double,y=double>, Long>",
 				new String[] { "0" });
 	}
 
@@ -340,8 +337,8 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testKMeansExamplesCentroidAverager() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, CentroidAverager.class,
-				TypeInformation.of(new TypeHint<Tuple3<Integer, Point, Long>>(){}),
-				TypeInformation.of(new TypeHint<Centroid>(){}));
+				"Tuple3<Integer, org.apache.flink.api.java.sca.UdfAnalyzerExamplesTest$Point<x=double,y=double>, Long>",
+				"org.apache.flink.api.java.sca.UdfAnalyzerExamplesTest$Centroid<x=double,y=double,id=int>");
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -363,8 +360,8 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testConnectedComponentsExamplesUndirectEdge() {
 		compareAnalyzerResultWithAnnotationsSingleInput(FlatMapFunction.class, UndirectEdge.class,
-				TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}),
-				TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}));
+				"Tuple2<Long, Long>",
+				"Tuple2<Long, Long>");
 	}
 
 	@ForwardedFieldsFirst("*")
@@ -380,9 +377,9 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testConnectedComponentsExamplesComponentIdFilter() {
 		compareAnalyzerResultWithAnnotationsDualInput(FlatJoinFunction.class, ComponentIdFilter.class,
-				TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}),
-				TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}),
-				TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}));
+				"Tuple2<Long, Long>",
+				"Tuple2<Long, Long>",
+				"Tuple2<Long, Long>");
 	}
 
 	@ForwardedFields("*->f0;*->f1")
@@ -396,7 +393,8 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testConnectedComponentsExamplesDuplicateValue() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, DuplicateValue.class,
-			Types.LONG, TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}));
+				"Long",
+				"Tuple2<Long, Long>");
 	}
 
 	@ForwardedFieldsFirst("f1->f1")
@@ -411,9 +409,9 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testConnectedComponentsExamplesNeighborWithComponentIDJoin() {
 		compareAnalyzerResultWithAnnotationsDualInput(JoinFunction.class, NeighborWithComponentIDJoin.class,
-				TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}),
-				TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}),
-				TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}));
+				"Tuple2<Long, Long>",
+				"Tuple2<Long, Long>",
+				"Tuple2<Long, Long>");
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -437,9 +435,9 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testWebLogAnalysisExamplesAntiJoinVisits() {
 		compareAnalyzerResultWithAnnotationsDualInputWithKeys(CoGroupFunction.class, AntiJoinVisits.class,
-				TypeInformation.of(new TypeHint<Tuple3<Integer, String, Integer>>(){}),
-				TypeInformation.of(new TypeHint<Tuple1<String>>(){}),
-				TypeInformation.of(new TypeHint<Tuple3<Integer, String, Integer>>(){}),
+				"Tuple3<Integer, String, Integer>",
+				"Tuple1<String>",
+				"Tuple3<Integer, String, Integer>",
 				new String[] { "1" }, new String[] { "0" });
 	}
 
@@ -467,8 +465,8 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testPageRankBasicExamplesBuildOutgoingEdgeList() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(GroupReduceFunction.class, BuildOutgoingEdgeList.class,
-				TypeInformation.of(new TypeHint<Tuple2<Long, Long>>(){}),
-				TypeInformation.of(new TypeHint<Tuple2<Long, Long[]>>(){}),
+				"Tuple2<Long, Long>",
+				"Tuple2<Long, Long[]>",
 				new String[] { "0" });
 	}
 
@@ -553,8 +551,8 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testLogisticRegressionExamplesSumGradient() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(ReduceFunction.class, SumGradient.class,
-				TypeInformation.of(new TypeHint<Tuple1<Double>>(){}),
-				TypeInformation.of(new TypeHint<Tuple1<Double>>(){}),
+				"Tuple1<double>",
+				"Tuple1<double>",
 				new String[] { "0" });
 	}
 
@@ -586,8 +584,8 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testLogisticRegressionExamplesPointParser() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, PointParser.class,
-				Types.STRING,
-				TypeInformation.of(new TypeHint<Tuple2<Integer, double[]>>(){}));
+				"String",
+				"Tuple2<Integer, double[]>");
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -622,8 +620,8 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testCanopyExamplesMassageBOW() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, PointParser.class,
-				Types.STRING,
-				TypeInformation.of(new TypeHint<Tuple2<Integer, String>>(){}));
+				"String",
+				"Tuple2<Integer, String>");
 	}
 
 	@ForwardedFields("0")
@@ -644,8 +642,8 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testCanopyExamplesDocumentReducer() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(GroupReduceFunction.class, DocumentReducer.class,
-				TypeInformation.of(new TypeHint<Tuple2<Integer, String>>(){}),
-				TypeInformation.of(new TypeHint<Tuple5<Integer, Boolean, Boolean, String, String>>(){}),
+				"Tuple2<Integer, String>",
+				"Tuple5<Integer, Boolean, Boolean, String, String>",
 				new String[] { "0" });
 	}
 
@@ -671,8 +669,8 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testCanopyExamplesMapToCenter() {
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, MapToCenter.class,
-				TypeInformation.of(new TypeHint<Tuple5<Integer, Boolean, Boolean, String, String>>(){}),
-				TypeInformation.of(new TypeHint<Tuple5<Integer, Boolean, Boolean, String, String>>(){}));
+				"Tuple5<Integer, Boolean, Boolean, String, String>",
+				"Tuple5<Integer, Boolean, Boolean, String, String>");
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -727,8 +725,8 @@ public class UdfAnalyzerExamplesTest {
 	@Test
 	public void testKMeansppExamplesRecordToDocConverter() {
 		compareAnalyzerResultWithAnnotationsSingleInputWithKeys(GroupReduceFunction.class, RecordToDocConverter.class,
-				TypeInformation.of(new TypeHint<Tuple3<Integer, Integer, Double>>(){}),
-				TypeInformation.of(new TypeHint<DocumentWithFreq>(){}),
+				"Tuple3<Integer, Integer, Double>",
+				"org.apache.flink.api.java.sca.UdfAnalyzerExamplesTest$DocumentWithFreq<id=Integer,wordFreq=java.util.HashMap>",
 				new String[] { "0" });
 	}
 }

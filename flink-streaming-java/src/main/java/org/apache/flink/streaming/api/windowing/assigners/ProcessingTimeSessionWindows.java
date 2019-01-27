@@ -107,7 +107,6 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
 	/**
 	 * Merge overlapping {@link TimeWindow}s.
 	 */
-	@Override
 	public void mergeWindows(Collection<TimeWindow> windows, MergeCallback<TimeWindow> c) {
 		TimeWindow.mergeWindows(windows, c);
 	}

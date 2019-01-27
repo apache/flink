@@ -22,20 +22,23 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.StateAccessException;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -43,7 +46,6 @@ import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 
@@ -51,6 +53,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 import org.junit.After;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -126,11 +129,6 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		dbPath = tempFolder.newFolder().getAbsolutePath();
 		String checkpointPath = tempFolder.newFolder().toURI().toString();
 		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
-		Configuration configuration = new Configuration();
-		configuration.setString(
-			RocksDBOptions.TIMER_SERVICE_FACTORY,
-			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
-		backend = backend.configure(configuration);
 		backend.setDbStoragePath(dbPath);
 		return backend;
 	}
@@ -192,7 +190,6 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		allCreatedCloseables = new ArrayList<>();
 
 		keyedStateBackend.db = spy(keyedStateBackend.db);
-		keyedStateBackend.initializeSnapshotStrategy(null);
 
 		doAnswer(new Answer<Object>() {
 
@@ -249,12 +246,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				new KeyGroupRange(0, 0),
 				new ExecutionConfig(),
 				enableIncrementalCheckpointing,
-				1,
-				TestLocalRecoveryConfig.disabled(),
-				RocksDBStateBackend.PriorityQueueStateType.HEAP,
-				TtlTimeProvider.DEFAULT,
-				new RocksDBNativeMetricOptions(),
-				new UnregisteredMetricsGroup());
+				TestLocalRecoveryConfig.disabled());
 
 			verify(columnFamilyOptions, Mockito.times(1))
 				.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
@@ -438,6 +430,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	}
 
 	@Test
+	@Ignore
 	public void testSharedIncrementalStateDeRegistration() throws Exception {
 		if (enableIncrementalCheckpointing) {
 			AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
@@ -501,6 +494,191 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				}
 			} finally {
 				IOUtils.closeQuietly(backend);
+				backend.dispose();
+			}
+		}
+	}
+
+	@Test
+	@Override
+	public void testKryoRegisteringRestoreResilienceWithDefaultSerializer() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+		Environment env = new DummyEnvironment();
+		AbstractKeyedStateBackend<Integer> backend = null;
+
+		try {
+			backend = createKeyedBackend(IntSerializer.INSTANCE, env);
+
+			TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
+
+			// make sure that we are in fact using the KryoSerializer
+			assertTrue(pojoType.createSerializer(env.getExecutionConfig()) instanceof KryoSerializer);
+
+			ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
+
+			ValueState<TestPojo> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+			// ============== create snapshot - no Kryo registration or specific / default serializers ==============
+
+			// make some more modifications
+			backend.setCurrentKey(1);
+			state.update(new TestPojo("u1", 1));
+
+			backend.setCurrentKey(2);
+			state.update(new TestPojo("u2", 2));
+
+			KeyedStateHandle snapshot = runSnapshot(backend.snapshot(
+				682375462378L,
+				2,
+				streamFactory,
+				CheckpointOptions.forCheckpointWithDefaultLocation()));
+
+			snapshot.registerSharedStates(sharedStateRegistry);
+			backend.dispose();
+
+			// ========== restore snapshot - should use default serializer (ONLY SERIALIZATION) ==========
+
+			// cast because our test serializer is not typed to TestPojo
+			env.getExecutionConfig().addDefaultKryoSerializer(TestPojo.class, (Class) CustomKryoTestSerializer.class);
+
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
+
+			// re-initialize to ensure that we create the KryoSerializer from scratch, otherwise
+			// initializeSerializerUnlessSet would not pick up our new config
+			kvId = new ValueStateDescriptor<>("id", pojoType);
+			state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+			backend.setCurrentKey(1);
+
+			// update to test state backends that eagerly serialize, such as RocksDB
+			state.update(new TestPojo("u1", 11));
+
+			KeyedStateHandle snapshot2 = runSnapshot(backend.snapshot(
+				682375462378L,
+				2,
+				streamFactory,
+				CheckpointOptions.forCheckpointWithDefaultLocation()));
+
+			snapshot2.registerSharedStates(sharedStateRegistry);
+			snapshot.discardState();
+
+			backend.dispose();
+
+			// ========= restore snapshot - should use default serializer (FAIL ON DESERIALIZATION) =========
+
+			// cast because our test serializer is not typed to TestPojo
+			env.getExecutionConfig().addDefaultKryoSerializer(TestPojo.class, (Class) CustomKryoTestSerializer.class);
+
+			// on the second restore, since the custom serializer will be used for
+			// deserialization, we expect the deliberate failure to be thrown
+			expectedException.expect(StateAccessException.class);
+
+			// state backends that eagerly deserializes (such as the memory state backend) will fail here
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2, env);
+
+			state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+			backend.setCurrentKey(1);
+			// state backends that lazily deserializes (such as RocksDB) will fail here
+			state.value();
+
+			snapshot2.discardState();
+			backend.dispose();
+		} finally {
+			// ensure to release native resources even when we exit through exception
+			org.apache.flink.util.IOUtils.closeQuietly(backend);
+			backend.dispose();
+		}
+	}
+
+	@Test
+	@Override
+	public void testKryoRegisteringRestoreResilienceWithRegisteredSerializer() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+		Environment env = new DummyEnvironment();
+
+		AbstractKeyedStateBackend<Integer> backend = null;
+
+		try {
+			backend = createKeyedBackend(IntSerializer.INSTANCE, env);
+
+			TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
+
+			// make sure that we are in fact using the KryoSerializer
+			assertTrue(pojoType.createSerializer(env.getExecutionConfig()) instanceof KryoSerializer);
+
+			ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
+			ValueState<TestPojo> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+			// ============== create snapshot - no Kryo registration or specific / default serializers ==============
+
+			// make some more modifications
+			backend.setCurrentKey(1);
+			state.update(new TestPojo("u1", 1));
+
+			backend.setCurrentKey(2);
+			state.update(new TestPojo("u2", 2));
+
+			KeyedStateHandle snapshot = runSnapshot(backend.snapshot(
+				682375462378L,
+				2,
+				streamFactory,
+				CheckpointOptions.forCheckpointWithDefaultLocation()));
+
+			snapshot.registerSharedStates(sharedStateRegistry);
+			backend.dispose();
+
+			// ========== restore snapshot - should use specific serializer (ONLY SERIALIZATION) ==========
+
+			env.getExecutionConfig().registerTypeWithKryoSerializer(TestPojo.class, CustomKryoTestSerializer.class);
+
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
+
+			// re-initialize to ensure that we create the KryoSerializer from scratch, otherwise
+			// initializeSerializerUnlessSet would not pick up our new config
+			kvId = new ValueStateDescriptor<>("id", pojoType);
+			state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+			backend.setCurrentKey(1);
+
+			// update to test state backends that eagerly serialize, such as RocksDB
+			state.update(new TestPojo("u1", 11));
+
+			KeyedStateHandle snapshot2 = runSnapshot(backend.snapshot(
+				682375462378L,
+				2,
+				streamFactory,
+				CheckpointOptions.forCheckpointWithDefaultLocation()));
+
+			snapshot2.registerSharedStates(sharedStateRegistry);
+
+			snapshot.discardState();
+
+			backend.dispose();
+
+			// ========= restore snapshot - should use specific serializer (FAIL ON DESERIALIZATION) =========
+
+			env.getExecutionConfig().registerTypeWithKryoSerializer(TestPojo.class, CustomKryoTestSerializer.class);
+
+			// on the second restore, since the custom serializer will be used for
+			// deserialization, we expect the deliberate failure to be thrown
+			expectedException.expect(StateAccessException.class);
+
+			// state backends that eagerly deserializes (such as the memory state backend) will fail here
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2, env);
+
+			state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+			backend.setCurrentKey(1);
+			// state backends that lazily deserializes (such as RocksDB) will fail here
+			state.value();
+
+			backend.dispose();
+		} finally {
+			// ensure that native resources are also released in case of exception
+			if (backend != null) {
 				backend.dispose();
 			}
 		}

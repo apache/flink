@@ -23,9 +23,9 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>org.apache.flink</groupId>
+		<groupId>com.alibaba.blink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.5.1</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -105,20 +105,14 @@ under the License.
 										<exclude>META-INF/*.RSA</exclude>
 									</excludes>
 								</filter>
-								<filter>
-									<artifact>commons-httpclient:commons-httpclient</artifact>
-									<excludes>
-										<exclude>META-INF/LICENSE.txt</exclude>
-									</excludes>
-								</filter>
 							</filters>
 							<transformers>
 								<!-- The service transformer is needed to merge META-INF/services files -->
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
 								<!-- The ApacheNoticeResourceTransformer collects and aggregates NOTICE files -->
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
-									<projectName>Apache Flink</projectName>
-								</transformer>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer"/>
+								<!-- The ApacheLicenseResourceTransformer prevents duplicate Apache Licenses -->
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheLicenseResourceTransformer"/>
 							</transformers>
 							<artifactSet>
 								<includes>
@@ -127,7 +121,6 @@ under the License.
 									<include>com.google.code.findbugs:*</include>
 									<include>asm:asm</include>
 									<include>io.netty:netty:*</include>
-									<include>io.netty:netty-all:*</include>
 									<include>org.apache.curator:*</include>
 									<include>org.apache.hadoop:*</include>
 									<include>org.htrace:htrace-core</include>
@@ -137,6 +130,8 @@ under the License.
 									<include>org.apache.httpcomponents:*</include>
 									<include>commons-httpclient:commons-httpclient</include>
 									<include>org.codehaus.jackson:*</include>
+
+									<include>com.squareup.okio:*</include>
 								</includes>
 								<excludes>
 									<exclude>org.slf4j:*</exclude>
@@ -160,10 +155,6 @@ under the License.
 									<shadedPattern>org.apache.flink.hadoop.shaded.org.jboss.netty</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>io.netty</pattern>
-									<shadedPattern>org.apache.flink.hadoop.shaded.io.netty</shadedPattern>
-								</relocation>
-								<relocation>
 									<pattern>org.apache.curator</pattern>
 									<shadedPattern>org.apache.flink.hadoop.shaded.org.apache.curator</shadedPattern>
 								</relocation>
@@ -182,6 +173,10 @@ under the License.
 								<relocation>
 									<pattern>org.codehaus.jackson</pattern>
 									<shadedPattern>org.apache.flink.hadoop.shaded.org.codehaus.jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>okio</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.okio</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

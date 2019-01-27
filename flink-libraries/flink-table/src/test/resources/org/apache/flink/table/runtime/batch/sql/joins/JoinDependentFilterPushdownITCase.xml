@@ -1,0 +1,125 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testThreeOr">
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, d])
++- NestedLoopJoin(where=[OR(AND(=(b, e), =(a, 0)), AND(=(a, 1), =(d, 2)), AND(=(a, 2), =(d, 1)))], join=[a, b, d, e], joinType=[InnerJoin], build=[left])
+   :- Exchange(distribution=[broadcast])
+   :  +- Calc(select=[a, b], where=[OR(=(a, 0), =(a, 1), =(a, 2))])
+   :     +- BoundedStreamScan(table=[[builtin, default, Table3]], fields=[a, b, c])
+   +- Calc(select=[d, e])
+      +- BoundedStreamScan(table=[[builtin, default, Table5]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAnd">
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, d])
++- HashJoin(where=[AND(=(b, e), OR(AND(=(a, 1), =(d, 2)), AND(=(a, 2), =(d, 1))))], join=[a, b, d, e], joinType=[InnerJoin], isBroadcast=[true], build=[right])
+   :- Calc(select=[a, b], where=[OR(=(a, 1), =(a, 2))])
+   :  +- BoundedStreamScan(table=[[builtin, default, Table3]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[d, e], where=[OR(=(d, 2), =(d, 1))])
+         +- BoundedStreamScan(table=[[builtin, default, Table5]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiFields">
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, d])
++- NestedLoopJoin(where=[OR(AND(=(a, 1), =(b, 1), =(d, 2), =(e, 2)), AND(=(a, 2), =(b, 2), =(d, 1), =(e, 1)))], join=[a, b, d, e], joinType=[InnerJoin], build=[left])
+   :- Exchange(distribution=[broadcast])
+   :  +- Calc(select=[a, b], where=[OR(AND(=(a, 1), =(b, 1)), AND(=(a, 2), =(b, 2)))])
+   :     +- BoundedStreamScan(table=[[builtin, default, Table3]], fields=[a, b, c])
+   +- Calc(select=[d, e], where=[OR(AND(=(d, 2), =(e, 2)), AND(=(d, 1), =(e, 1)))])
+      +- BoundedStreamScan(table=[[builtin, default, Table5]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAndOr">
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(where=[AND(OR(AND(=(a, 1), =(d, 2)), AND(=(a, 2), =(d, 1))), OR(AND(=(a, 3), =(d, 4)), AND(=(a, 4), =(d, 3))))], join=[a, d], joinType=[InnerJoin], build=[left])
+:- Exchange(distribution=[broadcast])
+:  +- Calc(select=[a], where=[AND(OR(=(a, 1), =(a, 2)), OR(=(a, 3), =(a, 4)))])
+:     +- BoundedStreamScan(table=[[builtin, default, Table3]], fields=[a, b, c])
++- Calc(select=[d], where=[AND(OR(=(d, 2), =(d, 1)), OR(=(d, 4), =(d, 3)))])
+   +- BoundedStreamScan(table=[[builtin, default, Table5]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiSingleSideFields">
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, d])
++- NestedLoopJoin(where=[OR(AND(=(a, 1), =(b, 1), =(d, 2), =(e, 2)), AND(=(d, 1), =(e, 1)))], join=[a, b, d, e], joinType=[InnerJoin], build=[right])
+   :- Calc(select=[a, b])
+   :  +- BoundedStreamScan(table=[[builtin, default, Table3]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[d, e], where=[OR(AND(=(d, 2), =(e, 2)), AND(=(d, 1), =(e, 1)))])
+         +- BoundedStreamScan(table=[[builtin, default, Table5]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotDo">
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, d])
++- NestedLoopJoin(where=[OR(=(b, e), AND(=(a, 1), =(d, 2)), AND(=(a, 2), =(d, 1)))], join=[a, b, d, e], joinType=[InnerJoin], build=[left])
+   :- Exchange(distribution=[broadcast])
+   :  +- Calc(select=[a, b])
+   :     +- BoundedStreamScan(table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+   +- Calc(select=[d, e])
+      +- BoundedStreamScan(table=[[builtin, default, Table5]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoins">
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, d])
++- NestedLoopJoin(where=[OR(AND(=(a, 1), =(b, 1), =(a0, 2), =(e, 2)), AND(=(a, 2), =(b0, 2), =(d, 1), =(e, 1)))], join=[a, b, a0, b0, d, e], joinType=[InnerJoin], build=[right])
+   :- Calc(select=[a, b], where=[OR(AND(=(a, 1), =(b, 1)), =(a, 2))])
+   :  +- BoundedStreamScan(table=[[builtin, default, SmallTable3]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- HashJoin(where=[AND(=(a, d), OR(AND(=(a, 2), =(e, 2)), AND(=(b, 2), =(d, 1), =(e, 1))))], join=[a, b, d, e], joinType=[InnerJoin], isBroadcast=[true], build=[right])
+         :- Calc(select=[a, b], where=[OR(=(a, 2), =(b, 2))])
+         :  +- BoundedStreamScan(table=[[builtin, default, Table3]], fields=[a, b, c])
+         +- Exchange(distribution=[broadcast])
+            +- Calc(select=[d, e], where=[OR(=(e, 2), AND(=(d, 1), =(e, 1)))])
+               +- BoundedStreamScan(table=[[builtin, default, Table5]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimple">
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(where=[OR(AND(=(a, 1), =(d, 2)), AND(=(a, 2), =(d, 1)))], join=[a, d], joinType=[InnerJoin], build=[left])
+:- Exchange(distribution=[broadcast])
+:  +- Calc(select=[a], where=[OR(=(a, 1), =(a, 2))])
+:     +- BoundedStreamScan(table=[[builtin, default, Table3]], fields=[a, b, c])
++- Calc(select=[d], where=[OR(=(d, 2), =(d, 1))])
+   +- BoundedStreamScan(table=[[builtin, default, Table5]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

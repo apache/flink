@@ -36,7 +36,6 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import org.junit.Test;
 
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
@@ -72,7 +71,7 @@ public class ExecutionVertexSchedulingTest {
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
-			vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL, Collections.emptySet());
+			vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL);
 
 			// will have failed
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
@@ -104,7 +103,7 @@ public class ExecutionVertexSchedulingTest {
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
-			vertex.scheduleForExecution(scheduler, true, LocationPreferenceConstraint.ALL, Collections.emptySet());
+			vertex.scheduleForExecution(scheduler, true, LocationPreferenceConstraint.ALL);
 
 			// future has not yet a slot
 			assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
@@ -139,7 +138,7 @@ public class ExecutionVertexSchedulingTest {
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
 			// try to deploy to the slot
-			vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL, Collections.emptySet());
+			vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL);
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 		}
 		catch (Exception e) {

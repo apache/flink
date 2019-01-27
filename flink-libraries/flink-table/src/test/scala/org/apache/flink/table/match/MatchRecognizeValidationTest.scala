@@ -23,9 +23,9 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.runtime.stream.sql.ToMillis
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.util.TableTestBase
 import org.apache.flink.types.Row
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 class MatchRecognizeValidationTest extends TableTestBase {
 
@@ -131,7 +131,7 @@ class MatchRecognizeValidationTest extends TableTestBase {
   @Test
   def testAggregatesOnMultiplePatternVariablesNotSupported(): Unit = {
     thrown.expect(classOf[ValidationException])
-    thrown.expectMessage("SQL validation failed.")
+    thrown.expectMessage("SQL validation failed:")
 
     val sqlQuery =
       s"""
@@ -174,57 +174,10 @@ class MatchRecognizeValidationTest extends TableTestBase {
     streamUtils.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
   }
 
-  @Test
-  def testValidatingAmbiguousColumns(): Unit = {
-    thrown.expectMessage("Columns ambiguously defined: {symbol, price}")
-    thrown.expect(classOf[ValidationException])
-
-    val sqlQuery =
-      s"""
-         |SELECT *
-         |FROM Ticker
-         |MATCH_RECOGNIZE (
-         |  PARTITION BY symbol, price
-         |  ORDER BY proctime
-         |  MEASURES
-         |    A.symbol AS symbol,
-         |    A.price AS price
-         |  PATTERN (A)
-         |  DEFINE
-         |    A AS symbol = 'a'
-         |) AS T
-         |""".stripMargin
-
-    streamUtils.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-  }
-
   // ***************************************************************************************
   // * Those validations are temporary. We should remove those tests once we support those *
   // * features.                                                                           *
   // ***************************************************************************************
-
-  @Test
-  def testAllRowsPerMatch(): Unit = {
-    thrown.expectMessage("All rows per match mode is not supported yet.")
-    thrown.expect(classOf[TableException])
-
-    val sqlQuery =
-      s"""
-         |SELECT *
-         |FROM Ticker
-         |MATCH_RECOGNIZE (
-         |  ORDER BY proctime
-         |  MEASURES
-         |    A.symbol AS aSymbol
-         |  ALL ROWS PER MATCH
-         |  PATTERN (A B)
-         |  DEFINE
-         |    A AS symbol = 'a'
-         |) AS T
-         |""".stripMargin
-
-    streamUtils.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-  }
 
   @Test
   def testGreedyQuantifierAtTheEndIsNotSupported(): Unit = {
@@ -273,6 +226,7 @@ class MatchRecognizeValidationTest extends TableTestBase {
   }
 
   @Test
+  @Ignore
   def testDistinctAggregationsNotSupported(): Unit = {
     thrown.expect(classOf[ValidationException])
 

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.memory;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -54,6 +55,7 @@ public class MemoryManagerConcurrentModReleaseTest {
 	}
 
 	@Test
+	@Ignore
 	public void testConcurrentModificationWhileReleasing() {
 		try {
 			final int numSegments = 10000;

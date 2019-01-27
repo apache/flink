@@ -41,11 +41,12 @@ public class ShutdownHandler extends
 		AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 
 	public ShutdownHandler(
+			final CompletableFuture<String> localRestAddress,
 			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> responseHeaders,
 			final MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> messageHeaders) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
 	}
 
 	@Override

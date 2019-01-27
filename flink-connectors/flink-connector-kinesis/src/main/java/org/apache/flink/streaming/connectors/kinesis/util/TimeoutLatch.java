@@ -20,9 +20,6 @@ package org.apache.flink.streaming.connectors.kinesis.util;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * Internal use.
- */
 @Internal
 public class TimeoutLatch {
 

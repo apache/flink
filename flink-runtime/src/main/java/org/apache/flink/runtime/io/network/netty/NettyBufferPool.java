@@ -29,6 +29,7 @@ import java.lang.reflect.Field;
 
 import scala.Option;
 
+import static org.apache.flink.runtime.io.network.netty.NettyConfig.PAGE_SIZE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -52,28 +53,25 @@ public class NettyBufferPool extends PooledByteBufAllocator {
 	private static final boolean PREFER_DIRECT = true;
 
 	/**
-	 * Arenas allocate chunks of pageSize << maxOrder bytes. With these defaults, this results in
-	 * chunks of 16 MB.
-	 *
-	 * @see #MAX_ORDER
-	 */
-	private static final int PAGE_SIZE = 8192;
-
-	/**
-	 * Arenas allocate chunks of pageSize << maxOrder bytes. With these defaults, this results in
-	 * chunks of 16 MB.
-	 *
-	 * @see #PAGE_SIZE
-	 */
-	private static final int MAX_ORDER = 11;
-
-	/**
 	 * Creates Netty's buffer pool with the specified number of direct arenas.
 	 *
 	 * @param numberOfArenas Number of arenas (recommended: 2 * number of task
 	 *                       slots)
 	 */
 	public NettyBufferPool(int numberOfArenas) {
+		this(numberOfArenas, NettyConfig.MAX_ORDER.defaultValue(),
+			NettyConfig.PAGE_SIZE << NettyConfig.MAX_ORDER.defaultValue());
+	}
+
+	/**
+	 * Creates Netty's buffer pool with the specified number of direct arenas.
+	 *
+	 * @param numberOfArenas Number of arenas (recommended: 2 * number of task
+	 *                       slots)
+	 * @param maxOrder Max order for the netty buffer pool, default to 9.
+	 * @param chunkSize Chunk size for the netty buffer pool, default to 4M.
+	 */
+	public NettyBufferPool(int numberOfArenas, int maxOrder, int chunkSize) {
 		super(
 			PREFER_DIRECT,
 			// No heap arenas, please.
@@ -86,7 +84,7 @@ public class NettyBufferPool extends PooledByteBufAllocator {
 			// to the TCP channels. Chunks are allocated lazily.
 			numberOfArenas,
 			PAGE_SIZE,
-			MAX_ORDER);
+			maxOrder);
 
 		checkArgument(numberOfArenas >= 1, "Number of arenas");
 		this.numberOfArenas = numberOfArenas;
@@ -94,7 +92,7 @@ public class NettyBufferPool extends PooledByteBufAllocator {
 		// Arenas allocate chunks of pageSize << maxOrder bytes. With these
 		// defaults, this results in chunks of 16 MB.
 
-		this.chunkSize = PAGE_SIZE << MAX_ORDER;
+		this.chunkSize = chunkSize;
 
 		Object[] allocDirectArenas = null;
 		try {

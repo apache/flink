@@ -116,7 +116,7 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 	private DataFileReader<E> initReader(FileInputSplit split) throws IOException {
 		DatumReader<E> datumReader;
 
-		if (org.apache.avro.generic.GenericRecord.class == avroValueType) {
+		if (GenericRecord.class == avroValueType) {
 			datumReader = new GenericDatumReader<E>();
 		} else {
 			datumReader = org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(avroValueType)

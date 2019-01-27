@@ -1,0 +1,4295 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testInNotInExistsNotExists1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r)  AND b NOT IN (SELECT i FROM t1 WHERE l.c = t1.k AND i > 10)  AND EXISTS (SELECT COUNT(l) FROM t2 where n like 'Test' GROUP BY l) AND NOT EXISTS (SELECT * FROM r WHERE l.b <> r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}), NOT(IN($1, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(=($cor0.c, $2), >($0, 10))])
+    LogicalTableScan(table=[[builtin, default, t1]])
+})), EXISTS({
+LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
+  LogicalProject(l=[$0])
+    LogicalFilter(condition=[LIKE($2, 'Test')])
+      LogicalTableScan(table=[[builtin, default, t2]])
+}), NOT(EXISTS({
+LogicalFilter(condition=[<>($cor0.b, $1)])
+  LogicalTableScan(table=[[builtin, default, r]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[<>($1, $3)], joinType=[inner], isAnti=[true])
+   :- SemiJoin(condition=[AND(=($1, $5), =($2, $4))], joinType=[inner], isAnti=[true])
+   :  :- SemiJoin(condition=[$3], joinType=[inner], isAnti=[false])
+   :  :  :- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[false])
+   :  :  :  :- LogicalTableScan(table=[[builtin, default, l]])
+   :  :  :  +- LogicalProject(d=[$0])
+   :  :  :     +- LogicalTableScan(table=[[builtin, default, r]])
+   :  :  +- LogicalProject($f0=[IS NOT NULL($0)])
+   :  :     +- LogicalAggregate(group=[{}], m=[MIN($0)])
+   :  :        +- LogicalProject(i=[true])
+   :  :           +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()])
+   :  :              +- LogicalProject(l=[$0])
+   :  :                 +- LogicalFilter(condition=[LIKE($2, 'Test')])
+   :  :                    +- LogicalTableScan(table=[[builtin, default, t2]])
+   :  +- LogicalProject(i=[$0], k=[$1], i0=[CAST($0):BIGINT NOT NULL])
+   :     +- LogicalProject(i=[$0], k=[$2])
+   :        +- LogicalFilter(condition=[>($0, 10)])
+   :           +- LogicalTableScan(table=[[builtin, default, t1]])
+   +- LogicalProject(e=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInNotInExistsNotExists1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r)  AND b NOT IN (SELECT i FROM t1 WHERE l.c = t1.k AND i > 10)  AND EXISTS (SELECT COUNT(l) FROM t2 where n like 'Test' GROUP BY l) AND NOT EXISTS (SELECT * FROM r WHERE l.b <> r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}), NOT(IN($1, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[AND(=($cor0.c, $2), >($0, 10))])
+    LogicalTableScan(table=[[builtin, default, t1]])
+})), EXISTS({
+LogicalAggregate(group=[{0}], EXPR$0=[COUNT($0)])
+  LogicalProject(l=[$0])
+    LogicalFilter(condition=[LIKE($2, 'Test')])
+      LogicalTableScan(table=[[builtin, default, t2]])
+}), NOT(EXISTS({
+LogicalFilter(condition=[<>($cor0.b, $1)])
+  LogicalTableScan(table=[[builtin, default, r]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[<>($1, $3)], joinType=[inner], isAnti=[true])
+   :- SemiJoin(condition=[AND(OR(=($1, $3), IS NULL(=($1, $3))), =($2, $4))], joinType=[inner], isAnti=[true])
+   :  :- SemiJoin(condition=[$3], joinType=[inner], isAnti=[false])
+   :  :  :- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[false])
+   :  :  :  :- LogicalTableScan(table=[[builtin, default, l]])
+   :  :  :  +- LogicalProject(d=[$0])
+   :  :  :     +- LogicalTableScan(table=[[builtin, default, r]])
+   :  :  +- LogicalProject($f0=[IS NOT NULL($0)])
+   :  :     +- LogicalAggregate(group=[{}], m=[MIN($0)])
+   :  :        +- LogicalProject(i=[true])
+   :  :           +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($0)])
+   :  :              +- LogicalProject(l=[$0])
+   :  :                 +- LogicalFilter(condition=[LIKE($2, 'Test')])
+   :  :                    +- LogicalTableScan(table=[[builtin, default, t2]])
+   :  +- LogicalProject(i=[$0], k=[$2])
+   :     +- LogicalFilter(condition=[>($0, 10)])
+   :        +- LogicalTableScan(table=[[builtin, default, t1]])
+   +- LogicalProject(e=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithCorrelatedOnWhere_AND1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND NOT EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) AND c >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.b, $1), >(CAST($2):INTEGER NOT NULL, 50))])
+  LogicalTableScan(table=[[builtin, default, t]])
+})), >=(CAST($2):INTEGER NOT NULL, 1), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
+  LogicalTableScan(table=[[builtin, default, t]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), >=(CAST($2):INTEGER NOT NULL, 1))])
+   +- SemiJoin(condition=[=($0, $6)], joinType=[inner], isAnti=[true])
+      :- SemiJoin(condition=[=($1, $6)], joinType=[inner], isAnti=[true])
+      :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :  :  +- LogicalTableScan(table=[[builtin, default, r]])
+      :  +- LogicalProject(j=[$1])
+      :     +- LogicalFilter(condition=[>(CAST($2):INTEGER NOT NULL, 50)])
+      :        +- LogicalTableScan(table=[[builtin, default, t]])
+      +- LogicalProject(i=[$0])
+         +- LogicalFilter(condition=[<($1, 100)])
+            +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithCorrelatedOnWhere_AND1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND NOT EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) AND c >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.b, $1), >(CAST($2):INTEGER, 50))])
+  LogicalTableScan(table=[[builtin, default, t]])
+})), >=(CAST($2):INTEGER, 1), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
+  LogicalTableScan(table=[[builtin, default, t]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), >=(CAST($2):INTEGER, 1))])
+   +- SemiJoin(condition=[=($0, $6)], joinType=[inner], isAnti=[true])
+      :- SemiJoin(condition=[=($1, $6)], joinType=[inner], isAnti=[true])
+      :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :  :  +- LogicalTableScan(table=[[builtin, default, r]])
+      :  +- LogicalProject(j=[$1])
+      :     +- LogicalFilter(condition=[>(CAST($2):INTEGER, 50)])
+      :        +- LogicalTableScan(table=[[builtin, default, t]])
+      +- LogicalProject(i=[$0])
+         +- LogicalFilter(condition=[<($1, 100)])
+            +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithCorrelatedOnWhere_AND2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND NOT EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) AND (c >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.b, $1), >(CAST($2):INTEGER NOT NULL, 50))])
+  LogicalTableScan(table=[[builtin, default, t]])
+})), >=(CAST($2):INTEGER NOT NULL, 1), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
+  LogicalTableScan(table=[[builtin, default, t]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), >=(CAST($2):INTEGER NOT NULL, 1))])
+   +- SemiJoin(condition=[=($0, $6)], joinType=[inner], isAnti=[true])
+      :- SemiJoin(condition=[=($1, $6)], joinType=[inner], isAnti=[true])
+      :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :  :  +- LogicalTableScan(table=[[builtin, default, r]])
+      :  +- LogicalProject(j=[$1])
+      :     +- LogicalFilter(condition=[>(CAST($2):INTEGER NOT NULL, 50)])
+      :        +- LogicalTableScan(table=[[builtin, default, t]])
+      +- LogicalProject(i=[$0])
+         +- LogicalFilter(condition=[<($1, 100)])
+            +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithCorrelatedOnWhere_AND2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND NOT EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) AND (c >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.b, $1), >(CAST($2):INTEGER, 50))])
+  LogicalTableScan(table=[[builtin, default, t]])
+})), >=(CAST($2):INTEGER, 1), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
+  LogicalTableScan(table=[[builtin, default, t]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), >=(CAST($2):INTEGER, 1))])
+   +- SemiJoin(condition=[=($0, $6)], joinType=[inner], isAnti=[true])
+      :- SemiJoin(condition=[=($1, $6)], joinType=[inner], isAnti=[true])
+      :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :  :  +- LogicalTableScan(table=[[builtin, default, r]])
+      :  +- LogicalProject(j=[$1])
+      :     +- LogicalFilter(condition=[>(CAST($2):INTEGER, 50)])
+      :        +- LogicalTableScan(table=[[builtin, default, t]])
+      +- LogicalProject(i=[$0])
+         +- LogicalFilter(condition=[<($1, 100)])
+            +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithUncorrelatedAndCorrelatedOnWhere1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r) AND NOT EXISTS (SELECT * FROM t WHERE l.a = t.i AND t.j < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalTableScan(table=[[builtin, default, r]])
+})), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
+  LogicalTableScan(table=[[builtin, default, t]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+   :- SemiJoin(condition=[$3], joinType=[inner], isAnti=[true])
+   :  :- LogicalTableScan(table=[[builtin, default, l]])
+   :  +- LogicalProject($f0=[IS NOT NULL($0)])
+   :     +- LogicalAggregate(group=[{}], m=[MIN($0)])
+   :        +- LogicalProject(i=[true])
+   :           +- LogicalTableScan(table=[[builtin, default, r]])
+   +- LogicalProject(i=[$0])
+      +- LogicalFilter(condition=[<($1, 100)])
+         +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithUncorrelatedAndCorrelatedOnWhere1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r) AND NOT EXISTS (SELECT * FROM t WHERE l.a = t.i AND t.j < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalTableScan(table=[[builtin, default, r]])
+})), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
+  LogicalTableScan(table=[[builtin, default, t]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+   :- SemiJoin(condition=[$3], joinType=[inner], isAnti=[true])
+   :  :- LogicalTableScan(table=[[builtin, default, l]])
+   :  +- LogicalProject($f0=[IS NOT NULL($0)])
+   :     +- LogicalAggregate(group=[{}], m=[MIN($0)])
+   :        +- LogicalProject(i=[true])
+   :           +- LogicalTableScan(table=[[builtin, default, r]])
+   +- LogicalProject(i=[$0])
+      +- LogicalFilter(condition=[<($1, 100)])
+         +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithUncorrelatedAndCorrelatedOnWhere2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a <> r.d) AND NOT EXISTS (SELECT * FROM t WHERE j < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalFilter(condition=[<>($cor0.a, $0)])
+  LogicalTableScan(table=[[builtin, default, r]])
+})), NOT(EXISTS({
+LogicalFilter(condition=[<($1, 100)])
+  LogicalTableScan(table=[[builtin, default, t]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[$3], joinType=[inner], isAnti=[true])
+   :- SemiJoin(condition=[<>($0, $3)], joinType=[inner], isAnti=[true])
+   :  :- LogicalTableScan(table=[[builtin, default, l]])
+   :  +- LogicalProject(d=[$0])
+   :     +- LogicalFilter(condition=[true])
+   :        +- LogicalTableScan(table=[[builtin, default, r]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalFilter(condition=[<($1, 100)])
+               +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithUncorrelatedAndCorrelatedOnWhere2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a <> r.d) AND NOT EXISTS (SELECT * FROM t WHERE j < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalFilter(condition=[<>($cor0.a, $0)])
+  LogicalTableScan(table=[[builtin, default, r]])
+})), NOT(EXISTS({
+LogicalFilter(condition=[<($1, 100)])
+  LogicalTableScan(table=[[builtin, default, t]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[$3], joinType=[inner], isAnti=[true])
+   :- SemiJoin(condition=[<>($0, $3)], joinType=[inner], isAnti=[true])
+   :  :- LogicalTableScan(table=[[builtin, default, l]])
+   :  +- LogicalProject(d=[$0])
+   :     +- LogicalFilter(condition=[true])
+   :        +- LogicalTableScan(table=[[builtin, default, r]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalFilter(condition=[<($1, 100)])
+               +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithUncorrelatedAndCorrelatedOnWhere3[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE NOT EXISTS (SELECT * FROM t) AND l.a = r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalTableScan(table=[[builtin, default, t]])
+})), =($cor0.a, $0))])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- SemiJoin(condition=[$3], joinType=[inner], isAnti=[true])
+         :- LogicalTableScan(table=[[builtin, default, r]])
+         +- LogicalProject($f0=[IS NOT NULL($0)])
+            +- LogicalAggregate(group=[{}], m=[MIN($0)])
+               +- LogicalProject(i=[true])
+                  +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithUncorrelatedAndCorrelatedOnWhere3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE NOT EXISTS (SELECT * FROM t) AND l.a = r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalTableScan(table=[[builtin, default, t]])
+})), =($cor0.a, $0))])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- SemiJoin(condition=[$3], joinType=[inner], isAnti=[true])
+         :- LogicalTableScan(table=[[builtin, default, r]])
+         +- LogicalProject($f0=[IS NOT NULL($0)])
+            +- LogicalAggregate(group=[{}], m=[MIN($0)])
+               +- LogicalProject(i=[true])
+                  +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithUncorrelatedAndCorrelatedOnWhere4[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE NOT EXISTS (SELECT * FROM t WHERE r.d = t.i))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.d, $0)])
+  LogicalTableScan(table=[[builtin, default, t]])
+}))], variablesSet=[[$cor0]])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[$3], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+               :- LogicalTableScan(table=[[builtin, default, r]])
+               +- LogicalProject(i=[$0])
+                  +- LogicalFilter(condition=[true])
+                     +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithUncorrelatedAndCorrelatedOnWhere4[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE NOT EXISTS (SELECT * FROM t WHERE r.d = t.i))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.d, $0)])
+  LogicalTableScan(table=[[builtin, default, t]])
+}))], variablesSet=[[$cor0]])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[$3], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+               :- LogicalTableScan(table=[[builtin, default, r]])
+               +- LogicalProject(i=[$0])
+                  +- LogicalFilter(condition=[true])
+                     +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithUncorrelatedOnWhere_AND1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l, r WHERE l.a = r.c AND NOT EXISTS (SELECT * FROM t t1 WHERE t1.e > 50) AND b >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE t2.f < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
++- LogicalFilter(condition=[AND(=($0, $2), NOT(EXISTS({
+LogicalFilter(condition=[>($0, 50)])
+  LogicalTableScan(table=[[builtin, default, t]])
+})), >=($1, 1), NOT(EXISTS({
+LogicalFilter(condition=[<($1, 100)])
+  LogicalTableScan(table=[[builtin, default, t]])
+})))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
++- LogicalFilter(condition=[AND(=($0, $2), >=($1, 1))])
+   +- SemiJoin(condition=[$4], joinType=[inner], isAnti=[true])
+      :- SemiJoin(condition=[$4], joinType=[inner], isAnti=[true])
+      :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :  :  +- LogicalTableScan(table=[[builtin, default, r]])
+      :  +- LogicalProject($f0=[IS NOT NULL($0)])
+      :     +- LogicalAggregate(group=[{}], m=[MIN($0)])
+      :        +- LogicalProject(i=[true])
+      :           +- LogicalFilter(condition=[>($0, 50)])
+      :              +- LogicalTableScan(table=[[builtin, default, t]])
+      +- LogicalProject($f0=[IS NOT NULL($0)])
+         +- LogicalAggregate(group=[{}], m=[MIN($0)])
+            +- LogicalProject(i=[true])
+               +- LogicalFilter(condition=[<($1, 100)])
+                  +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithUncorrelatedOnWhere_AND1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l, r WHERE l.a = r.c AND NOT EXISTS (SELECT * FROM t t1 WHERE t1.e > 50) AND b >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE t2.f < 100)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
++- LogicalFilter(condition=[AND(=($0, $2), NOT(EXISTS({
+LogicalFilter(condition=[>($0, 50)])
+  LogicalTableScan(table=[[builtin, default, t]])
+})), >=($1, 1), NOT(EXISTS({
+LogicalFilter(condition=[<($1, 100)])
+  LogicalTableScan(table=[[builtin, default, t]])
+})))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
++- LogicalFilter(condition=[AND(=($0, $2), >=($1, 1))])
+   +- SemiJoin(condition=[$4], joinType=[inner], isAnti=[true])
+      :- SemiJoin(condition=[$4], joinType=[inner], isAnti=[true])
+      :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :  :  +- LogicalTableScan(table=[[builtin, default, r]])
+      :  +- LogicalProject($f0=[IS NOT NULL($0)])
+      :     +- LogicalAggregate(group=[{}], m=[MIN($0)])
+      :        +- LogicalProject(i=[true])
+      :           +- LogicalFilter(condition=[>($0, 50)])
+      :              +- LogicalTableScan(table=[[builtin, default, t]])
+      +- LogicalProject($f0=[IS NOT NULL($0)])
+         +- LogicalAggregate(group=[{}], m=[MIN($0)])
+            +- LogicalProject(i=[true])
+               +- LogicalFilter(condition=[<($1, 100)])
+                  +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnLateralTable[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE a = d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[=($cor1.a, $0)])
+  LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+    LogicalTableScan(table=[[builtin, default, r]])
+    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+}))], variablesSet=[[$cor1]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+            :- LogicalTableScan(table=[[builtin, default, r]])
+            +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnLateralTable[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE a = d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[=($cor1.a, $0)])
+  LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+    LogicalTableScan(table=[[builtin, default, r]])
+    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+}))], variablesSet=[[$cor1]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+            :- LogicalTableScan(table=[[builtin, default, r]])
+            +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnWhere1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE a = c)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnWhere1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE a = c)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnWhere2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE a = c) AND l.a > 2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[builtin, default, r]])
+})), >($0, 2))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($0, 2)])
+   +- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[true])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(c=[$0])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnWhere2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE a = c) AND l.a > 2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[builtin, default, r]])
+})), >($0, 2))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($0, 2)])
+   +- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[true])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(c=[$0])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnWhere3[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT 1, c + d, c + 2, d FROM r WHERE a = c)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnWhere3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT 1, c + d, c + 2, d FROM r WHERE a = c)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnWhere4[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a = c and l.b > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), >($cor0.b, 10))])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- SemiJoin(condition=[AND(=($0, $3), $2)], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], $f2=[>($1, 10)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(c=[$0])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnWhere4[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a = c and l.b > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), >($cor0.b, 10))])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- SemiJoin(condition=[AND(=($0, $3), $2)], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], $f2=[>($1, 10)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(c=[$0])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnWhere5[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT l1.a FROM l l1, r WHERE l1.b = r.d AND l1.a < 10 AND r.c < 15  AND NOT EXISTS (SELECT * FROM l l2 WHERE l1.b = l2.b)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[AND(=($1, $3), <($0, 10), <($2, 15), NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.b, $1)])
+  LogicalTableScan(table=[[builtin, default, l]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[AND(=($1, $3), <($0, 10), <($2, 15))])
+   +- SemiJoin(condition=[=($1, $4)], joinType=[inner], isAnti=[true])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :  +- LogicalTableScan(table=[[builtin, default, r]])
+      +- LogicalProject(b=[$1])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnWhere5[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT l1.a FROM l l1, r WHERE l1.b = r.d AND l1.a < 10 AND r.c < 15  AND NOT EXISTS (SELECT * FROM l l2 WHERE l1.b = l2.b)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[AND(=($1, $3), <($0, 10), <($2, 15), NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.b, $1)])
+  LogicalTableScan(table=[[builtin, default, l]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[AND(=($1, $3), <($0, 10), <($2, 15))])
+   +- SemiJoin(condition=[=($1, $4)], joinType=[inner], isAnti=[true])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :  +- LogicalTableScan(table=[[builtin, default, r]])
+      +- LogicalProject(b=[$1])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnWhere6[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a < r.c)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[<($cor0.a, $0)])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[<($0, $2)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnWhere6[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a < r.c)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[<($cor0.a, $0)])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[<($0, $2)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnWhere7[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (NOT EXISTS (SELECT d FROM r WHERE r.d = l.b)) IS TRUE]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[IS TRUE(NOT(EXISTS({
+LogicalFilter(condition=[=($1, $cor0.b)])
+  LogicalTableScan(table=[[builtin, default, r]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[=($2, $1)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnWhere7[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (NOT EXISTS (SELECT d FROM r WHERE r.d = l.b)) IS TRUE]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[IS TRUE(NOT(EXISTS({
+LogicalFilter(condition=[=($1, $cor0.b)])
+  LogicalTableScan(table=[[builtin, default, r]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[=($2, $1)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnWhere8[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE NOT EXISTS (SELECT l.a IS NULL FROM r WHERE r.d = l.b)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[=($1, $cor0.b)])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0])
++- SemiJoin(condition=[=($2, $1)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithCorrelatedOnWhere8[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE NOT EXISTS (SELECT l.a IS NULL FROM r WHERE r.d = l.b)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[=($1, $cor0.b)])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0])
++- SemiJoin(condition=[=($2, $1)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelatedOnLateralTable[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r, LATERAL TABLE(table_func(f)) AS T(f1))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+  LogicalTableScan(table=[[builtin, default, r]])
+  LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[$3], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+               :- LogicalTableScan(table=[[builtin, default, r]])
+               +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelatedOnLateralTable[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r, LATERAL TABLE(table_func(f)) AS T(f1))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+  LogicalTableScan(table=[[builtin, default, r]])
+  LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[$3], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+               :- LogicalTableScan(table=[[builtin, default, r]])
+               +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelatedOnWhere1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[$2], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelatedOnWhere1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[$2], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelatedOnWhere2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r where c > 0) AND a < 100]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalFilter(condition=[>($0, 0)])
+  LogicalTableScan(table=[[builtin, default, r]])
+})), <($0, 100))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[<($0, 100)])
+   +- SemiJoin(condition=[$2], joinType=[inner], isAnti=[true])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject($f0=[IS NOT NULL($0)])
+         +- LogicalAggregate(group=[{}], m=[MIN($0)])
+            +- LogicalProject(i=[true])
+               +- LogicalFilter(condition=[>($0, 0)])
+                  +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelatedOnWhere2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r where c > 0) AND a < 100]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalFilter(condition=[>($0, 0)])
+  LogicalTableScan(table=[[builtin, default, r]])
+})), <($0, 100))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[<($0, 100)])
+   +- SemiJoin(condition=[$2], joinType=[inner], isAnti=[true])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject($f0=[IS NOT NULL($0)])
+         +- LogicalAggregate(group=[{}], m=[MIN($0)])
+            +- LogicalProject(i=[true])
+               +- LogicalFilter(condition=[>($0, 0)])
+                  +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelatedOnWhere3[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT (NOT (NOT EXISTS (SELECT * FROM r))) AND l.b = 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[AND(NOT(NOT(NOT(EXISTS({
+LogicalTableScan(table=[[builtin, default, r]])
+})))), =($1, 10))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[=($1, 10)])
+   +- SemiJoin(condition=[$2], joinType=[inner], isAnti=[true])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject($f0=[IS NOT NULL($0)])
+         +- LogicalAggregate(group=[{}], m=[MIN($0)])
+            +- LogicalProject(i=[true])
+               +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelatedOnWhere3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT (NOT (NOT EXISTS (SELECT * FROM r))) AND l.b = 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[AND(NOT(NOT(NOT(EXISTS({
+LogicalTableScan(table=[[builtin, default, r]])
+})))), =($1, 10))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[=($1, 10)])
+   +- SemiJoin(condition=[$2], joinType=[inner], isAnti=[true])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject($f0=[IS NOT NULL($0)])
+         +- LogicalAggregate(group=[{}], m=[MIN($0)])
+            +- LogicalProject(i=[true])
+               +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelatedOnWhere5[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (NOT EXISTS (SELECT d FROM r)) IS TRUE]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[IS TRUE(NOT(EXISTS({
+LogicalTableScan(table=[[builtin, default, r]])
+})))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[$2], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelatedOnWhere5[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (NOT EXISTS (SELECT d FROM r)) IS TRUE]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[IS TRUE(NOT(EXISTS({
+LogicalTableScan(table=[[builtin, default, r]])
+})))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[$2], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelatedOnWhere6[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE NOT EXISTS (SELECT l.b IS NULL FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0])
++- SemiJoin(condition=[$2], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotExistsWithUncorrelatedOnWhere6[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE NOT EXISTS (SELECT l.b IS NULL FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0])
++- SemiJoin(condition=[$2], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject($f0=[IS NOT NULL($0)])
+      +- LogicalAggregate(group=[{}], m=[MIN($0)])
+         +- LogicalProject(i=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInNotExists1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a = r.d) AND a NOT IN (SELECT i FROM t1 WHERE l.b = t1.j)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[builtin, default, r]])
+})), NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, t1]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[inner], isAnti=[true])
+   :- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+   :  :- LogicalTableScan(table=[[builtin, default, l]])
+   :  +- LogicalProject(d=[$0])
+   :     +- LogicalFilter(condition=[true])
+   :        +- LogicalTableScan(table=[[builtin, default, r]])
+   +- LogicalProject(i=[$0], j=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, t1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInNotExists1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT EXISTS (SELECT * FROM r WHERE l.a = r.d) AND a NOT IN (SELECT i FROM t1 WHERE l.b = t1.j)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[builtin, default, r]])
+})), NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, t1]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[AND(OR(=($0, $3), IS NULL(=($0, $3))), =($1, $4))], joinType=[inner], isAnti=[true])
+   :- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+   :  :- LogicalTableScan(table=[[builtin, default, l]])
+   :  +- LogicalProject(d=[$0])
+   :     +- LogicalFilter(condition=[true])
+   :        +- LogicalTableScan(table=[[builtin, default, r]])
+   +- LogicalProject(i=[$0], j=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, t1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInNotExists2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b NOT IN (SELECT j FROM t1)  AND NOT EXISTS (SELECT * FROM r WHERE l.a = r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(NOT(IN($1, {
+LogicalProject(j=[$1])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[builtin, default, r]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+   :- SemiJoin(condition=[=($1, $3)], joinType=[inner], isAnti=[true])
+   :  :- LogicalTableScan(table=[[builtin, default, l]])
+   :  +- LogicalProject(j=[$1])
+   :     +- LogicalTableScan(table=[[builtin, default, t1]])
+   +- LogicalProject(d=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInNotExists2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b NOT IN (SELECT j FROM t1)  AND NOT EXISTS (SELECT * FROM r WHERE l.a = r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(NOT(IN($1, {
+LogicalProject(j=[$1])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[builtin, default, r]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+   :- SemiJoin(condition=[OR(=($1, $3), IS NULL(=($1, $3)))], joinType=[inner], isAnti=[true])
+   :  :- LogicalTableScan(table=[[builtin, default, l]])
+   :  +- LogicalProject(j=[$1])
+   :     +- LogicalTableScan(table=[[builtin, default, t1]])
+   +- LogicalProject(d=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnLateralTable[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE c NOT IN (SELECT f1 FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE a = d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($2, {
+LogicalProject(f1=[$3])
+  LogicalFilter(condition=[=($cor1.a, $0)])
+    LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+      LogicalTableScan(table=[[builtin, default, r]])
+      LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+}))], variablesSet=[[$cor1]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[AND(OR(=($2, $3), IS NULL(=($2, $3))), =($0, $4))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(f1=[$3], d=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+            :- LogicalTableScan(table=[[builtin, default, r]])
+            +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnLateralTable[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE c NOT IN (SELECT f1 FROM r, LATERAL TABLE(table_func(f)) AS T(f1) WHERE a = d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($2, {
+LogicalProject(f1=[$3])
+  LogicalFilter(condition=[=($cor1.a, $0)])
+    LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+      LogicalTableScan(table=[[builtin, default, r]])
+      LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+}))], variablesSet=[[$cor1]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[AND(OR(=($2, $3), IS NULL(=($2, $3))), =($0, $4))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(f1=[$3], d=[$0])
+      +- LogicalFilter(condition=[true])
+         +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+            :- LogicalTableScan(table=[[builtin, default, r]])
+            +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c FROM r where l.b = r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[AND(=($0, $2), =($1, $3))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0], d=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c FROM r where l.b = r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[AND(OR(=($0, $2), IS NULL(=($0, $2))), =($1, $3))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0], d=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b > 1 AND a NOT IN (SELECT c FROM r WHERE l.b = r.d AND r.c > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[AND(>($1, 1), NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[AND(=($cor0.b, $1), >($0, 10))])
+    LogicalTableScan(table=[[builtin, default, r]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($1, 1)])
+   +- SemiJoin(condition=[AND(=($0, $2), =($1, $3))], joinType=[inner], isAnti=[true])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(c=[$0], d=[$1])
+         +- LogicalFilter(condition=[>($0, 10)])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b > 1 AND a NOT IN (SELECT c FROM r WHERE l.b = r.d AND r.c > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[AND(>($1, 1), NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[AND(=($cor0.b, $1), >($0, 10))])
+    LogicalTableScan(table=[[builtin, default, r]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($1, 1)])
+   +- SemiJoin(condition=[AND(OR(=($0, $2), IS NULL(=($0, $2))), =($1, $3))], joinType=[inner], isAnti=[true])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(c=[$0], d=[$1])
+         +- LogicalFilter(condition=[>($0, 10)])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere3[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b > 1 AND a + 1 NOT IN (SELECT c FROM r WHERE l.b = r.d AND r.c > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[AND(>($1, 1), NOT(IN(+($0, 1), {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[AND(=($cor0.b, $1), >($0, 10))])
+    LogicalTableScan(table=[[builtin, default, r]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalFilter(condition=[>($1, 1)])
+      +- SemiJoin(condition=[AND(=($2, $3), =($1, $4))], joinType=[inner], isAnti=[true])
+         :- LogicalProject(a=[$0], b=[$1], $f2=[+($0, 1)])
+         :  +- LogicalTableScan(table=[[builtin, default, l]])
+         +- LogicalProject(c=[$0], d=[$1])
+            +- LogicalFilter(condition=[>($0, 10)])
+               +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b > 1 AND a + 1 NOT IN (SELECT c FROM r WHERE l.b = r.d AND r.c > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[AND(>($1, 1), NOT(IN(+($0, 1), {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[AND(=($cor0.b, $1), >($0, 10))])
+    LogicalTableScan(table=[[builtin, default, r]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalFilter(condition=[>($1, 1)])
+      +- SemiJoin(condition=[AND(OR(=($2, $3), IS NULL(=($2, $3))), =($1, $4))], joinType=[inner], isAnti=[true])
+         :- LogicalProject(a=[$0], b=[$1], $f2=[+($0, 1)])
+         :  +- LogicalTableScan(table=[[builtin, default, l]])
+         +- LogicalProject(c=[$0], d=[$1])
+            +- LogicalFilter(condition=[>($0, 10)])
+               +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere4[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c1 FROM (SELECT d * 2 as d1, c + 1 as c1 FROM r) r1 WHERE l.b = r1.d1 AND d1 > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c1=[$1])
+  LogicalFilter(condition=[AND(=($cor0.b, $0), >($0, 10))])
+    LogicalProject(d1=[*($1, 2)], c1=[+($0, 1)])
+      LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[AND(=($0, $2), =($1, $3))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c1=[$1], d1=[$0])
+      +- LogicalFilter(condition=[>($0, 10)])
+         +- LogicalProject(d1=[*($1, 2)], c1=[+($0, 1)])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere4[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c1 FROM (SELECT d * 2 as d1, c + 1 as c1 FROM r) r1 WHERE l.b = r1.d1 AND d1 > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c1=[$1])
+  LogicalFilter(condition=[AND(=($cor0.b, $0), >($0, 10))])
+    LogicalProject(d1=[*($1, 2)], c1=[+($0, 1)])
+      LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[AND(OR(=($0, $2), IS NULL(=($0, $2))), =($1, $3))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c1=[$1], d1=[$0])
+      +- LogicalFilter(condition=[>($0, 10)])
+         +- LogicalProject(d1=[*($1, 2)], c1=[+($0, 1)])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere5[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c FROM r WHERE l.b > r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[>($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[AND(=($0, $2), >($1, $3))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0], d=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere5[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c FROM r WHERE l.b > r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[>($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[AND(OR(=($0, $2), IS NULL(=($0, $2))), >($1, $3))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0], d=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere6[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c FROM r WHERE l.b > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[>($cor0.b, 10)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- SemiJoin(condition=[AND(=($0, $3), $2)], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], $f2=[>($1, 10)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(c=[$0])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere6[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c FROM r WHERE l.b > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[>($cor0.b, 10)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- SemiJoin(condition=[AND(OR(=($0, $3), IS NULL(=($0, $3))), $2)], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], $f2=[>($1, 10)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(c=[$0])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_Case1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a > 10 THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r WHERE l.a = r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(>($0, 10), 1, 2), {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.a, $0)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(=($3, $4), =($0, $4))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(>($0, 10), 1, 2)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$0])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_Case1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a > 10 THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r WHERE l.a = r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(>($0, 10), 1, 2), {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.a, $0)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(OR(=($3, $4), IS NULL(=($3, $4))), =($0, $4))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(>($0, 10), 1, 2)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$0])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_Case2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a IN (SELECT 1 FROM t1) THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r WHERE l.c = r.f)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(IN($0, {
+LogicalProject(EXPR$0=[1])
+  LogicalTableScan(table=[[builtin, default, t1]])
+}), 1, 2), {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.c, $2)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(=($3, $4), =($2, $5))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(CASE(IS NOT NULL($4), true, false), 1, 2)])
+      :  +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :     :- LogicalTableScan(table=[[builtin, default, l]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(EXPR$0=[$0], i=[true])
+      :           +- LogicalProject(EXPR$0=[1])
+      :              +- LogicalTableScan(table=[[builtin, default, t1]])
+      +- LogicalProject(d=[$0], f=[$2])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_Case2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a IN (SELECT 1 FROM t1) THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r WHERE l.c = r.f)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(IN($0, {
+LogicalProject(EXPR$0=[1])
+  LogicalTableScan(table=[[builtin, default, t1]])
+}), 1, 2), {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.c, $2)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(OR(=($3, $4), IS NULL(=($3, $4))), =($2, $5))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(CASE(=($3, 0), false, IS NULL($0), null, IS NOT NULL($6), true, <($4, $3), null, false), 1, 2)])
+      :  +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :     :- LogicalJoin(condition=[true], joinType=[inner])
+      :     :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :     :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
+      :     :     +- LogicalProject(EXPR$0=[1])
+      :     :        +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(EXPR$0=[$0], i=[true])
+      :           +- LogicalProject(EXPR$0=[1])
+      :              +- LogicalTableScan(table=[[builtin, default, t1]])
+      +- LogicalProject(d=[$0], f=[$2])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_Case3[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r WHERE l.c = r.f)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), 1, 2), {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.c, $2)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(=($3, $4), =($2, $5))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(NOT(CASE(IS NOT NULL($4), true, false)), 1, 2)])
+      :  +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :     :- LogicalTableScan(table=[[builtin, default, l]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(i=[$0], i0=[true])
+      :           +- LogicalProject(i=[$0])
+      :              +- LogicalTableScan(table=[[builtin, default, t1]])
+      +- LogicalProject(d=[$0], f=[$2])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_Case3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r WHERE l.c = r.f)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), 1, 2), {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.c, $2)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(OR(=($3, $4), IS NULL(=($3, $4))), =($2, $5))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(NOT(CASE(=($3, 0), false, IS NULL($0), null, IS NOT NULL($6), true, <($4, $3), null, false)), 1, 2)])
+      :  +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :     :- LogicalJoin(condition=[true], joinType=[inner])
+      :     :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :     :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
+      :     :     +- LogicalProject(i=[$0])
+      :     :        +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(i=[$0], i0=[true])
+      :           +- LogicalProject(i=[$0])
+      :              +- LogicalTableScan(table=[[builtin, default, t1]])
+      +- LogicalProject(d=[$0], f=[$2])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_Case4[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 WHEN a NOT IN (SELECT j FROM t2) THEN 2 ELSE 3 END) NOT IN (SELECT d FROM r WHERE l.c = r.f)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), 1, NOT(IN($0, {
+LogicalProject(j=[$0])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})), 2, 3), {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.c, $2)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(=($3, $4), =($2, $5))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(NOT(CASE(IS NOT NULL($4), true, false)), 1, NOT(CASE(IS NOT NULL($6), true, false)), 2, 3)])
+      :  +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :     :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :     :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :     :  +- LogicalAggregate(group=[{0, 1}])
+      :     :     +- LogicalProject(i=[$0], i0=[true])
+      :     :        +- LogicalProject(i=[$0])
+      :     :           +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(j=[$0], i=[true])
+      :           +- LogicalProject(j=[$0])
+      :              +- LogicalTableScan(table=[[builtin, default, t2]])
+      +- LogicalProject(d=[$0], f=[$2])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_Case4[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 WHEN a NOT IN (SELECT j FROM t2) THEN 2 ELSE 3 END) NOT IN (SELECT d FROM r WHERE l.c = r.f)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), 1, NOT(IN($0, {
+LogicalProject(j=[$0])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})), 2, 3), {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.c, $2)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(OR(=($3, $4), IS NULL(=($3, $4))), =($2, $5))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(NOT(CASE(=($3, 0), false, IS NULL($0), null, IS NOT NULL($6), true, <($4, $3), null, false)), 1, NOT(CASE(=($7, 0), false, IS NULL($0), null, IS NOT NULL($10), true, <($8, $7), null, false)), 2, 3)])
+      :  +- LogicalJoin(condition=[=($0, $9)], joinType=[left])
+      :     :- LogicalJoin(condition=[true], joinType=[inner])
+      :     :  :- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :     :  :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :     :  :  :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :     :  :  :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
+      :     :  :  :     +- LogicalProject(i=[$0])
+      :     :  :  :        +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     :  :  +- LogicalAggregate(group=[{0, 1}])
+      :     :  :     +- LogicalProject(i=[$0], i0=[true])
+      :     :  :        +- LogicalProject(i=[$0])
+      :     :  :           +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
+      :     :     +- LogicalProject(j=[$0])
+      :     :        +- LogicalTableScan(table=[[builtin, default, t2]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(j=[$0], i=[true])
+      :           +- LogicalProject(j=[$0])
+      :              +- LogicalTableScan(table=[[builtin, default, t2]])
+      +- LogicalProject(d=[$0], f=[$2])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_Case5[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (b, (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 WHEN a NOT IN (SELECT j FROM t2) THEN 2 ELSE 3 END)) NOT IN (SELECT e, d FROM r WHERE l.c = r.f)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN($1, CASE(NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), 1, NOT(IN($0, {
+LogicalProject(j=[$0])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})), 2, 3), {
+LogicalProject(e=[$1], d=[$0])
+  LogicalFilter(condition=[=($cor0.c, $2)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(=($1, $4), =($3, $5), =($2, $6))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(NOT(CASE(IS NOT NULL($4), true, false)), 1, NOT(CASE(IS NOT NULL($6), true, false)), 2, 3)])
+      :  +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :     :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :     :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :     :  +- LogicalAggregate(group=[{0, 1}])
+      :     :     +- LogicalProject(i=[$0], i0=[true])
+      :     :        +- LogicalProject(i=[$0])
+      :     :           +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(j=[$0], i=[true])
+      :           +- LogicalProject(j=[$0])
+      :              +- LogicalTableScan(table=[[builtin, default, t2]])
+      +- LogicalProject(e=[$1], d=[$0], f=[$2])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_Case5[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (b, (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 WHEN a NOT IN (SELECT j FROM t2) THEN 2 ELSE 3 END)) NOT IN (SELECT e, d FROM r WHERE l.c = r.f)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN($1, CASE(NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), 1, NOT(IN($0, {
+LogicalProject(j=[$0])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})), 2, 3), {
+LogicalProject(e=[$1], d=[$0])
+  LogicalFilter(condition=[=($cor0.c, $2)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(OR(=($1, $4), IS NULL(=($1, $4))), OR(=($3, $5), IS NULL(=($3, $5))), =($2, $6))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(NOT(CASE(=($3, 0), false, IS NULL($0), null, IS NOT NULL($6), true, <($4, $3), null, false)), 1, NOT(CASE(=($7, 0), false, IS NULL($0), null, IS NOT NULL($10), true, <($8, $7), null, false)), 2, 3)])
+      :  +- LogicalJoin(condition=[=($0, $9)], joinType=[left])
+      :     :- LogicalJoin(condition=[true], joinType=[inner])
+      :     :  :- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :     :  :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :     :  :  :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :     :  :  :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
+      :     :  :  :     +- LogicalProject(i=[$0])
+      :     :  :  :        +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     :  :  +- LogicalAggregate(group=[{0, 1}])
+      :     :  :     +- LogicalProject(i=[$0], i0=[true])
+      :     :  :        +- LogicalProject(i=[$0])
+      :     :  :           +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
+      :     :     +- LogicalProject(j=[$0])
+      :     :        +- LogicalTableScan(table=[[builtin, default, t2]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(j=[$0], i=[true])
+      :           +- LogicalProject(j=[$0])
+      :              +- LogicalTableScan(table=[[builtin, default, t2]])
+      +- LogicalProject(e=[$1], d=[$0], f=[$2])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_ComplexCondition1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT CAST(e AS INTEGER) FROM r where CAST(l.b AS INTEGER) = CAST(r.d AS INTEGER))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(EXPR$0=[CAST($1):INTEGER NOT NULL])
+  LogicalFilter(condition=[=(CAST($cor0.b):INTEGER NOT NULL, CAST($0):INTEGER NOT NULL)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(=($0, $4), =($3, $6))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], b0=[CAST($1):INTEGER NOT NULL])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(EXPR$0=[$0], d=[$1], d0=[CAST($1):INTEGER NOT NULL])
+         +- LogicalProject(EXPR$0=[CAST($1):INTEGER NOT NULL], d=[$0])
+            +- LogicalFilter(condition=[true])
+               +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_ComplexCondition1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT CAST(e AS INTEGER) FROM r where CAST(l.b AS INTEGER) = CAST(r.d AS INTEGER))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(EXPR$0=[CAST($1):INTEGER])
+  LogicalFilter(condition=[=(CAST($cor0.b):INTEGER, CAST($0):INTEGER)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(OR(=($0, $4), IS NULL(=($0, $4))), =($3, $6))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], b0=[CAST($1):INTEGER])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(EXPR$0=[$0], d=[$1], d0=[CAST($1):INTEGER])
+         +- LogicalProject(EXPR$0=[CAST($1):INTEGER], d=[$0])
+            +- LogicalFilter(condition=[true])
+               +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_ComplexCondition2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT a + 10, c FROM l WHERE a + 10 NOT IN (SELECT d + 1 FROM r WHERE l.b + 1 = r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
++- LogicalFilter(condition=[NOT(IN(+($0, 10), {
+LogicalProject(EXPR$0=[+($0, 1)])
+  LogicalFilter(condition=[=(+($cor0.b, 1), $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$3])
+      +- SemiJoin(condition=[AND(=($3, $5), =($4, $6))], joinType=[inner], isAnti=[true])
+         :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$3], $f4=[+($1, 1)])
+         :  +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($0, 10)])
+         :     +- LogicalTableScan(table=[[builtin, default, l]])
+         +- LogicalProject(EXPR$0=[+($0, 1)], e=[$1])
+            +- LogicalFilter(condition=[true])
+               +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_ComplexCondition2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT a + 10, c FROM l WHERE a + 10 NOT IN (SELECT d + 1 FROM r WHERE l.b + 1 = r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
++- LogicalFilter(condition=[NOT(IN(+($0, 10), {
+LogicalProject(EXPR$0=[+($0, 1)])
+  LogicalFilter(condition=[=(+($cor0.b, 1), $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$3])
+      +- SemiJoin(condition=[AND(OR(=($3, $5), IS NULL(=($3, $5))), =($4, $6))], joinType=[inner], isAnti=[true])
+         :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$3], $f4=[+($1, 1)])
+         :  +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($0, 10)])
+         :     +- LogicalTableScan(table=[[builtin, default, l]])
+         +- LogicalProject(EXPR$0=[+($0, 1)], e=[$1])
+            +- LogicalFilter(condition=[true])
+               +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_ComplexCondition3[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE c NOT IN (SELECT TRIM(f) FROM r where l.a = r.d + 1)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($2, {
+LogicalProject(EXPR$0=[TRIM(FLAG(BOTH), ' ', $2)])
+  LogicalFilter(condition=[=($cor0.a, +($0, 1))])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[AND(=($2, $3), =($0, $5))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(EXPR$0=[$0], d=[$1], $f2=[+($1, 1)])
+      +- LogicalProject(EXPR$0=[TRIM(FLAG(BOTH), ' ', $2)], d=[$0])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_ComplexCondition3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE c NOT IN (SELECT TRIM(f) FROM r where l.a = r.d + 1)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($2, {
+LogicalProject(EXPR$0=[TRIM(FLAG(BOTH), ' ', $2)])
+  LogicalFilter(condition=[=($cor0.a, +($0, 1))])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[AND(OR(=($2, $3), IS NULL(=($2, $3))), =($0, $5))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(EXPR$0=[$0], d=[$1], $f2=[+($1, 1)])
+      +- LogicalProject(EXPR$0=[TRIM(FLAG(BOTH), ' ', $2)], d=[$0])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_ComplexCondition5[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b > 10 AND (c like 'abc' AND a NOT IN (SELECT d FROM r where l.b = r.e))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(>($1, 10), LIKE($2, 'abc'), NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(>($1, 10), LIKE($2, 'abc'))])
+   +- SemiJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[inner], isAnti=[true])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$0], e=[$1])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_ComplexCondition5[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b > 10 AND (c like 'abc' AND a NOT IN (SELECT d FROM r where l.b = r.e))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(>($1, 10), LIKE($2, 'abc'), NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(>($1, 10), LIKE($2, 'abc'))])
+   +- SemiJoin(condition=[AND(OR(=($0, $3), IS NULL(=($0, $3))), =($1, $4))], joinType=[inner], isAnti=[true])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$0], e=[$1])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_ComplexCondition6[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b NOT IN (SELECT e * 5 FROM (SELECT SUM(e) AS e FROM r WHERE l.a = r.d) r1)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($1, {
+LogicalProject(EXPR$0=[*($0, 5)])
+  LogicalAggregate(group=[{}], e=[SUM($0)])
+    LogicalProject(e=[$1])
+      LogicalFilter(condition=[=($cor0.a, $0)])
+        LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[AND(OR(=($1, $3), IS NULL(=($1, $3))), =($0, $4))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(EXPR$0=[*($1, 5)], d=[$0])
+      +- LogicalAggregate(group=[{0}], e=[SUM($1)])
+         +- LogicalProject(d=[$1], e=[$0])
+            +- LogicalProject(e=[$1], d=[$0])
+               +- LogicalFilter(condition=[true])
+                  +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_ComplexCondition6[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b NOT IN (SELECT e * 5 FROM (SELECT SUM(e) AS e FROM r WHERE l.a = r.d) r1)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($1, {
+LogicalProject(EXPR$0=[*($0, 5)])
+  LogicalAggregate(group=[{}], e=[SUM($0)])
+    LogicalProject(e=[$1])
+      LogicalFilter(condition=[=($cor0.a, $0)])
+        LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[AND(OR(=($1, $3), IS NULL(=($1, $3))), =($0, $4))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(EXPR$0=[*($1, 5)], d=[$0])
+      +- LogicalAggregate(group=[{0}], e=[SUM($1)])
+         +- LogicalProject(d=[$1], e=[$0])
+            +- LogicalProject(e=[$1], d=[$0])
+               +- LogicalFilter(condition=[true])
+                  +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_MultiFields1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a, c) NOT IN (SELECT d, f FROM r WHERE l.b = r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, $2, {
+LogicalProject(d=[$0], f=[$2])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[AND(=($0, $3), =($2, $4), =($1, $5))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0], f=[$2], e=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_MultiFields1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a, c) NOT IN (SELECT d, f FROM r WHERE l.b = r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, $2, {
+LogicalProject(d=[$0], f=[$2])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[AND(OR(=($0, $3), IS NULL(=($0, $3))), OR(=($2, $4), IS NULL(=($2, $4))), =($1, $5))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0], f=[$2], e=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_MultiFields2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a, SUBSTRING(c, 1, 5)) NOT IN (SELECT d, TRIM(f) FROM r WHERE l.b = r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, SUBSTRING($2, 1, 5), {
+LogicalProject(d=[$0], EXPR$1=[TRIM(FLAG(BOTH), ' ', $2)])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(=($0, $4), OR(=($3, $5), IS NULL(=($3, $5))), =($1, $6))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[SUBSTRING($2, 1, 5)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$0], EXPR$1=[TRIM(FLAG(BOTH), ' ', $2)], e=[$1])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_MultiFields2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a, SUBSTRING(c, 1, 5)) NOT IN (SELECT d, TRIM(f) FROM r WHERE l.b = r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, SUBSTRING($2, 1, 5), {
+LogicalProject(d=[$0], EXPR$1=[TRIM(FLAG(BOTH), ' ', $2)])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(OR(=($0, $4), IS NULL(=($0, $4))), OR(=($3, $5), IS NULL(=($3, $5))), =($1, $6))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[SUBSTRING($2, 1, 5)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$0], EXPR$1=[TRIM(FLAG(BOTH), ' ', $2)], e=[$1])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_MultiFields3[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a + 10, SUBSTRING(c, 1, 5)) NOT IN (SELECT d + 100, TRIM(f) FROM r WHERE l.b = r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN(+($0, 10), SUBSTRING($2, 1, 5), {
+LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[TRIM(FLAG(BOTH), ' ', $2)])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(=($3, $5), OR(=($4, $6), IS NULL(=($4, $6))), =($1, $7))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($0, 10)], $f4=[SUBSTRING($2, 1, 5)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[TRIM(FLAG(BOTH), ' ', $2)], e=[$1])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithCorrelatedOnWhere_MultiFields3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a + 10, SUBSTRING(c, 1, 5)) NOT IN (SELECT d + 100, TRIM(f) FROM r WHERE l.b = r.e)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN(+($0, 10), SUBSTRING($2, 1, 5), {
+LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[TRIM(FLAG(BOTH), ' ', $2)])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(OR(=($3, $5), IS NULL(=($3, $5))), OR(=($4, $6), IS NULL(=($4, $6))), =($1, $7))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($0, 10)], $f4=[SUBSTRING($2, 1, 5)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[TRIM(FLAG(BOTH), ' ', $2)], e=[$1])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedAndCorrelatedOnWhere1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE a NOT IN (SELECT c FROM r WHERE l.b = r.d) AND b NOT IN (SELECT f FROM t)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[AND(NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+})), NOT(IN($1, {
+LogicalProject(f=[$1])
+  LogicalTableScan(table=[[builtin, default, t]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0])
++- SemiJoin(condition=[=($1, $2)], joinType=[inner], isAnti=[true])
+   :- SemiJoin(condition=[AND(=($0, $2), =($1, $3))], joinType=[inner], isAnti=[true])
+   :  :- LogicalTableScan(table=[[builtin, default, l]])
+   :  +- LogicalProject(c=[$0], d=[$1])
+   :     +- LogicalFilter(condition=[true])
+   :        +- LogicalTableScan(table=[[builtin, default, r]])
+   +- LogicalProject(f=[$1])
+      +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedAndCorrelatedOnWhere1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE a NOT IN (SELECT c FROM r WHERE l.b = r.d) AND b NOT IN (SELECT f FROM t)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[AND(NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[=($cor0.b, $1)])
+    LogicalTableScan(table=[[builtin, default, r]])
+})), NOT(IN($1, {
+LogicalProject(f=[$1])
+  LogicalTableScan(table=[[builtin, default, t]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0])
++- SemiJoin(condition=[OR(=($1, $2), IS NULL(=($1, $2)))], joinType=[inner], isAnti=[true])
+   :- SemiJoin(condition=[AND(OR(=($0, $2), IS NULL(=($0, $2))), =($1, $3))], joinType=[inner], isAnti=[true])
+   :  :- LogicalTableScan(table=[[builtin, default, l]])
+   :  +- LogicalProject(c=[$0], d=[$1])
+   :     +- LogicalFilter(condition=[true])
+   :        +- LogicalTableScan(table=[[builtin, default, r]])
+   +- LogicalProject(f=[$1])
+      +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedAndCorrelatedOnWhere2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN ( SELECT c FROM r) AND b NOT IN (SELECT e FROM t WHERE t.f = l.b)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[AND(NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})), NOT(IN($1, {
+LogicalProject(e=[$0])
+  LogicalFilter(condition=[=($1, $cor0.b)])
+    LogicalTableScan(table=[[builtin, default, t]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[AND(=($1, $4), =($3, $1))], joinType=[inner], isAnti=[true])
+   :- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[true])
+   :  :- LogicalTableScan(table=[[builtin, default, l]])
+   :  +- LogicalProject(c=[$0])
+   :     +- LogicalTableScan(table=[[builtin, default, r]])
+   +- LogicalProject(e=[$0], f=[$1], e0=[CAST($0):BIGINT NOT NULL])
+      +- LogicalProject(e=[$0], f=[$1])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedAndCorrelatedOnWhere2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN ( SELECT c FROM r) AND b NOT IN (SELECT e FROM t WHERE t.f = l.b)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[AND(NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})), NOT(IN($1, {
+LogicalProject(e=[$0])
+  LogicalFilter(condition=[=($1, $cor0.b)])
+    LogicalTableScan(table=[[builtin, default, t]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[AND(OR(=($1, $2), IS NULL(=($1, $2))), =($3, $1))], joinType=[inner], isAnti=[true])
+   :- SemiJoin(condition=[OR(=($0, $2), IS NULL(=($0, $2)))], joinType=[inner], isAnti=[true])
+   :  :- LogicalTableScan(table=[[builtin, default, l]])
+   :  +- LogicalProject(c=[$0])
+   :     +- LogicalTableScan(table=[[builtin, default, r]])
+   +- LogicalProject(e=[$0], f=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedAndCorrelatedOnWhere3[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c FROM r WHERE d NOT IN (SELECT f FROM t) AND l.b = r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[AND(NOT(IN($1, {
+LogicalProject(f=[$1])
+  LogicalTableScan(table=[[builtin, default, t]])
+})), =($cor0.b, $1))])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[AND(=($0, $2), =($1, $3))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0], d=[$1])
+      +- SemiJoin(condition=[=($1, $2)], joinType=[inner], isAnti=[true])
+         :- LogicalTableScan(table=[[builtin, default, r]])
+         +- LogicalProject(f=[$1])
+            +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedAndCorrelatedOnWhere3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c FROM r WHERE d NOT IN (SELECT f FROM t) AND l.b = r.d)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[AND(NOT(IN($1, {
+LogicalProject(f=[$1])
+  LogicalTableScan(table=[[builtin, default, t]])
+})), =($cor0.b, $1))])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[AND(OR(=($0, $2), IS NULL(=($0, $2))), =($1, $3))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0], d=[$1])
+      +- SemiJoin(condition=[OR(=($1, $2), IS NULL(=($1, $2)))], joinType=[inner], isAnti=[true])
+         :- LogicalTableScan(table=[[builtin, default, r]])
+         +- LogicalProject(f=[$1])
+            +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedAndCorrelatedOnWhere4[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c FROM r WHERE d NOT IN (SELECT f FROM t WHERE t.e = r.c))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[NOT(IN($1, {
+LogicalProject(f=[$1])
+  LogicalFilter(condition=[=($0, $cor0.c)])
+    LogicalTableScan(table=[[builtin, default, t]])
+}))], variablesSet=[[$cor0]])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0])
+      +- SemiJoin(condition=[AND(=($1, $2), =($3, $0))], joinType=[inner], isAnti=[true])
+         :- LogicalTableScan(table=[[builtin, default, r]])
+         +- LogicalProject(f=[$1], e=[$0])
+            +- LogicalFilter(condition=[true])
+               +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedAndCorrelatedOnWhere4[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c FROM r WHERE d NOT IN (SELECT f FROM t WHERE t.e = r.c))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[NOT(IN($1, {
+LogicalProject(f=[$1])
+  LogicalFilter(condition=[=($0, $cor0.c)])
+    LogicalTableScan(table=[[builtin, default, t]])
+}))], variablesSet=[[$cor0]])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[OR(=($0, $2), IS NULL(=($0, $2)))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0])
+      +- SemiJoin(condition=[AND(OR(=($1, $2), IS NULL(=($1, $2))), =($3, $0))], joinType=[inner], isAnti=[true])
+         :- LogicalTableScan(table=[[builtin, default, r]])
+         +- LogicalProject(f=[$1], e=[$0])
+            +- LogicalFilter(condition=[true])
+               +- LogicalTableScan(table=[[builtin, default, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnLateralTable[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE c NOT IN (SELECT f1 FROM r, LATERAL TABLE(table_func(f)) AS T(f1))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($2, {
+LogicalProject(f1=[$3])
+  LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+    LogicalTableScan(table=[[builtin, default, r]])
+    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[OR(=($2, $3), IS NULL(=($2, $3)))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(f1=[$3])
+      +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+         :- LogicalTableScan(table=[[builtin, default, r]])
+         +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnLateralTable[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE c NOT IN (SELECT f1 FROM r, LATERAL TABLE(table_func(f)) AS T(f1))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($2, {
+LogicalProject(f1=[$3])
+  LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+    LogicalTableScan(table=[[builtin, default, r]])
+    LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[OR(=($2, $3), IS NULL(=($2, $3)))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(f1=[$3])
+      +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+         :- LogicalTableScan(table=[[builtin, default, r]])
+         +- LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[OR(=($0, $2), IS NULL(=($0, $2)))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c FROM r WHERE d < 100) AND b > 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[AND(NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[<($1, 100)])
+    LogicalTableScan(table=[[builtin, default, r]])
+})), >($1, 10))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($1, 10)])
+   +- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[true])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(c=[$0])
+         +- LogicalFilter(condition=[<($1, 100)])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c FROM r WHERE d < 100) AND b > 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[AND(NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[<($1, 100)])
+    LogicalTableScan(table=[[builtin, default, r]])
+})), >($1, 10))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($1, 10)])
+   +- SemiJoin(condition=[OR(=($0, $2), IS NULL(=($0, $2)))], joinType=[inner], isAnti=[true])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(c=[$0])
+         +- LogicalFilter(condition=[<($1, 100)])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere3[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a + 1 NOT IN (SELECT c FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN(+($0, 1), {
+LogicalProject(c=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- SemiJoin(condition=[=($2, $3)], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], $f2=[+($0, 1)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(c=[$0])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a + 1 NOT IN (SELECT c FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN(+($0, 1), {
+LogicalProject(c=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- SemiJoin(condition=[OR(=($2, $3), IS NULL(=($2, $3)))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], $f2=[+($0, 1)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(c=[$0])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere4[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a * b NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN(*($0, $1), {
+LogicalProject(d=[$1])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- SemiJoin(condition=[=($2, $3)], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], $f2=[*($0, $1)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$1])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere4[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a * b NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN(*($0, $1), {
+LogicalProject(d=[$1])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- SemiJoin(condition=[OR(=($2, $3), IS NULL(=($2, $3)))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], $f2=[*($0, $1)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$1])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere5[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE CAST(a AS BIGINT) NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN(CAST($0):BIGINT NOT NULL, {
+LogicalProject(d=[$1])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- SemiJoin(condition=[=($2, $3)], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], a0=[CAST($0):BIGINT NOT NULL])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$1])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere5[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE CAST(a AS BIGINT) NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN(CAST($0):BIGINT, {
+LogicalProject(d=[$1])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- SemiJoin(condition=[OR(=($2, $3), IS NULL(=($2, $3)))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], a0=[CAST($0):BIGINT])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$1])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere6[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c FROM r WHERE c IS NOT NULL)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere6[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE a NOT IN (SELECT c FROM r WHERE c IS NOT NULL)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[IS NOT NULL($0)])
+    LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[OR(=($0, $2), IS NULL(=($0, $2)))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0])
+      +- LogicalFilter(condition=[IS NOT NULL($0)])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere7[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l l1 WHERE a NOT IN (SELECT a FROM l WHERE a < 3 GROUP BY a)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalAggregate(group=[{0}])
+  LogicalProject(a=[$0])
+    LogicalFilter(condition=[<($0, 3)])
+      LogicalTableScan(table=[[builtin, default, l]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0])
++- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalAggregate(group=[{0}])
+      +- LogicalProject(a=[$0])
+         +- LogicalFilter(condition=[<($0, 3)])
+            +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere7[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l l1 WHERE a NOT IN (SELECT a FROM l WHERE a < 3 GROUP BY a)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalAggregate(group=[{0}])
+  LogicalProject(a=[$0])
+    LogicalFilter(condition=[<($0, 3)])
+      LogicalTableScan(table=[[builtin, default, l]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0])
++- SemiJoin(condition=[OR(=($0, $2), IS NULL(=($0, $2)))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalAggregate(group=[{0}])
+      +- LogicalProject(a=[$0])
+         +- LogicalFilter(condition=[<($0, 3)])
+            +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_Case1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a > 10 THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(>($0, 10), 1, 2), {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[=($3, $4)], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(>($0, 10), 1, 2)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$0])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_Case1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a > 10 THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(>($0, 10), 1, 2), {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[OR(=($3, $4), IS NULL(=($3, $4)))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(>($0, 10), 1, 2)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$0])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_Case2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT 1 FROM t1) THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
+LogicalProject(EXPR$0=[1])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), 1, 2), {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[=($3, $4)], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(NOT(CASE(IS NOT NULL($4), true, false)), 1, 2)])
+      :  +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :     :- LogicalTableScan(table=[[builtin, default, l]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(EXPR$0=[$0], i=[true])
+      :           +- LogicalProject(EXPR$0=[1])
+      :              +- LogicalTableScan(table=[[builtin, default, t1]])
+      +- LogicalProject(d=[$0])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_Case2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT 1 FROM t1) THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
+LogicalProject(EXPR$0=[1])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), 1, 2), {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[OR(=($3, $4), IS NULL(=($3, $4)))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(NOT(CASE(=($3, 0), false, IS NULL($0), null, IS NOT NULL($6), true, <($4, $3), null, false)), 1, 2)])
+      :  +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :     :- LogicalJoin(condition=[true], joinType=[inner])
+      :     :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :     :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
+      :     :     +- LogicalProject(EXPR$0=[1])
+      :     :        +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(EXPR$0=[$0], i=[true])
+      :           +- LogicalProject(EXPR$0=[1])
+      :              +- LogicalTableScan(table=[[builtin, default, t1]])
+      +- LogicalProject(d=[$0])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_Case3[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), 1, 2), {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[=($3, $4)], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(NOT(CASE(IS NOT NULL($4), true, false)), 1, 2)])
+      :  +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :     :- LogicalTableScan(table=[[builtin, default, l]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(i=[$0], i0=[true])
+      :           +- LogicalProject(i=[$0])
+      :              +- LogicalTableScan(table=[[builtin, default, t1]])
+      +- LogicalProject(d=[$0])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_Case3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 ELSE 2 END) NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), 1, 2), {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[OR(=($3, $4), IS NULL(=($3, $4)))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(NOT(CASE(=($3, 0), false, IS NULL($0), null, IS NOT NULL($6), true, <($4, $3), null, false)), 1, 2)])
+      :  +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :     :- LogicalJoin(condition=[true], joinType=[inner])
+      :     :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :     :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
+      :     :     +- LogicalProject(i=[$0])
+      :     :        +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(i=[$0], i0=[true])
+      :           +- LogicalProject(i=[$0])
+      :              +- LogicalTableScan(table=[[builtin, default, t1]])
+      +- LogicalProject(d=[$0])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_Case4[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 WHEN a NOT IN (SELECT j FROM t2) THEN 2 ELSE 3 END) NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), 1, NOT(IN($0, {
+LogicalProject(j=[$0])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})), 2, 3), {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[=($3, $4)], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(NOT(CASE(IS NOT NULL($4), true, false)), 1, NOT(CASE(IS NOT NULL($6), true, false)), 2, 3)])
+      :  +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :     :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :     :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :     :  +- LogicalAggregate(group=[{0, 1}])
+      :     :     +- LogicalProject(i=[$0], i0=[true])
+      :     :        +- LogicalProject(i=[$0])
+      :     :           +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(j=[$0], i=[true])
+      :           +- LogicalProject(j=[$0])
+      :              +- LogicalTableScan(table=[[builtin, default, t2]])
+      +- LogicalProject(d=[$0])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_Case4[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 WHEN a NOT IN (SELECT j FROM t2) THEN 2 ELSE 3 END) NOT IN (SELECT d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), 1, NOT(IN($0, {
+LogicalProject(j=[$0])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})), 2, 3), {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[OR(=($3, $4), IS NULL(=($3, $4)))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(NOT(CASE(=($3, 0), false, IS NULL($0), null, IS NOT NULL($6), true, <($4, $3), null, false)), 1, NOT(CASE(=($7, 0), false, IS NULL($0), null, IS NOT NULL($10), true, <($8, $7), null, false)), 2, 3)])
+      :  +- LogicalJoin(condition=[=($0, $9)], joinType=[left])
+      :     :- LogicalJoin(condition=[true], joinType=[inner])
+      :     :  :- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :     :  :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :     :  :  :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :     :  :  :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
+      :     :  :  :     +- LogicalProject(i=[$0])
+      :     :  :  :        +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     :  :  +- LogicalAggregate(group=[{0, 1}])
+      :     :  :     +- LogicalProject(i=[$0], i0=[true])
+      :     :  :        +- LogicalProject(i=[$0])
+      :     :  :           +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
+      :     :     +- LogicalProject(j=[$0])
+      :     :        +- LogicalTableScan(table=[[builtin, default, t2]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(j=[$0], i=[true])
+      :           +- LogicalProject(j=[$0])
+      :              +- LogicalTableScan(table=[[builtin, default, t2]])
+      +- LogicalProject(d=[$0])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_Case5[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (b, (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 WHEN a NOT IN (SELECT j FROM t2) THEN 2 ELSE 3 END)) NOT IN (SELECT e, d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN($1, CASE(NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), 1, NOT(IN($0, {
+LogicalProject(j=[$0])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})), 2, 3), {
+LogicalProject(e=[$1], d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(=($1, $4), =($3, $5))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(NOT(CASE(IS NOT NULL($4), true, false)), 1, NOT(CASE(IS NOT NULL($6), true, false)), 2, 3)])
+      :  +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :     :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :     :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :     :  +- LogicalAggregate(group=[{0, 1}])
+      :     :     +- LogicalProject(i=[$0], i0=[true])
+      :     :        +- LogicalProject(i=[$0])
+      :     :           +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(j=[$0], i=[true])
+      :           +- LogicalProject(j=[$0])
+      :              +- LogicalTableScan(table=[[builtin, default, t2]])
+      +- LogicalProject(e=[$1], d=[$0])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_Case5[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT b FROM l WHERE (b, (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 WHEN a NOT IN (SELECT j FROM t2) THEN 2 ELSE 3 END)) NOT IN (SELECT e, d FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalFilter(condition=[NOT(IN($1, CASE(NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), 1, NOT(IN($0, {
+LogicalProject(j=[$0])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})), 2, 3), {
+LogicalProject(e=[$1], d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(b=[$1])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(OR(=($1, $4), IS NULL(=($1, $4))), OR(=($3, $5), IS NULL(=($3, $5))))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(NOT(CASE(=($3, 0), false, IS NULL($0), null, IS NOT NULL($6), true, <($4, $3), null, false)), 1, NOT(CASE(=($7, 0), false, IS NULL($0), null, IS NOT NULL($10), true, <($8, $7), null, false)), 2, 3)])
+      :  +- LogicalJoin(condition=[=($0, $9)], joinType=[left])
+      :     :- LogicalJoin(condition=[true], joinType=[inner])
+      :     :  :- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :     :  :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :     :  :  :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :     :  :  :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
+      :     :  :  :     +- LogicalProject(i=[$0])
+      :     :  :  :        +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     :  :  +- LogicalAggregate(group=[{0, 1}])
+      :     :  :     +- LogicalProject(i=[$0], i0=[true])
+      :     :  :        +- LogicalProject(i=[$0])
+      :     :  :           +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
+      :     :     +- LogicalProject(j=[$0])
+      :     :        +- LogicalTableScan(table=[[builtin, default, t2]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(j=[$0], i=[true])
+      :           +- LogicalProject(j=[$0])
+      :              +- LogicalTableScan(table=[[builtin, default, t2]])
+      +- LogicalProject(e=[$1], d=[$0])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_Case6[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM l WHERE ( (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 ELSE 2 END),  (CASE WHEN b NOT IN (SELECT j FROM t2) THEN 3 ELSE 4 END))  NOT IN (SELECT d, e FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), 1, 2), CASE(NOT(IN($1, {
+LogicalProject(j=[$0])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})), 3, 4), {
+LogicalProject(d=[$0], e=[$1])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$3], $f4=[$4])
+      +- SemiJoin(condition=[AND(=($3, $6), =($5, $7))], joinType=[inner], isAnti=[true])
+         :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$3], $f4=[$4], $f40=[CAST($4):BIGINT NOT NULL])
+         :  +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(NOT(CASE(IS NOT NULL($4), true, false)), 1, 2)], $f4=[CASE(NOT(CASE(IS NOT NULL($6), true, false)), 3, 4)])
+         :     +- LogicalJoin(condition=[=($1, $5)], joinType=[left])
+         :        :- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+         :        :  :- LogicalTableScan(table=[[builtin, default, l]])
+         :        :  +- LogicalAggregate(group=[{0, 1}])
+         :        :     +- LogicalProject(i=[$0], i0=[true])
+         :        :        +- LogicalProject(i=[$0])
+         :        :           +- LogicalTableScan(table=[[builtin, default, t1]])
+         :        +- LogicalAggregate(group=[{0, 1}])
+         :           +- LogicalProject(j=[$0], i=[true])
+         :              +- LogicalProject(j=[$0])
+         :                 +- LogicalTableScan(table=[[builtin, default, t2]])
+         +- LogicalProject(d=[$0], e=[$1])
+            +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_Case6[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM l WHERE ( (CASE WHEN a NOT IN (SELECT i FROM t1) THEN 1 ELSE 2 END),  (CASE WHEN b NOT IN (SELECT j FROM t2) THEN 3 ELSE 4 END))  NOT IN (SELECT d, e FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
+LogicalProject(i=[$0])
+  LogicalTableScan(table=[[builtin, default, t1]])
+})), 1, 2), CASE(NOT(IN($1, {
+LogicalProject(j=[$0])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})), 3, 4), {
+LogicalProject(d=[$0], e=[$1])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(OR(=($3, $5), IS NULL(=($3, $5))), OR(=($4, $6), IS NULL(=($4, $6))))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[CASE(NOT(CASE(=($3, 0), false, IS NULL($0), null, IS NOT NULL($6), true, <($4, $3), null, false)), 1, 2)], $f4=[CASE(NOT(CASE(=($7, 0), false, IS NULL($1), null, IS NOT NULL($10), true, <($8, $7), null, false)), 3, 4)])
+      :  +- LogicalJoin(condition=[=($1, $9)], joinType=[left])
+      :     :- LogicalJoin(condition=[true], joinType=[inner])
+      :     :  :- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+      :     :  :  :- LogicalJoin(condition=[true], joinType=[inner])
+      :     :  :  :  :- LogicalTableScan(table=[[builtin, default, l]])
+      :     :  :  :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
+      :     :  :  :     +- LogicalProject(i=[$0])
+      :     :  :  :        +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     :  :  +- LogicalAggregate(group=[{0, 1}])
+      :     :  :     +- LogicalProject(i=[$0], i0=[true])
+      :     :  :        +- LogicalProject(i=[$0])
+      :     :  :           +- LogicalTableScan(table=[[builtin, default, t1]])
+      :     :  +- LogicalAggregate(group=[{}], c=[COUNT()], ck=[COUNT($0)])
+      :     :     +- LogicalProject(j=[$0])
+      :     :        +- LogicalTableScan(table=[[builtin, default, t2]])
+      :     +- LogicalAggregate(group=[{0, 1}])
+      :        +- LogicalProject(j=[$0], i=[true])
+      :           +- LogicalProject(j=[$0])
+      :              +- LogicalTableScan(table=[[builtin, default, t2]])
+      +- LogicalProject(d=[$0], e=[$1])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_ComplexCondition2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT (a IN (SELECT d FROM r))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_ComplexCondition2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT (a IN (SELECT d FROM r))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[OR(=($0, $3), IS NULL(=($0, $3)))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_ComplexCondition3[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT ( NOT ( a NOT IN (SELECT d FROM r)))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_ComplexCondition3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT ( NOT ( a NOT IN (SELECT d FROM r)))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[OR(=($0, $3), IS NULL(=($0, $3)))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_ComplexCondition4[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT (a IN (SELECT d FROM r) OR b > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})), NOT(>($1, 10)))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[<=($1, 10)])
+   +- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$0])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_ComplexCondition4[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE NOT (a IN (SELECT d FROM r) OR b > 10)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})), NOT(>($1, 10)))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[<=($1, 10)])
+   +- SemiJoin(condition=[OR(=($0, $3), IS NULL(=($0, $3)))], joinType=[inner], isAnti=[true])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$0])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_ComplexCondition5[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b > 10 AND (c like 'abc' AND a NOT IN (SELECT d FROM r))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(>($1, 10), LIKE($2, 'abc'), NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(>($1, 10), LIKE($2, 'abc'))])
+   +- SemiJoin(condition=[=($0, $3)], joinType=[inner], isAnti=[true])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$0])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_ComplexCondition5[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE b > 10 AND (c like 'abc' AND a NOT IN (SELECT d FROM r))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(>($1, 10), LIKE($2, 'abc'), NOT(IN($0, {
+LogicalProject(d=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(>($1, 10), LIKE($2, 'abc'))])
+   +- SemiJoin(condition=[OR(=($0, $3), IS NULL(=($0, $3)))], joinType=[inner], isAnti=[true])
+      :- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$0])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_MultiFields1[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a, c) NOT IN (SELECT d, f FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, $2, {
+LogicalProject(d=[$0], f=[$2])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[AND(=($0, $3), =($2, $4))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0], f=[$2])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_MultiFields1[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a, c) NOT IN (SELECT d, f FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, $2, {
+LogicalProject(d=[$0], f=[$2])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- SemiJoin(condition=[AND(OR(=($0, $3), IS NULL(=($0, $3))), OR(=($2, $4), IS NULL(=($2, $4))))], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(d=[$0], f=[$2])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_MultiFields2[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a + 1, c) NOT IN (SELECT d, f FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN(+($0, 1), $2, {
+LogicalProject(d=[$0], f=[$2])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(=($3, $4), =($2, $5))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($0, 1)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$0], f=[$2])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_MultiFields2[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a + 1, c) NOT IN (SELECT d, f FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN(+($0, 1), $2, {
+LogicalProject(d=[$0], f=[$2])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(OR(=($3, $4), IS NULL(=($3, $4))), OR(=($2, $5), IS NULL(=($2, $5))))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($0, 1)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(d=[$0], f=[$2])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_MultiFields3[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a + 10, TRIM(c)) NOT IN (SELECT d + 100, SUBSTRING(f, 1, 5) FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN(+($0, 10), TRIM(FLAG(BOTH), ' ', $2), {
+LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[SUBSTRING($2, 1, 5)])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(=($3, $5), OR(=($4, $6), IS NULL(=($4, $6))))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($0, 10)], $f4=[TRIM(FLAG(BOTH), ' ', $2)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[SUBSTRING($2, 1, 5)])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_MultiFields3[true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a + 10, TRIM(c)) NOT IN (SELECT d + 100, SUBSTRING(f, 1, 5) FROM r)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN(+($0, 10), TRIM(FLAG(BOTH), ' ', $2), {
+LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[SUBSTRING($2, 1, 5)])
+  LogicalTableScan(table=[[builtin, default, r]])
+}))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- SemiJoin(condition=[AND(OR(=($3, $5), IS NULL(=($3, $5))), OR(=($4, $6), IS NULL(=($4, $6))))], joinType=[inner], isAnti=[true])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[+($0, 10)], $f4=[TRIM(FLAG(BOTH), ' ', $2)])
+      :  +- LogicalTableScan(table=[[builtin, default, l]])
+      +- LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[SUBSTRING($2, 1, 5)])
+         +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNotInWithUncorrelatedOnWhere_UnsupportedCondition[false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE (a NOT IN (SELECT c FROM r)) IS TRUE]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[IS TRUE(NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalTableScan(table=[[builtin, default, r]])
+})))])
+   +- LogicalTableScan(table=[[builtin, default, l]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- SemiJoin(condition=[=($0, $2)], joinType=[inner], isAnti=[true])
+   :- LogicalTableScan(table=[[builtin, default, l]])
+   +- LogicalProject(c=[$0])
+      +- LogicalTableScan(table=[[builtin, default, r]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

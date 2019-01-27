@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.transformations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.operators.DamBehavior;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 
@@ -51,6 +52,16 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<
 	private KeySelector<IN2, ?> stateKeySelector2;
 
 	private TypeInformation<?> stateKeyType;
+
+	/**
+	 * The {@link DamBehavior} of the operator on main output.
+	 */
+	private DamBehavior damBehavior;
+
+	/**
+	 * The hint for the static order in which Input1 and Input2 are read.
+	 */
+	private ReadOrder readOrderHint;
 
 	/**
 	 * Creates a new {@code TwoInputTransformation} from the given inputs and operator.
@@ -164,4 +175,59 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<
 		operator.setChainingStrategy(strategy);
 	}
 
+	public DamBehavior getDamBehavior() {
+		return this.damBehavior;
+	}
+
+	public void setDamBehavior(DamBehavior damBehavior) {
+		this.damBehavior = damBehavior;
+	}
+
+	/**
+	 * Gets the hint of the order in which the operator read Input1 and Input2.
+	 *
+	 * @return the hint of read order.
+	 */
+	public ReadOrder getReadOrderHint() {
+		return this.readOrderHint;
+	}
+
+	/**
+	 * Sets the hint of the order in which the operator read Input1 and Input2.
+	 *
+	 * @param order is the hint of read order.
+	 */
+	public void setReadOrderHint(ReadOrder order) {
+		this.readOrderHint = order;
+	}
+
+	/**
+	 * Defines the order in which operators read Input1 and Input2.
+	 */
+	public enum ReadOrder {
+		/**
+		 * The operator read Input1 firstly and does not read Input2 until
+		 * Input1 is fully read.
+		 */
+		INPUT1_FIRST,
+
+		/**
+		 * The operator read Input2 firstly and does not read Input1 until
+		 * Input2 is fully read.
+		 */
+		INPUT2_FIRST,
+
+		/**
+		 * The operator will read any input that currently has data.
+		 */
+		RANDOM_ORDER,
+
+		/**
+		 * Indicates the input which the next record is read from is determined
+		 * by the current processing record of operators.
+		 *
+		 * <p>This value is reserved for later.
+		 */
+		SPECIAL_ORDER
+	}
 }

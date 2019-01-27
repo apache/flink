@@ -21,11 +21,11 @@ package org.apache.flink.table.codegen.calls
 import java.lang.reflect.Method
 
 import org.apache.calcite.avatica.util.TimeUnitRange
-import org.apache.calcite.avatica.util.TimeUnitRange.{MONTH, YEAR}
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{BIG_DEC_TYPE_INFO, DOUBLE_TYPE_INFO, FLOAT_TYPE_INFO}
-import org.apache.flink.table.codegen.CodeGenUtils.{getEnum, primitiveTypeTermForTypeInfo, qualifyMethod}
+import org.apache.calcite.avatica.util.TimeUnitRange._
+import org.apache.flink.table.api.types.{DataTypes, DecimalType, InternalType}
+import org.apache.flink.table.codegen.CodeGenUtils.{getEnum, primitiveTypeTermForType, qualifyMethod}
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
-import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 
 /**
   * Generates floor/ceil function calls.
@@ -33,17 +33,23 @@ import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
 class FloorCeilCallGen(
     arithmeticMethod: Method,
     temporalMethod: Option[Method] = None)
-  extends MultiTypeMethodCallGen(arithmeticMethod) {
+  extends MethodCallGen(arithmeticMethod) {
 
   override def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression = operands.size match {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: InternalType,
+      nullCheck: Boolean): GeneratedExpression = operands.size match {
     // arithmetic
     case 1 =>
       operands.head.resultType match {
-        case FLOAT_TYPE_INFO | DOUBLE_TYPE_INFO | BIG_DEC_TYPE_INFO =>
-          super.generate(codeGenerator, operands)
+        case DataTypes.FLOAT | DataTypes.DOUBLE =>
+          super.generate(ctx, operands, returnType, nullCheck)
+        case dt: DecimalType =>
+          generateCallIfArgsNotNull(ctx, nullCheck, returnType, operands) {
+            (operandResultTerms) =>
+              s"${qualifyMethod(arithmeticMethod)}(${operandResultTerms.mkString(", ")})"
+          }
         case _ =>
           operands.head // no floor/ceil necessary
       }
@@ -52,11 +58,23 @@ class FloorCeilCallGen(
     case 2 =>
       val operand = operands.head
       val unit = getEnum(operands(1)).asInstanceOf[TimeUnitRange]
-      val internalType = primitiveTypeTermForTypeInfo(operand.resultType)
+      val internalType = primitiveTypeTermForType(operand.resultType)
 
-      generateCallIfArgsNotNull(codeGenerator.nullCheck, operand.resultType, operands) {
+      generateCallIfArgsNotNull(ctx, nullCheck, operand.resultType, operands) {
         (terms) =>
           unit match {
+            // for Timestamp with timezone info
+            case YEAR | QUARTER | MONTH | DAY | HOUR
+              if (FunctionGenerator.isFunctionWithTimeZone(
+                temporalMethod.getOrElse(arithmeticMethod))) =>
+              val timeZone = ctx.addReusableTimeZone()
+              s"""
+                 |($internalType) ${qualifyMethod(temporalMethod.get)}(${terms(1)},
+                 |                                                     ${terms.head},
+                 |                                                     $timeZone)
+                 |""".stripMargin
+
+            // for Unix Date / Unix Time
             case YEAR | MONTH =>
               s"""
                 |($internalType) ${qualifyMethod(temporalMethod.get)}(${terms(1)}, ${terms.head})

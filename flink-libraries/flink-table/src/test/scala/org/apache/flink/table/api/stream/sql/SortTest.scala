@@ -20,8 +20,7 @@ package org.apache.flink.table.api.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
 import org.junit.Test
 
 class SortTest extends TableTestBase {
@@ -29,36 +28,134 @@ class SortTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
   streamUtil.addTable[(Int, String, Long)]("MyTable", 'a, 'b, 'c,
       'proctime.proctime, 'rowtime.rowtime)
-  
+
   @Test
   def testSortProcessingTime(): Unit = {
-
-    val sqlQuery = "SELECT a FROM MyTable ORDER BY proctime, c"
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode("DataStreamSort",
-          streamTableNode(0),
-          term("orderBy", "proctime ASC", "c ASC")),
-        term("select", "a", "PROCTIME(proctime) AS proctime", "c"))
-
-    streamUtil.verifySql(sqlQuery, expected)
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY proctime, c")
   }
 
   @Test
   def testSortRowTime(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY rowtime, c")
+  }
 
-    val sqlQuery = "SELECT a FROM MyTable ORDER BY rowtime, c"
-      
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode("DataStreamSort",
-          streamTableNode(0),
-          term("orderBy", "rowtime ASC, c ASC")),
-        term("select", "a", "rowtime", "c"))
-       
-    streamUtil.verifySql(sqlQuery, expected)
+  @Test
+  def testSortProcessingTimeWithLimit(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY proctime, c LIMIT 2")
+  }
+
+  @Test
+  def testSortRowTimeWithLimit(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY rowtime, c LIMIT 2")
+  }
+
+  @Test
+  def testSortProcessingTimeDesc(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY proctime desc, c")
+  }
+
+  @Test
+  def testSortRowTimeDesc(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY rowtime desc, c")
+  }
+
+  @Test
+  def testSortProcessingTimeDescWithLimit(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY proctime desc, c LIMIT 2")
+  }
+
+  @Test
+  def testSortRowTimeDescWithLimit(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY rowtime desc, c LIMIT 2")
+  }
+
+  @Test
+  def testSortProcessingTimeSecond(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY c, proctime")
+  }
+
+  @Test
+  def testSortRowTimeSecond(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY c, rowtime")
+  }
+
+  @Test
+  def testSortProcessingTimeSecondWithLimit(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY c, proctime LIMIT 2")
+  }
+
+  @Test
+  def testSortRowTimeSecondWithLimit(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY c, rowtime LIMIT 2")
+  }
+
+  @Test
+  def testSortProcessingTimeSecondDesc(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY c, proctime desc")
+  }
+
+  @Test
+  def testSortRowTimeSecondDesc(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY c, rowtime desc")
+  }
+
+  @Test
+  def testSortProcessingTimeSecondDescWithLimit(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY c, proctime desc LIMIT 2")
+  }
+
+  @Test
+  def testSortRowTimeDescSecondWithLimit(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY c, rowtime desc LIMIT 2")
+  }
+
+  @Test
+  def testSortWithOutTime(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY c")
+  }
+
+  @Test
+  def testSortWithOutTimeWithLimit(): Unit = {
+    streamUtil.verifyPlan("SELECT a FROM MyTable ORDER BY c LIMIT 2")
+  }
+
+  @Test
+  def testLimitWithRowTime(): Unit = {
+    streamUtil.verifyPlan("SELECT rowtime, c FROM MyTable LIMIT 2")
+  }
+
+  @Test
+  def testLimitWithProcessingTime(): Unit = {
+    streamUtil.verifyPlan("SELECT proctime, c FROM MyTable LIMIT 2")
+  }
+
+  @Test
+  def testLimitWithRowTimeSecond(): Unit = {
+    streamUtil.verifyPlan("SELECT c, rowtime FROM MyTable LIMIT 2")
+  }
+
+  @Test
+  def testLimitWithProcessingTimeSecond(): Unit = {
+    streamUtil.verifyPlan("SELECT c, proctime FROM MyTable LIMIT 2")
+  }
+
+  @Test
+  def testLimitWithRowTimeDesc(): Unit = {
+    streamUtil.verifyPlan("SELECT rowtime desc, c FROM MyTable LIMIT 2")
+  }
+
+  @Test
+  def testLimitWithProcessingTimeDesc(): Unit = {
+    streamUtil.verifyPlan("SELECT proctime desc, c FROM MyTable LIMIT 2")
+  }
+
+  @Test
+  def testLimitWithRowTimeDescSecond(): Unit = {
+    streamUtil.verifyPlan("SELECT c, rowtime desc FROM MyTable LIMIT 2")
+  }
+
+  @Test
+  def testLimitWithProcessingTimeDescSecond(): Unit = {
+    streamUtil.verifyPlan("SELECT c, proctime desc FROM MyTable LIMIT 2")
   }
 }

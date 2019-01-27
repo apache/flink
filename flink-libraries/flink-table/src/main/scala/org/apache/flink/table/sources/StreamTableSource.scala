@@ -21,11 +21,11 @@ package org.apache.flink.table.sources
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 
-/** Defines an external stream table and provides read access to its data.
+/** Defines an external stream table and provides access to its data.
   *
   * @tparam T Type of the [[DataStream]] created by this [[TableSource]].
   */
-trait StreamTableSource[T] extends TableSource[T] {
+trait StreamTableSource[T] extends TableSource {
 
   /**
     * Returns the data of the table as a [[DataStream]].

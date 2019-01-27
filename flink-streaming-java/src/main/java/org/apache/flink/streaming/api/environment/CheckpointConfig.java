@@ -69,8 +69,8 @@ public class CheckpointConfig implements java.io.Serializable {
 	/** Cleanup behaviour for persistent checkpoints. */
 	private ExternalizedCheckpointCleanup externalizedCheckpointCleanup;
 
-	/** Determines if a tasks are failed or not if there is an error in their checkpointing. Default: true */
-	private boolean failOnCheckpointingErrors = true;
+	/** Determines if a tasks are failed or not if there is an error in their checkpointing. Default: false */
+	private boolean failOnCheckpointingErrors = false;
 
 	// ------------------------------------------------------------------------
 
@@ -126,6 +126,13 @@ public class CheckpointConfig implements java.io.Serializable {
 			throw new IllegalArgumentException("Checkpoint interval must be larger than zero");
 		}
 		this.checkpointInterval = checkpointInterval;
+	}
+
+	/**
+	 * Sets the interval -1 to disable checkpointing.
+	 */
+	public void disableCheckpointing() {
+		this.checkpointInterval = -1;
 	}
 
 	/**
@@ -243,7 +250,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	/**
 	 * Sets the expected behaviour for tasks in case that they encounter an error in their checkpointing procedure.
 	 * If this is set to true, the task will fail on checkpointing error. If this is set to false, the task will only
-	 * decline a the checkpoint and continue running. The default is true.
+	 * decline a the checkpoint and continue running. The default is false.
 	 */
 	public void setFailOnCheckpointingErrors(boolean failOnCheckpointingErrors) {
 		this.failOnCheckpointingErrors = failOnCheckpointingErrors;

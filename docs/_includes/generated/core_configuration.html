@@ -8,6 +8,11 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>chain.eagerly.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Whether operators are chained more eagerly when the parallelism is one</td>
+        </tr>
+        <tr>
             <td><h5>classloader.parent-first-patterns.additional</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>A (semicolon-separated) list of patterns that specifies which classes should always be resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against the fully qualified class name. These patterns are appended to "classloader.parent-first-patterns.default".</td>
@@ -24,13 +29,38 @@
         </tr>
         <tr>
             <td><h5>io.tmp.dirs</h5></td>
-            <td style="word-wrap: break-word;">'LOCAL_DIRS' on Yarn. '_FLINK_TMP_DIR' on Mesos. System.getProperty("java.io.tmpdir") in standalone.</td>
-            <td>Directories for temporary files, separated by",", "|", or the system's java.io.File.pathSeparator.</td>
+            <td style="word-wrap: break-word;">System.<wbr>getProperty("java.<wbr>io.<wbr>tmpdir")</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><h5>mode</h5></td>
+            <td style="word-wrap: break-word;">"new"</td>
+            <td>Switch to select the execution mode. Possible values are 'new' and 'legacy'.</td>
         </tr>
         <tr>
             <td><h5>parallelism.default</h5></td>
             <td style="word-wrap: break-word;">1</td>
-            <td>Default parallelism for jobs.</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><h5>partitioner.default</h5></td>
+            <td style="word-wrap: break-word;">"REBALANCE"</td>
+            <td>The default stream partitioner, used when the upstream and downstream parallelisms are not equal and partitioner is not specified. Possible values are 'RESCALE' and 'REBALANCE'.</td>
+        </tr>
+        <tr>
+            <td><h5>resource.cpu.cores.default</h5></td>
+            <td style="word-wrap: break-word;">0.01</td>
+            <td>CPU cores for operators, use double so we can specify cpu like 0.1.</td>
+        </tr>
+        <tr>
+            <td><h5>resource.heap.mb.default</h5></td>
+            <td style="word-wrap: break-word;">16</td>
+            <td>Java heap size (in megabytes) for operators.</td>
+        </tr>
+        <tr>
+            <td><h5>user-jars.upload.disabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td></td>
         </tr>
     </tbody>
 </table>

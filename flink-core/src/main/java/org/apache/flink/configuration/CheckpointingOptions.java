@@ -18,8 +18,6 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.annotation.docs.Documentation;
-
 /**
  * A collection of all configuration options that relate to checkpoints
  * and savepoints.
@@ -31,11 +29,11 @@ public class CheckpointingOptions {
 	// ------------------------------------------------------------------------
 
 	/** The state backend to be used to store and checkpoint state. */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_FAULT_TOLERANCE)
 	public static final ConfigOption<String> STATE_BACKEND = ConfigOptions
 			.key("state.backend")
 			.noDefaultValue()
-			.withDescription("The state backend to be used to store and checkpoint state.");
+			.withDescription("The state backend to be used to store and checkpoint state. " +
+				"Supported values are 'jobmanager' for MemoryStateBackend, 'filesystem' for FsStateBackend, and 'rocksdb' for RocksDBStateBackend.");
 
 	/** The maximum number of completed checkpoints to retain.*/
 	public static final ConfigOption<Integer> MAX_RETAINED_CHECKPOINTS = ConfigOptions
@@ -70,32 +68,26 @@ public class CheckpointingOptions {
 				" this option.");
 
 	/**
+	 * The config parameter defining the working directories for file-based state backend.
+	 */
+	public static final ConfigOption<String> WORKING_DIRS = ConfigOptions
+			.key("state.backend.working-dirs")
+			.noDefaultValue()
+			.withDescription("The working directories for file-based state backend.");
+
+	/**
 	 * This option configures local recovery for this state backend. By default, local recovery is deactivated.
-	 *
-	 * <p>Local recovery currently only covers keyed state backends.
-	 * Currently, MemoryStateBackend does not support local recovery and ignore
-	 * this option.
 	 */
 	public static final ConfigOption<Boolean> LOCAL_RECOVERY = ConfigOptions
-			.key("state.backend.local-recovery")
-			.defaultValue(false)
-			.withDescription("This option configures local recovery for this state backend. By default, local recovery is " +
-				"deactivated. Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend does " +
-				"not support local recovery and ignore this option.");
+		.key("state.backend.local-recovery")
+		.defaultValue(false);
 
 	/**
 	 * The config parameter defining the root directories for storing file-based state for local recovery.
-	 *
-	 * <p>Local recovery currently only covers keyed state backends.
-	 * Currently, MemoryStateBackend does not support local recovery and ignore
-	 * this option.
 	 */
 	public static final ConfigOption<String> LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS = ConfigOptions
-			.key("taskmanager.state.local.root-dirs")
-			.noDefaultValue()
-			.withDescription("The config parameter defining the root directories for storing file-based state for local " +
-				"recovery. Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend does " +
-				"not support local recovery and ignore this option");
+		.key("taskmanager.state.local.root-dirs")
+		.noDefaultValue();
 
 	// ------------------------------------------------------------------------
 	//  Options specific to the file-system-based state backends
@@ -103,7 +95,6 @@ public class CheckpointingOptions {
 
 	/** The default directory for savepoints. Used by the state backends that write
 	 * savepoints to file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend). */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_FAULT_TOLERANCE)
 	public static final ConfigOption<String> SAVEPOINT_DIRECTORY = ConfigOptions
 			.key("state.savepoints.dir")
 			.noDefaultValue()
@@ -113,7 +104,6 @@ public class CheckpointingOptions {
 
 	/** The default directory used for storing the data files and meta data of checkpoints in a Flink supported filesystem.
 	 * The storage path must be accessible from all participating processes/nodes(i.e. all TaskManagers and JobManagers).*/
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_FAULT_TOLERANCE)
 	public static final ConfigOption<String> CHECKPOINTS_DIRECTORY = ConfigOptions
 			.key("state.checkpoints.dir")
 			.noDefaultValue()
@@ -122,6 +112,14 @@ public class CheckpointingOptions {
 				"in a Flink supported filesystem. The storage path must be accessible from all participating processes/nodes" +
 				"(i.e. all TaskManagers and JobManagers).");
 
+	/** Whether to create sub-directories with specific jobId to store the data files and meta data of checkpoints. */
+	public static final ConfigOption<Boolean> CHCKPOINTS_CREATE_SUBDIRS = ConfigOptions
+			.key("state.checkpoints.create-subdirs")
+			.defaultValue(true)
+			.withDescription("Whether to create sub-directories with specific jobId to store the data files and meta data of checkpoints. " +
+				"The default value is true to enable user could run several jobs with the same checkpoint directory simultaneously, " +
+				"if this value is set to false, pay attention to not run several jobs with the same directory simultaneously.");
+
 	/** The minimum size of state data files. All state chunks smaller than that
 	 * are stored inline in the root checkpoint metadata file. */
 	public static final ConfigOption<Integer> FS_SMALL_FILE_THRESHOLD = ConfigOptions
@@ -129,4 +127,15 @@ public class CheckpointingOptions {
 			.defaultValue(1024)
 			.withDescription("The minimum size of state data files. All state chunks smaller than that are stored" +
 				" inline in the root checkpoint metadata file.");
+
+	// ------------------------------------------------------------------------
+	//  Options specific to the RocksDB state backend
+	// ------------------------------------------------------------------------
+
+	/** The local directory (on the TaskManager) where RocksDB puts its files. */
+	public static final ConfigOption<String> ROCKSDB_LOCAL_DIRECTORIES = ConfigOptions
+			.key("state.backend.rocksdb.localdir")
+			.noDefaultValue()
+			.withDeprecatedKeys("state.backend.rocksdb.checkpointdir")
+			.withDescription("The local directory (on the TaskManager) where RocksDB puts its files.");
 }

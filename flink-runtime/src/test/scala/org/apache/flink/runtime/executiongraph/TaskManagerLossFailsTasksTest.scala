@@ -20,20 +20,22 @@ package org.apache.flink.runtime.executiongraph
 
 import java.util.concurrent.Executors
 
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertex}
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
-import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.apache.flink.runtime.testtasks.NoOpInvokable
 import org.apache.flink.util.SerializedValue
-
 import org.junit.runner.RunWith
-
+import org.mockito.Matchers.any
+import org.mockito.Mockito
+import org.mockito.Mockito.{spy, verify}
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{Matchers, WordSpecLike}
 
@@ -45,11 +47,12 @@ class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
       val executor = Executors.newScheduledThreadPool(1)
 
       try {
+        val taskManagerGateway = spy(new SimpleAckingTaskManagerGateway)
         val instance1 = ExecutionGraphTestUtils.getInstance(
-          new ActorTaskManagerGateway(new SimpleActorGateway(TestingUtils.defaultExecutionContext)),
+          taskManagerGateway,
           10)
         val instance2 = ExecutionGraphTestUtils.getInstance(
-          new ActorTaskManagerGateway(new SimpleActorGateway(TestingUtils.defaultExecutionContext)),
+          taskManagerGateway,
           10)
 
         val scheduler = new Scheduler(TestingUtils.defaultExecutionContext)
@@ -62,7 +65,7 @@ class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
 
         val jobGraph = new JobGraph("Pointwise job", sender)
 
-        val eg = new ExecutionGraph(
+        val eg = ExecutionGraphTestUtils.createExecutionGraphDirectly(
           executor,
           executor,
           new JobID(),
@@ -71,14 +74,15 @@ class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
           new SerializedValue(new ExecutionConfig()),
           AkkaUtils.getDefaultTimeout,
           new NoRestartStrategy(),
-          scheduler)
-
-        eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources)
+          scheduler,
+          jobGraph.getVerticesSortedTopologicallyFromSources)
 
         eg.getState should equal(JobStatus.CREATED)
 
         eg.scheduleForExecution()
         eg.getState should equal(JobStatus.RUNNING)
+        verify (taskManagerGateway, Mockito.timeout(2000L).times(eg.getTotalNumberOfVertices))
+          .submitTask(any(classOf[TaskDeploymentDescriptor]), any(classOf[Time]))
 
         instance1.markDead()
         eg.getState should equal(JobStatus.FAILING)

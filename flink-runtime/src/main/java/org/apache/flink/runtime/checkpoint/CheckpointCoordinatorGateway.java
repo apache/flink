@@ -20,7 +20,6 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 
 public interface CheckpointCoordinatorGateway extends RpcGateway {
@@ -32,5 +31,9 @@ public interface CheckpointCoordinatorGateway extends RpcGateway {
 			final CheckpointMetrics checkpointMetrics,
 			final TaskStateSnapshot subtaskState);
 
-	void declineCheckpoint(DeclineCheckpoint declineCheckpoint);
+	void declineCheckpoint(
+			JobID jobID,
+			ExecutionAttemptID executionAttemptID,
+			long checkpointId,
+			Throwable cause);
 }

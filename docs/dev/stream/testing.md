@@ -32,7 +32,7 @@ This page briefly discusses how to test a Flink application in your IDE or a loc
 
 Usually, one can assume that Flink produces correct results outside of a user-defined `Function`. Therefore, it is recommended to test `Function` classes that contain the main business logic with unit tests as much as possible.
 
-For example if one implements the following `ReduceFunction`:
+For example, if one implements the following `ReduceFunction`:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -72,7 +72,7 @@ public class SumReduceTest {
         SumReduce sumReduce = new SumReduce();
 
         // call the methods that you have implemented
-        assertEquals(42L, sumReduce.reduce(40L, 2L));
+        assertEquals(42L, sumReduce.reduce(40L, 2L).longValue()));
     }
 }
 {% endhighlight %}
@@ -102,7 +102,7 @@ In order to do so add the test dependency `flink-test-utils`:
 
 {% highlight xml %}
 <dependency>
-  <groupId>org.apache.flink</groupId>
+  <groupId>com.alibaba.blink</groupId>
   <artifactId>flink-test-utils{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
@@ -228,7 +228,7 @@ object CollectSink {
 
 The static variable in `CollectSink` is used here because Flink serializes all operators before distributing them across a cluster.
 Communicating with operators instantiated by a local Flink mini cluster via static variables is one way around this issue.
-Alternatively, you could for example write the data to files in a temporary directory with your test sink.
+Alternatively, you could, for example, write the data to files in a temporary directory with your test sink.
 You can also implement your own custom sources for emitting watermarks.
 
 ## Testing checkpointing and state handling
@@ -253,8 +253,8 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 100))
 </div>
 </div>
 
-And for example adding to your Flink application an identity mapper operator that will throw an exception
-once every `1000ms`. However writing such test could be tricky because of time dependencies between the actions.
+And for example, adding to your Flink application an identity mapper operator that will throw an exception
+once every `1000ms`. However, writing such a test could be tricky because of time dependencies between the actions.
 
 Another approach is to write a unit test using the Flink internal testing utility `AbstractStreamOperatorTestHarness` from the `flink-streaming-java` module.
 

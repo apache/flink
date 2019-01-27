@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
@@ -60,8 +59,9 @@ class KeywordParseTest extends ExpressionTestBase {
       "IIASC")
   }
 
-  override def testData: Any = new Row(0)
+  override def testData: Any = rowToBaseRow(new Row(0))
 
-  override def typeInfo: TypeInformation[Any] =
-    new RowTypeInfo().asInstanceOf[TypeInformation[Any]]
+  override def rowTestData: Row = new Row(0)
+
+  override def rowType: RowTypeInfo = new RowTypeInfo()
 }

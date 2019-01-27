@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Meter;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
 import org.apache.flink.util.Preconditions;
@@ -58,6 +59,9 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 	@Nullable
 	private final SerializableReturnListener returnListener;
+
+	private Meter bps;
+	private Meter tps;
 
 	/**
 	 * @param rmqConnectionConfig The RabbitMQ connection configuration {@link RMQConnectionConfig}.
@@ -119,7 +123,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	 * this method to have a custom setup for the queue (i.e. binding the queue to an exchange or
 	 * defining custom queue parameters)
 	 */
-	protected void setupQueue() throws IOException {
+	protected void setupQueue(String queueName) throws IOException {
 		if (queueName != null) {
 			channel.queueDeclare(queueName, false, false, false, null);
 		}
@@ -146,10 +150,12 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 			if (channel == null) {
 				throw new RuntimeException("None of RabbitMQ channels are available");
 			}
-			setupQueue();
+			setupQueue(queueName);
 			if (returnListener != null) {
 				channel.addReturnListener(returnListener);
 			}
+//			bps = MetricUtils.registerOutBps(getRuntimeContext(), "rmq");
+//			tps = MetricUtils.registerOutTps(getRuntimeContext());
 		} catch (IOException e) {
 			throw new RuntimeException("Error while creating the channel", e);
 		}
@@ -165,6 +171,8 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	public void invoke(IN value) {
 		try {
 			byte[] msg = schema.serialize(value);
+//			tps.markEvent();
+//			bps.markEvent();
 
 			if (publishOptions == null) {
 				channel.basicPublish("", queueName, null, msg);
@@ -177,7 +185,6 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 				String rk = publishOptions.computeRoutingKey(value);
 				String exchange = publishOptions.computeExchange(value);
-
 				channel.basicPublish(exchange, rk, mandatory, immediate,
 					publishOptions.computeProperties(value), msg);
 			}

@@ -24,7 +24,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.slf4j.Logger;
 
 import java.io.File;
-import java.nio.file.Files;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimerTask;
@@ -101,13 +100,9 @@ class TransientBlobCleanupTask extends TimerTask {
 				writeLock.lock();
 
 				try {
-					try {
-						Files.delete(localFile.toPath());
-					} catch (Exception e) {
-						log.error("Failed to delete local blob " + localFile.getAbsolutePath(), e);
-					}
-
-					if (!localFile.exists()) {
+					if (!localFile.delete() && localFile.exists()) {
+						log.warn("Failed to locally delete blob " + localFile.getAbsolutePath());
+					} else {
 						// this needs to happen inside the write lock in case of concurrent getFile() calls
 						entries.remove(entry);
 					}

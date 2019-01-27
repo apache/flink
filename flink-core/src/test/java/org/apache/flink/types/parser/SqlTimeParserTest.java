@@ -20,6 +20,8 @@
 package org.apache.flink.types.parser;
 
 
+import org.apache.flink.util.TimeConvertUtils;
+
 import java.sql.Time;
 
 public class SqlTimeParserTest extends ParserTestBase<Time> {
@@ -34,15 +36,19 @@ public class SqlTimeParserTest extends ParserTestBase<Time> {
 	@Override
 	public Time[] getValidTestResults() {
 		return new Time[] {
-			Time.valueOf("00:00:00"), Time.valueOf("02:42:25"), Time.valueOf("14:15:51"),
-			Time.valueOf("18:00:45"), Time.valueOf("23:59:58"), Time.valueOf("0:0:0")
+			new Time(TimeConvertUtils.timeStringToUnixDate("00:00:00")),
+			new Time(TimeConvertUtils.timeStringToUnixDate("02:42:25")),
+			new Time(TimeConvertUtils.timeStringToUnixDate("14:15:51")),
+			new Time(TimeConvertUtils.timeStringToUnixDate("18:00:45")),
+			new Time(TimeConvertUtils.timeStringToUnixDate("23:59:58")),
+			new Time(TimeConvertUtils.timeStringToUnixDate("0:0:0"))
 		};
 	}
 
 	@Override
 	public String[] getInvalidTestValues() {
 		return new String[] {
-			" 00:00:00", "00:00:00 ", "00:00::00", "00x00:00", "2013/08/12", " ", "\t"
+			"00:00::00", "00x00:00", "2013/08/12", " ", "\t"
 		};
 	}
 

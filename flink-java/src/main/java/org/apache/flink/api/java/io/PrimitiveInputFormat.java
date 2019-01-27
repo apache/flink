@@ -74,7 +74,7 @@ public class PrimitiveInputFormat<OT> extends DelimitedInputFormat<OT> {
 		}
 
 		// Null character as delimiter is used because there's only 1 field to be parsed
-		if (parser.resetErrorStateAndParse(bytes, offset, numBytes + offset, new byte[]{'\0'}, reuse) >= 0) {
+		if (parser.resetErrorStateAndParse(bytes, offset, numBytes + offset, new byte[]{'\0'}, reuse, false) >= 0) {
 			return parser.getLastResult();
 		} else {
 			String s = new String(bytes, offset, numBytes, getCharset());

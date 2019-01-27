@@ -108,15 +108,12 @@ class CoGroupITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val ds2 = CollectionDataSets.get3TupleDataSet(env)
     val coGroupDs = ds.coGroup(ds2).where(0).equalTo(0) {
-      (
-        first: Iterator[(Int, Long, String)],
-        second: Iterator[(Int, Long, String)],
-        out: Collector[(Int, Long, String)] ) =>
-          for (t <- first) {
-            if (t._1 < 6) {
-              out.collect(t)
-            }
+      (first, second, out: Collector[(Int, Long, String)] ) =>
+        for (t <- first) {
+          if (t._1 < 6) {
+            out.collect(t)
           }
+        }
     }
     coGroupDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
@@ -130,15 +127,12 @@ class CoGroupITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     val ds = CollectionDataSets.get5TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
     val coGroupDs = ds.coGroup(ds2).where(0).equalTo(0) {
-      (
-        first: Iterator[(Int, Long, Int, String, Long)],
-        second: Iterator[(Int, Long, Int, String, Long)],
-        out: Collector[(Int, Long, Int, String, Long)]) =>
-          for (t <- second) {
-            if (t._1 < 4) {
-              out.collect(t)
-            }
+      (first, second, out: Collector[(Int, Long, Int, String, Long)]) =>
+        for (t <- second) {
+          if (t._1 < 4) {
+            out.collect(t)
           }
+        }
     }
     coGroupDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
@@ -253,16 +247,13 @@ class CoGroupITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     val ds1 = CollectionDataSets.get5TupleDataSet(env)
     val ds2 = CollectionDataSets.get3TupleDataSet(env)
     val coGrouped = ds1.coGroup(ds2).where(0,4).equalTo(0, 1) {
-      (
-        first: Iterator[(Int, Long, Int, String, Long)],
-        second: Iterator[(Int, Long, String)],
-        out: Collector[(Int, Long, String)]) =>
-          val strs = first map(_._4)
-          for (t <- second) {
-            for (s <- strs) {
-              out.collect((t._1, t._2, s))
-            }
+      (first, second, out: Collector[(Int, Long, String)]) =>
+        val strs = first map(_._4)
+        for (t <- second) {
+          for (s <- strs) {
+            out.collect((t._1, t._2, s))
           }
+        }
     }
 
     coGrouped.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
@@ -282,16 +273,13 @@ class CoGroupITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     val ds2 = CollectionDataSets.get3TupleDataSet(env)
     val coGrouped = ds1.coGroup(ds2).where(t => (t._1, t._5)).equalTo(t => (t._1, t._2))
       .apply {
-      (
-        first: Iterator[(Int, Long, Int, String, Long)],
-        second: Iterator[(Int, Long, String)],
-        out: Collector[(Int, Long, String)]) =>
-          val strs = first map(_._4)
-          for (t <- second) {
-            for (s <- strs) {
-              out.collect((t._1, t._2, s))
-            }
+      (first, second, out: Collector[(Int, Long, String)]) =>
+        val strs = first map(_._4)
+        for (t <- second) {
+          for (s <- strs) {
+            out.collect((t._1, t._2, s))
           }
+        }
     }
 
     coGrouped.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
@@ -337,16 +325,13 @@ class CoGroupITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     val ds = CollectionDataSets.getSmallPojoDataSet(env)
     val ds2 = CollectionDataSets.getSmallTuplebasedPojoMatchingDataSet(env)
     val coGroupDs = ds.coGroup(ds2).where("nestedPojo.longNumber").equalTo(6) {
-      (
-        first: Iterator[CollectionDataSets.POJO],
-        second: Iterator[(Int, String, Int, Int, Long, String, Long)],
-        out: Collector[CustomType]) =>
-          for (p <- first) {
-            for (t <- second) {
-              Assert.assertTrue(p.nestedPojo.longNumber == t._7)
-              out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"))
-            }
+      (first, second, out: Collector[CustomType]) =>
+        for (p <- first) {
+          for (t <- second) {
+            Assert.assertTrue(p.nestedPojo.longNumber == t._7)
+            out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"))
           }
+        }
     }
     coGroupDs.writeAsText(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
@@ -363,16 +348,13 @@ class CoGroupITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     val ds = CollectionDataSets.getSmallPojoDataSet(env)
     val ds2 = CollectionDataSets.getSmallTuplebasedPojoMatchingDataSet(env)
     val coGroupDs = ds.coGroup(ds2).where(t => new Tuple1(t.nestedPojo.longNumber)).equalTo(6) {
-      (
-        first: Iterator[CollectionDataSets.POJO],
-        second: Iterator[(Int, String, Int, Int, Long, String, Long)],
-        out: Collector[CustomType]) =>
-          for (p <- first) {
-            for (t <- second) {
-              Assert.assertTrue(p.nestedPojo.longNumber == t._7)
-              out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"))
-            }
+      (first, second, out: Collector[CustomType]) =>
+        for (p <- first) {
+          for (t <- second) {
+            Assert.assertTrue(p.nestedPojo.longNumber == t._7)
+            out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"))
           }
+        }
     }
     coGroupDs.writeAsText(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
@@ -389,16 +371,13 @@ class CoGroupITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     val ds = CollectionDataSets.getSmallPojoDataSet(env)
     val ds2 = CollectionDataSets.getSmallTuplebasedPojoMatchingDataSet(env)
     val coGroupDs = ds.coGroup(ds2).where(_.nestedPojo.longNumber).equalTo(6) {
-      (
-        first: Iterator[CollectionDataSets.POJO],
-        second: Iterator[(Int, String, Int, Int, Long, String, Long)],
-        out: Collector[CustomType]) =>
-          for (p <- first) {
-            for (t <- second) {
-              Assert.assertTrue(p.nestedPojo.longNumber == t._7)
-              out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"))
-            }
+      (first, second, out: Collector[CustomType]) =>
+        for (p <- first) {
+          for (t <- second) {
+            Assert.assertTrue(p.nestedPojo.longNumber == t._7)
+            out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"))
           }
+        }
     }
     coGroupDs.writeAsText(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
@@ -411,17 +390,14 @@ class CoGroupITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = env.fromElements(0, 1, 2)
     val coGroupDs = ds1.coGroup(ds2).where(0).equalTo("*") {
-      (
-        first: Iterator[(Int, Long, String)],
-        second: Iterator[Int],
-        out: Collector[(Int, Long, String)]) =>
-          for (p <- first) {
-            for (t <- second) {
-              if (p._1 == t) {
-                out.collect(p)
-              }
+      (first, second, out: Collector[(Int, Long, String)]) =>
+        for (p <- first) {
+          for (t <- second) {
+            if (p._1 == t) {
+              out.collect(p)
             }
           }
+        }
     }
 
     coGroupDs.writeAsText(resultPath, writeMode = WriteMode.OVERWRITE)
@@ -435,17 +411,14 @@ class CoGroupITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     val ds1 = env.fromElements(0, 1, 2)
     val ds2 = CollectionDataSets.getSmall3TupleDataSet(env)
     val coGroupDs = ds1.coGroup(ds2).where("*").equalTo(0) {
-      (
-        first: Iterator[Int],
-        second: Iterator[(Int, Long, String)],
-        out: Collector[(Int, Long, String)]) =>
-          for (p <- first) {
-            for (t <- second) {
-              if (p == t._1) {
-                out.collect(t)
-              }
+      (first, second, out: Collector[(Int, Long, String)]) =>
+        for (p <- first) {
+          for (t <- second) {
+            if (p == t._1) {
+              out.collect(t)
             }
           }
+        }
     }
 
     coGroupDs.writeAsText(resultPath, writeMode = WriteMode.OVERWRITE)

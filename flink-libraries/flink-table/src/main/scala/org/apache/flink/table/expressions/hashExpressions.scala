@@ -19,106 +19,97 @@
 package org.apache.flink.table.expressions
 
 import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.SqlFunction
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.table.api.types.{DataTypes, InternalType}
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
+import org.apache.flink.table.plan.logical.LogicalExprVisitor
+import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
-case class Md5(child: Expression) extends UnaryExpression with InputTypeSpec {
+abstract class HashExpression(args: Expression*) extends Expression {
+  private[flink] def hashName: String
+  private[flink] def hashFunction: SqlFunction
 
-  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
+  override private[flink] def children = args
+  override private[flink] def resultType: InternalType = DataTypes.STRING
 
-  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = STRING_TYPE_INFO :: Nil
-
-  override def toString: String = s"($child).md5()"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(ScalarSqlFunctions.MD5, child.toRexNode)
-  }
-}
-
-case class Sha1(child: Expression) extends UnaryExpression with InputTypeSpec {
-
-  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
-
-  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = STRING_TYPE_INFO :: Nil
-
-  override def toString: String = s"($child).sha1()"
+  override def toString: String = s"$hashName(${args.mkString(", ")})"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(ScalarSqlFunctions.SHA1, child.toRexNode)
-  }
-}
-
-case class Sha224(child: Expression) extends UnaryExpression with InputTypeSpec {
-
-  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
-
-  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = STRING_TYPE_INFO :: Nil
-
-  override def toString: String = s"($child).sha224()"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(ScalarSqlFunctions.SHA224, child.toRexNode)
-  }
-}
-
-case class Sha256(child: Expression) extends UnaryExpression with InputTypeSpec {
-
-  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
-
-  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = STRING_TYPE_INFO :: Nil
-
-  override def toString: String = s"($child).sha256()"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(ScalarSqlFunctions.SHA256, child.toRexNode)
-  }
-}
-
-case class Sha384(child: Expression) extends UnaryExpression with InputTypeSpec {
-
-  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
-
-  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = STRING_TYPE_INFO :: Nil
-
-  override def toString: String = s"($child).sha384()"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(ScalarSqlFunctions.SHA384, child.toRexNode)
-  }
-}
-
-case class Sha512(child: Expression) extends UnaryExpression with InputTypeSpec {
-
-  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
-
-  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = STRING_TYPE_INFO :: Nil
-
-  override def toString: String = s"($child).sha512()"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(ScalarSqlFunctions.SHA512, child.toRexNode)
-  }
-}
-
-case class Sha2(child: Expression, hashLength: Expression)
-    extends BinaryExpression with InputTypeSpec {
-
-  override private[flink] def left = child
-  override private[flink] def right = hashLength
-
-  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
-
-  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
-    STRING_TYPE_INFO :: INT_TYPE_INFO :: Nil
-
-  override def toString: String = s"($child).sha2($hashLength)"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(ScalarSqlFunctions.SHA2, left.toRexNode, right.toRexNode)
+    relBuilder.call(hashFunction, args.map(_.toRexNode): _*)
   }
 
+  override private[flink] def validateInput(): ValidationResult = {
+    if (args.length == 1) {
+      args(0).resultType match {
+        case DataTypes.CHAR | DataTypes.STRING => ValidationSuccess
+        case _ => ValidationFailure(s"Argument of $hashName function must be string or character.")
+      }
+    } else if (args.length == 2) {
+      (args(0).resultType, args(1).resultType) match {
+        case (DataTypes.CHAR | DataTypes.STRING, DataTypes.CHAR | DataTypes.STRING) =>
+          ValidationSuccess
+        case _ => ValidationFailure(s"Argument of $hashName function must be string or character.")
+      }
+    } else {
+      ValidationFailure(s"$hashName function must have 1 or 2 arguments.")
+    }
+  }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
+case class Md5(args: Expression*) extends HashExpression(args: _*) {
+  override private[flink] def hashName = "md5"
+  override private[flink] def hashFunction = ScalarSqlFunctions.MD5
+}
 
+case class Sha1(args: Expression*) extends HashExpression(args: _*) {
+  override private[flink] def hashName = "sha1"
+  override private[flink] def hashFunction = ScalarSqlFunctions.SHA1
+}
+
+case class Sha224(args: Expression*) extends HashExpression(args: _*) {
+  override private[flink] def hashName = "sha224"
+  override private[flink] def hashFunction = ScalarSqlFunctions.SHA224
+}
+
+case class Sha256(args: Expression*) extends HashExpression(args: _*) {
+  override private[flink] def hashName = "sha256"
+  override private[flink] def hashFunction = ScalarSqlFunctions.SHA256
+}
+
+case class Sha384(args: Expression*) extends HashExpression(args: _*) {
+  override private[flink] def hashName = "sha384"
+  override private[flink] def hashFunction = ScalarSqlFunctions.SHA384
+}
+
+case class Sha512(args: Expression*) extends HashExpression(args: _*) {
+  override private[flink] def hashName = "sha512"
+  override private[flink] def hashFunction = ScalarSqlFunctions.SHA512
+}
+
+case class Sha2(args: Expression*) extends HashExpression(args: _*) {
+  override private[flink] def hashName = "sha2"
+  override private[flink] def hashFunction = ScalarSqlFunctions.SHA2
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (args.length == 2) {
+      (args(0).resultType, args(1).resultType) match {
+        case (DataTypes.CHAR | DataTypes.STRING, DataTypes.INT) =>
+          ValidationSuccess
+        case _ => ValidationFailure(s"Argument of $hashName function must be (string, int)")
+      }
+    } else if (args.length == 3) {
+      (args(0).resultType, args(1).resultType, args(2).resultType) match {
+        case (DataTypes.CHAR | DataTypes.STRING,
+        DataTypes.CHAR | DataTypes.STRING, DataTypes.INT) =>
+          ValidationSuccess
+        case _ => ValidationFailure(s"Argument of $hashName function must be (string, string, int)")
+      }
+    } else {
+      ValidationFailure(s"$hashName function must have 2 or 3 arguments.")
+    }
+  }
+}

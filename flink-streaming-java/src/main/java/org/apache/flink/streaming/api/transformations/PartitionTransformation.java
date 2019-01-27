@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
@@ -40,6 +41,7 @@ public class PartitionTransformation<T> extends StreamTransformation<T> {
 
 	private final StreamTransformation<T> input;
 	private final StreamPartitioner<T> partitioner;
+	private final DataExchangeMode dataExchangeMode;
 
 	/**
 	 * Creates a new {@code PartitionTransformation} from the given input and
@@ -49,9 +51,23 @@ public class PartitionTransformation<T> extends StreamTransformation<T> {
 	 * @param partitioner The {@code StreamPartitioner}
 	 */
 	public PartitionTransformation(StreamTransformation<T> input, StreamPartitioner<T> partitioner) {
+		this(input, partitioner, null);
+	}
+
+	/**
+	 * Creates a new {@code PartitionTransformation} from the given input and
+	 * {@link StreamPartitioner} and {@link DataExchangeMode}.
+	 *
+	 * @param input The input {@code StreamTransformation}
+	 * @param partitioner The {@code StreamPartitioner}
+	 * @param dataExchangeMode The {@code DataExchangeMode}
+	 */
+	public PartitionTransformation(StreamTransformation<T> input, StreamPartitioner<T> partitioner,
+			DataExchangeMode dataExchangeMode) {
 		super("Partition", input.getOutputType(), input.getParallelism());
 		this.input = input;
 		this.partitioner = partitioner;
+		this.dataExchangeMode = dataExchangeMode;
 	}
 
 	/**
@@ -67,6 +83,13 @@ public class PartitionTransformation<T> extends StreamTransformation<T> {
 	 */
 	public StreamPartitioner<T> getPartitioner() {
 		return partitioner;
+	}
+
+	/**
+	 * Return the dataExchangeMode.
+	 */
+	public DataExchangeMode getDataExchangeMode() {
+		return dataExchangeMode;
 	}
 
 	@Override

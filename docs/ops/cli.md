@@ -30,6 +30,11 @@ distributed setups. It is located under `<flink-home>/bin/flink`
 and connects by default to the running Flink master (JobManager) that was
 started from the same installation directory.
 
+A prerequisite to using the command line interface is that the Flink
+master (JobManager) has been started (via
+`<flink-home>/bin/start-cluster.sh`) or that a YARN environment is
+available.
+
 The command line can be used to
 
 - submit jobs for execution,
@@ -38,11 +43,6 @@ The command line can be used to
 - list running and waiting jobs,
 - trigger and dispose savepoints, and
 - modify a running job
-
-A prerequisite to using the command line interface is that the Flink
-master (JobManager) has been started (via
-`<flink-home>/bin/start-cluster.sh`) or that a YARN environment is
-available.
 
 * This will be replaced by the TOC
 {:toc}
@@ -106,10 +106,6 @@ available.
 
         ./bin/flink list -r
 
--   List all existing jobs (including their JobIDs):
-
-        ./bin/flink list -a
-
 -   List running Flink jobs inside Flink YARN session:
 
         ./bin/flink list -m yarn-cluster -yid <yarnApplicationID> -r
@@ -127,7 +123,6 @@ available.
         ./bin/flink stop <jobID>
         
 -   Modify a running job (streaming jobs only):
-
         ./bin/flink modify <jobID> -p <newParallelism>
 
 
@@ -135,7 +130,7 @@ available.
 
 On a cancel call, the operators in a job immediately receive a `cancel()` method call to cancel them as
 soon as possible.
-If operators are not not stopping after the cancel call, Flink will start interrupting the thread periodically
+If operators are not stopping after the cancel call, Flink will start interrupting the thread periodically
 until it stops.
 
 A "stop" call is a more graceful way of stopping a running streaming job. Stop is only available for jobs
@@ -258,11 +253,6 @@ Action "run" compiles and runs a program.
      -s,--fromSavepoint <savepointPath>   Path to a savepoint to restore the job
                                           from (for example
                                           hdfs:///flink/savepoint-1537).
-     -sae,--shutdownOnAttachedExit        If the job is submitted in attached
-                                          mode, perform a best-effort cluster
-                                          shutdown when the CLI is terminated
-                                          abruptly, e.g., in response to a user
-                                          interrupt, such as typing Ctrl + C.
   Options for yarn-cluster mode:
      -d,--detached                        If present, runs the job in detached
                                           mode
@@ -271,11 +261,6 @@ Action "run" compiles and runs a program.
                                           connect to a different JobManager than
                                           the one specified in the
                                           configuration.
-     -sae,--shutdownOnAttachedExit        If the job is submitted in attached
-                                          mode, perform a best-effort cluster
-                                          shutdown when the CLI is terminated
-                                          abruptly, e.g., in response to a user
-                                          interrupt, such as typing Ctrl + C.
      -yD <property=value>                 use value for given property
      -yd,--yarndetached                   If present, runs the job in detached
                                           mode (deprecated; use non-YARN
@@ -283,8 +268,8 @@ Action "run" compiles and runs a program.
      -yh,--yarnhelp                       Help for the Yarn session CLI.
      -yid,--yarnapplicationId <arg>       Attach to running YARN session
      -yj,--yarnjar <arg>                  Path to Flink jar file
-     -yjm,--yarnjobManagerMemory <arg>    Memory for JobManager Container
-                                          with optional unit (default: MB)
+     -yjm,--yarnjobManagerMemory <arg>    Memory for JobManager Container [in
+                                          MB]
      -yn,--yarncontainer <arg>            Number of YARN container to allocate
                                           (=Number of Task Managers)
      -ynm,--yarnname <arg>                Set a custom name for the application
@@ -295,14 +280,11 @@ Action "run" compiles and runs a program.
      -ys,--yarnslots <arg>                Number of slots per TaskManager
      -yst,--yarnstreaming                 Start Flink in streaming mode
      -yt,--yarnship <arg>                 Ship files in the specified directory
-                                          (t for transfer), multiple options are 
-                                          supported.
-     -ytm,--yarntaskManagerMemory <arg>   Memory per TaskManager Container
-                                          with optional unit (default: MB)
+                                          (t for transfer)
+     -ytm,--yarntaskManagerMemory <arg>   Memory per TaskManager Container [in
+                                          MB]
      -yz,--yarnzookeeperNamespace <arg>   Namespace to create the Zookeeper
-                                          sub-paths for high availability mode
-     -ynl,--yarnnodeLabel <arg>           Specify YARN node label for 
-                                          the YARN application 
+                                          sub-paths for high availability mode 
      -z,--zookeeperNamespace <arg>        Namespace to create the Zookeeper
                                           sub-paths for high availability mode
 

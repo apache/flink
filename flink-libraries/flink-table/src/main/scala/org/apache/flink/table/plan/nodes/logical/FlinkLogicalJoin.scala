@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.plan.nodes.FlinkConventions
+
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.RelNode
@@ -25,7 +28,6 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.calcite.rex.RexNode
-import org.apache.flink.table.plan.nodes.FlinkConventions
 
 class FlinkLogicalJoin(
     cluster: RelOptCluster,
@@ -40,7 +42,8 @@ class FlinkLogicalJoin(
     left,
     right,
     condition,
-    joinType) {
+    joinType)
+  with FlinkLogicalRel {
 
   override def copy(
       traitSet: RelTraitSet,
@@ -52,6 +55,7 @@ class FlinkLogicalJoin(
 
     new FlinkLogicalJoin(cluster, traitSet, left, right, conditionExpr, joinType)
   }
+
 }
 
 private class FlinkLogicalJoinConverter
@@ -70,25 +74,17 @@ private class FlinkLogicalJoinConverter
 
   override def convert(rel: RelNode): RelNode = {
     val join = rel.asInstanceOf[LogicalJoin]
-    val traitSet = rel.getTraitSet.replace(FlinkConventions.LOGICAL)
     val newLeft = RelOptRule.convert(join.getLeft, FlinkConventions.LOGICAL)
     val newRight = RelOptRule.convert(join.getRight, FlinkConventions.LOGICAL)
-
-    new FlinkLogicalJoin(
-      rel.getCluster,
-      traitSet,
-      newLeft,
-      newRight,
-      join.getCondition,
-      join.getJoinType)
+    FlinkLogicalJoin.create(newLeft, newRight, join.getCondition, join.getJoinType)
   }
 
-  private def hasEqualityPredicates(joinInfo: JoinInfo): Boolean = {
+  def hasEqualityPredicates(joinInfo: JoinInfo): Boolean = {
     // joins require an equi-condition or a conjunctive predicate with at least one equi-condition
     !joinInfo.pairs().isEmpty
   }
 
-  private def isSingleRowJoin(join: LogicalJoin): Boolean = {
+  def isSingleRowJoin(join: LogicalJoin): Boolean = {
     join.getJoinType match {
       case JoinRelType.INNER if isSingleRow(join.getRight) || isSingleRow(join.getLeft) => true
       case JoinRelType.LEFT if isSingleRow(join.getRight) => true
@@ -113,6 +109,35 @@ private class FlinkLogicalJoinConverter
   }
 }
 
+/**
+  * Support all joins.
+  */
+private class FlinkLogicalJoinBatchExecConverter extends FlinkLogicalJoinConverter {
+  override def matches(call: RelOptRuleCall): Boolean = true
+}
+
 object FlinkLogicalJoin {
-  val CONVERTER: ConverterRule = new FlinkLogicalJoinConverter()
+  val CONVERTER: ConverterRule = new FlinkLogicalJoinBatchExecConverter()
+
+  def create(
+      left: RelNode,
+      right: RelNode,
+      conditionExpr: RexNode,
+      joinType: JoinRelType): FlinkLogicalJoin = {
+    val cluster = left.getCluster
+    val traitSet = cluster.traitSetOf(Convention.NONE)
+    // FIXME: FlinkRelMdDistribution requires the current RelNode to compute
+    // the distribution trait, so we have to create FlinkLogicalJoin to
+    // calculate the distribution trait
+    val join = new FlinkLogicalJoin(
+      cluster,
+      traitSet,
+      left,
+      right,
+      conditionExpr,
+      joinType)
+    val newTraitSet = FlinkRelMetadataQuery.traitSet(join)
+      .replace(FlinkConventions.LOGICAL).simplify()
+    join.copy(newTraitSet, join.getInputs).asInstanceOf[FlinkLogicalJoin]
+  }
 }

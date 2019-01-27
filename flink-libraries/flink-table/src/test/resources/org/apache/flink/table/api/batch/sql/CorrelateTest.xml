@@ -1,0 +1,392 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testCorrelateAfterConcatAggWithConstantParam">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (SELECT concat_agg(c, '#') AS c FROM MyTable) as t, LATERAL TABLE(func1(c)) AS T(s)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$0], s=[$1])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalAggregate(group=[{}], c=[CONCAT_AGG($0, $1)])
+   :  +- LogicalProject(c=[$2], $f1=['#'])
+   :     +- LogicalTableScan(table=[[builtin, default, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[func1($cor0.c)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[c,f0], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) f0)], joinType=[INNER])
++- SortAggregate(isMerge=[true], select=[Final_CONCAT_AGG(accDelimiter$0, concatAcc$1) AS c])
+   +- Exchange(distribution=[single])
+      +- LocalSortAggregate(select=[Partial_CONCAT_AGG(c, $f1) AS (accDelimiter$0, concatAcc$1)])
+         +- Calc(select=[c, '#' AS $f1])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftInputNotAllProjectable2">
+    <Resource name="sql">
+      <![CDATA[SELECT name, len, c FROM MyTable, LATERAL TABLE(parser(a)) AS T(name, len) where objHash(a, len) <> 0]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(name=[$3], len=[$4], c=[$2])
++- LogicalFilter(condition=[<>(objHash($0, $4), 0)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+      :- LogicalTableScan(table=[[builtin, default, MyTable]])
+      +- LogicalTableFunctionScan(invocation=[parser($cor0.a)], rowType=[RecordType(VARCHAR(65536) _1, INTEGER _2)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[_1 AS name, _2 AS len, c], where=[<>(objHash(a, _2), 0)])
++- Correlate(invocation=[parser($cor0.a)], correlate=[table(parser($cor0.a))], select=[a,c,_1,_2], rowType=[RecordType(VARBINARY a, INTEGER c, VARCHAR(65536) _1, INTEGER _2)], joinType=[INNER])
+   +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCorrelateProjectable">
+    <Resource name="sql">
+      <![CDATA[SELECT len, objHash(c, len) as hash FROM MyTable, LATERAL TABLE(parser(a)) AS T(name, len) where objHash(c, len) > 0]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(len=[$4], hash=[objHash($2, $4)])
++- LogicalFilter(condition=[>(objHash($2, $4), 0)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+      :- LogicalTableScan(table=[[builtin, default, MyTable]])
+      +- LogicalTableFunctionScan(invocation=[parser($cor0.a)], rowType=[RecordType(VARCHAR(65536) _1, INTEGER _2)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[_2 AS len, objHash(c, _2) AS hash], where=[>(objHash(c, _2), 0)])
++- Correlate(invocation=[parser($cor0.a)], correlate=[table(parser($cor0.a))], select=[c,_2], rowType=[RecordType(VARBINARY c, INTEGER _2)], joinType=[INNER])
+   +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCountStarOnCorrelate">
+    <Resource name="sql">
+      <![CDATA[SELECT count(*) FROM MyTable, LATERAL TABLE(parser(a)) AS T(name, len)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
++- LogicalProject($f0=[0])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+      :- LogicalTableScan(table=[[builtin, default, MyTable]])
+      +- LogicalTableFunctionScan(invocation=[parser($cor0.a)], rowType=[RecordType(VARCHAR(65536) _1, INTEGER _2)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- LocalSortAggregate(select=[Partial_COUNT(*) AS count$0])
+      +- Calc(select=[0 AS $f0])
+         +- Correlate(invocation=[parser($cor0.a)], correlate=[table(parser($cor0.a))], select=[_2], rowType=[RecordType(INTEGER _2)], joinType=[INNER])
+            +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCrossJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT c, s FROM MyTable, LATERAL TABLE(func1(c)) AS T(s)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], s=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :- LogicalTableScan(table=[[builtin, default, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[func1($cor0.c)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[INNER])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCrossJoin2">
+    <Resource name="sql">
+      <![CDATA[SELECT c, s FROM MyTable, LATERAL TABLE(func1(c, '$')) AS T(s)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], s=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :- LogicalTableScan(table=[[builtin, default, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[func1($cor0.c, '$')], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[func1($cor0.c, '$')], correlate=[table(func1($cor0.c,'$'))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[INNER])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCustomType">
+    <Resource name="sql">
+      <![CDATA[SELECT c, name, len FROM MyTable, LATERAL TABLE(func2(c)) AS T(name, len)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], name=[$3], len=[$4])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :- LogicalTableScan(table=[[builtin, default, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[func2($cor0.c)], rowType=[RecordType(VARCHAR(65536) f0, INTEGER f1)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[func2($cor0.c)], correlate=[table(func2($cor0.c))], select=[c,name,len], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) name, INTEGER len)], joinType=[INNER])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilter">
+    <Resource name="sql">
+      <![CDATA[SELECT c, name, len FROM MyTable, LATERAL TABLE(func2(c)) AS T(name, len) WHERE len > 2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], name=[$3], len=[$4])
++- LogicalFilter(condition=[>($4, 2)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+      :- LogicalTableScan(table=[[builtin, default, MyTable]])
+      +- LogicalTableFunctionScan(invocation=[func2($cor0.c)], rowType=[RecordType(VARCHAR(65536) f0, INTEGER f1)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[func2($cor0.c)], correlate=[table(func2($cor0.c))], select=[c,name,len], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) name, INTEGER len)], joinType=[INNER], condition=[>($1, 2)])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testHierarchyType">
+    <Resource name="sql">
+      <![CDATA[SELECT c, T.* FROM MyTable, LATERAL TABLE(hierarchy(c)) AS T(name, adult, len)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], name=[$3], adult=[$4], len=[$5])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :- LogicalTableScan(table=[[builtin, default, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[hierarchy($cor0.c)], rowType=[RecordType(VARCHAR(65536) f0, BOOLEAN f1, INTEGER f2)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[hierarchy($cor0.c)], correlate=[table(hierarchy($cor0.c))], select=[c,name,adult,len], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) name, BOOLEAN adult, INTEGER len)], joinType=[INNER])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftInputAllProjectable">
+    <Resource name="sql">
+      <![CDATA[SELECT name, len FROM MyTable, LATERAL TABLE(parser(a)) AS T(name, len)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(name=[$1], len=[$2])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[builtin, default, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[parser($cor0.a)], rowType=[RecordType(VARCHAR(65536) _1, INTEGER _2)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[parser($cor0.a)], correlate=[table(parser($cor0.a))], select=[name,len], rowType=[RecordType(VARCHAR(65536) name, INTEGER len)], joinType=[INNER])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftInputAllProjectable2">
+    <Resource name="sql">
+      <![CDATA[SELECT name, objHash(name), len FROM MyTable, LATERAL TABLE(parser(a)) AS T(name, len) where objHash(name) > 0]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(name=[$1], EXPR$1=[objHash($1)], len=[$2])
++- LogicalFilter(condition=[>(objHash($1), 0)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+      :- LogicalTableScan(table=[[builtin, default, MyTable]])
+      +- LogicalTableFunctionScan(invocation=[parser($cor0.a)], rowType=[RecordType(VARCHAR(65536) _1, INTEGER _2)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[_1 AS name, objHash(_1) AS EXPR$1, _2 AS len])
++- Correlate(invocation=[parser($cor0.a)], correlate=[table(parser($cor0.a))], select=[_1,_2], rowType=[RecordType(VARCHAR(65536) _1, INTEGER _2)], joinType=[INNER], condition=[>(objHash($0), 0)])
+   +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftInputNotAllProjectable">
+    <Resource name="sql">
+      <![CDATA[SELECT objHash(a) hash_a, name, len FROM MyTable, LATERAL TABLE(parser(a)) AS T(name, len)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(hash_a=[objHash($0)], name=[$1], len=[$2])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[builtin, default, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[parser($cor0.a)], rowType=[RecordType(VARCHAR(65536) _1, INTEGER _2)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[objHash(a) AS hash_a, _1 AS name, _2 AS len])
++- Correlate(invocation=[parser($cor0.a)], correlate=[table(parser($cor0.a))], select=[a,_1,_2], rowType=[RecordType(VARBINARY a, VARCHAR(65536) _1, INTEGER _2)], joinType=[INNER])
+   +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftOuterJoinAsSubQuery">
+    <Resource name="sql">
+      <![CDATA[
+ SELECT *
+ FROM MyTable2 LEFT OUTER JOIN
+  (SELECT c, s
+   FROM MyTable LEFT OUTER JOIN LATERAL TABLE(func1(c)) AS T(s) on true)
+ ON c2 = s ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a2=[$0], b2=[$1], c2=[$2], c=[$3], s=[$4])
++- LogicalJoin(condition=[=($2, $4)], joinType=[left])
+   :- LogicalTableScan(table=[[builtin, default, MyTable2]])
+   +- LogicalProject(c=[$2], s=[$3])
+      +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{2}])
+         :- LogicalTableScan(table=[[builtin, default, MyTable]])
+         +- LogicalTableFunctionScan(invocation=[func1($cor0.c)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashJoin(where=[=(c2, s)], join=[a2, b2, c2, c, s], joinType=[LeftOuterJoin], isBroadcast=[true], build=[right])
+:- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[a2, b2, c2])
++- Exchange(distribution=[broadcast])
+   +- Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[LEFT])
+      +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftOuterJoinWithLiteralTrue">
+    <Resource name="sql">
+      <![CDATA[SELECT c, s FROM MyTable LEFT JOIN LATERAL TABLE(func1(c)) AS T(s) ON TRUE]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], s=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{2}])
+   :- LogicalTableScan(table=[[builtin, default, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[func1($cor0.c)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[LEFT])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPojoType">
+    <Resource name="sql">
+      <![CDATA[SELECT c, name, age FROM MyTable, LATERAL TABLE(pojo(c))]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], name=[$4], age=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :- LogicalTableScan(table=[[builtin, default, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[pojo($cor0.c)], rowType=[RecordType(INTEGER age, VARCHAR(65536) name)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, name, age])
++- Correlate(invocation=[pojo($cor0.c)], correlate=[table(pojo($cor0.c))], select=[c,age,name], rowType=[RecordType(VARCHAR(65536) c, INTEGER age, VARCHAR(65536) name)], joinType=[INNER])
+   +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testScalarFunction">
+    <Resource name="sql">
+      <![CDATA[SELECT c, s FROM MyTable, LATERAL TABLE(func1(SUBSTRING(c, 2))) AS T(s)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], s=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :- LogicalTableScan(table=[[builtin, default, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[func1(SUBSTRING($cor0.c, 2))], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[func1(SUBSTRING($cor0.c, 2))], correlate=[table(func1(SUBSTRING($cor0.c, 2)))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[INNER])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableFunctionWithVariableArguments2">
+    <Resource name="sql">
+      <![CDATA[SELECT c, s FROM MyTable, LATERAL TABLE(func2('hello', 'world', c)) AS T(s)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], s=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :- LogicalTableScan(table=[[builtin, default, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[func2('hello', 'world', $cor0.c)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[func2('hello', 'world', $cor0.c)], correlate=[table(func2('hello','world',$cor0.c))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[INNER])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableFunctionWithVariableArguments">
+    <Resource name="sql">
+      <![CDATA[SELECT c, s FROM MyTable, LATERAL TABLE(func1('hello', 'world', c)) AS T(s)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], s=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :- LogicalTableScan(table=[[builtin, default, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[func1('hello', 'world', $cor0.c)], rowType=[RecordType(VARCHAR(65536) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Correlate(invocation=[func1('hello', 'world', $cor0.c)], correlate=[table(func1('hello','world',$cor0.c))], select=[c,s], rowType=[RecordType(VARCHAR(65536) c, VARCHAR(65536) s)], joinType=[INNER])
++- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

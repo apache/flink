@@ -61,8 +61,11 @@ public class Avro extends FormatDescriptor {
 		return this;
 	}
 
+	/**
+	 * Internal method for format properties conversion.
+	 */
 	@Override
-	protected Map<String, String> toFormatProperties() {
+	public Map<String, String> toFormatProperties() {
 		final DescriptorProperties properties = new DescriptorProperties();
 
 		if (null != recordClass) {

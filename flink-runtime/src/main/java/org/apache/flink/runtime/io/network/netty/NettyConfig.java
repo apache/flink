@@ -23,20 +23,30 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.net.SSLUtils;
-
+import org.apache.flink.util.MathUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
 import java.net.InetAddress;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 public class NettyConfig {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NettyConfig.class);
+
+	/**
+	 * Arenas allocate chunks of pageSize << maxOrder bytes. With these defaults, this results in
+	 * chunks of 16 MB.
+	 *
+	 * @see #MAX_ORDER
+	 */
+	public static final int PAGE_SIZE = 8192;
 
 	// - Config keys ----------------------------------------------------------
 
@@ -45,6 +55,15 @@ public class NettyConfig {
 			.defaultValue(-1)
 			.withDeprecatedKeys("taskmanager.net.num-arenas")
 			.withDescription("The number of Netty arenas.");
+
+	/**
+	 * Arenas allocate chunks of pageSize << maxOrder bytes. With these defaults, this results in
+	 * chunks of 4 MB.
+	 */
+	public static final ConfigOption<Integer> MAX_ORDER = ConfigOptions
+		.key("taskmanager.network.netty.max-order")
+		.defaultValue(9)
+		.withDescription("The power of 2 of the number of pages in each chunk.");
 
 	public static final ConfigOption<Integer> NUM_THREADS_SERVER = ConfigOptions
 			.key("taskmanager.network.netty.server.numThreads")
@@ -89,9 +108,9 @@ public class NettyConfig {
 		NIO, EPOLL, AUTO
 	}
 
-	static final String SERVER_THREAD_GROUP_NAME = "Flink Netty Server";
+	final static String SERVER_THREAD_GROUP_NAME = "Flink Netty Server";
 
-	static final String CLIENT_THREAD_GROUP_NAME = "Flink Netty Client";
+	final static String CLIENT_THREAD_GROUP_NAME = "Flink Netty Client";
 
 	private final InetAddress serverAddress;
 
@@ -151,9 +170,21 @@ public class NettyConfig {
 	}
 
 	public int getNumberOfArenas() {
-		// default: number of slots
 		final int configValue = config.getInteger(NUM_ARENAS);
-		return configValue == -1 ? numberOfSlots : configValue;
+		if (configValue != -1) {
+			return configValue;
+		}
+
+		final int nettyMemory = config.getInteger(TaskManagerOptions.TASK_MANAGER_PROCESS_NETTY_MEMORY);
+		final int chunkSize = getChunkSize();
+
+		final int maxNumberOfArenas = (int) (nettyMemory * 1024L * 1024L / chunkSize) - 1;
+
+		checkState(maxNumberOfArenas >= 1,
+			"The configured nettyMemory is %s MB and cannot support for even one chunk with size %s MB",
+			nettyMemory, chunkSize >> 20);
+
+		return Math.min(numberOfSlots, maxNumberOfArenas);
 	}
 
 	public int getServerNumThreads() {
@@ -189,31 +220,43 @@ public class NettyConfig {
 		}
 	}
 
-	@Nullable
-	public SSLHandlerFactory createClientSSLEngineFactory() throws Exception {
-		return getSSLEnabled() ?
-				SSLUtils.createInternalClientSSLEngineFactory(config) :
-				null;
+	public SSLContext createClientSSLContext() throws Exception {
+
+		// Create SSL Context from config
+		SSLContext clientSSLContext = null;
+		if (getSSLEnabled()) {
+			clientSSLContext = SSLUtils.createSSLClientContext(config);
+		}
+
+		return clientSSLContext;
 	}
 
-	@Nullable
-	public SSLHandlerFactory createServerSSLEngineFactory() throws Exception {
-		return getSSLEnabled() ?
-				SSLUtils.createInternalServerSSLEngineFactory(config) :
-				null;
+	public SSLContext createServerSSLContext() throws Exception {
+
+		// Create SSL Context from config
+		SSLContext serverSSLContext = null;
+		if (getSSLEnabled()) {
+			serverSSLContext = SSLUtils.createSSLServerContext(config);
+		}
+
+		return serverSSLContext;
 	}
 
 	public boolean getSSLEnabled() {
 		return config.getBoolean(TaskManagerOptions.DATA_SSL_ENABLED)
-			&& SSLUtils.isInternalSSLEnabled(config);
+			&& SSLUtils.getSSLEnabled(config);
+	}
+
+	public void setSSLVerAndCipherSuites(SSLEngine engine) {
+		SSLUtils.setSSLVerAndCipherSuites(engine, config);
+	}
+
+	public void setSSLVerifyHostname(SSLParameters sslParams) {
+		SSLUtils.setSSLVerifyHostname(config, sslParams);
 	}
 
 	public boolean isCreditBasedEnabled() {
 		return config.getBoolean(TaskManagerOptions.NETWORK_CREDIT_MODEL);
-	}
-
-	public Configuration getConfig() {
-		return config;
 	}
 
 	@Override
@@ -233,12 +276,26 @@ public class NettyConfig {
 		String def = "use Netty's default";
 		String man = "manual";
 
-		return String.format(format, serverAddress, serverPort, getSSLEnabled() ? "true" : "false",
+		return String.format(format, serverAddress, serverPort, getSSLEnabled() ? "true":"false",
 				memorySegmentSize, getTransportType(), getServerNumThreads(),
 				getServerNumThreads() == 0 ? def : man,
 				getClientNumThreads(), getClientNumThreads() == 0 ? def : man,
 				getServerConnectBacklog(), getServerConnectBacklog() == 0 ? def : man,
 				getClientConnectTimeoutSeconds(), getSendAndReceiveBufferSize(),
 				getSendAndReceiveBufferSize() == 0 ? def : man);
+	}
+
+	public int getMaxOrder() {
+		int maxOrder = config.getInteger(MAX_ORDER);
+
+		// Assert the chunk size is not too small to fulfill the requirements of a single thread.
+		// We require the chunk size to be larger than 1MB based on the experiment results.
+		int minimumMaxOrder = 20 - MathUtils.log2strict(PAGE_SIZE);
+
+		return Math.max(minimumMaxOrder, maxOrder);
+	}
+
+	public int getChunkSize() {
+		return PAGE_SIZE << getMaxOrder();
 	}
 }

@@ -18,9 +18,11 @@
 package org.apache.flink.streaming.examples.wordcount;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.examples.wordcount.util.WordCountData;
 import org.apache.flink.util.Collector;
@@ -59,6 +61,39 @@ public class WordCount {
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
 
+		// get resource config
+		ResourceSpec resourceSpec = null;
+		if (params.has("resource")) {
+			String resConfig = params.get("resource");
+			if (resConfig != null && !resConfig.isEmpty()) {
+				String[] resConfigArr = resConfig.split(",");
+				double cpuCores = 0.0;
+				int heapMemory = 0;
+				for (String strResource : resConfigArr) {
+					String[] keyAndVal = strResource.split(":");
+					if (keyAndVal != null && keyAndVal.length == 2) {
+						switch (keyAndVal[0]) {
+							case "vcores":
+								cpuCores = Double.valueOf(keyAndVal[1]);
+								break;
+							case "memory":
+								heapMemory = Integer.valueOf(keyAndVal[1]);
+								break;
+							default:
+								throw new RuntimeException("Unknown resource configuration: " + keyAndVal[0]);
+						}
+					}
+				}
+				resourceSpec = ResourceSpec.newBuilder().setCpuCores(cpuCores).setHeapMemoryInMB(heapMemory).build();
+				System.out.println("cpuCores: " + cpuCores + ", heapMemory: " + heapMemory);
+			}
+		}
+
+		int parallelism = 1;
+		if (params.has("parallelism")) {
+			parallelism = Integer.valueOf(params.get("parallelism"));
+		}
+
 		// get input data
 		DataStream<String> text;
 		if (params.has("input")) {
@@ -71,15 +106,27 @@ public class WordCount {
 			text = env.fromElements(WordCountData.WORDS);
 		}
 
-		DataStream<Tuple2<String, Integer>> counts =
-			// split up the lines in pairs (2-tuples) containing: (word,1)
-			text.flatMap(new Tokenizer())
-			// group by the tuple field "0" and sum up tuple field "1"
-			.keyBy(0).sum(1);
+		DataStream<Tuple2<String, Integer>> counts = null;
+		// split up the lines in pairs (2-tuples) containing: (word,1)
+		if (resourceSpec != null) {
+			System.out.println("Set resource spec: " + resourceSpec.toString());
+			counts = ((SingleOutputStreamOperator<String>) text).setResources(resourceSpec)
+				.flatMap(new Tokenizer()).setParallelism(parallelism).setResources(resourceSpec)
+				// group by the tuple field "0" and sum up tuple field "1"
+				.keyBy(0).sum(1).setParallelism(parallelism).setResources(resourceSpec);
+		} else {
+			counts = text.flatMap(new Tokenizer()).setParallelism(parallelism)
+				// group by the tuple field "0" and sum up tuple field "1"
+				.keyBy(0).sum(1).setParallelism(parallelism);
+		}
 
 		// emit result
 		if (params.has("output")) {
-			counts.writeAsText(params.get("output"));
+			if (resourceSpec != null) {
+				counts.writeAsText(params.get("output")).setResources(resourceSpec);
+			} else {
+				counts.writeAsText(params.get("output"));
+			}
 		} else {
 			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			counts.print();
@@ -100,16 +147,18 @@ public class WordCount {
 	 * Integer>}).
 	 */
 	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
+		public void flatMap(String value, Collector<Tuple2<String, Integer>> out)
+				throws Exception {
 			// normalize and split the line
 			String[] tokens = value.toLowerCase().split("\\W+");
 
 			// emit the pairs
 			for (String token : tokens) {
 				if (token.length() > 0) {
-					out.collect(new Tuple2<>(token, 1));
+					out.collect(new Tuple2<String, Integer>(token, 1));
 				}
 			}
 		}

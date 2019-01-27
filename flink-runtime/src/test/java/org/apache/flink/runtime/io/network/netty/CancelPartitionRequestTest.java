@@ -225,6 +225,11 @@ public class CancelPartitionRequestTest {
 		}
 
 		@Override
+		public void notifyCreditAdded(int creditDeltas) {
+
+		}
+
+		@Override
 		public Throwable getFailureCause() {
 			return null;
 		}

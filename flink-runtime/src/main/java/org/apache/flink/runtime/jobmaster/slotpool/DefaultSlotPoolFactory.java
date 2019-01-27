@@ -50,17 +50,22 @@ public class DefaultSlotPoolFactory implements SlotPoolFactory {
 	@Nonnull
 	private final Time slotIdleTimeout;
 
+	@Nonnull
+	private final Boolean enableSharedSlot;
+
 	public DefaultSlotPoolFactory(
 			@Nonnull RpcService rpcService,
 			@Nonnull SchedulingStrategy schedulingStrategy,
 			@Nonnull Clock clock,
 			@Nonnull Time rpcTimeout,
-			@Nonnull Time slotIdleTimeout) {
+			@Nonnull Time slotIdleTimeout,
+			@Nonnull Boolean enableSharedSlot) {
 		this.rpcService = rpcService;
 		this.schedulingStrategy = schedulingStrategy;
 		this.clock = clock;
 		this.rpcTimeout = rpcTimeout;
 		this.slotIdleTimeout = slotIdleTimeout;
+		this.enableSharedSlot = enableSharedSlot;
 	}
 
 	@Override
@@ -72,7 +77,8 @@ public class DefaultSlotPoolFactory implements SlotPoolFactory {
 			schedulingStrategy,
 			clock,
 			rpcTimeout,
-			slotIdleTimeout);
+			slotIdleTimeout,
+			enableSharedSlot);
 	}
 
 	public static DefaultSlotPoolFactory fromConfiguration(
@@ -83,13 +89,15 @@ public class DefaultSlotPoolFactory implements SlotPoolFactory {
 		final Time slotIdleTimeout = Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_IDLE_TIMEOUT));
 
 		final SchedulingStrategy schedulingStrategy = selectSchedulingStrategy(configuration);
+		final Boolean enableSharedSlot = configuration.getBoolean(JobManagerOptions.SLOT_ENABLE_SHARED_SLOT);
 
 		return new DefaultSlotPoolFactory(
 			rpcService,
 			schedulingStrategy,
 			SystemClock.getInstance(),
 			rpcTimeout,
-			slotIdleTimeout);
+			slotIdleTimeout,
+			enableSharedSlot);
 	}
 
 	private static SchedulingStrategy selectSchedulingStrategy(Configuration configuration) {

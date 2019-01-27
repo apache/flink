@@ -1,0 +1,11 @@
+Stage 12 : Data Sink(Sink: collect)
++- Stage 11 : Operator(SinkConversion to Row , metric={"rowCount":2})
+   +- Stage 10 : Operator(Calc(select: (c, g)) , metric={"rowCount":2})
+      +- Stage 9 : Operator(HashJoin(where: ((b = e) AND (h < b)), buildRight) , metric={"rowCount":2})
+         :- Stage 4 : Operator(Calc(where: (a < 6), select: (b, c)) , metric={"rowCount":5})
+         :  +- Stage 3 : Operator(SourceConversion(table:[builtin, default, Table3], fields:(a, b, c)) , metric={"rowCount":21})
+         :     +- Stage 1 : Data Source(Source: Table3)
+         +- Stage 7 : Operator(Calc(select: (e, g, h)) , metric={"rowCount":15})
+            +- Stage 6 : Operator(SourceConversion(table:[builtin, default, Table5], fields:(d, e, f, g, h)) , metric={"rowCount":15})
+               +- Stage 2 : Data Source(Source: Table5)
+

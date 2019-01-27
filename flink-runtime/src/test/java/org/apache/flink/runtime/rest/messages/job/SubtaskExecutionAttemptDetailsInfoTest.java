@@ -22,6 +22,8 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -46,8 +48,21 @@ public class SubtaskExecutionAttemptDetailsInfoTest extends RestResponseMarshall
 			Math.abs(random.nextLong()),
 			random.nextBoolean(),
 			Math.abs(random.nextLong()),
+			random.nextBoolean(),
+			Math.abs(random.nextFloat()),
+			random.nextBoolean(),
+			Math.abs(random.nextFloat()),
+			random.nextBoolean(),
+			Math.abs(random.nextLong()),
+			random.nextBoolean(),
+			Math.abs(random.nextLong()),
 			random.nextBoolean()
 		);
+
+		Map<ExecutionState, Long> stateTransitionTime = new HashMap<>();
+		for (ExecutionState state : ExecutionState.values()) {
+			stateTransitionTime.put(state, Math.abs(random.nextLong()));
+		}
 
 		return new SubtaskExecutionAttemptDetailsInfo(
 			Math.abs(random.nextInt()),
@@ -57,6 +72,7 @@ public class SubtaskExecutionAttemptDetailsInfoTest extends RestResponseMarshall
 			Math.abs(random.nextLong()),
 			Math.abs(random.nextLong()),
 			Math.abs(random.nextLong()),
+			stateTransitionTime,
 			ioMetricsInfo
 		);
 	}

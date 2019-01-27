@@ -22,11 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.Locale;
 
-import static org.apache.flink.configuration.MemorySize.MemoryUnit.BYTES;
-import static org.apache.flink.configuration.MemorySize.MemoryUnit.GIGA_BYTES;
-import static org.apache.flink.configuration.MemorySize.MemoryUnit.KILO_BYTES;
-import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
-import static org.apache.flink.configuration.MemorySize.MemoryUnit.TERA_BYTES;
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.hasUnit;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -39,11 +34,33 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>The size can be parsed from a text expression. If the expression is a pure number,
  * the value will be interpreted as bytes.
  *
+ * <p>To make larger values more compact, the common size suffixes are supported:
+ *
+ * <ul>
+ *     <li>q or 1b or 1bytes (bytes)
+ *     <li>1k or 1kb or 1kibibytes (interpreted as kibibytes = 1024 bytes)
+ *     <li>1m or 1mb or 1mebibytes (interpreted as mebibytes = 1024 kibibytes)
+ *     <li>1g or 1gb or 1gibibytes (interpreted as gibibytes = 1024 mebibytes)
+ *     <li>1t or 1tb or 1tebibytes (interpreted as tebibytes = 1024 gibibytes)
+ * </ul>
  */
 @PublicEvolving
 public class MemorySize implements java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
+
+	private static final String[] BYTES_UNITS = { "b", "bytes" };
+
+	private static final String[] KILO_BYTES_UNITS = { "k", "kb", "kibibytes" };
+
+	private static final String[] MEGA_BYTES_UNITS = { "m", "mb", "mebibytes" };
+
+	private static final String[] GIGA_BYTES_UNITS = { "g", "gb", "gibibytes" };
+
+	private static final String[] TERA_BYTES_UNITS = { "t", "tb", "tebibytes" };
+
+	private static final String ALL_UNITS = concatenateUnits(
+			BYTES_UNITS, KILO_BYTES_UNITS, MEGA_BYTES_UNITS, GIGA_BYTES_UNITS, TERA_BYTES_UNITS);
 
 	// ------------------------------------------------------------------------
 
@@ -79,8 +96,8 @@ public class MemorySize implements java.io.Serializable {
 	/**
 	 * Gets the memory size in Mebibytes (= 1024 Kibibytes).
 	 */
-	public int getMebiBytes() {
-		return (int) (bytes >> 20);
+	public long getMebiBytes() {
+		return bytes >> 20;
 	}
 
 	/**
@@ -121,6 +138,7 @@ public class MemorySize implements java.io.Serializable {
 
 	/**
 	 * Parses the given string as as MemorySize.
+	 * The supported expressions are listed under {@link MemorySize}.
 	 *
 	 * @param text The string to parse
 	 * @return The parsed MemorySize
@@ -192,24 +210,24 @@ public class MemorySize implements java.io.Serializable {
 			multiplier = 1L;
 		}
 		else {
-			if (matchesAny(unit, BYTES)) {
+			if (matchesAny(unit, BYTES_UNITS)) {
 				multiplier = 1L;
 			}
-			else if (matchesAny(unit, KILO_BYTES)) {
+			else if (matchesAny(unit, KILO_BYTES_UNITS)) {
 				multiplier = 1024L;
 			}
-			else if (matchesAny(unit, MEGA_BYTES)) {
+			else if (matchesAny(unit, MEGA_BYTES_UNITS)) {
 				multiplier = 1024L * 1024L;
 			}
-			else if (matchesAny(unit, GIGA_BYTES)) {
+			else if (matchesAny(unit, GIGA_BYTES_UNITS)) {
 				multiplier = 1024L * 1024L * 1024L;
 			}
-			else if (matchesAny(unit, TERA_BYTES)) {
+			else if (matchesAny(unit, TERA_BYTES_UNITS)) {
 				multiplier = 1024L * 1024L * 1024L * 1024L;
 			}
 			else {
 				throw new IllegalArgumentException("Memory size unit '" + unit +
-						"' does not match any of the recognized units: " + MemoryUnit.getAllUnits());
+						"' does not match any of the recognized units: " + ALL_UNITS);
 			}
 		}
 
@@ -224,13 +242,32 @@ public class MemorySize implements java.io.Serializable {
 		return result;
 	}
 
-	private static boolean matchesAny(String str, MemoryUnit unit) {
-		for (String s : unit.getUnits()) {
+	private static boolean matchesAny(String str, String[] variants) {
+		for (String s : variants) {
 			if (s.equals(str)) {
 				return true;
 			}
 		}
 		return false;
+	}
+
+	private static String concatenateUnits(final String[]... allUnits) {
+		final StringBuilder builder = new StringBuilder(128);
+
+		for (String[] units : allUnits) {
+			builder.append('(');
+
+			for (String unit : units) {
+				builder.append(unit);
+				builder.append(" | ");
+			}
+
+			builder.setLength(builder.length() - 3);
+			builder.append(") / ");
+		}
+
+		builder.setLength(builder.length() - 3);
+		return builder.toString();
 	}
 
 	/**

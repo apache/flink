@@ -24,13 +24,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.IOUtils;
-import org.junit.AssumptionViolatedException;
 import org.junit.Test;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.Callable;
@@ -281,12 +279,7 @@ public class SocketClientSinkTest extends TestLogger {
 			retryLatch.countDown();
 
 			// Restart the server
-			try {
-				serverSocket[0] = new ServerSocket(port);
-			} catch (BindException be) {
-				// some other process may be using this port now
-				throw new AssumptionViolatedException("Could not bind server to previous port.", be);
-			}
+			serverSocket[0] = new ServerSocket(port);
 			Socket socket = serverSocket[0].accept();
 
 			BufferedReader reader = new BufferedReader(new InputStreamReader(

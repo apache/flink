@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
@@ -341,56 +340,24 @@ public class StateBackendLoadingTest {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * This tests that in the case of configured high-availability, the memory state backend
-	 * automatically grabs the HA persistence directory.
+	 * This tests that in the case of configured high-availability, and no externalized checkpoint configured,
+	 * the memory state backend would not create HA persistence directory.
 	 */
 	@Test
-	public void testHighAvailabilityDefaultFallback() throws Exception {
+	public void testHighAvailabilityDefaultWithNoExternalizedCheckpoint() throws Exception {
 		final String haPersistenceDir = new Path(tmp.newFolder().toURI()).toString();
-		final Path expectedCheckpointPath = new Path(haPersistenceDir);
 
-		final Configuration config1 = new Configuration();
-		config1.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-		config1.setString(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
-		config1.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haPersistenceDir);
-
-		final Configuration config2 = new Configuration();
-		config2.setString(backendKey, "jobmanager");
-		config2.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-		config2.setString(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
-		config2.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haPersistenceDir);
-
-		final MemoryStateBackend appBackend = new MemoryStateBackend();
-
-		final StateBackend loaded1 = StateBackendLoader.fromApplicationOrConfigOrDefault(appBackend, config1, cl, null);
-		final StateBackend loaded2 = StateBackendLoader.fromApplicationOrConfigOrDefault(null, config1, cl, null);
-		final StateBackend loaded3 = StateBackendLoader.fromApplicationOrConfigOrDefault(null, config2, cl, null);
-
-		assertTrue(loaded1 instanceof MemoryStateBackend);
-		assertTrue(loaded2 instanceof MemoryStateBackend);
-		assertTrue(loaded3 instanceof MemoryStateBackend);
-
-		final MemoryStateBackend memBackend1 = (MemoryStateBackend) loaded1;
-		final MemoryStateBackend memBackend2 = (MemoryStateBackend) loaded2;
-		final MemoryStateBackend memBackend3 = (MemoryStateBackend) loaded3;
-
-		assertNotNull(memBackend1.getCheckpointPath());
-		assertNotNull(memBackend2.getCheckpointPath());
-		assertNotNull(memBackend3.getCheckpointPath());
-		assertNull(memBackend1.getSavepointPath());
-		assertNull(memBackend2.getSavepointPath());
-		assertNull(memBackend3.getSavepointPath());
-
-		assertEquals(expectedCheckpointPath, memBackend1.getCheckpointPath().getParent());
-		assertEquals(expectedCheckpointPath, memBackend2.getCheckpointPath().getParent());
-		assertEquals(expectedCheckpointPath, memBackend3.getCheckpointPath().getParent());
+		testHighAvailabilityWithNoExternalizedCheckpoint(haPersistenceDir);
 	}
 
 	@Test
-	public void testHighAvailabilityDefaultFallbackLocalPaths() throws Exception {
+	public void testHighAvailabilityDefaultLocalPathsWithNoExternalizedCheckpoint() throws Exception {
 		final String haPersistenceDir = new Path(tmp.newFolder().getAbsolutePath()).toString();
-		final Path expectedCheckpointPath = new Path(haPersistenceDir).makeQualified(FileSystem.getLocalFileSystem());
 
+		testHighAvailabilityWithNoExternalizedCheckpoint(haPersistenceDir);
+	}
+
+	private void testHighAvailabilityWithNoExternalizedCheckpoint(String haPersistenceDir) throws Exception {
 		final Configuration config1 = new Configuration();
 		config1.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 		config1.setString(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
@@ -416,16 +383,12 @@ public class StateBackendLoadingTest {
 		final MemoryStateBackend memBackend2 = (MemoryStateBackend) loaded2;
 		final MemoryStateBackend memBackend3 = (MemoryStateBackend) loaded3;
 
-		assertNotNull(memBackend1.getCheckpointPath());
-		assertNotNull(memBackend2.getCheckpointPath());
-		assertNotNull(memBackend3.getCheckpointPath());
+		assertNull(memBackend1.getCheckpointPath());
+		assertNull(memBackend2.getCheckpointPath());
+		assertNull(memBackend3.getCheckpointPath());
 		assertNull(memBackend1.getSavepointPath());
 		assertNull(memBackend2.getSavepointPath());
 		assertNull(memBackend3.getSavepointPath());
-
-		assertEquals(expectedCheckpointPath, memBackend1.getCheckpointPath().getParent());
-		assertEquals(expectedCheckpointPath, memBackend2.getCheckpointPath().getParent());
-		assertEquals(expectedCheckpointPath, memBackend3.getCheckpointPath().getParent());
 	}
 
 	// ------------------------------------------------------------------------

@@ -177,6 +177,10 @@ public class PermanentBlobCache extends AbstractBlobCache implements PermanentBl
 		}
 	}
 
+	public int getNumberOfCachedJobs() {
+		return jobRefCounters.size();
+	}
+
 	/**
 	 * Returns the path to a local copy of the file associated with the provided job ID and blob
 	 * key.

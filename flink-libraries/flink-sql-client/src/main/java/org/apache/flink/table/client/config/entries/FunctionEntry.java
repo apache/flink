@@ -57,7 +57,7 @@ public class FunctionEntry extends ConfigEntry {
 		return create(ConfigUtil.normalizeYaml(config));
 	}
 
-	private static FunctionEntry create(DescriptorProperties properties) {
+	public static FunctionEntry create(DescriptorProperties properties) {
 		properties.validateString(FUNCTIONS_NAME, false, 1);
 
 		final String name = properties.getString(FUNCTIONS_NAME);

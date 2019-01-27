@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.types.Row
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
+import org.apache.flink.types.Row
 import org.junit.{Ignore, Test}
 
 /**
@@ -89,10 +88,10 @@ class NonDeterministicTests extends ExpressionTestBase {
       "UUID()",
       "PLEASE CHECK MANUALLY")
   }
+
   // ----------------------------------------------------------------------------------------------
 
-  override def testData: Row = new Row(0)
+  override def rowTestData: Row = new Row(0)
 
-  override def typeInfo: TypeInformation[Any] =
-    new RowTypeInfo().asInstanceOf[TypeInformation[Any]]
+  override def rowType: RowTypeInfo = new RowTypeInfo()
 }

@@ -30,7 +30,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple7;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.operators.util.CollectionDataSets.CustomType;
@@ -585,7 +584,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 				.where(0)
 				.equalTo("*")
 				.with(new ProjectBothFunction<Tuple3<Integer, Long, String>, Integer>())
-				.returns(new GenericTypeInfo(Tuple2.class));
+				.returns("Tuple2<java.lang.Object,java.lang.Object>");
 
 		List<Tuple2<Tuple3<Integer, Long, String>, Integer>> result = joinDs.collect();
 
@@ -608,7 +607,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 				.where("*")
 				.equalTo(0)
 				.with(new ProjectBothFunction<Integer, Tuple3<Integer, Long, String>>())
-				.returns(new GenericTypeInfo(Tuple2.class));
+				.returns("Tuple2<java.lang.Object,java.lang.Object>");
 
 		List<Tuple2<Integer, Tuple3<Integer, Long, String>>> result = joinDs.collect();
 

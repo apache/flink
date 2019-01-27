@@ -19,41 +19,72 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Container for multiple {@link JobManagerConnection} registered under their respective job id.
  */
 public class JobManagerTable {
-	private final Map<JobID, JobManagerConnection> jobManagerConnections;
+	private final Map<JobID, JobManagerConnection> jobIDIndices;
+
+	private final Map<ResourceID, JobManagerConnection> resourceIDIndices;
 
 	public JobManagerTable() {
-		jobManagerConnections = new HashMap<>(4);
+		// The JobManagerTable will be updated in the RPC main thread, and read in
+		// the task thread when committing and querying aggregated accumulators, thus
+		// ConcurrentHashMap is required here.
+		jobIDIndices = new ConcurrentHashMap<>(4);
+		resourceIDIndices = new ConcurrentHashMap<>(4);
+	}
+
+	public Collection<JobManagerConnection> getAllJobManagerConnections() {
+		return jobIDIndices.values();
 	}
 
 	public boolean contains(JobID jobId) {
-		return jobManagerConnections.containsKey(jobId);
+		return jobIDIndices.containsKey(jobId);
 	}
 
-	public boolean put(JobID jobId, JobManagerConnection jobManagerConnection) {
-		JobManagerConnection previousJMC = jobManagerConnections.put(jobId, jobManagerConnection);
-
+	public boolean add(JobManagerConnection jobManagerConnection) {
+		JobManagerConnection previousJMC = jobIDIndices.put(jobManagerConnection.getJobID(), jobManagerConnection);
 		if (previousJMC != null) {
-			jobManagerConnections.put(jobId, previousJMC);
-
+			jobIDIndices.put(jobManagerConnection.getJobID(), previousJMC);
 			return false;
 		} else {
+			resourceIDIndices.put(jobManagerConnection.getResourceID(), jobManagerConnection);
 			return true;
 		}
 	}
 
 	public JobManagerConnection remove(JobID jobId) {
-		return jobManagerConnections.remove(jobId);
+		JobManagerConnection jobManagerConnection = jobIDIndices.remove(jobId);
+		if (jobManagerConnection != null) {
+			resourceIDIndices.remove(jobManagerConnection.getResourceID());
+		}
+		return jobManagerConnection;
 	}
 
 	public JobManagerConnection get(JobID jobId) {
-		return jobManagerConnections.get(jobId);
+		return jobIDIndices.get(jobId);
+	}
+
+	public boolean contains(ResourceID resourceID) {
+		return resourceIDIndices.containsKey(resourceID);
+	}
+
+	public JobManagerConnection remove(ResourceID resourceID) {
+		JobManagerConnection jobManagerConnection = resourceIDIndices.remove(resourceID);
+		if (jobManagerConnection != null) {
+			jobIDIndices.remove(jobManagerConnection.getJobID());
+		}
+		return jobManagerConnection;
+	}
+
+	public JobManagerConnection get(ResourceID resourceID) {
+		return resourceIDIndices.get(resourceID);
 	}
 }

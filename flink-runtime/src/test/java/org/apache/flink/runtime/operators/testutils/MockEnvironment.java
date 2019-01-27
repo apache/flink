@@ -41,10 +41,13 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.preaggregatedaccumulators.EmptyOperationAccumulatorAggregationManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.Preconditions;
@@ -90,8 +93,6 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private final JobVertexID jobVertexID;
 
-	private final TaskManagerRuntimeInfo taskManagerRuntimeInfo;
-
 	private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
 
 	private final AccumulatorRegistry accumulatorRegistry;
@@ -108,13 +109,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private Optional<Throwable> actualExternalFailureCause = Optional.empty();
 
-	private final TaskMetricGroup taskMetricGroup;
-
 	public static MockEnvironmentBuilder builder() {
 		return new MockEnvironmentBuilder();
 	}
 
-	protected MockEnvironment(
+	public MockEnvironment(
 		JobID jobID,
 		JobVertexID jobVertexID,
 		String taskName,
@@ -127,9 +126,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		int maxParallelism,
 		int parallelism,
 		int subtaskIndex,
-		ClassLoader userCodeClassLoader,
-		TaskMetricGroup taskMetricGroup,
-		TaskManagerRuntimeInfo taskManagerRuntimeInfo) {
+		ClassLoader userCodeClassLoader) {
 
 		this.jobID = jobID;
 		this.jobVertexID = jobVertexID;
@@ -142,21 +139,19 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 		this.memManager = new MemoryManager(memorySize, 1);
 		this.ioManager = new IOManagerAsync();
-		this.taskManagerRuntimeInfo = taskManagerRuntimeInfo;
 
 		this.executionConfig = executionConfig;
 		this.inputSplitProvider = inputSplitProvider;
 		this.bufferSize = bufferSize;
 
-		this.accumulatorRegistry = new AccumulatorRegistry(jobID, getExecutionId());
+		this.accumulatorRegistry = new AccumulatorRegistry(jobID, jobVertexID, subtaskIndex, getExecutionId(),
+			new EmptyOperationAccumulatorAggregationManager());
 
 		KvStateRegistry registry = new KvStateRegistry();
 		this.kvStateRegistry = registry.createTaskRegistry(jobID, getJobVertexId());
 
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 		this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
-
-		this.taskMetricGroup = taskMetricGroup;
 	}
 
 
@@ -215,12 +210,12 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	@Override
 	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return this.taskManagerRuntimeInfo;
+		return new TestingTaskManagerRuntimeInfo();
 	}
 
 	@Override
 	public TaskMetricGroup getMetricGroup() {
-		return taskMetricGroup;
+		return UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 	}
 
 	@Override

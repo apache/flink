@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -46,8 +47,6 @@ public class IntermediateResult {
 
 	private final int numParallelProducers;
 
-	private final AtomicInteger numberOfRunningProducers;
-
 	private int partitionsAssigned;
 
 	private int numConsumers;
@@ -55,6 +54,8 @@ public class IntermediateResult {
 	private final int connectionIndex;
 
 	private final ResultPartitionType resultType;
+
+	private final AtomicInteger numberOfConsumablePartitions = new AtomicInteger();
 
 	public IntermediateResult(
 			IntermediateDataSetID id,
@@ -70,8 +71,6 @@ public class IntermediateResult {
 
 		this.partitions = new IntermediateResultPartition[numParallelProducers];
 
-		this.numberOfRunningProducers = new AtomicInteger(numParallelProducers);
-
 		// we do not set the intermediate result partitions here, because we let them be initialized by
 		// the execution vertex that produces them
 
@@ -80,6 +79,17 @@ public class IntermediateResult {
 
 		// The runtime type for this produced result
 		this.resultType = checkNotNull(resultType);
+	}
+
+	/**
+	 * Reset the partition looker help as the IntermediateResultPartitionID will be reset when jm failover.
+	 */
+	public void resetLookupHelper(IntermediateResultPartitionID originId, IntermediateResultPartitionID newId) {
+		Integer partitionNumber = partitionLookupHelper.remove(originId);
+		if (partitionNumber == null) {
+			throw new FlinkRuntimeException("Fail to find origin partition " + originId);
+		}
+		partitionLookupHelper.put(newId, partitionNumber);
 	}
 
 	public void setPartition(int partitionNumber, IntermediateResultPartition partition) {
@@ -112,11 +122,9 @@ public class IntermediateResult {
 	 * Returns the partition with the given ID.
 	 *
 	 * @param resultPartitionId ID of the partition to look up
-	 * @throws NullPointerException If partition ID <code>null</code>
-	 * @throws IllegalArgumentException Thrown if unknown partition ID
-	 * @return Intermediate result partition with the given ID
+	 * @return Intermediate result partition with the given ID. If not found, return null.
 	 */
-	public IntermediateResultPartition getPartitionById(IntermediateResultPartitionID resultPartitionId) {
+	public IntermediateResultPartition getPartitionOrNullById(IntermediateResultPartitionID resultPartitionId) {
 		// Looks ups the partition number via the helper map and returns the
 		// partition. Currently, this happens infrequently enough that we could
 		// consider removing the map and scanning the partitions on every lookup.
@@ -126,8 +134,24 @@ public class IntermediateResult {
 		if (partitionNumber != null) {
 			return partitions[partitionNumber];
 		} else {
+			return null;
+		}
+	}
+
+	/**
+	 * Returns the partition with the given ID.
+	 *
+	 * @param resultPartitionId ID of the partition to look up
+	 * @throws NullPointerException If partition ID <code>null</code>
+	 * @throws IllegalArgumentException Thrown if unknown partition ID
+	 * @return Intermediate result partition with the given ID
+	 */
+	public IntermediateResultPartition getPartitionById(IntermediateResultPartitionID resultPartitionId) {
+		IntermediateResultPartition partition = getPartitionOrNullById(resultPartitionId);
+		if (partition == null) {
 			throw new IllegalArgumentException("Unknown intermediate result partition ID " + resultPartitionId);
 		}
+		return partition;
 	}
 
 	public int getNumberOfAssignedPartitions() {
@@ -154,19 +178,16 @@ public class IntermediateResult {
 		return connectionIndex;
 	}
 
-	void resetForNewExecution() {
-		this.numberOfRunningProducers.set(numParallelProducers);
-		for (IntermediateResultPartition partition : partitions) {
-			partition.resetForNewExecution();
-		}
+	public int incrementNumberOfConsumablePartitions() {
+		return numberOfConsumablePartitions.incrementAndGet();
 	}
 
-	int decrementNumberOfRunningProducersAndGetRemaining() {
-		return numberOfRunningProducers.decrementAndGet();
+	public int decrementNumberOfConsumablePartitions() {
+		return numberOfConsumablePartitions.decrementAndGet();
 	}
 
-	boolean areAllPartitionsFinished() {
-		return numberOfRunningProducers.get() == 0;
+	public double getResultConsumablePartitionRatio() {
+		return 1.0 * numberOfConsumablePartitions.get() / numParallelProducers;
 	}
 
 	@Override

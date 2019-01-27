@@ -102,7 +102,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 	@AfterClass
 	public static void shutdownActorSystem() {
 		if (actorSystem != null) {
-			actorSystem.terminate();
+			actorSystem.shutdown();
 		}
 	}
 

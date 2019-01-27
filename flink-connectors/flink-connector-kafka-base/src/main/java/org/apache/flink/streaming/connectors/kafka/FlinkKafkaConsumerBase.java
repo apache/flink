@@ -67,7 +67,6 @@ import java.util.regex.Pattern;
 
 import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.COMMITS_FAILED_METRICS_COUNTER;
 import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.COMMITS_SUCCEEDED_METRICS_COUNTER;
-import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.KAFKA_CONSUMER_METRICS_GROUP;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -120,6 +119,12 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 	/** The set of topic partitions that the source will read, with their initial offsets to start reading from. */
 	private Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets;
+
+	/** The set of topic partitions that the source will read, with their initial offsets to start reading from. */
+	private Map<KafkaTopicPartition, Long> subscribedPartitionsToEndOffsets;
+
+	/** Finish a partition when newest message has been processed. */
+	private boolean stopAtLatest = false;
 
 	/** Optional timestamp extractor / watermark generator that will be run per Kafka partition,
 	 * to exploit per-partition timestamp characteristics.
@@ -326,7 +331,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 *
 	 * <p>This setting will only have effect if checkpointing is enabled for the job.
 	 * If checkpointing isn't enabled, only the "auto.commit.enable" (for 0.8) / "enable.auto.commit" (for 0.9+)
-	 * property settings will be used.
+	 * property settings will be
 	 *
 	 * @return The consumer object, to allow function chaining.
 	 */
@@ -449,6 +454,14 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		return this;
 	}
 
+	/**
+	 * Finish source when all message processed.
+	 * @param stopAtLatest
+	 */
+	public void setStopAtLatest(boolean stopAtLatest) {
+		this.stopAtLatest = stopAtLatest;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Work methods
 	// ------------------------------------------------------------------------
@@ -458,8 +471,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		// determine the offset commit mode
 		this.offsetCommitMode = OffsetCommitModes.fromConfiguration(
 				getIsAutoCommitEnabled(),
-				enableCommitOnCheckpoints,
-				((StreamingRuntimeContext) getRuntimeContext()).isCheckpointingEnabled());
+				enableCommitOnCheckpoints);
+
+		if (discoveryIntervalMillis != PARTITION_DISCOVERY_DISABLED && stopAtLatest) {
+			throw new RuntimeException("StopAtLatest is not supported when dynamic partition discovery enabled.");
+		}
 
 		// create the partition discoverer
 		this.partitionDiscoverer = createPartitionDiscoverer(
@@ -602,6 +618,22 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 							subscribedPartitionsToStartOffsets.size(),
 							subscribedPartitionsToStartOffsets.keySet());
 				}
+
+				if (stopAtLatest) {
+					subscribedPartitionsToEndOffsets = new HashMap<>();
+					for (KafkaTopicPartition partition : subscribedPartitionsToStartOffsets.keySet()) {
+						subscribedPartitionsToEndOffsets.put(
+								partition, KafkaTopicPartitionStateSentinel.LATEST_OFFSET);
+					}
+				} else if (subscribedPartitionsToEndOffsets == null) {
+					subscribedPartitionsToEndOffsets = new HashMap<>();
+					for (KafkaTopicPartition partition : subscribedPartitionsToStartOffsets.keySet()) {
+						subscribedPartitionsToEndOffsets.put(
+								partition, Long.MAX_VALUE);
+					}
+
+				}
+
 			} else {
 				LOG.info("Consumer subtask {} initially has no partitions to read from.",
 					getRuntimeContext().getIndexOfThisSubtask());
@@ -647,11 +679,12 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		this.kafkaFetcher = createFetcher(
 				sourceContext,
 				subscribedPartitionsToStartOffsets,
+				subscribedPartitionsToEndOffsets,
 				periodicWatermarkAssigner,
 				punctuatedWatermarkAssigner,
 				(StreamingRuntimeContext) getRuntimeContext(),
 				offsetCommitMode,
-				getRuntimeContext().getMetricGroup().addGroup(KAFKA_CONSUMER_METRICS_GROUP),
+				getRuntimeContext().getMetricGroup(),
 				useMetrics);
 
 		if (!running) {
@@ -715,10 +748,10 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 						}
 					}
 				}
-			}, "Kafka Partition Discovery for " + getRuntimeContext().getTaskNameWithSubtasks());
+			});
 
 			discoveryLoopThread.start();
-			kafkaFetcher.runFetchLoop();
+			kafkaFetcher.runFetchLoop(true);
 
 			// --------------------------------------------------------------------
 
@@ -735,7 +768,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			// won't be using the discoverer
 			partitionDiscoverer.close();
 
-			kafkaFetcher.runFetchLoop();
+			kafkaFetcher.runFetchLoop(false);
 		}
 	}
 
@@ -920,6 +953,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 *
 	 * @param sourceContext The source context to emit data to.
 	 * @param subscribedPartitionsToStartOffsets The set of partitions that this subtask should handle, with their start offsets.
+	 * @param subscribedPartitionsToEndOffsets The set of partitions that this subtask should handle, with their end offsets.
 	 * @param watermarksPeriodic Optional, a serialized timestamp extractor / periodic watermark generator.
 	 * @param watermarksPunctuated Optional, a serialized timestamp extractor / punctuated watermark generator.
 	 * @param runtimeContext The task's runtime context.
@@ -931,6 +965,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	protected abstract AbstractFetcher<T, ?> createFetcher(
 			SourceContext<T> sourceContext,
 			Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets,
+			Map<KafkaTopicPartition, Long> subscribedPartitionsToEndOffsets,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			StreamingRuntimeContext runtimeContext,

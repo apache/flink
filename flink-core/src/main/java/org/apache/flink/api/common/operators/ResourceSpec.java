@@ -55,6 +55,10 @@ public class ResourceSpec implements Serializable {
 
 	public static final String GPU_NAME = "GPU";
 
+	public static final String MANAGED_MEMORY_NAME = "MANAGED_MEMORY_MB";
+
+	public static final String FLOATING_MANAGED_MEMORY_NAME = "FLOATING_MANAGED_MEMORY_MB";
+
 	/** How many cpu cores are needed, use double so we can specify cpu like 0.1. */
 	private final double cpuCores;
 
@@ -258,7 +262,7 @@ public class ResourceSpec implements Serializable {
 		private int directMemoryInMB;
 		private int nativeMemoryInMB;
 		private int stateSizeInMB;
-		private GPUResource gpuResource;
+		private final Map<String, Resource> extendedResources = new HashMap<>();
 
 		public Builder setCpuCores(double cpuCores) {
 			this.cpuCores = cpuCores;
@@ -286,7 +290,14 @@ public class ResourceSpec implements Serializable {
 		}
 
 		public Builder setGPUResource(double gpus) {
-			this.gpuResource = new GPUResource(gpus);
+			extendedResources.put(GPU_NAME, new GPUResource(gpus));
+			return this;
+		}
+
+		public Builder addExtendedResource(Resource... resources) {
+			for (Resource resource : resources) {
+				this.extendedResources.put(resource.getName(), resource);
+			}
 			return this;
 		}
 
@@ -297,7 +308,7 @@ public class ResourceSpec implements Serializable {
 				directMemoryInMB,
 				nativeMemoryInMB,
 				stateSizeInMB,
-				gpuResource);
+				extendedResources.values().toArray(new Resource[0]));
 		}
 	}
 

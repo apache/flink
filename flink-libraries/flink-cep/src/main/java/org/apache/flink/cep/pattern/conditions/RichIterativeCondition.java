@@ -21,6 +21,7 @@ package org.apache.flink.cep.pattern.conditions;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.cep.CepRuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 
@@ -45,7 +46,12 @@ public abstract class RichIterativeCondition<T>
 	@Override
 	public void setRuntimeContext(RuntimeContext runtimeContext) {
 		Preconditions.checkNotNull(runtimeContext);
-		this.runtimeContext = runtimeContext;
+
+		if (runtimeContext instanceof CepRuntimeContext) {
+			this.runtimeContext = runtimeContext;
+		} else {
+			this.runtimeContext = new CepRuntimeContext(runtimeContext);
+		}
 	}
 
 	@Override

@@ -20,7 +20,7 @@ package org.apache.flink.api.java;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.typeutils.TypeInfoParser;
 
 import org.junit.Test;
 
@@ -47,9 +47,9 @@ public class TypeExtractionTest {
 
 		TypeInformation<?> info = ExecutionEnvironment.getExecutionEnvironment()
 				.fromElements("arbitrary", "data")
-				.map(function).returns(Types.STRING).getResultType();
+				.map(function).returns("String").getResultType();
 
-		assertEquals(Types.STRING, info);
+		assertEquals(TypeInfoParser.parse("String"), info);
 	}
 
 	@Test

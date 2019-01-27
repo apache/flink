@@ -30,8 +30,12 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -47,6 +51,7 @@ import static org.mockito.Mockito.mock;
 /**
  * Tests for {@link AsynchronousBufferFileWriter}.
  */
+@RunWith(Parameterized.class)
 public class AsynchronousBufferFileWriterTest {
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
@@ -57,6 +62,17 @@ public class AsynchronousBufferFileWriterTest {
 
 	private AsynchronousBufferFileWriter writer;
 
+	private boolean useBufferedIO;
+
+	public AsynchronousBufferFileWriterTest(boolean useBufferedIO) {
+		this.useBufferedIO = useBufferedIO;
+	}
+
+	@Parameterized.Parameters(name = "useBufferedIO-{0}")
+	public static Collection<Boolean> parameters() {
+		return Arrays.asList(true, false);
+	}
+
 	@AfterClass
 	public static void shutdown() {
 		ioManager.shutdown();
@@ -64,7 +80,8 @@ public class AsynchronousBufferFileWriterTest {
 
 	@Before
 	public void setUp() throws IOException {
-		writer = new AsynchronousBufferFileWriter(ioManager.createChannel(), new RequestQueue<WriteRequest>());
+		writer = new AsynchronousBufferFileWriter(ioManager.createChannel(), new RequestQueue<WriteRequest>(),
+				useBufferedIO ? 1024 * 1024 : -1);
 	}
 
 	@Test
@@ -79,7 +96,8 @@ public class AsynchronousBufferFileWriterTest {
 	@Test
 	public void testAddWithFailingWriter() throws Exception {
 		AsynchronousBufferFileWriter writer =
-			new AsynchronousBufferFileWriter(ioManager.createChannel(), new RequestQueue<>());
+			new AsynchronousBufferFileWriter(ioManager.createChannel(), new RequestQueue<>(),
+					useBufferedIO ? 1024 * 1024 : -1);
 		writer.close();
 
 		exception.expect(IOException.class);

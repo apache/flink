@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.util.AbstractRuntimeUDFContext;
 import org.apache.flink.api.common.state.AggregatingState;
@@ -33,10 +32,13 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.SortedMapState;
+import org.apache.flink.api.common.state.SortedMapStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -44,7 +46,6 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Implementation of the {@link org.apache.flink.api.common.functions.RuntimeContext},
@@ -63,12 +64,11 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
 	private final String operatorUniqueID;
 
-	public StreamingRuntimeContext(AbstractStreamOperator<?> operator,
-									Environment env, Map<String, Accumulator<?, ?>> accumulators) {
+	public StreamingRuntimeContext(AbstractStreamOperator<?> operator, Environment env) {
 		super(env.getTaskInfo(),
 				env.getUserClassLoader(),
 				operator.getExecutionConfig(),
-				accumulators,
+				env.getAccumulatorRegistry(),
 				env.getDistributedCacheEntries(),
 				operator.getMetricGroup());
 
@@ -105,6 +105,10 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		return operatorUniqueID;
 	}
 
+	public OperatorID getOperatorID() {
+		return operator.getOperatorID();
+	}
+
 	// ------------------------------------------------------------------------
 	//  broadcast variables
 	// ------------------------------------------------------------------------
@@ -129,45 +133,45 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
+	public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties){
 		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
 		return keyedStateStore.getState(stateProperties);
 	}
 
 	@Override
 	public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
 		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
 		return keyedStateStore.getListState(stateProperties);
 	}
 
 	@Override
 	public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
 		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
 		return keyedStateStore.getReducingState(stateProperties);
 	}
 
 	@Override
 	public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
 		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
 		return keyedStateStore.getAggregatingState(stateProperties);
 	}
 
 	@Override
 	public <T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties) {
 		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
 		return keyedStateStore.getFoldingState(stateProperties);
 	}
 
 	@Override
 	public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
 		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
 		return keyedStateStore.getMapState(stateProperties);
+	}
+
+	@Override
+	public <UK, UV> SortedMapState<UK, UV> getSortedMapState(SortedMapStateDescriptor<UK, UV> stateProperties) {
+		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
+		return keyedStateStore.getSortedMapState(stateProperties);
 	}
 
 	private KeyedStateStore checkPreconditionsAndGetKeyedStateStore(StateDescriptor<?, ?> stateDescriptor) {

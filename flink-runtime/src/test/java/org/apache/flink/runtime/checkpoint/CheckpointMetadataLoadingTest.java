@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -40,6 +41,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -61,8 +63,6 @@ public class CheckpointMetadataLoadingTest {
 	 */
 	@Test
 	public void testLoadAndValidateSavepoint() throws Exception {
-		File tmp = tmpFolder.newFolder();
-
 		int parallelism = 128128;
 		long checkpointId = Integer.MAX_VALUE + 123123L;
 		JobVertexID jobVertexID = new JobVertexID();
@@ -74,7 +74,7 @@ public class CheckpointMetadataLoadingTest {
 				new ByteStreamStateHandle("testHandler", new byte[0])),
 				null,
 				null,
-				null);
+			null);
 
 		OperatorState state = new OperatorState(operatorID, parallelism, parallelism);
 		state.putState(0, subtaskState);
@@ -107,7 +107,7 @@ public class CheckpointMetadataLoadingTest {
 		ClassLoader ucl = Thread.currentThread().getContextClassLoader();
 
 		// 1) Load and validate: everything correct
-		CompletedCheckpoint loaded = Checkpoints.loadAndValidateCheckpoint(jobId, tasks, storageLocation, ucl, false);
+		CompletedCheckpoint loaded = Checkpoints.loadAndValidateCheckpoint(jobId, tasks, storageLocation, ucl, false, true);
 
 		assertEquals(jobId, loaded.getJobId());
 		assertEquals(checkpointId, loaded.getCheckpointID());
@@ -117,7 +117,7 @@ public class CheckpointMetadataLoadingTest {
 		when(vertex.isMaxParallelismConfigured()).thenReturn(true);
 
 		try {
-			Checkpoints.loadAndValidateCheckpoint(jobId, tasks, storageLocation, ucl, false);
+			Checkpoints.loadAndValidateCheckpoint(jobId, tasks, storageLocation, ucl, false, true);
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
 			assertTrue(expected.getMessage().contains("Max parallelism mismatch"));
@@ -127,13 +127,22 @@ public class CheckpointMetadataLoadingTest {
 		assertNotNull(tasks.remove(jobVertexID));
 
 		try {
-			Checkpoints.loadAndValidateCheckpoint(jobId, tasks, storageLocation, ucl, false);
+			Checkpoints.loadAndValidateCheckpoint(jobId, tasks, storageLocation, ucl, false, true);
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
 			assertTrue(expected.getMessage().contains("allowNonRestoredState"));
 		}
 
 		// 4) Load and validate: ignore missing vertex
-		Checkpoints.loadAndValidateCheckpoint(jobId, tasks, storageLocation, ucl, true);
+		CompletedCheckpoint completedCheckpoint = Checkpoints.loadAndValidateCheckpoint(jobId, tasks, storageLocation, ucl, true, true);
+
+		// 5) Load and validate: savepoint not discarded when subsume and finished
+		assertFalse(completedCheckpoint.discardOnSubsume());
+		assertFalse(completedCheckpoint.discardOnShutdown(JobStatus.FINISHED));
+
+		// 6) Load and validate: checkpoint could discarded when subsume and finished
+		completedCheckpoint = Checkpoints.loadAndValidateCheckpoint(jobId, tasks, storageLocation, ucl, true, false);
+		assertTrue(completedCheckpoint.discardOnSubsume());
+		assertTrue(completedCheckpoint.discardOnShutdown(JobStatus.FINISHED));
 	}
 }

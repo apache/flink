@@ -1,0 +1,38 @@
+== Abstract Syntax Tree ==
+LogicalProject(num=[$0], cnt=[AS($1, 'cnt')])
++- LogicalAggregate(group=[{0}], TMP_0=[COUNT($1)])
+   +- LogicalProject(num=[$1], id=[$0])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+
+== Optimized Logical Plan ==
+StreamExecSink(fields=[num, cnt], retract=[false], accMode=[Acc])
++- StreamExecCalc(select=[num, TMP_0 AS cnt], retract=[false], accMode=[Acc])
+   +- StreamExecGroupAggregate(groupBy=[num], select=[num, COUNT(id) AS TMP_0], retract=[false], accMode=[Acc])
+      +- StreamExecExchange(distribution=[hash[num]], retract=[true], accMode=[Acc])
+         +- StreamExecCalc(select=[num, id], retract=[true], accMode=[Acc])
+            +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]], retract=[true], accMode=[Acc])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:[builtin, default, _DataStreamTable_0], fields:(id, num, text))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(select: (num, id))
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : GroupAggregate(groupBy: (num), select: (num, COUNT(id) AS TMP_0))
+				ship_strategy : HASH
+
+				 : Operator
+					content : Calc(select: (num, TMP_0 AS cnt))
+					ship_strategy : FORWARD
+
+					 : Data Sink
+						content : Sink: TestingUpsertTableSink(keys=(0))
+						ship_strategy : REBALANCE
+

@@ -19,14 +19,15 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
+import java.net.URI;
 import java.net.URL;
 import java.util.List;
 
@@ -41,26 +42,51 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	protected final List<URL> classpathsToAttach;
 
+	protected final List<URI> libjars;
+
+	protected final List<URI> files;
+
 	protected final ClassLoader userCodeClassLoader;
 
 	protected final SavepointRestoreSettings savepointSettings;
 
 	public ContextEnvironment(ClusterClient<?> remoteConnection, List<URL> jarFiles, List<URL> classpaths,
+				List<URI> libjars, List<URI> files,
 				ClassLoader userCodeClassLoader, SavepointRestoreSettings savepointSettings) {
 		this.client = remoteConnection;
 		this.jarFilesToAttach = jarFiles;
 		this.classpathsToAttach = classpaths;
+		this.libjars = libjars;
+		this.files = files;
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.savepointSettings = savepointSettings;
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobSubmissionResult executeInternal(String jobName, boolean detached) throws Exception {
 		Plan p = createProgramPlan(jobName);
 		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.classpathsToAttach,
-				this.userCodeClassLoader);
-		this.lastJobExecutionResult = client.run(toRun, getParallelism(), savepointSettings).getJobExecutionResult();
+				libjars, files, this.userCodeClassLoader);
+		JobSubmissionResult submissionResult = client.run(toRun, getParallelism(), savepointSettings, detached);
+		if (submissionResult.isJobExecutionResult()) {
+			this.lastJobExecutionResult = submissionResult.getJobExecutionResult();
+		}
 		return this.lastJobExecutionResult;
+	}
+
+	@Override
+	public void cancel(JobID jobId) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void stop() {
+		this.client.shutDownCluster();
+		try {
+			this.client.shutdown();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
@@ -94,6 +120,14 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	public List<URL> getClasspaths(){
 		return classpathsToAttach;
+	}
+
+	public List<URI> getLibjars() {
+		return libjars;
+	}
+
+	public List<URI> getFiles() {
+		return files;
 	}
 
 	public ClassLoader getUserCodeClassLoader() {

@@ -46,9 +46,9 @@ import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
@@ -496,6 +496,10 @@ public class ResourceManagerTest extends TestLogger {
 		final TestingRpcService rpcService = new TestingRpcService();
 		rpcService.registerGateway(taskManagerAddress, taskExecutorGateway);
 
+		final ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
+			Time.seconds(5L),
+			Time.seconds(5L));
+
 		final TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
 		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
@@ -519,14 +523,14 @@ public class ResourceManagerTest extends TestLogger {
 				rpcService,
 				FlinkResourceManager.RESOURCE_MANAGER_NAME,
 				resourceManagerResourceID,
+				resourceManagerConfiguration,
 				highAvailabilityServices,
 				heartbeatServices,
 				slotManager,
 				metricRegistry,
 				jobLeaderIdService,
 				new ClusterInformation("localhost", 1234),
-				testingFatalErrorHandler,
-				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
+				testingFatalErrorHandler);
 
 			resourceManager.start();
 
@@ -590,6 +594,10 @@ public class ResourceManagerTest extends TestLogger {
 		final TestingRpcService rpcService = new TestingRpcService();
 		rpcService.registerGateway(jobMasterAddress, jobMasterGateway);
 
+		final ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
+			Time.seconds(5L),
+			Time.seconds(5L));
+
 		final TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
 		final SettableLeaderRetrievalService jmLeaderRetrievalService = new SettableLeaderRetrievalService(jobMasterAddress, jobMasterId.toUUID());
 		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
@@ -618,14 +626,14 @@ public class ResourceManagerTest extends TestLogger {
 				rpcService,
 				FlinkResourceManager.RESOURCE_MANAGER_NAME,
 				rmResourceId,
+				resourceManagerConfiguration,
 				highAvailabilityServices,
 				heartbeatServices,
 				slotManager,
 				metricRegistry,
 				jobLeaderIdService,
 				new ClusterInformation("localhost", 1234),
-				testingFatalErrorHandler,
-				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
+				testingFatalErrorHandler);
 
 			resourceManager.start();
 

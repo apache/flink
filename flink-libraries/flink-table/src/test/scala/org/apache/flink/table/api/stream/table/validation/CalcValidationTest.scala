@@ -22,7 +22,7 @@ import java.math.BigDecimal
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala.{Tumble, _}
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.util.TableTestBase
 import org.junit.Test
 
 class CalcValidationTest extends TableTestBase {

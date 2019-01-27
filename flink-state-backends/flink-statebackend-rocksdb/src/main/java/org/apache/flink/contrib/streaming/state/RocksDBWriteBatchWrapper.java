@@ -79,17 +79,6 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
 		}
 	}
 
-	public void remove(
-		@Nonnull ColumnFamilyHandle handle,
-		@Nonnull byte[] key) throws RocksDBException {
-
-		batch.remove(handle, key);
-
-		if (batch.count() == capacity) {
-			flush();
-		}
-	}
-
 	public void flush() throws RocksDBException {
 		if (options != null) {
 			db.write(options, batch);
@@ -102,10 +91,6 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
 		batch.clear();
 	}
 
-	public WriteOptions getOptions() {
-		return options;
-	}
-
 	@Override
 	public void close() throws RocksDBException {
 		if (batch.count() != 0) {
@@ -114,3 +99,4 @@ public class RocksDBWriteBatchWrapper implements AutoCloseable {
 		IOUtils.closeQuietly(batch);
 	}
 }
+

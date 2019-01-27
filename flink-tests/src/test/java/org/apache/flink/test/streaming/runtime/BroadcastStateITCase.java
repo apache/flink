@@ -65,6 +65,8 @@ public class BroadcastStateITCase {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
+		env.setParallelism(Math.max(Math.min(32, env.getParallelism()), 1));
+
 		final DataStream<Long> srcOne = env.generateSequence(0L, 5L)
 				.assignTimestampsAndWatermarks(new CustomWmEmitter<Long>() {
 

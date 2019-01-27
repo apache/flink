@@ -62,4 +62,23 @@ public class DataOutputViewStreamWrapper extends DataOutputStream implements Dat
 			numBytes -= toCopy;
 		}
 	}
+
+	@Override
+	public void write(MemorySegment segment, int off, int len) throws IOException {
+		if (out instanceof MemorySegmentWritable) {
+			((MemorySegmentWritable) out).write(segment, off, len);
+		} else {
+			if (tempBuffer == null) {
+				tempBuffer = new byte[4096];
+			}
+
+			int remain = len;
+			while (remain > 0) {
+				int toCopy = Math.min(remain, tempBuffer.length);
+				segment.get(len - remain + off, tempBuffer, 0, toCopy);
+				write(tempBuffer, 0, toCopy);
+				remain -= toCopy;
+			}
+		}
+	}
 }

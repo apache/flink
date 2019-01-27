@@ -18,12 +18,18 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
+import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
@@ -68,11 +74,45 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
 		LOG.info("Iteration tail {} acquired feedback queue {}", getName(), brokerID);
 
-		this.headOperator = new RecordPusher<>();
-		this.headOperator.setup(this, getConfiguration(), new IterationTailOutput<>(dataChannel, iterationWaitTime));
+		final RecordPusher<IN> headOperator = new RecordPusher<>();
+		headOperator.setup(this, getConfiguration(), new IterationTailOutput<>(dataChannel, iterationWaitTime));
+
+		WatermarkGauge inputWatermarkGauge = new WatermarkGauge();
 
 		// call super.init() last because that needs this.headOperator to be set up
-		super.init();
+		StreamConfig configuration = getConfiguration();
+
+		TypeSerializer<IN> inSerializer = configuration.getTypeSerializerIn1(getUserCodeClassLoader());
+		int numberOfInputs = configuration.getNumberOfInputs();
+
+		if (numberOfInputs > 0) {
+			InputGate[] inputGates = getEnvironment().getAllInputGates();
+
+			inputProcessor = new StreamInputProcessor<>(
+				inputGates,
+				inSerializer,
+				configuration.isCheckpointingEnabled(),
+				this,
+				configuration.getCheckpointMode(),
+				getCheckpointLock(),
+				getEnvironment().getIOManager(),
+				getEnvironment().getTaskManagerInfo().getConfiguration(),
+				getStreamStatusMaintainer(),
+				headOperator,
+				getEnvironment().getMetricGroup().getIOMetricGroup(),
+				inputWatermarkGauge,
+				getExecutionConfig().isObjectReuseEnabled(),
+				getExecutionConfig().isTracingMetricsEnabled(),
+				getExecutionConfig().getTracingMetricsInterval());
+
+		}
+		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, inputWatermarkGauge);
+		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, inputWatermarkGauge::getValue);
+	}
+
+	@Override
+	protected OneInputStreamOperator<IN, IN> getHeadOperator() {
+		return null;
 	}
 
 	private static class RecordPusher<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
@@ -92,6 +132,11 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 		@Override
 		public void processLatencyMarker(LatencyMarker latencyMarker) throws Exception {
 			// ignore
+		}
+
+		@Override
+		public void endInput() throws Exception {
+
 		}
 	}
 

@@ -8,6 +8,26 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>io.manager.async.num-read-write-thread</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>The number of async read write thread. If not positive, it will be adjusted to max(1, number of temp dirs) for TM shuffle and max(2, 2 * number of disks) for YARN shuffle.</td>
+        </tr>
+        <tr>
+            <td><h5>io.manager.buffered.read.size</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>The buffer size of io manager buffered read, -1 mean not use buffered read, this will reduce random IO, but will result in more than one copy.</td>
+        </tr>
+        <tr>
+            <td><h5>io.manager.buffered.write.size</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>The buffer size of io manager buffered write, -1 mean not use buffered write, this will reduce random IO, but will result in more than one copy.</td>
+        </tr>
+        <tr>
+            <td><h5>task.blocking.shuffle.type</h5></td>
+            <td style="word-wrap: break-word;">"TM"</td>
+            <td>The type of shuffle service used for blocking edge. Currently it can be configured to TM or YARN.</td>
+        </tr>
+        <tr>
             <td><h5>task.cancellation.interval</h5></td>
             <td style="word-wrap: break-word;">30000</td>
             <td>Time interval between two successive task cancellation attempts in milliseconds.</td>
@@ -20,12 +40,67 @@
         <tr>
             <td><h5>task.cancellation.timers.timeout</h5></td>
             <td style="word-wrap: break-word;">7500</td>
-            <td>Time we wait for the timers in milliseconds to finish all pending timer threads when the stream task is cancelled.</td>
+            <td></td>
         </tr>
         <tr>
             <td><h5>task.checkpoint.alignment.max-size</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>The maximum number of bytes that a checkpoint alignment may buffer. If the checkpoint alignment buffers more than the configured amount of data, the checkpoint is aborted (skipped). A value of -1 indicates that there is no limit.</td>
+        </tr>
+        <tr>
+            <td><h5>task.external.shuffle.compression.buffer-size</h5></td>
+            <td style="word-wrap: break-word;">65536</td>
+            <td>The max buffer size to compress external shuffle data.</td>
+        </tr>
+        <tr>
+            <td><h5>task.external.shuffle.compression.codec</h5></td>
+            <td style="word-wrap: break-word;">"lz4"</td>
+            <td>The codec to use when compress or decompress external shuffle data. Currently supported codecs are lz4, bzip2, gzip. User can also implement interface BlockCompressionFactory and set its class to specify other codecs.</td>
+        </tr>
+        <tr>
+            <td><h5>task.external.shuffle.compression.enable</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Whether to enable compress shuffle data when using external shuffle.</td>
+        </tr>
+        <tr>
+            <td><h5>task.external.shuffle.consumed-partition-ttl-in-seconds</h5></td>
+            <td style="word-wrap: break-word;">3600</td>
+            <td>The time interval to delete the fully consumed shuffle data directories since they become inactive.</td>
+        </tr>
+        <tr>
+            <td><h5>task.external.shuffle.max-concurrent-requests</h5></td>
+            <td style="word-wrap: break-word;">2000</td>
+            <td>The maximum number of concurrent requests in the reduce-side tasks.</td>
+        </tr>
+        <tr>
+            <td><h5>task.external.shuffle.partial-consumed-partition-ttl-in-seconds</h5></td>
+            <td style="word-wrap: break-word;">43200</td>
+            <td>The time interval to delete the partially consumed shuffle data directories since they become inactive.</td>
+        </tr>
+        <tr>
+            <td><h5>task.external.shuffle.unconsumed-partition-ttl-in-seconds</h5></td>
+            <td style="word-wrap: break-word;">43200</td>
+            <td>TThe time interval to delete the unconsumed shuffle data directories since they are ready to consume.</td>
+        </tr>
+        <tr>
+            <td><h5>task.external.shuffle.unfinished-partition-ttl-in-seconds</h5></td>
+            <td style="word-wrap: break-word;">3600</td>
+            <td>The time interval to delete the writing shuffle data directories since the last writing.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.capacity.cpu.core</h5></td>
+            <td style="word-wrap: break-word;">-1.0</td>
+            <td>The overall cpu cores allocated to the task manager.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.capacity.memory.mb</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>The overall memory in MB that allocated to the task manager.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.cpu.core</h5></td>
+            <td style="word-wrap: break-word;">1.0</td>
+            <td>How many physical cpu cores a task manager will supply for user</td>
         </tr>
         <tr>
             <td><h5>taskmanager.data.port</h5></td>
@@ -35,7 +110,7 @@
         <tr>
             <td><h5>taskmanager.data.ssl.enabled</h5></td>
             <td style="word-wrap: break-word;">true</td>
-            <td>Enable SSL support for the taskmanager data transport. This is applicable only when the global flag for internal SSL (security.ssl.internal.enabled) is set to true</td>
+            <td>Enable SSL support for the taskmanager data transport. This is applicable only when the global ssl flag security.ssl.enabled is set to true</td>
         </tr>
         <tr>
             <td><h5>taskmanager.debug.memory.log</h5></td>
@@ -48,14 +123,29 @@
             <td>The interval (in ms) for the log thread to log the current memory usage.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.direct.memory.mb</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>How many direct memory (in megabytes) a task manager will supply for user.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.exit-on-fatal-akka-error</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Whether the quarantine monitor for task managers shall be started. The quarantine monitor shuts down the actor system if it detects that it has quarantined another actor system or if it has been quarantined by another actor system.</td>
         </tr>
         <tr>
-            <td><h5>taskmanager.heap.size</h5></td>
-            <td style="word-wrap: break-word;">"1024m"</td>
-            <td>JVM heap size for the TaskManagers, which are the parallel workers of the system. On YARN setups, this value is automatically configured to the size of the TaskManager's YARN container, minus a certain tolerance value.</td>
+            <td><h5>taskmanager.extended.resources</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Extended resources will supply for user. Specified as resource-type:value pairs separated by commas. such as GPU:1,FPGA:1.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.floating.memory.size</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.heap.mb</h5></td>
+            <td style="word-wrap: break-word;">1024</td>
+            <td>How many heap memory (in megabytes) a task manager will supply for user, not including managed memory.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.host</h5></td>
@@ -68,9 +158,24 @@
             <td>Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.jvm.memory.dynamic.young.ratio</h5></td>
+            <td style="word-wrap: break-word;">0.25</td>
+            <td>Ratio of young generation for dynamic memory in task manager.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.jvm.memory.persistent.young.ratio</h5></td>
+            <td style="word-wrap: break-word;">0.1</td>
+            <td>Ratio of young generation for persistent memory in task manager.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.managed.memory.size</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Amount of memory to be allocated by the task manager's memory manager (in megabytes). If not set, a relative fraction will be allocated.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.memory.fraction</h5></td>
             <td style="word-wrap: break-word;">0.7</td>
-            <td>The relative amount of memory (after subtracting the amount of memory used by network buffers) that the task manager reserves for sorting, hash tables, and caching of intermediate results. For example, a value of `0.8` means that a task manager reserves 80% of its memory for internal data buffers, leaving 20% of free memory for the task manager's heap for objects created by user-defined functions. This parameter is only evaluated, if taskmanager.memory.size is not set.</td>
+            <td>The relative amount of memory (after subtracting the amount of memory used by network buffers) that the task manager reserves for sorting, hash tables, and caching of intermediate results. For example, a value of `0.8` means that a task manager reserves 80% of its memory for internal data buffers, leaving 20% of free memory for the task manager's heap for objects created by user-defined functions. This parameter is only evaluated, if taskmanager.managed.memory.size is not set.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.memory.off-heap</h5></td>
@@ -84,13 +189,43 @@
         </tr>
         <tr>
             <td><h5>taskmanager.memory.segment-size</h5></td>
-            <td style="word-wrap: break-word;">"32kb"</td>
-            <td>Size of memory buffers used by the network stack and the memory manager.</td>
+            <td style="word-wrap: break-word;">32768</td>
+            <td>Size of memory buffers used by the network stack and the memory manager (in bytes).</td>
         </tr>
         <tr>
-            <td><h5>taskmanager.memory.size</h5></td>
-            <td style="word-wrap: break-word;">"0"</td>
-            <td>Amount of memory to be allocated by the task manager's memory manager. If not set, a relative fraction will be allocated.</td>
+            <td><h5>taskmanager.multi-slots.max.cpu.core</h5></td>
+            <td style="word-wrap: break-word;">1.0</td>
+            <td>Cpu core limitation, used to decide how many slots can be placed on a taskmanager.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.multi-slots.max.extended-resources</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Extended resources limitation, used to decide how many slots can be placed on a taskmanger. String format is like "GPU=10,FPGA=12".</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.multi-slots.max.memory.mb</h5></td>
+            <td style="word-wrap: break-word;">32768</td>
+            <td>Memory (in megabytes) limitation, used to decide how many slots can be placed on a taskmanager.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.multi-slots.min.cpu.core</h5></td>
+            <td style="word-wrap: break-word;">1.0</td>
+            <td>Min cpu core for a taskmanager.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.multi-slots.min.memory.mb</h5></td>
+            <td style="word-wrap: break-word;">1024</td>
+            <td>Min memory (in megabytes) for taskmanager.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.native.memory.mb</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>How many native memory (in megabytes) a task manager will supply for user.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.check-partition-producer-state</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean flag indicates whether to check partition producer state if the task requests a partition failed and wants to re-trigger the partition request. The task will re-trigger the partition request if the producer is healthy or fail otherwise.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.detailed-metrics</h5></td>
@@ -101,6 +236,21 @@
             <td><h5>taskmanager.network.memory.buffers-per-channel</h5></td>
             <td style="word-wrap: break-word;">2</td>
             <td>Maximum number of network buffers to use for each outgoing/incoming channel (subpartition/input channel).In credit-based flow control mode, this indicates how many credits are exclusive in each input channel. It should be configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is for parallel serialization.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.buffers-per-external-blocking-channel</h5></td>
+            <td style="word-wrap: break-word;">16</td>
+            <td>The number of buffers available for each external blocking channel.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.buffers-per-subpartition</h5></td>
+            <td style="word-wrap: break-word;">2</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.floating-buffers-per-external-blocking-gate</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>taskmanager.network.memory.floating-buffers-per-external-blocking-gate</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.memory.floating-buffers-per-gate</h5></td>
@@ -114,28 +264,83 @@
         </tr>
         <tr>
             <td><h5>taskmanager.network.memory.max</h5></td>
-            <td style="word-wrap: break-word;">"1gb"</td>
-            <td>Maximum memory size for network buffers.</td>
+            <td style="word-wrap: break-word;">1073741824</td>
+            <td>Maximum memory size for network buffers (in bytes).</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.memory.min</h5></td>
-            <td style="word-wrap: break-word;">"64mb"</td>
-            <td>Minimum memory size for network buffers.</td>
+            <td style="word-wrap: break-word;">67108864</td>
+            <td>Minimum memory size for network buffers (in bytes).</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.request-backoff.initial</h5></td>
             <td style="word-wrap: break-word;">100</td>
-            <td>Minimum backoff in milliseconds for partition requests of input channels.</td>
+            <td>Minimum backoff for partition requests of input channels.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.request-backoff.max</h5></td>
             <td style="word-wrap: break-word;">10000</td>
-            <td>Maximum backoff in milliseconds for partition requests of input channels.</td>
+            <td>Maximum backoff for partition requests of input channels.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.numberOfTaskSlots</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>The number of parallel operator or user function instances that a single TaskManager can run. If this value is larger than 1, a single TaskManager takes multiple instances of a function or operator. That way, the TaskManager can utilize multiple CPU cores, but at the same time, the available memory is divided between the different operator or function instances. This value is typically proportional to the number of physical CPU cores that the TaskManager's machine has (e.g., equal to the number of cores, or half the number of cores).</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.output.hash.max-subpartitions</h5></td>
+            <td style="word-wrap: break-word;">200</td>
+            <td>The maximum number of subpartitions supported by the hash writer.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.output.local-disk.type</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>The disk type preferred to write the shuffle data. If not specified, all the root directories are feasible. If specified, only directories with the configured type are feasible.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.output.local-output-dirs</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>The available directories for the external shuffle service. It will be configured automatically and should not be configured manually.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.output.memory.mb</h5></td>
+            <td style="word-wrap: break-word;">200</td>
+            <td>The write buffer size for each output in a task.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.output.merge.enable-async-merge</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Whether to start merge while writing has not been finished.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.output.merge.factor</h5></td>
+            <td style="word-wrap: break-word;">64</td>
+            <td>The maximum number of files to merge at once when using the merge writer.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.output.merge.merge-to-one-file</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Whether to merge to one file finally when using the merge writer. If not, the merge stops once the number of files are less than taskmanager.output.merge.factor.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.process.heap.memory.mb</h5></td>
+            <td style="word-wrap: break-word;">128</td>
+            <td>The heap memory (in megabytes) used for task manager process.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.process.native.memory.mb</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>The native memory (in megabytes) used for task manager process.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.process.netty.memory.mb</h5></td>
+            <td style="word-wrap: break-word;">64</td>
+            <td>The direct memory (in megabytes) used for netty framework in the task manager process.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.reconnection.timeout</h5></td>
+            <td style="word-wrap: break-word;">"1 min"</td>
+            <td>Defines the maximum time it can take for the TaskManager reconnection. If the duration is exceeded without a successful reconnection, then disassociate from JM.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.registration.initial-backoff</h5></td>
@@ -158,9 +363,19 @@
             <td>Defines the timeout for the TaskManager registration. If the duration is exceeded without a successful registration, then the TaskManager terminates.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.resourceProfile</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>The resource profile of a slot in a task executor.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.rpc.port</h5></td>
             <td style="word-wrap: break-word;">"0"</td>
             <td>The task manager’s IPC port. Accepts a list of ports (“50100,50101”), ranges (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple TaskManagers are running on the same machine.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.total.resourceProfile</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>The total resource profile of all the slots in a task executor.</td>
         </tr>
     </tbody>
 </table>

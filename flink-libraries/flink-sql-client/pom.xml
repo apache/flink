@@ -21,13 +21,13 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>org.apache.flink</groupId>
+		<groupId>com.alibaba.blink</groupId>
 		<artifactId>flink-libraries</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.5.1</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-sql-client_${scala.binary.version}</artifactId>
+	<artifactId>flink-sql-client</artifactId>
 	<name>flink-sql-client</name>
 
 	<packaging>jar</packaging>
@@ -38,32 +38,45 @@ under the License.
 
 		<!-- Flink modules -->
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table_${scala.binary.version}</artifactId>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-connector-hive_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-table_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+
+		</dependency>
+
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-cep_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-shaded-hadoop2</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -106,10 +119,18 @@ under the License.
 			<artifactId>flink-shaded-jackson</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-sql-parser</artifactId>
+			<version>${project.version}</version>
+			<scope>compile</scope>
+		</dependency>
+
+
 		<!-- test dependencies -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
@@ -117,17 +138,117 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-connector-kafka-base_2.11</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.scala-lang.modules</groupId>
+					<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.scala-lang.modules</groupId>
+					<artifactId>scala-xml_${scala.binary.version}</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.alibaba.blink</groupId>
+					<artifactId>force-shading</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.kafka</groupId>
+					<artifactId>kafka_${scala.binary.version}</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-connector-kafka-0.11_2.11</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.scala-lang.modules</groupId>
+					<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.scala-lang.modules</groupId>
+					<artifactId>scala-xml_${scala.binary.version}</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.alibaba.blink</groupId>
+					<artifactId>force-shading</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.kafka</groupId>
+					<artifactId>kafka-clients</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-connector-kafka-0.11_2.11</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.scala-lang.modules</groupId>
+					<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.scala-lang.modules</groupId>
+					<artifactId>scala-xml_${scala.binary.version}</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.alibaba.blink</groupId>
+					<artifactId>force-shading</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.kafka</groupId>
+					<artifactId>kafka-clients</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<!-- include 0.11 server for tests  -->
+			<groupId>org.apache.kafka</groupId>
+			<artifactId>kafka_${scala.binary.version}</artifactId>
+			<version>0.11.0.2</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<!-- include 0.11 server for tests  -->
+			<groupId>org.apache.kafka</groupId>
+			<artifactId>kafka-clients</artifactId>
+			<version>0.11.0.2</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-metrics-jmx</artifactId>
+			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -152,8 +273,6 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<includes combine.children="append">
-									<include>org.apache.flink:flink-table_${scala.binary.version}</include>
-									<include>org.apache.flink:flink-cep_${scala.binary.version}</include>
 									<include>org.jline:*</include>
 								</includes>
 							</artifactSet>

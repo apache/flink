@@ -18,63 +18,36 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.{CommonTestData, TableProgramsCollectionTestBase}
-import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.runtime.utils.CommonTestData
+import org.apache.flink.table.util.TestPartitionableTableSource
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
 
-@RunWith(classOf[Parameterized])
-class TableSourceITCase(
-    configMode: TableConfigMode)
-  extends TableProgramsCollectionTestBase(configMode) {
+class TableSourceITCase extends BatchTestBase {
 
   @Test
-  def testCsvTableSource(): Unit = {
-
+  def testCsvTableSourceWithProjectionWithCountStar(): Unit = {
     val csvTable = CommonTestData.getCsvTableSource
 
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
     tEnv.registerTableSource("csvTable", csvTable)
-    val results = tEnv.sqlQuery(
-      "SELECT id, `first`, `last`, score FROM csvTable").collect()
 
-    val expected = Seq(
-      "1,Mike,Smith,12.3",
-      "2,Bob,Taylor,45.6",
-      "3,Sam,Miller,7.89",
-      "4,Peter,Smith,0.12",
-      "5,Liz,Williams,34.5",
-      "6,Sally,Miller,6.78",
-      "7,Alice,Smith,90.1",
-      "8,Kelly,Williams,2.34").mkString("\n")
+    val results = tEnv.sqlQuery("SELECT COUNT(*) FROM csvTable").collect()
+
+    val expected = "8"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+
   @Test
-  def testNested(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val nestedTable = CommonTestData.getNestedTableSource
+  def testPartitionableTableSourceWithStringPartitionEqualsToInt(): Unit = {
 
-    tableEnv.registerTableSource("NestedPersons", nestedTable)
+    tEnv.registerTableSource("partitionable_table", new TestPartitionableTableSource)
+    val results = tEnv.sqlQuery(
+      "select * from partitionable_table where is_ok and part = 2").collect()
 
-    val result = tableEnv.sqlQuery("SELECT NestedPersons.firstName, NestedPersons.lastName," +
-        "NestedPersons.address.street, NestedPersons.address.city AS city " +
-        "FROM NestedPersons " +
-        "WHERE NestedPersons.address.city LIKE 'Dublin'").collect()
-
-    val expected = "Bob,Taylor,Pearse Street,Dublin"
-
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
+    val expected = Seq("3,John,2,part=2,true", "4,nosharp,2,part=2,true").mkString("\n")
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
-
 }

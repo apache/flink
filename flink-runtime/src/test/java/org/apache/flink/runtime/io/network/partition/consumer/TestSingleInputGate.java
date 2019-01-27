@@ -24,12 +24,12 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.TaskActions;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
+import java.util.concurrent.Executors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.mockito.Matchers.any;
@@ -46,12 +46,15 @@ public class TestSingleInputGate {
 
 	protected final TestInputChannel[] inputChannels;
 
+	protected PartitionRequestManager partitionRequestManager;
+
 	public TestSingleInputGate(int numberOfInputChannels) {
 		this(numberOfInputChannels, true);
 	}
 
 	public TestSingleInputGate(int numberOfInputChannels, boolean initialize) {
 		checkArgument(numberOfInputChannels >= 1);
+		this.partitionRequestManager = new PartitionRequestManager(Integer.MAX_VALUE, 1);
 
 		SingleInputGate realGate = new SingleInputGate(
 			"Test Task Name",
@@ -62,7 +65,10 @@ public class TestSingleInputGate {
 			numberOfInputChannels,
 			mock(TaskActions.class),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-			true);
+			partitionRequestManager,
+			Executors.newSingleThreadExecutor(),
+			true,
+			false);
 
 		this.inputGate = spy(realGate);
 
@@ -99,7 +105,7 @@ public class TestSingleInputGate {
 		if (initialize) {
 			for (int i = 0; i < numberOfInputChannels; i++) {
 				inputChannels[i] = new TestInputChannel(inputGate, i);
-				inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannels[i]);
+				inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannels[i].getInputChannel());
 			}
 		}
 	}

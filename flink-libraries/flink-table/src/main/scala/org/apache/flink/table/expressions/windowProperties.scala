@@ -20,16 +20,17 @@ package org.apache.flink.table.expressions
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.table.api.types.{DataTypes, InternalType}
 import org.apache.flink.table.calcite.FlinkRelBuilder
 import FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.plan.logical.LogicalExprVisitor
 import org.apache.flink.table.validate.{ValidationFailure, ValidationSuccess}
 
 trait WindowProperty {
 
   def toNamedWindowProperty(name: String): NamedWindowProperty
 
-  def resultType: TypeInformation[_]
+  def resultType: InternalType
 
 }
 
@@ -54,14 +55,20 @@ abstract class AbstractWindowProperty(child: Expression)
 
 case class WindowStart(child: Expression) extends AbstractWindowProperty(child) {
 
-  override def resultType = SqlTimeTypeInfo.TIMESTAMP
+  override def resultType = DataTypes.TIMESTAMP
 
   override def toString: String = s"start($child)"
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 case class WindowEnd(child: Expression) extends AbstractWindowProperty(child) {
 
-  override def resultType = SqlTimeTypeInfo.TIMESTAMP
+  override def resultType = DataTypes.TIMESTAMP
 
   override def toString: String = s"end($child)"
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }

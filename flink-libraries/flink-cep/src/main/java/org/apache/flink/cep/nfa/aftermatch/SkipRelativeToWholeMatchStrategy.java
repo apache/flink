@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep.nfa.aftermatch;
 
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 
 abstract class SkipRelativeToWholeMatchStrategy extends AfterMatchSkipStrategy {

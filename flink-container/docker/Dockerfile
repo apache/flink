@@ -16,10 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-FROM openjdk:8-jre-alpine
+FROM java:8-jre-alpine
 
 # Install requirements
-RUN apk add --no-cache bash snappy libc6-compat
+RUN apk add --no-cache bash snappy
 
 # Flink environment variables
 ENV FLINK_INSTALL_PATH=/opt

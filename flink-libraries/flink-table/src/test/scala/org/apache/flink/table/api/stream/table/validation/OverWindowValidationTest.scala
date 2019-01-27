@@ -21,8 +21,9 @@ package org.apache.flink.table.api.stream.table.validation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{Table, ValidationException}
+import org.apache.flink.table.expressions.{Lead, Lag}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{OverAgg0, WeightedAvgWithRetract}
-import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
 import org.junit.Test
 
 class OverWindowValidationTest extends TableTestBase {
@@ -117,8 +118,40 @@ class OverWindowValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testFollowingValue(): Unit = {
     val result = table
-      .window(Over orderBy 'rowtime preceding 1.rows following -2.rows as 'w)
+      .window(Over orderBy 'rowtime preceding 1.rows following 2.rows as 'w)
       .select('c, 'b.count over 'w)
+    streamUtil.tableEnv.optimize(result.getRelNode, updatesAsRetraction = true)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testValueRange(): Unit = {
+    val result = table
+      .window(Over orderBy 'rowtime preceding 1.range as 'w)
+      .select('c, 'b.count over 'w)
+    streamUtil.tableEnv.optimize(result.getRelNode, updatesAsRetraction = true)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testUnboundedFollowing(): Unit = {
+    val result = table
+      .window(Over orderBy 'rowtime preceding UNBOUNDED_ROW following UNBOUNDED_ROW as 'w)
+      .select('c, 'b.count over 'w)
+    streamUtil.tableEnv.optimize(result.getRelNode, updatesAsRetraction = true)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testLead(): Unit = {
+    val result = table
+      .window(Over orderBy 'rowtime as 'w)
+      .select('c, Lead('b) over 'w)
+    streamUtil.tableEnv.optimize(result.getRelNode, updatesAsRetraction = true)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testLag(): Unit = {
+    val result = table
+      .window(Over orderBy 'rowtime as 'w)
+      .select('c, Lag('b, -1) over 'w)
     streamUtil.tableEnv.optimize(result.getRelNode, updatesAsRetraction = true)
   }
 

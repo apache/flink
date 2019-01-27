@@ -395,12 +395,12 @@ public class CollectionInputFormatTest {
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot<ElementType> snapshotConfiguration() {
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
 			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public CompatibilityResult<ElementType> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+		public CompatibilityResult<ElementType> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException();
 		}
 	}

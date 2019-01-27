@@ -20,6 +20,7 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Public;
 
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -55,6 +56,10 @@ public class UnmodifiableConfiguration extends Configuration {
 		error();
 	}
 
+	public void addAll(Map<String, String> other) {
+		error();
+	}
+
 	@Override
 	public final void addAll(Configuration other, String prefix) {
 		error();
@@ -63,12 +68,6 @@ public class UnmodifiableConfiguration extends Configuration {
 	@Override
 	final <T> void setValueInternal(String key, T value){
 		error();
-	}
-
-	@Override
-	public <T> boolean removeConfig(ConfigOption<T> configOption) {
-		error();
-		return false;
 	}
 
 	private void error(){

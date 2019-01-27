@@ -30,6 +30,9 @@ public class StringParser extends FieldParser<String> {
 
 	private boolean quotedStringParsing = false;
 	private byte quoteCharacter;
+	// RFC 4180
+	private String singleQuoteStr;
+	private String doubleQuoteStr;
 	private static final byte BACKSLASH = 92;
 
 	private String result;
@@ -37,16 +40,23 @@ public class StringParser extends FieldParser<String> {
 	public void enableQuotedStringParsing(byte quoteCharacter) {
 		this.quotedStringParsing = true;
 		this.quoteCharacter = quoteCharacter;
+		byte[] doubleQuoteChars = {quoteCharacter, quoteCharacter} ;
+		doubleQuoteStr = new String(doubleQuoteChars);
+		byte[] singleQuoteChars = {quoteCharacter} ;
+		singleQuoteStr = new String(singleQuoteChars);
+
+	}
+
+	public boolean isQuotedStringParsing() {
+		return quotedStringParsing;
+	}
+
+	public byte getQuoteCharacter() {
+		return quoteCharacter;
 	}
 
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, String reusable) {
-
-		if (startPos == limit) {
-			setErrorState(ParseErrorState.EMPTY_COLUMN);
-			this.result = "";
-			return limit;
-		}
 
 		int i = startPos;
 
@@ -56,8 +66,19 @@ public class StringParser extends FieldParser<String> {
 			// quoted string parsing enabled and first character is a quote
 			i++;
 
+			boolean replace = false;
 			// search for ending quote character, continue when it is escaped
-			while (i < limit && (bytes[i] != quoteCharacter || bytes[i - 1] == BACKSLASH)) {
+			while (i < limit && (bytes[i] != quoteCharacter
+				|| bytes[i - 1] == BACKSLASH
+				|| (i + 1 < limit && bytes[i + 1] == quoteCharacter))) {
+				if (bytes[i - 1] != BACKSLASH
+					&& bytes[i] == quoteCharacter
+					&& i + 1 < limit
+					&& bytes[i + 1] == quoteCharacter) {
+					// RFC 4180
+					replace = true;
+					i++;
+				}
 				i++;
 			}
 
@@ -70,10 +91,18 @@ public class StringParser extends FieldParser<String> {
 				if (i == limit) {
 					// either by end of line
 					this.result = new String(bytes, startPos + 1, i - startPos - 2, getCharset());
+					if (replace) {
+						// RFC 4180
+						this.result = this.result.replace(doubleQuoteStr, singleQuoteStr);
+					}
 					return limit;
 				} else if ( i < delimLimit && delimiterNext(bytes, i, delimiter)) {
 					// or following field delimiter
 					this.result = new String(bytes, startPos + 1, i - startPos - 2, getCharset());
+					if (replace) {
+						// RFC 4180
+						this.result = this.result.replace(doubleQuoteStr, singleQuoteStr);
+					}
 					return i + delimiter.length;
 				} else {
 					// no proper termination
@@ -89,6 +118,10 @@ public class StringParser extends FieldParser<String> {
 			}
 
 			if (i >= delimLimit) {
+				// no delimiter found. Take the full string
+				if (limit == startPos) {
+					setErrorState(ParseErrorState.EMPTY_COLUMN); // mark empty column
+				}
 				this.result = new String(bytes, startPos, limit - startPos, getCharset());
 				return limit;
 			} else {

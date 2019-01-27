@@ -50,7 +50,7 @@ public final class HybridMemorySegment extends MemorySegment {
 	 * reference to that buffer, so as long as this memory segment lives, the memory will not be
 	 * released.
 	 */
-	private final ByteBuffer offHeapBuffer;
+	private ByteBuffer offHeapBuffer;
 
 	/**
 	 * Creates a new memory segment that represents the memory backing the given direct byte buffer.
@@ -390,6 +390,25 @@ public final class HybridMemorySegment extends MemorySegment {
 				put(offset++, source.get());
 			}
 		}
+	}
+
+	@Override
+	public void pointTo(byte[] buffer, Object owner) {
+		super.pointTo(buffer, owner);
+		this.offHeapBuffer = null;
+	}
+
+	@Override
+	public void pointTo(byte[] buffer) {
+		pointTo(buffer, null);
+	}
+
+	@Override
+	public MemorySegment cloneReference() {
+		if (offHeapBuffer != null) {
+			return new HybridMemorySegment(offHeapBuffer, owner);
+		}
+		return new HybridMemorySegment(heapMemory, owner);
 	}
 
 	// --------------------------------------------------------------------------------------------

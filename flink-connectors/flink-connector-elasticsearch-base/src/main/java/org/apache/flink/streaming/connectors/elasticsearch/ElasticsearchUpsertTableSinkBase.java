@@ -21,17 +21,19 @@ package org.apache.flink.streaming.connectors.elasticsearch;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.types.DataType;
+import org.apache.flink.table.api.types.InternalType;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sinks.UpsertStreamTableSink;
 import org.apache.flink.table.typeutils.TypeCheckUtils;
 import org.apache.flink.table.util.TableConnectorUtil;
+import org.apache.flink.table.util.TableSchemaUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -163,12 +165,12 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 	}
 
 	@Override
-	public TypeInformation<Row> getRecordType() {
-		return schema.toRowType();
+	public DataType getRecordType() {
+		return TableSchemaUtil.toRowType(schema);
 	}
 
 	@Override
-	public void emitDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
+	public DataStreamSink emitDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
 		final ElasticsearchUpsertSinkFunction upsertFunction =
 			new ElasticsearchUpsertSinkFunction(
 				index,
@@ -184,27 +186,22 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 			failureHandler,
 			sinkOptions,
 			upsertFunction);
-		dataStream.addSink(sinkFunction)
+		return dataStream.addSink(sinkFunction)
 			.name(TableConnectorUtil.generateRuntimeName(this.getClass(), getFieldNames()));
 	}
 
 	@Override
-	public TypeInformation<Tuple2<Boolean, Row>> getOutputType() {
-		return Types.TUPLE(Types.BOOLEAN, getRecordType());
-	}
-
-	@Override
 	public String[] getFieldNames() {
-		return schema.getFieldNames();
+		return schema.getColumnNames();
 	}
 
 	@Override
-	public TypeInformation<?>[] getFieldTypes() {
-		return schema.getFieldTypes();
+	public DataType[] getFieldTypes() {
+		return schema.getTypes();
 	}
 
 	@Override
-	public TableSink<Tuple2<Boolean, Row>> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+	public TableSink<Tuple2<Boolean, Row>> configure(String[] fieldNames, DataType[] fieldTypes) {
 		if (!Arrays.equals(getFieldNames(), fieldNames) || !Arrays.equals(getFieldTypes(), fieldTypes)) {
 			throw new ValidationException("Reconfiguration with different fields is not allowed. " +
 				"Expected: " + Arrays.toString(getFieldNames()) + " / " + Arrays.toString(getFieldTypes()) + ". " +
@@ -295,9 +292,9 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 	 * Validate the types that are used for conversion to string.
 	 */
 	private void validateKeyTypes(int[] keyFieldIndices) {
-		final TypeInformation<?>[] types = getFieldTypes();
+		final DataType[] types = getFieldTypes();
 		for (int keyFieldIndex : keyFieldIndices) {
-			final TypeInformation<?> type = types[keyFieldIndex];
+			final InternalType type = (InternalType) types[keyFieldIndex];
 			if (!TypeCheckUtils.isSimpleStringRepresentation(type)) {
 				throw new ValidationException(
 					"Only simple types that can be safely converted into a string representation " +

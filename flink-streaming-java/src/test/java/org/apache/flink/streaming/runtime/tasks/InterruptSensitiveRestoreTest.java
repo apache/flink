@@ -46,12 +46,13 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.preaggregatedaccumulators.AccumulatorAggregationManager;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -59,6 +60,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyGroupsStateSnapshot;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
@@ -87,7 +89,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
+import static org.apache.flink.streaming.runtime.tasks.StreamTaskTestHarness.createSingleOperatorTaskConfig;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
@@ -134,8 +138,7 @@ public class InterruptSensitiveRestoreTest {
 	private void testRestoreWithInterrupt(int mode) throws Exception {
 
 		IN_RESTORE_LATCH.reset();
-		Configuration taskConfig = new Configuration();
-		StreamConfig cfg = new StreamConfig(taskConfig);
+		StreamConfig cfg = new StreamConfig(new Configuration());
 		cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		switch (mode) {
 			case OPERATOR_MANAGED:
@@ -151,7 +154,7 @@ public class InterruptSensitiveRestoreTest {
 
 		StreamStateHandle lockingHandle = new InterruptLockingStateHandle();
 
-		Task task = createTask(cfg, taskConfig, lockingHandle, mode);
+		Task task = createTask(cfg, lockingHandle, mode);
 
 		// start the task and wait until it is in "restore"
 		task.startTaskThread();
@@ -175,15 +178,14 @@ public class InterruptSensitiveRestoreTest {
 	// ------------------------------------------------------------------------
 
 	private static Task createTask(
-			StreamConfig streamConfig,
-			Configuration taskConfig,
-			StreamStateHandle state,
-			int mode) throws IOException {
+		StreamConfig streamConfig,
+		StreamStateHandle state,
+		int mode) throws IOException {
 
 		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 		NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
 		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
-				.thenReturn(mock(TaskKvStateRegistry.class));
+			.thenReturn(mock(TaskKvStateRegistry.class));
 		when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 
 		Collection<KeyedStateHandle> keyedStateFromBackend = Collections.emptyList();
@@ -193,16 +195,19 @@ public class InterruptSensitiveRestoreTest {
 
 		Map<String, OperatorStateHandle.StateMetaInfo> operatorStateMetadata = new HashMap<>(1);
 		OperatorStateHandle.StateMetaInfo metaInfo =
-				new OperatorStateHandle.StateMetaInfo(new long[]{0}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
+			new OperatorStateHandle.StateMetaInfo(new long[]{0}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
 		operatorStateMetadata.put(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME, metaInfo);
 
 		KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(new KeyGroupRange(0, 0));
 
 		Collection<OperatorStateHandle> operatorStateHandles =
-				Collections.singletonList(new OperatorStreamStateHandle(operatorStateMetadata, state));
+			Collections.singletonList(new OperatorStreamStateHandle(operatorStateMetadata, state));
 
 		List<KeyedStateHandle> keyedStateHandles =
-				Collections.singletonList(new KeyGroupsStateHandle(keyGroupRangeOffsets, state));
+			Collections.singletonList(new KeyGroupsStateHandle(keyGroupRangeOffsets, state));
+
+		List<KeyedStateHandle> internalStateHandles =
+			Collections.singletonList(new KeyGroupsStateSnapshot(KeyGroupRange.of(0, 0), Collections.emptyMap(), state));
 
 		switch (mode) {
 			case OPERATOR_MANAGED:
@@ -212,7 +217,7 @@ public class InterruptSensitiveRestoreTest {
 				operatorStateStream = operatorStateHandles;
 				break;
 			case KEYED_MANAGED:
-				keyedStateFromBackend = keyedStateHandles;
+				keyedStateFromBackend = internalStateHandles;
 				break;
 			case KEYED_RAW:
 				keyedStateFromStream = keyedStateHandles;
@@ -249,7 +254,7 @@ public class InterruptSensitiveRestoreTest {
 			1,
 			1,
 			SourceStreamTask.class.getName(),
-			taskConfig);
+			createSingleOperatorTaskConfig(streamConfig).getConfiguration());
 
 		BlobCacheService blobService =
 			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
@@ -271,10 +276,12 @@ public class InterruptSensitiveRestoreTest {
 			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 			Collections.<InputGateDeploymentDescriptor>emptyList(),
 			0,
+			0,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			networkEnvironment,
 			mock(BroadcastVariableManager.class),
+			mock(AccumulatorAggregationManager.class),
 			taskStateManager,
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
@@ -288,9 +295,10 @@ public class InterruptSensitiveRestoreTest {
 				blobService.getPermanentBlobService()),
 			new TestingTaskManagerRuntimeInfo(),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-			new NoOpResultPartitionConsumableNotifier(),
+			mock(ResultPartitionConsumableNotifier.class),
 			mock(PartitionProducerStateChecker.class),
-			mock(Executor.class));
+			mock(Executor.class),
+			Executors.newSingleThreadExecutor());
 	}
 
 	// ------------------------------------------------------------------------

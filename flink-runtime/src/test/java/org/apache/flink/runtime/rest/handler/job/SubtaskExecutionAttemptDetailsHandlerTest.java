@@ -21,7 +21,6 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
@@ -34,7 +33,6 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
-import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
@@ -50,8 +48,11 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 
@@ -105,7 +106,6 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 						expectedState,
 						null,
 						null,
-						null,
 						subtaskIndex,
 						new long[ExecutionState.values().length]),
 					new EvictingBoundedList<>(0)
@@ -115,20 +115,21 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			"test",
 			1,
 			1,
-			emptyAccumulators);
+			emptyAccumulators,
+			new ArrayList<>());
 
 		// Change some fields so we can make it different from other sub tasks.
-		final MetricFetcher metricFetcher = new MetricFetcherImpl<>(
+		final MetricFetcher<?> metricFetcher = new MetricFetcher<>(
 			() -> null,
 			path -> null,
 			TestingUtils.defaultExecutor(),
-			Time.milliseconds(1000L),
-			MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
+			Time.milliseconds(1000L));
 
 		// Instance the handler.
 		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(new Configuration());
 
 		final SubtaskExecutionAttemptDetailsHandler handler = new SubtaskExecutionAttemptDetailsHandler(
+			CompletableFuture.completedFuture("127.0.0.1:9527"),
 			() -> null,
 			Time.milliseconds(100L),
 			Collections.emptyMap(),
@@ -166,8 +167,21 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			recordsIn,
 			true,
 			recordsOut,
+			true,
+			0.0f,
+			true,
+			0.0f,
+			true,
+			-1L,
+			true,
+			-1L,
 			true
 		);
+
+		Map<ExecutionState, Long> stateTransitionTime = new HashMap<ExecutionState, Long>();
+		for (ExecutionState state: ExecutionState.values()) {
+			stateTransitionTime.put(state, 0L);
+		}
 
 		final SubtaskExecutionAttemptDetailsInfo expectedDetailsInfo = new SubtaskExecutionAttemptDetailsInfo(
 			subtaskIndex,
@@ -177,6 +191,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			-1L,
 			0L,
 			-1L,
+			stateTransitionTime,
 			ioMetricsInfo
 		);
 

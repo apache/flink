@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.common.state;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -28,7 +27,6 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
@@ -43,7 +41,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Base class for state descriptors. A {@code StateDescriptor} is used for creating partitioned
- * {@link State} in stateful operations.
+ * {@link State} in stateful operations. This contains the name and can create an actual state
+ * object given a {@link StateBinder} using {@link #bind(StateBinder)}.
  *
  * <p>Subclasses must correctly implement {@link #equals(Object)} and {@link #hashCode()}.
  *
@@ -69,7 +68,8 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 		REDUCING,
 		FOLDING,
 		AGGREGATING,
-		MAP
+		MAP,
+		SORTEDMAP
 	}
 
 	private static final long serialVersionUID = 1L;
@@ -88,15 +88,11 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	/** The type information describing the value type. Only used to if the serializer
 	 * is created lazily. */
 	@Nullable
-	private TypeInformation<T> typeInfo;
+	protected TypeInformation<T> typeInfo;
 
 	/** Name for queries against state created from this StateDescriptor. */
 	@Nullable
 	private String queryableStateName;
-
-	/** Name for queries against state created from this StateDescriptor. */
-	@Nonnull
-	private StateTtlConfig ttlConfig = StateTtlConfig.DISABLED;
 
 	/** The default value returned by the state when no other value is bound to a key. */
 	@Nullable
@@ -209,9 +205,6 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 * @throws IllegalStateException If queryable state name already set
 	 */
 	public void setQueryable(String queryableStateName) {
-		Preconditions.checkArgument(
-			ttlConfig.getUpdateType() == StateTtlConfig.UpdateType.Disabled,
-			"Queryable state is currently not supported with TTL");
 		if (this.queryableStateName == null) {
 			this.queryableStateName = Preconditions.checkNotNull(queryableStateName, "Registration name");
 		} else {
@@ -240,27 +233,11 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	}
 
 	/**
-	 * Configures optional activation of state time-to-live (TTL).
+	 * Creates a new {@link State} on the given {@link StateBinder}.
 	 *
-	 * <p>State user value will expire, become unavailable and be cleaned up in storage
-	 * depending on configured {@link StateTtlConfig}.
-	 *
-	 * @param ttlConfig configuration of state TTL
+	 * @param stateBinder The {@code StateBackend} on which to create the {@link State}.
 	 */
-	public void enableTimeToLive(StateTtlConfig ttlConfig) {
-		Preconditions.checkNotNull(ttlConfig);
-		Preconditions.checkArgument(
-			ttlConfig.getUpdateType() != StateTtlConfig.UpdateType.Disabled &&
-				queryableStateName == null,
-			"Queryable state is currently not supported with TTL");
-		this.ttlConfig = ttlConfig;
-	}
-
-	@Nonnull
-	@Internal
-	public StateTtlConfig getTtlConfig() {
-		return ttlConfig;
-	}
+	public abstract S bind(StateBinder stateBinder) throws Exception;
 
 	// ------------------------------------------------------------------------
 
@@ -297,12 +274,12 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	// ------------------------------------------------------------------------
 
 	@Override
-	public final int hashCode() {
+	public int hashCode() {
 		return name.hashCode() + 31 * getClass().hashCode();
 	}
 
 	@Override
-	public final boolean equals(Object o) {
+	public boolean equals(Object o) {
 		if (o == this) {
 			return true;
 		}

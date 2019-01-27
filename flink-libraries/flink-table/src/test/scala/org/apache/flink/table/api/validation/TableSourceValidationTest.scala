@@ -25,11 +25,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.types.DataTypes
 import org.apache.flink.table.api.{TableEnvironment, TableSchema, Types, ValidationException}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps
-import org.apache.flink.table.utils.TestTableSourceWithTime
+import org.apache.flink.table.util.TestTableSourceWithTime
 import org.apache.flink.types.Row
 import org.junit.Test
 
@@ -44,7 +45,7 @@ class TableSourceValidationTest {
 
     val schema = new TableSchema(
       Array("id", "name", "amount", "value"),
-      Array(Types.LONG, Types.STRING, Types.INT, Types.DOUBLE))
+      Array(DataTypes.LONG, DataTypes.STRING, DataTypes.INT, DataTypes.DOUBLE))
     val rowType = new RowTypeInfo(
       Array(Types.LONG, Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "name", "amount"))
@@ -63,7 +64,7 @@ class TableSourceValidationTest {
 
     val schema = new TableSchema(
       Array("id", "name", "amount"),
-      Array(Types.LONG, Types.INT, Types.INT))
+      Array(DataTypes.LONG, DataTypes.INT, DataTypes.INT))
     val rowType = new RowTypeInfo(
       Array(Types.LONG, Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "name", "amount"))
@@ -82,7 +83,7 @@ class TableSourceValidationTest {
 
     val schema = new TableSchema(
       Array("id", "name", "amount"),
-      Array(Types.LONG, Types.STRING, Types.DOUBLE))
+      Array(DataTypes.LONG, DataTypes.STRING, DataTypes.DOUBLE))
     val rowType = new RowTypeInfo(Types.LONG, Types.STRING, Types.DOUBLE)
     val mapping = Map("id" -> "f3", "name" -> "f1", "amount" -> "f2")
     val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row](), mapping = mapping)
@@ -100,7 +101,7 @@ class TableSourceValidationTest {
 
     val schema = new TableSchema(
       Array("id", "name", "amount"),
-      Array(Types.LONG, Types.STRING, Types.DOUBLE))
+      Array(DataTypes.LONG, DataTypes.STRING, DataTypes.DOUBLE))
     val rowType = new RowTypeInfo(Types.LONG, Types.STRING, Types.INT)
     val mapping = Map("id" -> "f0", "name" -> "f1", "amount" -> "f2")
     val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row](), mapping = mapping)
@@ -118,7 +119,7 @@ class TableSourceValidationTest {
 
     val schema = new TableSchema(
       Array("id", "name", "amount", "ptime"),
-      Array(Types.LONG, Types.STRING, Types.INT, Types.LONG))
+      Array(DataTypes.LONG, DataTypes.STRING, DataTypes.INT, DataTypes.LONG))
     val rowType = new RowTypeInfo(
       Array(Types.LONG, Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "name", "amount"))
@@ -137,7 +138,7 @@ class TableSourceValidationTest {
 
     val schema = new TableSchema(
       Array("id", "name", "amount", "rtime"),
-      Array(Types.LONG, Types.STRING, Types.INT, Types.LONG))
+      Array(DataTypes.LONG, DataTypes.STRING, DataTypes.INT, DataTypes.LONG))
     val rowType = new RowTypeInfo(
       Array(Types.LONG, Types.STRING, Types.LONG, Types.INT)
         .asInstanceOf[Array[TypeInformation[_]]],
@@ -157,7 +158,7 @@ class TableSourceValidationTest {
 
     val schema = new TableSchema(
       Array("id", "name", "amount", "time"),
-      Array(Types.LONG, Types.STRING, Types.INT, Types.SQL_TIMESTAMP))
+      Array(DataTypes.LONG, DataTypes.STRING, DataTypes.INT, DataTypes.TIMESTAMP))
     val rowType = new RowTypeInfo(
       Array(Types.LONG, Types.STRING, Types.LONG, Types.INT)
         .asInstanceOf[Array[TypeInformation[_]]],
@@ -178,7 +179,7 @@ class TableSourceValidationTest {
 
     val schema = new TableSchema(
       Array("id", "name", "amount", "rtime"),
-      Array(Types.LONG, Types.STRING, Types.INT, Types.SQL_TIMESTAMP))
+      Array(DataTypes.LONG, DataTypes.STRING, DataTypes.INT, DataTypes.TIMESTAMP))
     val rowType = new RowTypeInfo(
       Array(Types.LONG, Types.STRING, Types.LONG, Types.INT)
         .asInstanceOf[Array[TypeInformation[_]]],
@@ -196,52 +197,5 @@ class TableSourceValidationTest {
 
     // should fail because timestamp extractor argument field does not exist
     tEnv.registerTableSource("testTable", ts)
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testFailingTimestampExtractorValidation(): Unit = {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val fieldNames = Array("id", "name", "amount")
-    val rowType = new RowTypeInfo(
-      Array(Types.LONG, Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
-      fieldNames)
-    val schema = new TableSchema(
-      fieldNames,
-      Array(Types.LONG, Types.SQL_TIMESTAMP, Types.INT))
-    val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row](), rowtime = "amount")
-
-    // should fail because configured rowtime field is not of type Long or Timestamp
-    tEnv.registerTableSource("testTable", ts)
-  }
-
-  // CsvTableSource Tests
-
-  @Test(expected = classOf[IllegalArgumentException])
-  def testCsvTableSourceBuilderWithNullPath(): Unit = {
-    CsvTableSource.builder()
-      .field("myfield", Types.STRING)
-      // should fail, path is not defined
-      .build()
-  }
-
-  @Test(expected = classOf[IllegalArgumentException])
-  def testCsvTableSourceBuilderWithDuplicateFieldName(): Unit = {
-    CsvTableSource.builder()
-      .path("/path/to/csv")
-      .field("myfield", Types.STRING)
-      // should fail, field name must no be duplicate
-      .field("myfield", Types.INT)
-  }
-
-  @Test(expected = classOf[IllegalArgumentException])
-  def testCsvTableSourceBuilderWithEmptyField(): Unit = {
-    CsvTableSource.builder()
-      .path("/path/to/csv")
-      // should fail, field can be empty
-      .build()
   }
 }

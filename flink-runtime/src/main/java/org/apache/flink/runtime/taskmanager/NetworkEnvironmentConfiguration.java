@@ -46,6 +46,12 @@ public class NetworkEnvironmentConfiguration {
 
 	private final int floatingNetworkBuffersPerGate;
 
+	private final int networkBuffersPerExternalBlockingChannel;
+
+	private final int floatingNetworkBuffersPerExternalBlockingGate;
+
+	private final int networkBuffersPerSubpartition;
+
 	private final NettyConfig nettyConfig;
 
 	/**
@@ -60,14 +66,18 @@ public class NetworkEnvironmentConfiguration {
 			int partitionRequestInitialBackoff,
 			int partitionRequestMaxBackoff,
 			int networkBuffersPerChannel,
-			int floatingNetworkBuffersPerGate) {
+			int floatingNetworkBuffersPerGate,
+			int networkBuffersPerExternalBlockingChannel,
+			int floatingNetworkBuffersPerExternalBlockingGate,
+			int networkBuffersPerSubpartition) {
 
 		this(networkBufFraction, networkBufMin, networkBufMax, networkBufferSize,
 				ioMode,
 				partitionRequestInitialBackoff, partitionRequestMaxBackoff,
 				networkBuffersPerChannel, floatingNetworkBuffersPerGate,
-				null);
-		
+			networkBuffersPerExternalBlockingChannel, floatingNetworkBuffersPerExternalBlockingGate,
+			networkBuffersPerSubpartition, null);
+
 	}
 
 	public NetworkEnvironmentConfiguration(
@@ -80,6 +90,9 @@ public class NetworkEnvironmentConfiguration {
 			int partitionRequestMaxBackoff,
 			int networkBuffersPerChannel,
 			int floatingNetworkBuffersPerGate,
+			int networkBuffersPerExternalBlockingChannel,
+			int floatingNetworkBuffersPerExternalBlockingGate,
+			int networkBuffersPerSubpartition,
 			@Nullable NettyConfig nettyConfig) {
 
 		this.networkBufFraction = networkBufFraction;
@@ -91,6 +104,9 @@ public class NetworkEnvironmentConfiguration {
 		this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
+		this.networkBuffersPerExternalBlockingChannel = networkBuffersPerExternalBlockingChannel;
+		this.floatingNetworkBuffersPerExternalBlockingGate = floatingNetworkBuffersPerExternalBlockingGate;
+		this.networkBuffersPerSubpartition = networkBuffersPerSubpartition;
 		this.nettyConfig = nettyConfig;
 	}
 
@@ -132,6 +148,18 @@ public class NetworkEnvironmentConfiguration {
 		return floatingNetworkBuffersPerGate;
 	}
 
+	public int networkBuffersPerExternalBlockingChannel() {
+		return networkBuffersPerExternalBlockingChannel;
+	}
+
+	public int floatingNetworkBuffersPerExternalBlockingGate() {
+		return floatingNetworkBuffersPerExternalBlockingGate;
+	}
+
+	public int networkBuffersPerSubpartition() {
+		return networkBuffersPerSubpartition;
+	}
+
 	public NettyConfig nettyConfig() {
 		return nettyConfig;
 	}
@@ -147,6 +175,9 @@ public class NetworkEnvironmentConfiguration {
 		result = 31 * result + partitionRequestMaxBackoff;
 		result = 31 * result + networkBuffersPerChannel;
 		result = 31 * result + floatingNetworkBuffersPerGate;
+		result = 31 * result + networkBuffersPerExternalBlockingChannel;
+		result = 31 * result + floatingNetworkBuffersPerExternalBlockingGate;
+		result = 31 * result + networkBuffersPerSubpartition;
 		result = 31 * result + (nettyConfig != null ? nettyConfig.hashCode() : 0);
 		return result;
 	}
@@ -170,7 +201,10 @@ public class NetworkEnvironmentConfiguration {
 					this.partitionRequestMaxBackoff == that.partitionRequestMaxBackoff &&
 					this.networkBuffersPerChannel == that.networkBuffersPerChannel &&
 					this.floatingNetworkBuffersPerGate == that.floatingNetworkBuffersPerGate &&
-					this.ioMode == that.ioMode && 
+					this.networkBuffersPerExternalBlockingChannel == that.networkBuffersPerExternalBlockingChannel &&
+					this.floatingNetworkBuffersPerExternalBlockingGate == that.floatingNetworkBuffersPerExternalBlockingGate &&
+					this.networkBuffersPerSubpartition == that.networkBuffersPerSubpartition &&
+					this.ioMode == that.ioMode &&
 					(nettyConfig != null ? nettyConfig.equals(that.nettyConfig) : that.nettyConfig == null);
 		}
 	}
@@ -187,6 +221,9 @@ public class NetworkEnvironmentConfiguration {
 				", partitionRequestMaxBackoff=" + partitionRequestMaxBackoff +
 				", networkBuffersPerChannel=" + networkBuffersPerChannel +
 				", floatingNetworkBuffersPerGate=" + floatingNetworkBuffersPerGate +
+				", networkBuffersPerExternalBlockingChannel=" + networkBuffersPerExternalBlockingChannel +
+				", floatingNetworkBuffersPerExternalBlockingGate=" + floatingNetworkBuffersPerExternalBlockingGate +
+				", networkBuffersPerSubpartition=" + networkBuffersPerSubpartition +
 				", nettyConfig=" + nettyConfig +
 				'}';
 	}

@@ -19,152 +19,72 @@
 package org.apache.flink.table.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
+import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.runtime.utils.{StreamTestData, StreamingWithStateTestBase, TestingRetractSink}
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class SetOperatorsITCase extends StreamingWithStateTestBase {
+import scala.collection.mutable
+
+@RunWith(classOf[Parameterized])
+class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
   @Test
-  def testInUncorrelatedWithConditionAndAgg(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
+  def testIntersect(): Unit = {
+    val tableA = failingDataSource(StreamTestData.getSmall3TupleData)
+      .toTable(tEnv, 'a1, 'a2, 'a3)
+    val tableB = failingDataSource(StreamTestData.get3TupleData)
+      .toTable(tEnv, 'b1, 'b2, 'b3)
+    tEnv.registerTable("A", tableA)
+    tEnv.registerTable("B", tableB)
 
-    val sqlQuery =
-      s"""
-         |SELECT * FROM tableA
-         |WHERE a IN (SELECT SUM(x) FROM tableB GROUP BY y HAVING y LIKE '%Hanoi%')
-       """.stripMargin
+    val sqlQuery = "SELECT a1, a2, a3 from A INTERSECT SELECT b1, b2, b3 from B"
 
-    val dataA = Seq(
-      (1, 1L, "Hello"),
-      (2, 2L, "Hello"),
-      (3, 3L, "Hello World"),
-      (4, 4L, "Hello")
-    )
-
-    val dataB = Seq(
-      (1, "hello"),
-      (1, "Hanoi"),
-      (1, "Hanoi"),
-      (2, "Hanoi-1"),
-      (2, "Hanoi-1"),
-      (-1, "Hanoi-1")
-    )
-
-    tEnv.registerTable("tableA",
-      env.fromCollection(dataA).toTable(tEnv).as('a, 'b, 'c))
-
-    tEnv.registerTable("tableB",
-      env.fromCollection(dataB).toTable(tEnv).as('x, 'y))
-
-    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
-    results.addSink(new StreamITCase.RetractingSink)
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
-
-    val expected = Seq(
-      "2,2,Hello", "3,3,Hello World"
-    )
-
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    val expected = mutable.MutableList(
+      "1,1,Hi",
+      "2,2,Hello",
+      "3,2,Hello world")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
   @Test
-  def testInWithMultiUncorrelatedCondition(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
+  def testExcept(): Unit = {
+    val data1 = new mutable.MutableList[(Int, Long, String)]
+    data1.+=((1, 1L, "Hi1"))
+    data1.+=((1, 2L, "Hi2"))
+    data1.+=((1, 2L, "Hi2"))
+    data1.+=((1, 5L, "Hi3"))
+    data1.+=((2, 7L, "Hi5"))
+    data1.+=((1, 9L, "Hi6"))
+    data1.+=((1, 8L, "Hi8"))
+    data1.+=((3, 8L, "Hi9"))
 
-    val sqlQuery =
-      s"""
-         |SELECT * FROM tableA
-         |WHERE a IN (SELECT x FROM tableB)
-         |AND b IN (SELECT w FROM tableC)
-       """.stripMargin
+    val data2 = new mutable.MutableList[(Int, Long, String)]
+    data2.+=((1, 1L, "Hi1"))
+    data2.+=((2, 2L, "Hi2"))
+    data2.+=((3, 2L, "Hi3"))
 
-    val dataA = Seq(
-      (1, 1L, "Hello"),
-      (2, 2L, "Hello"),
-      (3, 3L, "Hello World"),
-      (4, 4L, "Hello")
-    )
+    val t1 = failingDataSource(data1).toTable(tEnv, 'a1, 'a2, 'a3)
+    val t2 = failingDataSource(data2).toTable(tEnv, 'b1, 'b2, 'b3)
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
 
-    val dataB = Seq(
-      (1, "hello"),
-      (2, "co-hello"),
-      (4, "hello")
-    )
+    val sqlQuery = "SELECT a3 from T1 EXCEPT SELECT b3 from T2"
 
-    val dataC = Seq(
-      (1L, "Joker"),
-      (1L, "Sanity"),
-      (2L, "Cool")
-    )
-
-    tEnv.registerTable("tableA",
-      env.fromCollection(dataA).toTable(tEnv).as('a, 'b, 'c))
-
-    tEnv.registerTable("tableB",
-      env.fromCollection(dataB).toTable(tEnv).as('x, 'y))
-
-    tEnv.registerTable("tableC",
-      env.fromCollection(dataC).toTable(tEnv).as('w, 'z))
-
-    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
-    results.addSink(new StreamITCase.RetractingSink)
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
-
-    val expected = Seq(
-      "1,1,Hello", "2,2,Hello"
+    val expected = mutable.MutableList(
+      "Hi5", "Hi6", "Hi8", "Hi9"
     )
-
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
-  @Test
-  def testNotInUncorrelated(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
-
-    val sqlQuery =
-      s"""
-         |SELECT * FROM tableA
-         |WHERE a NOT IN (SELECT x FROM tableB)
-       """.stripMargin
-
-    val dataA = Seq(
-      (1, 1L, "Hello"),
-      (2, 2L, "Hello"),
-      (3, 3L, "Hello World"),
-      (4, 4L, "Hello")
-    )
-
-    val dataB = Seq(
-      (1, "hello"),
-      (2, "co-hello"),
-      (4, "hello")
-    )
-
-    tEnv.registerTable("tableA",
-      env.fromCollection(dataA).toTable(tEnv).as('a, 'b, 'c))
-
-    tEnv.registerTable("tableB",
-      env.fromCollection(dataB).toTable(tEnv).as('x, 'y))
-
-    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
-    results.addSink(new StreamITCase.RetractingSink)
-    env.execute()
-
-    val expected = Seq(
-      "3,3,Hello World"
-    )
-
-    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
-  }
 }

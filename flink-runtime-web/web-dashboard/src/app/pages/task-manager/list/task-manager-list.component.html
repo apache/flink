@@ -1,0 +1,90 @@
+<!--
+  ~   Licensed to the Apache Software Foundation (ASF) under one
+  ~   or more contributor license agreements.  See the NOTICE file
+  ~   distributed with this work for additional information
+  ~   regarding copyright ownership.  The ASF licenses this file
+  ~   to you under the Apache License, Version 2.0 (the
+  ~   "License"); you may not use this file except in compliance
+  ~   with the License.  You may obtain a copy of the License at
+  ~       http://www.apache.org/licenses/LICENSE-2.0
+  ~   Unless required by applicable law or agreed to in writing, software
+  ~   distributed under the License is distributed on an "AS IS" BASIS,
+  ~   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~   See the License for the specific language governing permissions and
+  ~   limitations under the License.
+  -->
+
+<nz-card [nzBordered]="false" [nzTitle]="'Task Managers'" [nzLoading]="isLoading">
+  <nz-table
+    class="small"
+    [nzBordered]="true"
+    [nzSize]="'small'"
+    [nzScroll]="{x:'1870px',y:'calc(100vh - 330px)'}"
+    [nzWidthConfig]="['300px','80px','80px','80px','80px','100px','100px','100px','100px','100px','100px','100px','100px','100px','100px','100px','150px']"
+    [nzData]="listOfTaskManager"
+    [nzFrontPagination]="false"
+    [nzShowPagination]="false">
+    <thead (nzSortChange)="sort($event)" nzSingleSort>
+      <tr>
+        <th rowspan="4" nzLeft="0px">Path, ID</th>
+        <th colspan="2">Slot</th>
+        <th colspan="2">CPU</th>
+        <th colspan="10">MEM</th>
+        <th rowspan="4" nzShowSort nzSortKey="timeSinceLastHeartbeat">Data Port</th>
+        <th rowspan="4" nzRight="0" nzShowSort nzSortKey="dataPort">Last Heartbeat</th>
+      </tr>
+      <tr>
+        <th rowspan="2" nzShowSort nzSortKey="freeSlots">Avail</th>
+        <th rowspan="2" nzShowSort nzSortKey="slotsNumber">Total</th>
+        <th rowspan="2" nzShowSort nzSortKey="availableResources.cpuCores">Avail</th>
+        <th rowspan="2" nzShowSort nzSortKey="totalResources.cpuCores">Total</th>
+        <th colspan="2">UserHeap</th>
+        <th colspan="2">UserDirect</th>
+        <th colspan="2">UserNative</th>
+        <th colspan="2">Managed</th>
+        <th colspan="2">Network</th>
+      </tr>
+      <tr>
+        <th nzShowSort nzSortKey="availableResources.userHeapMemory">Avail</th>
+        <th nzShowSort nzSortKey="totalResources.userHeapMemory">Total</th>
+        <th nzShowSort nzSortKey="availableResources.userDirectMemory">Avail</th>
+        <th nzShowSort nzSortKey="totalResources.userDirectMemory">Total</th>
+        <th nzShowSort nzSortKey="availableResources.userNativeMemory">Avail</th>
+        <th nzShowSort nzSortKey="totalResources.userNativeMemory">Total</th>
+        <th nzShowSort nzSortKey="availableResources.managedMemory">Avail</th>
+        <th nzShowSort nzSortKey="totalResources.managedMemory">Total</th>
+        <th nzShowSort nzSortKey="availableResources.networkMemory">Avail</th>
+        <th nzShowSort nzSortKey="totalResources.networkMemory">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <ng-container *ngFor="let manager of listOfTaskManager; trackBy:trackManagerBy;">
+        <tr class="clickable" (click)="navigateTo(manager)">
+          <td nzLeft="0px">
+            <div class="name">
+              <a>{{ manager.id }}</a>
+              <br>
+              <em>{{ manager.path }}</em>
+            </div>
+          </td>
+          <td>{{ manager.freeSlots }}</td>
+          <td>{{ manager.slotsNumber }}</td>
+          <td>{{ manager.availableResources.cpuCores  | number:'1.0-2' }}</td>
+          <td>{{ manager.totalResources.cpuCores  | number:'1.0-2' }}</td>
+          <td>{{ manager.availableResources.userHeapMemory | nzHumanizeBytes }}</td>
+          <td>{{ manager.totalResources.userHeapMemory | nzHumanizeBytes }}</td>
+          <td>{{ manager.availableResources.userDirectMemory | nzHumanizeBytes }}</td>
+          <td>{{ manager.totalResources.userDirectMemory | nzHumanizeBytes }}</td>
+          <td>{{ manager.availableResources.userNativeMemory | nzHumanizeBytes }}</td>
+          <td>{{ manager.totalResources.userNativeMemory | nzHumanizeBytes }}</td>
+          <td>{{ manager.availableResources.managedMemory | nzHumanizeBytes }}</td>
+          <td>{{ manager.totalResources.managedMemory | nzHumanizeBytes }}</td>
+          <td>{{ manager.availableResources.networkMemory | nzHumanizeBytes }}</td>
+          <td>{{ manager.totalResources.networkMemory | nzHumanizeBytes }}</td>
+          <td>{{ manager.dataPort }}</td>
+          <td nzRight="0px">{{ manager.timeSinceLastHeartbeat | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+        </tr>
+      </ng-container>
+    </tbody>
+  </nz-table>
+</nz-card>

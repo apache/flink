@@ -19,7 +19,9 @@
 package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -32,8 +34,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -77,7 +78,8 @@ public class NetworkStackThroughputITCase extends TestLogger {
 
 		@Override
 		public void invoke() throws Exception {
-			RecordWriter<SpeedTestRecord> writer = new RecordWriter<>(getEnvironment().getWriter(0));
+			RecordWriter<byte[]> writer = new RecordWriter<>(getEnvironment().getWriter(0));
+			getEnvironment().getWriter(0).setTypeSerializer(new BytePrimitiveArraySerializer());
 
 			try {
 				// Determine the amount of data to send per subtask
@@ -99,7 +101,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 						Thread.sleep(IS_SLOW_SLEEP_MS);
 					}
 
-					writer.emit(record);
+					writer.emit(record.buf);
 				}
 			}
 			finally {
@@ -127,12 +129,13 @@ public class NetworkStackThroughputITCase extends TestLogger {
 					SpeedTestRecord.class,
 					getEnvironment().getTaskManagerInfo().getTmpDirectories());
 
-			RecordWriter<SpeedTestRecord> writer = new RecordWriter<>(getEnvironment().getWriter(0));
+			RecordWriter<byte[]> writer = new RecordWriter<>(getEnvironment().getWriter(0));
+			getEnvironment().getWriter(0).setTypeSerializer(new BytePrimitiveArraySerializer());
 
 			try {
 				SpeedTestRecord record;
 				while ((record = reader.next()) != null) {
-					writer.emit(record);
+					writer.emit(record.buf);
 				}
 			}
 			finally {
@@ -202,6 +205,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 
 		@Override
 		public void read(DataInputView in) throws IOException {
+			in.readInt();
 			in.readFully(this.buf);
 		}
 	}
@@ -234,11 +238,14 @@ public class NetworkStackThroughputITCase extends TestLogger {
 
 			final int numTaskManagers = parallelism / numSlotsPerTaskManager;
 
-			final MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
-				new MiniClusterResourceConfiguration.Builder()
-					.setNumberTaskManagers(numTaskManagers)
-					.setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
-					.build());
+			final MiniClusterResource cluster = new MiniClusterResource(
+				new MiniClusterResource.MiniClusterResourceConfiguration(
+					new Configuration(),
+					numTaskManagers,
+					numSlotsPerTaskManager
+				),
+				true
+			);
 			cluster.before();
 
 			try {
@@ -258,7 +265,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 	}
 
 	private void testProgram(
-			final MiniClusterWithClientResource cluster,
+			final MiniClusterResource cluster,
 			final int dataVolumeGb,
 			final boolean useForwarder,
 			final boolean isSlowSender,
@@ -275,7 +282,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 				isSlowSender,
 				isSlowReceiver,
 				parallelism),
-			getClass().getClassLoader());
+			getClass().getClassLoader(), false);
 
 		long dataVolumeMbit = dataVolumeGb * 8192;
 		long runtimeSecs = jer.getNetRuntime(TimeUnit.SECONDS);

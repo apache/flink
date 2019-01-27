@@ -18,10 +18,9 @@
 
 package org.apache.flink.table.plan.logical
 
-import org.apache.flink.table.api.{BatchTableEnvironment, StreamTableEnvironment, TableEnvironment}
+import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment}
 import org.apache.flink.table.expressions.ExpressionUtils.{isRowCountLiteral, isRowtimeAttribute, isTimeAttribute, isTimeIntervalLiteral}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.typeutils.TypeCheckUtils.{isTimePoint, isLong}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 // ------------------------------------------------------------------------------------------------
@@ -56,10 +55,6 @@ case class TumblingGroupWindow(
         case _: StreamTableEnvironment if !isTimeAttribute(timeField) =>
           ValidationFailure(
             "Tumbling window expects a time attribute for grouping in a stream environment.")
-        case _: BatchTableEnvironment
-          if !(isTimePoint(timeField.resultType) || isLong(timeField.resultType)) =>
-          ValidationFailure(
-            "Tumbling window expects a time attribute for grouping in a batch environment.")
 
         // check row intervals on event-time
         case _: StreamTableEnvironment
@@ -74,6 +69,9 @@ case class TumblingGroupWindow(
     )
 
   override def toString: String = s"TumblingGroupWindow($alias, $timeField, $size)"
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -120,10 +118,6 @@ case class SlidingGroupWindow(
         case _: StreamTableEnvironment if !isTimeAttribute(timeField) =>
           ValidationFailure(
             "Sliding window expects a time attribute for grouping in a stream environment.")
-        case _: BatchTableEnvironment
-          if !(isTimePoint(timeField.resultType) || isLong(timeField.resultType)) =>
-          ValidationFailure(
-            "Sliding window expects a time attribute for grouping in a stream environment.")
 
         // check row intervals on event-time
         case _: StreamTableEnvironment
@@ -138,6 +132,9 @@ case class SlidingGroupWindow(
     )
 
   override def toString: String = s"SlidingGroupWindow($alias, $timeField, $size, $slide)"
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -171,10 +168,6 @@ case class SessionGroupWindow(
         case _: StreamTableEnvironment if !isTimeAttribute(timeField) =>
           ValidationFailure(
             "Session window expects a time attribute for grouping in a stream environment.")
-        case _: BatchTableEnvironment
-          if !(isTimePoint(timeField.resultType) || isLong(timeField.resultType)) =>
-          ValidationFailure(
-            "Session window expects a time attribute for grouping in a stream environment.")
 
         case _ =>
           ValidationSuccess
@@ -182,4 +175,7 @@ case class SessionGroupWindow(
     )
 
   override def toString: String = s"SessionGroupWindow($alias, $timeField, $gap)"
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }

@@ -21,14 +21,16 @@ import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.calcite.avatica.util.DateTimeUtils._
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{CurrentRange, CurrentRow, TableException, UnboundedRange, UnboundedRow}
-import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
+import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRangeInterval, toRowInterval}
 import org.apache.flink.table.api.Table
+import org.apache.flink.table.api.functions.AggregateFunction
+import org.apache.flink.table.api.types.{DataTypes, InternalType}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
+import org.apache.flink.table.expressions.{Atan2, Cosh, DistinctAgg, Hex, Literal, RegexpExtract, RegexpReplace, Repeat, Replace, TimestampDiff, _}
 import org.apache.flink.table.expressions.TimePointUnit.TimePointUnit
-import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{AggregateFunction, DistinctAggregateFunction, ScalarFunction}
+import org.apache.flink.table.codegen.expr.DistinctAggregateFunction
 
 import scala.language.implicitConversions
 
@@ -175,6 +177,19 @@ trait ImplicitExpressionOperations {
   def sum0 = Sum0(expr)
 
   /**
+    * Returns the sum of the numeric field across all input values.
+    * If all values are null, null is returned.
+    * And its modified monotonicity is increasing.
+    */
+  def incr_sum = IncrSum(expr)
+
+  /**
+    * Returns the a string that stitching all of the input values.
+    * If all values are null, null is returned.
+    */
+  def concat_agg(separator: Expression) = ConcatAgg(expr, separator)
+  
+  /**
     * Returns the minimum value of field across all input values.
     */
   def min = Min(expr)
@@ -195,6 +210,38 @@ trait ImplicitExpressionOperations {
   def avg = Avg(expr)
 
   /**
+    * The Rank function computes the rank of a value in a group of values.
+    * The result is one plus the number of rows preceding or equal to the current row
+    * in the ordering of the partition. The values will produce gaps in the sequence.
+    */
+  def rank = Rank()
+
+  /**
+    * Computes the rank of a value in a group of values. The result is one plus the previously
+    * assigned rank value. Unlike the function rank,
+    * dense_rank will not produce gaps in the ranking sequence.
+    */
+  def denseRank = DenseRank()
+
+  /**
+    * Assigns a unique, sequential number to each row, starting with one,
+    * according to the ordering of rows within the window partition.
+    */
+  def rowNumber = RowNumber()
+
+  /**
+    * Returns the first value in an ordered set of the inputs.
+    * If all values are null, null is returned.
+    */
+  def first_value = FirstValue(expr)
+
+  /**
+    * Returns the last value in an ordered set of the inputs.
+    * If all values are null, null is returned.
+    */
+  def last_value = LastValue(expr)
+
+  /**
     * Returns the population standard deviation of an expression (the square root of varPop()).
     */
   def stddevPop = StddevPop(expr)
@@ -203,6 +250,11 @@ trait ImplicitExpressionOperations {
     * Returns the sample standard deviation of an expression (the square root of varSamp()).
     */
   def stddevSamp = StddevSamp(expr)
+
+  /**
+    * Returns the standard deviation of an expression (the square root of variance()).
+    */
+  def stddev = Stddev(expr)
 
   /**
     * Returns the population standard variance of an expression.
@@ -215,6 +267,11 @@ trait ImplicitExpressionOperations {
   def varSamp = VarSamp(expr)
 
   /**
+    *  Returns the variance of a given expression.
+    */
+  def variance = Variance(expr)
+
+  /**
     * Returns multiset aggregate of a given expression.
     */
   def collect = Collect(expr)
@@ -222,11 +279,24 @@ trait ImplicitExpressionOperations {
   /**
     * Converts a value to a given type.
     *
-    * e.g. "42".cast(Types.INT) leads to 42.
+    * e.g. "42".cast(DataTypes.INT) leads to 42.
     *
     * @return casted expression
     */
-  def cast(toType: TypeInformation[_]) = Cast(expr, toType)
+  def cast(toType: InternalType) = Cast(expr, toType)
+
+  /**
+    * Reinterpret a value to a given type.
+    * When the physical storage of two types is the same, this operator may be used to
+    * reinterpret values of one type as the other. This operator is similar to
+    * a cast, except that it does not alter the data value. It
+    * performs an overflow check if it has <i>any</i> second operand, whether
+    * true or not.
+    *
+    * @return Reinterpreted expression
+    */
+  def reinterpret(toType: InternalType, checkOverflow: Boolean) =
+    Reinterpret(expr, toType, checkOverflow)
 
   /**
     * Specifies a name for an expression i.e. a field.
@@ -250,6 +320,9 @@ trait ImplicitExpressionOperations {
     * @return descend expression
     */
   def desc = Desc(expr)
+
+  def nullsFirst = NullsFirst(expr)
+  def nullsLast = NullsLast(expr)
 
   /**
     * Returns true if an expression exists in a given list of expressions. This is a shorthand
@@ -464,6 +537,24 @@ trait ImplicitExpressionOperations {
     new Substring(expr, beginIndex)
 
   /**
+    * Creates a subString of the given string at the leftmost n characters.
+    * If length <= 0, return empty string
+    *
+    * @param length number of characters of the substring
+    * @return the leftmost n characters from the given string.
+    */
+  def left(length: Expression) = Left(expr, length)
+
+  /**
+    * Creates a subString of the given string at the rightmost n characters.
+    * If length <= 0, return empty string
+    *
+    * @param length number of characters of the substring
+    * @return the rightmost n characters from the given string.
+    */
+  def right(length: Expression) = Right(expr, length)
+
+  /**
     * Removes leading and/or trailing characters from the given string.
     *
     * @param removeLeading if true, remove leading characters (default: true)
@@ -487,6 +578,27 @@ trait ImplicitExpressionOperations {
   }
 
   /**
+    * Removes leading characters from the given string.
+    *
+    * @param character string containing the character (default: " ")
+    * @return trimmed string
+    */
+  def ltrim(character: Expression = TrimConstants.TRIM_DEFAULT_CHAR) = Ltrim(expr, character)
+
+  /**
+    * Removes trailing characters from the given string.
+    *
+    * @param character string containing the character (default: " ")
+    * @return trimmed string
+    */
+  def rtrim(character: Expression = TrimConstants.TRIM_DEFAULT_CHAR) = Rtrim(expr, character)
+
+  /**
+    * Returns a string that repeats the base string n times.
+    */
+  def repeat(n: Expression) = Repeat(expr, n)
+
+  /**
     * Returns a new string which replaces all the occurrences of the search target
     * with the replacement string (non-overlapping).
     */
@@ -497,6 +609,11 @@ trait ImplicitExpressionOperations {
     * Returns the length of a string.
     */
   def charLength() = CharLength(expr)
+
+  /**
+    * Returns the length of a string.
+    */
+  def length() = CharLength(expr)
 
   /**
     * Returns all of the characters in a string in upper case using the rules of
@@ -555,6 +672,22 @@ trait ImplicitExpressionOperations {
   def rpad(len: Expression, pad: Expression) = Rpad(expr, len, pad)
 
   /**
+    * Returns the position of the nth appearance occurrence of the substring within the string
+    * starting at given start position.
+    * When start position is negative, then INSTR counts and searches backward from the end of
+    * string.
+    * Returns 0 if string could not be found.
+    *
+    * e.g.
+    * "Corporate Floor".instr("or", 3, 2) leads to 14
+    * "Corporate Floor".instr("or", -3, 2) leads to 2
+    */
+  def instr(subString: Expression,
+      startPosition: Expression = Literal(1),
+      nthAppearance: Expression = Literal(1)) =
+    new Instr(expr, subString, startPosition, nthAppearance)
+
+  /**
     * For windowing function to config over window
     * e.g.:
     * table
@@ -570,6 +703,18 @@ trait ImplicitExpressionOperations {
         "The over method can only using with aggregation expression.")
     }
   }
+
+  /**
+    * Returns a string extracted with a specified regular expression and a regex match group index.
+    */
+  def regexpExtract(regex: Expression, extractIndex: Expression) =
+    RegexpExtract(expr, regex, extractIndex)
+
+  /**
+    * Returns a string extracted with a specified regular expression.
+    */
+  def regexpExtract(regex: Expression) =
+    RegexpExtract(expr, regex, null)
 
   /**
     * Replaces a substring of string with a string starting at a position (starting at 1).
@@ -588,25 +733,6 @@ trait ImplicitExpressionOperations {
     Overlay(expr, newString, starting, length)
 
   /**
-    * Returns a string with all substrings that match the regular expression consecutively
-    * being replaced.
-    */
-  def regexpReplace(regex: Expression, replacement: Expression) =
-    RegexpReplace(expr, regex, replacement)
-
-  /**
-    * Returns a string extracted with a specified regular expression and a regex match group index.
-    */
-  def regexpExtract(regex: Expression, extractIndex: Expression) =
-    RegexpExtract(expr, regex, extractIndex)
-
-  /**
-    * Returns a string extracted with a specified regular expression.
-    */
-  def regexpExtract(regex: Expression) =
-    RegexpExtract(expr, regex, null)
-
-  /**
     * Returns the base string decoded with base64.
     */
   def fromBase64() = FromBase64(expr)
@@ -617,36 +743,44 @@ trait ImplicitExpressionOperations {
   def toBase64() = ToBase64(expr)
 
   /**
-    * Returns a string that removes the left whitespaces from the given string.
+    * Returns a string with all substrings that match the regular expression consecutively
+    * being replaced.
     */
-  def ltrim() = LTrim(expr)
+  def regexpReplace(regex: Expression, replacement: Expression) =
+    RegexpReplace(expr, regex, replacement)
 
   /**
-    * Returns a string that removes the right whitespaces from the given string.
+    * Returns the position of string in an other string starting at 1.
+    * Returns 0 if string could not be found.
+    *
+    * e.g. "st".locate("myteststring") leads to 5
     */
-  def rtrim() = RTrim(expr)
+  def locate(haystack: Expression) = new Locate(expr, haystack)
 
   /**
-    * Returns a string that repeats the base string n times.
+    * Returns the position of string in an other string starting at a position.
+    * Returns 0 if string could not be found.
+    *
+    * e.g. "st".locate("myteststring", 6) leads to 7
     */
-  def repeat(n: Expression) = Repeat(expr, n)
+  def locate(haystack: Expression, starting: Expression) = Locate(expr, haystack, starting)
 
   // Temporal operations
 
   /**
-    * Parses a date string in the form "yyyy-MM-dd" to a SQL Date.
+    * Parses a date string in the form "yy-mm-dd" to a SQL Date.
     */
-  def toDate = Cast(expr, SqlTimeTypeInfo.DATE)
+  def toDate = Cast(expr, DataTypes.DATE)
 
   /**
-    * Parses a time string in the form "HH:mm:ss" to a SQL Time.
+    * Parses a time string in the form "hh:mm:ss" to a SQL Time.
     */
-  def toTime = Cast(expr, SqlTimeTypeInfo.TIME)
+  def toTime = Cast(expr, DataTypes.TIME)
 
   /**
-    * Parses a timestamp string in the form "yyyy-MM-dd HH:mm:ss[.SSS]" to a SQL Timestamp.
+    * Parses a timestamp string in the form "yy-mm-dd hh:mm:ss.fff" to a SQL Timestamp.
     */
-  def toTimestamp = Cast(expr, SqlTimeTypeInfo.TIMESTAMP)
+  def toTimestamp = Cast(expr, DataTypes.TIMESTAMP)
 
   /**
     * Extracts parts of a time point or time interval. Returns the part as a long value.
@@ -686,17 +820,17 @@ trait ImplicitExpressionOperations {
   def years: Expression = year
 
   /**
-   * Creates an interval of the given number of quarters.
-   *
-   * @return interval of months
-   */
+    * Creates an interval of the given number of quarters.
+    *
+    * @return interval of months
+    */
   def quarter: Expression = toMonthInterval(expr, 3)
 
   /**
-   * Creates an interval of the given number of quarters.
-   *
-   * @return interval of months
-   */
+    * Creates an interval of the given number of quarters.
+    *
+    * @return interval of months
+    */
   def quarters: Expression = quarter
 
   /**
@@ -806,6 +940,15 @@ trait ImplicitExpressionOperations {
     */
   def rows: Expression = toRowInterval(expr)
 
+  // Range interval type
+
+  /**
+    * Creates an interval of range.
+    *
+    * @return interval of range
+    */
+  def range = toRangeInterval(expr)
+
   // Advanced type helper functions
 
   /**
@@ -833,17 +976,18 @@ trait ImplicitExpressionOperations {
   def flatten() = Flattening(expr)
 
   /**
-    * Accesses the element of an array or map based on a key or an index (starting at 1).
+    * Accesses the element of an array based on an index (starting at 1).
+    * Or accesses the element of a map based on key.
     *
-    * @param index key or position of the element (array index starting at 1)
+    * @param index position of the element (starting at 1), or key of a map
     * @return value of the element
     */
   def at(index: Expression) = ItemAt(expr, index)
 
   /**
-    * Returns the number of elements of an array or number of entries of a map.
+    * Returns the number of elements of an array or a map.
     *
-    * @return number of elements or entries
+    * @return number of elements
     */
   def cardinality() = Cardinality(expr)
 
@@ -868,6 +1012,29 @@ trait ImplicitExpressionOperations {
     * Flink's processing time.
     */
   def proctime = ProctimeAttribute(expr)
+
+  /**
+    * Returns the ASCII code of the left-most character of a string.
+    * Returns 0 if the string is empty. Returns null if the string is Null.
+    * Note that if the leftmost character is out of the range (0,127), the behavior is depending on
+    * the RDMB's implemantation of the function. In Blink, returns the the numeric value of the
+    * first byte of the left-most character.
+    */
+  def ascii() = Ascii(expr)
+
+  /**
+    * Encodes the given string into Binary using the given charset.
+    * Returns null if the given string is null.
+    * Returns null if the given charset is null.
+    */
+  def encode(charset: Expression) = Encode(expr, charset)
+
+  /**
+    * Decodes the given binary into String using the given charset.
+    * Returns null if the given binary is null.
+    * Returns null if the given charset is null.
+    */
+  def decode(charset: Expression) = Decode(expr, charset)
 
   // Hash functions
 
@@ -923,24 +1090,19 @@ trait ImplicitExpressionOperations {
   def sha2(hashLength: Expression) = Sha2(expr, hashLength)
 
   /**
-    * Returns true if the given expression is between lowerBound and upperBound (both inclusive).
-    * False otherwise. The parameters must be numeric types or identical comparable types.
-    *
-    * @param lowerBound numeric or comparable expression
-    * @param upperBound numeric or comparable expression
-    * @return boolean or null
+    * Returns the Between with lower bound included and upper bound included.
+    * @param lowerBound
+    * @param upperBound
+    * @return Returns the Between with lower bound included and upper bound included
     */
   def between(lowerBound: Expression, upperBound: Expression) =
     Between(expr, lowerBound, upperBound)
 
   /**
-    * Returns true if the given expression is not between lowerBound and upperBound (both
-    * inclusive). False otherwise. The parameters must be numeric types or identical
-    * comparable types.
-    *
-    * @param lowerBound numeric or comparable expression
-    * @param upperBound numeric or comparable expression
-    * @return boolean or null
+    * Returns the not Between with lower bound included and upper bound included.
+    * @param lowerBound
+    * @param upperBound
+    * @return Returns the NotBetween with lower bound included and upper bound included
     */
   def notBetween(lowerBound: Expression, upperBound: Expression) =
     NotBetween(expr, lowerBound, upperBound)
@@ -1021,34 +1183,28 @@ trait ImplicitExpressionConversions {
     def expr = Literal(sqlTimestamp)
   }
 
-  implicit class ScalarFunctionCallExpression(val s: ScalarFunction) {
-    def apply(params: Expression*): Expression = {
-      ScalarFunctionCall(s, params)
-    }
-  }
-
   implicit def symbol2FieldExpression(sym: Symbol): Expression = UnresolvedFieldReference(sym.name)
-  implicit def byte2Literal(b: Byte): Expression = Literal(b)
-  implicit def short2Literal(s: Short): Expression = Literal(s)
-  implicit def int2Literal(i: Int): Expression = Literal(i)
-  implicit def long2Literal(l: Long): Expression = Literal(l)
-  implicit def double2Literal(d: Double): Expression = Literal(d)
-  implicit def float2Literal(d: Float): Expression = Literal(d)
-  implicit def string2Literal(str: String): Expression = Literal(str)
-  implicit def boolean2Literal(bool: Boolean): Expression = Literal(bool)
-  implicit def javaDec2Literal(javaDec: JBigDecimal): Expression = Literal(javaDec)
-  implicit def scalaDec2Literal(scalaDec: BigDecimal): Expression =
+  implicit def byte2Literal(b: Byte): Literal = Literal(b)
+  implicit def short2Literal(s: Short): Literal = Literal(s)
+  implicit def int2Literal(i: Int): Literal = Literal(i)
+  implicit def long2Literal(l: Long): Literal = Literal(l)
+  implicit def double2Literal(d: Double): Literal = Literal(d)
+  implicit def float2Literal(d: Float): Literal = Literal(d)
+  implicit def string2Literal(str: String): Literal = Literal(str)
+  implicit def boolean2Literal(bool: Boolean): Literal = Literal(bool)
+  implicit def javaDec2Literal(javaDec: JBigDecimal): Literal = Literal(javaDec)
+  implicit def scalaDec2Literal(scalaDec: BigDecimal): Literal =
     Literal(scalaDec.bigDecimal)
-  implicit def sqlDate2Literal(sqlDate: Date): Expression = Literal(sqlDate)
-  implicit def sqlTime2Literal(sqlTime: Time): Expression = Literal(sqlTime)
-  implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression =
+  implicit def sqlDate2Literal(sqlDate: Date): Literal = Literal(sqlDate)
+  implicit def sqlTime2Literal(sqlTime: Time): Literal = Literal(sqlTime)
+  implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Literal =
     Literal(sqlTimestamp)
   implicit def array2ArrayConstructor(array: Array[_]): Expression = convertArray(array)
   implicit def userDefinedAggFunctionConstructor[T: TypeInformation, ACC: TypeInformation]
       (udagg: AggregateFunction[T, ACC]): UDAGGExpression[T, ACC] = UDAGGExpression(udagg)
   implicit def toDistinct(agg: Aggregation): DistinctAgg = DistinctAgg(agg)
   implicit def toDistinct[T: TypeInformation, ACC: TypeInformation]
-      (agg: AggregateFunction[T, ACC]): DistinctAggregateFunction[T, ACC] =
+  (agg: AggregateFunction[T, ACC]): DistinctAggregateFunction[T, ACC] =
     DistinctAggregateFunction(agg)
 }
 
@@ -1183,6 +1339,19 @@ object dateFormat {
 }
 
 /**
+  * Creates a row of expressions.
+  */
+object row {
+
+  /**
+    * Creates a row of expressions.
+    */
+  def apply(head: Expression, tail: Expression*): Expression = {
+    RowConstructor(head +: tail.toSeq)
+  }
+}
+
+/**
   * Returns the (signed) number of [[TimePointUnit]] between timePoint1 and timePoint2.
   *
   * For example, timestampDiff(TimePointUnit.DAY, '2016-06-15'.toDate, '2016-06-18'.toDate leads
@@ -1205,34 +1374,21 @@ object timestampDiff {
       timePointUnit: TimePointUnit,
       timePoint1: Expression,
       timePoint2: Expression)
-    : Expression = {
+  : Expression = {
     TimestampDiff(timePointUnit, timePoint1, timePoint2)
   }
 }
 
 /**
-  * Creates an array of literals. The array will be an array of objects (not primitives).
+  * Creates an array of expressions. The array will be an array of objects (not primitives).
   */
 object array {
 
   /**
-    * Creates an array of literals. The array will be an array of objects (not primitives).
+    * Creates an array of expressions. The array will be an array of objects (not primitives).
     */
   def apply(head: Expression, tail: Expression*): Expression = {
     ArrayConstructor(head +: tail.toSeq)
-  }
-}
-
-/**
-  * Creates a row of expressions.
-  */
-object row {
-
-  /**
-    * Creates a row of expressions.
-    */
-  def apply(head: Expression, tail: Expression*): Expression = {
-    RowConstructor(head +: tail.toSeq)
   }
 }
 
@@ -1326,13 +1482,21 @@ object randInteger {
   * Returns NULL if any argument is NULL.
   */
 object concat {
-
-  /**
-    * Returns the string that results from concatenating the arguments.
-    * Returns NULL if any argument is NULL.
-    */
   def apply(string: Expression, strings: Expression*): Expression = {
-    Concat(Seq(string) ++ strings)
+    new Concat(Seq(string) ++ strings)
+  }
+}
+
+/**
+  * Returns the string that results from concatenating the arguments and separator.
+  * Returns NULL If the separator is NULL.
+  *
+  * Note: this user-defined function does not skip empty strings. However, it does skip any NULL
+  * values after the separator argument.
+  **/
+object concat_ws {
+  def apply(separator: Expression, string: Expression, strings: Expression*): Expression = {
+    new ConcatWs(separator, Seq(string) ++ strings)
   }
 }
 
@@ -1349,16 +1513,16 @@ object atan2 {
   }
 }
 
-/**
-  * Returns the string that results from concatenating the arguments and separator.
-  * Returns NULL If the separator is NULL.
-  *
-  * Note: this user-defined function does not skip empty strings. However, it does skip any NULL
-  * values after the separator argument.
-  **/
-object concat_ws {
-  def apply(separator: Expression, string: Expression, strings: Expression*): Expression = {
-    ConcatWs(separator, Seq(string) ++ strings)
+object proctime {
+  def apply(): Expression = Proctime()
+}
+
+object log {
+  def apply(base: Expression, antilogarithm: Expression): Expression = {
+    Log(base, antilogarithm)
+  }
+  def apply(antilogarithm: Expression): Expression = {
+    new Log(antilogarithm)
   }
 }
 

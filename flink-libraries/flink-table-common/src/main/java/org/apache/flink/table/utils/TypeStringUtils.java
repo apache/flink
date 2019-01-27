@@ -32,6 +32,13 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.types.ArrayType;
+import org.apache.flink.table.api.types.DataType;
+import org.apache.flink.table.api.types.GenericType;
+import org.apache.flink.table.api.types.InternalType;
+import org.apache.flink.table.api.types.MapType;
+import org.apache.flink.table.api.types.MultisetType;
+import org.apache.flink.table.api.types.RowType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -155,10 +162,87 @@ public class TypeStringUtils {
 		}
 	}
 
+	public static String writeDataType(DataType dataType) {
+		if (dataType instanceof org.apache.flink.table.api.types.StringType) {
+			return VARCHAR;
+		} else if (dataType instanceof org.apache.flink.table.api.types.BooleanType) {
+			return BOOLEAN;
+		} else if (dataType instanceof org.apache.flink.table.api.types.ByteType) {
+			return BYTE;
+		} else if (dataType instanceof org.apache.flink.table.api.types.ShortType) {
+			return SHORT;
+		} else if (dataType instanceof org.apache.flink.table.api.types.IntType) {
+			return INT;
+		} else if (dataType instanceof org.apache.flink.table.api.types.LongType) {
+			return LONG;
+		} else if (dataType instanceof org.apache.flink.table.api.types.FloatType) {
+			return FLOAT;
+		} else if (dataType instanceof org.apache.flink.table.api.types.DoubleType) {
+			return DOUBLE;
+		} else if (dataType instanceof org.apache.flink.table.api.types.DecimalType) {
+			//TODO: support precision and scale
+			return DECIMAL;
+		} else if (dataType instanceof org.apache.flink.table.api.types.DateType) {
+			return SQL_DATE;
+		} else if (dataType instanceof org.apache.flink.table.api.types.TimeType) {
+			return SQL_TIME;
+		} else if (dataType instanceof org.apache.flink.table.api.types.TimestampType) {
+			return SQL_TIMESTAMP;
+		} else if (dataType instanceof RowType) {
+			final RowType rt = (RowType) dataType;
+			final String[] fieldNames = rt.getFieldNames();
+			final DataType[] fieldTypes = rt.getFieldTypes();
+
+			final StringBuilder result = new StringBuilder();
+			result.append(ROW);
+			result.append('<');
+			for (int i = 0; i < fieldNames.length; i++) {
+				// escape field name if it contains delimiters
+				if (containsDelimiter(fieldNames[i])) {
+					result.append('`');
+					result.append(fieldNames[i].replace("`", "``"));
+					result.append('`');
+				} else {
+					result.append(fieldNames[i]);
+				}
+				result.append(' ');
+				result.append(writeDataType(fieldTypes[i]));
+				if (i < fieldNames.length - 1) {
+					result.append(", ");
+				}
+			}
+			result.append('>');
+			return result.toString();
+		} else if (dataType instanceof org.apache.flink.table.api.types.GenericType) {
+			String clazzName = ((org.apache.flink.table.api.types.GenericType) dataType).getTypeClass().getName();
+			return ANY + '<' + clazzName + '>';
+		} else if (dataType instanceof org.apache.flink.table.api.types.MultisetType) {
+			final DataType elementType = ((org.apache.flink.table.api.types.MultisetType) dataType).getElementType();
+			return MULTISET + '<' + writeDataType(elementType) + '>';
+		}  else if (dataType instanceof org.apache.flink.table.api.types.MapType) {
+			final DataType keyType = ((org.apache.flink.table.api.types.MapType) dataType).getKeyType();
+			final DataType valueType = ((org.apache.flink.table.api.types.MapType) dataType).getValueType();
+			return MAP + '<' + writeDataType(keyType) + ", " + writeDataType(valueType) + '>';
+		} else if (dataType instanceof org.apache.flink.table.api.types.ArrayType) {
+			final boolean isPrimitive = ((org.apache.flink.table.api.types.ArrayType) dataType).isPrimitive();
+			final DataType elementType = ((org.apache.flink.table.api.types.ArrayType) dataType).getElementType();
+			final String result = isPrimitive ? PRIMITIVE_ARRAY : OBJECT_ARRAY;
+			return result + '<' + writeDataType(elementType) + '>';
+		} else {
+			return dataType.toString();
+		}
+	}
+
 	public static TypeInformation<?> readTypeInfo(String typeString) {
 		final List<Token> tokens = tokenize(typeString);
 		final TokenConverter converter = new TokenConverter(typeString, tokens);
 		return converter.convert();
+	}
+
+	public static InternalType readDataType(String typeString) {
+		final List<Token> tokens = tokenize(typeString);
+		final TokenConverter converter = new TokenConverter(typeString, tokens);
+		return converter.convert2();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -258,6 +342,16 @@ public class TypeStringUtils {
 			return typeInfo;
 		}
 
+		public InternalType convert2() {
+			nextToken(TokenType.LITERAL);
+			final InternalType dt = convertDataType();
+			if (hasRemainingTokens()) {
+				nextToken();
+				throw parsingError("Unexpected token: " + token().literal);
+			}
+			return dt;
+		}
+
 		private TypeInformation<?> convertType() {
 			final TypeInformation<?> typeInfo;
 			switch (token().literal) {
@@ -309,6 +403,159 @@ public class TypeStringUtils {
 				default:
 					throw parsingError("Unsupported type: " + token().literal);
 			}
+		}
+
+		private InternalType convertDataType() {
+			switch (token().literal) {
+				case VARCHAR:
+				case STRING:
+					return org.apache.flink.table.api.types.Types.STRING;
+				case BOOLEAN:
+					return org.apache.flink.table.api.types.Types.BOOLEAN;
+				case TINYINT:
+				case BYTE:
+					return org.apache.flink.table.api.types.Types.BYTE;
+				case SMALLINT:
+				case SHORT:
+					return org.apache.flink.table.api.types.Types.SHORT;
+				case INT:
+					return org.apache.flink.table.api.types.Types.INT;
+				case BIGINT:
+				case LONG:
+					return org.apache.flink.table.api.types.Types.LONG;
+				case FLOAT:
+					return org.apache.flink.table.api.types.Types.FLOAT;
+				case DOUBLE:
+					return org.apache.flink.table.api.types.Types.DOUBLE;
+				case DECIMAL:
+					return org.apache.flink.table.api.types.Types.DECIMAL;
+				case DATE:
+				case SQL_DATE:
+					return org.apache.flink.table.api.types.Types.DATE;
+				case TIME:
+				case SQL_TIME:
+					return org.apache.flink.table.api.types.Types.TIME;
+				case TIMESTAMP:
+				case SQL_TIMESTAMP:
+					return org.apache.flink.table.api.types.Types.TIMESTAMP;
+				case ROW:
+					return convertDataTypeRow();
+				case ANY:
+					return convertDataTypeAny();
+				case MAP:
+					return convertDataTypeMap();
+				case MULTISET:
+					return convertDataTypeMultiset();
+				case PRIMITIVE_ARRAY:
+					return convertDataTypePrimitiveArray();
+				case OBJECT_ARRAY:
+					return convertDataTypeObjectArray();
+				default:
+					throw parsingError("Unsupported type: " + token().literal);
+
+			}
+		}
+
+		private InternalType convertDataTypeRow() {
+			nextToken(TokenType.BEGIN);
+
+			// check if ROW<INT, INT> or ROW<name INT, other INT>
+			if (isNextToken(2, TokenType.LITERAL)) {
+				// named row
+				final List<String> names = new ArrayList<>();
+				final List<InternalType> types = new ArrayList<>();
+				while (hasRemainingTokens()) {
+					nextToken(TokenType.LITERAL);
+					names.add(token().literal);
+
+					nextToken(TokenType.LITERAL);
+					types.add(convertDataType());
+
+					if (isNextToken(1, TokenType.END)) {
+						break;
+					}
+					nextToken(TokenType.SEPARATOR);
+				}
+				nextToken(TokenType.END);
+
+				return new RowType(
+					types.toArray(new InternalType[0]),
+					names.toArray(new String[0])
+				);
+			} else {
+				// unnamed row
+				final List<InternalType> types = new ArrayList<>();
+				while (hasRemainingTokens()) {
+					nextToken(TokenType.LITERAL);
+					types.add(convertDataType());
+
+					if (isNextToken(1, TokenType.END)) {
+						break;
+					}
+					nextToken(TokenType.SEPARATOR);
+				}
+				nextToken(TokenType.END);
+				return new RowType(types.toArray(new InternalType[0]));
+			}
+		}
+
+		private InternalType convertDataTypeAny() {
+			nextToken(TokenType.BEGIN);
+
+			// we only support ANY(class)
+			nextToken(TokenType.LITERAL);
+			final String clazzName = token().literal;
+
+			nextToken(TokenType.END);
+
+			final Class<?> clazz = EncodingUtils.loadClass(clazzName);
+			return new GenericType<>(clazz);
+		}
+
+		private InternalType convertDataTypeMap() {
+			nextToken(TokenType.BEGIN);
+
+			nextToken(TokenType.LITERAL);
+			final InternalType keyType = convertDataType();
+
+			nextToken(TokenType.SEPARATOR);
+
+			nextToken(TokenType.LITERAL);
+			final InternalType valueType = convertDataType();
+
+			nextToken(TokenType.END);
+
+			return new MapType(keyType, valueType);
+		}
+
+		private InternalType convertDataTypeMultiset() {
+			nextToken(TokenType.BEGIN);
+
+			nextToken(TokenType.LITERAL);
+			final InternalType elementType = convertDataType();
+
+			nextToken(TokenType.END);
+			return new MultisetType(elementType);
+		}
+
+		private InternalType convertDataTypePrimitiveArray() {
+			nextToken(TokenType.BEGIN);
+
+			nextToken(TokenType.LITERAL);
+			final InternalType elementType = convertDataType();
+
+			nextToken(TokenType.END);
+			return new ArrayType(elementType, true);
+		}
+
+		private InternalType convertDataTypeObjectArray() {
+			nextToken(TokenType.BEGIN);
+
+			nextToken(TokenType.LITERAL);
+			final InternalType elementType = convertDataType();
+
+			nextToken(TokenType.END);
+			return new ArrayType(elementType, false);
 		}
 
 		private TypeInformation<?> convertRow() {

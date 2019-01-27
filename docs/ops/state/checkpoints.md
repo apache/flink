@@ -94,4 +94,26 @@ above).
 $ bin/flink run -s :checkpointMetaDataPath [:runArgs]
 {% endhighlight %}
 
+### Resume latest checkpoint automatically
+Previously, if we want to resume from retained checkpoint, we must provide the specific directory, which contains the checkpoint meta file such above., to resume checkpoint:
+
+{% highlight shell %}
+$ bin/flink run -s {user-defined-checkpoint-dir}/{job-id}/chk-x
+{% endhighlight %}
+
+However, if we just want to resume from the last latest checkpoint, this usage is not so friendly for two reasons below:
+1. We must know which is the latest checkpoint. In other words, the specific `chk-x` folder must contain the valid checkpoint meta file, otherwise the Flink job would not submit successfully.
+1. We must know previous running job's `job-id`, so that we could resume from the last latest checkpoint. However, `job-id` is not so readable and we need other solution to judge which is the last running job.
+
+We introduce a more friendly way to resume job from checkpoint automatically. First of all, we add new command to resume from latest checkpoint of given job with specific `job-id` directory:
+{% highlight shell %}
+$ bin/flink run -r {user-defined-checkpoint-dir}/{job-id}
+{% endhighlight %}
+**`Please pay attention that, if no checkpoint could be found in the given directory, the newly submitted job would run from scratch.`**
+
+We also introduce a new configuraiton named `state.checkpoints.create-subdirs` in `flink-conf.yaml`, which has default value as `true`. If no multi jobs with the same checkpoint path would run simultaneously, which could be ensured through external job-manage system. By means of setting this configuraiton as `false`, the sub-directory of `job-id` would not be created, which would be more friendly for usage:
+{% highlight shell %}
+bin/flink run -r {user-defined-checkpoint-dir}
+{% endhighlight %}
+
 {% top %}

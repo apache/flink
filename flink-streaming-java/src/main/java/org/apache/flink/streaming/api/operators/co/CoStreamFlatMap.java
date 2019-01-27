@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.api.operators.TwoInputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -48,16 +49,32 @@ public class CoStreamFlatMap<IN1, IN2, OUT>
 	}
 
 	@Override
-	public void processElement1(StreamRecord<IN1> element) throws Exception {
+	public TwoInputSelection firstInputSelection() {
+		return TwoInputSelection.ANY;
+	}
+
+	@Override
+	public TwoInputSelection processElement1(StreamRecord<IN1> element) throws Exception {
 		collector.setTimestamp(element);
 		userFunction.flatMap1(element.getValue(), collector);
+		return TwoInputSelection.ANY;
+	}
+
+	@Override
+	public TwoInputSelection processElement2(StreamRecord<IN2> element) throws Exception {
+		collector.setTimestamp(element);
+		userFunction.flatMap2(element.getValue(), collector);
+		return TwoInputSelection.ANY;
+	}
+
+	@Override
+	public void endInput1() throws Exception {
 
 	}
 
 	@Override
-	public void processElement2(StreamRecord<IN2> element) throws Exception {
-		collector.setTimestamp(element);
-		userFunction.flatMap2(element.getValue(), collector);
+	public void endInput2() throws Exception {
+
 	}
 
 	protected TimestampedCollector<OUT> getCollector() {

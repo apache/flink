@@ -76,7 +76,8 @@ public class OperatorSnapshotFuturesTest extends TestLogger {
 			keyedStateManagedFuture,
 			keyedStateRawFuture,
 			operatorStateManagedFuture,
-			operatorStateRawFuture);
+			operatorStateRawFuture
+		);
 
 		operatorSnapshotResult.cancel();
 

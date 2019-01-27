@@ -23,6 +23,7 @@ import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -39,6 +40,10 @@ public class JobWithJars {
 
 	private List<URL> jarFiles;
 
+	private final List<URI> libjars;
+
+	private final List<URI> files;
+
 	/**
 	 * classpaths that are needed during user code execution.
 	 */
@@ -47,9 +52,13 @@ public class JobWithJars {
 	private ClassLoader userCodeClassLoader;
 
 	public JobWithJars(Plan plan, List<URL> jarFiles, List<URL> classpaths) throws IOException {
+		this(plan, jarFiles, classpaths, Collections.emptyList(), Collections.emptyList());
+	}
+
+	public JobWithJars(Plan plan, List<URL> jarFiles, List<URL> classpaths, List<URI> libjars, List<URI> files) throws IOException {
 		this.plan = plan;
-		this.jarFiles = new ArrayList<URL>(jarFiles.size());
-		this.classpaths = new ArrayList<URL>(classpaths.size());
+		this.jarFiles = new ArrayList<>(jarFiles.size());
+		this.classpaths = new ArrayList<>(classpaths.size());
 
 		for (URL jarFile: jarFiles) {
 			checkJarFile(jarFile);
@@ -59,6 +68,9 @@ public class JobWithJars {
 		for (URL path: classpaths) {
 			this.classpaths.add(path);
 		}
+
+		this.libjars = libjars;
+		this.files = files;
 	}
 
 	public JobWithJars(Plan plan, URL jarFile) throws IOException {
@@ -67,12 +79,23 @@ public class JobWithJars {
 		checkJarFile(jarFile);
 		this.jarFiles = Collections.singletonList(jarFile);
 		this.classpaths = Collections.<URL>emptyList();
+		this.libjars = Collections.emptyList();
+		this.files = Collections.emptyList();
 	}
 
-	JobWithJars(Plan plan, List<URL> jarFiles, List<URL> classpaths, ClassLoader userCodeClassLoader) {
+	JobWithJars(
+			Plan plan,
+			List<URL> jarFiles,
+			List<URL> classpaths,
+			List<URI> libjars,
+			List<URI> files,
+			ClassLoader userCodeClassLoader) {
+
 		this.plan = plan;
 		this.jarFiles = jarFiles;
 		this.classpaths = classpaths;
+		this.libjars = libjars;
+		this.files = files;
 		this.userCodeClassLoader = userCodeClassLoader;
 	}
 
@@ -95,6 +118,14 @@ public class JobWithJars {
 	 */
 	public List<URL> getClasspaths() {
 		return classpaths;
+	}
+
+	public List<URI> getLibjars() {
+		return libjars;
+	}
+
+	public List<URI> getFiles() {
+		return files;
 	}
 
 	/**

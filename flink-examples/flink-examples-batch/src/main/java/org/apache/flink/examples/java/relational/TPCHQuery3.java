@@ -238,10 +238,7 @@ public class TPCHQuery3 {
 		}
 	}
 
-	/**
-	 * ShippingPriorityItem.
-	 */
-	public static class ShippingPriorityItem extends Tuple4<Long, Double, String, Long> {
+	private static class ShippingPriorityItem extends Tuple4<Long, Double, String, Long> {
 
 		public ShippingPriorityItem() {}
 

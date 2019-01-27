@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.factories;
 
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.types.Types;
 
 import org.junit.Test;
 
@@ -78,7 +78,7 @@ public class TableFormatFactoryBaseTest {
 		final TableSchema expectedSchema = TableSchema.builder()
 			.field("csvField", Types.STRING) // aliased
 			.field("abcField", Types.STRING)
-			.field("myTime", Types.SQL_TIMESTAMP)
+			.field("myTime", Types.TIMESTAMP)
 			.build();
 		assertEquals(expectedSchema, actualSchema);
 	}

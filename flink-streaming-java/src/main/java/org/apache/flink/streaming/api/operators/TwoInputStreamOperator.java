@@ -36,16 +36,24 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 public interface TwoInputStreamOperator<IN1, IN2, OUT> extends StreamOperator<OUT> {
 
 	/**
-	 * Processes one element that arrived on the first input of this two-input operator.
+	 * Returns the selection that this two-input operator wants to read firstly.
 	 * This method is guaranteed to not be called concurrently with other methods of the operator.
 	 */
-	void processElement1(StreamRecord<IN1> element) throws Exception;
+	TwoInputSelection firstInputSelection();
+
+	/**
+	 * Processes one element that arrived on the first input of this two-input operator.
+	 * This method is guaranteed to not be called concurrently with other methods of the operator.
+	 *
+	 */
+	TwoInputSelection processElement1(StreamRecord<IN1> element) throws Exception;
 
 	/**
 	 * Processes one element that arrived on the second input of this two-input operator.
 	 * This method is guaranteed to not be called concurrently with other methods of the operator.
+	 *
 	 */
-	void processElement2(StreamRecord<IN2> element) throws Exception;
+	TwoInputSelection processElement2(StreamRecord<IN2> element) throws Exception;
 
 	/**
 	 * Processes a {@link Watermark} that arrived on the first input of this two-input operator.
@@ -79,4 +87,17 @@ public interface TwoInputStreamOperator<IN1, IN2, OUT> extends StreamOperator<OU
 	 */
 	void processLatencyMarker2(LatencyMarker latencyMarker) throws Exception;
 
+	/**
+	 * It is notified that no more element ({@link StreamRecord}, {@link Watermark} and {@link LatencyMarker})
+	 * will arrive on the first input of this two-input operator. This method is guaranteed to not
+	 * be called concurrently with other methods of the operator.
+	 */
+	void endInput1() throws Exception;
+
+	/**
+	 * It is notified that no more element ({@link StreamRecord}, {@link Watermark} and {@link LatencyMarker})
+	 * will arrive on the second input of this two-input operator. This method is guaranteed to not
+	 * be called concurrently with other methods of the operator.
+	 */
+	void endInput2() throws Exception;
 }

@@ -106,21 +106,21 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
   }
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[Option[A]] = {
+      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[Option[A]] = {
 
     configSnapshot match {
       case optionSerializerConfigSnapshot
           : ScalaOptionSerializerConfigSnapshot[A] =>
-        ensureCompatibilityInternal(optionSerializerConfigSnapshot)
+        ensureCompatibility(optionSerializerConfigSnapshot)
       case legacyOptionSerializerConfigSnapshot
           : OptionSerializer.OptionSerializerConfigSnapshot[A] =>
-        ensureCompatibilityInternal(legacyOptionSerializerConfigSnapshot)
+        ensureCompatibility(legacyOptionSerializerConfigSnapshot)
       case _ => CompatibilityResult.requiresMigration()
     }
   }
 
-  private def ensureCompatibilityInternal(
-      compositeConfigSnapshot: CompositeTypeSerializerConfigSnapshot[Option[A]])
+  private def ensureCompatibility(
+      compositeConfigSnapshot: CompositeTypeSerializerConfigSnapshot)
       : CompatibilityResult[Option[A]] = {
 
     val compatResult = CompatibilityUtil.resolveCompatibilityResult(
@@ -150,7 +150,7 @@ object OptionSerializer {
     * Once Flink 1.3.x is no longer supported, this can be removed.
     */
   class OptionSerializerConfigSnapshot[A]()
-      extends CompositeTypeSerializerConfigSnapshot[Option[A]] {
+      extends CompositeTypeSerializerConfigSnapshot {
 
     override def getVersion: Int = OptionSerializerConfigSnapshot.VERSION
   }

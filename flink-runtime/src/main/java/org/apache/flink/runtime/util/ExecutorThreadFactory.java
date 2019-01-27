@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.util;
 
-import javax.annotation.Nullable;
-
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -53,9 +51,6 @@ public class ExecutorThreadFactory implements ThreadFactory {
 
 	private final String namePrefix;
 
-	private final int threadPriority;
-
-	@Nullable
 	private final UncaughtExceptionHandler exceptionHandler;
 
 	// ------------------------------------------------------------------------
@@ -86,20 +81,14 @@ public class ExecutorThreadFactory implements ThreadFactory {
 	 * @param exceptionHandler The uncaught exception handler for the threads
 	 */
 	public ExecutorThreadFactory(String poolName, UncaughtExceptionHandler exceptionHandler) {
-		this(poolName, Thread.NORM_PRIORITY, exceptionHandler);
-	}
-
-	ExecutorThreadFactory(
-			final String poolName,
-			final int threadPriority,
-			@Nullable final UncaughtExceptionHandler exceptionHandler) {
-		this.namePrefix = checkNotNull(poolName, "poolName") + "-thread-";
-		this.threadPriority = threadPriority;
-		this.exceptionHandler = exceptionHandler;
+		checkNotNull(poolName, "poolName");
 
 		SecurityManager securityManager = System.getSecurityManager();
 		this.group = (securityManager != null) ? securityManager.getThreadGroup() :
-			Thread.currentThread().getThreadGroup();
+				Thread.currentThread().getThreadGroup();
+
+		this.namePrefix = poolName + "-thread-";
+		this.exceptionHandler = exceptionHandler;
 	}
 
 	// ------------------------------------------------------------------------
@@ -109,7 +98,10 @@ public class ExecutorThreadFactory implements ThreadFactory {
 		Thread t = new Thread(group, runnable, namePrefix + threadNumber.getAndIncrement());
 		t.setDaemon(true);
 
-		t.setPriority(threadPriority);
+		// normalize the priority
+		if (t.getPriority() != Thread.NORM_PRIORITY) {
+			t.setPriority(Thread.NORM_PRIORITY);
+		}
 
 		// optional handler for uncaught exceptions
 		if (exceptionHandler != null) {
@@ -121,28 +113,4 @@ public class ExecutorThreadFactory implements ThreadFactory {
 
 	// --------------------------------------------------------------------------------------------
 
-	public static final class Builder {
-		private String poolName;
-		private int priority = Thread.NORM_PRIORITY;
-		private UncaughtExceptionHandler exceptionHandler = FatalExitExceptionHandler.INSTANCE;
-
-		public Builder setPoolName(final String poolName) {
-			this.poolName = poolName;
-			return this;
-		}
-		
-		public Builder setThreadPriority(final int priority) {
-			this.priority = priority;
-			return this;
-		}
-		
-		public Builder setExceptionHandler(final UncaughtExceptionHandler exceptionHandler) {
-			this.exceptionHandler = exceptionHandler;
-			return this;
-		}
-		
-		public ExecutorThreadFactory build() {
-			return new ExecutorThreadFactory(poolName, priority, exceptionHandler);
-		}
-	}
 }

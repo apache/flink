@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.utils;
 
-import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.api.functions.TableFunction;
 
 /**
  * Test functions.

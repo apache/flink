@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
@@ -30,19 +29,13 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 public class BroadcastPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private int[] returnArray;
-
+	/**
+	 * Note: Broadcast mode could be handled directly for all the output channels
+	 * in record writer, so it is no need to select channels via this method.
+	 */
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record) {
-		if (returnArray != null && returnArray.length == numberOfChannels) {
-			return returnArray;
-		} else {
-			this.returnArray = new int[numberOfChannels];
-			for (int i = 0; i < numberOfChannels; i++) {
-				returnArray[i] = i;
-			}
-			return returnArray;
-		}
+	public int selectChannel(StreamRecord<T> record, int numberOfOutputChannels) {
+		throw new UnsupportedOperationException("Broadcast partitioner does not support select channels.");
 	}
 
 	@Override

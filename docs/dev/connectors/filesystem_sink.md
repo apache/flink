@@ -29,7 +29,7 @@ following dependency to your project:
 
 {% highlight xml %}
 <dependency>
-  <groupId>org.apache.flink</groupId>
+  <groupId>com.alibaba.blink</groupId>
   <artifactId>flink-connector-filesystem{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
 </dependency>
@@ -43,7 +43,7 @@ cluster execution.
 
 #### Bucketing File Sink
 
-The bucketing behaviour as well as the writing can be configured but we will get to that later.
+The bucketing behaviour, as well as the writing, can be configured but we will get to that later.
 This is how you can create a bucketing sink which by default, sinks to rolling files that are split by time:
 
 <div class="codetabs" markdown="1">
@@ -68,10 +68,9 @@ input.addSink(new BucketingSink[String]("/base/path"))
 The only required parameter is the base path where the buckets will be
 stored. The sink can be further configured by specifying a custom bucketer, writer and batch size.
 
-By default the bucketing sink will split by the current system time when elements arrive and will
+By default, the bucketing sink will split by the current system time when elements arrive and will
 use the datetime pattern `"yyyy-MM-dd--HH"` to name the buckets. This pattern is passed to
-`DateTimeFormatter` with the current system time and JVM's default timezone to form a bucket path.
-Users can also specify a timezone for the bucketer to format bucket path. A new bucket will be created
+`SimpleDateFormat` with the current system time to form a bucket path. A new bucket will be created
 whenever a new date is encountered. For example, if you have a pattern that contains minutes as the
 finest granularity you will get a new bucket every minute. Each bucket is itself a directory that
 contains several part files: each parallel instance of the sink will create its own part file and
@@ -86,17 +85,12 @@ You can also specify a custom bucketer by using `setBucketer()` on a `BucketingS
 the bucketer can use a property of the element or tuple to determine the bucket directory.
 
 The default writer is `StringWriter`. This will call `toString()` on the incoming elements
-and write them to part files, separated by newline. To specify a custom writer use `setWriter()`
+and write them to part files, separated by a newline. To specify a custom writer use `setWriter()`
 on a `BucketingSink`. If you want to write Hadoop SequenceFiles you can use the provided
 `SequenceFileWriter` which can also be configured to use compression.
 
-There are two configuration options that specify when a part file should be closed
-and a new one started:
- 
-* By setting a batch size (The default part file size is 384 MB)
-* By setting a batch roll over time interval (The default roll over interval is `Long.MAX_VALUE`)
-
-A new part file is started when either of these two conditions is satisfied.
+The last configuration option is the batch size. This specifies when a part file should be closed
+and a new one started. (The default part file size is 384 MB).
 
 Example:
 
@@ -106,10 +100,9 @@ Example:
 DataStream<Tuple2<IntWritable,Text>> input = ...;
 
 BucketingSink<String> sink = new BucketingSink<String>("/base/path");
-sink.setBucketer(new DateTimeBucketer<String>("yyyy-MM-dd--HHmm", ZoneId.of("America/Los_Angeles")));
+sink.setBucketer(new DateTimeBucketer<String>("yyyy-MM-dd--HHmm"));
 sink.setWriter(new SequenceFileWriter<IntWritable, Text>());
 sink.setBatchSize(1024 * 1024 * 400); // this is 400 MB,
-sink.setBatchRolloverInterval(20 * 60 * 1000); // this is 20 mins
 
 input.addSink(sink);
 
@@ -120,10 +113,9 @@ input.addSink(sink);
 val input: DataStream[Tuple2[IntWritable, Text]] = ...
 
 val sink = new BucketingSink[String]("/base/path")
-sink.setBucketer(new DateTimeBucketer[String]("yyyy-MM-dd--HHmm", ZoneId.of("America/Los_Angeles")))
+sink.setBucketer(new DateTimeBucketer[String]("yyyy-MM-dd--HHmm"))
 sink.setWriter(new SequenceFileWriter[IntWritable, Text]())
 sink.setBatchSize(1024 * 1024 * 400) // this is 400 MB,
-sink.setBatchRolloverInterval(20 * 60 * 1000); // this is 20 mins
 
 input.addSink(sink)
 
@@ -138,8 +130,8 @@ This will create a sink that writes to bucket files that follow this schema:
 {% endhighlight %}
 
 Where `date-time` is the string that we get from the date/time format, `parallel-task` is the index
-of the parallel sink instance and `count` is the running number of part files that were created
-because of the batch size or batch roll over interval.
+of the parallel sink instance and the `count` is the running number of part files that were created
+because of the batch size.
 
 For in-depth information, please refer to the JavaDoc for
 [BucketingSink](http://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/connectors/fs/bucketing/BucketingSink.html).

@@ -20,15 +20,16 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
 
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.RocksDBException;
+
+import java.io.IOException;
 
 /**
  * {@link FoldingState} implementation that stores state in RocksDB.
@@ -41,9 +42,9 @@ import org.rocksdb.ColumnFamilyHandle;
  * @deprecated will be removed in a future version
  */
 @Deprecated
-class RocksDBFoldingState<K, N, T, ACC>
-	extends AbstractRocksDBAppendingState<K, N, T, ACC, ACC>
-	implements InternalFoldingState<K, N, T, ACC> {
+public class RocksDBFoldingState<K, N, T, ACC>
+		extends AbstractRocksDBState<K, N, ACC, FoldingState<T, ACC>>
+		implements InternalFoldingState<K, N, T, ACC> {
 
 	/** User-specified fold function. */
 	private final FoldFunction<T, ACC> foldFunction;
@@ -58,13 +59,12 @@ class RocksDBFoldingState<K, N, T, ACC>
 	 * @param foldFunction The fold function used for folding state.
 	 * @param backend The backend for which this state is bind to.
 	 */
-	private RocksDBFoldingState(
-		ColumnFamilyHandle columnFamily,
-		TypeSerializer<N> namespaceSerializer,
-		TypeSerializer<ACC> valueSerializer,
-		ACC defaultValue,
-		FoldFunction<T, ACC> foldFunction,
-		RocksDBKeyedStateBackend<K> backend) {
+	public RocksDBFoldingState(ColumnFamilyHandle columnFamily,
+			TypeSerializer<N> namespaceSerializer,
+			TypeSerializer<ACC> valueSerializer,
+			ACC defaultValue,
+			FoldFunction<T, ACC> foldFunction,
+			RocksDBKeyedStateBackend<K> backend) {
 
 		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
 
@@ -88,29 +88,39 @@ class RocksDBFoldingState<K, N, T, ACC>
 
 	@Override
 	public ACC get() {
-		return getInternal();
+		try {
+			writeCurrentKeyWithGroupAndNamespace();
+			byte[] key = keySerializationStream.toByteArray();
+			byte[] valueBytes = backend.db.get(columnFamily, key);
+			if (valueBytes == null) {
+				return null;
+			}
+			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
+		} catch (IOException | RocksDBException e) {
+			throw new RuntimeException("Error while retrieving data from RocksDB", e);
+		}
 	}
 
 	@Override
-	public void add(T value) throws Exception {
-		byte[] key = getKeyBytes();
-		ACC accumulator = getInternal(key);
-		accumulator = accumulator == null ? getDefaultValue() : accumulator;
-		accumulator = foldFunction.fold(accumulator, value);
-		updateInternal(key, accumulator);
-	}
-
-	@SuppressWarnings("unchecked")
-	static <K, N, SV, S extends State, IS extends S> IS create(
-		StateDescriptor<S, SV> stateDesc,
-		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult,
-		RocksDBKeyedStateBackend<K> backend) {
-		return (IS) new RocksDBFoldingState<>(
-			registerResult.f0,
-			registerResult.f1.getNamespaceSerializer(),
-			registerResult.f1.getStateSerializer(),
-			stateDesc.getDefaultValue(),
-			((FoldingStateDescriptor<?, SV>) stateDesc).getFoldFunction(),
-			backend);
+	public void add(T value) throws IOException {
+		try {
+			writeCurrentKeyWithGroupAndNamespace();
+			byte[] key = keySerializationStream.toByteArray();
+			byte[] valueBytes = backend.db.get(columnFamily, key);
+			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
+			if (valueBytes == null) {
+				keySerializationStream.reset();
+				valueSerializer.serialize(foldFunction.fold(getDefaultValue(), value), out);
+				backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
+			} else {
+				ACC oldValue = valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
+				ACC newValue = foldFunction.fold(oldValue, value);
+				keySerializationStream.reset();
+				valueSerializer.serialize(newValue, out);
+				backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
+			}
+		} catch (Exception e) {
+			throw new RuntimeException("Error while adding data to RocksDB", e);
+		}
 	}
 }

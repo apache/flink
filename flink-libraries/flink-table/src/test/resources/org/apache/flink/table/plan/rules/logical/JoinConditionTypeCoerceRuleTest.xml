@@ -1,0 +1,273 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testInToSemiJoinDoubleEqualsDecimal">
+    <Resource name="sql">
+      <![CDATA[select * from t1 where t1.d in (select e from t2)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[IN($3, {
+LogicalProject(e=[$4])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, t1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- SemiJoin(condition=[=($3, $6)], joinType=[inner], isAnti=[false])
+   :- LogicalTableScan(table=[[builtin, default, t1]])
+   +- LogicalProject(e=[$0], e0=[CAST($0):DOUBLE])
+      +- LogicalProject(e=[$4])
+         +- LogicalTableScan(table=[[builtin, default, t2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInToSemiJoinFloatEqualsDecimal">
+    <Resource name="sql">
+      <![CDATA[select * from t1 where t1.c in (select e from t2)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[IN($2, {
+LogicalProject(e=[$4])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, t1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
+   +- SemiJoin(condition=[=($5, $7)], joinType=[inner], isAnti=[false])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], c0=[CAST($2):DOUBLE])
+      :  +- LogicalTableScan(table=[[builtin, default, t1]])
+      +- LogicalProject(e=[$0], e0=[CAST($0):DOUBLE])
+         +- LogicalProject(e=[$4])
+            +- LogicalTableScan(table=[[builtin, default, t2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInToSemiJoinIntEqualsDecimal">
+    <Resource name="sql">
+      <![CDATA[select * from t1 where t1.a in (select e from t2)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(e=[$4])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, t1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
+   +- SemiJoin(condition=[=($5, $6)], joinType=[inner], isAnti=[false])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], a0=[CAST($0):DECIMAL(38, 18)])
+      :  +- LogicalTableScan(table=[[builtin, default, t1]])
+      +- LogicalProject(e=[$4])
+         +- LogicalTableScan(table=[[builtin, default, t2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInToSemiJoinFloatEqualsDouble">
+    <Resource name="sql">
+      <![CDATA[select * from t1 where t1.c in (select d from t2)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[IN(CAST($2):DOUBLE, {
+LogicalProject(d=[$3])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, t1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
+   +- SemiJoin(condition=[=($5, $6)], joinType=[inner], isAnti=[false])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], c0=[CAST($2):DOUBLE])
+      :  +- LogicalTableScan(table=[[builtin, default, t1]])
+      +- LogicalProject(d=[$3])
+         +- LogicalTableScan(table=[[builtin, default, t2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInToSemiJoinIntEqualsDouble">
+    <Resource name="sql">
+      <![CDATA[select * from t1 where t1.a in (select d from t2)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[IN(CAST($0):DOUBLE, {
+LogicalProject(d=[$3])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, t1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
+   +- SemiJoin(condition=[=($5, $6)], joinType=[inner], isAnti=[false])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], a0=[CAST($0):DOUBLE])
+      :  +- LogicalTableScan(table=[[builtin, default, t1]])
+      +- LogicalProject(d=[$3])
+         +- LogicalTableScan(table=[[builtin, default, t2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInToSemiJoinIntEqualsFloat">
+    <Resource name="sql">
+      <![CDATA[select * from t1 where t1.a in (select c from t2)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[IN(CAST($0):FLOAT, {
+LogicalProject(c=[$2])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, t1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
+   +- SemiJoin(condition=[=($5, $6)], joinType=[inner], isAnti=[false])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], a0=[CAST($0):FLOAT])
+      :  +- LogicalTableScan(table=[[builtin, default, t1]])
+      +- LogicalProject(c=[$2])
+         +- LogicalTableScan(table=[[builtin, default, t2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInToSemiJoinIntEqualsLong">
+    <Resource name="sql">
+      <![CDATA[select * from t1 where t1.a in (select b from t2)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(b=[$1])
+  LogicalTableScan(table=[[builtin, default, t2]])
+})])
+   +- LogicalTableScan(table=[[builtin, default, t1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
+   +- SemiJoin(condition=[=($5, $6)], joinType=[inner], isAnti=[false])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], a0=[CAST($0):BIGINT])
+      :  +- LogicalTableScan(table=[[builtin, default, t1]])
+      +- LogicalProject(b=[$1])
+         +- LogicalTableScan(table=[[builtin, default, t2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinConditionEqualsTypesNotEquals01">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM t1 LEFT JOIN (SELECT COUNT(*) AS cnt FROM t2) AS x ON a = x.cnt]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], cnt=[$6])
+   +- LogicalJoin(condition=[=($5, $6)], joinType=[left])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], a0=[CAST($0):BIGINT])
+      :  +- LogicalTableScan(table=[[builtin, default, t1]])
+      +- LogicalAggregate(group=[{}], cnt=[COUNT()])
+         +- LogicalProject($f0=[0])
+            +- LogicalTableScan(table=[[builtin, default, t2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], cnt=[$6])
+   +- LogicalJoin(condition=[=($5, $6)], joinType=[left])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], a0=[CAST($0):BIGINT])
+      :  +- LogicalTableScan(table=[[builtin, default, t1]])
+      +- LogicalAggregate(group=[{}], cnt=[COUNT()])
+         +- LogicalProject($f0=[0])
+            +- LogicalTableScan(table=[[builtin, default, t2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinConditionEqualsTypesNotEquals02">
+    <Resource name="sql">
+      <![CDATA[
+-- TC 01.04
+SELECT t3a,
+       t3b
+FROM   t3
+WHERE  t3c IN (SELECT t4b
+               FROM   t4
+               WHERE  t3a = t4a
+                       OR t3b > t4b)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(t3a=[$0], t3b=[$1])
++- LogicalFilter(condition=[IN($2, {
+LogicalProject(t4b=[$1])
+  LogicalFilter(condition=[OR(=($cor0.t3a, $0), >($cor0.t3b, $1))])
+    LogicalTableScan(table=[[builtin, default, t4]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[builtin, default, t3]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(t3a=[$0], t3b=[$1])
++- LogicalProject(t3a=[$0], t3b=[$1], t3c=[$2])
+   +- LogicalProject(t3a=[$0], t3b=[$1], t3c=[$2], t4b=[$3], t3a0=[$4], t3b0=[$5])
+      +- LogicalJoin(condition=[AND(=($0, $4), =($1, $5), =($2, $6))], joinType=[inner])
+         :- LogicalTableScan(table=[[builtin, default, t3]])
+         +- LogicalProject(t4b=[$0], t3a=[$1], t3b=[$2], t4b0=[CAST($0):INTEGER])
+            +- LogicalAggregate(group=[{0, 1, 2}])
+               +- LogicalProject(t4b=[$0], t3a=[$1], t3b=[$2])
+                  +- LogicalProject(t4b=[$1], t3a=[$3], t3b=[$4])
+                     +- LogicalJoin(condition=[OR(=($3, $0), >($4, $1))], joinType=[inner])
+                        :- LogicalTableScan(table=[[builtin, default, t4]])
+                        +- LogicalAggregate(group=[{0, 1}])
+                           +- LogicalProject(t3a=[$0], t3b=[$1])
+                              +- LogicalTableScan(table=[[builtin, default, t3]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

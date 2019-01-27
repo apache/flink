@@ -18,17 +18,20 @@
 package org.apache.flink.table.api
 
 import org.apache.calcite.rel.RelNode
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
+import org.apache.flink.table.api.functions.TemporalTableFunction
+import org.apache.flink.table.api.types._
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
-import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionParser, Ordering, ResolvedFieldReference, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
-import org.apache.flink.table.functions.TemporalTableFunction
+import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionParser, Literal, Ordering, ResolvedFieldReference, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical.{Minus, _}
-import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.plan.schema.TableSourceSinkTable
+import org.apache.flink.table.sinks.{CollectRowTableSink, CollectTableSink, TableSink}
+import org.apache.flink.types.Row
 
 import _root_.scala.annotation.varargs
+import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
 
 /**
@@ -67,7 +70,7 @@ class Table(
 
   // Check if the plan has an unbounded TableFunctionCall as child node.
   //   A TableFunctionCall is tolerated as root node because the Table holds the initial call.
-  if (containsUnboundedUDTFCall(logicalPlan) &&
+  if (containsUnboudedUDTFCall(logicalPlan) &&
     !logicalPlan.isInstanceOf[LogicalTableFunctionCall]) {
     throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
   }
@@ -82,13 +85,29 @@ class Table(
     this(tableEnv, UserDefinedFunctionUtils.createLogicalFunctionCall(tableEnv, udtfCall))
   }
 
-  private lazy val tableSchema: TableSchema = new TableSchema(
-    logicalPlan.output.map(_.name).toArray,
-    logicalPlan.output.map(_.resultType).toArray)
+  private lazy val tableSchema: TableSchema = logicalPlan match {
+    case CatalogNode(tablePath, _) if tableEnv.getTable(tablePath.toArray)
+      .exists(_.isInstanceOf[TableSourceSinkTable[_]]) =>
+      val tableSourceSinkTable = tableEnv.getTable(tablePath.toArray).get
+        .asInstanceOf[TableSourceSinkTable[_]]
+      if (tableSourceSinkTable.isSourceTable) {
+        tableSourceSinkTable.tableSourceTable.get.tableSource.getTableSchema
+      } else {
+        new TableSchema(
+          logicalPlan.output.map(_.name).toArray,
+          logicalPlan.output.map(_.resultType).toArray,
+          getRelNode.getRowType.getFieldList.map(_.getType.isNullable).toArray)
+      }
+    case _ =>
+      new TableSchema(
+        logicalPlan.output.map(_.name).toArray,
+        logicalPlan.output.map(_.resultType).toArray,
+        getRelNode.getRowType.getFieldList.map(_.getType.isNullable).toArray)
+  }
 
   def relBuilder: FlinkRelBuilder = tableEnv.getRelBuilder
 
-  def getRelNode: RelNode = if (containsUnboundedUDTFCall(logicalPlan)) {
+  def getRelNode: RelNode = if (containsUnboudedUDTFCall(logicalPlan)) {
     throw new ValidationException("Cannot translate a query with an unbounded table function call.")
   } else {
     logicalPlan.toRelNode(relBuilder)
@@ -102,7 +121,77 @@ class Table(
   /**
     * Prints the schema of this table to the console in a tree format.
     */
-  def printSchema(): Unit = print(tableSchema.toString)
+  def printSchema(): Unit = _root_.scala.Predef.print(tableSchema.toString)
+
+  def collectSink[T](sink: CollectTableSink[T], jobName : Option[String] = None): Seq[T] = {
+    // get schema information of table
+    val rowType = getRelNode.getRowType
+    val fieldNames: Array[String] = rowType.getFieldNames.asScala.toArray
+    val fieldTypes: Array[DataType] = rowType.getFieldList.asScala
+        .map(field => FlinkTypeFactory.toInternalType(field.getType)).toArray
+    val configuredSink = sink.configure(fieldNames, fieldTypes)
+    tableEnv.collect(this, configuredSink.asInstanceOf[CollectTableSink[T]], jobName)
+  }
+
+  def collect(): Seq[Row] = collectSink(new CollectRowTableSink, None)
+
+  def collectAsT[T](t: DataType, jobName : String = null): Seq[T] =
+    collectSink(new CollectTableSink(_ => t), Option(jobName))
+
+  /**
+    * cache this table to builtin table service or the specified customized table service.
+    *
+    * This method provides a hint to Flink that the current table maybe reused later so a
+    * cache should be created to avoid regenerating this table.
+    *
+    * The following code snippet gives an example of how this method could be used.
+    *
+    * {{{
+    *   val t = tEnv.fromCollection(data).as('country, 'color, 'count)
+    *
+    *   val t1 = t.filter('count < 100)
+    *   t1.cache()
+    *   // t1 is cached after it is generated for the first time.
+    *   val x = t1.collect().size
+    *
+    *   // When t1 is used again to generate t2, it may not be regenerated.
+    *   val t2 = t1.groupBy('country).select('country, 'count.sum as 'sum)
+    *   val res2 = t2.collect()
+    *   res2.foreach(println)
+    *
+    *   // Similarly when t1 is used again to generate t2, it may not be regenerated.
+    *   val t3 = t1.groupBy('color).select('color, 'count.avg as 'avg)
+    *   val res3 = t3.collect()
+    *   res3.foreach(println)
+    *
+    * }}}
+    *
+    * @note Flink optimizer may decide to not use the cache if doing that will accelerate the
+    * processing, or if the cache is no longer available for reasons such as the table service
+    * has failed.
+    * @note The table cache is create lazily. That means the cache is only created at the first
+    * time when the cacehd table is computed.
+    */
+  def cache(): Unit = {
+    // Enable the subsection optimization.
+    tableEnv.getConfig.setSubsectionOptimization(true)
+    // check if it has been already cached.
+    (tableEnv.tableServiceManager.getToBeCachedTableName(logicalPlan) orElse
+      tableEnv.tableServiceManager.getCachedTableName(logicalPlan)) match {
+      case None => tableEnv.tableServiceManager.cacheTable(this)
+      case Some(_) =>
+    }
+  }
+
+  private def print(jobName : Option[String] = None): Unit = {
+    for (row <- collectSink(new CollectRowTableSink, jobName)) {
+      System.out.println(row)
+    }
+  }
+
+  def print(jobName: String): Unit = print(Option.apply(jobName))
+
+  def print(): Unit = print(None)
 
   /**
     * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
@@ -128,7 +217,7 @@ class Table(
 
       new Table(tableEnv,
         Project(projectsOnAgg,
-          Aggregate(Nil, aggNames.map(a => Alias(a._1, a._2)).toSeq,
+            Aggregate(Nil, aggNames.map(a => Alias(a._1, a._2)).toSeq,
             Project(projectFields, logicalPlan).validate(tableEnv)
           ).validate(tableEnv)
         ).validate(tableEnv)
@@ -171,7 +260,7 @@ class Table(
     * @param primaryKey    Defines the primary key. With primary key it is possible to update
     *                      a row or to delete it.
     * @return [[TemporalTableFunction]] which is an instance of
-    *        [[org.apache.flink.table.functions.TableFunction]]. It takes one single argument,
+    *        [[org.apache.flink.table.api.functions.TableFunction]]. It takes one single argument,
     *        the `timeAttribute`, for which it returns matching version of the [[Table]], from which
     *        [[TemporalTableFunction]] was created.
     */
@@ -198,7 +287,7 @@ class Table(
     * @param primaryKey    Defines the primary key. With primary key it is possible to update
     *                      a row or to delete it.
     * @return [[TemporalTableFunction]] which is an instance of
-    *        [[org.apache.flink.table.functions.TableFunction]]. It takes one single argument,
+    *        [[org.apache.flink.table.api.functions.TableFunction]]. It takes one single argument,
     *        the `timeAttribute`, for which it returns matching version of the [[Table]], from which
     *        [[TemporalTableFunction]] was created.
     */
@@ -238,7 +327,7 @@ class Table(
   def as(fields: Expression*): Table = {
 
     logicalPlan match {
-      case functionCall: LogicalTableFunctionCall if functionCall.child == null =>
+      case functionCall: LogicalTableFunctionCall if functionCall.input == null =>
         // If the logical plan is a TableFunctionCall, we replace its field names to avoid special
         //   cases during the validation.
         if (fields.length != functionCall.output.length) {
@@ -256,9 +345,9 @@ class Table(
             functionCall.functionName,
             functionCall.tableFunction,
             functionCall.parameters,
-            functionCall.resultType,
+            functionCall.externalResultType,
             fields.map(_.asInstanceOf[UnresolvedFieldReference].name).toArray,
-            functionCall.child)
+            functionCall.input)
         )
       case _ =>
         // prepend an AliasNode
@@ -574,7 +663,7 @@ class Table(
   private def join(right: Table, joinPredicate: Option[Expression], joinType: JoinType): Table = {
 
     // check if we join with a table or a table function
-    if (!containsUnboundedUDTFCall(right.logicalPlan)) {
+    if (!containsUnboudedUDTFCall(right.logicalPlan)) {
       // regular table-table join
 
       // check that the TableEnvironment of right table is not null
@@ -602,14 +691,17 @@ class Table(
         udtf.functionName,
         udtf.tableFunction,
         udtf.parameters,
-        udtf.resultType,
+        udtf.externalResultType,
         udtf.fieldNames,
         this.logicalPlan
       ).validate(tableEnv)
 
+      // correlated is false only if parameters is empty or all parameters are Literal
+      val correlated = !udtf.parameters.forall(_.isInstanceOf[Literal])
+
       new Table(
         tableEnv,
-        Join(this.logicalPlan, udtfCall, joinType, joinPredicate, correlated = true)
+        Join(this.logicalPlan, udtfCall, joinType, joinPredicate, correlated)
           .validate(tableEnv))
     }
   }
@@ -783,47 +875,44 @@ class Table(
   }
 
   /**
-    * Limits a sorted result from an offset position.
-    * Similar to a SQL OFFSET clause. Offset is technically part of the Order By operator and
-    * thus must be preceded by it.
-    *
-    * [[Table.offset(o)]] can be combined with a subsequent [[Table.fetch(n)]] call to return n rows
-    * after skipping the first o rows.
-    *
-    * {{{
-    *   // skips the first 3 rows and returns all following rows.
-    *   tab.orderBy('name.desc).offset(3)
-    *   // skips the first 10 rows and returns the next 5 rows.
-    *   tab.orderBy('name.desc).offset(10).fetch(5)
-    * }}}
-    *
-    * @param offset number of records to skip
-    */
+   * Limits a sorted result from an offset position.
+   * Similar to a SQL OFFSET clause. Offset is technically part of the Order By operator and
+   * thus must be preceded by it.
+   *
+   * [[Table.offset(o)]] can be combined with a subsequent [[Table.fetch(n)]] call to return the
+   * first n rows starting from the offset position o.
+   *
+   * {{{
+   *   // returns unlimited number of records beginning with the 4th record
+   *   tab.orderBy('name.desc).offset(3)
+   *   // return the first 5 records starting from the 10th record
+   *   tab.orderBy('name.desc).offset(10).fetch(5)
+   * }}}
+   *
+   * @param offset number of records to skip
+   */
   def offset(offset: Int): Table = {
     new Table(tableEnv, Limit(offset, -1, logicalPlan).validate(tableEnv))
   }
 
   /**
-    * Limits a sorted result to the first n rows.
-    * Similar to a SQL FETCH clause. Fetch is technically part of the Order By operator and
-    * thus must be preceded by it.
-    *
-    * [[Table.fetch(n)]] can be combined with a preceding [[Table.offset(o)]] call to return n rows
-    * after skipping the first o rows.
-    *
-    * {{{
-    *   // returns the first 3 records.
-    *   tab.orderBy('name.desc).fetch(3)
-    *   // skips the first 10 rows and returns the next 5 rows.
-    *   tab.orderBy('name.desc).offset(10).fetch(5)
-    * }}}
-    *
-    * @param fetch the number of records to return. Fetch must be >= 0.
-    */
+   * Limits a sorted result to the first n rows.
+   * Similar to a SQL FETCH clause. Fetch is technically part of the Order By operator and
+   * thus must be preceded by it.
+   *
+   * [[Table.fetch(n)]] can be combined with a preceding [[Table.offset(o)]] call to return the
+   * first n rows starting from the offset position o.
+   *
+   * {{{
+   *   // returns the first 3 records.
+   *   tab.orderBy('name.desc).fetch(3)
+   *   // return the first 5 records starting from the 10th record
+   *   tab.orderBy('name.desc).offset(10).fetch(5)
+   * }}}
+   *
+   * @param fetch the number of records to return
+   */
   def fetch(fetch: Int): Table = {
-    if (fetch < 0) {
-      throw new ValidationException("FETCH count must be equal or larger than 0.")
-    }
     this.logicalPlan match {
       case Limit(o, -1, c) =>
         // replace LIMIT without FETCH by LIMIT with FETCH
@@ -846,19 +935,24 @@ class Table(
     *
     * @param sink The [[TableSink]] to which the [[Table]] is written.
     * @tparam T The data type that the [[TableSink]] expects.
-    *
-    * @deprecated Will be removed in a future release. Please register the TableSink and use
-    *             Table.insertInto().
     */
-  @deprecated("This method will be removed. Please register the TableSink and use " +
-    "Table.insertInto().", "1.7.0")
-  @Deprecated
   def writeToSink[T](sink: TableSink[T]): Unit = {
-    val queryConfig = Option(this.tableEnv) match {
-      case None => null
-      case _ => this.tableEnv.queryConfig
-    }
-    writeToSink(sink, queryConfig)
+    // get schema information of table
+    val rowType = getRelNode.getRowType
+    val fieldNames: Array[String] = rowType.getFieldNames.asScala.toArray
+    val fieldTypes: Array[DataType] = rowType.getFieldList.asScala
+      .map(field => FlinkTypeFactory.toInternalType(field.getType))
+      .map {
+        // replace time indicator types by SQL_TIMESTAMP
+        case t: TimestampType if FlinkTypeFactory.isTimeIndicatorType(t) => TimestampType.TIMESTAMP
+        case t: InternalType => t
+      }.toArray
+
+    // configure the table sink
+    val configuredSink = sink.configure(fieldNames, fieldTypes)
+
+    // emit the table to the configured table sink
+    tableEnv.writeToSink(this, configuredSink)
   }
 
   /**
@@ -873,30 +967,10 @@ class Table(
     * @param sink The [[TableSink]] to which the [[Table]] is written.
     * @param conf The configuration for the query that writes to the sink.
     * @tparam T The data type that the [[TableSink]] expects.
-    *
-    * @deprecated Will be removed in a future release. Please register the TableSink and use
-    *             Table.insertInto().
     */
-  @deprecated("This method will be removed. Please register the TableSink and use " +
-    "Table.insertInto().", "1.7.0")
-  @Deprecated
   def writeToSink[T](sink: TableSink[T], conf: QueryConfig): Unit = {
-    // get schema information of table
-    val rowType = getRelNode.getRowType
-    val fieldNames: Array[String] = rowType.getFieldNames.asScala.toArray
-    val fieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
-      .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
-      .map {
-        // replace time indicator types by SQL_TIMESTAMP
-        case t: TypeInformation[_] if FlinkTypeFactory.isTimeIndicatorType(t) => Types.SQL_TIMESTAMP
-        case t: TypeInformation[_] => t
-      }.toArray
-
-    // configure the table sink
-    val configuredSink = sink.configure(fieldNames, fieldTypes)
-
-    // emit the table to the configured table sink
-    tableEnv.writeToSink(this, configuredSink, conf)
+    conf.overrideTableConfig(tableEnv.getConfig)
+    writeToSink(sink)
   }
 
   /**
@@ -911,12 +985,7 @@ class Table(
     * @param tableName Name of the registered [[TableSink]] to which the [[Table]] is written.
     */
   def insertInto(tableName: String): Unit = {
-    this.logicalPlan match {
-      case _: LogicalTableFunctionCall =>
-        throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
-      case _ =>
-        tableEnv.insertInto(this, tableName, this.tableEnv.queryConfig)
-    }
+    tableEnv.insertInto(this, tableName)
   }
 
   /**
@@ -932,12 +1001,8 @@ class Table(
     * @param conf The [[QueryConfig]] to use.
     */
   def insertInto(tableName: String, conf: QueryConfig): Unit = {
-    this.logicalPlan match {
-      case _: LogicalTableFunctionCall =>
-        throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
-      case _ =>
-        tableEnv.insertInto(this, tableName, conf)
-    }
+    conf.overrideTableConfig(tableEnv.getConfig)
+    tableEnv.insertInto(this, tableName)
   }
 
   /**
@@ -957,7 +1022,7 @@ class Table(
     * @param window window that specifies how elements are grouped.
     * @return A windowed table.
     */
-  def window(window: Window): WindowedTable = {
+  def window(window: WindowExpression): WindowedTable = {
     new WindowedTable(this, window)
   }
 
@@ -987,15 +1052,6 @@ class Table(
     */
   @varargs
   def window(overWindows: OverWindow*): OverWindowedTable = {
-
-    if (tableEnv.isInstanceOf[BatchTableEnvironment]) {
-      throw new TableException("Over-windows for batch tables are currently not supported.")
-    }
-
-    if (overWindows.size != 1) {
-      throw new TableException("Over-Windows are currently only supported single window.")
-    }
-
     new OverWindowedTable(this, overWindows.toArray)
   }
 
@@ -1018,11 +1074,11 @@ class Table(
     * @param n the node to check
     * @return true if the plan contains an unbounded UDTF call, false otherwise.
     */
-  private def containsUnboundedUDTFCall(n: LogicalNode): Boolean = {
+  private def containsUnboudedUDTFCall(n: LogicalNode): Boolean = {
     n match {
-      case functionCall: LogicalTableFunctionCall if functionCall.child == null => true
-      case u: UnaryNode => containsUnboundedUDTFCall(u.child)
-      case b: BinaryNode => containsUnboundedUDTFCall(b.left) || containsUnboundedUDTFCall(b.right)
+      case functionCall: LogicalTableFunctionCall if functionCall.input == null => true
+      case u: UnaryNode => containsUnboudedUDTFCall(u.child)
+      case b: BinaryNode => containsUnboudedUDTFCall(b.left) || containsUnboudedUDTFCall(b.right)
       case _: LeafNode => false
     }
   }
@@ -1084,7 +1140,7 @@ class GroupedTable(
 
 class WindowedTable(
     private[flink] val table: Table,
-    private[flink] val window: Window) {
+    private[flink] val window: WindowExpression) {
 
   /**
     * Groups the elements by a mandatory window and one or more optional grouping attributes.
@@ -1153,13 +1209,7 @@ class OverWindowedTable(
 
     new Table(
       table.tableEnv,
-      Project(
-        expandedOverFields.map(UnresolvedAlias),
-        table.logicalPlan,
-        // required for proper projection push down
-        explicitAlias = true)
-        .validate(table.tableEnv)
-    )
+      Project(expandedOverFields.map(UnresolvedAlias), table.logicalPlan).validate(table.tableEnv))
   }
 
   def select(fields: String): Table = {
@@ -1173,7 +1223,7 @@ class OverWindowedTable(
 class WindowGroupedTable(
     private[flink] val table: Table,
     private[flink] val groupKeys: Seq[Expression],
-    private[flink] val window: Window) {
+    private[flink] val window: WindowExpression) {
 
   /**
     * Performs a selection operation on a window grouped table. Similar to an SQL SELECT statement.
@@ -1203,9 +1253,7 @@ class WindowGroupedTable(
           propNames.map(a => Alias(a._1, a._2)).toSeq,
           aggNames.map(a => Alias(a._1, a._2)).toSeq,
           Project(projectFields, table.logicalPlan).validate(table.tableEnv)
-        ).validate(table.tableEnv),
-        // required for proper resolution of the time attribute in multi-windows
-        explicitAlias = true
+        ).validate(table.tableEnv)
       ).validate(table.tableEnv))
   }
 

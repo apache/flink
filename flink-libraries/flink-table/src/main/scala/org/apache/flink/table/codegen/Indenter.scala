@@ -43,12 +43,8 @@ class IndentStringContext(sc: StringContext) {
     if (lastnl == -1) ""
     else {
       val ind = str.substring(lastnl + 1)
-      val trimmed = ind.trim
-      if (trimmed.isEmpty || trimmed == "|") {
-        ind // ind is all whitespace or pipe for use with stripMargin. Use this
-      } else {
-        ""
-      }
+      if (ind.trim.isEmpty) ind  // ind is all whitespace. Use this
+      else ""
     }
   }
 }

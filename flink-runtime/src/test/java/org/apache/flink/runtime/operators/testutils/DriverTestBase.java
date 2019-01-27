@@ -33,6 +33,10 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.Driver;
 import org.apache.flink.runtime.operators.ResettableDriver;
 import org.apache.flink.runtime.operators.TaskContext;
+import org.apache.flink.runtime.operators.sort.BlockSortedDataFileFactory;
+import org.apache.flink.runtime.operators.sort.RecordComparisonMerger;
+import org.apache.flink.runtime.operators.sort.SortedDataFileFactory;
+import org.apache.flink.runtime.operators.sort.SortedDataFileMerger;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
@@ -144,9 +148,18 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger impl
 	}
 	
 	public void addInputSorted(MutableObjectIterator<Record> input, RecordComparator comp) throws Exception {
+		SortedDataFileFactory<Record> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+			getIOManager().createChannelEnumerator(),
+			RecordSerializerFactory.get().getSerializer(),
+			getIOManager());
+		@SuppressWarnings({ "rawtypes", "unchecked" })
+		SortedDataFileMerger<Record> merger = new RecordComparisonMerger(sortedDataFileFactory, getIOManager(),
+			RecordSerializerFactory.get().getSerializer(), comp,
+			32, true);
 		UnilateralSortMerger<Record> sorter = new UnilateralSortMerger<Record>(
+			sortedDataFileFactory, merger,
 				this.memManager, this.ioManager, input, this.owner, RecordSerializerFactory.get(), comp,
-				this.perSortFractionMem, 32, 0.8f, true /*use large record handler*/, true);
+				this.perSortFractionMem, 32, true, 0.8f, true /*use large record handler*/, true);
 		this.sorters.add(sorter);
 		this.inputs.add(null);
 	}

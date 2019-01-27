@@ -18,18 +18,19 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import java.io.IOException;
 
 /**
  * A buffer-oriented runtime result writer API for producing results.
  */
-public interface ResultPartitionWriter {
-
-	BufferProvider getBufferProvider();
+public interface ResultPartitionWriter<T> {
 
 	ResultPartitionID getPartitionId();
 
@@ -38,18 +39,41 @@ public interface ResultPartitionWriter {
 	int getNumTargetKeyGroups();
 
 	/**
-	 * Adds the bufferConsumer to the subpartition with the given index.
+	 * Adds a record to all target channels.
 	 *
-	 * <p>For PIPELINED {@link org.apache.flink.runtime.io.network.partition.ResultPartitionType}s,
-	 * this will trigger the deployment of consuming tasks after the first buffer has been added.
-	 *
-	 * <p>This method takes the ownership of the passed {@code bufferConsumer} and thus is responsible for releasing
-	 * it's resources.
-	 *
-	 * <p>To avoid problems with data re-ordering, before adding new {@link BufferConsumer} the previously added one
-	 * the given {@code subpartitionIndex} must be marked as {@link BufferConsumer#isFinished()}.
+	 * @param record         The record to write.
+	 * @param targetChannels The target channels.
+	 * @param isBroadcast    Whether broadcast or not.
+	 * @param flushAlways  Whether flush or not.
 	 */
-	void addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException;
+	void emitRecord(T record, int[] targetChannels, boolean isBroadcast, boolean flushAlways) throws IOException, InterruptedException;
+
+	/**
+	 * Adds a record to a random channel.
+	 *
+	 * @param record         The record to write.
+	 * @param targetChannel The target channel.
+	 * @param flushAlways  Whether flush or not.
+	 */
+	void emitRecord(T record, int targetChannel, boolean isBroadcast, boolean flushAlways) throws IOException, InterruptedException;
+
+	/**
+	 * Broadcasts an event to all subpartitions.
+	 *
+	 * @param event The event to be broadcast.
+	 * @param flushAlways  Whether to flush or not.
+	 */
+	void broadcastEvent(AbstractEvent event, boolean flushAlways) throws IOException;
+
+	/**
+	 * Closes all the buffer builders.
+	 */
+	void clearBuffers();
+
+	/**
+	 * Sets the metric group for this ResultPartitionWriter.
+	 */
+	void setMetricGroup(TaskIOMetricGroup metrics, boolean enableTracingMetrics, int tracingMetricsInterval);
 
 	/**
 	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in all subpartitions.
@@ -60,4 +84,18 @@ public interface ResultPartitionWriter {
 	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in one specified subpartition.
 	 */
 	void flush(int subpartitionIndex);
+
+	/**
+	 * Sets the serialization and deserialization serializer.
+	 *
+	 * @param typeSerializer The type serializer used.
+	 */
+	void setTypeSerializer(TypeSerializer typeSerializer);
+
+	/**
+	 * Sets the parent task.
+	 *
+	 * @param parentTask The parent task.
+	 */
+	void setParentTask(AbstractInvokable parentTask);
 }

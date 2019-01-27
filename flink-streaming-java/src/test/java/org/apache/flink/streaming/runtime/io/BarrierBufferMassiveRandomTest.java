@@ -25,9 +25,12 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGateListener;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 
 import org.junit.Test;
 
@@ -36,6 +39,8 @@ import java.util.Optional;
 import java.util.Random;
 
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * The test generates two random streams (input channels) which independently
@@ -132,35 +137,23 @@ public class BarrierBufferMassiveRandomTest {
 
 	private static class RandomGeneratingInputGate implements InputGate {
 
-		private final int numberOfChannels;
+		private final int numChannels;
 		private final BufferPool[] bufferPools;
 		private final int[] currentBarriers;
 		private final BarrierGenerator[] barrierGens;
 		private int currentChannel = 0;
 		private long c = 0;
 
-		private final String owningTaskName;
-
 		public RandomGeneratingInputGate(BufferPool[] bufferPools, BarrierGenerator[] barrierGens) {
-			this(bufferPools, barrierGens, "TestTask");
-		}
-
-		public RandomGeneratingInputGate(BufferPool[] bufferPools, BarrierGenerator[] barrierGens, String owningTaskName) {
-			this.numberOfChannels = bufferPools.length;
-			this.currentBarriers = new int[numberOfChannels];
+			this.numChannels = bufferPools.length;
+			this.currentBarriers = new int[numChannels];
 			this.bufferPools = bufferPools;
 			this.barrierGens = barrierGens;
-			this.owningTaskName = owningTaskName;
 		}
 
 		@Override
 		public int getNumberOfInputChannels() {
-			return numberOfChannels;
-		}
-
-		@Override
-		public String getOwningTaskName() {
-			return owningTaskName;
+			return numChannels;
 		}
 
 		@Override
@@ -169,11 +162,16 @@ public class BarrierBufferMassiveRandomTest {
 		}
 
 		@Override
+		public boolean moreAvailable() {
+			return true;
+		}
+
+		@Override
 		public void requestPartitions() {}
 
 		@Override
 		public Optional<BufferOrEvent> getNextBufferOrEvent() throws IOException, InterruptedException {
-			currentChannel = (currentChannel + 1) % numberOfChannels;
+			currentChannel = (currentChannel + 1) % numChannels;
 
 			if (barrierGens[currentChannel].isNextBarrier()) {
 				return Optional.of(
@@ -191,7 +189,17 @@ public class BarrierBufferMassiveRandomTest {
 		}
 
 		@Override
+		public Optional<BufferOrEvent> getNextBufferOrEvent(InputGate subInputGate) throws IOException, InterruptedException {
+			return getNextBufferOrEvent();
+		}
+
+		@Override
 		public Optional<BufferOrEvent> pollNextBufferOrEvent() throws IOException, InterruptedException {
+			return getNextBufferOrEvent();
+		}
+
+		@Override
+		public Optional<BufferOrEvent> pollNextBufferOrEvent(InputGate subInputGate) throws IOException, InterruptedException {
 			return getNextBufferOrEvent();
 		}
 
@@ -204,6 +212,29 @@ public class BarrierBufferMassiveRandomTest {
 		@Override
 		public int getPageSize() {
 			return PAGE_SIZE;
+		}
+
+		@Override
+		public int getSubInputGateCount() {
+			return 0;
+		}
+
+		@Override
+		public InputGate getSubInputGate(int index) {
+			return null;
+		}
+
+		@Override
+		public InputChannel[] getAllInputChannels() {
+			SingleInputGate inputGate = mock(SingleInputGate.class);
+			when(inputGate.getConsumedPartitionType()).thenReturn(ResultPartitionType.PIPELINED);
+			InputChannel[] inputChannels = new InputChannel[numChannels];
+			for (int i = 0; i < inputChannels.length; i++) {
+				InputChannel inputChannel = mock(InputChannel.class);
+				when(inputChannel.getInputGate()).thenReturn(inputGate);
+				inputChannels[i] = inputChannel;
+			}
+			return inputChannels;
 		}
 	}
 }

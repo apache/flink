@@ -34,8 +34,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An input channel consumes a single {@link ResultSubpartitionView}.
- *
- * <p>For each channel, the consumption life cycle is as follows:
+ * <p>
+ * For each channel, the consumption life cycle is as follows:
  * <ol>
  * <li>{@link #requestSubpartition(int)}</li>
  * <li>{@link #getNextBuffer()}</li>
@@ -64,9 +64,7 @@ public abstract class InputChannel {
 
 	protected final Counter numBytesIn;
 
-	protected final Counter numBuffersIn;
-
-	/** The current backoff (in ms). */
+	/** The current backoff (in ms) */
 	private int currentBackoff;
 
 	protected InputChannel(
@@ -75,8 +73,7 @@ public abstract class InputChannel {
 			ResultPartitionID partitionId,
 			int initialBackoff,
 			int maxBackoff,
-			Counter numBytesIn,
-			Counter numBuffersIn) {
+			Counter numBytesIn) {
 
 		checkArgument(channelIndex >= 0);
 
@@ -94,7 +91,6 @@ public abstract class InputChannel {
 		this.currentBackoff = initial == 0 ? -1 : 0;
 
 		this.numBytesIn = numBytesIn;
-		this.numBuffersIn = numBuffersIn;
 	}
 
 	// ------------------------------------------------------------------------
@@ -111,18 +107,22 @@ public abstract class InputChannel {
 
 	/**
 	 * Notifies the owning {@link SingleInputGate} that this channel became non-empty.
-	 *
+	 * 
 	 * <p>This is guaranteed to be called only when a Buffer was added to a previously
 	 * empty input channel. The notion of empty is atomically consistent with the flag
 	 * {@link BufferAndAvailability#moreAvailable()} when polling the next buffer
 	 * from this channel.
-	 *
+	 * 
 	 * <p><b>Note:</b> When the input channel observes an exception, this
 	 * method is called regardless of whether the channel was empty before. That ensures
 	 * that the parent InputGate will always be notified about the exception.
 	 */
 	protected void notifyChannelNonEmpty() {
 		inputGate.notifyChannelNonEmpty(this);
+	}
+
+	public SingleInputGate getInputGate() {
+		return inputGate;
 	}
 
 	// ------------------------------------------------------------------------
@@ -132,8 +132,8 @@ public abstract class InputChannel {
 	/**
 	 * Requests the queue with the specified index of the source intermediate
 	 * result partition.
-	 *
-	 * <p>The queue index to request depends on which sub task the channel belongs
+	 * <p>
+	 * The queue index to request depends on which sub task the channel belongs
 	 * to and is specified by the consumer of this channel.
 	 */
 	abstract void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException;
@@ -149,8 +149,8 @@ public abstract class InputChannel {
 
 	/**
 	 * Sends a {@link TaskEvent} back to the task producing the consumed result partition.
-	 *
-	 * <p><strong>Important</strong>: The producing task has to be running to receive backwards events.
+	 * <p>
+	 * <strong>Important</strong>: The producing task has to be running to receive backwards events.
 	 * This means that the result type needs to be pipelined and the task logic has to ensure that
 	 * the producer will wait for all backwards events. Otherwise, this will lead to an Exception
 	 * at runtime.

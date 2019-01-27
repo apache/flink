@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -61,13 +62,15 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 	private static final int DATA_COUNT = 10000;
 
 	@Override
-	public void testTaskManagerFailure(Configuration configuration, final File coordinateDir) throws Exception {
+	public void testTaskManagerFailure(int jobManagerPort, final File coordinateDir) throws Exception {
 
 		final File tempCheckpointDir = tempFolder.newFolder();
 
+		final Configuration configuration = new Configuration();
+		configuration.setString(CoreOptions.MODE, CoreOptions.LEGACY_MODE);
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
 			"localhost",
-			1337, // not needed since we use ZooKeeper
+			jobManagerPort,
 			configuration);
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();

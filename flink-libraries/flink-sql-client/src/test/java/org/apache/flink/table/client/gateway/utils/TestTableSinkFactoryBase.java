@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.client.gateway.utils;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.Types;
+import org.apache.flink.table.api.types.DataType;
+import org.apache.flink.table.api.types.DataTypes;
+import org.apache.flink.table.api.types.InternalType;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
@@ -31,6 +34,7 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -107,8 +111,8 @@ public abstract class TestTableSinkFactoryBase implements StreamTableSinkFactory
 		}
 
 		@Override
-		public TypeInformation<Row> getOutputType() {
-			return Types.ROW(schema.getFieldNames(), schema.getFieldTypes());
+		public DataType getOutputType() {
+			return DataTypes.createRowType(schema.getFieldTypes(), schema.getFieldNames());
 		}
 
 		@Override
@@ -117,18 +121,31 @@ public abstract class TestTableSinkFactoryBase implements StreamTableSinkFactory
 		}
 
 		@Override
-		public TypeInformation<?>[] getFieldTypes() {
+		public DataType[] getFieldTypes() {
 			return schema.getFieldTypes();
 		}
 
 		@Override
-		public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-			return new TestTableSink(new TableSchema(fieldNames, fieldTypes), property);
+		public TableSink<Row> configure(String[] fieldNames, DataType[] fieldTypes) {
+			return new TestTableSink(
+				new TableSchema(
+					fieldNames,
+					Arrays
+						.stream(fieldTypes)
+						.map(DataType::toInternalType)
+						.toArray(InternalType[]::new)),
+				property);
 		}
 
 		@Override
-		public void emitDataStream(DataStream<Row> dataStream) {
+		public DataStreamSink<?> emitDataStream(DataStream<Row> dataStream) {
 			// do nothing
+			return dataStream.addSink(new SinkFunction<Row>() {
+				@Override
+				public void invoke(Row value, Context context) throws Exception {
+					// do nothing
+				}
+			});
 		}
 	}
 }

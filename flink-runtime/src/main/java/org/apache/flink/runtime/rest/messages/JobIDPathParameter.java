@@ -40,9 +40,4 @@ public class JobIDPathParameter extends MessagePathParameter<JobID> {
 	protected String convertToString(JobID value) {
 		return value.toString();
 	}
-
-	@Override
-	public String getDescription() {
-		return "32-character hexadecimal string value that identifies a job.";
-	}
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -115,6 +116,19 @@ public class DuplicatingCheckpointOutputStream extends CheckpointStreamFactory.C
 
 			System.arraycopy(b, off, buffer, bufferIdx, len);
 			bufferIdx += len;
+		}
+	}
+
+	@Override
+	public void write(MemorySegment segment, int off, int len) throws IOException {
+		primaryOutputStream.write(segment, off, len);
+
+		if (secondaryStreamException == null) {
+			try {
+				secondaryOutputStream.write(segment, off, len);
+			} catch (Exception writeEx) {
+				handleSecondaryStreamOnException(writeEx);
+			}
 		}
 	}
 

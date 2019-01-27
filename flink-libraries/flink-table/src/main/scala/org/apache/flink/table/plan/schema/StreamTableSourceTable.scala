@@ -21,22 +21,40 @@ package org.apache.flink.table.plan.schema
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{StreamTableSource, TableSourceUtil}
+import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceUtil}
 
 class StreamTableSourceTable[T](
     tableSource: StreamTableSource[T],
     statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends TableSourceTable[T](
+  extends TableSourceTable(
     tableSource,
     statistic) {
 
   TableSourceUtil.validateTableSource(tableSource)
 
-  def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
+  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     TableSourceUtil.getRelDataType(
       tableSource,
       None,
       streaming = true,
       typeFactory.asInstanceOf[FlinkTypeFactory])
   }
+
+  /**
+   * replace table source with the given one, and create a new table source table.
+   *
+   * @param tableSource tableSource to replace.
+   * @return new TableSourceTable
+   */
+  override def replaceTableSource(tableSource: TableSource) =
+    new StreamTableSourceTable(tableSource.asInstanceOf[StreamTableSource[_]], statistic)
+
+  /**
+   * Creates a copy of this table, changing statistic.
+   *
+   * @param statistic A new FlinkStatistic.
+   * @return Copy of this table, substituting statistic.
+   */
+  override def copy(statistic: FlinkStatistic) =
+    new StreamTableSourceTable(tableSource.asInstanceOf[StreamTableSource[_]], statistic)
 }

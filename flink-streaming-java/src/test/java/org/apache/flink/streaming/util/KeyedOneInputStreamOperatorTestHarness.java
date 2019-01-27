@@ -22,14 +22,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.AbstractInternalStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 
 /**
- * Extension of {@link OneInputStreamOperatorTestHarness} that allows the operator to get
- * a {@link KeyedStateBackend}.
+ * Extension of {@link OneInputStreamOperatorTestHarness}.
  */
 public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		extends OneInputStreamOperatorTestHarness<IN, OUT> {
@@ -70,21 +68,8 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 
 	public int numKeyedStateEntries() {
 		AbstractStreamOperator<?> abstractStreamOperator = (AbstractStreamOperator<?>) operator;
-		KeyedStateBackend<Object> keyedStateBackend = abstractStreamOperator.getKeyedStateBackend();
-		if (keyedStateBackend instanceof HeapKeyedStateBackend) {
-			return ((HeapKeyedStateBackend) keyedStateBackend).numKeyValueStateEntries();
-		} else {
-			throw new UnsupportedOperationException();
-		}
+		AbstractInternalStateBackend internalStateBackend = abstractStreamOperator.getInternalStateBackend();
+		return internalStateBackend.numStateEntries();
 	}
 
-	public <N> int numKeyedStateEntries(N namespace) {
-		AbstractStreamOperator<?> abstractStreamOperator = (AbstractStreamOperator<?>) operator;
-		KeyedStateBackend<Object> keyedStateBackend = abstractStreamOperator.getKeyedStateBackend();
-		if (keyedStateBackend instanceof HeapKeyedStateBackend) {
-			return ((HeapKeyedStateBackend) keyedStateBackend).numKeyValueStateEntries(namespace);
-		} else {
-			throw new UnsupportedOperationException();
-		}
-	}
 }

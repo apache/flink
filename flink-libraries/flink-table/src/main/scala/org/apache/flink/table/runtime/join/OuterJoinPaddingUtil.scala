@@ -18,26 +18,26 @@
 
 package org.apache.flink.table.runtime.join
 
-import org.apache.flink.types.Row
+import org.apache.flink.table.dataformat.{BaseRow, GenericRow, JoinedRow}
 
 /**
-  * An utility to generate reusable padding results for outer joins.
-  */
-class OuterJoinPaddingUtil(leftArity: Int, rightArity: Int) extends java.io.Serializable{
+  * An utility to generate reusable padding results for outer joins
+  **/
+class OuterJoinPaddingUtil(leftArity: Int, rightArity: Int) extends java.io.Serializable {
 
-  private val resultArity = leftArity + rightArity
-  private val leftNullPaddingResult = new Row(resultArity)
-  private val rightNullPaddingResult = new Row(resultArity)
+  @transient lazy private val joinedRow: JoinedRow = new JoinedRow()
+  @transient lazy private val leftNullPaddingRow: GenericRow = new GenericRow(leftArity)
+  @transient lazy private val rightNullPaddingRow: GenericRow = new GenericRow(rightArity)
 
-  // Initialize the two reusable padding results.
+  //Initialize the two reusable padding results
   var i = 0
   while (i < leftArity) {
-    leftNullPaddingResult.setField(i, null)
+    leftNullPaddingRow.setNullAt(i)
     i = i + 1
   }
   i = 0
   while (i < rightArity) {
-    rightNullPaddingResult.setField(i + leftArity, null)
+    rightNullPaddingRow.setNullAt(i)
     i = i + 1
   }
 
@@ -46,13 +46,8 @@ class OuterJoinPaddingUtil(leftArity: Int, rightArity: Int) extends java.io.Seri
     * @param rightRow the right row to pad
     * @return the reusable null padding result
     */
-  final def padRight(rightRow: Row): Row = {
-    var i = 0
-    while (i < rightArity) {
-      leftNullPaddingResult.setField(leftArity + i, rightRow.getField(i))
-      i = i + 1
-    }
-    leftNullPaddingResult
+  final def padRight(rightRow: BaseRow): BaseRow = {
+    joinedRow.replace(leftNullPaddingRow, rightRow)
   }
 
   /**
@@ -60,12 +55,8 @@ class OuterJoinPaddingUtil(leftArity: Int, rightArity: Int) extends java.io.Seri
     * @param leftRow the left row to pad
     * @return the reusable null padding result
     */
-  final def padLeft(leftRow: Row): Row = {
-    var i = 0
-    while (i < leftArity) {
-      rightNullPaddingResult.setField(i, leftRow.getField(i))
-      i = i + 1
-    }
-    rightNullPaddingResult
+  final def padLeft(leftRow: BaseRow): BaseRow = {
+    joinedRow.replace(leftRow, rightNullPaddingRow)
   }
+
 }

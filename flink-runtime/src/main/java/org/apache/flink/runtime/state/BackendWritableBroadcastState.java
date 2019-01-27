@@ -36,7 +36,7 @@ public interface BackendWritableBroadcastState<K, V> extends BroadcastState<K, V
 
 	long write(FSDataOutputStream out) throws IOException;
 
-	void setStateMetaInfo(RegisteredBroadcastStateBackendMetaInfo<K, V> stateMetaInfo);
+	void setStateMetaInfo(RegisteredBroadcastBackendStateMetaInfo<K, V> stateMetaInfo);
 
-	RegisteredBroadcastStateBackendMetaInfo<K, V> getStateMetaInfo();
+	RegisteredBroadcastBackendStateMetaInfo<K, V> getStateMetaInfo();
 }

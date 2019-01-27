@@ -17,9 +17,11 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.table.api.types.DataType;
+import org.apache.flink.table.api.types.DataTypes;
+import org.apache.flink.table.api.types.InternalType;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.util.TableConnectorUtil;
 import org.apache.flink.types.Row;
@@ -35,7 +37,7 @@ public class CassandraAppendTableSink implements AppendStreamTableSink<Row> {
 	private final ClusterBuilder builder;
 	private final String cql;
 	private String[] fieldNames;
-	private TypeInformation[] fieldTypes;
+	private DataType[] fieldTypes;
 	private final Properties properties;
 
 	public CassandraAppendTableSink(ClusterBuilder builder, String cql) {
@@ -51,8 +53,12 @@ public class CassandraAppendTableSink implements AppendStreamTableSink<Row> {
 	}
 
 	@Override
-	public TypeInformation<Row> getOutputType() {
-		return new RowTypeInfo(fieldTypes);
+	public DataType getOutputType() {
+		InternalType[] tmp = new InternalType[fieldTypes.length];
+		for (int i = 0; i < fieldTypes.length; i++) {
+			tmp[i] = (InternalType) fieldTypes[i];
+		}
+		return DataTypes.createRowType(tmp, fieldNames);
 	}
 
 	@Override
@@ -61,12 +67,12 @@ public class CassandraAppendTableSink implements AppendStreamTableSink<Row> {
 	}
 
 	@Override
-	public TypeInformation<?>[] getFieldTypes() {
+	public DataType[] getFieldTypes() {
 		return this.fieldTypes;
 	}
 
 	@Override
-	public CassandraAppendTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+	public CassandraAppendTableSink configure(String[] fieldNames, DataType[] fieldTypes) {
 		CassandraAppendTableSink cassandraTableSink = new CassandraAppendTableSink(this.builder, this.cql, this.properties);
 		cassandraTableSink.fieldNames = Preconditions.checkNotNull(fieldNames, "Field names must not be null.");
 		cassandraTableSink.fieldTypes = Preconditions.checkNotNull(fieldTypes, "Field types must not be null.");
@@ -76,13 +82,14 @@ public class CassandraAppendTableSink implements AppendStreamTableSink<Row> {
 	}
 
 	@Override
-	public void emitDataStream(DataStream<Row> dataStream) {
+	public DataStreamSink emitDataStream(DataStream<Row> dataStream) {
 		try {
-			CassandraSink.addSink(dataStream)
+			return CassandraSink.addSink(dataStream)
 				.setClusterBuilder(this.builder)
 				.setQuery(this.cql)
 				.build()
-				.name(TableConnectorUtil.generateRuntimeName(this.getClass(), fieldNames));
+				.name(TableConnectorUtil.generateRuntimeName(this.getClass(), fieldNames))
+				.getSink1();
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

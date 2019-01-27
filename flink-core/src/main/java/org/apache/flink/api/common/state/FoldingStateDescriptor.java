@@ -97,6 +97,13 @@ public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState
 		}
 	}
 
+	// ------------------------------------------------------------------------
+
+	@Override
+	public FoldingState<T, ACC> bind(StateBinder stateBinder) throws Exception {
+		return stateBinder.createFoldingState(this);
+	}
+
 	/**
 	 * Returns the fold function to be used for the folding state.
 	 */
@@ -107,5 +114,14 @@ public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState
 	@Override
 	public Type getType() {
 		return Type.FOLDING;
+	}
+
+	/**
+	 * Returns the initial value used in the folding.
+	 *
+	 * @return The initial value used in the folding
+	 */
+	public ACC getInitialValue() {
+		return getDefaultValue();
 	}
 }

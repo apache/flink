@@ -1,0 +1,49 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testTableRefConversion1">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, c])
++- StreamExecJoin(where=[=(b, d)], join=[a, b, c], joinType=[SemiJoin])
+   :- StreamExecExchange(distribution=[hash[b]])
+   :  +- StreamExecCalc(select=[a, b, c], where=[>(CAST(c), 10)])
+   :     +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+   +- StreamExecExchange(distribution=[hash[d]])
+      +- StreamExecCalc(select=[d], where=[=(c, CAST(e))])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableRefConversion2">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, c])
++- StreamExecJoin(where=[=(b, EXPR$0)], join=[a, b, c, EXPR$0], joinType=[InnerJoin])
+   :- StreamExecExchange(distribution=[hash[b]])
+   :  +- StreamExecCalc(select=[a, b, c], where=[>(CAST(c), 10)])
+   :     +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+   +- StreamExecExchange(distribution=[hash[EXPR$0]])
+      +- StreamExecGroupAggregate(select=[MAX(d) AS EXPR$0])
+         +- StreamExecExchange(distribution=[single])
+            +- StreamExecCalc(select=[d], where=[=(c, CAST(e))])
+               +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

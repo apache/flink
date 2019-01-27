@@ -24,12 +24,11 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.util.Preconditions;
-
-import javax.annotation.Nullable;
 
 import java.util.Collection;
 
@@ -128,6 +127,12 @@ public abstract class StreamTransformation<T> {
 	private int maxParallelism = -1;
 
 	/**
+	 * The minimum parallelism for this stream transformation. It defines the lower limit for
+	 * dynamic scaling parallelism in future plan.
+	 */
+	private int minParallelism = -1;
+
+	/**
 	 *  The minimum resources for this stream transformation. It defines the lower limit for
 	 *  dynamic resources resize in future plan.
 	 */
@@ -153,8 +158,10 @@ public abstract class StreamTransformation<T> {
 
 	private String slotSharingGroup;
 
-	@Nullable
-	private String coLocationGroupKey;
+	/**
+	 * Custom configuration for this transformation.
+	 */
+	private final Configuration customConfiguration = new Configuration();
 
 	/**
 	 * Creates a new {@code StreamTransformation} with the given name, output type and parallelism.
@@ -221,6 +228,15 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
+	 * Gets the minimum parallelism for this stream transformation.
+	 *
+	 * @return Minimum parallelism of this transformation.
+	 */
+	public int getMinParallelism() {
+		return minParallelism;
+	}
+
+	/**
 	 * Sets the maximum parallelism for this stream transformation.
 	 *
 	 * @param maxParallelism Maximum parallelism for this stream transformation.
@@ -231,6 +247,17 @@ public abstract class StreamTransformation<T> {
 				"Maximum parallelism must be between 1 and " + StreamGraphGenerator.UPPER_BOUND_MAX_PARALLELISM
 						+ ". Found: " + maxParallelism);
 		this.maxParallelism = maxParallelism;
+	}
+
+	/**
+	 * Sets the minimum parallelism for this stream transformation.
+	 *
+	 * @param minParallelism Minimum parallelism for this stream transformation.
+	 */
+	public void setMinParallelism(int minParallelism) {
+		Preconditions.checkArgument(minParallelism > 0,
+				"Minimum parallelism must be greater than 1. Found: " + minParallelism);
+		this.minParallelism = minParallelism;
 	}
 
 	/**
@@ -350,35 +377,6 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
-	 * <b>NOTE:</b> This is an internal undocumented feature for now. It is not
-	 * clear whether this will be supported and stable in the long term.
-	 *
-	 * <p>Sets the key that identifies the co-location group.
-	 * Operators with the same co-location key will have their corresponding subtasks
-	 * placed into the same slot by the scheduler.
-	 *
-	 * <p>Setting this to null means there is no co-location constraint.
-	 */
-	public void setCoLocationGroupKey(@Nullable String coLocationGroupKey) {
-		this.coLocationGroupKey = coLocationGroupKey;
-	}
-
-	/**
-	 * <b>NOTE:</b> This is an internal undocumented feature for now. It is not
-	 * clear whether this will be supported and stable in the long term.
-	 *
-	 * <p>Gets the key that identifies the co-location group.
-	 * Operators with the same co-location key will have their corresponding subtasks
-	 * placed into the same slot by the scheduler.
-	 *
-	 * <p>If this is null (which is the default), it means there is no co-location constraint.
-	 */
-	@Nullable
-	public String getCoLocationGroupKey() {
-		return coLocationGroupKey;
-	}
-
-	/**
 	 * Tries to fill in the type information. Type information can be filled in
 	 * later when the program uses a type hint. This method checks whether the
 	 * type information has ever been accessed before and does not allow
@@ -454,6 +452,15 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
+	 * Returns the custom configuration for this transformation.
+	 *
+	 * @return The custom configuration for this transformation.
+	 */
+	public Configuration getCustomConfiguration() {
+		return this.customConfiguration;
+	}
+
+	/**
 	 * Returns all transitive predecessor {@code StreamTransformation}s of this {@code StreamTransformation}. This
 	 * is, for example, used when determining whether a feedback edge of an iteration
 	 * actually has the iteration head as a predecessor.
@@ -469,6 +476,8 @@ public abstract class StreamTransformation<T> {
 				", name='" + name + '\'' +
 				", outputType=" + outputType +
 				", parallelism=" + parallelism +
+				", minResource: " + minResources +
+				", preferredResource: " + preferredResources +
 				'}';
 	}
 

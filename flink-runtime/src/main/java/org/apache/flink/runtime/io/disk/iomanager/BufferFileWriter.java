@@ -24,6 +24,7 @@ import org.apache.flink.runtime.util.event.NotificationListener;
 import java.io.IOException;
 
 public interface BufferFileWriter extends BlockChannelWriterWithCallback<Buffer> {
+	public static final int BUFFER_HEAD_LENGTH = 8;
 
 	/**
 	 * Returns the number of outstanding requests.

@@ -1,0 +1,109 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAvoidAggregatePushDown">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupAggregate(groupBy=[b], select=[b, COUNT_RETRACT(a) AS EXPR$1, SUM_RETRACT(c) AS EXPR$2, SUM_RETRACT(d) AS EXPR$3])
++- StreamExecExchange(distribution=[hash[b]])
+   +- StreamExecCalc(select=[b, a, c, d])
+      +- StreamExecTemporalTableJoin(join=[b, a, c, d, id], source=[TestTemporalTable(id, name, age)], on=[a=id], joinType=[InnerJoin], where=[>(age, 10)], period=[PROCTIME()])
+         +- StreamExecCalc(select=[b, a, c, d])
+            +- StreamExecGroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS c, SUM(d) AS d])
+               +- StreamExecExchange(distribution=[hash[a, b]])
+                  +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinOnDifferentKeyTypes">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, b, c, PROCTIME(proc) AS proc, rt, id, name, age])
++- StreamExecTemporalTableJoin(join=[a, b, c, proc, rt, b0, id, name, age], source=[TestTemporalTable(id, name, age)], on=[b0=id], joinType=[InnerJoin], period=[$cor0.proc])
+   +- StreamExecCalc(select=[a, b, c, proc, rt, CAST(b) AS b0])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTable">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, b, c, PROCTIME(proc) AS proc, rt, id, name, age])
++- StreamExecTemporalTableJoin(join=[a, b, c, proc, rt, id, name, age], source=[TestTemporalTable(id, name, age)], on=[a=id], joinType=[InnerJoin], period=[$cor0.proc])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTableWithCalcPushDown">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, b, c, PROCTIME(proc) AS proc, rt, id, name, CAST(10) AS age])
++- StreamExecTemporalTableJoin(join=[a, b, c, proc, rt, id, name], source=[TestTemporalTable(id, name, age)], on=[a=id], joinType=[InnerJoin], where=[AND(=(age, 10), >(CAST(name), 1000))], period=[$cor0.proc])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTableWithFilterPushDown">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, b, c, PROCTIME(proc) AS proc, rt, id, name, CAST(10) AS age])
++- StreamExecTemporalTableJoin(join=[a, b, c, proc, rt, id, name], source=[TestTemporalTable(id, name, age)], on=[a=id], joinType=[InnerJoin], where=[=(age, 10)], period=[$cor0.proc])
+   +- StreamExecCalc(select=[a, b, c, proc, rt], where=[>(c, 1000)])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTableWithMultiIndexColumn">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, b, c, PROCTIME(proc) AS proc, rt, id, CAST('AAA') AS name, CAST(10) AS age])
++- StreamExecTemporalTableJoin(join=[a, b, c, proc, rt, id], source=[TestTemporalTable(id, name, age)], on=[a=id], joinType=[InnerJoin], where=[AND(=(age, 10), =(name, 'AAA'))], period=[$cor0.proc])
+   +- StreamExecCalc(select=[a, b, c, proc, rt], where=[>(c, 1000)])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTableWithNestedQuery">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, b, PROCTIME(proc) AS proc, id, name, age])
++- StreamExecTemporalTableJoin(join=[a, b, proc, id, name, age], source=[TestTemporalTable(id, name, age)], on=[a=id], joinType=[InnerJoin], period=[$cor0.proc])
+   +- StreamExecCalc(select=[a, b, proc], where=[>(c, 1000)])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoinTemporalTable">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, b, c, PROCTIME(proc) AS proc, rt, id, name, age])
++- StreamExecTemporalTableJoin(join=[a, b, c, proc, rt, id, name, age], source=[TestTemporalTable(id, name, age)], on=[a=id], joinType=[LeftOuterJoin], period=[PROCTIME()])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTableWithProjectionPushDown">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, b, c, PROCTIME(proc) AS proc, rt, id])
++- StreamExecTemporalTableJoin(join=[a, b, c, proc, rt, id], source=[TestTemporalTable(id, name, age)], on=[a=id], joinType=[InnerJoin], period=[PROCTIME()])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

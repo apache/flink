@@ -36,6 +36,7 @@ public class MetricStoreTest extends TestLogger {
 	public void testAdd() throws IOException {
 		MetricStore store = setupStore(new MetricStore());
 
+		store.getTaskMetricStore("jobid", "taskid").getMetric("8.opname.abc.metric6", "-1");
 		assertEquals("0", store.getJobManagerMetricStore().getMetric("abc.metric1", "-1"));
 		assertEquals("1", store.getTaskManagerMetricStore("tmid").getMetric("abc.metric2", "-1"));
 		assertEquals("2", store.getJobMetricStore("jobid").getMetric("abc.metric3", "-1"));
@@ -86,11 +87,11 @@ public class MetricStoreTest extends TestLogger {
 		QueryScopeInfo.TaskQueryScopeInfo task = new QueryScopeInfo.TaskQueryScopeInfo("jobid", "taskid", 8, "abc");
 		MetricDump.CounterDump cd5 = new MetricDump.CounterDump(task, "metric5", 4);
 
-		QueryScopeInfo.OperatorQueryScopeInfo operator = new QueryScopeInfo.OperatorQueryScopeInfo("jobid", "taskid", 8, "opname", "abc");
+		QueryScopeInfo.OperatorQueryScopeInfo operator = new QueryScopeInfo.OperatorQueryScopeInfo("jobid", "taskid", 8, "opname", "abc", "opid");
 		MetricDump.CounterDump cd6 = new MetricDump.CounterDump(operator, "metric6", 5);
 		MetricDump.CounterDump cd7 = new MetricDump.CounterDump(operator, "metric7", 6);
 
-		QueryScopeInfo.OperatorQueryScopeInfo operator2 = new QueryScopeInfo.OperatorQueryScopeInfo("jobid", "taskid", 1, "opname", "abc");
+		QueryScopeInfo.OperatorQueryScopeInfo operator2 = new QueryScopeInfo.OperatorQueryScopeInfo("jobid", "taskid", 1, "opname", "abc", "opid");
 		MetricDump.CounterDump cd62 = new MetricDump.CounterDump(operator2, "metric6", 5);
 		MetricDump.CounterDump cd72 = new MetricDump.CounterDump(operator2, "metric7", 6);
 

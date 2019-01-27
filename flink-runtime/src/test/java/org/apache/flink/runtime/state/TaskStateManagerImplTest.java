@@ -83,6 +83,7 @@ public class TaskStateManagerImplTest extends TestLogger {
 		// Remote state of operator 1 has only managed keyed state.
 		OperatorSubtaskState jmOperatorSubtaskState_1 =
 			new OperatorSubtaskState(null, null, StateHandleDummyUtil.createNewKeyedStateHandle(keyGroupRange), null);
+
 		// Remote state of operator 1 has only raw keyed state.
 		OperatorSubtaskState jmOperatorSubtaskState_2 =
 			new OperatorSubtaskState(null, null, null, StateHandleDummyUtil.createNewKeyedStateHandle(keyGroupRange));

@@ -60,10 +60,10 @@ public class SqlCommandParserTest {
 			new SqlCommandCall(SqlCommand.INSERT_INTO, new String[]{"INSERT INTO other SELECT 1+1"}));
 		testValidSqlCommand(
 			"CREATE VIEW x AS SELECT 1+1",
-			new SqlCommandCall(SqlCommand.CREATE_VIEW, new String[]{"x", "SELECT 1+1"}));
+			new SqlCommandCall(SqlCommand.CREATE_VIEW, new String[]{"CREATE VIEW x AS SELECT 1+1", "x", "SELECT 1+1"}));
 		testValidSqlCommand(
 			"CREATE   VIEW    MyTable   AS     SELECT 1+1 FROM y",
-			new SqlCommandCall(SqlCommand.CREATE_VIEW, new String[]{"MyTable", "SELECT 1+1 FROM y"}));
+			new SqlCommandCall(SqlCommand.CREATE_VIEW, new String[]{"CREATE   VIEW    MyTable   AS     SELECT 1+1 FROM y", "MyTable", "SELECT 1+1 FROM y"}));
 		testInvalidSqlCommand("CREATE VIEW x SELECT 1+1"); // missing AS
 		testValidSqlCommand("DROP VIEW MyTable", new SqlCommandCall(SqlCommand.DROP_VIEW, new String[]{"MyTable"}));
 		testValidSqlCommand("DROP VIEW  MyTable", new SqlCommandCall(SqlCommand.DROP_VIEW, new String[]{"MyTable"}));

@@ -18,122 +18,62 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import org.apache.flink.api.common.io.FinalizeOnMaster;
-import org.apache.flink.api.common.io.InitializeOnMaster;
-import org.apache.flink.api.common.io.OutputFormat;
-import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.runtime.jobgraph.FormatUtil.OutputFormatStub;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+
+import javax.annotation.Nullable;
+
+import java.util.Collections;
 
 /**
  * A task vertex that run an initialization on the master, trying to deserialize an output format
- * and initializing it on master, if necessary.
+ * and initializing/finalizing it on master, if necessary.
  */
 public class OutputFormatVertex extends JobVertex {
-	
+
 	private static final long serialVersionUID = 1L;
-	
+
 	private String formatDescription;
-	
+
+	private OperatorID sinkOperatorId;
+
 	/**
 	 * Creates a new task vertex with the specified name.
-	 * 
+	 *
 	 * @param name The name of the task vertex.
 	 */
 	public OutputFormatVertex(String name) {
-		super(name);
+		this(name, null);
 	}
-	
+
+	public OutputFormatVertex(String name, @Nullable OperatorID sinkOperatorId) {
+		super(name);
+		this.sinkOperatorId = (sinkOperatorId != null) ? sinkOperatorId : OperatorID.fromJobVertexID(this.getID());
+	}
+
 	public void setFormatDescription(String formatDescription) {
 		this.formatDescription = formatDescription;
 	}
-	
+
 	public String getFormatDescription() {
 		return formatDescription;
 	}
-	
+
 	@Override
 	public void initializeOnMaster(ClassLoader loader) throws Exception {
 		final TaskConfig cfg = new TaskConfig(getConfiguration());
-		
-		UserCodeWrapper<OutputFormat<?>> wrapper;
-		try {
-			wrapper = cfg.<OutputFormat<?>>getStubWrapper(loader);
-		}
-		catch (Throwable t) {
-			throw new Exception("Deserializing the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
-		}
-		if (wrapper == null) {
-			throw new Exception("No input format present in InputFormatVertex's task configuration.");
-		}
-		
-		OutputFormat<?> outputFormat;
-		try {
-			outputFormat = wrapper.getUserCodeObject(OutputFormat.class, loader);
-		}
-		catch (Throwable t) {
-			throw new Exception("Instantiating the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
-		}
 
-		// set user classloader before calling user code
-		final ClassLoader prevContextCl = Thread.currentThread().getContextClassLoader();
-		Thread.currentThread().setContextClassLoader(loader);
+		OutputFormatStub stub = new OutputFormatStub(cfg, loader, sinkOperatorId);
 
-		try {
-			// configure output format
-			try {
-				outputFormat.configure(cfg.getStubParameters());
-			} catch (Throwable t) {
-				throw new Exception("Configuring the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
-			}
-			if (outputFormat instanceof InitializeOnMaster) {
-				((InitializeOnMaster) outputFormat).initializeGlobal(getParallelism());
-			}
-		} finally {
-			// restore previous classloader
-			Thread.currentThread().setContextClassLoader(prevContextCl);
-		}
+		FormatUtil.initializeOutputFormatsOnMaster(this, stub, Collections.singletonMap(sinkOperatorId, formatDescription));
 	}
-	
+
 	@Override
 	public void finalizeOnMaster(ClassLoader loader) throws Exception {
 		final TaskConfig cfg = new TaskConfig(getConfiguration());
 
-		UserCodeWrapper<OutputFormat<?>> wrapper;
-		try {
-			wrapper = cfg.<OutputFormat<?>>getStubWrapper(loader);
-		}
-		catch (Throwable t) {
-			throw new Exception("Deserializing the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
-		}
-		if (wrapper == null) {
-			throw new Exception("No input format present in InputFormatVertex's task configuration.");
-		}
+		OutputFormatStub stub = new OutputFormatStub(cfg, loader, sinkOperatorId);
 
-		OutputFormat<?> outputFormat;
-		try {
-			outputFormat = wrapper.getUserCodeObject(OutputFormat.class, loader);
-		}
-		catch (Throwable t) {
-			throw new Exception("Instantiating the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
-		}
-
-		// set user classloader before calling user code
-		final ClassLoader prevContextCl = Thread.currentThread().getContextClassLoader();
-		Thread.currentThread().setContextClassLoader(loader);
-
-		try {
-			// configure output format
-			try {
-				outputFormat.configure(cfg.getStubParameters());
-			} catch (Throwable t) {
-				throw new Exception("Configuring the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
-			}
-			if (outputFormat instanceof FinalizeOnMaster) {
-				((FinalizeOnMaster) outputFormat).finalizeGlobal(getParallelism());
-			}
-		} finally {
-			// restore previous classloader
-			Thread.currentThread().setContextClassLoader(prevContextCl);
-		}
+		FormatUtil.finalizeOutputFormatsOnMaster(this, stub, Collections.singletonMap(sinkOperatorId, formatDescription));
 	}
 }

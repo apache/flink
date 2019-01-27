@@ -19,8 +19,8 @@
 package org.apache.flink.table.descriptors
 
 import java.util
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableSchema, ValidationException}
 import org.apache.flink.table.descriptors.CsvValidator._
 import org.apache.flink.table.utils.TypeStringUtils

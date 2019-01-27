@@ -33,7 +33,7 @@ import org.apache.flink.runtime.memory.AbstractPagedInputView;
  * stream. The view reads it data in blocks from the underlying channel. The view can only read data that
  * has been written by a {@link ChannelWriterOutputView}, due to block formatting.
  */
-public class ChannelReaderInputView extends AbstractPagedInputView {
+public class ChannelReaderInputView extends AbstractChannelReaderInputView {
 	
 	protected final BlockChannelReader<MemorySegment> reader;		// the block reader that reads memory segments
 	
@@ -164,6 +164,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView {
 	 * @return A list containing all memory segments originally supplied to this view.
 	 * @throws IOException Thrown, if the underlying reader could not be properly closed.
 	 */
+	@Override
 	public List<MemorySegment> close() throws IOException {	
 		if (this.closed) {
 			throw new IllegalStateException("Already closed.");
@@ -264,5 +265,15 @@ public class ChannelReaderInputView extends AbstractPagedInputView {
 			// directly add it to the end of the return queue
 			this.freeMem.add(seg);
 		}
+	}
+
+	@Override
+	public FileIOChannel getChannel() {
+		return reader;
+	}
+
+	@Override
+	public void closeAndDelete() throws IOException {
+		reader.closeAndDelete();
 	}
 }

@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -34,13 +33,15 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend.PartitionableListState;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
+import org.apache.flink.testutils.ArtificialCNFExceptionThrowingClassLoader;
+import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
@@ -49,10 +50,12 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
@@ -248,7 +251,7 @@ public class OperatorStateBackendTest {
 		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4096);
 		RunnableFuture<SnapshotResult<OperatorStateHandle>> runnableFuture =
 			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
-		FutureUtils.runIfNotDoneAndGet(runnableFuture);
+		FutureUtil.runIfNotDoneAndGet(runnableFuture);
 
 		// make sure that the copy method has been called
 		assertTrue(copyCounter.get() > 0);
@@ -348,12 +351,12 @@ public class OperatorStateBackendTest {
 		}
 
 		@Override
-		public TypeSerializerSnapshot<Integer> snapshotConfiguration() {
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
 			return IntSerializer.INSTANCE.snapshotConfiguration();
 		}
 
 		@Override
-		public CompatibilityResult<Integer> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+		public CompatibilityResult<Integer> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			return IntSerializer.INSTANCE.ensureCompatibility(configSnapshot);
 		}
 	}
@@ -370,7 +373,7 @@ public class OperatorStateBackendTest {
 		RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
 				operatorStateBackend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtils.runIfNotDoneAndGet(snapshot);
+		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtil.runIfNotDoneAndGet(snapshot);
 		OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 		assertNull(stateHandle);
 	}
@@ -400,7 +403,7 @@ public class OperatorStateBackendTest {
 			RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
 					operatorStateBackend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-			SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtils.runIfNotDoneAndGet(snapshot);
+			SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtil.runIfNotDoneAndGet(snapshot);
 			stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 			assertNotNull(stateHandle);
 
@@ -418,7 +421,7 @@ public class OperatorStateBackendTest {
 			expected.remove(1);
 
 			snapshot = operatorStateBackend.snapshot(1L, 1L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
-			snapshotResult = FutureUtils.runIfNotDoneAndGet(snapshot);
+			snapshotResult = FutureUtil.runIfNotDoneAndGet(snapshot);
 
 			stateHandle.discardState();
 			stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
@@ -436,7 +439,7 @@ public class OperatorStateBackendTest {
 			expected.clear();
 
 			snapshot = operatorStateBackend.snapshot(2L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
-			snapshotResult = FutureUtils.runIfNotDoneAndGet(snapshot);
+			snapshotResult = FutureUtil.runIfNotDoneAndGet(snapshot);
 			if (stateHandle != null) {
 				stateHandle.discardState();
 			}
@@ -505,7 +508,7 @@ public class OperatorStateBackendTest {
 		RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
 			operatorStateBackend.snapshot(1L, 1L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtils.runIfNotDoneAndGet(snapshot);
+		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtil.runIfNotDoneAndGet(snapshot);
 		OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 
 		try {
@@ -787,7 +790,8 @@ public class OperatorStateBackendTest {
 		try {
 			runnableFuture.get(60, TimeUnit.SECONDS);
 			Assert.fail();
-		} catch (CancellationException expected) {
+		} catch (ExecutionException eex) {
+			Assert.assertTrue(eex.getCause() instanceof IOException);
 		}
 	}
 
@@ -836,6 +840,61 @@ public class OperatorStateBackendTest {
 			runnableFuture.get(60, TimeUnit.SECONDS);
 			Assert.fail();
 		} catch (CancellationException ignore) {
+		}
+	}
+
+	@Test
+	public void testRestoreFailsIfSerializerDeserializationFails() throws Exception {
+		AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
+
+		OperatorStateBackend operatorStateBackend = abstractStateBackend.createOperatorStateBackend(createMockEnvironment(), "test-op-name");
+
+		// write some state
+		ListStateDescriptor<Serializable> stateDescriptor1 = new ListStateDescriptor<>("test1", new JavaSerializer<>());
+		ListStateDescriptor<Serializable> stateDescriptor2 = new ListStateDescriptor<>("test2", new JavaSerializer<>());
+		ListStateDescriptor<Serializable> stateDescriptor3 = new ListStateDescriptor<>("test3", new JavaSerializer<>());
+		ListState<Serializable> listState1 = operatorStateBackend.getListState(stateDescriptor1);
+		ListState<Serializable> listState2 = operatorStateBackend.getListState(stateDescriptor2);
+		ListState<Serializable> listState3 = operatorStateBackend.getUnionListState(stateDescriptor3);
+
+		listState1.add(42);
+		listState1.add(4711);
+
+		listState2.add(7);
+		listState2.add(13);
+		listState2.add(23);
+
+		listState3.add(17);
+		listState3.add(18);
+		listState3.add(19);
+		listState3.add(20);
+
+		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4096);
+		RunnableFuture<SnapshotResult<OperatorStateHandle>> runnableFuture =
+			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
+
+		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtil.runIfNotDoneAndGet(runnableFuture);
+		OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
+
+		try {
+
+			operatorStateBackend.close();
+			operatorStateBackend.dispose();
+
+			operatorStateBackend = abstractStateBackend.createOperatorStateBackend(
+				new DummyEnvironment(
+					new ArtificialCNFExceptionThrowingClassLoader(
+						getClass().getClassLoader(),
+						Collections.singleton(JavaSerializer.class.getName()))),
+				"testOperator");
+
+			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
+
+			fail("The operator state restore should have failed if the previous state serializer could not be loaded.");
+		} catch (IOException expected) {
+			Assert.assertTrue(expected.getMessage().contains("Unable to restore operator state"));
+		} finally {
+			stateHandle.discardState();
 		}
 	}
 

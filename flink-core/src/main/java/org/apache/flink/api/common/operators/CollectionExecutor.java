@@ -24,6 +24,7 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.accumulators.AbstractAccumulatorRegistry;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.aggregators.Aggregator;
@@ -53,6 +54,7 @@ import org.apache.flink.types.Value;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Visitor;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -62,6 +64,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -75,7 +78,7 @@ public class CollectionExecutor {
 	
 	private final Map<Operator<?>, List<?>> intermediateResults;
 	
-	private final Map<String, Accumulator<?, ?>> accumulators;
+	private final AbstractAccumulatorRegistry accumulatorRegistry;
 
 	private final Map<String, Future<Path>> cachedFiles;
 	
@@ -83,7 +86,7 @@ public class CollectionExecutor {
 	
 	private final Map<String, Aggregator<?>> aggregators;
 	
-	private final ClassLoader userCodeClassLoader;
+	private final ClassLoader classLoader;
 	
 	private final ExecutionConfig executionConfig;
 
@@ -95,11 +98,11 @@ public class CollectionExecutor {
 		this.executionConfig = executionConfig;
 		
 		this.intermediateResults = new HashMap<Operator<?>, List<?>>();
-		this.accumulators = new HashMap<String, Accumulator<?,?>>();
+		this.accumulatorRegistry = new CollectionExecutorAccumulatorRegistry();
 		this.previousAggregates = new HashMap<String, Value>();
 		this.aggregators = new HashMap<String, Aggregator<?>>();
 		this.cachedFiles = new HashMap<String, Future<Path>>();
-		this.userCodeClassLoader = Thread.currentThread().getContextClassLoader();
+		this.classLoader = getClass().getClassLoader();
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -116,7 +119,7 @@ public class CollectionExecutor {
 		}
 		
 		long endTime = System.currentTimeMillis();
-		Map<String, OptionalFailure<Object>> accumulatorResults = AccumulatorHelper.toResultMap(accumulators);
+		Map<String, OptionalFailure<Object>> accumulatorResults = AccumulatorHelper.toResultMap(accumulatorRegistry.getAccumulators());
 		return new JobExecutionResult(null, endTime - startTime, accumulatorResults);
 	}
 
@@ -191,8 +194,8 @@ public class CollectionExecutor {
 		MetricGroup metrics = new UnregisteredMetricsGroup();
 			
 		if (RichOutputFormat.class.isAssignableFrom(typedSink.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, userCodeClassLoader, executionConfig, cachedFiles, accumulators, metrics) :
-					new IterationRuntimeUDFContext(taskInfo, userCodeClassLoader, executionConfig, cachedFiles, accumulators, metrics);
+			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulatorRegistry, metrics) :
+					new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulatorRegistry, metrics);
 		} else {
 			ctx = null;
 		}
@@ -211,8 +214,8 @@ public class CollectionExecutor {
 
 		MetricGroup metrics = new UnregisteredMetricsGroup();
 		if (RichInputFormat.class.isAssignableFrom(typedSource.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, userCodeClassLoader, executionConfig, cachedFiles, accumulators, metrics) :
-					new IterationRuntimeUDFContext(taskInfo, userCodeClassLoader, executionConfig, cachedFiles, accumulators, metrics);
+			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulatorRegistry, metrics) :
+					new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulatorRegistry, metrics);
 		} else {
 			ctx = null;
 		}
@@ -237,8 +240,8 @@ public class CollectionExecutor {
 
 		MetricGroup metrics = new UnregisteredMetricsGroup();
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, userCodeClassLoader, executionConfig, cachedFiles, accumulators, metrics) :
-					new IterationRuntimeUDFContext(taskInfo, userCodeClassLoader, executionConfig, cachedFiles, accumulators, metrics);
+			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulatorRegistry, metrics) :
+					new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulatorRegistry, metrics);
 			
 			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
 				List<?> bcData = execute(bcInputs.getValue());
@@ -278,8 +281,8 @@ public class CollectionExecutor {
 		MetricGroup metrics = new UnregisteredMetricsGroup();
 	
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, userCodeClassLoader, executionConfig, cachedFiles, accumulators, metrics) :
-				new IterationRuntimeUDFContext(taskInfo, userCodeClassLoader, executionConfig, cachedFiles, accumulators, metrics);
+			ctx = superStep == 0 ? new RuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulatorRegistry, metrics) :
+				new IterationRuntimeUDFContext(taskInfo, classLoader, executionConfig, cachedFiles, accumulatorRegistry, metrics);
 			
 			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
 				List<?> bcData = execute(bcInputs.getValue());
@@ -477,7 +480,30 @@ public class CollectionExecutor {
 	
 	// --------------------------------------------------------------------------------------------
 	// --------------------------------------------------------------------------------------------
-	
+
+	private static final class CollectionExecutorAccumulatorRegistry extends AbstractAccumulatorRegistry {
+
+		@Override
+		public <V, A extends Serializable> void addPreAggregatedAccumulator(String name, Accumulator<V, A> accumulator) {
+			throw new UnsupportedOperationException("Pre-aggregated accumulator is not supported in CollectionExecutor.");
+		}
+
+		@Override
+		public Map<String, Accumulator<?, ?>> getPreAggregatedAccumulators() {
+			throw new UnsupportedOperationException("Pre-aggregated accumulator is not supported in CollectionExecutor.");
+		}
+
+		@Override
+		public void commitPreAggregatedAccumulator(String name) {
+			throw new UnsupportedOperationException("Pre-aggregated accumulator is not supported in CollectionExecutor.");
+		}
+
+		@Override
+		public <V, A extends Serializable> CompletableFuture<Accumulator<V, A>> queryPreAggregatedAccumulator(String name) {
+			throw new UnsupportedOperationException("Pre-aggregated accumulator is not supported in CollectionExecutor.");
+		}
+	}
+
 	private static final class DynamicPathCollector implements Visitor<Operator<?>> {
 
 		private final Set<Operator<?>> visited = new HashSet<Operator<?>>();
@@ -544,9 +570,9 @@ public class CollectionExecutor {
 	private class IterationRuntimeUDFContext extends RuntimeUDFContext implements IterationRuntimeContext {
 
 		public IterationRuntimeUDFContext(TaskInfo taskInfo, ClassLoader classloader, ExecutionConfig executionConfig,
-											Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?, ?>> accumulators,
+											Map<String, Future<Path>> cpTasks, AbstractAccumulatorRegistry accumulatorRegistry,
 											MetricGroup metrics) {
-			super(taskInfo, classloader, executionConfig, cpTasks, accumulators, metrics);
+			super(taskInfo, classloader, executionConfig, cpTasks, accumulatorRegistry, metrics);
 		}
 
 		@Override

@@ -34,16 +34,18 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.resourcemanager.placementconstraint.PlacementConstraint;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
-import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.runtime.util.FileOffsetRange;
 
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -66,6 +68,20 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 		ResourceID jobMasterResourceId,
 		String jobMasterAddress,
 		JobID jobId,
+		@RpcTimeout Time timeout);
+
+	/**
+	 * Set/Update a job's {@link PlacementConstraint}s to the resource manager.
+	 * This is a full synchronization, all constraints of a job should be set/updated in one invoke.
+	 *
+	 * @param jobId ID of the job.
+	 * @param constraints Slot placement constraints of the job.
+	 * @param timeout Timeout for the acknowledgement.
+	 * @return The confirmation that placement constraints are set/updated.
+	 */
+	CompletableFuture<Acknowledge> setPlacementConstraints(
+		JobID jobId,
+		List<PlacementConstraint> constraints,
 		@RpcTimeout Time timeout);
 
 	/**
@@ -231,10 +247,49 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	 * corresponding {@link TransientBlobKey} is returned.
 	 *
 	 * @param taskManagerId identifying the {@link TaskExecutor} to upload the specified file
-	 * @param fileType type of the file to upload
+	 * @param filename name of the file to upload
+	 * @param fileOffsetRange the offset of file
 	 * @param timeout for the asynchronous operation
 	 * @return Future which is completed with the {@link TransientBlobKey} after uploading the file to the
 	 * {@link BlobServer}.
 	 */
-	CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(ResourceID taskManagerId, FileType fileType, @RpcTimeout Time timeout);
+	CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(ResourceID taskManagerId, String filename, FileOffsetRange fileOffsetRange, @RpcTimeout Time timeout);
+
+	/**
+	 * Request the file upload from the given {@link TaskExecutor} to the cluster's {@link BlobServer}. The
+	 * corresponding {@link TransientBlobKey} is returned.
+	 *
+	 * @param taskManagerId identifying the {@link TaskExecutor} to upload the specified file
+	 * @param filename name of the file to upload
+	 * @param fileOffsetRange the offset of file
+	 * @param timeout for the asynchronous operation
+	 * @return Future which is completed with the {@link TransientBlobKey} and file length after uploading the file to the
+	 * {@link BlobServer}.
+	 */
+	CompletableFuture<Tuple2<TransientBlobKey, Long>> requestTaskManagerFileUploadReturnLength(ResourceID taskManagerId, String filename, FileOffsetRange fileOffsetRange, @RpcTimeout Time timeout);
+
+	/**
+	 * Request log list from the given {@link TaskExecutor}.
+	 * @param taskManagerId identifying the {@link TaskExecutor} to get log list from
+	 * @param timeout for the asynchronous operation
+	 * @return Future which is completed with the historical log list
+	 */
+	CompletableFuture<Collection<Tuple2<String, Long>>> requestTaskManagerLogList(ResourceID taskManagerId, @RpcTimeout Time timeout);
+
+	/**
+	 * Request jmx port from the given {@link TaskExecutor}.
+	 * @param taskManagerId
+	 * @param timeout
+	 * @return
+	 */
+	CompletableFuture<Tuple2<String, Long>> requestJmx(ResourceID taskManagerId, @RpcTimeout Time timeout);
+
+	/**
+	 * Request log and stdout file name from the given {@link TaskExecutor}.
+	 * @param taskManagerId
+	 * @param timeout
+	 * @return
+	 */
+	CompletableFuture<Tuple2<String, String>> requestTmLogAndStdoutFileName(ResourceID taskManagerId, @RpcTimeout Time timeout);
+
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.expressions.utils
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.table.api.Types
@@ -27,7 +26,7 @@ import org.apache.flink.types.Row
 
 class CompositeTypeTestBase extends ExpressionTestBase {
 
-  def testData: Row = {
+  override def rowTestData: Row = {
     val testData = new Row(14)
     testData.setField(0, MyCaseClass(42, "Bob", booleanField = true))
     testData.setField(1, MyCaseClass2(MyCaseClass(25, "Timo", booleanField = false)))
@@ -46,7 +45,7 @@ class CompositeTypeTestBase extends ExpressionTestBase {
     testData
   }
 
-  def typeInfo: TypeInformation[Any] = {
+  override def rowType: RowTypeInfo = {
     new RowTypeInfo(
       createTypeInformation[MyCaseClass],
       createTypeInformation[MyCaseClass2],
@@ -54,7 +53,7 @@ class CompositeTypeTestBase extends ExpressionTestBase {
       new TupleTypeInfo(Types.STRING, Types.STRING),
       TypeExtractor.createTypeInfo(classOf[MyPojo]),
       Types.INT,
-      createTypeInformation[MyCaseClass2],
+      TypeExtractor.createTypeInfo(classOf[MyCaseClass2]),
       createTypeInformation[Tuple1[Boolean]],
       createTypeInformation[Array[Tuple2[Boolean, Int]]],
       createTypeInformation[Array[Tuple1[Boolean]]],
@@ -62,7 +61,7 @@ class CompositeTypeTestBase extends ExpressionTestBase {
       createTypeInformation[Array[MyPojo]],
       createTypeInformation[Array[MyCaseClass3]],
       createTypeInformation[Array[MyCaseClass2]]
-      ).asInstanceOf[TypeInformation[Any]]
+      )
   }
 }
 

@@ -25,6 +25,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.types.InternalType;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.TypeStringUtils;
 import org.apache.flink.util.InstantiationUtil;
@@ -165,11 +166,11 @@ public class DescriptorProperties {
 		checkNotNull(schema);
 
 		final String[] fieldNames = schema.getFieldNames();
-		final TypeInformation<?>[] fieldTypes = schema.getFieldTypes();
+		final InternalType[] fieldTypes = schema.getFieldTypes();
 
 		final List<List<String>> values = new ArrayList<>();
 		for (int i = 0; i < schema.getFieldCount(); i++) {
-			values.add(Arrays.asList(fieldNames[i], TypeStringUtils.writeTypeInfo(fieldTypes[i])));
+			values.add(Arrays.asList(fieldNames[i], TypeStringUtils.writeDataType(fieldTypes[i])));
 		}
 
 		putIndexedFixedProperties(
@@ -496,8 +497,8 @@ public class DescriptorProperties {
 
 			final String name = optionalGet(nameKey).orElseThrow(exceptionSupplier(nameKey));
 
-			final TypeInformation<?> type = optionalGet(typeKey)
-				.map(TypeStringUtils::readTypeInfo)
+			final InternalType type = optionalGet(typeKey)
+				.map(TypeStringUtils::readDataType)
 				.orElseThrow(exceptionSupplier(typeKey));
 
 			schemaBuilder.field(name, type);
@@ -938,7 +939,7 @@ public class DescriptorProperties {
 		}
 
 		// validate
-		for (int i = 0; i <= maxIndex; i++) {
+		for (int i = 0; i < maxIndex; i++) {
 			for (Map.Entry<String, Consumer<String>> subKey : subKeyValidation.entrySet()) {
 				final String fullKey = key + '.' + i + '.' + subKey.getKey();
 				if (properties.containsKey(fullKey)) {
@@ -1134,7 +1135,7 @@ public class DescriptorProperties {
 		}
 
 		// validate array elements
-		for (int i = 0; i <= maxIndex; i++) {
+		for (int i = 0; i < maxIndex; i++) {
 			final String fullKey = key + '.' + i;
 			if (properties.containsKey(fullKey)) {
 				// run validation logic

@@ -19,15 +19,18 @@
 package org.apache.flink.streaming.connectors.elasticsearch6;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.formats.json.JsonRowSerializationSchema;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
@@ -39,6 +42,7 @@ import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTa
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkFactoryTestBase;
 import org.apache.flink.streaming.connectors.elasticsearch6.Elasticsearch6UpsertTableSink.DefaultRestClientFactory;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.types.DataTypes;
 import org.apache.flink.types.Row;
 
 import org.apache.http.HttpHost;
@@ -70,14 +74,14 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 			DOC_TYPE,
 			KEY_DELIMITER,
 			KEY_NULL_LITERAL,
-			new JsonRowSerializationSchema(schema.toRowType()),
+			new JsonRowSerializationSchema(TypeUtils.createTypeInfoFromDataType(TableSchemaUtil.toRowType(schema))),
 			XContentType.JSON,
 			new DummyFailureHandler(),
 			createTestSinkOptions());
 
 		final DataStreamMock dataStreamMock = new DataStreamMock(
 				new StreamExecutionEnvironmentMock(),
-				Types.TUPLE(Types.BOOLEAN, schema.toRowType()));
+				Types.TUPLE(Types.BOOLEAN, TypeUtils.createTypeInfoFromDataType(TableSchemaUtil.toRowType(schema))));
 
 		testSink.emitDataStream(dataStreamMock);
 
@@ -88,7 +92,7 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 				DOC_TYPE,
 				KEY_DELIMITER,
 				KEY_NULL_LITERAL,
-				new JsonRowSerializationSchema(schema.toRowType()),
+				new JsonRowSerializationSchema(TypeUtils.createTypeInfoFromDataType(TableSchemaUtil.toRowType(schema))),
 				XContentType.JSON,
 				Elasticsearch6UpsertTableSink.UPDATE_REQUEST_FACTORY,
 				new int[0]));
@@ -184,8 +188,20 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 	private static class StreamExecutionEnvironmentMock extends StreamExecutionEnvironment {
 
 		@Override
-		public JobExecutionResult execute(String jobName) {
+		public JobSubmissionResult executeInternal(String jobName,
+												   boolean detached,
+												   SavepointRestoreSettings savepointRestoreSettings) throws Exception {
 			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void cancel(String jobId) throws Exception {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public String triggerSavepoint(String jobId, String path) {
+			return null;
 		}
 	}
 

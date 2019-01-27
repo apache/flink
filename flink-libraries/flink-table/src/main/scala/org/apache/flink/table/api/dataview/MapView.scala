@@ -21,18 +21,20 @@ package org.apache.flink.table.api.dataview
 import java.lang.{Iterable => JIterable}
 import java.util
 
-import org.apache.flink.api.common.typeinfo.{TypeInfo, TypeInformation}
-import org.apache.flink.table.dataview.MapViewTypeInfoFactory
+import org.apache.flink.api.common.typeinfo.TypeInfo
+import org.apache.flink.table.api.functions.AggregateFunction
+import org.apache.flink.table.api.types.DataType
+import org.apache.flink.table.typeutils.MapViewTypeInfoFactory
 
 /**
   * A [[MapView]] provides Map functionality for accumulators used by user-defined aggregate
-  * functions [[org.apache.flink.table.functions.AggregateFunction]].
+  * functions [[AggregateFunction]].
   *
   * A [[MapView]] can be backed by a Java HashMap or a state backend, depending on the context in
   * which the aggregation function is used.
   *
-  * At runtime [[MapView]] will be replaced by a [[org.apache.flink.table.dataview.StateMapView]]
-  * if it is backed by a state backend.
+  * At runtime [[MapView]] will be replaced by a
+  * [[org.apache.flink.table.dataview.KeyedStateMapView]] if it is backed by a state backend.
   *
   * Example of an accumulator type with a [[MapView]] and an aggregate function that uses it:
   * {{{
@@ -71,26 +73,26 @@ import org.apache.flink.table.dataview.MapViewTypeInfoFactory
   *
   * }}}
   *
-  * @param keyTypeInfo key type information
-  * @param valueTypeInfo value type information
+  * @param keyType key type
+  * @param valueType value type
   * @tparam K key type
   * @tparam V value type
   */
 @TypeInfo(classOf[MapViewTypeInfoFactory[_, _]])
 class MapView[K, V](
-    @transient private[flink] val keyTypeInfo: TypeInformation[K],
-    @transient private[flink] val valueTypeInfo: TypeInformation[V],
+    @transient private[flink] val keyType: DataType,
+    @transient private[flink] val valueType: DataType,
     private[flink] val map: util.Map[K, V])
   extends DataView {
 
   /**
     * Creates a MapView with the specified key and value types.
     *
-    * @param keyTypeInfo The type of keys of the MapView.
-    * @param valueTypeInfo The type of the values of the MapView.
+    * @param keyType The type of keys of the MapView.
+    * @param valueType The type of the values of the MapView.
     */
-  def this(keyTypeInfo: TypeInformation[K], valueTypeInfo: TypeInformation[V]) {
-    this(keyTypeInfo, valueTypeInfo, new util.HashMap[K, V]())
+  def this(keyType: DataType, valueType: DataType) {
+    this(keyType, valueType, new util.HashMap[K, V]())
   }
 
   /**

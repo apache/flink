@@ -1,0 +1,52 @@
+<!--
+  ~   Licensed to the Apache Software Foundation (ASF) under one
+  ~   or more contributor license agreements.  See the NOTICE file
+  ~   distributed with this work for additional information
+  ~   regarding copyright ownership.  The ASF licenses this file
+  ~   to you under the Apache License, Version 2.0 (the
+  ~   "License"); you may not use this file except in compliance
+  ~   with the License.  You may obtain a copy of the License at
+  ~       http://www.apache.org/licenses/LICENSE-2.0
+  ~   Unless required by applicable law or agreed to in writing, software
+  ~   distributed under the License is distributed on an "AS IS" BASIS,
+  ~   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~   See the License for the specific language governing permissions and
+  ~   limitations under the License.
+  -->
+
+<nz-card [nzBordered]="false" [nzTitle]="title" [nzLoading]="isLoading">
+  <nz-table
+    class="no-border"
+    [nzSize]="'small'"
+    [nzScroll]="{x:'1250px'}"
+    [nzData]="listOfJob"
+    [nzFrontPagination]="false"
+    [nzShowPagination]="false">
+    <thead (nzSortChange)="sort($event)" nzSingleSort>
+      <tr>
+        <th [nzLeft]="'0px'" [nzWidth]="'300px'">Job Name</th>
+        <th nzShowSort nzSortKey="start-time" [nzWidth]="'200px'">Start Time</th>
+        <th nzShowSort nzSortKey="duration" [nzWidth]="'150px'">Duration</th>
+        <th nzShowSort nzSortKey="end-time" [nzWidth]="'200px'">End Time</th>
+        <th [nzWidth]="'200px'">Tasks</th>
+        <th nzShowSort nzSortKey="state" [nzRight]="'0px'" [nzWidth]="'200px'">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let job of listOfJob; trackBy:trackJobBy;" (click)="navigateToJob(job.jid)" class="clickable">
+        <td [nzLeft]="'0px'">
+          <div class="name" nz-tooltip [nzTitle]="job.name">{{ job.name }}</div>
+        </td>
+        <td>{{ job["start-time"] | nzHumanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+        <td>{{ job.duration | nzHumanizeDuration:'s'}}</td>
+        <td>{{ job["end-time"] | nzHumanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+        <td>
+          <flink-task-badge [tasks]="job.tasks"></flink-task-badge>
+        </td>
+        <td [nzRight]="'0px'">
+          <flink-job-badge [state]="job.state"></flink-job-badge>
+        </td>
+      </tr>
+    </tbody>
+  </nz-table>
+</nz-card>

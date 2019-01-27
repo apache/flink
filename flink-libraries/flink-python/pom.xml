@@ -21,9 +21,9 @@ under the License.
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.apache.flink</groupId>
+        <groupId>com.alibaba.blink</groupId>
         <artifactId>flink-libraries</artifactId>
-        <version>1.8-SNAPSHOT</version>
+        <version>1.5.1</version>
         <relativePath>..</relativePath>
     </parent>
 
@@ -48,9 +48,7 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<configuration>
-					<descriptors>
-						<descriptor>src/assembly/python.xml</descriptor>
-					</descriptors>
+					<descriptor>src/assembly/python.xml</descriptor>
 					<finalName>python-source</finalName>
 					<appendAssemblyId>false</appendAssemblyId>
 				</configuration>
@@ -90,11 +88,6 @@ under the License.
 	<profiles>
 		<profile>
 			<id>generate-config-docs</id>
-			<activation>
-				<property>
-					<name>generate-config-docs</name>
-				</property>
-			</activation>
 
 			<build>
 				<plugins>
@@ -131,19 +124,19 @@ under the License.
         <!-- core dependencies -->
         
         <dependency>
-            <groupId>org.apache.flink</groupId>
+            <groupId>com.alibaba.blink</groupId>
             <artifactId>flink-core</artifactId>
             <version>${project.version}</version>
 			<scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.flink</groupId>
+            <groupId>com.alibaba.blink</groupId>
             <artifactId>flink-java</artifactId>
             <version>${project.version}</version>
 			<scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.flink</groupId>
+            <groupId>com.alibaba.blink</groupId>
             <artifactId>flink-runtime_${scala.binary.version}</artifactId>
             <version>${project.version}</version>
 			<scope>provided</scope>
@@ -152,7 +145,7 @@ under the License.
         <!-- test dependencies -->
         
         <dependency>
-            <groupId>org.apache.flink</groupId>
+            <groupId>com.alibaba.blink</groupId>
             <artifactId>flink-test-utils_${scala.binary.version}</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>

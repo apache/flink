@@ -318,10 +318,12 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     val applyFunction = new ScalaAllWindowFunctionWrapper[V, R, W](cleanedWindowFunction)
 
     val accumulatorType: TypeInformation[ACC] = implicitly[TypeInformation[ACC]]
+    val aggregationResultType: TypeInformation[V] = implicitly[TypeInformation[V]]
     val resultType: TypeInformation[R] = implicitly[TypeInformation[R]]
     
     asScalaStream(javaStream.aggregate(
-      cleanedPreAggregator, applyFunction, accumulatorType, resultType))
+      cleanedPreAggregator, applyFunction,
+      accumulatorType, aggregationResultType, resultType))
   }
 
   /**
@@ -382,10 +384,12 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     val applyFunction = new ScalaAllWindowFunction[V, R, W](cleanWindowFunction)
 
     val accumulatorType: TypeInformation[ACC] = implicitly[TypeInformation[ACC]]
+    val aggregationResultType: TypeInformation[V] = implicitly[TypeInformation[V]]
     val resultType: TypeInformation[R] = implicitly[TypeInformation[R]]
 
     asScalaStream(javaStream.aggregate(
-      cleanPreAggregator, applyFunction, accumulatorType, resultType))
+      cleanPreAggregator, applyFunction,
+      accumulatorType, aggregationResultType, resultType))
   }
 
   // ----------------------------- fold() -------------------------------------

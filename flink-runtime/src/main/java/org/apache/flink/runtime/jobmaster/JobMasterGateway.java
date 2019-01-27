@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -30,23 +31,33 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.preaggregatedaccumulators.CommitAccumulator;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
+import org.apache.flink.runtime.rest.messages.job.JobPendingSlotRequestDetail;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
+import org.apache.flink.runtime.taskexecutor.TaskExecutionStatus;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorReportResponse;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.update.JobUpdateRequest;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -73,6 +84,22 @@ public interface JobMasterGateway extends
 	 * @return Future acknowledge if the cancellation was successful
 	 */
 	CompletableFuture<Acknowledge> stop(@RpcTimeout Time timeout);
+
+	/**
+	 * Request the current JobGraph.
+	 *
+	 * @return A Future to current {@link JobGraph}
+	 */
+	CompletableFuture<JobGraph> requestJobGraph(Time timeout);
+
+	/**
+	 * Trigger update of the executed job.
+	 *
+	 * @param request indicating how to update the job
+	 * @param timeout of this operation
+	 * @return Future which is completed with {@link Acknowledge} once the update was successful
+	 */
+	CompletableFuture<Acknowledge> updateJob(JobUpdateRequest request, Time timeout);
 
 	/**
 	 * Triggers rescaling of the executed job.
@@ -112,16 +139,18 @@ public interface JobMasterGateway extends
 			final TaskExecutionState taskExecutionState);
 
 	/**
-	 * Requests the next input split for the {@link ExecutionJobVertex}.
+	 * Requests the next input split for a source operator of the {@link ExecutionJobVertex}.
 	 * The next input split is sent back to the sender as a
 	 * {@link SerializedInputSplit} message.
 	 *
 	 * @param vertexID         The job vertex id
+	 * @param operatorID       The operator id
 	 * @param executionAttempt The execution attempt id
 	 * @return The future of the input split. If there is no further input split, will return an empty object.
 	 */
 	CompletableFuture<SerializedInputSplit> requestNextInputSplit(
 			final JobVertexID vertexID,
+			final OperatorID operatorID,
 			final ExecutionAttemptID executionAttempt);
 
 	/**
@@ -174,6 +203,11 @@ public interface JobMasterGateway extends
 		final Exception cause);
 
 	/**
+	 * Request the classloading props of this job.
+	 */
+	CompletableFuture<ClassloadingProps> requestClassloadingProps();
+
+	/**
 	 * Offers the given slots to the job manager. The response contains the set of accepted slots.
 	 *
 	 * @param taskManagerId identifying the task manager
@@ -184,6 +218,19 @@ public interface JobMasterGateway extends
 	CompletableFuture<Collection<SlotOffer>> offerSlots(
 			final ResourceID taskManagerId,
 			final Collection<SlotOffer> slots,
+			@RpcTimeout final Time timeout);
+
+	/**
+	 * Report existing tasks execution status after jm failover.
+	 *
+	 * @param taskManagerId        the task manager id
+	 * @param tasksExecutionStatus the tasks execution status
+	 * @param timeout              the timeout
+	 * @return Future indicating whether status reporting is successful
+	 */
+	CompletableFuture<TaskExecutorReportResponse> reportTasksExecutionStatus(
+			final ResourceID taskManagerId,
+			final List<TaskExecutionStatus> tasksExecutionStatus,
 			@RpcTimeout final Time timeout);
 
 	/**
@@ -252,6 +299,14 @@ public interface JobMasterGateway extends
 	CompletableFuture<ArchivedExecutionGraph> requestJob(@RpcTimeout Time timeout);
 
 	/**
+	 * Request the details of pending slot requests of the current job.
+	 *
+	 * @param timeout for the rpc call
+	 * @return the list of pending slot requests.
+	 */
+	CompletableFuture<Collection<JobPendingSlotRequestDetail>> requestPendingSlotRequestDetails(@RpcTimeout Time timeout);
+
+	/**
 	 * Triggers taking a savepoint of the executed job.
 	 *
 	 * @param targetDirectory to which to write the savepoint data or null if the
@@ -280,4 +335,19 @@ public interface JobMasterGateway extends
 	 * @param cause the reason that the allocation failed
 	 */
 	void notifyAllocationFailure(AllocationID allocationID, Exception cause);
+
+	/**
+	 * Commits a list of aggregated accumulator values.
+	 *
+	 * @param commitAccumulators accumulators to commit.
+	 */
+	void commitPreAggregatedAccumulator(List<CommitAccumulator> commitAccumulators);
+
+	/**
+	 * Queries an aggregated accumulator with the specific name.
+	 *
+	 * @param name the name of the target accumulator.
+	 * @return Future which is completed with the result of querying accumulator.
+	 */
+	<V, A extends Serializable> CompletableFuture<Accumulator<V, A>> queryPreAggregatedAccumulator(String name);
 }

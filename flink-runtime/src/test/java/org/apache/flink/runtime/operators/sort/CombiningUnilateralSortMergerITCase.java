@@ -18,11 +18,21 @@
 
 package org.apache.flink.runtime.operators.sort;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
 import org.apache.flink.api.common.functions.GroupCombineFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.util.TestLogger;
+import org.junit.Assert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeutils.base.IntComparator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -37,20 +47,9 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.Valu
 import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
 
 public class CombiningUnilateralSortMergerITCase extends TestLogger {
 	
@@ -117,10 +116,12 @@ public class CombiningUnilateralSortMergerITCase extends TestLogger {
 		LOG.debug("initializing sortmerger");
 		
 		TestCountCombiner comb = new TestCountCombiner();
-		
-		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(comb,
+
+		SortedDataFileFactory<Tuple2<Integer, Integer>> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+			ioManager.createChannelEnumerator(), serializerFactory2.getSerializer(), ioManager);
+		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(sortedDataFileFactory, comb,
 				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory2, this.comparator2,
-				0.25, 64, 0.7f, true /* use large record handler */, false);
+				0.25, 64, true, 0.7f, true /* use large record handler */, false);
 
 		final Tuple2<Integer, Integer> rec = new Tuple2<>();
 		rec.setField(1, 1);
@@ -156,10 +157,12 @@ public class CombiningUnilateralSortMergerITCase extends TestLogger {
 		LOG.debug("initializing sortmerger");
 		
 		TestCountCombiner comb = new TestCountCombiner();
-		
-		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(comb,
+
+		SortedDataFileFactory<Tuple2<Integer, Integer>> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+			ioManager.createChannelEnumerator(), serializerFactory2.getSerializer(), ioManager);
+		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(sortedDataFileFactory, comb,
 				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory2, this.comparator2,
-				0.01, 64, 0.005f, true /* use large record handler */, true);
+				0.01, 64, true, 0.005f, true /* use large record handler */, true);
 
 		final Tuple2<Integer, Integer> rec = new Tuple2<>();
 		rec.setField(1, 1);
@@ -197,9 +200,11 @@ public class CombiningUnilateralSortMergerITCase extends TestLogger {
 		MaterializedCountCombiner comb = new MaterializedCountCombiner();
 
 		// set maxNumFileHandles = 2 to trigger multiple channel merging
-		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(comb,
+		SortedDataFileFactory<Tuple2<Integer, Integer>> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+			ioManager.createChannelEnumerator(), serializerFactory2.getSerializer(), ioManager);
+		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(sortedDataFileFactory, comb,
 				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory2, this.comparator2,
-				0.01, 2, 0.005f, true /* use large record handler */, false);
+				0.01, 2, true, 0.005f, true /* use large record handler */, false);
 
 		final Tuple2<Integer, Integer> rec = new Tuple2<>();
 
@@ -239,10 +244,12 @@ public class CombiningUnilateralSortMergerITCase extends TestLogger {
 		LOG.debug("initializing sortmerger");
 		
 		TestCountCombiner2 comb = new TestCountCombiner2();
-		
-		Sorter<Tuple2<Integer, String>> merger = new CombiningUnilateralSortMerger<>(comb,
+
+		SortedDataFileFactory<Tuple2<Integer, String>> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+			ioManager.createChannelEnumerator(), serializerFactory1.getSerializer(), ioManager);
+		Sorter<Tuple2<Integer, String>> merger = new CombiningUnilateralSortMerger<>(sortedDataFileFactory, comb,
 				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory1, this.comparator1,
-				0.25, 2, 0.7f, true /* use large record handler */, false);
+				0.25, 2, true, 0.7f, true /* use large record handler */, false);
 
 		// emit data
 		LOG.debug("emitting data");
@@ -270,11 +277,11 @@ public class CombiningUnilateralSortMergerITCase extends TestLogger {
 		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
 		countTable.put(rec1.f0, countTable.get(rec1.f0) - (Integer.parseInt(rec1.f1)));
 
-		while ((rec2 = iterator.next(rec2)) != null) {
+		while ((rec2 = iterator.next()) != null) {
 			int k1 = rec1.f0;
 			int k2 = rec2.f0;
-			
-			Assert.assertTrue(keyComparator.compare(k1, k2) <= 0); 
+
+			Assert.assertTrue(keyComparator.compare(k1, k2) <= 0);
 			countTable.put(k2, countTable.get(k2) - (Integer.parseInt(rec2.f1)));
 			
 			rec1 = rec2;

@@ -109,21 +109,21 @@ class TrySerializer[A](
   }
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[Try[A]] = {
+      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[Try[A]] = {
 
     configSnapshot match {
       case trySerializerConfigSnapshot
           : ScalaTrySerializerConfigSnapshot[A] =>
-        ensureCompatibilityInternal(trySerializerConfigSnapshot)
+        ensureCompatibility(trySerializerConfigSnapshot)
       case legacyTrySerializerConfigSnapshot
           : TrySerializer.TrySerializerConfigSnapshot[A] =>
-        ensureCompatibilityInternal(legacyTrySerializerConfigSnapshot)
+        ensureCompatibility(legacyTrySerializerConfigSnapshot)
       case _ => CompatibilityResult.requiresMigration()
     }
   }
 
-  private def ensureCompatibilityInternal(
-      compositeConfigSnapshot: CompositeTypeSerializerConfigSnapshot[Try[A]])
+  private def ensureCompatibility(
+      compositeConfigSnapshot: CompositeTypeSerializerConfigSnapshot)
         : CompatibilityResult[Try[A]] = {
 
     val previousSerializersAndConfigs =
@@ -156,7 +156,7 @@ object TrySerializer {
     * Once Flink 1.3.x is no longer supported, this can be removed.
     */
   class TrySerializerConfigSnapshot[A]()
-      extends CompositeTypeSerializerConfigSnapshot[Try[A]]() {
+      extends CompositeTypeSerializerConfigSnapshot() {
 
     override def getVersion: Int = TrySerializerConfigSnapshot.VERSION
   }

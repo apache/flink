@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.messages;
 
+import org.apache.flink.runtime.instance.TaskManagerResourceDescription;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
-import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.util.Preconditions;
 
@@ -49,6 +49,8 @@ public class ClusterOverviewWithVersion extends ClusterOverview implements Respo
 			@JsonProperty(FIELD_NAME_TASKMANAGERS) int numTaskManagersConnected,
 			@JsonProperty(FIELD_NAME_SLOTS_TOTAL) int numSlotsTotal,
 			@JsonProperty(FIELD_NAME_SLOTS_AVAILABLE) int numSlotsAvailable,
+			@JsonProperty(FIELD_NAME_TOTAL_RESOURCES) TaskManagerResourceDescription totalResources,
+			@JsonProperty(FIELD_NAME_AVAILABLE_RESOURCES) TaskManagerResourceDescription availableResources,
 			@JsonProperty(FIELD_NAME_JOBS_RUNNING) int numJobsRunningOrPending,
 			@JsonProperty(FIELD_NAME_JOBS_FINISHED) int numJobsFinished,
 			@JsonProperty(FIELD_NAME_JOBS_CANCELLED) int numJobsCancelled,
@@ -59,24 +61,12 @@ public class ClusterOverviewWithVersion extends ClusterOverview implements Respo
 			numTaskManagersConnected,
 			numSlotsTotal,
 			numSlotsAvailable,
+			totalResources,
+			availableResources,
 			numJobsRunningOrPending,
 			numJobsFinished,
 			numJobsCancelled,
 			numJobsFailed);
-
-		this.version = Preconditions.checkNotNull(version);
-		this.commitId = Preconditions.checkNotNull(commitId);
-	}
-
-	public ClusterOverviewWithVersion(
-			int numTaskManagersConnected,
-			int numSlotsTotal,
-			int numSlotsAvailable,
-			JobsOverview jobs1,
-			JobsOverview jobs2,
-			String version,
-			String commitId) {
-		super(numTaskManagersConnected, numSlotsTotal, numSlotsAvailable, jobs1, jobs2);
 
 		this.version = Preconditions.checkNotNull(version);
 		this.commitId = Preconditions.checkNotNull(commitId);
@@ -87,6 +77,8 @@ public class ClusterOverviewWithVersion extends ClusterOverview implements Respo
 			statusOverview.getNumTaskManagersConnected(),
 			statusOverview.getNumSlotsTotal(),
 			statusOverview.getNumSlotsAvailable(),
+			statusOverview.getTotalResources(),
+			statusOverview.getAvailableResources(),
 			statusOverview.getNumJobsRunningOrPending(),
 			statusOverview.getNumJobsFinished(),
 			statusOverview.getNumJobsCancelled(),

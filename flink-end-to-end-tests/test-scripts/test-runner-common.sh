@@ -24,53 +24,25 @@ source "${END_TO_END_DIR}"/test-scripts/common.sh
 # Arguments:
 #   $1: description of the test
 #   $2: command to execute
-#   $3: check logs for erors & exceptions
 #######################################
 function run_test {
-    local description="$1"
-    local command="$2"
-    local skip_check_exceptions=${3:-}
+    description="$1"
+    command="$2"
 
     printf "\n==============================================================================\n"
     printf "Running '${description}'\n"
     printf "==============================================================================\n"
-
-    # used to randomize created directories
-    export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
-    echo "TEST_DATA_DIR: $TEST_DATA_DIR"
-
-    backup_config
     start_timer
-
-    function test_error() {
-      echo "[FAIL] Test script contains errors."
-      post_test_validation 1 "$description" "$skip_check_exceptions"
-    }
-    trap 'test_error' ERR
-
     ${command}
     exit_code="$?"
-    post_test_validation ${exit_code} "$description" "$skip_check_exceptions"
-}
+    time_elapsed=$(end_timer)
 
-# Validates the test result and exit code after its execution.
-function post_test_validation {
-    local exit_code="$1"
-    local description="$2"
-    local skip_check_exceptions="$3"
+    check_logs_for_errors
+    check_logs_for_exceptions
+    check_logs_for_non_empty_out_files
 
-    local time_elapsed=$(end_timer)
+    cleanup
 
-    if [[ "${skip_check_exceptions}" != "skip_check_exceptions" ]]; then
-        check_logs_for_errors
-        check_logs_for_exceptions
-        check_logs_for_non_empty_out_files
-    else
-        echo "Checking of logs skipped."
-    fi
-
-    # Investigate exit_code for failures of test executable as well as EXIT_CODE for failures of the test.
-    # Do not clean up if either fails.
     if [[ ${exit_code} == 0 ]]; then
         if [[ ${EXIT_CODE} != 0 ]]; then
             printf "\n[FAIL] '${description}' failed after ${time_elapsed}! Test exited with exit code 0 but the logs contained errors, exceptions or non-empty .out files\n\n"
@@ -86,33 +58,19 @@ function post_test_validation {
         fi
     fi
 
-    if [[ ${exit_code} == 0 ]]; then
-        cleanup
-    else
+    if [[ ${exit_code} != 0 ]]; then
         exit "${exit_code}"
     fi
 }
 
-# Shuts down cluster and reverts changes to cluster configs
-function cleanup_proc {
-    shutdown_all
-    revert_default_config
-}
-
-# Cleans up all temporary folders and files
-function cleanup_tmp_files {
-    rm ${FLINK_DIR}/log/*
-    echo "Deleted all files under ${FLINK_DIR}/log/"
-
-    rm -rf ${TEST_DATA_DIR} 2> /dev/null
-    echo "Deleted ${TEST_DATA_DIR}"
-}
-
-# Shuts down the cluster and cleans up all temporary folders and files.
+# Shuts down the cluster and cleans up all temporary folders and files. Make sure to clean up even in case of failures.
 function cleanup {
-    cleanup_proc
-    cleanup_tmp_files
+  stop_cluster
+  tm_kill_all
+  jm_kill_all
+  rm -rf $TEST_DATA_DIR 2> /dev/null
+  revert_default_config
+  rm -rf $FLINK_DIR/log/* 2> /dev/null
 }
 
-trap cleanup SIGINT
-trap cleanup_proc EXIT
+trap cleanup EXIT

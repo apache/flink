@@ -20,8 +20,7 @@ package org.apache.flink.table.api.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestBase
-import org.apache.flink.table.utils.TableTestUtil._
+import org.apache.flink.table.util.TableTestBase
 import org.junit.Test
 
 class JoinTest extends TableTestBase {
@@ -33,30 +32,8 @@ class JoinTest extends TableTestBase {
     util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
 
     val query = "SELECT b, y FROM t LEFT OUTER JOIN s ON a = z"
-    val result = util.tableEnv.sqlQuery(query)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(1),
-          term("select", "y", "z")
-        ),
-        term("where", "=(a, z)"),
-        term("join", "a", "b", "y", "z"),
-        term("joinType", "LeftOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(query)
   }
 
   @Test
@@ -66,30 +43,8 @@ class JoinTest extends TableTestBase {
     util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
 
     val query = "SELECT b, y FROM t LEFT OUTER JOIN s ON a = z AND b < 2"
-    val result = util.tableEnv.sqlQuery(query)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b", "<(b, 2) AS $f3")
-        ),
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(1),
-          term("select", "y", "z")
-        ),
-        term("where", "AND(=(a, z), $f3)"),
-        term("join", "a", "b", "$f3", "y", "z"),
-        term("joinType", "LeftOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(query)
   }
 
   @Test
@@ -99,26 +54,8 @@ class JoinTest extends TableTestBase {
     util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
 
     val query = "SELECT b, y FROM t LEFT OUTER JOIN s ON a = z AND b < x"
-    val result = util.tableEnv.sqlQuery(query)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        batchTableNode(1),
-        term("where", "AND(=(a, z), <(b, x))"),
-        term("join", "a", "b", "x", "y", "z"),
-        term("joinType", "LeftOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(query)
   }
 
   @Test
@@ -128,30 +65,8 @@ class JoinTest extends TableTestBase {
     util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
 
     val query = "SELECT b, y FROM t RIGHT OUTER JOIN s ON a = z"
-    val result = util.tableEnv.sqlQuery(query)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(1),
-          term("select", "y", "z")
-        ),
-        term("where", "=(a, z)"),
-        term("join", "a", "b", "y", "z"),
-        term("joinType", "RightOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(query)
   }
 
   @Test
@@ -161,30 +76,8 @@ class JoinTest extends TableTestBase {
     util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
 
     val query = "SELECT b, x FROM t RIGHT OUTER JOIN s ON a = z AND x < 2"
-    val result = util.tableEnv.sqlQuery(query)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(1),
-          term("select", "x", "z", "<(x, 2) AS $f3")
-        ),
-        term("where", "AND(=(a, z), $f3)"),
-        term("join", "a", "b", "x", "z", "$f3"),
-        term("joinType", "RightOuterJoin")
-      ),
-      term("select", "b", "x")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(query)
   }
 
   @Test
@@ -194,26 +87,8 @@ class JoinTest extends TableTestBase {
     util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
 
     val query = "SELECT b, y FROM t RIGHT OUTER JOIN s ON a = z AND b < x"
-    val result = util.tableEnv.sqlQuery(query)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        batchTableNode(1),
-        term("where", "AND(=(a, z), <(b, x))"),
-        term("join", "a", "b", "x", "y", "z"),
-        term("joinType", "RightOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(query)
   }
 
   @Test
@@ -223,30 +98,8 @@ class JoinTest extends TableTestBase {
     util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
 
     val query = "SELECT b, y FROM t FULL OUTER JOIN s ON a = z"
-    val result = util.tableEnv.sqlQuery(query)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(1),
-          term("select", "y", "z")
-        ),
-        term("where", "=(a, z)"),
-        term("join", "a", "b", "y", "z"),
-        term("joinType", "FullOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(query)
   }
 
   @Test
@@ -256,30 +109,8 @@ class JoinTest extends TableTestBase {
     util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
 
     val query = "SELECT b, y FROM t FULL OUTER JOIN s ON a = z AND b < 2 AND z > 5"
-    val result = util.tableEnv.sqlQuery(query)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b", "<(b, 2) AS $f3")
-        ),
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(1),
-          term("select", "y", "z", ">(z, 5) AS $f3")
-        ),
-        term("where", "AND(=(a, z), $f3, $f30)"),
-        term("join", "a", "b", "$f3", "y", "z", "$f30"),
-        term("joinType", "FullOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(query)
   }
 
   @Test
@@ -289,26 +120,74 @@ class JoinTest extends TableTestBase {
     util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
 
     val query = "SELECT b, y FROM t FULL OUTER JOIN s ON a = z AND b < x"
-    val result = util.tableEnv.sqlQuery(query)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        batchTableNode(1),
-        term("where", "AND(=(a, z), <(b, x))"),
-        term("join", "a", "b", "x", "y", "z"),
-        term("joinType", "FullOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
+    util.verifyPlan(query)
+  }
 
-    util.verifyTable(result, expected)
+  @Test
+  def testJoinNonMatchingKeyTypes(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+    util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
+
+    val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE a = g"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testFullOuterJoinNoEquiJoinPredicate(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+    util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
+
+    val sqlQuery = "SELECT c, g FROM Table3 FULL OUTER JOIN Table5 ON b <> e"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testRightOuterJoinNoEquiJoinPredicate(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+    util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
+
+    val sqlQuery = "SELECT c, g FROM Table3 RIGHT OUTER JOIN Table5 ON b < e"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testLeftOuterJoinNoEquiJoinPredicate(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+    util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
+
+    val sqlQuery = "SELECT c, g FROM Table3 LEFT OUTER JOIN Table5 ON b > e"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testJoinNoEqualityPredicate(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+    util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
+
+    val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE d = f"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testCrossJoin(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+    util.addTable[(Int, Long, String)]("Table4", 'a1, 'b1, 'c1)
+
+    val sqlQuery = "SELECT a, a1 FROM Table3 CROSS JOIN Table4"
+
+    util.verifyPlan(sqlQuery)
   }
 
 }

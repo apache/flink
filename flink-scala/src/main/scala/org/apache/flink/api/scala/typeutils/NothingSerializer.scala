@@ -56,11 +56,11 @@ class NothingSerializer extends TypeSerializer[Any] {
   override def deserialize(reuse: Any, source: DataInputView): Any =
     throw new RuntimeException("This must not be used. You encountered a bug.")
 
-  override def snapshotConfiguration(): TypeSerializerConfigSnapshot[Any] =
+  override def snapshotConfiguration(): TypeSerializerConfigSnapshot =
     throw new RuntimeException("This must not be used. You encountered a bug.")
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[Any] =
+      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[Any] =
     throw new RuntimeException("This must not be used. You encountered a bug.")
 
   override def equals(obj: Any): Boolean = {

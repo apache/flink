@@ -18,10 +18,11 @@
 
 package org.apache.flink.api.java;
 
-import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.scala.FlinkILoop;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
@@ -43,6 +44,10 @@ public class ScalaShellRemoteStreamEnvironment extends RemoteStreamEnvironment {
 
 	// reference to Scala Shell, for access to virtual directory
 	private FlinkILoop flinkILoop;
+	private String host;
+	private int port;
+	private Configuration configuration;
+	private String[] jarFiles;
 
 	/**
 	 * Creates a new RemoteStreamEnvironment that points to the master
@@ -66,6 +71,10 @@ public class ScalaShellRemoteStreamEnvironment extends RemoteStreamEnvironment {
 
 		super(host, port, configuration, jarFiles);
 		this.flinkILoop = flinkILoop;
+		this.host = host;
+		this.port = port;
+		this.configuration = configuration;
+		this.jarFiles = jarFiles;
 	}
 
 	/**
@@ -78,44 +87,39 @@ public class ScalaShellRemoteStreamEnvironment extends RemoteStreamEnvironment {
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
 	@Override
-	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
+	protected JobSubmissionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles, boolean detached, SavepointRestoreSettings savepointRestoreSettings) throws ProgramInvocationException {
 		URL jarUrl;
 		try {
 			jarUrl = flinkILoop.writeFilesToDisk().getAbsoluteFile().toURI().toURL();
 		} catch (MalformedURLException e) {
-			throw new ProgramInvocationException("Could not write the user code classes to disk.",
-				streamGraph.getJobGraph().getJobID(), e);
+			throw new ProgramInvocationException("Could not write the user code classes to disk.", e);
 		}
 
 		List<URL> allJarFiles = new ArrayList<>(jarFiles.size() + 1);
 		allJarFiles.addAll(jarFiles);
 		allJarFiles.add(jarUrl);
 
-		return super.executeRemotely(streamGraph, allJarFiles);
+		return super.executeRemotely(streamGraph, allJarFiles, detached, savepointRestoreSettings);
+	}
+
+	@Override
+	public void cancel(String jobId) throws Exception {
+		super.cancel(jobId);
+	}
+
+	@Override
+	public String cancelWithSavepoint(String jobId, String path) throws Exception {
+		return super.cancelWithSavepoint(jobId, path);
+	}
+
+	@Override
+	public String triggerSavepoint(String jobId, String path) throws Exception {
+		return super.triggerSavepoint(jobId, path);
 	}
 
 	public void setAsContext() {
-		StreamExecutionEnvironmentFactory factory = new StreamExecutionEnvironmentFactory() {
-			@Override
-			public StreamExecutionEnvironment createExecutionEnvironment() {
-				throw new UnsupportedOperationException("Execution Environment is already defined" +
-						" for this shell.");
-			}
-		};
-		initializeContextEnvironment(factory);
-	}
-
-	public static void disableAllContextAndOtherEnvironments() {
-		// we create a context environment that prevents the instantiation of further
-		// context environments. at the same time, setting the context environment prevents manual
-		// creation of local and remote environments
-		StreamExecutionEnvironmentFactory factory = new StreamExecutionEnvironmentFactory() {
-			@Override
-			public StreamExecutionEnvironment createExecutionEnvironment() {
-				throw new UnsupportedOperationException("Execution Environment is already defined" +
-						" for this shell.");
-			}
-		};
+		StreamExecutionEnvironmentFactory factory = () -> new RemoteStreamEnvironment(host, port,
+			configuration, jarFiles);
 		initializeContextEnvironment(factory);
 	}
 

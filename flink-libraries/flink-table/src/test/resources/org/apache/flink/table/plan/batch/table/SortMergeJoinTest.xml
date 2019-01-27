@@ -1,0 +1,175 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testInnerJoinWithNonEquiJoinPredicate">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$7], g=[$3])
++- LogicalFilter(condition=[AND(=($5, $0), <($0, 2), <($6, $4))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, g])
++- SortMergeJoin(where=[AND(=(a, d), <(b, h))], join=[a, b, c, d, g, h], joinType=[InnerJoin])
+   :- Exchange(distribution=[hash[a]])
+   :  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[d]])
+      +- Calc(select=[d, g, h], where=[<(d, 2)])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFullOuterJoin">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], g=[$6])
++- LogicalJoin(condition=[=($1, $4)], joinType=[full])
+   :- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+   +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, g])
++- SortMergeJoin(where=[=(b, e)], join=[e, g, b, c], joinType=[FullOuterJoin])
+   :- Exchange(distribution=[hash[e]])
+   :  +- Calc(select=[e, g])
+   :     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[d, e, f, g, h])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[b, c])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoin">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], g=[$6])
++- LogicalFilter(condition=[=($0, $3)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, g])
++- SortMergeJoin(where=[=(a, d)], join=[d, g, a, c], joinType=[InnerJoin])
+   :- Exchange(distribution=[hash[d]])
+   :  +- Calc(select=[d, g])
+   :     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[d, e, f, g, h])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinWithFilter">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$7], g=[$3])
++- LogicalFilter(condition=[AND(=($5, $0), <($0, 2))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, g])
++- SortMergeJoin(where=[=(a, d)], join=[a, c, d, g], joinType=[InnerJoin])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, c])
+   :     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[d]])
+      +- Calc(select=[d, g], where=[<(d, 2)])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinWithMultipleKeys">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], g=[$6])
++- LogicalFilter(condition=[AND(=($0, $3), =($1, $4))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+      +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, g])
++- SortMergeJoin(where=[AND(=(a, d), =(b, e))], join=[d, e, g, a, b, c], joinType=[InnerJoin])
+   :- Exchange(distribution=[hash[d, e]])
+   :  +- Calc(select=[d, e, g])
+   :     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[d, e, f, g, h])
+   +- Exchange(distribution=[hash[a, b]])
+      +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftOuterJoin">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], g=[$6])
++- LogicalJoin(condition=[=($1, $4)], joinType=[left])
+   :- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+   +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, g])
++- SortMergeJoin(where=[=(b, e)], join=[e, g, b, c], joinType=[RightOuterJoin])
+   :- Exchange(distribution=[hash[e]])
+   :  +- Calc(select=[e, g])
+   :     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[d, e, f, g, h])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[b, c])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightOuterJoin">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], g=[$6])
++- LogicalJoin(condition=[=($1, $4)], joinType=[right])
+   :- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+   +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, g])
++- SortMergeJoin(where=[=(b, e)], join=[e, g, b, c], joinType=[LeftOuterJoin])
+   :- Exchange(distribution=[hash[e]])
+   :  +- Calc(select=[e, g])
+   :     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[d, e, f, g, h])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[b, c])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

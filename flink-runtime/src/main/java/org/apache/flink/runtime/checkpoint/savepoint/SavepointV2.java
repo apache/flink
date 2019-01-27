@@ -27,8 +27,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
@@ -41,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The persistent checkpoint metadata, format version 2.
- * This format was introduced with Flink 1.3.0.
+ * his format was introduced with Flink 1.3.0.
  */
 public class SavepointV2 implements Savepoint {
 
@@ -52,8 +52,8 @@ public class SavepointV2 implements Savepoint {
 	private final long checkpointId;
 
 	/**
-	 * The task states 
-	 * @deprecated Only kept for backwards-compatibility with versions < 1.3. Will be removed in the future. 
+	 * The task states
+	 * @deprecated Only kept for backwards-compatibility with versions < 1.3. Will be removed in the future.
 	 */
 	@Deprecated
 	private final Collection<TaskState> taskStates;
@@ -68,7 +68,7 @@ public class SavepointV2 implements Savepoint {
 	@Deprecated
 	public SavepointV2(long checkpointId, Collection<TaskState> taskStates) {
 		this(
-			checkpointId, 
+			checkpointId,
 			null,
 			checkNotNull(taskStates, "taskStates"),
 			Collections.<MasterState>emptyList()
@@ -85,10 +85,10 @@ public class SavepointV2 implements Savepoint {
 	}
 
 	private SavepointV2(
-			long checkpointId,
-			Collection<OperatorState> operatorStates,
-			Collection<TaskState> taskStates,
-			Collection<MasterState> masterStates) {
+		long checkpointId,
+		Collection<OperatorState> operatorStates,
+		Collection<TaskState> taskStates,
+		Collection<MasterState> masterStates) {
 
 		this.checkpointId = checkpointId;
 		this.operatorStates = operatorStates;
@@ -146,8 +146,8 @@ public class SavepointV2 implements Savepoint {
 	 * */
 	@Deprecated
 	public static Savepoint convertToOperatorStateSavepointV2(
-			Map<JobVertexID, ExecutionJobVertex> tasks,
-			Savepoint savepoint) {
+		Map<JobVertexID, ExecutionJobVertex> tasks,
+		Savepoint savepoint) {
 
 		if (savepoint.getOperatorStates() != null) {
 			return savepoint;
@@ -171,9 +171,9 @@ public class SavepointV2 implements Savepoint {
 			if (jobVertex == null) {
 				throw new IllegalStateException(
 					"Could not find task for state with ID " + taskState.getJobVertexID() + ". " +
-					"When migrating a savepoint from a version < 1.3 please make sure that the topology was not " +
-					"changed through removal of a stateful operator or modification of a chain containing a stateful " +
-					"operator.");
+						"When migrating a savepoint from a version < 1.3 please make sure that the topology was not " +
+						"changed through removal of a stateful operator or modification of a chain containing a stateful " +
+						"operator.");
 			}
 
 			List<OperatorID> operatorIDs = jobVertex.getOperatorIDs();
@@ -197,8 +197,8 @@ public class SavepointV2 implements Savepoint {
 				} catch (Exception e) {
 					throw new IllegalStateException(
 						"Could not find subtask with index " + subtaskIndex + " for task " + jobVertex.getJobVertexId() + ". " +
-						"When migrating a savepoint from a version < 1.3 please make sure that no changes were made " +
-						"to the parallelism of stateful operators.",
+							"When migrating a savepoint from a version < 1.3 please make sure that no changes were made " +
+							"to the parallelism of stateful operators.",
 						e);
 				}
 
@@ -234,6 +234,8 @@ public class SavepointV2 implements Savepoint {
 							managedKeyedState = subtaskState.getManagedKeyedState();
 							rawKeyedState = subtaskState.getRawKeyedState();
 						}
+
+
 
 						OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
 							partitioneableState != null ? partitioneableState.get(operatorIndex) : null,

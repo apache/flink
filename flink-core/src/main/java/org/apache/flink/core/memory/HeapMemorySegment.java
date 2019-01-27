@@ -170,6 +170,22 @@ public final class HeapMemorySegment extends MemorySegment {
 		source.get(this.memory, offset, numBytes);
 	}
 
+	@Override
+	public void pointTo(byte[] buffer, Object owner) {
+		super.pointTo(buffer, owner);
+		this.memory = buffer;
+	}
+
+	@Override
+	public void pointTo(byte[] buffer) {
+		pointTo(buffer, null);
+	}
+
+	@Override
+	public MemorySegment cloneReference() {
+		return new HeapMemorySegment(memory, owner);
+	}
+
 	// -------------------------------------------------------------------------
 	//                             Factoring
 	// -------------------------------------------------------------------------

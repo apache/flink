@@ -81,11 +81,11 @@ public class KvStateRegistry {
 	 * @return Assigned KvStateID
 	 */
 	public KvStateID registerKvState(
-			JobID jobId,
-			JobVertexID jobVertexId,
-			KeyGroupRange keyGroupRange,
-			String registrationName,
-			InternalKvState<?, ?, ?> kvState) {
+		JobID jobId,
+		JobVertexID jobVertexId,
+		KeyGroupRange keyGroupRange,
+		String registrationName,
+		InternalKvState<?, ?, ?> kvState) {
 
 		KvStateID kvStateId = new KvStateID();
 
@@ -104,7 +104,7 @@ public class KvStateRegistry {
 			return kvStateId;
 		} else {
 			throw new IllegalStateException(
-					"State \"" + registrationName + " \"(id=" + kvStateId + ") appears registered although it should not.");
+				"State \"" + registrationName + " \"(id=" + kvStateId + ") appears registered although it should not.");
 		}
 	}
 

@@ -76,6 +76,7 @@ public class SingleLogicalSlotTest extends TestLogger {
 			new SlotRequestId(),
 			new DummySlotContext(),
 			null,
+			null,
 			Locality.LOCAL,
 			slotOwner);
 	}

@@ -23,9 +23,9 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>org.apache.flink</groupId>
+		<groupId>com.alibaba.blink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.5.1</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -39,25 +39,25 @@ under the License.
 		<!-- core dependencies -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-connector-twitter_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-connector-kafka-0.10_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -70,27 +70,27 @@ under the License.
 		<!-- test dependencies -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>
 
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-statebackend-rocksdb_${scala.binary.version}</artifactId>
-            <version>${project.version}</version>
-        </dependency>
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-statebackend-rocksdb_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 
-    </dependencies>
+	</dependencies>
 
 	<build>
 		<plugins>
@@ -120,7 +120,7 @@ under the License.
 							<artifactItems>
 								<!-- For WordCount example data -->
 								<artifactItem>
-									<groupId>org.apache.flink</groupId>
+									<groupId>com.alibaba.blink</groupId>
 									<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
@@ -130,7 +130,7 @@ under the License.
 								</artifactItem>
 								<!-- For JSON utilities -->
 								<artifactItem>
-									<groupId>org.apache.flink</groupId>
+									<groupId>com.alibaba.blink</groupId>
 									<artifactId>flink-connector-twitter_${scala.binary.version}</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
@@ -292,6 +292,28 @@ under the License.
 								<include>org/apache/flink/streaming/examples/wordcount/WordCount.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/WordCount$*.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/util/WordCountData.class</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<!-- TPCH query -->
+					<execution>
+						<id>TPCHQuery</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>TPCHQuery</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.streaming.examples.relational.TPCHQuery3</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>org/apache/flink/streaming/examples/relational/*.class</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -486,11 +508,123 @@ under the License.
 								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-WindowJoin.jar" tofile="${project.basedir}/target/WindowJoin.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-WordCount.jar" tofile="${project.basedir}/target/WordCount.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-SocketWindowWordCount.jar" tofile="${project.basedir}/target/SocketWindowWordCount.jar" />
+								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-TPCHQuery.jar" tofile="${project.basedir}/target/TPCHQuery.jar" />
 							</target>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
+
+
+			<!-- Use the shade plugin to build a fat jar for the kafka example -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+
+					<!-- State Machine Example -->
+					<execution>
+						<id>state-machine-example</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.statemachine.StateMachineExample</mainClass>
+								</transformer>
+							</transformers>
+							<finalName>StateMachineExample</finalName>
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<includes>
+										<include>org/apache/flink/streaming/examples/statemachine/**</include>
+										<include>org/apache/flink/streaming/util/serialization/**</include>
+										<include>org/apache/flink/streaming/connectors/kafka/**</include>
+										<include>org/apache/kafka/**</include>
+										<include>kafka/</include>
+									</includes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+
+					<execution>
+						<id>fat-jar-kafka-010-example</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.kafka.Kafka010Example</mainClass>
+								</transformer>
+							</transformers>
+							<finalName>Kafka010Example</finalName>
+							<!-- <outputFile>Kafka.jar</outputFile> -->
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<includes>
+										<include>org/apache/flink/streaming/examples/kafka/**</include>
+										<include>org/apache/flink/streaming/**</include>
+										<include>org/apache/kafka/**</include>
+										<include>org/apache/curator/**</include>
+										<include>org/apache/zookeeper/**</include>
+										<include>org/apache/jute/**</include>
+										<include>org/I0Itec/**</include>
+										<include>jline/**</include>
+										<include>com/yammer/**</include>
+										<include>kafka/**</include>
+									</includes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+
+					<execution>
+						<id>fat-jar-twitter-example</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.twitter.TwitterExample</mainClass>
+								</transformer>
+							</transformers>
+							<finalName>Twitter</finalName>
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<includes>
+										<include>org/apache/flink/twitter/shaded/com/google/common/**</include>
+										<include>org/apache/flink/streaming/examples/twitter/**</include>
+										<include>org/apache/flink/streaming/connectors/twitter/**</include>
+										<include>org/apache/http/**</include>
+										<include>com/twitter/**</include>
+										<include>build.properties</include>
+									</includes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
 		</plugins>
 		
 		<pluginManagement>

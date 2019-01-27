@@ -49,6 +49,7 @@ import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -126,7 +127,8 @@ public class Checkpoints {
 			Map<JobVertexID, ExecutionJobVertex> tasks,
 			CompletedCheckpointStorageLocation location,
 			ClassLoader classLoader,
-			boolean allowNonRestoredState) throws IOException {
+			boolean allowNonRestoredState,
+			boolean convertToSavepoint) throws IOException {
 
 		checkNotNull(jobId, "jobId");
 		checkNotNull(tasks, "tasks");
@@ -143,9 +145,12 @@ public class Checkpoints {
 			rawCheckpointMetadata = loadCheckpointMetadata(dis, classLoader);
 		}
 
-		final Savepoint checkpointMetadata = rawCheckpointMetadata.getTaskStates() == null ?
-				rawCheckpointMetadata :
-				SavepointV2.convertToOperatorStateSavepointV2(tasks, rawCheckpointMetadata);
+		final Savepoint checkpointMetadata;
+		if (rawCheckpointMetadata.getVersion() > SavepointV2.VERSION || rawCheckpointMetadata.getTaskStates() == null) {
+			checkpointMetadata = rawCheckpointMetadata;
+		} else {
+			checkpointMetadata = SavepointV2.convertToOperatorStateSavepointV2(tasks, rawCheckpointMetadata);
+		}
 
 		// generate mapping from operator to task
 		Map<OperatorID, ExecutionJobVertex> operatorToJobVertexMapping = new HashMap<>();
@@ -210,8 +215,9 @@ public class Checkpoints {
 			}
 		}
 
-		// (3) convert to checkpoint so the system can fall back to it
-		CheckpointProperties props = CheckpointProperties.forSavepoint();
+		// (3) if convertToSavepoint set as true, convert to checkpoint so the system can fall back to it
+		CheckpointProperties props = convertToSavepoint ?
+			CheckpointProperties.forSavepoint() : CheckpointProperties.forCheckpoint(RETAIN_ON_CANCELLATION);
 
 		return new CompletedCheckpoint(
 				jobId,

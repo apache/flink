@@ -23,9 +23,9 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>org.apache.flink</groupId>
+		<groupId>com.alibaba.blink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.5.1</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -49,6 +49,19 @@ under the License.
 					<forkCount>1</forkCount>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<!-- Disable inherited shade-flink because of a problem in the shade plugin -->
+						<!-- When enabled you'll run into an infinite loop creating the dependency-reduced-pom.xml -->
+						<!-- Seems similar to https://issues.apache.org/jira/browse/MSHADE-148 -->
+						<id>shade-flink</id>
+						<phase>none</phase>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 
@@ -57,7 +70,7 @@ under the License.
 		<!-- core dependencies -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -66,7 +79,7 @@ under the License.
 		<!-- flink-java dependencies -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -75,7 +88,7 @@ under the License.
 		<!-- flink-scala dependencies -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -84,7 +97,7 @@ under the License.
 		<!-- streaming-scala dependencies -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -93,7 +106,7 @@ under the License.
 		<!-- table dependencies -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-table_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -103,14 +116,14 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-shaded-hadoop2</artifactId>
-			<version>${project.version}-${hadoop.version}</version>
+			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -212,7 +225,7 @@ under the License.
 		<!-- test dependencies -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
@@ -225,16 +238,25 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-hadoop-compatibility_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
-					<groupId>org.apache.flink</groupId>
+					<groupId>com.alibaba.blink</groupId>
 					<artifactId>flink-shaded-include-yarn_${scala.binary.version}</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-table_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+			<optional>true</optional>
 		</dependency>
 
 		<!-- Test dependencies are only available for Hadoop-2. -->
@@ -242,7 +264,7 @@ under the License.
 			<groupId>org.apache.hbase</groupId>
 			<artifactId>hbase-server</artifactId>
 			<version>${hbase.version}</version>
-			<type>test-jar</type>
+			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
 
@@ -277,7 +299,7 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
@@ -287,11 +309,6 @@ under the License.
 	<profiles>
 		<profile>
 			<id>cdh5.1.3</id>
-			<activation>
-				<property>
-					<name>cdh5.1.3</name>
-				</property>
-			</activation>
 			<properties>
 				<hbase.version>0.98.1-cdh5.1.3</hbase.version>
 				<hadoop.version>2.3.0-cdh5.1.3</hadoop.version>
@@ -310,6 +327,49 @@ under the License.
 			</dependencyManagement>
 		</profile>
 
+		<!-- Create SQL Client uber jars by default -->
+		<profile>
+			<id>sql-jars</id>
+			<activation>
+				<property>
+					<name>!skipSqlJars</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-shade-plugin</artifactId>
+						<executions>
+							<execution>
+								<phase>package</phase>
+								<goals>
+									<goal>shade</goal>
+								</goals>
+								<configuration>
+									<shadedArtifactAttached>true</shadedArtifactAttached>
+									<shadedClassifierName>sql-jar</shadedClassifierName>
+									<filters>
+										<filter>
+											<artifact>*:*</artifact>
+											<!-- It is difficult to find out artifacts that are really required by ES. -->
+											<!-- We use hard filters for now to clean up the SQL JAR. -->
+											<excludes>
+												<exclude>META-INF/services/org.elasticsearch.**</exclude>
+											</excludes>
+										</filter>
+									</filters>
+									<!-- Relocate the table format factory service file. -->
+									<transformers>
+										<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+									</transformers>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
 	</profiles>
 
 </project>

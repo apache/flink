@@ -18,11 +18,15 @@
 
 package org.apache.flink.table.client.gateway.local;
 
+import org.apache.flink.table.client.catalog.CatalogType;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.entries.CatalogEntry;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -38,6 +42,40 @@ public class EnvironmentTest {
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
 	private static final String FACTORY_ENVIRONMENT_FILE = "test-sql-client-factory.yaml";
+	private static final String CATALOG_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
+
+	@Test
+	public void testParsingCatalog() throws IOException {
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+		final Environment env = EnvironmentFileUtil.parseModified(
+			CATALOG_ENVIRONMENT_FILE,
+			replaceVars);
+
+		assertEquals(new HashSet<>(Arrays.asList("myhive", "myinmemory")), env.getCatalogs().keySet());
+
+		CatalogEntry hive = env.getCatalogs().get("myhive");
+		assertEquals(
+			new HashMap<String, String>() {{
+				put(CatalogEntry.CATALOG_CONNECTOR_HIVE_METASTORE_URIS, "thrift://host1:10000,thrift://host2:10000");
+				put(CatalogEntry.CATALOG_CONNECTOR_HIVE_METASTORE_USERNAME, "flink");
+				put(CatalogEntry.CATALOG_TYPE, CatalogType.hive.name());
+				put(CatalogEntry.CATALOG_IS_DEFAULT, "true");
+				put(CatalogEntry.CATALOG_DEFAULT_DB, "mydb");
+			}},
+			hive.getProperties().asMap());
+
+		assertTrue(hive.isDefaultCatalog());
+		assertEquals("mydb", hive.getDefaultDatabase().get());
+
+		assertEquals(
+			new HashMap<String, String>() {{
+				put(CatalogEntry.CATALOG_TYPE, CatalogType.flink_in_memory.name());
+			}},
+			env.getCatalogs().get("myinmemory").getProperties().asMap());
+	}
 
 	@Test
 	public void testMerging() throws Exception {

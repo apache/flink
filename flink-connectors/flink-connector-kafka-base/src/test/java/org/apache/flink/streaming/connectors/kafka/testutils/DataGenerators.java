@@ -24,9 +24,11 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
@@ -37,6 +39,8 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartiti
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
+
+import org.apache.kafka.clients.producer.ProducerConfig;
 
 import java.util.Collection;
 import java.util.Properties;
@@ -105,6 +109,7 @@ public class DataGenerators {
 		if (secureProps != null) {
 			props.putAll(testServer.getSecureProperties());
 		}
+		props.setProperty(ProducerConfig.RETRIES_CONFIG, "10");
 
 		stream = stream.rebalance();
 		testServer.produceIntoKafka(stream, topic,
@@ -220,7 +225,27 @@ public class DataGenerators {
 		private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
 
 			@Override
-			public JobExecutionResult execute(String jobName) throws Exception {
+			protected JobExecutionResult executeInternal(String jobName, boolean detached, SavepointRestoreSettings savepointRestoreSettings) throws Exception {
+				return null;
+			}
+
+			@Override
+			public void cancel(String jobId) {
+
+			}
+
+			@Override
+			public String cancelWithSavepoint(String jobId, String path) {
+				return null;
+			}
+
+			@Override
+			public String triggerSavepoint(String jobId, String path) {
+				return null;
+			}
+
+			@Override
+			public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 				return null;
 			}
 		}

@@ -29,7 +29,7 @@ To use this connector, add the following dependency to your project:
 
 {% highlight xml %}
 <dependency>
-  <groupId>org.apache.flink</groupId>
+  <groupId>com.alibaba.blink</groupId>
   <artifactId>flink-connector-twitter{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
@@ -39,7 +39,7 @@ Note that the streaming connectors are currently not part of the binary distribu
 See linking with them for cluster execution [here]({{site.baseurl}}/dev/linking.html).
 
 #### Authentication
-In order to connect to the Twitter stream the user has to register their program and acquire the necessary information for the authentication. The process is described below.
+In order to connect to the Twitter stream, the user has to register their program and acquire the necessary information for the authentication. The process is described below.
 
 #### Acquiring the authentication information
 First of all, a Twitter account is needed. Sign up for free at [twitter.com/signup](https://twitter.com/signup)
@@ -52,7 +52,7 @@ Remember to keep these pieces of information secret and do not push them to publ
 
 
 #### Usage
-In contrast to other connectors, the `TwitterSource` depends on no additional services. For example the following code should run gracefully:
+In contrast to other connectors, the `TwitterSource` depends on no additional services. For example, the following code should run gracefully:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -79,7 +79,7 @@ val streamSource = env.addSource(new TwitterSource(props))
 
 The `TwitterSource` emits strings containing a JSON object, representing a Tweet.
 
-The `TwitterExample` class in the `flink-examples-streaming` package shows a full example how to use the `TwitterSource`.
+The `TwitterExample` class in the `flink-examples-streaming` package shows a full example of how to use the `TwitterSource`.
 
 By default, the `TwitterSource` uses the `StatusesSampleEndpoint`. This endpoint returns a random sample of Tweets.
 There is a `TwitterSource.EndpointInitializer` interface allowing users to provide a custom endpoint.

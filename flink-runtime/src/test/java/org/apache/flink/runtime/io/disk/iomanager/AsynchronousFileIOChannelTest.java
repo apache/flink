@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -341,7 +342,7 @@ public class AsynchronousFileIOChannelTest {
 			FileIOChannel.ID channelId = ioMan.createChannel();
 
 			BlockChannelWriterWithCallback<MemorySegment> writer = new AsynchronousBlockWriterWithCallback(channelId,
-					ioMan.getWriteRequestQueue(channelId), new NoOpCallback()) {
+					ioMan.getWriteRequestQueue(channelId), new NoOpCallback(), -1) {
 
 				private int numBlocks;
 

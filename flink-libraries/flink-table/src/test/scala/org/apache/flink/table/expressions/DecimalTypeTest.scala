@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.BigDecimalTypeInfo
 import org.apache.flink.types.Row
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
+import org.apache.flink.table.api.types.{DataTypes, DecimalType}
 import org.junit.Test
 
 class DecimalTypeTest extends ExpressionTestBase {
@@ -79,37 +80,37 @@ class DecimalTypeTest extends ExpressionTestBase {
       Double.MinValue.toString)
 
     testAllApis(
-      Double.MinValue.cast(Types.FLOAT),
+      Double.MinValue.cast(DataTypes.FLOAT),
       s"${Double.MinValue}.cast(FLOAT)",
       s"CAST(${Double.MinValue} AS FLOAT)",
       Float.NegativeInfinity.toString)
 
     testAllApis(
-      Byte.MinValue.cast(Types.BYTE),
+      Byte.MinValue.cast(DataTypes.BYTE),
       s"(${Byte.MinValue}).cast(BYTE)",
       s"CAST(${Byte.MinValue} AS TINYINT)",
       Byte.MinValue.toString)
 
     testAllApis(
-      Byte.MinValue.cast(Types.BYTE) - 1.cast(Types.BYTE),
+      Byte.MinValue.cast(DataTypes.BYTE) - 1.cast(DataTypes.BYTE),
       s"(${Byte.MinValue}).cast(BYTE) - (1).cast(BYTE)",
       s"CAST(${Byte.MinValue} AS TINYINT) - CAST(1 AS TINYINT)",
       Byte.MaxValue.toString)
 
     testAllApis(
-      Short.MinValue.cast(Types.SHORT),
+      Short.MinValue.cast(DataTypes.SHORT),
       s"(${Short.MinValue}).cast(SHORT)",
       s"CAST(${Short.MinValue} AS SMALLINT)",
       Short.MinValue.toString)
 
     testAllApis(
-      Int.MinValue.cast(Types.INT) - 1,
+      Int.MinValue.cast(DataTypes.INT) - 1,
       s"(${Int.MinValue}).cast(INT) - 1",
       s"CAST(${Int.MinValue} AS INT) - 1",
       Int.MaxValue.toString)
 
     testAllApis(
-      Long.MinValue.cast(Types.LONG),
+      Long.MinValue.cast(DataTypes.LONG),
       s"(${Long.MinValue}L).cast(LONG)",
       s"CAST(${Long.MinValue} AS BIGINT)",
       Long.MinValue.toString)
@@ -119,57 +120,67 @@ class DecimalTypeTest extends ExpressionTestBase {
   def testDecimalCasting(): Unit = {
     // from String
     testTableApi(
-      "123456789123456789123456789".cast(Types.DECIMAL),
+      "123456789123456789123456789".cast(DecimalType.of(38, 0)),
       "'123456789123456789123456789'.cast(DECIMAL)",
       "123456789123456789123456789")
 
     // from double
     testAllApis(
-      'f3.cast(Types.DECIMAL),
+      'f3.cast(DecimalType.of(38, 0)),
       "f3.cast(DECIMAL)",
       "CAST(f3 AS DECIMAL)",
-      "4.2")
+      "4")
+
+    testSqlApi(
+      "CAST(f3 AS DECIMAL(10,2))",
+      "4.20"
+    )
 
     // to double
     testAllApis(
-      'f0.cast(Types.DOUBLE),
+      'f0.cast(DataTypes.DOUBLE),
       "f0.cast(DOUBLE)",
       "CAST(f0 AS DOUBLE)",
       "1.2345678912345679E8")
 
     // to int
     testAllApis(
-      'f4.cast(Types.INT),
+      'f4.cast(DataTypes.INT),
       "f4.cast(INT)",
       "CAST(f4 AS INT)",
       "123456789")
 
     // to long
     testAllApis(
-      'f4.cast(Types.LONG),
+      'f4.cast(DataTypes.LONG),
       "f4.cast(LONG)",
       "CAST(f4 AS BIGINT)",
       "123456789")
 
     // to boolean (not SQL compliant)
     testTableApi(
-      'f1.cast(Types.BOOLEAN),
+      'f1.cast(DataTypes.BOOLEAN),
       "f1.cast(BOOLEAN)",
       "true")
 
     testTableApi(
-      'f5.cast(Types.BOOLEAN),
+      'f5.cast(DataTypes.BOOLEAN),
       "f5.cast(BOOLEAN)",
       "false")
 
     testTableApi(
-      BigDecimal("123456789.123456789123456789").cast(Types.DOUBLE),
+      BigDecimal("123456789.123456789123456789").cast(DataTypes.DOUBLE),
       "(123456789.123456789123456789p).cast(DOUBLE)",
       "1.2345678912345679E8")
   }
 
   @Test
   def testDecimalArithmetic(): Unit = {
+
+    // note: calcite type inference:
+    // Decimal+ExactNumeric => Decimal
+    // Decimal+Double => Double.
+
     // implicit cast to decimal
     testAllApis(
       'f1 + 12,
@@ -184,17 +195,16 @@ class DecimalTypeTest extends ExpressionTestBase {
       "12 + f1",
       "123456789123456789123456801")
 
-    // implicit cast to decimal
     testAllApis(
-      'f1 + 12.3,
+      'f1 + BigDecimal("12.3"),
+      "f1 + 12.3p",
       "f1 + 12.3",
-      "f1 + 12.3",
-      "123456789123456789123456801.3")
+      "123456789123456789123456801.3"
+    )
 
-    // implicit cast to decimal
     testAllApis(
-      Literal(12.3) + 'f1,
-      "12.3 + f1",
+      Literal(BigDecimal("12.3")) + 'f1,
+      "12.3p + f1",
       "12.3 + f1",
       "123456789123456789123456801.3")
 
@@ -210,17 +220,18 @@ class DecimalTypeTest extends ExpressionTestBase {
       "f1 - f1",
       "0")
 
-    testAllApis(
-      'f1 * 'f1,
-      "f1 * f1",
-      "f1 * f1",
-      "15241578780673678546105778281054720515622620750190521")
+    // exceeds max precision 38.
+//      'f1 * 'f1,
+//      "f1 * f1",
+//      "f1 * f1",
+//      "15241578780673678546105778281054720515622620750190521")
 
     testAllApis(
       'f1 / 'f1,
       "f1 / f1",
       "f1 / f1",
-      "1")
+      "1.00000000")
+    // Decimal(30,0) / Decimal(30, 0) => Decimal(61,31) => Decimal(38,8)
 
     testAllApis(
       'f1 % 'f1,
@@ -233,13 +244,6 @@ class DecimalTypeTest extends ExpressionTestBase {
       "-f0",
       "-f0",
       "-123456789.123456789123456789")
-
-    testAllApis(
-      BigDecimal("1").toExpr / BigDecimal("3"),
-      "1p / 3p",
-      "CAST('1' AS DECIMAL) / CAST('3' AS DECIMAL)",
-      "0.3333333333333333333333333333333333"
-    )
   }
 
   @Test
@@ -271,13 +275,13 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f1 === BigDecimal("123456789123456789123456789"),
       "f1 === 123456789123456789123456789p",
-      "f1 = CAST('123456789123456789123456789' AS DECIMAL)",
+      "f1 = CAST('123456789123456789123456789' AS DECIMAL(30, 0))",
       "true")
 
     testAllApis(
       'f1 !== BigDecimal("123456789123456789123456789"),
       "f1 !== 123456789123456789123456789p",
-      "f1 <> CAST('123456789123456789123456789' AS DECIMAL)",
+      "f1 <> CAST('123456789123456789123456789' AS DECIMAL(30, 0))",
       "false")
 
     testAllApis(
@@ -294,7 +298,7 @@ class DecimalTypeTest extends ExpressionTestBase {
 
   // ----------------------------------------------------------------------------------------------
 
-  def testData: Row = {
+  override def rowTestData: Row = {
     val testData = new Row(6)
     testData.setField(0, BigDecimal("123456789.123456789123456789").bigDecimal)
     testData.setField(1, BigDecimal("123456789123456789123456789").bigDecimal)
@@ -305,14 +309,13 @@ class DecimalTypeTest extends ExpressionTestBase {
     testData
   }
 
-  def typeInfo: TypeInformation[Any] = {
+  override def rowType: RowTypeInfo = {
     new RowTypeInfo(
-      Types.DECIMAL,
-      Types.DECIMAL,
+      BigDecimalTypeInfo.of(30, 18),
+      BigDecimalTypeInfo.of(30, 0),
       Types.INT,
       Types.DOUBLE,
-      Types.DECIMAL,
-      Types.DECIMAL).asInstanceOf[TypeInformation[Any]]
+      BigDecimalTypeInfo.of(10, 0),
+      BigDecimalTypeInfo.of(10, 3))
   }
-
 }

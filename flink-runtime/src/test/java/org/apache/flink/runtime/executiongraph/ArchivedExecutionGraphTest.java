@@ -99,7 +99,7 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 		config.enableObjectReuse();
 		config.setGlobalJobParameters(new TestJobParameters());
 
-		runtimeGraph = new ExecutionGraph(
+		runtimeGraph = ExecutionGraphTestUtils.createExecutionGraphDirectly(
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			new JobID(),
@@ -108,9 +108,8 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 			new SerializedValue<>(config),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			mock(SlotProvider.class));
-
-		runtimeGraph.attachJobGraph(vertices);
+			mock(SlotProvider.class),
+			vertices);
 
 		List<ExecutionJobVertex> jobVertices = new ArrayList<>();
 		jobVertices.add(runtimeGraph.getJobVertex(v1ID));

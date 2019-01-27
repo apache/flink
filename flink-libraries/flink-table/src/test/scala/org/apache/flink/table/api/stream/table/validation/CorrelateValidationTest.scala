@@ -17,13 +17,11 @@
  */
 package org.apache.flink.table.api.stream.table.validation
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils._
-import org.apache.flink.table.runtime.stream.table.TestAppendSink
-import org.apache.flink.table.utils.{ObjectTableFunction, TableFunc1, TableFunc2, TableTestBase}
+import org.apache.flink.table.util.{ObjectTableFunction, TableFunc1, TableFunc2, TableTestBase}
 import org.junit.Assert.{assertTrue, fail}
 import org.junit.Test
 
@@ -49,9 +47,6 @@ class CorrelateValidationTest extends TableTestBase {
 
     val func1 = new TableFunc1
     util.javaTableEnv.registerFunction("func1", func1)
-    util.javaTableEnv.registerTableSink(
-      "testSink", new TestAppendSink().configure(
-        Array[String]("f"), Array[TypeInformation[_]](Types.INT)))
 
     // table function call select
     expectExceptionThrown(
@@ -65,10 +60,10 @@ class CorrelateValidationTest extends TableTestBase {
       "TableFunction can only be used in join and leftOuterJoin."
     )
 
-    // table function call insertInto
+    // table function call writeToSink
     expectExceptionThrown(
-      func1('c).insertInto("testSink"),
-      "TableFunction can only be used in join and leftOuterJoin."
+      func1('c).writeToSink(null),
+      "Cannot translate a query with an unbounded table function call."
     )
 
     // table function call distinct
@@ -97,7 +92,7 @@ class CorrelateValidationTest extends TableTestBase {
 
     // table function call limit
     expectExceptionThrown(
-      func1('c).orderBy('f0).fetch(3),
+      func1('c).orderBy('f0).offset(0).fetch(3),
       "TableFunction can only be used in join and leftOuterJoin."
     )
 
@@ -173,11 +168,12 @@ class CorrelateValidationTest extends TableTestBase {
     util.addFunction("func2", new TableFunc2)
     expectExceptionThrown(
       t.join(new Table(util.tableEnv, "func2(c, c)")),
-      "Given parameters of function 'FUNC2' do not match any signature")
+      s"Given parameters of function '${classOf[TableFunc2].getCanonicalName}' " +
+          s"do not match any signature")
     // SQL API call
     expectExceptionThrown(
       util.tableEnv.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(func2(c, c))"),
-      "Given parameters of function 'func2' do not match any signature.")
+      "Given parameters of function 'func2' do not match any signature")
   }
 
   /**
@@ -189,11 +185,12 @@ class CorrelateValidationTest extends TableTestBase {
   def testLeftOuterJoinWithPredicates(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-    val function = util.addFunction("func1", new TableFunc1)
+    val function = new TableFunc1
+    util.addFunction("func1", function)
 
     val result = table.leftOuterJoin(function('c) as 's, 'c === 's).select('c, 's).where('a > 10)
 
-    util.verifyTable(result, "")
+    util.verifyPlan(result)
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -209,11 +206,13 @@ class CorrelateValidationTest extends TableTestBase {
     } catch {
       case e if e.getClass == clazz =>
         if (keywords != null) {
+          val error = e.getMessage
           assertTrue(
-            s"The exception message '${e.getMessage}' doesn't contain keyword '$keywords'",
-            e.getMessage.contains(keywords))
+            s"The exception message '${error}' doesn't contain keyword '$keywords'",
+            error.contains(keywords))
         }
       case e: Throwable => fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
     }
   }
+
 }

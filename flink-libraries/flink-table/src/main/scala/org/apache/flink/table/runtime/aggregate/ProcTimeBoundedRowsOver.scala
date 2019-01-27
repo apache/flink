@@ -17,178 +17,189 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import java.util
-import java.util.{List => JList}
-
-import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueState, ValueStateDescriptor}
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.{ListTypeInfo, RowTypeInfo}
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.api.StreamQueryConfig
-import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
-import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
-import org.apache.flink.table.util.Logging
-import org.apache.flink.types.Row
+import java.util.{ArrayList => JArrayList, List => JList}
+import java.lang.{Long => JLong}
+import org.apache.flink.api.common.state.{MapStateDescriptor, ValueStateDescriptor}
+import org.apache.flink.api.java.typeutils.ListTypeInfo
+import org.apache.flink.runtime.state.keyed.{KeyedMapState, KeyedValueState}
+import org.apache.flink.table.api.types.{DataTypes, InternalType, TypeConverters}
+import org.apache.flink.table.api.{TableConfig, Types}
+import org.apache.flink.table.codegen.GeneratedAggsHandleFunction
+import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
+import org.apache.flink.table.runtime.functions.ProcessFunction.{Context, OnTimerContext}
+import org.apache.flink.table.runtime.functions.{AggsHandleFunction, ExecutionContext}
+import org.apache.flink.table.typeutils.{BaseRowTypeInfo, TypeUtils}
+import org.apache.flink.table.util.{Logging, StateUtil}
 import org.apache.flink.util.{Collector, Preconditions}
 
 /**
   * Process Function for ROW clause processing-time bounded OVER window
   *
-  * @param genAggregations      Generated aggregate helper function
-  * @param precedingOffset      preceding offset
-  * @param aggregatesTypeInfo   row type info of aggregation
-  * @param inputType            row type info of input row
+  * @param genAggsHandler     Generated aggregate helper function
+  * @param accTypes           accumulator types of aggregation
+  * @param inputFieldTypes    input field type infos of input row
+  * @param precedingOffset    preceding offset
   */
 class ProcTimeBoundedRowsOver(
-    genAggregations: GeneratedAggregationsFunction,
+    genAggsHandler: GeneratedAggsHandleFunction,
+    accTypes: Seq[InternalType],
+    inputFieldTypes: Seq[InternalType],
     precedingOffset: Long,
-    aggregatesTypeInfo: RowTypeInfo,
-    inputType: TypeInformation[CRow],
-    queryConfig: StreamQueryConfig)
-  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
-    with Compiler[GeneratedAggregations]
-    with Logging {
+    tableConfig: TableConfig)
+  extends ProcessFunctionWithCleanupState[BaseRow, BaseRow](tableConfig)
+  with Logging {
 
   Preconditions.checkArgument(precedingOffset > 0)
 
-  private var accumulatorState: ValueState[Row] = _
-  private var rowMapState: MapState[Long, JList[Row]] = _
-  private var output: CRow = _
-  private var counterState: ValueState[Long] = _
-  private var smallestTsState: ValueState[Long] = _
+  private var function: AggsHandleFunction = _
 
-  private var function: GeneratedAggregations = _
+  private var accState: KeyedValueState[BaseRow, BaseRow] = _
+  private var inputState: KeyedMapState[BaseRow, JLong, JList[BaseRow]] = _
+  private var counterState: KeyedValueState[BaseRow, JLong] = _
+  private var smallestTsState: KeyedValueState[BaseRow, JLong] = _
 
-  override def open(config: Configuration) {
-    LOG.debug(s"Compiling AggregateHelper: ${genAggregations.name} \n\n" +
-                s"Code:\n${genAggregations.code}")
-    val clazz = compile(
-      getRuntimeContext.getUserCodeClassLoader,
-      genAggregations.name,
-      genAggregations.code)
-    LOG.debug("Instantiating AggregateHelper.")
-    function = clazz.newInstance()
-    function.open(getRuntimeContext)
+  private var output: JoinedRow = _
 
-    output = new CRow(function.createOutputRow(), true)
+  override def open(ctx: ExecutionContext) {
+    super.open(ctx)
+    LOG.debug(s"Compiling AggregateHelper: ${genAggsHandler.name} \n\n" +
+      s"Code:\n${genAggsHandler.code}")
+    function = genAggsHandler.newInstance(ctx.getRuntimeContext.getUserCodeClassLoader)
+    function.open(ctx)
+
+    output = new JoinedRow()
+
+    // input element are all binary row as they are came from network
+    val inputType = new BaseRowTypeInfo(
+      inputFieldTypes.map(TypeConverters.createExternalTypeInfoFromDataType): _*)
+      .asInstanceOf[BaseRowTypeInfo]
     // We keep the elements received in a Map state keyed
     // by the ingestion time in the operator.
     // we also keep counter of processed elements
     // and timestamp of oldest element
-    val rowListTypeInfo: TypeInformation[JList[Row]] =
-      new ListTypeInfo[Row](inputType.asInstanceOf[CRowTypeInfo].rowType)
-        .asInstanceOf[TypeInformation[JList[Row]]]
+    val rowListTypeInfo = new ListTypeInfo[BaseRow](inputType)
 
-    val mapStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
-      new MapStateDescriptor[Long, JList[Row]]("windowBufferMapState",
-        BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]], rowListTypeInfo)
-    rowMapState = getRuntimeContext.getMapState(mapStateDescriptor)
+    val mapStateDescriptor: MapStateDescriptor[JLong, JList[BaseRow]] =
+      new MapStateDescriptor[JLong, JList[BaseRow]](
+        "inputState",
+        Types.LONG,
+        rowListTypeInfo)
+    inputState = ctx.getKeyedMapState(mapStateDescriptor)
 
-    val aggregationStateDescriptor: ValueStateDescriptor[Row] =
-      new ValueStateDescriptor[Row]("aggregationState", aggregatesTypeInfo)
-    accumulatorState = getRuntimeContext.getState(aggregationStateDescriptor)
+    val accTypeInfo = new BaseRowTypeInfo(
+      accTypes.map(TypeConverters.createExternalTypeInfoFromDataType): _*)
+    val accStateDesc = new ValueStateDescriptor[BaseRow]("accState", accTypeInfo)
+    accState = ctx.getKeyedValueState(accStateDesc)
 
-    val processedCountDescriptor : ValueStateDescriptor[Long] =
-       new ValueStateDescriptor[Long]("processedCountState", classOf[Long])
-    counterState = getRuntimeContext.getState(processedCountDescriptor)
+    val processedCountDescriptor = new ValueStateDescriptor[JLong](
+      "processedCountState",
+      Types.LONG)
+    counterState = ctx.getKeyedValueState(processedCountDescriptor)
 
-    val smallestTimestampDescriptor : ValueStateDescriptor[Long] =
-       new ValueStateDescriptor[Long]("smallestTSState", classOf[Long])
-    smallestTsState = getRuntimeContext.getState(smallestTimestampDescriptor)
+    val smallestTimestampDescriptor = new ValueStateDescriptor[JLong](
+      "smallestTSState",
+      Types.LONG)
+    smallestTsState = ctx.getKeyedValueState(smallestTimestampDescriptor)
 
     initCleanupTimeState("ProcTimeBoundedRowsOverCleanupTime")
   }
 
   override def processElement(
-    inputC: CRow,
-    ctx: ProcessFunction[CRow, CRow]#Context,
-    out: Collector[CRow]): Unit = {
+    input: BaseRow,
+    ctx: Context,
+    out: Collector[BaseRow]): Unit = {
 
-    val input = inputC.row
-
+    val currentKey = executionContext.currentKey()
     val currentTime = ctx.timerService.currentProcessingTime
 
     // register state-cleanup timer
-    processCleanupTimer(ctx, currentTime)
+    registerProcessingCleanupTimer(ctx, currentTime)
 
     // initialize state for the processed element
-    var accumulators = accumulatorState.value
+    var accumulators = accState.get(currentKey)
     if (accumulators == null) {
       accumulators = function.createAccumulators()
     }
+    // set accumulators in context first
+    function.setAccumulators(accumulators)
 
     // get smallest timestamp
-    var smallestTs = smallestTsState.value
-    if (smallestTs == 0L) {
+    var smallestTs = smallestTsState.get(currentKey)
+    if (smallestTs == null) {
       smallestTs = currentTime
-      smallestTsState.update(smallestTs)
+      smallestTsState.put(currentKey, smallestTs)
     }
     // get previous counter value
-    var counter = counterState.value
+    var counter = counterState.get(currentKey)
+    if (counter == null) {
+      counter = 0L
+    }
 
     if (counter == precedingOffset) {
-      val retractList = rowMapState.get(smallestTs)
-
-      // get oldest element beyond buffer size
-      // and if oldest element exist, retract value
-      val retractRow = retractList.get(0)
-      function.retract(accumulators, retractRow)
-      retractList.remove(0)
-
+      val retractList = inputState.get(currentKey, smallestTs)
+      if (retractList != null) {
+        // get oldest element beyond buffer size
+        // and if oldest element exist, retract value
+        val retractRow = retractList.get(0)
+        function.retract(retractRow)
+        retractList.remove(0)
+      } else {
+        // Does not retract values which are outside of window if the state is cleared already.
+        LOG.warn(StateUtil.STATE_CLEARED_WARN_MSG)
+      }
       // if reference timestamp list not empty, keep the list
-      if (!retractList.isEmpty) {
-        rowMapState.put(smallestTs, retractList)
+      if (retractList != null && !retractList.isEmpty) {
+        inputState.add(currentKey, smallestTs, retractList)
       } // if smallest timestamp list is empty, remove and find new smallest
       else {
-        rowMapState.remove(smallestTs)
-        val iter = rowMapState.keys.iterator
+        inputState.remove(currentKey, smallestTs)
+        val iter = inputState.iterator(currentKey)
         var currentTs: Long = 0L
         var newSmallestTs: Long = Long.MaxValue
         while (iter.hasNext) {
-          currentTs = iter.next
+          currentTs = iter.next.getKey
           if (currentTs < newSmallestTs) {
             newSmallestTs = currentTs
           }
         }
-        smallestTsState.update(newSmallestTs)
+        smallestTsState.put(currentKey, newSmallestTs)
       }
     } // we update the counter only while buffer is getting filled
     else {
       counter += 1
-      counterState.update(counter)
+      counterState.put(currentKey, counter)
     }
 
-    // copy forwarded fields in output row
-    function.setForwardedFields(input, output.row)
-
-    // accumulate current row and set aggregate in output row
-    function.accumulate(accumulators, input)
-    function.setAggregationResults(accumulators, output.row)
-
-    // update map state, accumulator state, counter and timestamp
-    val currentTimeState = rowMapState.get(currentTime)
+    // update map state, counter and timestamp
+    val currentTimeState = inputState.get(currentKey, currentTime)
     if (currentTimeState != null) {
       currentTimeState.add(input)
-      rowMapState.put(currentTime, currentTimeState)
+      inputState.add(currentKey, currentTime, currentTimeState)
     } else { // add new input
-      val newList = new util.ArrayList[Row]
+      val newList = new JArrayList[BaseRow]
       newList.add(input)
-      rowMapState.put(currentTime, newList)
+      inputState.add(currentKey, currentTime, newList)
     }
 
-    accumulatorState.update(accumulators)
+    // accumulate current row
+    function.accumulate(input)
+    // update the value of accumulators for future incremental computation
+    accumulators = function.getAccumulators
+    accState.put(currentKey, accumulators)
 
+    // prepare output row
+    val aggValue = function.getValue
+    output.replace(input, aggValue)
     out.collect(output)
   }
 
   override def onTimer(
     timestamp: Long,
-    ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
-    out: Collector[CRow]): Unit = {
+    ctx: OnTimerContext,
+    out: Collector[BaseRow]): Unit = {
 
-    if (stateCleaningEnabled) {
-      cleanupState(rowMapState, accumulatorState, counterState, smallestTsState)
+    if (needToCleanupState(timestamp)) {
+      cleanupState(inputState, accState, counterState, smallestTsState)
       function.cleanup()
     }
   }

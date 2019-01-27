@@ -23,15 +23,14 @@ import java.util.Random
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.common.typeutils.{CompositeType, TypeSerializerFactory}
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory
 import org.apache.flink.api.scala._
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync
 import org.apache.flink.runtime.memory.MemoryManager
-import org.apache.flink.runtime.operators.sort.UnilateralSortMerger
+import org.apache.flink.runtime.operators.sort._
 import org.apache.flink.runtime.operators.testutils.DummyInvokable
 import org.apache.flink.util.{MutableObjectIterator, TestLogger}
-
 import org.junit.Assert._
 
 /**
@@ -92,11 +91,24 @@ class MassiveCaseClassSortingITCase extends TestLogger {
         
         val mm = new MemoryManager(1024 * 1024, 1)
         val ioMan = new IOManagerAsync()
-        
-        sorter = new UnilateralSortMerger[StringTuple](mm, ioMan, inputIterator,
+
+        val serializerFactory = new RuntimeSerializerFactory[StringTuple](serializer,
+          classOf[StringTuple])
+        val sortedDataFileFactory = new BlockSortedDataFileFactory[StringTuple](
+          ioMan.createChannelEnumerator,
+          serializerFactory.getSerializer,
+          ioMan)
+        val merger = new RecordComparisonMerger[StringTuple](sortedDataFileFactory, ioMan,
+          serializerFactory.getSerializer, comparator.duplicate, 4, false)
+        sorter = new UnilateralSortMerger[StringTuple](
+              sortedDataFileFactory,
+              merger,
+              mm,
+              ioMan,
+              inputIterator,
               new DummyInvokable(),
-              new RuntimeSerializerFactory[StringTuple](serializer, classOf[StringTuple]),
-              comparator, 1.0, 4, 0.8f, true /*use large record handler*/, false)
+              serializerFactory,
+              comparator, 1.0, 4, true, 0.8f, true /*use large record handler*/, false)
             
         val sortedData = sorter.getIterator
         reader.close()

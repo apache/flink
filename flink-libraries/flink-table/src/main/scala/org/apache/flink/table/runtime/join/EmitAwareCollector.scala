@@ -18,37 +18,47 @@
 
 package org.apache.flink.table.runtime.join
 
-import org.apache.flink.table.runtime.types.CRow
-import org.apache.flink.types.Row
+import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.util.Collector
 
 /**
-  * Collector to wrap a Row into a [[CRow]] and to track whether a row has been emitted by the inner
-  * collector.
-  */
-class EmitAwareCollector extends Collector[Row]{
+  * Collector to wrap a Row into a [[org.apache.flink.table.dataformat.BaseRow]]
+  * and to track whether a row has been emitted by
+  * the inner collector
+  **/
+class EmitAwareCollector extends Collector[BaseRow] {
 
   var emitted = false
-  var innerCollector: Collector[CRow] = _
-  private val cRow: CRow = new CRow()
+  var innerCollector: Collector[BaseRow] = _
 
-  /** Sets the change value of the CRow. **/
-  def setCRowChange(change: Boolean): Unit = {
-   cRow.change = change
-  }
-
-  /** Resets the emitted flag. **/
   def reset(): Unit = {
     emitted = false
   }
 
-  override def collect(record: Row): Unit = {
+  /**
+    * Emits a record.
+    *
+    * @param record The record to collect.
+    */
+  override def collect(record: BaseRow): Unit = {
     emitted = true
-    cRow.row = record
-    innerCollector.collect(cRow)
+    innerCollector.collect(record)
   }
 
+  /**
+    * Closes the collector. If any data was buffered, that data will be flushed.
+    */
   override def close(): Unit = {
     innerCollector.close()
+  }
+}
+
+object EmitAwareCollector {
+
+  val JOINED = 1.asInstanceOf[Byte]
+  val NONJOINED = 0.asInstanceOf[Byte]
+
+  def isJoined(baseRow: BaseRow): Boolean = {
+    baseRow.getHeader == JOINED
   }
 }

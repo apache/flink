@@ -26,19 +26,48 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class AsynchronousBufferFileReader extends AsynchronousFileIOChannel<Buffer, ReadRequest> implements BufferFileReader {
 
 	private final AtomicBoolean hasReachedEndOfFile = new AtomicBoolean();
+	private final int bufferSize;
+	private final boolean withHeader;
+	private long currentPosition; // Used only when withHeader == false.
 
-	protected AsynchronousBufferFileReader(ID channelID, RequestQueue<ReadRequest> requestQueue, RequestDoneCallback<Buffer> callback) throws IOException {
+	protected AsynchronousBufferFileReader(ID channelID, RequestQueue<ReadRequest> requestQueue,
+			RequestDoneCallback<Buffer> callback, int bufferSize) throws IOException {
+		this(channelID, requestQueue, callback, bufferSize, true);
+	}
+
+	protected AsynchronousBufferFileReader(ID channelID, RequestQueue<ReadRequest> requestQueue,
+			RequestDoneCallback<Buffer> callback, int bufferSize, boolean withHeader) throws IOException {
 		super(channelID, requestQueue, callback, false);
+		this.bufferSize = bufferSize;
+		this.withHeader = withHeader;
 	}
 
 	@Override
 	public void readInto(Buffer buffer) throws IOException {
-		addRequest(new BufferReadRequest(this, buffer, hasReachedEndOfFile));
+		if (withHeader) {
+			// If write buffers with their headers, we don't know the real buffer size until the headers have been
+			// fetched from the disk, as a result, we cannot update currentPosition.
+			addRequest(new BufferReadRequest(this, buffer, hasReachedEndOfFile, bufferSize));
+		} else {
+			throw new IllegalArgumentException("Method readInto(Buffer buffer) only support withHeader mode.");
+		}
+	}
+
+	@Override
+	public void readInto(Buffer buffer, long length) throws IOException {
+		if (!withHeader) {
+			addRequest(new StreamReadRequest(
+				this, buffer, hasReachedEndOfFile, currentPosition, length, bufferSize));
+			currentPosition += length;
+		} else {
+			throw new IllegalArgumentException("Method readInto(Buffer buffer, long length) only support withoutHeader mode.");
+		}
 	}
 
 	@Override
 	public void seekToPosition(long position) throws IOException {
-		requestQueue.add(new SeekRequest(this, position));
+		currentPosition = position;
+		requestQueue.add(new SeekRequest(this, position, bufferSize));
 	}
 
 	@Override

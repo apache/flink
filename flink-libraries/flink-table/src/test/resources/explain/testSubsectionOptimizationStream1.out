@@ -1,0 +1,85 @@
+== Abstract Syntax Tree ==
+LogicalProject(id1=[$2], num=[$3], text1=[$1])
++- LogicalJoin(condition=[=($2, $0)], joinType=[inner])
+   :- LogicalProject(id3=[AS($0, 'id3')], text1=[AS($2, 'text1')])
+   :  +- LogicalFilter(condition=[<($1, 5)])
+   :     +- LogicalProject(id=[$0], num=[$1], text=[$2])
+   :        +- LogicalFilter(condition=[>=($0, 0)])
+   :           +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+   +- LogicalProject(id1=[$0], num=[$1], text2=[AS($3, 'text2')])
+      +- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+         :- LogicalProject(id1=[AS($0, 'id1')], num=[$1])
+         :  +- LogicalFilter(condition=[<=($0, 10)])
+         :     +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+         +- LogicalProject(id2=[AS($0, 'id2')], text=[$2])
+            +- LogicalFilter(condition=[>=($1, 5)])
+               +- LogicalProject(id=[$0], num=[$1], text=[$2])
+                  +- LogicalFilter(condition=[>=($0, 0)])
+                     +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+
+== Optimized Logical Plan ==
+StreamExecSink(fields=[id1, num, text1], retract=[false], accMode=[Acc])
++- StreamExecCalc(select=[id1, num, text1], retract=[false], accMode=[Acc])
+   +- StreamExecJoin(where=[=(id1, id3)], join=[id3, text1, id1, num], joinType=[InnerJoin], retract=[false], accMode=[Acc])
+      :- StreamExecExchange(distribution=[hash[id3]], retract=[true], accMode=[Acc])
+      :  +- StreamExecCalc(select=[id AS id3, text AS text1], where=[<(num, 5)], retract=[true], accMode=[Acc])
+      :     +- StreamExecCalc(select=[id, num, text], where=[>=(id, 0)], retract=[true], accMode=[Acc], reuse_id=[1])
+      :        +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]], retract=[true], accMode=[Acc])
+      +- StreamExecExchange(distribution=[hash[id1]], retract=[true], accMode=[Acc])
+         +- StreamExecCalc(select=[id1, num], retract=[true], accMode=[Acc])
+            +- StreamExecJoin(where=[=(id1, id2)], join=[id1, num, id2], joinType=[InnerJoin], retract=[true], accMode=[Acc])
+               :- StreamExecExchange(distribution=[hash[id1]], retract=[true], accMode=[Acc])
+               :  +- StreamExecCalc(select=[id AS id1, num], where=[<=(id, 10)], retract=[true], accMode=[Acc])
+               :     +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]], retract=[true], accMode=[Acc])
+               +- StreamExecExchange(distribution=[hash[id2]], retract=[true], accMode=[Acc])
+                  +- StreamExecCalc(select=[id AS id2], where=[>=(num, 5)], retract=[true], accMode=[Acc])
+                     +- Reused(reference_id=[1])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:[builtin, default, _DataStreamTable_0], fields:(id, num, text))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(where: (id >= 0), select: (id, num, text))
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : Calc(where: (num < 5), select: (id AS id3, text AS text1))
+				ship_strategy : FORWARD
+
+				 : Operator
+					content : SourceConversion(table:[builtin, default, _DataStreamTable_0], fields:(id, num, text))
+					ship_strategy : FORWARD
+
+					 : Operator
+						content : Calc(where: (id <= 10), select: (id AS id1, num))
+						ship_strategy : FORWARD
+
+						 : Operator
+							content : Calc(where: (num >= 5), select: (id AS id2))
+							ship_strategy : FORWARD
+
+							 : Operator
+								content : InnerJoin(where: (=(id1, id2)), join: (id1, num, id2))
+								ship_strategy : HASH
+
+								 : Operator
+									content : Calc(select: (id1, num))
+									ship_strategy : FORWARD
+
+									 : Operator
+										content : InnerJoin(where: (=(id1, id3)), join: (id3, text1, id1, num))
+										ship_strategy : HASH
+
+										 : Operator
+											content : Calc(select: (id1, num, text1))
+											ship_strategy : FORWARD
+
+											 : Data Sink
+												content : Sink: TestingUpsertTableSink(keys=())
+												ship_strategy : REBALANCE
+

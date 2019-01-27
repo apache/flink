@@ -39,6 +39,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.instance.TaskManagerResourceDescription;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -46,12 +47,12 @@ import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
+import org.apache.flink.runtime.resourcemanager.placementconstraint.PlacementConstraint;
 import org.apache.flink.runtime.resourcemanager.registration.JobManagerRegistration;
 import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceActions;
@@ -61,10 +62,11 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.taskexecutor.FileType;
+import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
+import org.apache.flink.runtime.util.FileOffsetRange;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -72,17 +74,15 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -104,6 +104,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	/** Unique id of the resource manager. */
 	private final ResourceID resourceId;
+
+	/** Configuration of the resource manager. */
+	private final ResourceManagerConfiguration resourceManagerConfiguration;
 
 	/** All currently registered JobMasterGateways scoped by JobID. */
 	private final Map<JobID, JobManagerRegistration> jobManagerRegistrations;
@@ -137,45 +140,35 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	private final ClusterInformation clusterInformation;
 
-	private final JobManagerMetricGroup jobManagerMetricGroup;
-
 	/** The service to elect a ResourceManager leader. */
 	private LeaderElectionService leaderElectionService;
 
 	/** All registered listeners for status updates of the ResourceManager. */
 	private ConcurrentMap<String, InfoMessageListenerRpcGateway> infoMessageListeners;
 
-	/**
-	 * Represents asynchronous state clearing work.
-	 *
-	 * @see #clearStateAsync()
-	 * @see #clearStateInternal()
-	 */
-	private CompletableFuture<Void> clearStateFuture = CompletableFuture.completedFuture(null);
-
 	public ResourceManager(
 			RpcService rpcService,
 			String resourceManagerEndpointId,
 			ResourceID resourceId,
+			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			SlotManager slotManager,
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
 			ClusterInformation clusterInformation,
-			FatalErrorHandler fatalErrorHandler,
-			JobManagerMetricGroup jobManagerMetricGroup) {
+			FatalErrorHandler fatalErrorHandler) {
 
 		super(rpcService, resourceManagerEndpointId);
 
 		this.resourceId = checkNotNull(resourceId);
+		this.resourceManagerConfiguration = checkNotNull(resourceManagerConfiguration);
 		this.highAvailabilityServices = checkNotNull(highAvailabilityServices);
 		this.slotManager = checkNotNull(slotManager);
 		this.metricRegistry = checkNotNull(metricRegistry);
 		this.jobLeaderIdService = checkNotNull(jobLeaderIdService);
 		this.clusterInformation = checkNotNull(clusterInformation);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
-		this.jobManagerMetricGroup = checkNotNull(jobManagerMetricGroup);
 
 		this.taskManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
 			resourceId,
@@ -208,8 +201,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		leaderElectionService = highAvailabilityServices.getResourceManagerLeaderElectionService();
 
-		initialize();
-
 		try {
 			leaderElectionService.start(this);
 		} catch (Exception e) {
@@ -222,7 +213,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			throw new ResourceManagerException("Could not start the job leader id service.", e);
 		}
 
-		registerSlotAndTaskExecutorMetrics();
+		initialize();
 	}
 
 	@Override
@@ -251,7 +242,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
-		clearStateInternal();
+		clearState();
 
 		if (exception != null) {
 			return FutureUtils.completedExceptionally(
@@ -406,6 +397,15 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	@Override
+	public CompletableFuture<Acknowledge> setPlacementConstraints(
+		JobID jobId,
+		List<PlacementConstraint> constraints,
+		@RpcTimeout Time timeout) {
+		slotManager.setJobConstraints(jobId, constraints);
+		return CompletableFuture.completedFuture(Acknowledge.get());
+	}
+
+	@Override
 	public CompletableFuture<Acknowledge> requestSlot(
 			JobMasterId jobMasterId,
 			SlotRequest slotRequest,
@@ -548,7 +548,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 					taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
 					slotManager.getNumberRegisteredSlotsOf(taskExecutor.getInstanceID()),
 					slotManager.getNumberFreeSlotsOf(taskExecutor.getInstanceID()),
-					taskExecutor.getHardwareDescription()));
+					taskExecutor.getHardwareDescription(),
+					TaskManagerResourceDescription.fromResourceProfile(slotManager.getTotalResourceOf(resourceId)),
+					TaskManagerResourceDescription.fromResourceProfile(slotManager.getAvailableResourceOf(resourceId))));
 		}
 
 		return CompletableFuture.completedFuture(taskManagerInfos);
@@ -570,7 +572,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
 				slotManager.getNumberRegisteredSlotsOf(instanceId),
 				slotManager.getNumberFreeSlotsOf(instanceId),
-				taskExecutor.getHardwareDescription());
+				taskExecutor.getHardwareDescription(),
+				TaskManagerResourceDescription.fromResourceProfile(slotManager.getTotalResourceOf(resourceId)),
+				TaskManagerResourceDescription.fromResourceProfile(slotManager.getAvailableResourceOf(resourceId)));
 
 			return CompletableFuture.completedFuture(taskManagerInfo);
 		}
@@ -585,44 +589,86 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			new ResourceOverview(
 				taskExecutors.size(),
 				numberSlots,
-				numberFreeSlots));
+				numberFreeSlots,
+				slotManager.getTotalResource(),
+				slotManager.getAvailableResource()));
 	}
 
 	@Override
 	public CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(Time timeout) {
-		final ArrayList<CompletableFuture<Optional<Tuple2<ResourceID, String>>>> metricQueryServicePathFutures = new ArrayList<>(taskExecutors.size());
+		final ArrayList<Tuple2<ResourceID, String>> metricQueryServicePaths = new ArrayList<>(taskExecutors.size());
 
 		for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> workerRegistrationEntry : taskExecutors.entrySet()) {
 			final ResourceID tmResourceId = workerRegistrationEntry.getKey();
 			final WorkerRegistration<WorkerType> workerRegistration = workerRegistrationEntry.getValue();
-			final TaskExecutorGateway taskExecutorGateway = workerRegistration.getTaskExecutorGateway();
+			final String taskManagerAddress = workerRegistration.getTaskExecutorGateway().getAddress();
+			final String tmMetricQueryServicePath = taskManagerAddress.substring(0, taskManagerAddress.lastIndexOf('/') + 1) +
+				MetricQueryService.METRIC_QUERY_SERVICE_NAME + '_' + tmResourceId.getResourceIdString();
 
-			final CompletableFuture<Optional<Tuple2<ResourceID, String>>> metricQueryServicePathFuture = taskExecutorGateway
-				.requestMetricQueryServiceAddress(timeout)
-				.thenApply(optional -> optional.map(path -> Tuple2.of(tmResourceId, path)));
-
-			metricQueryServicePathFutures.add(metricQueryServicePathFuture);
+			metricQueryServicePaths.add(Tuple2.of(tmResourceId, tmMetricQueryServicePath));
 		}
 
-		return FutureUtils.combineAll(metricQueryServicePathFutures).thenApply(
-			collection -> collection
-				.stream()
-				.filter(Optional::isPresent)
-				.map(Optional::get)
-				.collect(Collectors.toList()));
+		return CompletableFuture.completedFuture(metricQueryServicePaths);
 	}
 
 	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(ResourceID taskManagerId, FileType fileType, Time timeout) {
-		log.debug("Request file {} upload from TaskExecutor {}.", fileType, taskManagerId);
+	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(ResourceID taskManagerId, String filename, FileOffsetRange fileOffsetRange, Time timeout) {
+		log.debug("Request file {} with {} upload from TaskExecutor {}.", filename, fileOffsetRange, taskManagerId);
 
 		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 
 		if (taskExecutor == null) {
-			log.debug("Requested file {} upload from unregistered TaskExecutor {}.", fileType, taskManagerId);
+			log.debug("Requested file {} upload from unregistered TaskExecutor {}.", filename, taskManagerId);
 			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
 		} else {
-			return taskExecutor.getTaskExecutorGateway().requestFileUpload(fileType, timeout);
+			return taskExecutor.getTaskExecutorGateway().requestFileUpload(filename, fileOffsetRange, timeout);
+		}
+	}
+
+	@Override
+	public CompletableFuture<Tuple2<TransientBlobKey, Long>> requestTaskManagerFileUploadReturnLength(ResourceID taskManagerId, String filename, FileOffsetRange fileOffsetRange, Time timeout) {
+		log.debug("Request file {} with {} upload from TaskExecutor {}.", filename, fileOffsetRange, taskManagerId);
+
+		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
+
+		if (taskExecutor == null) {
+			log.debug("Requested file {} upload from unregistered TaskExecutor {}.", filename, taskManagerId);
+			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
+		} else {
+			return taskExecutor.getTaskExecutorGateway().requestTaskManagerFileUploadReturnLength(filename, fileOffsetRange, timeout);
+		}
+	}
+
+	@Override
+	public CompletableFuture<Collection<Tuple2<String, Long>>> requestTaskManagerLogList(ResourceID taskManagerId, Time timeout) {
+		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
+		if (taskExecutor == null) {
+			log.debug("Requested historical loglist from unregistered TaskExecutor {}.", taskManagerId);
+			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
+		} else {
+			return taskExecutor.getTaskExecutorGateway().requestLogList(timeout);
+		}
+	}
+
+	@Override
+	public CompletableFuture<Tuple2<String, Long>> requestJmx(ResourceID taskManagerId, Time timeout) {
+		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
+		if (taskExecutor == null) {
+			log.debug("Requested jmx server information for TaskExecutor {}.", taskManagerId);
+			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
+		} else {
+			return taskExecutor.getTaskExecutorGateway().requestJmx(timeout);
+		}
+	}
+
+	@Override
+	public CompletableFuture<Tuple2<String, String>> requestTmLogAndStdoutFileName(ResourceID taskManagerId, Time timeout) {
+		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
+		if (taskExecutor == null) {
+			log.debug("Requested log and stdout file name for TaskExecutor {}.", taskManagerId);
+			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
+		} else {
+			return taskExecutor.getTaskExecutorGateway().requestTmLogAndStdoutFileName(timeout);
 		}
 	}
 
@@ -688,6 +734,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		});
 
 		return new JobMasterRegistrationSuccess(
+			resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds(),
 			getFencingToken(),
 			resourceId);
 	}
@@ -708,14 +755,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			ResourceID taskExecutorResourceId,
 			int dataPort,
 			HardwareDescription hardwareDescription) {
-		WorkerRegistration<WorkerType> oldRegistration = taskExecutors.remove(taskExecutorResourceId);
-		if (oldRegistration != null) {
-			// TODO :: suggest old taskExecutor to stop itself
-			log.debug("Replacing old registration of TaskExecutor {}.", taskExecutorResourceId);
-
-			// remove old task manager registration from slot manager
-			slotManager.unregisterTaskManager(oldRegistration.getInstanceID());
-		}
 
 		final WorkerType newWorker = workerStarted(taskExecutorResourceId);
 
@@ -724,45 +763,39 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				"not recognize it", taskExecutorResourceId, taskExecutorAddress);
 			return new RegistrationResponse.Decline("unrecognized TaskExecutor");
 		} else {
-			WorkerRegistration<WorkerType> registration =
-				new WorkerRegistration<>(taskExecutorGateway, newWorker, dataPort, hardwareDescription);
+			WorkerRegistration<WorkerType> registration = taskExecutors.get(taskExecutorResourceId);
+			if (registration != null &&
+					taskManagerHeartbeatManager.getLastHeartbeatFrom(taskExecutorResourceId) >= 0) {
+				log.info("The TaskExecutor {} has already registered and kept heartbeat, so will ignore " +
+						"and use original instance id {}", taskExecutorResourceId, registration.getInstanceID());
+			} else {
+				registration = new WorkerRegistration<>(taskExecutorGateway, newWorker, dataPort, hardwareDescription);
 
-			log.info("Registering TaskManager with ResourceID {} ({}) at ResourceManager", taskExecutorResourceId, taskExecutorAddress);
-			taskExecutors.put(taskExecutorResourceId, registration);
+				taskExecutors.put(taskExecutorResourceId, registration);
 
-			taskManagerHeartbeatManager.monitorTarget(taskExecutorResourceId, new HeartbeatTarget<Void>() {
-				@Override
-				public void receiveHeartbeat(ResourceID resourceID, Void payload) {
-					// the ResourceManager will always send heartbeat requests to the
-					// TaskManager
-				}
+				taskManagerHeartbeatManager.monitorTarget(taskExecutorResourceId, new HeartbeatTarget<Void>() {
+					@Override
+					public void receiveHeartbeat(ResourceID resourceID, Void payload) {
+						// the ResourceManager will always send heartbeat requests to the
+						// TaskManager
+					}
 
-				@Override
-				public void requestHeartbeat(ResourceID resourceID, Void payload) {
-					taskExecutorGateway.heartbeatFromResourceManager(resourceID);
-				}
-			});
+					@Override
+					public void requestHeartbeat(ResourceID resourceID, Void payload) {
+						taskExecutorGateway.heartbeatFromResourceManager(resourceID);
+					}
+				});
+			}
 
 			return new TaskExecutorRegistrationSuccess(
 				registration.getInstanceID(),
 				resourceId,
+				resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds(),
 				clusterInformation);
 		}
 	}
 
-	private void registerSlotAndTaskExecutorMetrics() {
-		jobManagerMetricGroup.gauge(
-			MetricNames.TASK_SLOTS_AVAILABLE,
-			() -> (long) slotManager.getNumberFreeSlots());
-		jobManagerMetricGroup.gauge(
-			MetricNames.TASK_SLOTS_TOTAL,
-			() -> (long) slotManager.getNumberRegisteredSlots());
-		jobManagerMetricGroup.gauge(
-			MetricNames.NUM_REGISTERED_TASK_MANAGERS,
-			() -> (long) taskExecutors.size());
-	}
-
-	private void clearStateInternal() {
+	private void clearState() {
 		jobManagerRegistrations.clear();
 		jmResourceIdRegistrations.clear();
 		taskExecutors.clear();
@@ -772,7 +805,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		} catch (Exception e) {
 			onFatalError(new ResourceManagerException("Could not properly clear the job leader id service.", e));
 		}
-		clearStateFuture = clearStateAsync();
 	}
 
 	/**
@@ -812,8 +844,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 *
 	 * @param resourceID Id of the TaskManager that has failed.
 	 * @param cause The exception which cause the TaskManager failed.
+	 * @return whether the task executor has been registered
 	 */
-	protected void closeTaskManagerConnection(final ResourceID resourceID, final Exception cause) {
+	protected boolean closeTaskManagerConnection(final ResourceID resourceID, final Exception cause) {
 		taskManagerHeartbeatManager.unmonitorTarget(resourceID);
 
 		WorkerRegistration<WorkerType> workerRegistration = taskExecutors.remove(resourceID);
@@ -825,11 +858,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			slotManager.unregisterTaskManager(workerRegistration.getInstanceID());
 
 			workerRegistration.getTaskExecutorGateway().disconnectResourceManager(cause);
+
+			for (JobManagerRegistration jobManagerRegistration : jobManagerRegistrations.values()) {
+				jobManagerRegistration.getJobManagerGateway().disconnectTaskManager(resourceID, cause);
+			}
+			return true;
 		} else {
-			log.debug(
-				"No open TaskExecutor connection {}. Ignoring close TaskExecutor connection. Closing reason was: {}",
-				resourceID,
-				cause.getMessage());
+			log.debug("No open TaskExecutor connection {}. Ignoring close TaskExecutor connection.", resourceID);
+			return false;
 		}
 	}
 
@@ -882,6 +918,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		}
 	}
 
+	protected boolean taskExecutorRegistered(ResourceID taskExecutorId) {
+		return taskExecutors.containsKey(taskExecutorId);
+	}
+
 	// ------------------------------------------------------------------------
 	//  Info messaging
 	// ------------------------------------------------------------------------
@@ -928,45 +968,26 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 */
 	@Override
 	public void grantLeadership(final UUID newLeaderSessionID) {
-		final CompletableFuture<Boolean> acceptLeadershipFuture = clearStateFuture
-			.thenComposeAsync((ignored) -> tryAcceptLeadership(newLeaderSessionID), getUnfencedMainThreadExecutor());
+		runAsyncWithoutFencing(
+			() -> {
+				final ResourceManagerId newResourceManagerId = ResourceManagerId.fromUuid(newLeaderSessionID);
 
-		final CompletableFuture<Void> confirmationFuture = acceptLeadershipFuture.thenAcceptAsync(
-			(acceptLeadership) -> {
-				if (acceptLeadership) {
-					// confirming the leader session ID might be blocking,
-					leaderElectionService.confirmLeaderSessionID(newLeaderSessionID);
-				}
-			},
-			getRpcService().getExecutor());
+				log.info("ResourceManager {} was granted leadership with fencing token {}", getAddress(), newResourceManagerId);
 
-		confirmationFuture.whenComplete(
-			(Void ignored, Throwable throwable) -> {
-				if (throwable != null) {
-					onFatalError(ExceptionUtils.stripCompletionException(throwable));
+				// clear the state if we've been the leader before
+				if (getFencingToken() != null) {
+					clearState();
 				}
+
+				setFencingToken(newResourceManagerId);
+
+				slotManager.start(getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
+
+				getRpcService().execute(
+					() ->
+						// confirming the leader session ID might be blocking,
+						leaderElectionService.confirmLeaderSessionID(newLeaderSessionID));
 			});
-	}
-
-	private CompletableFuture<Boolean> tryAcceptLeadership(final UUID newLeaderSessionID) {
-		if (leaderElectionService.hasLeadership(newLeaderSessionID)) {
-			final ResourceManagerId newResourceManagerId = ResourceManagerId.fromUuid(newLeaderSessionID);
-
-			log.info("ResourceManager {} was granted leadership with fencing token {}", getAddress(), newResourceManagerId);
-
-			// clear the state if we've been the leader before
-			if (getFencingToken() != null) {
-				clearStateInternal();
-			}
-
-			setFencingToken(newResourceManagerId);
-
-			slotManager.start(getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
-
-			return prepareLeadershipAsync().thenApply(ignored -> true);
-		} else {
-			return CompletableFuture.completedFuture(false);
-		}
 	}
 
 	/**
@@ -978,7 +999,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			() -> {
 				log.info("ResourceManager {} was revoked leadership. Clearing fencing token.", getAddress());
 
-				clearStateInternal();
+				clearState();
 
 				setFencingToken(null);
 
@@ -1008,28 +1029,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	protected abstract void initialize() throws ResourceManagerException;
 
 	/**
-	 * This method can be overridden to add a (non-blocking) initialization routine to the
-	 * ResourceManager that will be called when leadership is granted but before leadership is
-	 * confirmed.
-	 *
-	 * @return Returns a {@code CompletableFuture} that completes when the computation is finished.
-	 */
-	protected CompletableFuture<Void> prepareLeadershipAsync() {
-		return CompletableFuture.completedFuture(null);
-	}
-
-	/**
-	 * This method can be overridden to add a (non-blocking) state clearing routine to the
-	 * ResourceManager that will be called when leadership is revoked.
-	 *
-	 * @return Returns a {@code CompletableFuture} that completes when the state clearing routine
-	 * is finished.
-	 */
-	protected CompletableFuture<Void> clearStateAsync() {
-		return CompletableFuture.completedFuture(null);
-	}
-
-	/**
 	 * The framework specific code to deregister the application. This should report the
 	 * application's final status and shut down the resource manager cleanly.
 	 *
@@ -1048,10 +1047,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 * Allocates a resource using the resource profile.
 	 *
 	 * @param resourceProfile The resource description
-	 * @return Collection of {@link ResourceProfile} describing the launched slots
 	 */
 	@VisibleForTesting
-	public abstract Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile);
+	public abstract void startNewWorker(ResourceProfile resourceProfile);
 
 	/**
 	 * Callback when a worker was started.
@@ -1067,6 +1065,22 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 */
 	public abstract boolean stopWorker(WorkerType worker);
 
+	/**
+	 * Cancel a previous resource allocation using the resource profile.
+	 *
+	 * @param resourceProfile The resource description
+	 */
+	@VisibleForTesting
+	public abstract void cancelNewWorker(ResourceProfile resourceProfile);
+
+	/**
+	 * Gets the number of allocated workers.
+	 *
+	 * @return the number of workers allocated by the resourceManager.
+	 */
+	@VisibleForTesting
+	protected abstract int getNumberAllocatedWorkers();
+
 	// ------------------------------------------------------------------------
 	//  Static utility classes
 	// ------------------------------------------------------------------------
@@ -1081,9 +1095,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		}
 
 		@Override
-		public Collection<ResourceProfile> allocateResource(ResourceProfile resourceProfile) {
+		public void allocateResource(ResourceProfile resourceProfile) throws ResourceManagerException {
 			validateRunsInMainThread();
-			return startNewWorker(resourceProfile);
+			startNewWorker(resourceProfile);
 		}
 
 		@Override
@@ -1094,6 +1108,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			if (jobManagerRegistration != null) {
 				jobManagerRegistration.getJobManagerGateway().notifyAllocationFailure(allocationId, cause);
 			}
+		}
+
+		@Override
+		public void cancelResourceAllocation(ResourceProfile resourceProfile) {
+			validateRunsInMainThread();
+			cancelNewWorker(resourceProfile);
 		}
 	}
 
@@ -1136,24 +1156,34 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				public void run() {
 					log.info("The heartbeat of TaskManager with id {} timed out.", resourceID);
 
-					closeTaskManagerConnection(
-							resourceID,
-							new TimeoutException("The heartbeat of TaskManager with id " + resourceID + "  timed out."));
+					WorkerType worker = taskExecutors.get(resourceID).getWorker();
+					if (worker != null) {
+						stopWorker(worker);
+
+						closeTaskManagerConnection(
+								resourceID,
+								new TimeoutException("The heartbeat of TaskManager with id " + resourceID + "  timed out."));
+					}
 				}
 			});
 		}
 
 		@Override
 		public void reportPayload(final ResourceID resourceID, final SlotReport slotReport) {
-			runAsync(() -> {
-				final WorkerRegistration<WorkerType> workerRegistration = taskExecutors.get(resourceID);
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					log.debug("Received new slot report from TaskManager {}.", resourceID);
 
-				if (workerRegistration == null) {
-					log.debug("Received slot report from TaskManager {} which is no longer registered.", resourceID);
-				} else {
-					InstanceID instanceId = workerRegistration.getInstanceID();
+					final WorkerRegistration<WorkerType> workerRegistration = taskExecutors.get(resourceID);
 
-					slotManager.reportSlotStatus(instanceId, slotReport);
+					if (workerRegistration == null) {
+						log.debug("Received slot report from TaskManager {} which is no longer registered.", resourceID);
+					} else {
+						InstanceID instanceId = workerRegistration.getInstanceID();
+
+						slotManager.reportSlotStatus(instanceId, slotReport);
+					}
 				}
 			});
 		}
@@ -1201,16 +1231,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	//  Resource Management
 	// ------------------------------------------------------------------------
 
-	protected int getNumberRequiredTaskManagerSlots() {
-		return slotManager.getNumberPendingTaskManagerSlots();
-	}
-
-	// ------------------------------------------------------------------------
-	//  Helper methods
-	// ------------------------------------------------------------------------
-
-	protected static Collection<ResourceProfile> createSlotsPerWorker(int numSlots) {
-		return Collections.nCopies(numSlots, ResourceProfile.ANY);
+	protected int getNumberPendingSlotRequests() {
+		return slotManager.getNumberPendingSlotRequests();
 	}
 }
 

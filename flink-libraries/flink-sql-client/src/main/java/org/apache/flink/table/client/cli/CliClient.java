@@ -245,13 +245,23 @@ public class CliClient {
 			case HELP:
 				callHelp();
 				break;
+			case SHOW_CATALOGS:
+				callShowCatalogs();
+				break;
+			case SHOW_DATABASES:
+				callShowDatabases();
+				break;
 			case SHOW_TABLES:
 				callShowTables();
 				break;
 			case SHOW_FUNCTIONS:
 				callShowFunctions();
 				break;
+			case USE:
+				callUseDatabase(cmdCall);
+				break;
 			case DESCRIBE:
+			case DESC:
 				callDescribe(cmdCall);
 				break;
 			case EXPLAIN:
@@ -263,11 +273,14 @@ public class CliClient {
 			case INSERT_INTO:
 				callInsertInto(cmdCall);
 				break;
+			case CREATE_TABLE:
+				callCreateTable(cmdCall);
+				break;
 			case CREATE_VIEW:
 				callCreateView(cmdCall);
 				break;
-			case DROP_VIEW:
-				callDropView(cmdCall);
+			case CREATE_FUNCTION:
+				callCreateFunction(cmdCall);
 				break;
 			case SOURCE:
 				callSource(cmdCall);
@@ -325,6 +338,38 @@ public class CliClient {
 		terminal.flush();
 	}
 
+	private void callShowCatalogs() {
+		final List<String> catalogs;
+		try {
+			catalogs = executor.listCatalogs(context);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
+		if (catalogs.isEmpty()) {
+			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
+		} else {
+			catalogs.forEach((v) -> terminal.writer().println(v));
+		}
+		terminal.flush();
+	}
+
+	private void callShowDatabases() {
+		final List<String> dbs;
+		try {
+			dbs = executor.listDatabases(context);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
+		if (dbs.isEmpty()) {
+			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
+		} else {
+			dbs.forEach((v) -> terminal.writer().println(v));
+		}
+		terminal.flush();
+	}
+
 	private void callShowTables() {
 		final List<String> tables;
 		try {
@@ -353,6 +398,16 @@ public class CliClient {
 			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
 		} else {
 			functions.forEach((v) -> terminal.writer().println(v));
+		}
+		terminal.flush();
+	}
+
+	private void callUseDatabase(SqlCommandCall cmdCall) {
+		try {
+			executor.setDefaultDatabase(context, cmdCall.operands[0]);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
 		}
 		terminal.flush();
 	}
@@ -422,24 +477,29 @@ public class CliClient {
 		return true;
 	}
 
-	private void callCreateView(SqlCommandCall cmdCall) {
-		final String name = cmdCall.operands[0];
-		final String query = cmdCall.operands[1];
-
-		final ViewEntry previousView = context.getViews().get(name);
-		if (previousView != null) {
-			printExecutionError(CliStrings.MESSAGE_VIEW_ALREADY_EXISTS);
-			return;
-		}
-
+	private void callCreateTable(SqlCommandCall cmdCall) {
 		try {
-			// perform and validate change
-			context.addView(ViewEntry.create(name, query));
-			executor.validateSession(context);
+			executor.createTable(context, cmdCall.operands[0]);
+			printInfo(CliStrings.MESSAGE_TABLE_CREATE);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+		}
+	}
+
+	private void callCreateView(SqlCommandCall cmdCall) {
+		try {
+			executor.createView(context, cmdCall.operands[0]);
 			printInfo(CliStrings.MESSAGE_VIEW_CREATED);
 		} catch (SqlExecutionException e) {
-			// rollback change
-			context.removeView(name);
+			printExecutionException(e);
+		}
+	}
+
+	private void callCreateFunction(SqlCommandCall cmdCall) {
+		try {
+			executor.createFunction(context, cmdCall.operands[0]);
+			printInfo(CliStrings.MESSAGE_FUNCTION_CREATE);
+		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 		}
 	}

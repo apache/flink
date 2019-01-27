@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -38,7 +37,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.api.common.JobID;
@@ -67,7 +65,7 @@ public class PointwisePatternTest {
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(
+		ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraphDirectly(
 			TestingUtils.defaultExecutor(), 
 			TestingUtils.defaultExecutor(),
 			jobId, 
@@ -76,14 +74,8 @@ public class PointwisePatternTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
-		try {
-			eg.attachJobGraph(ordered);
-		}
-		catch (JobException e) {
-			e.printStackTrace();
-			fail("Job failed with exception: " + e.getMessage());
-		}
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			ordered);
 		
 		ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
 		
@@ -114,7 +106,7 @@ public class PointwisePatternTest {
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(
+		ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraphDirectly(
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			jobId, 
@@ -123,14 +115,8 @@ public class PointwisePatternTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
-		try {
-			eg.attachJobGraph(ordered);
-		}
-		catch (JobException e) {
-			e.printStackTrace();
-			fail("Job failed with exception: " + e.getMessage());
-		}
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			ordered);
 		
 		ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
 		
@@ -162,7 +148,7 @@ public class PointwisePatternTest {
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(
+		ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraphDirectly(
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			jobId, 
@@ -171,14 +157,8 @@ public class PointwisePatternTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
-		try {
-			eg.attachJobGraph(ordered);
-		}
-		catch (JobException e) {
-			e.printStackTrace();
-			fail("Job failed with exception: " + e.getMessage());
-		}
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			ordered);
 		
 		ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
 		
@@ -211,7 +191,7 @@ public class PointwisePatternTest {
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(
+		ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraphDirectly(
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			jobId, 
@@ -220,14 +200,8 @@ public class PointwisePatternTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
-		try {
-			eg.attachJobGraph(ordered);
-		}
-		catch (JobException e) {
-			e.printStackTrace();
-			fail("Job failed with exception: " + e.getMessage());
-		}
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			ordered);
 		
 		ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
 		
@@ -258,7 +232,7 @@ public class PointwisePatternTest {
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(
+		ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraphDirectly(
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			jobId, 
@@ -267,14 +241,8 @@ public class PointwisePatternTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
-		try {
-			eg.attachJobGraph(ordered);
-		}
-		catch (JobException e) {
-			e.printStackTrace();
-			fail("Job failed with exception: " + e.getMessage());
-		}
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			ordered);
 		
 		ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
 		
@@ -325,7 +293,7 @@ public class PointwisePatternTest {
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(
+		ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraphDirectly(
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			jobId, 
@@ -334,14 +302,8 @@ public class PointwisePatternTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
-		try {
-			eg.attachJobGraph(ordered);
-		}
-		catch (JobException e) {
-			e.printStackTrace();
-			fail("Job failed with exception: " + e.getMessage());
-		}
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			ordered);
 		
 		ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
 		
@@ -383,7 +345,7 @@ public class PointwisePatternTest {
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(
+		ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraphDirectly(
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			jobId, 
@@ -392,14 +354,8 @@ public class PointwisePatternTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
-		try {
-			eg.attachJobGraph(ordered);
-		}
-		catch (JobException e) {
-			e.printStackTrace();
-			fail("Job failed with exception: " + e.getMessage());
-		}
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			ordered);
 		
 		ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
 		

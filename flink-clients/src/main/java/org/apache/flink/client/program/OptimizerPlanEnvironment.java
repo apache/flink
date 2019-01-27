@@ -19,6 +19,7 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
@@ -46,12 +47,22 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobExecutionResult executeInternal(String jobName, boolean detached) throws Exception {
 		Plan plan = createProgramPlan(jobName);
 		this.optimizerPlan = compiler.compile(plan);
 
 		// do not go on with anything now!
 		throw new ProgramAbortException();
+	}
+
+	@Override
+	public void cancel(JobID jobId) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void stop() {
+
 	}
 
 	@Override

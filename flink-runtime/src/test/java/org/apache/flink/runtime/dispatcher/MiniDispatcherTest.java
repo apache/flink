@@ -37,6 +37,7 @@ import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraph
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.runtime.util.TestingLeaderShipLostHandler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -97,6 +98,8 @@ public class MiniDispatcherTest extends TestLogger {
 
 	private TestingJobManagerRunnerFactory testingJobManagerRunnerFactory;
 
+	private TestingLeaderShipLostHandler leaderShipLostHandler;
+
 	@BeforeClass
 	public static void setupClass() throws IOException {
 		jobGraph = new JobGraph();
@@ -119,13 +122,14 @@ public class MiniDispatcherTest extends TestLogger {
 		dispatcherLeaderElectionService = new TestingLeaderElectionService();
 		highAvailabilityServices = new TestingHighAvailabilityServices();
 		testingFatalErrorHandler = new TestingFatalErrorHandler();
+		leaderShipLostHandler = new TestingLeaderShipLostHandler();
 
 		highAvailabilityServices.setDispatcherLeaderElectionService(dispatcherLeaderElectionService);
 
 		jobGraphFuture = new CompletableFuture<>();
 		resultFuture = new CompletableFuture<>();
 
-		testingJobManagerRunnerFactory = new TestingJobManagerRunnerFactory(jobGraphFuture, resultFuture, CompletableFuture.completedFuture(null));
+		testingJobManagerRunnerFactory = new TestingJobManagerRunnerFactory(jobGraphFuture, resultFuture);
 	}
 
 	@After
@@ -245,9 +249,11 @@ public class MiniDispatcherTest extends TestLogger {
 			archivedExecutionGraphStore,
 			testingJobManagerRunnerFactory,
 			testingFatalErrorHandler,
+			null,
 			VoidHistoryServerArchivist.INSTANCE,
 			jobGraph,
-			executionMode);
+			executionMode,
+			leaderShipLostHandler);
 	}
 
 }

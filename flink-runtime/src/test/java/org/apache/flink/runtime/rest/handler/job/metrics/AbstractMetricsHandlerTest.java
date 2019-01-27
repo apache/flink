@@ -88,6 +88,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		when(mockMetricFetcher.getMetricStore()).thenReturn(metricStore);
 
 		testMetricsHandler = new TestMetricsHandler(
+			CompletableFuture.completedFuture("localhost:1234"),
 			new GatewayRetriever<DispatcherGateway>() {
 				@Override
 				public CompletableFuture<DispatcherGateway> getFuture() {
@@ -183,6 +184,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		private boolean returnComponentMetricStore = true;
 
 		private TestMetricsHandler(
+			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<DispatcherGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
@@ -191,7 +193,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 				TestMessageParameters> messageHeaders,
 			MetricFetcher metricFetcher) {
 
-			super(leaderRetriever, timeout, headers, messageHeaders, metricFetcher);
+			super(localRestAddress, leaderRetriever, timeout, headers, messageHeaders, metricFetcher);
 		}
 
 		@Nullable

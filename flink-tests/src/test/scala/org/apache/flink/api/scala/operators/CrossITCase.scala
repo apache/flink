@@ -35,12 +35,12 @@ import org.apache.flink.api.scala._
 
 @RunWith(classOf[Parameterized])
 class CrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
-  private var resultPath: String = null
-  private var expected: String = null
+  private var resultPath: String = _
+  private var expected: String = _
   private val _tempFolder = new TemporaryFolder()
 
   @Rule
-  def tempFolder = _tempFolder
+  def tempFolder: TemporaryFolder = _tempFolder
 
   @Before
   def before(): Unit = {
@@ -78,7 +78,7 @@ class CrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmall5TupleDataSet(env)
-    val crossDs = ds.cross(ds2) { (l, r ) => l }
+    val crossDs = ds.cross(ds2) { (l, _) => l }
     crossDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
 
@@ -94,7 +94,7 @@ class CrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getSmall3TupleDataSet(env)
     val ds2 = CollectionDataSets.getSmall5TupleDataSet(env)
-    val crossDs = ds.cross(ds2) { (l, r) => r }
+    val crossDs = ds.cross(ds2) { (_, r) => r }
     crossDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
 
@@ -186,11 +186,12 @@ class CrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
     val crossDs = ds.cross(ds2)
     crossDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
-    expected = "(1,1,Hi),(2,2,1,Hallo Welt,2)\n" + "(1,1,Hi),(1,1,0,Hallo,1)\n" + "(1,1,Hi),(2,3," +
-      "2,Hallo Welt wie,1)\n" + "(2,2,Hello),(2,2,1,Hallo Welt,2)\n" + "(2,2,Hello),(1,1,0," +
-      "Hallo,1)\n" + "(2,2,Hello),(2,3,2,Hallo Welt wie,1)\n" + "(3,2,Hello world),(2,2,1," +
-      "Hallo Welt,2)\n" + "(3,2,Hello world),(1,1,0,Hallo,1)\n" + "(3,2,Hello world),(2,3,2," +
-      "Hallo Welt wie,1)\n"
+    expected = "(1,1,Hi),(2,2,1,Hallo Welt,2)\n" + "(1,1,Hi),(1,1,0,Hallo,1)\n" +
+      "(1,1,Hi),(2,3,2,Hallo Welt wie,1)\n" + "(2,2,Hello),(2,2,1,Hallo Welt,2)\n" +
+      "(2,2,Hello),(1,1,0,Hallo,1)\n" + "(2,2,Hello),(2,3,2,Hallo Welt wie,1)\n" +
+      "(3,2,Hello world),(2,2,1,Hallo Welt,2)\n" +
+      "(3,2,Hello world),(1,1,0,Hallo,1)\n" +
+      "(3,2,Hello world),(2,3,2,Hallo Welt wie,1)\n"
   }
 
   @Test
@@ -230,4 +231,3 @@ class CrossITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
 }
-

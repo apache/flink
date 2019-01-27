@@ -22,7 +22,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.util.TableTestBase
 import org.junit._
 
 class OverWindowValidationTest extends TableTestBase {
@@ -51,5 +52,23 @@ class OverWindowValidationTest extends TableTestBase {
       .window(Tumble over 5.milli on 'long as 'w)
       .groupBy('string,'w)
       .select(overAgg('long, 'int))
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testDifferentTypesInLeadExprAndDefault(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+    table
+      .window(Over partitionBy 'long as 'w)
+      .select(Lead('long, 1, 'int) over 'w)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testDifferentTypesInLagExprAndDefault(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+    table
+      .window(Over partitionBy 'long as 'w)
+      .select(Lag('long, 1, 'int) over 'w)
   }
 }

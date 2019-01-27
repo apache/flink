@@ -20,22 +20,19 @@ package org.apache.flink.table.runtime.join
 import java.lang.{Long => JLong}
 import java.util
 import java.util.{Comparator, Optional}
-
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.state.VoidNamespace
+import org.apache.flink.runtime.state.{VoidNamespace, VoidNamespaceSerializer}
 import org.apache.flink.streaming.api.operators._
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.Compiler
-import org.apache.flink.table.runtime.CRowWrappingCollector
-import org.apache.flink.table.runtime.types.CRow
-import org.apache.flink.table.typeutils.TypeCheckUtils._
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.dataformat.util.BaseRowUtil
+import org.apache.flink.table.runtime.collector.HeaderCollector
 import org.apache.flink.table.util.Logging
-import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 
@@ -61,19 +58,17 @@ import scala.collection.JavaConversions._
   * currentWatermark.
   */
 class TemporalRowtimeJoin(
-    leftType: TypeInformation[Row],
-    rightType: TypeInformation[Row],
+    leftType: TypeInformation[BaseRow],
+    rightType: TypeInformation[BaseRow],
     genJoinFuncName: String,
     genJoinFuncCode: String,
-    queryConfig: StreamQueryConfig,
     leftTimeAttribute: Int,
     rightTimeAttribute: Int)
-  extends BaseTwoInputStreamOperatorWithStateRetention(queryConfig)
-  with Compiler[FlatJoinFunction[Row, Row, Row]]
+  extends AbstractStreamOperator[BaseRow]
+  with TwoInputStreamOperator[BaseRow, BaseRow, BaseRow]
+  with Triggerable[Any, VoidNamespace]
+  with Compiler[FlatJoinFunction[BaseRow, BaseRow, BaseRow]]
   with Logging {
-
-  validateEqualsHashCode("join", leftType)
-  validateEqualsHashCode("join", rightType)
 
   private val NEXT_LEFT_INDEX_STATE_NAME = "next-index"
   private val LEFT_STATE_NAME = "left"
@@ -95,7 +90,7 @@ class TemporalRowtimeJoin(
     * TODO: this could be OrderedMultiMap[Jlong, Row] indexed by row's timestamp, to avoid
     * full map traversals (if we have lots of rows on the state that exceed `currentWatermark`).
     */
-  private var leftState: MapState[JLong, Row] = _
+  private var leftState: MapState[JLong, BaseRow] = _
 
   /**
     * Mapping from timestamp to right side `Row`.
@@ -103,82 +98,69 @@ class TemporalRowtimeJoin(
     * TODO: having `rightState` as an OrderedMapState would allow us to avoid sorting cost
     * once per watermark
     */
-  private var rightState: MapState[JLong, Row] = _
+  private var rightState: MapState[JLong, BaseRow] = _
 
   private var registeredTimer: ValueState[JLong] = _ // JLong for correct handling of default null
 
-  private var cRowWrapper: CRowWrappingCollector = _
-  private var collector: TimestampedCollector[CRow] = _
+  protected var headerCollector: HeaderCollector[BaseRow] = _
+  private var collector: TimestampedCollector[BaseRow] = _
+  private var timerService: InternalTimerService[VoidNamespace] = _
 
-  private var joinFunction: FlatJoinFunction[Row, Row, Row] = _
+  private var joinFunction: FlatJoinFunction[BaseRow, BaseRow, BaseRow] = _
 
   override def open(): Unit = {
-    LOG.debug(s"Compiling FlatJoinFunction: $genJoinFuncName \n\n Code:\n$genJoinFuncCode")
     val clazz = compile(
       getRuntimeContext.getUserCodeClassLoader,
       genJoinFuncName,
       genJoinFuncCode)
 
-    LOG.debug("Instantiating FlatJoinFunction.")
     joinFunction = clazz.newInstance()
     FunctionUtils.setFunctionRuntimeContext(joinFunction, getRuntimeContext)
-    FunctionUtils.openFunction(joinFunction, new Configuration())
+    FunctionUtils.openFunction(joinFunction, new Configuration)
 
     nextLeftIndex = getRuntimeContext.getState(
-      new ValueStateDescriptor[JLong](NEXT_LEFT_INDEX_STATE_NAME, BasicTypeInfo.LONG_TYPE_INFO))
+      new ValueStateDescriptor[JLong](
+        NEXT_LEFT_INDEX_STATE_NAME, BasicTypeInfo.LONG_TYPE_INFO))
     leftState = getRuntimeContext.getMapState(
-      new MapStateDescriptor[JLong, Row](LEFT_STATE_NAME, BasicTypeInfo.LONG_TYPE_INFO, leftType))
+      new MapStateDescriptor[JLong, BaseRow](
+        LEFT_STATE_NAME, BasicTypeInfo.LONG_TYPE_INFO, leftType))
     rightState = getRuntimeContext.getMapState(
-      new MapStateDescriptor[JLong, Row](RIGHT_STATE_NAME, BasicTypeInfo.LONG_TYPE_INFO, rightType))
+      new MapStateDescriptor[JLong, BaseRow](
+        RIGHT_STATE_NAME, BasicTypeInfo.LONG_TYPE_INFO, rightType))
     registeredTimer = getRuntimeContext.getState(
-      new ValueStateDescriptor[JLong](REGISTERED_TIMER_STATE_NAME, BasicTypeInfo.LONG_TYPE_INFO))
+      new ValueStateDescriptor[JLong](
+        REGISTERED_TIMER_STATE_NAME, BasicTypeInfo.LONG_TYPE_INFO))
 
-    collector = new TimestampedCollector[CRow](output)
-    cRowWrapper = new CRowWrappingCollector()
-    cRowWrapper.out = collector
-    cRowWrapper.setChange(true)
+    collector = new TimestampedCollector[BaseRow](output)
+    headerCollector = new HeaderCollector[BaseRow]
+    headerCollector.out = collector
+    headerCollector.setHeader(BaseRowUtil.ACCUMULATE_MSG)
 
-    super.open()
+    timerService = getInternalTimerService(
+      TIMERS_STATE_NAME,
+      VoidNamespaceSerializer.INSTANCE,
+      this)
   }
 
-  override def processElement1(element: StreamRecord[CRow]): Unit = {
-    checkNotRetraction(element)
+  override def processElement1(element: StreamRecord[BaseRow]): TwoInputSelection = {
+    val row = element.getValue
+    checkNotRetraction(row)
 
-    leftState.put(getNextLeftIndex, element.getValue.row)
-    registerSmallestTimer(getLeftTime(element.getValue.row)) // Timer to emit and clean up the state
+    leftState.put(getNextLeftIndex, row)
+    registerSmallestTimer(getLeftTime(row)) // Timer to emit and clean up the state
 
-    registerProcessingCleanUpTimer()
+    TwoInputSelection.ANY
   }
 
-  override def processElement2(element: StreamRecord[CRow]): Unit = {
-    checkNotRetraction(element)
+  override def processElement2(element: StreamRecord[BaseRow]): TwoInputSelection = {
+    val row = element.getValue
+    checkNotRetraction(row)
 
-    val rowTime = getRightTime(element.getValue.row)
-    rightState.put(rowTime, element.getValue.row)
+    val rowTime = getRightTime(row)
+    rightState.put(rowTime, row)
     registerSmallestTimer(rowTime) // Timer to clean up the state
 
-    registerProcessingCleanUpTimer()
-  }
-
-  override def onEventTime(timer: InternalTimer[Any, VoidNamespace]): Unit = {
-    registeredTimer.clear()
-    val lastUnprocessedTime = emitResultAndCleanUpState(timerService.currentWatermark())
-    if (lastUnprocessedTime < Long.MaxValue) {
-      registerTimer(lastUnprocessedTime)
-    }
-
-    // if we have more state at any side, then update the timer, else clean it up.
-    if (stateCleaningEnabled) {
-      if (lastUnprocessedTime < Long.MaxValue || rightState.iterator().hasNext) {
-        registerProcessingCleanUpTimer()
-      } else {
-        cleanUpLastTimer()
-      }
-    }
-  }
-
-  override def close(): Unit = {
-    FunctionUtils.closeFunction(joinFunction)
+    TwoInputSelection.ANY
   }
 
   private def registerSmallestTimer(timestamp: Long): Unit = {
@@ -187,14 +169,26 @@ class TemporalRowtimeJoin(
       registerTimer(timestamp)
     }
     else if (currentRegisteredTimer != null && currentRegisteredTimer > timestamp) {
-      timerService.deleteEventTimeTimer(currentRegisteredTimer)
+      timerService.deleteEventTimeTimer(VoidNamespace.INSTANCE, currentRegisteredTimer)
       registerTimer(timestamp)
     }
   }
 
   private def registerTimer(timestamp: Long): Unit = {
     registeredTimer.update(timestamp)
-    timerService.registerEventTimeTimer(timestamp)
+    timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, timestamp)
+  }
+
+  override def onProcessingTime(timer: InternalTimer[Any, VoidNamespace]): Unit = {
+    throw new IllegalStateException("This should never happen")
+  }
+
+  override def onEventTime(timer: InternalTimer[Any, VoidNamespace]): Unit = {
+    registeredTimer.clear()
+    val lastUnprocessedTime = emitResultAndCleanUpState(timerService.currentWatermark())
+    if (lastUnprocessedTime < Long.MaxValue) {
+      registerTimer(lastUnprocessedTime)
+    }
   }
 
   /**
@@ -214,7 +208,7 @@ class TemporalRowtimeJoin(
       if (leftTime <= timerTimestamp) {
         val rightRow = latestRightRowToJoin(rightRowsSorted, leftTime)
         if (rightRow.isPresent) {
-          joinFunction.join(leftRow, rightRow.get, cRowWrapper)
+          joinFunction.join(leftRow, rightRow.get, headerCollector)
         }
         leftIterator.remove()
       }
@@ -235,7 +229,7 @@ class TemporalRowtimeJoin(
     * we can not remove "5" from rightState, because left elements with rowtime of 7 or 8 could
     * be joined with it later
     */
-  private def cleanUpState(timerTimestamp: Long, rightRowsSorted: util.List[Row]) = {
+  private def cleanUpState(timerTimestamp: Long, rightRowsSorted: util.List[BaseRow]) = {
     var i = 0
     val indexToKeep = firstIndexToKeep(timerTimestamp, rightRowsSorted)
     while (i < indexToKeep) {
@@ -245,17 +239,7 @@ class TemporalRowtimeJoin(
     }
   }
 
-  /**
-    * The method to be called when a cleanup timer fires.
-    *
-    * @param time The timestamp of the fired timer.
-    */
-  override def cleanUpState(time: Long): Unit = {
-    leftState.clear()
-    rightState.clear()
-  }
-
-  private def firstIndexToKeep(timerTimestamp: Long, rightRowsSorted: util.List[Row]): Int = {
+  private def firstIndexToKeep(timerTimestamp: Long, rightRowsSorted: util.List[BaseRow]): Int = {
     val firstIndexNewerThenTimer =
       indexOfFirstElementNewerThanTimer(timerTimestamp, rightRowsSorted)
 
@@ -269,7 +253,7 @@ class TemporalRowtimeJoin(
 
   private def indexOfFirstElementNewerThanTimer(
       timerTimestamp: Long,
-      list: util.List[Row]): Int = {
+      list: util.List[BaseRow]): Int = {
     val iter = list.listIterator
     while (iter.hasNext) {
       if (getRightTime(iter.next) > timerTimestamp) {
@@ -287,16 +271,16 @@ class TemporalRowtimeJoin(
     *         is empty or all `rightRowsSorted` are are newer).
     */
   private def latestRightRowToJoin(
-      rightRowsSorted: util.List[Row],
-      leftTime: Long): Optional[Row] = {
+      rightRowsSorted: util.List[BaseRow],
+      leftTime: Long): Optional[BaseRow] = {
     latestRightRowToJoin(rightRowsSorted, 0, rightRowsSorted.size - 1, leftTime)
   }
 
   private def latestRightRowToJoin(
-      rightRowsSorted: util.List[Row],
+      rightRowsSorted: util.List[BaseRow],
       low: Int,
       high: Int,
-      leftTime: Long): Optional[Row] = {
+      leftTime: Long): Optional[BaseRow] = {
     if (low > high) {
       // exact value not found, we are returning largest from the values smaller then leftTime
       if (low - 1 < 0) {
@@ -322,13 +306,13 @@ class TemporalRowtimeJoin(
     }
   }
 
-  private def getRightRowsSorted(rowtimeComparator: RowtimeComparator): util.List[Row] = {
-    val rightRows = new util.ArrayList[Row]()
+  private def getRightRowsSorted(rowtimeComparator: RowtimeComparator): util.List[BaseRow] = {
+    val rightRows = new util.ArrayList[BaseRow]()
     for (row <- rightState.values()) {
       rightRows.add(row)
     }
     rightRows.sort(rowtimeComparator)
-    rightRows.asInstanceOf[util.List[Row]]
+    rightRows.asInstanceOf[util.List[BaseRow]]
   }
 
   private def getNextLeftIndex: JLong = {
@@ -340,27 +324,33 @@ class TemporalRowtimeJoin(
     index
   }
 
-  private def getLeftTime(leftRow: Row): Long = {
-    leftRow.getField(leftTimeAttribute).asInstanceOf[Long]
+  private def getLeftTime(leftRow: BaseRow): Long = {
+    leftRow.getLong(leftTimeAttribute)
   }
 
-  private def getRightTime(rightRow: Row): Long = {
-    rightRow.getField(rightTimeAttribute).asInstanceOf[Long]
+  private def getRightTime(rightRow: BaseRow): Long = {
+    rightRow.getLong(rightTimeAttribute)
   }
 
-  private def checkNotRetraction(element: StreamRecord[CRow]) = {
-    if (!element.getValue.change) {
+  private def checkNotRetraction(row: BaseRow) = {
+    if (BaseRowUtil.isRetractMsg(row)) {
       throw new IllegalStateException(
         s"Retractions are not supported by [${classOf[TemporalRowtimeJoin].getSimpleName}]. " +
           "If this can happen it should be validated during planning!")
     }
   }
+
+  override def firstInputSelection() = TwoInputSelection.ANY
+
+  override def endInput1() = {}
+
+  override def endInput2() = {}
 }
 
-class RowtimeComparator(timeAttribute: Int) extends Comparator[Row] with Serializable {
-  override def compare(o1: Row, o2: Row): Int = {
-    val o1Time = o1.getField(timeAttribute).asInstanceOf[Long]
-    val o2Time = o2.getField(timeAttribute).asInstanceOf[Long]
+class RowtimeComparator(timeAttribute: Int) extends Comparator[BaseRow] with Serializable {
+  override def compare(o1: BaseRow, o2: BaseRow): Int = {
+    val o1Time = o1.getLong(timeAttribute)
+    val o2Time = o2.getLong(timeAttribute)
     o1Time.compareTo(o2Time)
   }
 }

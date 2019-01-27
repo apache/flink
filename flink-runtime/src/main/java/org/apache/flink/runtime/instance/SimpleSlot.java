@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -279,6 +280,12 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 	@Override
 	public SlotSharingGroupId getSlotSharingGroupId() {
 		return NO_SLOT_SHARING_GROUP_ID;
+	}
+
+	@Nullable
+	@Override
+	public CoLocationConstraint getCoLocationConstraint() {
+		return null;
 	}
 
 	// ------------------------------------------------------------------------

@@ -19,10 +19,12 @@
 package org.apache.flink.table.factories.utils
 
 import java.util
-
 import org.apache.flink.api.common.serialization.{DeserializationSchema, SerializationSchema}
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.types.{DataType, DataTypes, TypeConverters}
 import org.apache.flink.table.factories.TableFormatFactoryBase.deriveSchema
 import org.apache.flink.table.factories.{DeserializationSchemaFactory, SerializationSchemaFactory, TableFormatFactoryBase, TableFormatFactoryServiceTest}
+import org.apache.flink.table.typeutils.TypeUtils
 import org.apache.flink.types.Row
 
 /**
@@ -47,13 +49,23 @@ class TestTableFormatFactory
       properties: util.Map[String, String])
     : DeserializationSchema[Row] = {
 
-    new TestDeserializationSchema(deriveSchema(properties).toRowType)
+    // TODO: fix me if this is not correct!
+    val tableSchema = deriveSchema(properties)
+    new TestDeserializationSchema(
+      TypeConverters.createExternalTypeInfoFromDataType(DataTypes.createRowType(
+        tableSchema.getFieldTypes.toArray[DataType], tableSchema.getFieldNames)
+      ).asInstanceOf[TypeInformation[Row]])
   }
 
   override def createSerializationSchema(
       properties: util.Map[String, String])
     : SerializationSchema[Row] = {
 
-    new TestSerializationSchema(deriveSchema(properties).toRowType)
+    // TODO: fix me if this is not correct!
+    val tableSchema = deriveSchema(properties)
+    new TestSerializationSchema(
+      TypeConverters.createExternalTypeInfoFromDataType(DataTypes.createRowType(
+        tableSchema.getFieldTypes.toArray[DataType], tableSchema.getFieldNames)
+      ).asInstanceOf[TypeInformation[Row]])
   }
 }

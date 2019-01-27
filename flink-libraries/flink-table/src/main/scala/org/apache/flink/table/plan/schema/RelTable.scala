@@ -31,8 +31,6 @@ import org.apache.calcite.schema.TranslatableTable
  * Table API Tables in the Calcite schema to be used by Flink SQL.
  * It implements [[TranslatableTable]] so that its logical scan
  * can be converted to a relational expression.
- *
- * @see [[DataSetTable]]
  */
 class RelTable(relNode: RelNode) extends AbstractTable with TranslatableTable {
 

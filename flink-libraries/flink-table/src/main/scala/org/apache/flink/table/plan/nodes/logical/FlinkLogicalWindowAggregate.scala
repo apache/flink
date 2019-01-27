@@ -18,21 +18,24 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
-import java.util
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.plan.logical.LogicalWindow
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
+import org.apache.flink.table.plan.util.AggregateUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelShuttle}
+import org.apache.calcite.rel.{RelNode, RelShuttle, RelWriter}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.logical.LogicalWindow
-import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
-import org.apache.flink.table.plan.nodes.FlinkConventions
+
+import java.util
 
 import scala.collection.JavaConverters._
 
@@ -84,19 +87,36 @@ class FlinkLogicalWindowAggregate(
     namedProperties.foreach { namedProp =>
       builder.add(
         namedProp.name,
-        typeFactory.createTypeFromTypeInfo(namedProp.property.resultType, isNullable = false)
+        typeFactory.createTypeFromInternalType(namedProp.property.resultType, isNullable = false)
       )
     }
     builder.build()
   }
 
-  override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
+  override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     val child = this.getInput
-    val rowCnt = metadata.getRowCount(child)
-    val rowSize = this.estimateRowSize(child.getRowType)
-    val aggCnt = this.aggCalls.size
-    planner.getCostFactory.makeCost(rowCnt, rowCnt * aggCnt, rowCnt * rowSize)
+    val rowCnt = mq.getRowCount(child)
+    val rowSize = mq.getAverageRowSize(child)
+    val aggCnt = this.getAggCallList.size
+    // group by CPU cost(multiple by 1.1 to encourage less group keys) + agg call CPU cost
+    val cpuCost: Double = rowCnt * getGroupCount * 1.1 + rowCnt * aggCnt
+    planner.getCostFactory.makeCost(rowCnt, cpuCost, rowCnt * rowSize)
   }
+
+  /**
+    * The [[getDigest]] should be uniquely identifies the node; another node
+    * is equivalent if and only if it has the same value. The [[getDigest]] is
+    * computed by [[explainTerms(pw)]], so it should contains window information
+    * to identify different WindowAggregate nodes, otherwise WindowAggregate node
+    * can be replaced by any other WindowAggregate node.
+    */
+  override def explainTerms(pw: RelWriter): RelWriter = {
+    super.explainTerms(pw)
+      .item("window", window)
+      .item("properties", namedProperties.map(_.name).mkString(", "))
+  }
+
+  override def isDeterministic: Boolean = AggregateUtil.isDeterministic(aggCalls)
 }
 
 class FlinkLogicalWindowAggregateConverter
@@ -122,7 +142,7 @@ class FlinkLogicalWindowAggregateConverter
 
   override def convert(rel: RelNode): RelNode = {
     val agg = rel.asInstanceOf[LogicalWindowAggregate]
-    val traitSet = rel.getTraitSet.replace(FlinkConventions.LOGICAL)
+    val traitSet = FlinkRelMetadataQuery.traitSet(rel).replace(FlinkConventions.LOGICAL).simplify()
     val newInput = RelOptRule.convert(agg.getInput, FlinkConventions.LOGICAL)
 
     new FlinkLogicalWindowAggregate(

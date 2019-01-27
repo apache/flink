@@ -19,9 +19,8 @@
 
 package org.apache.flink.graph.types.valuearray;
 
-import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
+import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -86,21 +85,9 @@ public final class DoubleValueArraySerializer extends TypeSerializerSingleton<Do
 		return obj instanceof DoubleValueArraySerializer;
 	}
 
-	// -----------------------------------------------------------------------------------
-
 	@Override
-	public TypeSerializerSnapshot<DoubleValueArray> snapshotConfiguration() {
-		return new DoubleValueArraySerializerSnapshot();
-	}
-
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class DoubleValueArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<DoubleValueArray> {
-
-		public DoubleValueArraySerializerSnapshot() {
-			super(DoubleValueArraySerializer::new);
-		}
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(LongPrimitiveArraySerializer.class.getCanonicalName());
 	}
 }

@@ -21,7 +21,7 @@ package org.apache.flink.table.api.batch.table.validation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.util.TableTestBase
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit._
@@ -41,7 +41,7 @@ class CalcValidationTest extends TableTestBase {
     val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
       // must fail. 'a and 'b are both renamed to 'foo
-      .select('a + 1 as 'foo, 'b + 2 as 'foo).toDataSet[Row].print()
+      .select('a + 1 as 'foo, 'b + 2 as 'foo).collect()
   }
 
   @Test(expected = classOf[ValidationException])
@@ -49,7 +49,7 @@ class CalcValidationTest extends TableTestBase {
     val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
       // must fail. 'a and 'b are both renamed to 'a
-      .select('a, 'b as 'a).toDataSet[Row].print()
+      .select('a, 'b as 'a).collect()
   }
 
   @Test(expected = classOf[ValidationException])

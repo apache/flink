@@ -43,6 +43,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
@@ -59,9 +60,7 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
 import java.io.File;
@@ -71,23 +70,21 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 public class TaskExecutorITCase extends TestLogger {
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	private final Time timeout = Time.seconds(10L);
 
@@ -114,6 +111,9 @@ public class TaskExecutorITCase extends TestLogger {
 		testingHAServices.setJobMasterLeaderRetriever(jobId, new SettableLeaderRetrievalService(jmAddress, jobMasterId.toUUID()));
 
 		TestingRpcService rpcService = new TestingRpcService();
+		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
+			Time.milliseconds(500L),
+			Time.milliseconds(500L));
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			testingHAServices,
 			rpcService.getScheduledExecutor(),
@@ -124,7 +124,10 @@ public class TaskExecutorITCase extends TestLogger {
 		final TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
 		final TaskManagerLocation taskManagerLocation = new TaskManagerLocation(taskManagerResourceId, InetAddress.getLocalHost(), 1234);
 		final List<ResourceProfile> resourceProfiles = Arrays.asList(resourceProfile);
-		final TaskSlotTable taskSlotTable = new TaskSlotTable(resourceProfiles, new TimerService<AllocationID>(scheduledExecutorService, 100L));
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(
+			resourceProfiles,
+			new ResourceProfile(1, 100),
+			new TimerService<AllocationID>(scheduledExecutorService, 100L));
 		final SlotManager slotManager = new SlotManager(
 			rpcService.getScheduledExecutor(),
 			TestingUtils.infiniteTime(),
@@ -132,7 +135,7 @@ public class TaskExecutorITCase extends TestLogger {
 			TestingUtils.infiniteTime());
 
 		final File[] taskExecutorLocalStateRootDirs =
-			new File[]{ new File(tempFolder.getRoot(),"localRecovery") };
+			new File[]{new File(System.getProperty("java.io.tmpdir"), "localRecovery")};
 
 		final TaskExecutorLocalStateStoresManager taskStateManager = new TaskExecutorLocalStateStoresManager(
 			false,
@@ -143,14 +146,14 @@ public class TaskExecutorITCase extends TestLogger {
 			rpcService,
 			FlinkResourceManager.RESOURCE_MANAGER_NAME,
 			rmResourceId,
+			resourceManagerConfiguration,
 			testingHAServices,
 			heartbeatServices,
 			slotManager,
 			metricRegistry,
 			jobLeaderIdService,
 			new ClusterInformation("localhost", 1234),
-			testingFatalErrorHandler,
-			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
+			testingFatalErrorHandler);
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
 			.setTaskManagerLocation(taskManagerLocation)
@@ -165,11 +168,11 @@ public class TaskExecutorITCase extends TestLogger {
 			taskManagerServices,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
 			new BlobCacheService(
 				configuration,
 				new VoidBlobStore(),
 				null),
+			Executors.newSingleThreadExecutor(),
 			testingFatalErrorHandler);
 
 		JobMasterGateway jmGateway = mock(JobMasterGateway.class);

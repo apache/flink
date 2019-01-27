@@ -20,10 +20,10 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
+import org.apache.flink.api.common.operators.base.utils.TestAccumulatorRegistry;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -115,15 +115,15 @@ public class InnerJoinOperatorBaseTest implements Serializable {
 			List<Tuple2<Double, String>> resultSafe = base.executeOnCollections(inputData1, inputData2,
 					new RuntimeUDFContext(taskInfo, null, executionConfig,
 							new HashMap<String, Future<Path>>(),
-							new HashMap<String, Accumulator<?, ?>>(),
-							new UnregisteredMetricsGroup()),
+							new TestAccumulatorRegistry(),
+						new UnregisteredMetricsGroup()),
 					executionConfig);
 
 			executionConfig.enableObjectReuse();
 			List<Tuple2<Double, String>> resultRegular = base.executeOnCollections(inputData1, inputData2,
 					new RuntimeUDFContext(taskInfo, null, executionConfig,
 							new HashMap<String, Future<Path>>(),
-							new HashMap<String, Accumulator<?, ?>>(),
+							new TestAccumulatorRegistry(),
 							new UnregisteredMetricsGroup()),
 					executionConfig);
 

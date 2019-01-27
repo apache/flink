@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.instance;
 
 import akka.actor.ActorSystem;
-import akka.actor.RobustActorSystem;
 import akka.testkit.JavaTestKit;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -27,7 +26,6 @@ import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -49,7 +47,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link org.apache.flink.runtime.instance.InstanceManager}.
  */
-public class InstanceManagerTest extends TestLogger {
+public class InstanceManagerTest{
 
 	static ActorSystem system;
 
@@ -57,7 +55,7 @@ public class InstanceManagerTest extends TestLogger {
 
 	@BeforeClass
 	public static void setup(){
-		system = RobustActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
+		system = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
 	}
 
 	@AfterClass

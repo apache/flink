@@ -36,23 +36,55 @@ public class SynchronousBufferFileReader extends SynchronousFileIOChannel implem
 
 	private boolean hasReachedEndOfFile;
 
+	private final boolean withHeader;
+	private long currentPosition; // Used only when withHeader == false.
+
 	public SynchronousBufferFileReader(ID channelID, boolean writeEnabled) throws IOException {
+		this(channelID, writeEnabled, true);
+	}
+
+	public SynchronousBufferFileReader(ID channelID, boolean writeEnabled, boolean withHeader) throws IOException {
 		super(channelID, writeEnabled);
 		this.reader = new BufferFileChannelReader(fileChannel);
+		this.withHeader = withHeader;
 	}
 
 	@Override
 	public void readInto(Buffer buffer) throws IOException {
-		if (fileChannel.size() - fileChannel.position() > 0) {
-			hasReachedEndOfFile = reader.readBufferFromFileChannel(buffer);
+		if (withHeader) {
+			if (fileChannel.size() - fileChannel.position() > 0) {
+				hasReachedEndOfFile = reader.readBufferFromFileChannel(buffer);
+			}
+			else {
+				buffer.recycleBuffer();
+			}
+		} else {
+			throw new IllegalArgumentException("Method readInto(Buffer buffer) only support withHeader mode.");
 		}
-		else {
-			buffer.recycleBuffer();
+	}
+
+	@Override
+	public void readInto(Buffer buffer, long length) throws IOException {
+		if (!withHeader) {
+			if (fileChannel.size() - currentPosition > 0) {
+				hasReachedEndOfFile = StreamFileChannelReader.readBufferFromFileChannel(
+					fileChannel, buffer, currentPosition, length, id.getPathFile());
+				currentPosition += length;
+			} else {
+				buffer.recycleBuffer();
+				// In case of empty file.
+				if (!hasReachedEndOfFile) {
+					hasReachedEndOfFile = true;
+				}
+			}
+		} else {
+			throw new IllegalArgumentException("Method readInto(Buffer buffer, long length) only support withoutHeader mode.");
 		}
 	}
 
 	@Override
 	public void seekToPosition(long position) throws IOException {
+		currentPosition = position;
 		fileChannel.position(position);
 	}
 

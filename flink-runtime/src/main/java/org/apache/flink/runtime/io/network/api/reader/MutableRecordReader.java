@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.reader;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
@@ -38,8 +39,8 @@ public class MutableRecordReader<T extends IOReadableWritable> extends AbstractR
 	 * @param tmpDirectories The temp directories. USed for spilling if the reader concurrently
 	 *                       reconstructs multiple large records.
 	 */
-	public MutableRecordReader(InputGate inputGate, String[] tmpDirectories) {
-		super(inputGate, tmpDirectories);
+	public MutableRecordReader(InputGate inputGate, String[] tmpDirectories, Configuration configuration) {
+		super(inputGate, tmpDirectories, configuration);
 	}
 
 	@Override

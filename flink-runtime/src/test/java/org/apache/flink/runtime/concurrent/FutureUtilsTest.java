@@ -28,6 +28,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -41,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static org.hamcrest.CoreMatchers.containsString;
@@ -82,7 +84,7 @@ public class FutureUtilsTest extends TestLogger {
 			TestingUtils.defaultExecutor());
 
 		assertTrue(retryFuture.get());
-		assertEquals(retries, atomicInteger.get());
+		assertTrue(retries == atomicInteger.get());
 	}
 
 	/**
@@ -274,7 +276,7 @@ public class FutureUtilsTest extends TestLogger {
 					throwable instanceof RuntimeException && throwable.getMessage().contains(retryableExceptionMessage),
 				new ScheduledExecutorServiceAdapter(retryExecutor)).get();
 		} catch (final ExecutionException e) {
-			assertThat(e.getMessage(), containsString("should propagate"));
+			assertThat(e.getMessage(), containsString("Could not complete the operation"));
 		} finally {
 			retryExecutor.shutdownNow();
 		}
@@ -535,13 +537,45 @@ public class FutureUtilsTest extends TestLogger {
 			final FlinkException suppressedException;
 
 			if (actual.equals(testException1)) {
-				suppressedException = testException2;
+				 suppressedException = testException2;
 			} else {
 				suppressedException = testException1;
 			}
 
 			assertThat(suppressed, is(not(emptyArray())));
 			assertThat(suppressed, arrayContaining(suppressedException));
+		}
+	}
+
+	@Test
+	public void testCancelWaitingConjunctFuture() {
+		cancelConjunctFuture(inputFutures -> FutureUtils.waitForAll(inputFutures));
+	}
+
+	@Test
+	public void testCancelResultConjunctFuture() {
+		cancelConjunctFuture(inputFutures -> FutureUtils.combineAll(inputFutures));
+	}
+
+	@Test
+	public void testCancelCompleteConjunctFuture() {
+		cancelConjunctFuture(inputFutures -> FutureUtils.completeAll(inputFutures));
+	}
+
+	private void cancelConjunctFuture(Function<Collection<? extends CompletableFuture<?>>, FutureUtils.ConjunctFuture<?>> conjunctFutureFactory) {
+		final int numInputFutures = 10;
+		final Collection<CompletableFuture<Void>> inputFutures = new ArrayList<>(numInputFutures);
+
+		for (int i = 0; i < numInputFutures; i++) {
+			inputFutures.add(new CompletableFuture<>());
+		}
+
+		final FutureUtils.ConjunctFuture<?> conjunctFuture = conjunctFutureFactory.apply(inputFutures);
+
+		conjunctFuture.cancel(false);
+
+		for (CompletableFuture<Void> inputFuture : inputFutures) {
+			assertThat(inputFuture.isCancelled(), is(true));
 		}
 	}
 

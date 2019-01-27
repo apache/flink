@@ -20,6 +20,7 @@ package org.apache.flink.runtime.messages;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.instance.TaskManagerResourceDescription;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 
 import java.io.Serializable;
@@ -162,6 +163,8 @@ public class GenericMessageTester {
 
 		INSTANTIATORS.put(JobID.class, new JobIdInstantiator());
 		INSTANTIATORS.put(JobStatus.class, new JobStatusInstantiator());
+
+		INSTANTIATORS.put(TaskManagerResourceDescription.class, new TaskManagerResourceDescriptionInstantiator());
 	}
 	
 	// ------------------------------------------------------------------------
@@ -259,6 +262,15 @@ public class GenericMessageTester {
 		@Override
 		public JobStatus instantiate(Random rnd) {
 			return randomJobStatus(rnd);
+		}
+	}
+
+	public static class TaskManagerResourceDescriptionInstantiator implements Instantiator<TaskManagerResourceDescription> {
+
+		@Override
+		public TaskManagerResourceDescription instantiate(Random rnd) {
+			return new TaskManagerResourceDescription(rnd.nextDouble(), rnd.nextInt(), rnd.nextInt(),
+				rnd.nextInt(), rnd.nextInt(), rnd.nextInt());
 		}
 	}
 }

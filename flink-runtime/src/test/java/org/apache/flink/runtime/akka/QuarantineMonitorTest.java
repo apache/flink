@@ -43,10 +43,7 @@ import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
-import scala.concurrent.Await;
-import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
@@ -75,10 +72,10 @@ public class QuarantineMonitorTest extends TestLogger {
 	}
 
 	@AfterClass
-	public static void tearDown() throws InterruptedException, TimeoutException {
+	public static void tearDown() {
 		if (actorSystem1 != null) {
-			actorSystem1.terminate();
-			Await.ready(actorSystem1.whenTerminated(), Duration.Inf());
+			actorSystem1.shutdown();
+			actorSystem1.awaitTermination();
 		}
 	}
 
@@ -88,10 +85,10 @@ public class QuarantineMonitorTest extends TestLogger {
 	}
 
 	@After
-	public void tearDownTest() throws InterruptedException, TimeoutException {
+	public void tearDownTest() {
 		if (actorSystem2 != null) {
-			actorSystem2.terminate();
-			Await.ready(actorSystem2.whenTerminated(), Duration.Inf());
+			actorSystem2.shutdown();
+			actorSystem2.awaitTermination();
 		}
 	}
 

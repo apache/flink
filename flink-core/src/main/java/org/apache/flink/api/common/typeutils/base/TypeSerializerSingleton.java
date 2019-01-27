@@ -52,16 +52,17 @@ public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
 		}
 	}
 
-	/**
-	 * @deprecated this is kept around for backwards compatibility.
-	 *             Can only be removed when {@link ParameterlessTypeSerializerConfig} is removed.
-	 */
 	@Override
-	@Deprecated
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		// type serializer singletons should always be parameter-less
+		return new ParameterlessTypeSerializerConfig(getSerializationFormatIdentifier());
+	}
+
+	@Override
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof ParameterlessTypeSerializerConfig
 				&& isCompatibleSerializationFormatIdentifier(
-						((ParameterlessTypeSerializerConfig<?>) configSnapshot).getSerializationFormatIdentifier())) {
+						((ParameterlessTypeSerializerConfig) configSnapshot).getSerializationFormatIdentifier())) {
 
 			return CompatibilityResult.compatible();
 		} else {
@@ -73,11 +74,10 @@ public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
 	 * Subclasses can override this if they know that they are also compatible with identifiers of other formats.
 	 */
 	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
-		return identifier.equals(getClass().getName()) ||
-				identifier.equals(getClass().getCanonicalName());
+		return identifier.equals(getSerializationFormatIdentifier());
 	}
 
 	private String getSerializationFormatIdentifier() {
-		return getClass().getName();
+		return getClass().getCanonicalName();
 	}
 }

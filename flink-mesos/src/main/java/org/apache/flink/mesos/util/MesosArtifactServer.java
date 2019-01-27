@@ -24,11 +24,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.mesos.configuration.MesosOptions;
-import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
-import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
-import org.apache.flink.runtime.rest.handler.router.Router;
-import org.apache.flink.runtime.rest.handler.router.RouterHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
@@ -51,12 +47,19 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Handler;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedStream;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 import org.apache.flink.shaded.netty4.io.netty.util.CharsetUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 
 import java.io.File;
 import java.io.IOException;
@@ -101,6 +104,8 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 
 	private final Map<Path, URL> paths = new HashMap<>();
 
+	private final SSLContext serverSSLContext;
+
 	public MesosArtifactServer(String prefix, String serverHostname, int configuredPort, Configuration config)
 		throws Exception {
 		if (configuredPort < 0 || configuredPort > 0xFFFF) {
@@ -108,20 +113,19 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 		}
 
 		// Config to enable https access to the artifact server
-		final boolean enableSSL = config.getBoolean(
+		boolean enableSSL = config.getBoolean(
 				MesosOptions.ARTIFACT_SERVER_SSL_ENABLED) &&
-				SSLUtils.isRestSSLEnabled(config);
+				SSLUtils.getSSLEnabled(config);
 
-		final SSLHandlerFactory sslFactory;
 		if (enableSSL) {
 			LOG.info("Enabling ssl for the artifact server");
 			try {
-				sslFactory = SSLUtils.createRestServerSSLEngineFactory(config);
+				serverSSLContext = SSLUtils.createSSLServerContext(config);
 			} catch (Exception e) {
 				throw new IOException("Failed to initialize SSLContext for the artifact server", e);
 			}
 		} else {
-			sslFactory = null;
+			serverSSLContext = null;
 		}
 
 		router = new Router();
@@ -131,17 +135,20 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 
 			@Override
 			protected void initChannel(SocketChannel ch) {
-				RouterHandler handler = new RouterHandler(router, new HashMap<>());
+				Handler handler = new Handler(router);
 
 				// SSL should be the first handler in the pipeline
-				if (sslFactory != null) {
-					ch.pipeline().addLast("ssl", sslFactory.createNettySSLHandler());
+				if (serverSSLContext != null) {
+					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
+					SSLUtils.setSSLVerAndCipherSuites(sslEngine, sslConfig);
+					sslEngine.setUseClientMode(false);
+					ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
 				}
 
 				ch.pipeline()
 					.addLast(new HttpServerCodec())
 					.addLast(new ChunkedWriteHandler())
-					.addLast(handler.getName(), handler)
+					.addLast(handler.name(), handler)
 					.addLast(new UnknownFileHandler());
 			}
 		};
@@ -162,7 +169,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 		String address = bindAddress.getAddress().getHostAddress();
 		int port = bindAddress.getPort();
 
-		String httpProtocol = (sslFactory != null) ? "https" : "http";
+		String httpProtocol = (serverSSLContext != null) ? "https" : "http";
 
 		baseURL = new URL(httpProtocol, serverHostname, port, "/" + prefix + "/");
 
@@ -214,7 +221,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 			throw new IllegalArgumentException("not expecting an absolute path");
 		}
 		URL fileURL = new URL(baseURL, remoteFile.toString());
-		router.addAny(fileURL.getPath(), new VirtualFileServerHandler(path));
+		router.ANY(fileURL.getPath(), new VirtualFileServerHandler(path));
 
 		paths.put(remoteFile, fileURL);
 
@@ -229,7 +236,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 			} catch (MalformedURLException e) {
 				throw new RuntimeException(e);
 			}
-			router.removePathPattern(fileURL.getPath());
+			router.removePath(fileURL.getPath());
 		}
 	}
 
@@ -260,7 +267,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 	 * Handle HEAD and GET requests for a specific file.
 	 */
 	@ChannelHandler.Sharable
-	public static class VirtualFileServerHandler extends SimpleChannelInboundHandler<RoutedRequest> {
+	public static class VirtualFileServerHandler extends SimpleChannelInboundHandler<Routed> {
 
 		private FileSystem fs;
 		private Path path;
@@ -277,9 +284,9 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 		}
 
 		@Override
-		protected void channelRead0(ChannelHandlerContext ctx, RoutedRequest routedRequest) throws Exception {
+		protected void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
 
-			HttpRequest request = routedRequest.getRequest();
+			HttpRequest request = routed.request();
 
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("{} request for file '{}'", request.getMethod(), path);

@@ -108,8 +108,11 @@ public class Json extends FormatDescriptor {
 		return this;
 	}
 
+	/**
+	 * Convert this descriptor into a set of format properties.
+	 */
 	@Override
-	protected Map<String, String> toFormatProperties() {
+	public Map<String, String> toFormatProperties() {
 		final DescriptorProperties properties = new DescriptorProperties();
 
 		if (deriveSchema != null) {

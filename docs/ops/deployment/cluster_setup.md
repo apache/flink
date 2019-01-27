@@ -31,13 +31,13 @@ This page provides instructions on how to run Flink in a *fully distributed fash
 
 ### Software Requirements
 
-Flink runs on all *UNIX-like environments*, e.g. **Linux**, **Mac OS X**, and **Cygwin** (for Windows) and expects the cluster to consist of **one master node** and **one or more worker nodes**. Before you start to setup the system, make sure you have the following software installed **on each node**:
+Flink runs on all *UNIX-like environments*, e.g. **Linux**, **Mac OS X**, **Cygwin** (for Windows), and **[Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/about)** (for Windows 10) and expects the cluster to consist of **one master node** and **one or more worker nodes**. Before you start to setup the system, make sure you have the following software installed **on each node**:
 
 - **Java 1.8.x** or higher,
 - **ssh** (sshd must be running to use the Flink scripts that manage
   remote components)
 
-If your cluster does not fulfill these software requirements you will need to install/upgrade it.
+If your cluster does not fulfill these software requirements, you will need to install/upgrade it.
 
 Having __passwordless SSH__ and
 __the same directory structure__ on all your cluster nodes will allow you to use our scripts to control
@@ -66,11 +66,11 @@ cd flink-*
 
 ### Configuring Flink
 
-After having extracted the system files, you need to configure Flink for the cluster by editing *conf/flink-conf.yaml*.
+After having extracted the system files, you need to configure Flink for the cluster by editing *conf/flink-conf.yaml* .
 
 Set the `jobmanager.rpc.address` key to point to your master node. You should also define the maximum amount of main memory the JVM is allowed to allocate on each node by setting the `jobmanager.heap.mb` and `taskmanager.heap.mb` keys.
 
-These values are given in MB. If some worker nodes have more main memory which you want to allocate to the Flink system you can overwrite the default value by setting the environment variable `FLINK_TM_HEAP` on those specific nodes.
+Currently all the TaskManagers are started with the same resource specification and jvm arguments(-Xms, -Xmx, -Xmn, -XX:MaxDirectMemorySize, etc.). Navigate to [TaskManager Resource](../internals/taskmanager_resource.html) to figure out how the TaskManager Resources are configured. If some worker nodes have more main memory and you want to override the heap memory settings, the environment variable `FLINK_TM_HEAP` will not take effect and we recommend you to start multiple TaskManager instances on those specific nodes.
 
 Finally, you must provide a list of all nodes in your cluster which shall be used as worker nodes. Therefore, similar to the HDFS configuration, edit the file *conf/slaves* and enter the IP/host name of each worker node. Each worker node will later run a TaskManager.
 
@@ -137,7 +137,7 @@ You can add both JobManager and TaskManager instances to your running cluster wi
 #### Adding a JobManager
 
 {% highlight bash %}
-bin/jobmanager.sh ((start|start-foreground) [host] [webui-port])|stop|stop-all
+bin/jobmanager.sh ((start|start-foreground) cluster)|stop|stop-all
 {% endhighlight %}
 
 #### Adding a TaskManager

@@ -1,0 +1,157 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testExcept">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 EXCEPT SELECT f FROM T2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalMinus(all=[false])
+:- LogicalProject(c=[$2])
+:  +- LogicalTableScan(table=[[builtin, default, T1]])
++- LogicalProject(f=[$2])
+   +- LogicalTableScan(table=[[builtin, default, T2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[c], select=[c])
++- Exchange(distribution=[hash[c]])
+   +- LocalHashAggregate(groupBy=[c], select=[c])
+      +- HashSemiJoin(where=[OR(=(c, f), AND(IS NULL(c), IS NULL(f)))], join=[c], joinType=[LeftAntiJoin], isBroadcast=[true], build=[right])
+         :- Calc(select=[c])
+         :  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+         +- Exchange(distribution=[broadcast])
+            +- Calc(select=[f])
+               +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExceptLeftIsEmpty">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 WHERE 1=0 EXCEPT SELECT f FROM T2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalMinus(all=[false])
+:- LogicalProject(c=[$2])
+:  +- LogicalFilter(condition=[=(1, 0)])
+:     +- LogicalTableScan(table=[[builtin, default, T1]])
++- LogicalProject(f=[$2])
+   +- LogicalTableScan(table=[[builtin, default, T2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Values(tuples=[[]], values=[c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExceptRightIsEmpty">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 EXCEPT SELECT f FROM T2 WHERE 1=0]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalMinus(all=[false])
+:- LogicalProject(c=[$2])
+:  +- LogicalTableScan(table=[[builtin, default, T1]])
++- LogicalProject(f=[$2])
+   +- LogicalFilter(condition=[=(1, 0)])
+      +- LogicalTableScan(table=[[builtin, default, T2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[c], select=[c])
++- Exchange(distribution=[hash[c]])
+   +- LocalHashAggregate(groupBy=[c], select=[c])
+      +- Calc(select=[c])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIntersect">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 INTERSECT SELECT f FROM T2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalIntersect(all=[false])
+:- LogicalProject(c=[$2])
+:  +- LogicalTableScan(table=[[builtin, default, T1]])
++- LogicalProject(f=[$2])
+   +- LogicalTableScan(table=[[builtin, default, T2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+HashAggregate(isMerge=[true], groupBy=[c], select=[c])
++- Exchange(distribution=[hash[c]])
+   +- LocalHashAggregate(groupBy=[c], select=[c])
+      +- HashSemiJoin(where=[OR(=(c, f), AND(IS NULL(c), IS NULL(f)))], join=[c], joinType=[LeftSemiJoin], isBroadcast=[true], build=[right])
+         :- Calc(select=[c])
+         :  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+         +- Exchange(distribution=[broadcast])
+            +- Calc(select=[f])
+               +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIntersectRightIsEmpty">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 INTERSECT SELECT f FROM T2 WHERE 1=0]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalIntersect(all=[false])
+:- LogicalProject(c=[$2])
+:  +- LogicalTableScan(table=[[builtin, default, T1]])
++- LogicalProject(f=[$2])
+   +- LogicalFilter(condition=[=(1, 0)])
+      +- LogicalTableScan(table=[[builtin, default, T2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Values(tuples=[[]], values=[c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIntersectLeftIsEmpty">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 WHERE 1=0 INTERSECT SELECT f FROM T2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalIntersect(all=[false])
+:- LogicalProject(c=[$2])
+:  +- LogicalFilter(condition=[=(1, 0)])
+:     +- LogicalTableScan(table=[[builtin, default, T1]])
++- LogicalProject(f=[$2])
+   +- LogicalTableScan(table=[[builtin, default, T2]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Values(tuples=[[]], values=[c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -18,17 +18,16 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+
+import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -39,57 +38,76 @@ import static org.mockito.Mockito.when;
 /**
  * A mocked input channel.
  */
-public class TestInputChannel extends InputChannel {
+public class TestInputChannel {
 
-	private final Queue<BufferAndAvailabilityProvider> buffers = new ConcurrentLinkedQueue<>();
+	private final InputChannel mock = Mockito.mock(InputChannel.class);
 
-	private BufferAndAvailabilityProvider lastProvider = null;
+	private final SingleInputGate inputGate;
 
-	private boolean isReleased = false;
+	private ConcurrentLinkedQueue<BufferAndAvailability> bufferQueue;
 
-	TestInputChannel(SingleInputGate inputGate, int channelIndex) {
-		super(inputGate, channelIndex, new ResultPartitionID(), 0, 0, new SimpleCounter(), new SimpleCounter());
+	public TestInputChannel(SingleInputGate inputGate, int channelIndex) {
+		checkArgument(channelIndex >= 0);
+		this.inputGate = checkNotNull(inputGate);
+
+		when(mock.getChannelIndex()).thenReturn(channelIndex);
+		when(mock.getInputGate()).thenReturn(inputGate);
+	}
+
+	public TestInputChannel readBuffer() throws IOException, InterruptedException {
+		return readBuffer(true);
 	}
 
 	public TestInputChannel read(Buffer buffer) throws IOException, InterruptedException {
 		return read(buffer, true);
 	}
 
-	public TestInputChannel read(Buffer buffer, boolean moreAvailable) throws IOException, InterruptedException {
-		addBufferAndAvailability(new BufferAndAvailability(buffer, moreAvailable, 0));
-
-		return this;
-	}
-
-	TestInputChannel readBuffer() throws IOException, InterruptedException {
-		return readBuffer(true);
-	}
-
-	TestInputChannel readBuffer(boolean moreAvailable) throws IOException, InterruptedException {
+	public TestInputChannel readBuffer(boolean moreAvailable) throws IOException, InterruptedException {
 		final Buffer buffer = mock(Buffer.class);
 		when(buffer.isBuffer()).thenReturn(true);
 
 		return read(buffer, moreAvailable);
 	}
 
-	TestInputChannel readEndOfPartitionEvent() throws InterruptedException {
-		addBufferAndAvailability(
-			() -> {
-				setReleased();
-				return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE),
-					false,
-					0));
-			}
-		);
+	public TestInputChannel read(Buffer buffer, boolean moreAvailable) throws IOException, InterruptedException {
+		readInitialize();
+
+		bufferQueue.add(new BufferAndAvailability(buffer, moreAvailable, 0));
 		return this;
 	}
 
-	void addBufferAndAvailability(BufferAndAvailability bufferAndAvailability) {
-		buffers.add(() -> Optional.of(bufferAndAvailability));
+	public TestInputChannel readEndOfPartitionEvent() throws IOException, InterruptedException {
+		readInitialize();
+
+		bufferQueue.add(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), false, 0));
+		return this;
 	}
 
-	void addBufferAndAvailability(BufferAndAvailabilityProvider bufferAndAvailability) {
-		buffers.add(bufferAndAvailability);
+	public InputChannel getInputChannel() {
+		return mock;
+	}
+
+	private void readInitialize() {
+		synchronized (this) {
+			if (this.bufferQueue == null) {
+				this.bufferQueue = new ConcurrentLinkedQueue<>();
+
+				try {
+					when(mock.getNextBuffer()).thenAnswer((invocationOnMock) -> {
+						BufferAndAvailability bufferAndAvailability = bufferQueue.poll();
+
+						if (EventSerializer.isEvent(bufferAndAvailability.buffer(), EndOfPartitionEvent.class)) {
+							// Return true after finishing
+							when(mock.isReleased()).thenReturn(true);
+						}
+
+						return Optional.of(bufferAndAvailability);
+					});
+				} catch (IOException | InterruptedException e) {
+					throw new RuntimeException(e);
+				}
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -99,7 +117,7 @@ public class TestInputChannel extends InputChannel {
 	 *
 	 * @return The created test input channels.
 	 */
-	static TestInputChannel[] createInputChannels(SingleInputGate inputGate, int numberOfInputChannels) {
+	public static TestInputChannel[] createInputChannels(SingleInputGate inputGate, int numberOfInputChannels) {
 		checkNotNull(inputGate);
 		checkArgument(numberOfInputChannels > 0);
 
@@ -108,62 +126,9 @@ public class TestInputChannel extends InputChannel {
 		for (int i = 0; i < numberOfInputChannels; i++) {
 			mocks[i] = new TestInputChannel(inputGate, i);
 
-			inputGate.setInputChannel(new IntermediateResultPartitionID(), mocks[i]);
+			inputGate.setInputChannel(new IntermediateResultPartitionID(), mocks[i].getInputChannel());
 		}
 
 		return mocks;
 	}
-
-	@Override
-	void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
-
-	}
-
-	@Override
-	Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {
-		BufferAndAvailabilityProvider provider = buffers.poll();
-
-		if (provider != null) {
-			lastProvider = provider;
-			return provider.getBufferAvailability();
-		} else if (lastProvider != null) {
-			return lastProvider.getBufferAvailability();
-		} else {
-			return Optional.empty();
-		}
-	}
-
-	@Override
-	void sendTaskEvent(TaskEvent event) throws IOException {
-
-	}
-
-	@Override
-	boolean isReleased() {
-		return isReleased;
-	}
-
-	void setReleased() {
-		this.isReleased = true;
-	}
-
-	@Override
-	void notifySubpartitionConsumed() throws IOException {
-
-	}
-
-	@Override
-	void releaseAllResources() throws IOException {
-
-	}
-
-	@Override
-	protected void notifyChannelNonEmpty() {
-
-	}
-
-	interface BufferAndAvailabilityProvider {
-		Optional<BufferAndAvailability> getBufferAvailability() throws IOException, InterruptedException;
-	}
-
 }

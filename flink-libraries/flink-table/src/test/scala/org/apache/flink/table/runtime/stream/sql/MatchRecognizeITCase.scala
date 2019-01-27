@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.stream.sql
 
 import java.sql.Timestamp
-import java.time.{ZoneId, ZonedDateTime}
 import java.util.TimeZone
 
 import org.apache.flink.api.common.time.Time
@@ -27,26 +26,29 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.functions.{AggregateFunction, FunctionContext, ScalarFunction}
+import org.apache.flink.table.api.{TableConfig, TableConfigOptions, TableEnvironment, Types}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableConfig, TableEnvironment, Types}
-import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
+import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
-import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, UserDefinedFunctionTestUtils}
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
 import scala.collection.mutable
 
-class MatchRecognizeITCase extends StreamingWithStateTestBase {
+@RunWith(classOf[Parameterized])
+class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithStateTestBase(backend) {
 
   @Test
   def testSimplePattern(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
 
     val data = new mutable.MutableList[(Int, String)]
     data.+=((1, "a"))
@@ -64,28 +66,29 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
 
     val sqlQuery =
       s"""
-        |SELECT T.aid, T.bid, T.cid
-        |FROM MyTable
-        |MATCH_RECOGNIZE (
-        |  ORDER BY proctime
-        |  MEASURES
-        |    `A"`.id AS aid,
-        |    \u006C.id AS bid,
-        |    C.id AS cid
-        |  PATTERN (`A"` \u006C C)
-        |  DEFINE
-        |    `A"` AS name = 'a',
-        |    \u006C AS name = 'b',
-        |    C AS name = 'c'
-        |) AS T
-        |""".stripMargin
+         |SELECT T.aid, T.bid, T.cid
+         |FROM MyTable
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    `A"`.id AS aid,
+         |    \u006C.id AS bid,
+         |    C.id AS cid
+         |  PATTERN (`A"` \u006C C)
+         |  DEFINE
+         |    `A"` AS name = 'a',
+         |    \u006C AS name = 'b',
+         |    C AS name = 'c'
+         |) AS T
+         |""".stripMargin
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    result.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("6,7,8")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
@@ -93,7 +96,6 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
 
     val data = new mutable.MutableList[(Int, String, String)]
     data.+=((1, "a", null))
@@ -129,11 +131,12 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
          |""".stripMargin
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    result.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,null,3,null", "6,null,8,null")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(expected.sorted, sink.getAppendResults)
   }
 
   @Test
@@ -141,9 +144,8 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
     val tableConfig = new TableConfig
-    tableConfig.setMaxGeneratedCodeLength(1)
+    tableConfig.getConf.setInteger(TableConfigOptions.SQL_CODEGEN_LENGTH_MAX, 1)
     val tEnv = TableEnvironment.getTableEnvironment(env, tableConfig)
-    StreamITCase.clear
 
     val data = new mutable.MutableList[(Int, String, String, String)]
     data.+=((1, "a", "key1", "second_key3"))
@@ -182,13 +184,14 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
          |""".stripMargin
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    result.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
       "key1,second_key3,1,key1,2,3,second_key3",
       "key2,second_key4,6,key2,7,8,second_key4")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(expected.sorted, sink.getAppendResults)
   }
 
   @Test
@@ -197,7 +200,6 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
 
     val data = Seq(
       Left(2L, (12, 1, "a", 1)),
@@ -243,11 +245,12 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     val table = tEnv.sqlQuery(sqlQuery)
 
     val result = table.toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    result.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("10,11,12")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(expected.sorted, sink.getAppendResults)
   }
 
   @Test
@@ -256,7 +259,6 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     env.setParallelism(1)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
     //first window
@@ -305,67 +307,12 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
          |""".stripMargin
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    result.addSink(sink)
     env.execute()
 
     val expected = List("ACME,2,1970-01-01 00:00:03.0")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
-  }
-
-  @Test
-  def testWindowedGroupingAppliedToMatchRecognize(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
-
-    val data = new mutable.MutableList[(String, Long, Int, Int)]
-    //first window
-    data.+=(("ACME", Time.seconds(1).toMilliseconds, 1, 1))
-    data.+=(("ACME", Time.seconds(2).toMilliseconds, 2, 2))
-    //second window
-    data.+=(("ACME", Time.seconds(4).toMilliseconds, 1, 4))
-    data.+=(("ACME", Time.seconds(5).toMilliseconds, 1, 3))
-
-
-    val tickerEvents = env.fromCollection(data)
-      .assignAscendingTimestamps(tickerEvent => tickerEvent._2)
-      .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
-
-    tEnv.registerTable("Ticker", tickerEvents)
-
-    val sqlQuery =
-      s"""
-         |SELECT
-         |  symbol,
-         |  SUM(price) as price,
-         |  TUMBLE_ROWTIME(matchRowtime, interval '3' second) as rowTime,
-         |  TUMBLE_START(matchRowtime, interval '3' second) as startTime
-         |FROM Ticker
-         |MATCH_RECOGNIZE (
-         |  PARTITION BY symbol
-         |  ORDER BY rowtime
-         |  MEASURES
-         |    A.price as price,
-         |    A.tax as tax,
-         |    MATCH_ROWTIME() as matchRowtime
-         |  ONE ROW PER MATCH
-         |  PATTERN (A)
-         |  DEFINE
-         |    A AS A.price > 0
-         |) AS T
-         |GROUP BY symbol, TUMBLE(matchRowtime, interval '3' second)
-         |""".stripMargin
-
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink[Row])
-    env.execute()
-
-    val expected = List(
-      "ACME,3,1970-01-01 00:00:02.999,1970-01-01 00:00:00.0",
-      "ACME,2,1970-01-01 00:00:05.999,1970-01-01 00:00:03.0")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(expected.sorted, sink.getAppendResults)
   }
 
   @Test
@@ -373,7 +320,6 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
     data.+=(("ACME", 1L, 19, 1))
@@ -411,11 +357,12 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
          |""".stripMargin
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    result.addSink(sink)
     env.execute()
 
     val expected = List("6,7,8,33,33")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(expected.sorted, sink.getAppendResults)
   }
 
   @Test
@@ -423,7 +370,6 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
 
     val data = new mutable.MutableList[(Int, String, Long, Int)]
     data.+=((1, "ACME", 1L, 20))
@@ -472,11 +418,12 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
          |""".stripMargin
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    result.addSink(sink)
     env.execute()
 
     val expected = List("1,2,3,4,5,6,7,8,8,7,6,5,4,3,2,1")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(expected.sorted, sink.getAppendResults)
   }
 
   @Test
@@ -484,7 +431,6 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
     data.+=(("ACME", 1L, 19, 1))
@@ -516,11 +462,12 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
          |""".stripMargin
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    result.addSink(sink)
     env.execute()
 
     val expected = List("19,13,null")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(expected.sorted, sink.getAppendResults)
   }
 
   /**
@@ -535,9 +482,9 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
   def testAggregates(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    tEnv.getConfig.setMaxGeneratedCodeLength(1)
-    StreamITCase.clear
+    val tableConfig = new TableConfig
+    tableConfig.getConf.setInteger(TableConfigOptions.SQL_CODEGEN_LENGTH_MAX, 1)
+    val tEnv = TableEnvironment.getTableEnvironment(env, tableConfig)
 
     val data = new mutable.MutableList[(Int, String, Long, Double, Int)]
     data.+=((1, "a", 1, 0.8, 1))
@@ -586,20 +533,21 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
          |""".stripMargin
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    result.addSink(sink)
     env.execute()
 
-    val expected = mutable.MutableList("1,5,0,null,2,3,3.4,8", "9,4,0,null,3,4,3.2,12")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    val expected = mutable.MutableList("1,5,0,null,2,3.0,3.4,8", "9,4,0,null,3,4.0,3.2,12")
+    assertEquals(expected.sorted, sink.getAppendResults)
   }
 
   @Test
   def testAggregatesWithNullInputs(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    tEnv.getConfig.setMaxGeneratedCodeLength(1)
-    StreamITCase.clear
+    val tableConfig = new TableConfig
+    tableConfig.getConf.setInteger(TableConfigOptions.SQL_CODEGEN_LENGTH_MAX, 1)
+    val tEnv = TableEnvironment.getTableEnvironment(env, tableConfig)
 
     val data = new mutable.MutableList[Row]
     data.+=(Row.of(Int.box(1), "a", Int.box(10)))
@@ -642,19 +590,19 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
          |""".stripMargin
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    result.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("29,7,5,8,6,8")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
-  def testAccessingCurrentTime(): Unit = {
+  def testAccessingProctime(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
 
     val data = new mutable.MutableList[(Int, String)]
     data.+=((1, "a"))
@@ -679,11 +627,52 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
          |""".stripMargin
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    result.addSink(sink)
     env.execute()
 
     val expected = List("1")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(expected.sorted, sink.getAppendResults)
+
+    // We do not assert the proctime in the result, cause it is currently
+    // accessed from System.currentTimeMillis(), so there is no graceful way to assert the proctime
+  }
+
+  @Test
+  def testPartitioningByTimeIndicator(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val data = new mutable.MutableList[(Int, String)]
+    data.+=((1, "a"))
+
+    val t = env.fromCollection(data).toTable(tEnv,'id, 'name, 'proctime.proctime)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT T.aid
+         |FROM MyTable
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    A.id AS aid,
+         |    A.proctime AS aProctime,
+         |    LAST(A.proctime + INTERVAL '1' second) as calculatedField
+         |  PATTERN (A)
+         |  DEFINE
+         |    A AS proctime >= (CURRENT_TIMESTAMP - INTERVAL '1' day)
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("1")
+    assertEquals(expected.sorted, sink.getAppendResults)
 
     // We do not assert the proctime in the result, cause it is currently
     // accessed from System.currentTimeMillis(), so there is no graceful way to assert the proctime
@@ -693,9 +682,9 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
   def testUserDefinedFunctions(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    tEnv.getConfig.setMaxGeneratedCodeLength(1)
-    StreamITCase.clear
+    val tableConfig = new TableConfig
+    tableConfig.getConf.setInteger(TableConfigOptions.SQL_CODEGEN_LENGTH_MAX, 1)
+    val tEnv = TableEnvironment.getTableEnvironment(env, tableConfig)
 
     val data = new mutable.MutableList[(Int, String, Long)]
     data.+=((1, "a", 1))
@@ -737,11 +726,460 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
          |""".stripMargin
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-    result.addSink(new StreamITCase.StringSink[Row])
+    val sink = new TestingAppendSink
+    result.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,PREF:a,8,5", "7,PREF:a,6,9")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    assertEquals(expected.sorted, sink.getAppendResults)
+  }
+
+  @Test
+  def testAllRowsPerMatch() = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val tableConfig = new TableConfig
+    tableConfig.getConf.setInteger(TableConfigOptions.SQL_CODEGEN_LENGTH_MAX, 1)
+    val tEnv = TableEnvironment.getTableEnvironment(env, tableConfig)
+
+    val data = new mutable.MutableList[(Int, String, Int)]
+    data.+=((1, "a", 1))
+    data.+=((2, "b", 2))
+    data.+=((3, "b", 3))
+    data.+=((4, "b", 4))
+    data.+=((5, "c", 5))
+    data.+=((6, "a", 6))
+    data.+=((7, "b", 7))
+    data.+=((8, "c", 8))
+
+    val t = env.fromCollection(data).toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT
+         |  id, name, price, aid, bid, final_bid, sum_price, final_sum_price, cid, cls, final_cls
+         |FROM MyTable
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    A.id AS aid,
+         |    LAST(B.id) AS bid,
+         |    FINAL LAST(B.id) AS final_bid,
+         |    SUM(B.price) AS sum_price,
+         |    FINAL SUM(B.price) AS final_sum_price,
+         |    C.id AS cid,
+         |    LAST(CLASSIFIER()) AS cls,
+         |    FINAL LAST(CLASSIFIER()) AS final_cls
+         |  ALL ROWS PER MATCH
+         |  PATTERN (A B+ C)
+         |  DEFINE
+         |    A AS A.name = 'a',
+         |    B AS B.name = 'b',
+         |    C AS C.name = 'c'
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,a,1,1,null,4,null,9,null,A,C",
+      "2,b,2,1,2,4,2,9,null,B,C",
+      "3,b,3,1,3,4,5,9,null,B,C",
+      "4,b,4,1,4,4,9,9,null,B,C",
+      "5,c,5,1,4,4,9,9,5,C,C",
+      "6,a,6,6,null,7,null,7,null,A,C",
+      "7,b,7,6,7,7,7,7,null,B,C",
+      "8,c,8,6,7,7,7,7,8,C,C")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testOneRowPerMatchRunning() = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val tableConfig = new TableConfig
+    tableConfig.getConf.setInteger(TableConfigOptions.SQL_CODEGEN_LENGTH_MAX, 1)
+    val tEnv = TableEnvironment.getTableEnvironment(env, tableConfig)
+
+    val data = new mutable.MutableList[(String, Long, Int, Int)]
+    data.+=(("ACME", 1L, 12, 1))
+    data.+=(("ACME", 2L, 17, 2))
+    data.+=(("ACME", 3L, 13, 4))
+    data.+=(("ACME", 4L, 11, 3))
+    data.+=(("ACME", 5L, 20, 5))
+    data.+=(("ACME", 6L, 24, 4))
+    data.+=(("ACME", 7L, 25, 3))
+    data.+=(("ACME", 8L, 19, 8))
+
+    val t = env.fromCollection(data).toTable(
+      tEnv, 'symbol, 'tstamp, 'price, 'tax, 'proctime.proctime)
+    tEnv.registerTable("Ticker", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM Ticker
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    STRT.tstamp AS start_tstamp,
+         |    FIRST(DOWN.tstamp) as down_tstamp,
+         |    RUNNING FIRST(DOWN.tstamp) as running_down_tstamp,
+         |    LAST(UP.tstamp) AS end_tstamp,
+         |    RUNNING LAST(UP.tstamp) AS runnig_end_tstamp
+         |  ONE ROW PER MATCH
+         |  PATTERN (STRT DOWN+ UP)
+         |  DEFINE
+         |    DOWN AS DOWN.price < LAST(DOWN.price, 1)
+         |      OR (LAST(DOWN.price, 1) IS NULL AND DOWN.price < STRT.price),
+         |    UP AS UP.price > LAST(DOWN.price) AND UP.tax > FIRST(DOWN.tax)
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("2,3,3,5,5", "3,4,4,5,5")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testClassifierWithOneRowPerMatch() = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val tableConfig = new TableConfig
+    tableConfig.getConf.setInteger(TableConfigOptions.SQL_CODEGEN_LENGTH_MAX, 1)
+    val tEnv = TableEnvironment.getTableEnvironment(env, tableConfig)
+
+    val data = new mutable.MutableList[(String, Long, Int)]
+    data.+=(("ACME", 1L, 12))
+    data.+=(("ACME", 2L, 17))
+    data.+=(("ACME", 3L, 13))
+    data.+=(("ACME", 4L, 21))
+    data.+=(("ACME", 5L, 22))
+    data.+=(("ACME", 6L, 19))
+
+    val t = env.fromCollection(data).toTable(tEnv, 'symbol, 'tstamp, 'price, 'proctime.proctime)
+    tEnv.registerTable("Ticker", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM Ticker
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    `A"`.tstamp AS start_tstamp,
+         |    LAST(C.tstamp) AS end_tstamp,
+         |    LAST(CLASSIFIER(), 1) AS cls
+         |  ONE ROW PER MATCH
+         |  PATTERN (`A"` \u006C? C)
+         |  DEFINE
+         |    \u006C AS \u006C.price < LAST(price, 1),
+         |    C AS CASE
+         |            WHEN LAST(CLASSIFIER(), 1) = '`A"`'
+         |              THEN C.price > 15
+         |            ELSE
+         |              C.price > 20
+         |          END
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("2,4,\u006C", "3,4,A\"", "4,5,A\"")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testWithinEventTime() = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tableConfig = new TableConfig
+    tableConfig.getConf.setInteger(TableConfigOptions.SQL_CODEGEN_LENGTH_MAX, 1)
+    val tEnv = TableEnvironment.getTableEnvironment(env, tableConfig)
+
+    val data = new mutable.MutableList[Either[(Long, (String, Int, Int)), Long]]
+    data.+=(Left((3000L, ("ACME", 17, 2))))
+    data.+=(Left((1000L, ("ACME", 12, 1))))
+    data.+=(Right(4000L))
+    data.+=(Left((5000L, ("ACME", 13, 3))))
+    data.+=(Left((7000L, ("ACME", 15, 4))))
+    data.+=(Right(8000L))
+    data.+=(Left((9000L, ("ACME", 20, 5))))
+    data.+=(Right(13000L))
+    data.+=(Left((15000L, ("ACME", 19, 8))))
+    data.+=(Right(16000L))
+
+    val t = env.addSource(new EventTimeSourceFunction[(String, Int, Int)](data))
+      .toTable(tEnv, 'symbol, 'price, 'tax, 'tstamp.rowtime)
+    tEnv.registerTable("Ticker", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM Ticker
+         |MATCH_RECOGNIZE (
+         |  PARTITION BY symbol
+         |  ORDER BY tstamp
+         |  MEASURES
+         |    STRT.tstamp AS start_tstamp,
+         |    FIRST(DOWN.tstamp) AS bottom_tstamp,
+         |    FIRST(UP.tstamp) AS end_tstamp,
+         |    FIRST(DOWN.price + DOWN.tax + 1) AS bottom_total,
+         |    FIRST(UP.price + UP.tax) AS end_total
+         |  ONE ROW PER MATCH
+         |  PATTERN (STRT DOWN+ UP) within interval '5' second
+         |  DEFINE
+         |    DOWN AS DOWN.price < LAST(DOWN.price, 1) OR
+         |      (LAST(DOWN.price, 1) IS NULL AND DOWN.price < STRT.price),
+         |    UP AS UP.price > LAST(DOWN.price)
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "ACME,1970-01-01 00:00:03.0,1970-01-01 00:00:05.0,1970-01-01 00:00:07.0,17,19")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testFolloweBy() = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val tableConfig = new TableConfig
+    tableConfig.getConf.setInteger(TableConfigOptions.SQL_CODEGEN_LENGTH_MAX, 1)
+    val tEnv = TableEnvironment.getTableEnvironment(env, tableConfig)
+
+    val data = new mutable.MutableList[(Int, String)]
+    data.+=((1, "a"))
+    data.+=((2, "z"))
+    data.+=((3, "b"))
+    data.+=((4, "c"))
+    data.+=((5, "d"))
+    data.+=((6, "a"))
+    data.+=((7, "b"))
+    data.+=((8, "c"))
+    data.+=((9, "h"))
+
+    val t = env.fromCollection(data).toTable(tEnv, 'id, 'name, 'proctime.proctime)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT T.aid, T.bid, T.cid
+         |FROM MyTable
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    A.id AS aid,
+         |    B.id AS bid,
+         |    C.id AS cid
+         |  PATTERN (A -> B C)
+         |  DEFINE
+         |    A AS A.name = 'a',
+         |    B AS B.name = 'b',
+         |    C AS C.name = 'c'
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = mutable.MutableList("1,3,4","6,7,8")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testOneRowPerMatchTimeout() = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tableConfig = new TableConfig
+    tableConfig.getConf.setInteger(TableConfigOptions.SQL_CODEGEN_LENGTH_MAX, 1)
+    val tEnv = TableEnvironment.getTableEnvironment(env, tableConfig)
+
+    val data = new mutable.MutableList[Either[(Long, (String, Int, Int)), Long]]
+    data.+=(Left((3000L, ("ACME", 17, 2))))
+    data.+=(Left((1000L, ("ACME", 12, 1))))
+    data.+=(Right(4000L))
+    data.+=(Left((5000L, ("ACME", 13, 3))))
+    data.+=(Left((7000L, ("ACME", 15, 4))))
+    data.+=(Right(8000L))
+    data.+=(Left((9000L, ("ACME", 20, 5))))
+    data.+=(Right(13000L))
+    data.+=(Left((15000L, ("ACME", 19, 8))))
+    data.+=(Right(16000L))
+
+    val t = env.addSource(new EventTimeSourceFunction[(String, Int, Int)](data))
+      .toTable(tEnv, 'symbol, 'price, 'tax, 'tstamp.rowtime)
+    tEnv.registerTable("Ticker", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM Ticker
+         |MATCH_RECOGNIZE (
+         |  PARTITION BY symbol
+         |  ORDER BY tstamp
+         |  MEASURES
+         |    STRT.tstamp AS start_tstamp,
+         |    FIRST(DOWN.tstamp) AS bottom_tstamp,
+         |    FIRST(UP.tstamp) AS end_tstamp,
+         |    FIRST(DOWN.price + DOWN.tax + 1) AS bottom_total,
+         |    UP.price + UP.tax AS end_total
+         |  ONE ROW PER MATCH WITH TIMEOUT ROWS
+         |  PATTERN (STRT DOWN+ UP) within interval '5' second
+         |  DEFINE
+         |    DOWN AS DOWN.price < LAST(DOWN.price, 1) OR
+         |      (LAST(DOWN.price, 1) IS NULL AND DOWN.price < STRT.price),
+         |    UP AS UP.price > LAST(DOWN.price)
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "ACME,1970-01-01 00:00:03.0,1970-01-01 00:00:05.0,1970-01-01 00:00:07.0,17,19",
+      "ACME,1970-01-01 00:00:09.0,null,null,null,null",
+      "ACME,1970-01-01 00:00:15.0,null,null,null,null"
+    )
+
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testAllRowsPerMatchTimeout() = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tableConfig = new TableConfig
+    tableConfig.getConf.setInteger(TableConfigOptions.SQL_CODEGEN_LENGTH_MAX, 1)
+    val tEnv = TableEnvironment.getTableEnvironment(env, tableConfig)
+
+    val data = new mutable.MutableList[Either[(Long, (String, Int, Int)), Long]]
+    data.+=(Left((3000L, ("ACME", 17, 2))))
+    data.+=(Left((1000L, ("ACME", 12, 1))))
+    data.+=(Right(4000L))
+    data.+=(Left((5000L, ("ACME", 13, 3))))
+    data.+=(Left((7000L, ("ACME", 15, 4))))
+    data.+=(Right(8000L))
+    data.+=(Left((9000L, ("ACME", 20, 5))))
+    data.+=(Right(13000L))
+    data.+=(Left((15000L, ("ACME", 19, 8))))
+    data.+=(Right(16000L))
+
+    val t = env.addSource(new EventTimeSourceFunction[(String, Int, Int)](data))
+      .toTable(tEnv, 'symbol, 'price, 'tax, 'tstamp.rowtime)
+    tEnv.registerTable("Ticker", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM Ticker
+         |MATCH_RECOGNIZE (
+         |  PARTITION BY symbol
+         |  ORDER BY tstamp
+         |  MEASURES
+         |    STRT.tstamp AS start_tstamp,
+         |    FIRST(DOWN.tstamp) AS bottom_tstamp,
+         |    FIRST(UP.tstamp) AS end_tstamp,
+         |    FIRST(DOWN.price + DOWN.tax + 1) AS bottom_total,
+         |    UP.price + UP.tax AS end_total
+         |  ALL ROWS PER MATCH WITH TIMEOUT ROWS
+         |  PATTERN (STRT DOWN+ UP) within interval '5' second
+         |  DEFINE
+         |    DOWN AS DOWN.price < LAST(DOWN.price, 1) OR
+         |      (LAST(DOWN.price, 1) IS NULL AND DOWN.price < STRT.price),
+         |    UP AS UP.price > LAST(DOWN.price)
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "ACME,1970-01-01 00:00:03.0,17,2,1970-01-01 00:00:03.0,null,null,null,null",
+      "ACME,1970-01-01 00:00:05.0,13,3,1970-01-01 00:00:03.0,1970-01-01 00:00:05.0," +
+        "null,17,null",
+      "ACME,1970-01-01 00:00:07.0,15,4,1970-01-01 00:00:03.0,1970-01-01 00:00:05.0," +
+        "1970-01-01 00:00:07.0,17,19",
+      "ACME,1970-01-01 00:00:09.0,20,5,1970-01-01 00:00:09.0,null,null,null,null",
+      "ACME,1970-01-01 00:00:15.0,19,8,1970-01-01 00:00:15.0,null,null,null,null"
+    )
+
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testGreedy() = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val tableConfig = new TableConfig
+    tableConfig.getConf.setInteger(TableConfigOptions.SQL_CODEGEN_LENGTH_MAX, 1)
+    val tEnv = TableEnvironment.getTableEnvironment(env, tableConfig)
+
+    val data = new mutable.MutableList[(Int, String)]
+    data.+=((1, "a"))
+    data.+=((2, "z"))
+    data.+=((3, "b"))
+    data.+=((4, "c"))
+    data.+=((5, "d"))
+    data.+=((6, "a"))
+    data.+=((7, "b"))
+    data.+=((8, "b"))
+    data.+=((9, "c"))
+    data.+=((10, "h"))
+
+    val t = env.fromCollection(data).toTable(tEnv, 'id, 'name, 'proctime.proctime)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT T.aid, T.bid, T.cid
+         |FROM MyTable
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    A.id AS aid,
+         |    LAST(B.id) AS bid,
+         |    C.id AS cid
+         |  PATTERN (A B+ -> C)
+         |  DEFINE
+         |    A AS A.name = 'a',
+         |    B AS B.name = 'b',
+         |    C AS C.name = 'c'
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = mutable.MutableList("6,8,9")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 }
 

@@ -22,12 +22,11 @@ import java.sql.Timestamp
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestBase
-import org.apache.flink.table.utils.TableTestUtil._
+import org.apache.flink.table.util.TableTestBase
 import org.junit.Test
 
 /**
-  * Tests for both windowed and non-windowed joins.
+  * Currently only time-windowed joins can be processed in a streaming fashion.
   */
 class JoinTest extends TableTestBase {
 
@@ -41,30 +40,7 @@ class JoinTest extends TableTestBase {
     val resultTable = left.join(right)
       .where('a === 'd && 'lrtime >= 'rrtime - 5.minutes && 'lrtime < 'rrtime + 3.seconds)
       .select('a, 'e, 'lrtime)
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        binaryNode(
-          "DataStreamWindowJoin",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "lrtime")
-          ),
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(1),
-            term("select", "d", "e", "rrtime")
-          ),
-          term("where", "AND(=(a, d), >=(CAST(lrtime), -(CAST(rrtime), 300000))," +
-            " <(CAST(lrtime), +(CAST(rrtime), 3000)))"),
-          term("join", "a", "lrtime", "d", "e", "rrtime"),
-          term("joinType", "InnerJoin")
-        ),
-        term("select", "a", "e", "lrtime")
-      )
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -76,30 +52,7 @@ class JoinTest extends TableTestBase {
     val resultTable = left.join(right)
       .where('a === 'd && 'lptime >= 'rptime - 1.second && 'lptime < 'rptime)
       .select('a, 'e, 'lptime)
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        binaryNode(
-          "DataStreamWindowJoin",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "lptime")
-          ),
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(1),
-            term("select", "d", "e", "rptime")
-          ),
-          term("where", "AND(=(a, d), >=(PROCTIME(lptime), -(PROCTIME(rptime), 1000)), " +
-            "<(PROCTIME(lptime), PROCTIME(rptime)))"),
-          term("join", "a", "lptime", "d", "e", "rptime"),
-          term("joinType", "InnerJoin")
-        ),
-        term("select", "a", "e", "PROCTIME(lptime) AS lptime")
-      )
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -111,29 +64,7 @@ class JoinTest extends TableTestBase {
     val resultTable = left.join(right)
       .where('a === 'd && 'lptime === 'rptime)
       .select('a, 'e, 'lptime)
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        binaryNode(
-          "DataStreamWindowJoin",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "lptime")
-          ),
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(1),
-            term("select", "d", "e", "rptime")
-          ),
-          term("where", "AND(=(a, d), =(PROCTIME(lptime), PROCTIME(rptime)))"),
-          term("join", "a", "lptime", "d", "e", "rptime"),
-          term("joinType", "InnerJoin")
-        ),
-        term("select", "a", "e", "PROCTIME(lptime) AS lptime")
-      )
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   /**
@@ -146,20 +77,9 @@ class JoinTest extends TableTestBase {
     val right = util.addTable[(Long, Int, Timestamp)]('d, 'e, 'f, 'rrtime.rowtime)
 
     val resultTable = left.join(right)
-      .where('a ==='d && 'lrtime >= 'rrtime - 5.minutes && 'lrtime < 'rrtime && 'lrtime > 'f)
+      .where('a === 'd && 'lrtime >= 'rrtime - 5.minutes && 'lrtime < 'rrtime && 'lrtime > 'f)
 
-    val expected =
-      binaryNode(
-        "DataStreamWindowJoin",
-        streamTableNode(0),
-        streamTableNode(1),
-        term("where",
-          "AND(=(a, d), >=(CAST(lrtime), -(CAST(rrtime), 300000)), " +
-            "<(CAST(lrtime), CAST(rrtime)), >(CAST(lrtime), f))"),
-        term("join", "a", "b", "c", "lrtime", "d", "e", "f", "rrtime"),
-        term("joinType", "InnerJoin")
-      )
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   // Tests for left outer join
@@ -174,30 +94,7 @@ class JoinTest extends TableTestBase {
         right,
         'a === 'd && 'lrtime >= 'rrtime - 5.minutes && 'lrtime < 'rrtime + 3.seconds)
       .select('a, 'e, 'lrtime)
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        binaryNode(
-          "DataStreamWindowJoin",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "lrtime")
-          ),
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(1),
-            term("select", "d", "e", "rrtime")
-          ),
-          term("where", "AND(=(a, d), >=(CAST(lrtime), -(CAST(rrtime), 300000))," +
-            " <(CAST(lrtime), +(CAST(rrtime), 3000)))"),
-          term("join", "a", "lrtime", "d", "e", "rrtime"),
-          term("joinType", "LeftOuterJoin")
-        ),
-        term("select", "a", "e", "lrtime")
-      )
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -209,30 +106,7 @@ class JoinTest extends TableTestBase {
     val resultTable = left
       .leftOuterJoin(right, 'a === 'd && 'lptime >= 'rptime - 1.second && 'lptime < 'rptime)
       .select('a, 'e, 'lptime)
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        binaryNode(
-          "DataStreamWindowJoin",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "lptime")
-          ),
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(1),
-            term("select", "d", "e", "rptime")
-          ),
-          term("where", "AND(=(a, d), >=(PROCTIME(lptime), -(PROCTIME(rptime), 1000)), " +
-            "<(PROCTIME(lptime), PROCTIME(rptime)))"),
-          term("join", "a", "lptime", "d", "e", "rptime"),
-          term("joinType", "LeftOuterJoin")
-        ),
-        term("select", "a", "e", "PROCTIME(lptime) AS lptime")
-      )
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   // Tests for right outer join
@@ -248,29 +122,7 @@ class JoinTest extends TableTestBase {
         'a === 'd && 'lrtime >= 'rrtime - 5.minutes && 'lrtime < 'rrtime + 3.seconds)
       .select('a, 'e, 'lrtime)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        binaryNode(
-          "DataStreamWindowJoin",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "lrtime")
-          ),
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(1),
-            term("select", "d", "e", "rrtime")
-          ),
-          term("where", "AND(=(a, d), >=(CAST(lrtime), -(CAST(rrtime), 300000))," +
-            " <(CAST(lrtime), +(CAST(rrtime), 3000)))"),
-          term("join", "a", "lrtime", "d", "e", "rrtime"),
-          term("joinType", "RightOuterJoin")
-        ),
-        term("select", "a", "e", "lrtime")
-      )
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -283,29 +135,7 @@ class JoinTest extends TableTestBase {
       .rightOuterJoin(right, 'a === 'd && 'lptime >= 'rptime - 1.second && 'lptime < 'rptime)
       .select('a, 'e, 'lptime)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        binaryNode(
-          "DataStreamWindowJoin",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "lptime")
-          ),
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(1),
-            term("select", "d", "e", "rptime")
-          ),
-          term("where", "AND(=(a, d), >=(PROCTIME(lptime), -(PROCTIME(rptime), 1000)), " +
-            "<(PROCTIME(lptime), PROCTIME(rptime)))"),
-          term("join", "a", "lptime", "d", "e", "rptime"),
-          term("joinType", "RightOuterJoin")
-        ),
-        term("select", "a", "e", "PROCTIME(lptime) AS lptime")
-      )
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   // Tests for full outer join
@@ -321,29 +151,7 @@ class JoinTest extends TableTestBase {
         'a === 'd && 'lrtime >= 'rrtime - 5.minutes && 'lrtime < 'rrtime + 3.seconds)
       .select('a, 'e, 'lrtime)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        binaryNode(
-          "DataStreamWindowJoin",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "lrtime")
-          ),
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(1),
-            term("select", "d", "e", "rrtime")
-          ),
-          term("where", "AND(=(a, d), >=(CAST(lrtime), -(CAST(rrtime), 300000))," +
-            " <(CAST(lrtime), +(CAST(rrtime), 3000)))"),
-          term("join", "a", "lrtime", "d", "e", "rrtime"),
-          term("joinType", "FullOuterJoin")
-        ),
-        term("select", "a", "e", "lrtime")
-      )
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
 
   @Test
@@ -356,29 +164,7 @@ class JoinTest extends TableTestBase {
       .fullOuterJoin(right, 'a === 'd && 'lptime >= 'rptime - 1.second && 'lptime < 'rptime)
       .select('a, 'e, 'lptime)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        binaryNode(
-          "DataStreamWindowJoin",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "lptime")
-          ),
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(1),
-            term("select", "d", "e", "rptime")
-          ),
-          term("where", "AND(=(a, d), >=(PROCTIME(lptime), -(PROCTIME(rptime), 1000)), " +
-            "<(PROCTIME(lptime), PROCTIME(rptime)))"),
-          term("join", "a", "lptime", "d", "e", "rptime"),
-          term("joinType", "FullOuterJoin")
-        ),
-        term("select", "a", "e", "PROCTIME(lptime) AS lptime")
-      )
-    util.verifyTable(resultTable, expected)
+   util.verifyPlan(resultTable)
   }
 
   // Test for outer join optimization
@@ -392,33 +178,9 @@ class JoinTest extends TableTestBase {
       .where('a === 'd && 'lrtime >= 'rrtime - 5.minutes && 'lrtime < 'rrtime + 3.seconds)
       .select('a, 'e, 'lrtime)
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        binaryNode(
-          "DataStreamWindowJoin",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "lrtime")
-          ),
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(1),
-            term("select", "d", "e", "rrtime")
-          ),
-          term("where", "AND(=(a, d), >=(CAST(lrtime), -(CAST(rrtime), 300000))," +
-            " <(CAST(lrtime), +(CAST(rrtime), 3000)))"),
-          term("join", "a", "lrtime", "d", "e", "rrtime"),
-          // Since we filter on attributes of the left table after the join, the left outer join
-          // will be automatically optimized to inner join.
-          term("joinType", "InnerJoin")
-        ),
-        term("select", "a", "e", "lrtime")
-      )
-    util.verifyTable(resultTable, expected)
+    util.verifyPlan(resultTable)
   }
-  
+
   @Test
   def testLeftOuterJoinEquiPred(): Unit = {
     val util = streamTestUtil()
@@ -427,28 +189,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.leftOuterJoin(s, 'a === 'z).select('b, 'y)
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      binaryNode(
-        "DataStreamJoin",
-        unaryNode(
-          "DataStreamCalc",
-          streamTableNode(0),
-          term("select", "a", "b")
-        ),
-        unaryNode(
-          "DataStreamCalc",
-          streamTableNode(1),
-          term("select", "y", "z")
-        ),
-        term("where", "=(a, z)"),
-        term("join", "a", "b", "y", "z"),
-        term("joinType", "LeftOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(joined, expected)
+    util.verifyPlan(joined)
   }
 
   @Test
@@ -459,28 +200,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.leftOuterJoin(s, 'a === 'z && 'b < 2).select('b, 'y)
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      binaryNode(
-        "DataStreamJoin",
-        unaryNode(
-          "DataStreamCalc",
-          streamTableNode(0),
-          term("select", "a", "b")
-        ),
-        unaryNode(
-          "DataStreamCalc",
-          streamTableNode(1),
-          term("select", "y", "z")
-        ),
-        term("where", "AND(=(a, z), <(b, 2))"),
-        term("join", "a", "b", "y", "z"),
-        term("joinType", "LeftOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(joined, expected)
+    util.verifyPlan(joined)
   }
 
   @Test
@@ -491,24 +211,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.leftOuterJoin(s, 'a === 'z && 'b < 'x).select('b, 'y)
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      binaryNode(
-        "DataStreamJoin",
-        unaryNode(
-          "DataStreamCalc",
-          streamTableNode(0),
-          term("select", "a", "b")
-        ),
-        streamTableNode(1),
-        term("where", "AND(=(a, z), <(b, x))"),
-        term("join", "a", "b", "x", "y", "z"),
-        term("joinType", "LeftOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(joined, expected)
+    util.verifyPlan(joined)
   }
 
   @Test
@@ -519,28 +222,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.rightOuterJoin(s, 'a === 'z).select('b, 'y)
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      binaryNode(
-        "DataStreamJoin",
-        unaryNode(
-          "DataStreamCalc",
-          streamTableNode(0),
-          term("select", "a", "b")
-        ),
-        unaryNode(
-          "DataStreamCalc",
-          streamTableNode(1),
-          term("select", "y", "z")
-        ),
-        term("where", "=(a, z)"),
-        term("join", "a", "b", "y", "z"),
-        term("joinType", "RightOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(joined, expected)
+    util.verifyPlan(joined)
   }
 
   @Test
@@ -551,28 +233,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.rightOuterJoin(s, 'a === 'z && 'x < 2).select('b, 'x)
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      binaryNode(
-        "DataStreamJoin",
-        unaryNode(
-          "DataStreamCalc",
-          streamTableNode(0),
-          term("select", "a", "b")
-        ),
-        unaryNode(
-          "DataStreamCalc",
-          streamTableNode(1),
-          term("select", "x", "z")
-        ),
-        term("where", "AND(=(a, z), <(x, 2))"),
-        term("join", "a", "b", "x", "z"),
-        term("joinType", "RightOuterJoin")
-      ),
-      term("select", "b", "x")
-    )
-
-    util.verifyTable(joined, expected)
+    util.verifyPlan(joined)
   }
 
   @Test
@@ -583,23 +244,6 @@ class JoinTest extends TableTestBase {
 
     val joined = t.rightOuterJoin(s, 'a === 'z && 'b < 'x).select('b, 'y)
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      binaryNode(
-        "DataStreamJoin",
-        unaryNode(
-          "DataStreamCalc",
-          streamTableNode(0),
-          term("select", "a", "b")
-        ),
-        streamTableNode(1),
-        term("where", "AND(=(a, z), <(b, x))"),
-        term("join", "a", "b", "x", "y", "z"),
-        term("joinType", "RightOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(joined, expected)
+    util.verifyPlan(joined)
   }
 }

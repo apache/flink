@@ -18,168 +18,173 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.scala.{ExecutionEnvironment, _}
-import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.api.scala._
+import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api.{TableConfig, TableConfigOptions, TableEnvironment, TableException}
 import org.apache.flink.table.runtime.utils.SortTestUtils._
-import org.apache.flink.table.runtime.utils.TableProgramsClusterTestBase
-import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.table.runtime.utils.{CommonTestData, RowsCollectTableSink}
+import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.apache.flink.types.Row
+import org.apache.flink.util.AbstractID
 import org.junit._
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.rules.ExpectedException
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
-@RunWith(classOf[Parameterized])
-class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
-    extends TableProgramsClusterTestBase(mode, configMode) {
+@Ignore
+class SortITCase extends AbstractTestBase {
+
+  private val expectedException = ExpectedException.none()
+  private val conf = BatchTestBase.initConfigForTest(new TableConfig)
+
+  @Before
+  def setUp(): Unit = {
+    conf.getConf.setBoolean(TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, true)
+    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+  }
+
+  @Rule
+  def thrown: ExpectedException = expectedException
 
   private def getExecutionEnvironment = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    // set the parallelism explicitly to make sure the query is executed in
-    // a distributed manner
-    env.setParallelism(3)
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
     env
   }
 
-  @Test
-  def testOrderByMultipleFieldsWithSql(): Unit = {
-    val env = getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 DESC, _2 DESC"
-
-    implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
-      (- x.productElement(0).asInstanceOf[Int], - x.productElement(1).asInstanceOf[Long]))
-
-    val ds = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds)
-
-    val expected = sortExpectedly(tupleDataSetStrings)
-    // squash all rows inside a partition into one element
-    val results = tEnv.sqlQuery(sqlQuery).toDataSet[Row].mapPartition(rows => {
-      // the rows need to be copied in object reuse mode
-      val copied = new mutable.ArrayBuffer[Row]
-      rows.foreach(r => copied += Row.copy(r))
-      Seq(copied)
-    }).collect()
-
-    def rowOrdering = Ordering.by((r : Row) => {
-      // ordering for this tuple will fall into the previous defined tupleOrdering,
-      // so we just need to return the field by their defining sequence
-      (r.getField(0).asInstanceOf[Int], r.getField(1).asInstanceOf[Long])
-    })
-
-    val result = results
-        .filterNot(_.isEmpty)
-        // sort all partitions by their head element to verify the order across partitions
-        .sortBy(_.head)(rowOrdering)
-        .reduceLeft(_ ++ _)
-
-    TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
-  }
-
-  @Test
+  @Test(expected = classOf[TableException])
   def testOrderByWithOffset(): Unit = {
     val env = getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = TableEnvironment.getBatchTableEnvironment(env, conf)
 
-    val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 DESC OFFSET 2 ROWS"
+    val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 OFFSET 2"
 
-    implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
-      - x.productElement(0).asInstanceOf[Int] )
+    val csvTable = CommonTestData.get3Source()
+    tEnv.registerTableSource("MyTable", csvTable)
 
-    val ds = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds)
+    tEnv.sqlQuery(sqlQuery).collect()
+  }
 
-    val expected = sortExpectedly(tupleDataSetStrings, 2, 21)
-    // squash all rows inside a partition into one element
-    val results = tEnv.sqlQuery(sqlQuery).toDataSet[Row].mapPartition(rows => {
-      // the rows need to be copied in object reuse mode
-      val copied = new mutable.ArrayBuffer[Row]
-      rows.foreach(r => copied += Row.copy(r))
-      Seq(copied)
-    }).collect()
+  @Test
+  def testOrderByMultipleFields(): Unit = {
+    val env = getExecutionEnvironment
+    val tEnv = TableEnvironment.getBatchTableEnvironment(env, conf)
+    val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 DESC, _2 DESC"
 
-    val result = results.
-        filterNot(_.isEmpty)
-        // sort all partitions by their head element to verify the order across partitions
-        .sortBy(_.head)(Ordering.by((r : Row) => -r.getField(0).asInstanceOf[Int]))
-        .reduceLeft(_ ++ _)
+    val csvTable = CommonTestData.get3Source()
+    tEnv.registerTableSource("MyTable", csvTable)
 
+    implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) => (
+        - x.productElement(0).asInstanceOf[Int],
+        - x.productElement(1).asInstanceOf[Long]))
+
+    val expected = sortExpectedly(tupleDataSetStrings)
+    val tableSink = new RowsCollectTableSink
+    val typeInformation = TypeExtractor.getForClass(classOf[Seq[Row]])
+    val typeSerializer = typeInformation.createSerializer(env.getConfig)
+    val id = new AbstractID().toString
+    tableSink.init(typeSerializer, id)
+    tEnv.sqlQuery(sqlQuery).writeToSink(tableSink)
+
+    val result = getOrderedRows(tEnv, typeSerializer, id)
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
 
   @Test
-  def testOrderByWithOffsetAndFetch(): Unit = {
+  def testOppositeOrderByMultipleFields(): Unit = {
     val env = getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = TableEnvironment.getBatchTableEnvironment(env, conf)
+    val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 ASC, _2 DESC"
 
-    val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 OFFSET 2 ROWS FETCH NEXT 5 ROWS ONLY"
+    val csvTable = CommonTestData.get3Source()
+    tEnv.registerTableSource("MyTable", csvTable)
 
-    implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
-      x.productElement(0).asInstanceOf[Int] )
+    implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) => (
+        x.productElement(0).asInstanceOf[Int],
+        -x.productElement(1).asInstanceOf[Long]))
 
-    val ds = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds)
+    val expected = sortExpectedly(tupleDataSetStrings)
+    val tableSink = new RowsCollectTableSink
+    val typeInformation = TypeExtractor.getForClass(classOf[Seq[Row]])
+    val typeSerializer = typeInformation.createSerializer(env.getConfig)
+    val id = new AbstractID().toString
+    tableSink.init(typeSerializer, id)
+    tEnv.sqlQuery(sqlQuery).writeToSink(tableSink)
 
-    val expected = sortExpectedly(tupleDataSetStrings, 2, 7)
-    // squash all rows inside a partition into one element
-    val results = tEnv.sqlQuery(sqlQuery).toDataSet[Row].mapPartition(rows => {
-      // the rows need to be copied in object reuse mode
-      val copied = new mutable.ArrayBuffer[Row]
-      rows.foreach(r => copied += Row.copy(r))
-      Seq(copied)
-    }).collect()
-
-    val result = results
-      .filterNot(_.isEmpty)
-        // sort all partitions by their head element to verify the order across partitions
-      .sortBy(_.head)(Ordering.by((r : Row) => r.getField(0).asInstanceOf[Int]))
-      .reduceLeft(_ ++ _)
-
+    val result = getOrderedRows(tEnv, typeSerializer, id)
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
 
   @Test
-  def testOrderByLimit(): Unit = {
+  def testOrderByLastSingleField(): Unit = {
     val env = getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = TableEnvironment.getBatchTableEnvironment(env, conf)
+    val sqlQuery = "SELECT * FROM MyTable ORDER BY _3 DESC"
 
-    val sqlQuery = "SELECT * FROM MyTable ORDER BY _2, _1 LIMIT 5"
+    val csvTable = CommonTestData.get3Source()
+    tEnv.registerTableSource("MyTable", csvTable)
+
+    implicit def tupleOrdering[T <: Product] = Ordering.by(
+      (x : T) => x.productElement(2).asInstanceOf[String]).reverse
+
+    val expected = sortExpectedly(tupleDataSetStrings)
+    val tableSink = new RowsCollectTableSink
+    val typeInformation = TypeExtractor.getForClass(classOf[Seq[Row]])
+    val typeSerializer = typeInformation.createSerializer(env.getConfig)
+    val id = new AbstractID().toString
+    tableSink.init(typeSerializer, id)
+    tEnv.sqlQuery(sqlQuery).writeToSink(tableSink)
+
+    val result = getOrderedRows(tEnv, typeSerializer, id)
+    TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testOppositeOrderByLastTwoFields(): Unit = {
+    val env = getExecutionEnvironment
+    val tEnv = TableEnvironment.getBatchTableEnvironment(env, conf)
+    val sqlQuery = "SELECT * FROM MyTable ORDER BY _5 DESC, _4 ASC"
+
+    val csvTable = CommonTestData.get5Source()
+    tEnv.registerTableSource("MyTable", csvTable)
+
+    def tupleOrdering[T <: Product] = Ordering.by((x : T) => (
+        -x.productElement(4).asInstanceOf[Long],
+        x.productElement(3).asInstanceOf[String]))
+
+    val dataSet: List[Product] =  CommonTestData.get5Data().toList
+    val expected = sortExpectedly(dataSet)(tupleOrdering)
+    val tableSink = new RowsCollectTableSink
+    val typeInformation = TypeExtractor.getForClass(classOf[Seq[Row]])
+    val typeSerializer = typeInformation.createSerializer(env.getConfig)
+    val id = new AbstractID().toString
+    tableSink.init(typeSerializer, id)
+    tEnv.sqlQuery(sqlQuery).writeToSink(tableSink)
+
+    val result = getOrderedRows(tEnv, typeSerializer, id)
+    TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testOrderByRepeatedFields(): Unit = {
+    val env = getExecutionEnvironment
+    val tEnv = TableEnvironment.getBatchTableEnvironment(env, conf)
+    tEnv.getConfig.setSubsectionOptimization(true)
+    val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 DESC, _1 DESC"
+
+    val csvTable = CommonTestData.get3Source()
+    tEnv.registerTableSource("MyTable", csvTable)
 
     implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
-      (x.productElement(1).asInstanceOf[Long], x.productElement(0).asInstanceOf[Int]) )
+        - x.productElement(0).asInstanceOf[Int])
 
-    val ds = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds)
-
-    val expected = sortExpectedly(tupleDataSetStrings, 0, 5)
-    // squash all rows inside a partition into one element
-    val results = tEnv.sqlQuery(sqlQuery).toDataSet[Row].mapPartition(rows => {
-      // the rows need to be copied in object reuse mode
-      val copied = new mutable.ArrayBuffer[Row]
-      rows.foreach(r => copied += Row.copy(r))
-      Seq(copied)
-    }).collect()
-
-    def rowOrdering = Ordering.by((r : Row) => {
-      // ordering for this tuple will fall into the previous defined tupleOrdering,
-      // so we just need to return the field by their defining sequence
-      (r.getField(0).asInstanceOf[Int], r.getField(1).asInstanceOf[Long])
-    })
-
-    val result = results
-        .filterNot(_.isEmpty)
-        // sort all partitions by their head element to verify the order across partitions
-        .sortBy(_.head)(rowOrdering)
-        .reduceLeft(_ ++ _)
-
+    val expected = sortExpectedly(tupleDataSetStrings)
+    val tableSink = new RowsCollectTableSink
+    val typeInformation = TypeExtractor.getForClass(classOf[Seq[Row]])
+    val typeSerializer = typeInformation.createSerializer(env.getConfig)
+    val id = new AbstractID().toString
+    tableSink.init(typeSerializer, id)
+    tEnv.sqlQuery(sqlQuery).writeToSink(tableSink)
+    val result = getOrderedRows(tEnv, typeSerializer, id)
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
 }

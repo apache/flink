@@ -28,7 +28,6 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
@@ -36,7 +35,6 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
@@ -51,6 +49,7 @@ import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestTaskLocalStateStore;
+import org.apache.flink.runtime.state.heap.KeyContextImpl;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
@@ -104,7 +103,7 @@ public class StateInitializationContextImplTest {
 			int end = prev + size;
 			DataOutputView dov = new DataOutputViewStreamWrapper(out);
 			KeyGroupRangeOffsets offsets =
-					new KeyGroupRangeOffsets(i == 9 ? KeyGroupRange.EMPTY_KEY_GROUP_RANGE : new KeyGroupRange(prev, end));
+				new KeyGroupRangeOffsets(i == 9 ? KeyGroupRange.EMPTY_KEY_GROUP_RANGE : new KeyGroupRange(prev, end));
 			prev = end + 1;
 			for (int kg : offsets.getKeyGroupRange()) {
 				offsets.setKeyGroupOffset(kg, out.getPosition());
@@ -113,7 +112,7 @@ public class StateInitializationContextImplTest {
 			}
 
 			KeyedStateHandle handle =
-					new KeyGroupsStateHandle(offsets, new ByteStateHandleCloseChecking("kg-" + i, out.toByteArray()));
+				new KeyGroupsStateHandle(offsets, new ByteStateHandleCloseChecking("kg-" + i, out.toByteArray()));
 
 			keyedStateHandles.add(handle);
 		}
@@ -134,10 +133,10 @@ public class StateInitializationContextImplTest {
 
 			Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap = new HashMap<>();
 			offsetsMap.put(
-					DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME,
-					new OperatorStateHandle.StateMetaInfo(offsets.toArray(), OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
+				DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME,
+				new OperatorStateHandle.StateMetaInfo(offsets.toArray(), OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
 			OperatorStateHandle operatorStateHandle =
-					new OperatorStreamStateHandle(offsetsMap, new ByteStateHandleCloseChecking("os-" + i, out.toByteArray()));
+				new OperatorStreamStateHandle(offsetsMap, new ByteStateHandleCloseChecking("os-" + i, out.toByteArray()));
 			operatorStateHandles.add(operatorStateHandle);
 		}
 
@@ -175,10 +174,8 @@ public class StateInitializationContextImplTest {
 			mock(ProcessingTimeService.class)) {
 
 			@Override
-			protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
-				AbstractKeyedStateBackend<K> keyedStatedBackend,
-				KeyContext keyContext,
-				Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
+			protected <K> InternalTimeServiceManager<?, K> internalTimeServiceManager(
+				KeyContextImpl<K> keyContextImpl, KeyContext keyContext, Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
 
 				// We do not initialize a timer service manager here, because it would already consume the raw keyed
 				// state as part of initialization. For the purpose of this test, we want an unconsumed raw keyed
@@ -197,16 +194,15 @@ public class StateInitializationContextImplTest {
 			// notice that this essentially disables the previous test of the keyed stream because it was and is always
 			// consumed by the timer service.
 			IntSerializer.INSTANCE,
-			closableRegistry,
-			new UnregisteredMetricsGroup());
+			closableRegistry);
 
 		this.initializationContext =
-				new StateInitializationContextImpl(
-						stateContext.isRestored(),
-						stateContext.operatorStateBackend(),
-						mock(KeyedStateStore.class),
-						stateContext.rawKeyedStateInputs(),
-						stateContext.rawOperatorStateInputs());
+			new StateInitializationContextImpl(
+				stateContext.isRestored(),
+				stateContext.operatorStateBackend(),
+				mock(KeyedStateStore.class),
+				stateContext.rawKeyedStateInputs(),
+				stateContext.rawOperatorStateInputs());
 	}
 
 	@Test
@@ -241,7 +237,7 @@ public class StateInitializationContextImplTest {
 		int readKeyGroupCount = 0;
 
 		for (KeyGroupStatePartitionStreamProvider stateStreamProvider
-				: initializationContext.getRawKeyedStateInputs()) {
+			: initializationContext.getRawKeyedStateInputs()) {
 
 			Assert.assertNotNull(stateStreamProvider);
 
@@ -262,7 +258,7 @@ public class StateInitializationContextImplTest {
 		Set<Integer> readStatesCount = new HashSet<>();
 
 		for (StatePartitionStreamProvider statePartitionStreamProvider
-				: initializationContext.getRawOperatorStateInputs()) {
+			: initializationContext.getRawOperatorStateInputs()) {
 
 			Assert.assertNotNull(statePartitionStreamProvider);
 
@@ -284,7 +280,7 @@ public class StateInitializationContextImplTest {
 
 		try {
 			for (KeyGroupStatePartitionStreamProvider stateStreamProvider
-					: initializationContext.getRawKeyedStateInputs()) {
+				: initializationContext.getRawKeyedStateInputs()) {
 				Assert.assertNotNull(stateStreamProvider);
 
 				if (count == stopCount) {

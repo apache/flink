@@ -97,7 +97,6 @@ public class LocalStateForwardingTest extends TestLogger {
 		Map<OperatorID, OperatorSnapshotFutures> snapshots = new HashMap<>(1);
 		OperatorSnapshotFutures osFuture = new OperatorSnapshotFutures();
 
-		osFuture.setKeyedStateManagedFuture(createSnapshotResult(KeyedStateHandle.class));
 		osFuture.setKeyedStateRawFuture(createSnapshotResult(KeyedStateHandle.class));
 		osFuture.setOperatorStateManagedFuture(createSnapshotResult(OperatorStateHandle.class));
 		osFuture.setOperatorStateRawFuture(createSnapshotResult(OperatorStateHandle.class));
@@ -124,7 +123,6 @@ public class LocalStateForwardingTest extends TestLogger {
 		OperatorSubtaskState tmState =
 			lastTaskManagerTaskStateSnapshot.getSubtaskStateByOperatorID(operatorID);
 
-		performCheck(osFuture.getKeyedStateManagedFuture(), jmState.getManagedKeyedState(), tmState.getManagedKeyedState());
 		performCheck(osFuture.getKeyedStateRawFuture(), jmState.getRawKeyedState(), tmState.getRawKeyedState());
 		performCheck(osFuture.getOperatorStateManagedFuture(), jmState.getManagedOperatorState(), tmState.getManagedOperatorState());
 		performCheck(osFuture.getOperatorStateRawFuture(), jmState.getRawOperatorState(), tmState.getRawOperatorState());

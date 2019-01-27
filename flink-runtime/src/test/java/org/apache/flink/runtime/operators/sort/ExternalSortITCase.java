@@ -112,16 +112,22 @@ public class ExternalSortITCase extends TestLogger {
 	
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
-			
-			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager,
+
+			SortedDataFileFactory<Tuple2<Integer, String>> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+				ioManager.createChannelEnumerator(), pactRecordSerializer.getSerializer(), ioManager);
+			SortedDataFileMerger<Tuple2<Integer, String>> merger = new RecordComparisonMerger<>(
+				sortedDataFileFactory, ioManager, pactRecordSerializer.getSerializer(),
+				pactRecordComparator, 2, true);
+			Sorter<Tuple2<Integer, String>> sorter = new UnilateralSortMerger<>(sortedDataFileFactory, merger,
+				this.memoryManager, this.ioManager,
 				source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-					(double)64/78, 2, 0.9f, true /*use large record handler*/, true);
+					(double)64/78, 2, true, 0.9f, true /*use large record handler*/, true);
 	
 			// emit data
 			LOG.debug("Reading and sorting data...");
 	
 			// check order
-			MutableObjectIterator<Tuple2<Integer, String>> iterator = merger.getIterator();
+			MutableObjectIterator<Tuple2<Integer, String>> iterator = sorter.getIterator();
 			
 			LOG.debug("Checking results...");
 			int pairsEmitted = 1;
@@ -140,8 +146,8 @@ public class ExternalSortITCase extends TestLogger {
 				rec2 = tmp;
 			}
 			Assert.assertTrue(NUM_PAIRS == pairsEmitted);
-			
-			merger.close();
+
+			sorter.close();
 			testSuccess = true;
 		}
 		catch (Exception e) {
@@ -161,10 +167,16 @@ public class ExternalSortITCase extends TestLogger {
 	
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
-			
-			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager,
+
+			SortedDataFileFactory<Tuple2<Integer, String>> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+				ioManager.createChannelEnumerator(), pactRecordSerializer.getSerializer(), ioManager);
+			SortedDataFileMerger<Tuple2<Integer, String>> mergePolicy = new RecordComparisonMerger<>(
+				sortedDataFileFactory, ioManager, pactRecordSerializer.getSerializer(),
+				pactRecordComparator, 2, false);
+			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(sortedDataFileFactory, mergePolicy,
+				this.memoryManager, this.ioManager,
 					source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-					(double)64/78, 10, 2, 0.9f, true /*use large record handler*/, false);
+					(double)64/78, 10, 2, true, 0.9f, true /*use large record handler*/, false);
 	
 			// emit data
 			LOG.debug("Reading and sorting data...");
@@ -210,10 +222,15 @@ public class ExternalSortITCase extends TestLogger {
 	
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
-			
-			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager,
+
+			SortedDataFileFactory<Tuple2<Integer, String>> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+				ioManager.createChannelEnumerator(), pactRecordSerializer.getSerializer(), ioManager);
+			SortedDataFileMerger<Tuple2<Integer, String>> mergePolicy = new RecordComparisonMerger<>(
+				sortedDataFileFactory, ioManager, pactRecordSerializer.getSerializer(),
+				pactRecordComparator, 2, true);
+			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(sortedDataFileFactory, mergePolicy, this.memoryManager, this.ioManager,
 					source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-					(double)16/78, 64, 0.7f, true /*use large record handler*/, true);
+					(double)16/78, 64, true, 0.7f, true /*use large record handler*/, true);
 	
 			// emit data
 			LOG.debug("Reading and sorting data...");
@@ -262,10 +279,15 @@ public class ExternalSortITCase extends TestLogger {
 			
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
-			
-			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(this.memoryManager, this.ioManager,
+
+			SortedDataFileFactory<Tuple2<Integer, String>> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+				ioManager.createChannelEnumerator(), pactRecordSerializer.getSerializer(), ioManager);
+			SortedDataFileMerger<Tuple2<Integer, String>> mergePolicy = new RecordComparisonMerger<>(
+				sortedDataFileFactory, ioManager, pactRecordSerializer.getSerializer(),
+				pactRecordComparator, 2, true);
+			Sorter<Tuple2<Integer, String>> merger = new UnilateralSortMerger<>(sortedDataFileFactory, mergePolicy, this.memoryManager, this.ioManager,
 					source, this.parentTask, this.pactRecordSerializer, this.pactRecordComparator,
-					(double)64/78, 16, 0.7f, true /*use large record handler*/, false);
+					(double)64/78, 16, true, 0.7f, true /*use large record handler*/, false);
 			
 			// emit data
 			LOG.debug("Emitting data...");
@@ -320,9 +342,14 @@ public class ExternalSortITCase extends TestLogger {
 			
 			// merge iterator
 			LOG.debug("Initializing sortmerger...");
-			
-			Sorter<IntPair> merger = new UnilateralSortMerger<IntPair>(this.memoryManager, this.ioManager, 
-					generator, this.parentTask, serializerFactory, comparator, (double)64/78, 4, 0.7f,
+
+			SortedDataFileFactory<IntPair> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+				ioManager.createChannelEnumerator(), serializerFactory.getSerializer(), ioManager);
+			SortedDataFileMerger<IntPair> mergePolicy = new RecordComparisonMerger<>(
+				sortedDataFileFactory, ioManager, serializerFactory.getSerializer(),
+				comparator, 2, true);
+			Sorter<IntPair> merger = new UnilateralSortMerger<>(sortedDataFileFactory, mergePolicy, this.memoryManager, this.ioManager,
+					generator, this.parentTask, serializerFactory, comparator, (double)64/78, 4, true, 0.7f,
 					true /*use large record handler*/, true);
 	
 			// emit data

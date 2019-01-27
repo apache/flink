@@ -20,7 +20,7 @@ package org.apache.flink.api.common.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.AbstractAccumulatorRegistry;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.util.TestIOData;
 import org.apache.flink.api.common.operators.util.TestNonRichInputFormat;
@@ -38,6 +38,7 @@ import java.util.concurrent.Future;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.powermock.api.mockito.PowerMockito.mock;
 
 /**
  * Checks the GenericDataSourceBase operator for both Rich and non-Rich input formats.
@@ -77,7 +78,7 @@ public class GenericDataSourceBaseTest implements java.io.Serializable {
 					new GenericDataSourceBase<String, TestRichInputFormat>(
 							in, new OperatorInformation<String>(BasicTypeInfo.STRING_TYPE_INFO), "testSource");
 
-			final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<String, Accumulator<?, ?>>();
+			final AbstractAccumulatorRegistry accumulatorRegistry = mock(AbstractAccumulatorRegistry.class);
 			final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
 			final TaskInfo taskInfo = new TaskInfo("test_source", 1, 0, 1, 0);
 
@@ -87,7 +88,7 @@ public class GenericDataSourceBaseTest implements java.io.Serializable {
 			assertEquals(false, in.hasBeenOpened());
 			
 			List<String> resultMutableSafe = source.executeOnCollections(
-					new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks, accumulatorMap,
+					new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks, accumulatorRegistry,
 							new UnregisteredMetricsGroup()), executionConfig);
 			
 			assertEquals(true, in.hasBeenClosed());
@@ -99,7 +100,7 @@ public class GenericDataSourceBaseTest implements java.io.Serializable {
 			assertEquals(false, in.hasBeenOpened());
 			
 			List<String> resultRegular = source.executeOnCollections(
-					new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks, accumulatorMap,
+					new RuntimeUDFContext(taskInfo, null, executionConfig, cpTasks, accumulatorRegistry,
 							new UnregisteredMetricsGroup()), executionConfig);
 			
 			assertEquals(true, in.hasBeenClosed());

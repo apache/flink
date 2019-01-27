@@ -39,21 +39,25 @@ jobmanager.rpc.port: 6123
 
 # The heap size for the JobManager JVM
 
-jobmanager.heap.size: 1024m
+jobmanager.heap.mb: 1024
 
 
 # The heap size for the TaskManager JVM
 
-taskmanager.heap.size: 1024m
+taskmanager.heap.mb: 1024
 
 
 # The number of task slots that each TaskManager offers. Each slot runs one parallel pipeline.
 
-taskmanager.numberOfTaskSlots: 1
+taskmanager.numberOfTaskSlots: 4
 
 # The parallelism used for programs that did not specify and other parallelism.
 
 parallelism.default: 1
+
+# the managed memory size for each task manager.
+
+taskmanager.managed.memory.size: 256
 
 # The default file system scheme and authority.
 # 
@@ -68,7 +72,7 @@ parallelism.default: 1
 # High Availability
 #==============================================================================
 
-# The high-availability mode. Possible options are 'NONE' or 'zookeeper'.
+# The high-availability mode. Possible options are 'NONE', 'FILESYSTEM' or 'zookeeper'.
 #
 # high-availability: zookeeper
 
@@ -93,6 +97,9 @@ parallelism.default: 1
 # The default value is "open" and it can be changed to "creator" if ZK security is enabled
 #
 # high-availability.zookeeper.client.acl: open
+
+# high-availability: filesystem
+# high-availability.filesystem.path.jobgraphs: /tmp/jobgraphs
 
 #==============================================================================
 # Fault tolerance and checkpointing
@@ -126,7 +133,7 @@ parallelism.default: 1
 
 # The address under which the web-based runtime monitor listens.
 #
-#web.address: 0.0.0.0
+#jobmanager.web.address: 0.0.0.0
 
 # The port under which the web-based runtime monitor listens.
 # A value of -1 deactivates the web server.
@@ -136,7 +143,7 @@ rest.port: 8081
 # Flag to specify whether job submission is enabled from the web-based
 # runtime monitor. Uncomment to disable.
 
-#web.submit.enable: false
+#jobmanager.web.submit.enable: false
 
 #==============================================================================
 # Advanced
@@ -181,11 +188,11 @@ rest.port: 8081
 
 # The amount of memory going to the network stack. These numbers usually need 
 # no tuning. Adjusting them may be necessary in case of an "Insufficient number
-# of network buffers" error. The default min is 64MB, the default max is 1GB.
+# of network buffers" error. The default min is 64MB, teh default max is 1GB.
 # 
 # taskmanager.network.memory.fraction: 0.1
-# taskmanager.network.memory.min: 64mb
-# taskmanager.network.memory.max: 1gb
+# taskmanager.network.memory.min: 67108864
+# taskmanager.network.memory.max: 1073741824
 
 #==============================================================================
 # Flink Cluster Security Configuration

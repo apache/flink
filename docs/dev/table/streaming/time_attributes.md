@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink is able to process streaming data based on different notions of *time*. 
+Flink is able to process streaming data based on different notions of *time*.
 
 - *Processing time* refers to the system time of the machine (also known as "wall-clock time") that is executing the respective operation.
 - *Event time* refers to the processing of streaming data based on timestamps which are attached to each row. The timestamps can encode when an event happened.
@@ -40,7 +40,7 @@ Introduction to Time Attributes
 
 Time-based operations such as windows in both the [Table API]({{ site.baseurl }}/dev/table/tableApi.html#group-windows) and [SQL]({{ site.baseurl }}/dev/table/sql.html#group-windows) require information about the notion of time and its origin. Therefore, tables can offer *logical time attributes* for indicating time and accessing corresponding timestamps in table programs.
 
-Time attributes can be part of every table schema. They are defined when creating a table from a `DataStream` or are pre-defined when using a `TableSource`. Once a time attribute has been defined at the beginning, it can be referenced as a field and can be used in time-based operations.
+Time attributes can be part of every table schema. They are defined when creating a table from a `DataStream` or are pre-defined when using a `TableSource`. Once a time attribute has been defined at the beginning, it can be referenced as a field and can used in time-based operations.
 
 As long as a time attribute is not modified and is simply forwarded from one part of the query to another, it remains a valid time attribute. Time attributes behave like regular timestamps and can be accessed for calculations. If a time attribute is used in a calculation, it will be materialized and becomes a regular timestamp. Regular timestamps do not cooperate with Flink's time and watermarking system and thus can not be used for time-based operations anymore.
 
@@ -71,14 +71,14 @@ env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime) // default
 </div>
 </div>
 
-Processing time
+Processing Time
 ---------------
 
 Processing time allows a table program to produce results based on the time of the local machine. It is the simplest notion of time but does not provide determinism. It neither requires timestamp extraction nor watermark generation.
 
 There are two ways to define a processing time attribute.
 
-### During DataStream-to-Table Conversion
+#### During DataStream-to-Table Conversion
 
 The processing time attribute is defined with the `.proctime` property during schema definition. The time attribute must only extend the physical schema by an additional logical field. Thus, it can only be defined at the end of the schema definition.
 
@@ -105,7 +105,7 @@ val windowedTable = table.window(Tumble over 10.minutes on 'UserActionTime as 'u
 </div>
 </div>
 
-### Using a TableSource
+#### Using a TableSource
 
 The processing time attribute is defined by a `TableSource` that implements the `DefinedProctimeAttribute` interface. The logical time attribute is appended to the physical schema defined by the return type of the `TableSource`.
 
@@ -177,7 +177,7 @@ val windowedTable = tEnv
 </div>
 </div>
 
-Event time
+Event Time
 ----------
 
 Event time allows a table program to produce results based on the time that is contained in every record. This allows for consistent results even in case of out-of-order events or late events. It also ensures replayable results of the table program when reading records from persistent storage.
@@ -188,7 +188,7 @@ In order to handle out-of-order events and distinguish between on-time and late 
 
 An event time attribute can be defined either during DataStream-to-Table conversion or by using a TableSource.
 
-### During DataStream-to-Table Conversion
+#### During DataStream-to-Table Conversion
 
 The event time attribute is defined with the `.rowtime` property during schema definition. [Timestamps and watermarks]({{ site.baseurl }}/dev/event_time.html) must have been assigned in the `DataStream` that is converted.
 
@@ -254,20 +254,17 @@ val windowedTable = table.window(Tumble over 10.minutes on 'UserActionTime as 'u
 </div>
 </div>
 
-### Using a TableSource
+#### Using a TableSource
 
-The event time attribute is defined by a `TableSource` that implements the `DefinedRowtimeAttributes` interface. The `getRowtimeAttributeDescriptors()` method returns a list of `RowtimeAttributeDescriptor` for describing the final name of a time attribute, a timestamp extractor to derive the values of the attribute, and the watermark strategy associated with the attribute.
+The event time attribute is defined by a `TableSource` that implements the `DefinedRowtimeAttribute` interface. The `getRowtimeAttribute()` method returns the name of an existing field that carries the event time attribute of the table and is of type `LONG` or `TIMESTAMP`.
 
-Please make sure that the `DataStream` returned by the `getDataStream()` method is aligned with the defined time attribute.
-The timestamps of the `DataStream` (the ones which are assigned by a `TimestampAssigner`) are only considered if a `StreamRecordTimestamp` timestamp extractor is defined.
-Watermarks of a `DataStream` are only preserved if a `PreserveWatermarks` watermark strategy is defined.
-Otherwise, only the values of the `TableSource`'s rowtime attribute are relevant.
+Moreover, the `DataStream` returned by the `getDataStream()` method must have watermarks assigned that are aligned with the defined time attribute. Please note that the timestamps of the `DataStream` (the ones which are assigned by a `TimestampAssigner`) are ignored. Only the values of the `TableSource`'s rowtime attribute are relevant.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // define a table source with a rowtime attribute
-public class UserActionSource implements StreamTableSource<Row>, DefinedRowtimeAttributes {
+public class UserActionSource implements StreamTableSource<Row>, DefinedRowtimeAttribute {
 
 	@Override
 	public TypeInformation<Row> getReturnType() {
@@ -287,15 +284,9 @@ public class UserActionSource implements StreamTableSource<Row>, DefinedRowtimeA
 	}
 
 	@Override
-	public List<RowtimeAttributeDescriptor> getRowtimeAttributeDescriptors() {
+	public String getRowtimeAttribute() {
 		// Mark the "UserActionTime" attribute as event-time attribute.
-		// We create one attribute descriptor of "UserActionTime".
-		RowtimeAttributeDescriptor rowtimeAttrDescr = new RowtimeAttributeDescriptor(
-			"UserActionTime",
-			new ExistingField("UserActionTime"),
-			new AscendingTimestamps());
-		List<RowtimeAttributeDescriptor> listRowtimeAttrDescr = Collections.singletonList(rowtimeAttrDescr);
-		return listRowtimeAttrDescr;
+		return "UserActionTime";
 	}
 }
 
@@ -310,7 +301,7 @@ WindowedTable windowedTable = tEnv
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // define a table source with a rowtime attribute
-class UserActionSource extends StreamTableSource[Row] with DefinedRowtimeAttributes {
+class UserActionSource extends StreamTableSource[Row] with DefinedRowtimeAttribute {
 
 	override def getReturnType = {
 		val names = Array[String]("Username" , "Data", "UserActionTime")
@@ -326,15 +317,9 @@ class UserActionSource extends StreamTableSource[Row] with DefinedRowtimeAttribu
 		stream
 	}
 
-	override def getRowtimeAttributeDescriptors: util.List[RowtimeAttributeDescriptor] = {
+	override def getRowtimeAttribute = {
 		// Mark the "UserActionTime" attribute as event-time attribute.
-		// We create one attribute descriptor of "UserActionTime".
-		val rowtimeAttrDescr = new RowtimeAttributeDescriptor(
-			"UserActionTime",
-			new ExistingField("UserActionTime"),
-			new AscendingTimestamps)
-		val listRowtimeAttrDescr = Collections.singletonList(rowtimeAttrDescr)
-		listRowtimeAttrDescr
+		"UserActionTime"
 	}
 }
 

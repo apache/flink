@@ -18,11 +18,10 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.rest.handler.job.JobTerminationHandler;
-import org.apache.flink.util.StringUtils;
+import org.apache.flink.runtime.rest.handler.legacy.JobCancellationHandler;
 
 /**
- * Termination mode for the {@link JobTerminationHandler}.
+ * Termination mode for the {@link JobCancellationHandler}.
  */
 public class TerminationModeQueryParameter extends MessageQueryParameter<TerminationModeQueryParameter.TerminationMode> {
 
@@ -40,12 +39,6 @@ public class TerminationModeQueryParameter extends MessageQueryParameter<Termina
 	@Override
 	public String convertValueToString(TerminationMode value) {
 		return value.name().toLowerCase();
-	}
-
-	@Override
-	public String getDescription() {
-		return "String value that specifies the termination mode. Supported values are: " +
-			StringUtils.toQuotedListString(TerminationMode.values()) + '.';
 	}
 
 	/**

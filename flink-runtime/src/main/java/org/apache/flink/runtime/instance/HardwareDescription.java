@@ -53,7 +53,11 @@ public final class HardwareDescription implements Serializable {
 	@JsonProperty(FIELD_NAME_SIZE_JVM_HEAP)
 	private final long sizeOfJvmHeap;
 
-	/** The size of the memory managed by the system for caching, hashing, sorting, ... */
+	/**
+	 * The size of the memory managed by the system for caching, hashing, sorting, ...
+	 * Use {@link TaskManagerResourceDescription#sizeOfManagedMemory} instead.
+	 */
+	@Deprecated
 	@JsonProperty(FIELD_NAME_SIZE_MANAGED_MEMORY)
 	private final long sizeOfManagedMemory;
 

@@ -37,6 +37,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 
 import java.util.Collection;
@@ -181,6 +182,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	protected AbstractFetcher<T, ?> createFetcher(
 			SourceContext<T> sourceContext,
 			Map<KafkaTopicPartition, Long> assignedPartitionsWithInitialOffsets,
+			Map<KafkaTopicPartition, Long> assignedPartitionsToEndOffsets,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			StreamingRuntimeContext runtimeContext,
@@ -197,6 +199,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 		return new Kafka010Fetcher<>(
 				sourceContext,
 				assignedPartitionsWithInitialOffsets,
+				assignedPartitionsToEndOffsets,
 				watermarksPeriodic,
 				watermarksPunctuated,
 				runtimeContext.getProcessingTimeService(),
@@ -245,7 +248,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 
 		// use a short-lived consumer to fetch the offsets;
 		// this is ok because this is a one-time operation that happens only on startup
-		KafkaConsumer<?, ?> consumer = new KafkaConsumer(properties);
+		KafkaConsumer<?, ?> consumer = createKafkaConsumer(properties);
 
 		Map<KafkaTopicPartition, Long> result = new HashMap<>(partitions.size());
 		for (Map.Entry<TopicPartition, OffsetAndTimestamp> partitionToOffset :
@@ -258,5 +261,19 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 
 		consumer.close();
 		return result;
+	}
+
+	private KafkaConsumer createKafkaConsumer(Properties kafkaProperties) {
+		try {
+			return new KafkaConsumer<>(kafkaProperties);
+		} catch (KafkaException e) {
+			ClassLoader original = Thread.currentThread().getContextClassLoader();
+			try {
+				Thread.currentThread().setContextClassLoader(null);
+				return new KafkaConsumer<>(kafkaProperties);
+			} finally {
+				Thread.currentThread().setContextClassLoader(original);
+			}
+		}
 	}
 }

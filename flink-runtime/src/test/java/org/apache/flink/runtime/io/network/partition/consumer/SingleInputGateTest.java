@@ -25,6 +25,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
@@ -34,6 +35,8 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.BlockingShuffleType;
+import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -44,6 +47,7 @@ import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
 import org.junit.Test;
@@ -56,6 +60,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -69,6 +74,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -93,8 +99,10 @@ public class SingleInputGateTest {
 	 */
 	@Test(timeout = 120 * 1000)
 	public void testBasicGetNextLogic() throws Exception {
+		PartitionRequestManager partitionRequestManager = new PartitionRequestManager(Integer.MAX_VALUE, 1);
+
 		// Setup
-		final SingleInputGate inputGate = createInputGate();
+		final SingleInputGate inputGate = createInputGate(partitionRequestManager);
 
 		final TestInputChannel[] inputChannels = new TestInputChannel[]{
 			new TestInputChannel(inputGate, 0),
@@ -102,10 +110,10 @@ public class SingleInputGateTest {
 		};
 
 		inputGate.setInputChannel(
-			new IntermediateResultPartitionID(), inputChannels[0]);
+			new IntermediateResultPartitionID(), inputChannels[0].getInputChannel());
 
 		inputGate.setInputChannel(
-			new IntermediateResultPartitionID(), inputChannels[1]);
+			new IntermediateResultPartitionID(), inputChannels[1].getInputChannel());
 
 		// Test
 		inputChannels[0].readBuffer();
@@ -114,8 +122,8 @@ public class SingleInputGateTest {
 		inputChannels[1].readEndOfPartitionEvent();
 		inputChannels[0].readEndOfPartitionEvent();
 
-		inputGate.notifyChannelNonEmpty(inputChannels[0]);
-		inputGate.notifyChannelNonEmpty(inputChannels[1]);
+		inputGate.notifyChannelNonEmpty(inputChannels[0].getInputChannel());
+		inputGate.notifyChannelNonEmpty(inputChannels[1].getInputChannel());
 
 		verifyBufferOrEvent(inputGate, true, 0, true);
 		verifyBufferOrEvent(inputGate, true, 1, true);
@@ -130,7 +138,9 @@ public class SingleInputGateTest {
 	@Test(timeout = 120 * 1000)
 	public void testIsMoreAvailableReadingFromSingleInputChannel() throws Exception {
 		// Setup
-		final SingleInputGate inputGate = createInputGate();
+		PartitionRequestManager partitionRequestManager = new PartitionRequestManager(Integer.MAX_VALUE, 1);
+
+		final SingleInputGate inputGate = createInputGate(partitionRequestManager);
 
 		final TestInputChannel[] inputChannels = new TestInputChannel[]{
 			new TestInputChannel(inputGate, 0),
@@ -138,16 +148,16 @@ public class SingleInputGateTest {
 		};
 
 		inputGate.setInputChannel(
-			new IntermediateResultPartitionID(), inputChannels[0]);
+			new IntermediateResultPartitionID(), inputChannels[0].getInputChannel());
 
 		inputGate.setInputChannel(
-			new IntermediateResultPartitionID(), inputChannels[1]);
+			new IntermediateResultPartitionID(), inputChannels[1].getInputChannel());
 
 		// Test
 		inputChannels[0].readBuffer();
 		inputChannels[0].readBuffer(false);
 
-		inputGate.notifyChannelNonEmpty(inputChannels[0]);
+		inputGate.notifyChannelNonEmpty(inputChannels[0].getInputChannel());
 
 		verifyBufferOrEvent(inputGate, true, 0, true);
 		verifyBufferOrEvent(inputGate, true, 0, false);
@@ -161,7 +171,7 @@ public class SingleInputGateTest {
 
 		final ResultSubpartitionView iterator = mock(ResultSubpartitionView.class);
 		when(iterator.getNextBuffer()).thenReturn(
-			new BufferAndBacklog(new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(1024), FreeingBufferRecycler.INSTANCE), false, 0, false));
+			new BufferAndBacklog(new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(1024), FreeingBufferRecycler.INSTANCE), false,0, false));
 
 		final ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		when(partitionManager.createSubpartitionView(
@@ -171,7 +181,8 @@ public class SingleInputGateTest {
 
 		// Setup reader with one local and one unknown input channel
 
-		final SingleInputGate inputGate = createInputGate();
+		PartitionRequestManager partitionRequestManager = new PartitionRequestManager(Integer.MAX_VALUE, 1);
+		final SingleInputGate inputGate = createInputGate(partitionRequestManager);
 		final BufferPool bufferPool = mock(BufferPool.class);
 		when(bufferPool.getNumberOfRequiredMemorySegments()).thenReturn(2);
 
@@ -219,7 +230,8 @@ public class SingleInputGateTest {
 	 */
 	@Test
 	public void testUpdateChannelBeforeRequest() throws Exception {
-		SingleInputGate inputGate = createInputGate(1);
+		PartitionRequestManager partitionRequestManager = new PartitionRequestManager(Integer.MAX_VALUE, 1);
+		SingleInputGate inputGate = createInputGate(1, partitionRequestManager);
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 
@@ -251,8 +263,10 @@ public class SingleInputGateTest {
 	public void testReleaseWhilePollingChannel() throws Exception {
 		final AtomicReference<Exception> asyncException = new AtomicReference<>();
 
+		PartitionRequestManager partitionRequestManager = new PartitionRequestManager(Integer.MAX_VALUE, 1);
+
 		// Setup the input gate with a single channel that does nothing
-		final SingleInputGate inputGate = createInputGate(1);
+		final SingleInputGate inputGate = createInputGate(1, partitionRequestManager);
 
 		InputChannel unknown = new UnknownInputChannel(
 			inputGate,
@@ -341,9 +355,9 @@ public class SingleInputGateTest {
 		int initialBackoff = 137;
 		int maxBackoff = 1001;
 
-		final NetworkEnvironment netEnv = new NetworkEnvironment(
-			100, 32, initialBackoff, maxBackoff, 2, 8, enableCreditBasedFlowControl);
+		final NetworkEnvironment netEnv = createNetworkEnvironment(2, 8, 128, 0, 2, initialBackoff, maxBackoff);
 
+		PartitionRequestManager partitionRequestManager = new PartitionRequestManager(Integer.MAX_VALUE, 1);
 		SingleInputGate gate = SingleInputGate.create(
 			"TestTask",
 			new JobID(),
@@ -351,7 +365,10 @@ public class SingleInputGateTest {
 			gateDesc,
 			netEnv,
 			mock(TaskActions.class),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+			partitionRequestManager,
+			BlockingShuffleType.TM,
+			Executors.newSingleThreadExecutor());
 
 		try {
 			assertEquals(gateDesc.getConsumedPartitionType(), gate.getConsumedPartitionType());
@@ -398,11 +415,13 @@ public class SingleInputGateTest {
 	 */
 	@Test
 	public void testRequestBuffersWithRemoteInputChannel() throws Exception {
-		final SingleInputGate inputGate = createInputGate(1, ResultPartitionType.PIPELINED_BOUNDED);
+		PartitionRequestManager partitionRequestManager = new PartitionRequestManager(Integer.MAX_VALUE, 1);
+		final SingleInputGate inputGate = createInputGate(1, ResultPartitionType.PIPELINED, partitionRequestManager);
+
 		int buffersPerChannel = 2;
 		int extraNetworkBuffersPerGate = 8;
-		final NetworkEnvironment network = new NetworkEnvironment(
-			100, 32, 0, 0, buffersPerChannel, extraNetworkBuffersPerGate, enableCreditBasedFlowControl);
+		final NetworkEnvironment network = createNetworkEnvironment(buffersPerChannel,
+			extraNetworkBuffersPerGate, 128, 0, 2, 0, 0);
 
 		try {
 			final ResultPartitionID resultPartitionId = new ResultPartitionID();
@@ -413,6 +432,9 @@ public class SingleInputGateTest {
 
 			NetworkBufferPool bufferPool = network.getNetworkBufferPool();
 			if (enableCreditBasedFlowControl) {
+				inputGate.requestPartitions();
+				verify(bufferPool,
+					times(1)).requestMemorySegments(buffersPerChannel);
 				RemoteInputChannel remote = (RemoteInputChannel) inputGate.getInputChannels()
 					.get(resultPartitionId.getPartitionId());
 				// only the exclusive buffers should be assigned/available now
@@ -437,11 +459,11 @@ public class SingleInputGateTest {
 	 */
 	@Test
 	public void testRequestBuffersWithUnknownInputChannel() throws Exception {
-		final SingleInputGate inputGate = createInputGate(1, ResultPartitionType.PIPELINED_BOUNDED);
+		PartitionRequestManager partitionRequestManager = new PartitionRequestManager(Integer.MAX_VALUE, 1);
+		final SingleInputGate inputGate = createInputGate(1, ResultPartitionType.PIPELINED, partitionRequestManager);
 		int buffersPerChannel = 2;
 		int extraNetworkBuffersPerGate = 8;
-		final NetworkEnvironment network = new NetworkEnvironment(
-			100, 32, 0, 0, buffersPerChannel, extraNetworkBuffersPerGate, enableCreditBasedFlowControl);
+		final NetworkEnvironment network = createNetworkEnvironment(buffersPerChannel, extraNetworkBuffersPerGate, 128, 0, 2, 0, 0);
 
 		try {
 			final ResultPartitionID resultPartitionId = new ResultPartitionID();
@@ -451,6 +473,8 @@ public class SingleInputGateTest {
 			NetworkBufferPool bufferPool = network.getNetworkBufferPool();
 
 			if (enableCreditBasedFlowControl) {
+				verify(bufferPool, times(0)).requestMemorySegments(buffersPerChannel);
+
 				assertEquals(bufferPool.getTotalNumberOfMemorySegments(),
 					bufferPool.getNumberOfAvailableMemorySegments());
 				// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
@@ -466,6 +490,9 @@ public class SingleInputGateTest {
 				ResultPartitionLocation.createRemote(connectionId)));
 
 			if (enableCreditBasedFlowControl) {
+				inputGate.requestPartitions();
+				verify(bufferPool,
+					times(1)).requestMemorySegments(buffersPerChannel);
 				RemoteInputChannel remote = (RemoteInputChannel) inputGate.getInputChannels()
 					.get(resultPartitionId.getPartitionId());
 				// only the exclusive buffers should be assigned/available now
@@ -490,10 +517,10 @@ public class SingleInputGateTest {
 	 */
 	@Test
 	public void testUpdateUnknownInputChannel() throws Exception {
-		final SingleInputGate inputGate = createInputGate(2);
+		PartitionRequestManager partitionRequestManager = new PartitionRequestManager(Integer.MAX_VALUE, 1);
+		final SingleInputGate inputGate = createInputGate(2, partitionRequestManager);
 		int buffersPerChannel = 2;
-		final NetworkEnvironment network = new NetworkEnvironment(
-			100, 32, 0, 0, buffersPerChannel, 8, enableCreditBasedFlowControl);
+		final NetworkEnvironment network = createNetworkEnvironment(buffersPerChannel, 8, 128, 0, 2, 0, 0);
 
 		try {
 			final ResultPartitionID localResultPartitionId = new ResultPartitionID();
@@ -537,16 +564,48 @@ public class SingleInputGateTest {
 
 	// ---------------------------------------------------------------------------------------------
 
-	private SingleInputGate createInputGate() {
-		return createInputGate(2);
+	private NetworkEnvironment createNetworkEnvironment(
+			int buffersPerChannel,
+			int extraNetworkBuffersPerGate,
+			int buffersPerBlockingChannel,
+			int extraNetworkBuffersPerBlockingGate,
+			int buffersPerSubpartition,
+			int initialBackoff,
+			int maxBackoff) throws IOException, InterruptedException {
+		PartitionRequestClient partitionRequestClient = mock(PartitionRequestClient.class);
+		ConnectionManager connectionManager = mock(ConnectionManager.class);
+		when(connectionManager.createPartitionRequestClient(any(ConnectionID.class))).thenReturn(partitionRequestClient);
+		return new NetworkEnvironment(
+			spy(new NetworkBufferPool(100, 32)),
+			connectionManager,
+			new ResultPartitionManager(),
+			new TaskEventDispatcher(),
+			new KvStateRegistry(),
+			null,
+			null,
+			IOManager.IOMode.SYNC,
+			initialBackoff,
+			maxBackoff,
+			buffersPerChannel,
+			extraNetworkBuffersPerGate,
+			buffersPerBlockingChannel,
+			extraNetworkBuffersPerBlockingGate,
+			buffersPerSubpartition,
+			enableCreditBasedFlowControl);
 	}
 
-	private SingleInputGate createInputGate(int numberOfInputChannels) {
-		return createInputGate(numberOfInputChannels, ResultPartitionType.PIPELINED);
+	private SingleInputGate createInputGate(PartitionRequestManager partitionRequestManager) {
+		return createInputGate(2, partitionRequestManager);
+	}
+
+	private SingleInputGate createInputGate(int numberOfInputChannels, PartitionRequestManager partitionRequestManager) {
+		return createInputGate(numberOfInputChannels, ResultPartitionType.PIPELINED, partitionRequestManager);
 	}
 
 	private SingleInputGate createInputGate(
-			int numberOfInputChannels, ResultPartitionType partitionType) {
+			int numberOfInputChannels,
+			ResultPartitionType partitionType,
+			PartitionRequestManager partitionRequestManager) {
 		SingleInputGate inputGate = new SingleInputGate(
 			"Test Task Name",
 			new JobID(),
@@ -556,7 +615,10 @@ public class SingleInputGateTest {
 			numberOfInputChannels,
 			mock(TaskActions.class),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-			enableCreditBasedFlowControl);
+			partitionRequestManager,
+			Executors.newSingleThreadExecutor(),
+			enableCreditBasedFlowControl,
+			false);
 
 		assertEquals(partitionType, inputGate.getConsumedPartitionType());
 

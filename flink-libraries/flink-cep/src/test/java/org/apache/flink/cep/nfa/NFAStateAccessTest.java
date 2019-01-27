@@ -20,10 +20,10 @@ package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
-import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.cep.utils.TestSharedBuffer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -32,6 +32,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.cep.utils.NFAUtils.compile;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -98,13 +99,22 @@ public class NFAStateAccessTest {
 			}
 		});
 
-		TestSharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
-		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).withSharedBuffer(sharedBuffer).build();
-		nfaTestHarness.consumeRecords(inputEvents);
+		NFA<Event> nfa = compile(pattern, false);
 
-		assertEquals(58, sharedBuffer.getStateReads());
-		assertEquals(33, sharedBuffer.getStateWrites());
-		assertEquals(91, sharedBuffer.getStateAccesses());
+		TestSharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
+		for (StreamRecord<Event> inputEvent : inputEvents) {
+			try (SharedBufferAccessor<Event> accessor = sharedBuffer.getAccessor()) {
+					nfa.process(
+					accessor,
+					nfa.createInitialNFAState(),
+					inputEvent.getValue(),
+					inputEvent.getTimestamp());
+			}
+		}
+
+		assertEquals(2, sharedBuffer.getStateReads());
+		assertEquals(3, sharedBuffer.getStateWrites());
+		assertEquals(5, sharedBuffer.getStateAccesses());
 	}
 
 	@Test
@@ -172,12 +182,21 @@ public class NFAStateAccessTest {
 			}
 		});
 
-		TestSharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
-		NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).withSharedBuffer(sharedBuffer).build();
-		nfaTestHarness.consumeRecords(inputEvents);
+		NFA<Event> nfa = compile(pattern, false);
 
-		assertEquals(90, sharedBuffer.getStateReads());
-		assertEquals(31, sharedBuffer.getStateWrites());
-		assertEquals(121, sharedBuffer.getStateAccesses());
+		TestSharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
+		for (StreamRecord<Event> inputEvent : inputEvents) {
+			try (SharedBufferAccessor<Event> accessor = sharedBuffer.getAccessor()) {
+					nfa.process(
+					accessor,
+					nfa.createInitialNFAState(),
+					inputEvent.getValue(),
+					inputEvent.getTimestamp());
+			}
+		}
+
+		assertEquals(8, sharedBuffer.getStateReads());
+		assertEquals(12, sharedBuffer.getStateWrites());
+		assertEquals(20, sharedBuffer.getStateAccesses());
 	}
 }

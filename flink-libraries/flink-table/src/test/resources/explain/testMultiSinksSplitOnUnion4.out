@@ -1,0 +1,157 @@
+== Abstract Syntax Tree ==
+LogicalProject(a=[$0])
++- LogicalUnion(all=[true])
+   :- LogicalProject(a=[$0], c=[$2])
+   :  +- LogicalTableScan(table=[[builtin, default, t1]])
+   +- LogicalProject(d=[$0], f=[$2])
+      +- LogicalTableScan(table=[[builtin, default, t2]])
+
+LogicalProject(total_sum=[AS($0, 'total_sum')])
++- LogicalAggregate(group=[{}], TMP_0=[SUM($0)])
+   +- LogicalProject(a=[$0])
+      +- LogicalUnion(all=[true])
+         :- LogicalUnion(all=[true])
+         :  :- LogicalProject(a=[$0], c=[$2])
+         :  :  +- LogicalTableScan(table=[[builtin, default, t1]])
+         :  +- LogicalProject(d=[$0], f=[$2])
+         :     +- LogicalTableScan(table=[[builtin, default, t2]])
+         +- LogicalProject(a=[$0], c=[$2])
+            +- LogicalTableScan(table=[[builtin, default, t3]])
+
+LogicalProject(total_min=[AS($0, 'total_min')])
++- LogicalAggregate(group=[{}], TMP_1=[MIN($0)])
+   +- LogicalProject(a=[$0])
+      +- LogicalUnion(all=[true])
+         :- LogicalUnion(all=[true])
+         :  :- LogicalProject(a=[$0], c=[$2])
+         :  :  +- LogicalTableScan(table=[[builtin, default, t1]])
+         :  +- LogicalProject(d=[$0], f=[$2])
+         :     +- LogicalTableScan(table=[[builtin, default, t2]])
+         +- LogicalProject(a=[$0], c=[$2])
+            +- LogicalTableScan(table=[[builtin, default, t3]])
+
+== Optimized Logical Plan ==
+StreamExecCalc(select=[a, c], retract=[true], accMode=[Acc], reuse_id=[1])
++- StreamExecDataStreamScan(table=[[builtin, default, t1]], retract=[true], accMode=[Acc])
+
+StreamExecCalc(select=[d, f], retract=[true], accMode=[Acc], reuse_id=[2])
++- StreamExecDataStreamScan(table=[[builtin, default, t2]], retract=[true], accMode=[Acc])
+
+StreamExecSink(fields=[a], retract=[false], accMode=[Acc])
++- StreamExecUnion(all=[true], union=[a], retract=[false], accMode=[Acc])
+   :- StreamExecCalc(select=[a], retract=[false], accMode=[Acc])
+   :  +- Reused(reference_id=[1])
+   +- StreamExecCalc(select=[d], retract=[false], accMode=[Acc])
+      +- Reused(reference_id=[2])
+
+StreamExecUnion(all=[true], union=[a], retract=[true], accMode=[Acc], reuse_id=[3])
+:- StreamExecUnion(all=[true], union=[a], retract=[true], accMode=[Acc])
+:  :- StreamExecCalc(select=[a], retract=[true], accMode=[Acc])
+:  :  +- Reused(reference_id=[1])
+:  +- StreamExecCalc(select=[d], retract=[true], accMode=[Acc])
+:     +- Reused(reference_id=[2])
++- StreamExecCalc(select=[a], retract=[true], accMode=[Acc])
+   +- StreamExecDataStreamScan(table=[[builtin, default, t3]], retract=[true], accMode=[Acc])
+
+StreamExecSink(fields=[total_sum], retract=[false], accMode=[AccRetract])
++- StreamExecCalc(select=[TMP_0 AS total_sum], retract=[true], accMode=[AccRetract])
+   +- StreamExecGroupAggregate(select=[SUM(a) AS TMP_0], retract=[true], accMode=[AccRetract])
+      +- StreamExecExchange(distribution=[single], retract=[true], accMode=[Acc])
+         +- Reused(reference_id=[3])
+
+StreamExecSink(fields=[total_min], retract=[false], accMode=[Acc])
++- StreamExecCalc(select=[TMP_1 AS total_min], retract=[false], accMode=[Acc])
+   +- StreamExecGroupAggregate(select=[MIN(a) AS TMP_1], retract=[false], accMode=[Acc])
+      +- StreamExecExchange(distribution=[single], retract=[true], accMode=[Acc])
+         +- Reused(reference_id=[3])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:[builtin, default, t1], fields:(a, b, c))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(select: (a, c))
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : Calc(select: (a))
+				ship_strategy : FORWARD
+
+				 : Operator
+					content : SourceConversion(table:[builtin, default, t2], fields:(d, e, f))
+					ship_strategy : FORWARD
+
+					 : Operator
+						content : Calc(select: (d, f))
+						ship_strategy : FORWARD
+
+						 : Operator
+							content : Calc(select: (d))
+							ship_strategy : FORWARD
+
+							 : Operator
+								content : SinkConversion to Row
+								ship_strategy : FORWARD
+
+								 : Operator
+									content : Calc(select: (a))
+									ship_strategy : FORWARD
+
+									 : Operator
+										content : Calc(select: (d))
+										ship_strategy : FORWARD
+
+										 : Operator
+											content : SourceConversion(table:[builtin, default, t3], fields:(a, b, c))
+											ship_strategy : FORWARD
+
+											 : Operator
+												content : Calc(select: (a))
+												ship_strategy : FORWARD
+
+												 : Operator
+													content : GroupAggregate(select: (SUM(a) AS TMP_0))
+													ship_strategy : GLOBAL
+
+													 : Operator
+														content : Calc(select: (TMP_0 AS total_sum))
+														ship_strategy : FORWARD
+
+														 : Operator
+															content : SinkConversion to Tuple2
+															ship_strategy : FORWARD
+
+															 : Operator
+																content : Map
+																ship_strategy : FORWARD
+
+																 : Operator
+																	content : GroupAggregate(select: (MIN(a) AS TMP_1))
+																	ship_strategy : GLOBAL
+
+																	 : Operator
+																		content : Calc(select: (TMP_1 AS total_min))
+																		ship_strategy : FORWARD
+
+																		 : Data Sink
+																			content : Sink: TestingAppendTableSink
+																			ship_strategy : FORWARD
+
+																			 : Data Sink
+																				content : Sink: TestingRetractTableSink
+																				ship_strategy : FORWARD
+
+																				 : Data Sink
+																					content : Sink: TestingUpsertTableSink(keys=())
+																					ship_strategy : FORWARD
+

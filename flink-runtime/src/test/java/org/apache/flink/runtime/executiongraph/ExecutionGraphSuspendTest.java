@@ -20,22 +20,24 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.mockito.Mockito;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.junit.Assert.assertEquals;
-
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
@@ -82,10 +84,11 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 
 		eg.scheduleForExecution();
 		assertEquals(JobStatus.RUNNING, eg.getState());
-		validateAllVerticesInState(eg, ExecutionState.DEPLOYING);
+
+		verify(gateway, Mockito.timeout(2000L).times(eg.getTotalNumberOfVertices()))
+				.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 
 		// suspend
-
 		eg.suspend(new Exception("suspend"));
 
 		assertEquals(JobStatus.SUSPENDING, eg.getState());
@@ -110,6 +113,9 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
 		eg.scheduleForExecution();
+
+		verify(gateway, Mockito.timeout(2000L).times(eg.getTotalNumberOfVertices()))
+				.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
 		assertEquals(JobStatus.RUNNING, eg.getState());
@@ -133,7 +139,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	}
 
 	/**
-	 * Suspending from FAILING goes to SUSPENDING and sends no additional RPC calls
+	 * Suspending from FAILING goes to SUSPENDING and sends no additional RPC calls.
 	 */
 	@Test
 	public void testSuspendedOutOfFailing() throws Exception {
@@ -142,6 +148,9 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
 		eg.scheduleForExecution();
+
+		verify(gateway, Mockito.timeout(2000L).times(eg.getTotalNumberOfVertices()))
+				.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
 		eg.failGlobal(new Exception("fail global"));
@@ -172,6 +181,9 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
 		eg.scheduleForExecution();
+
+		verify(gateway, Mockito.timeout(2000L).times(eg.getTotalNumberOfVertices()))
+				.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
 		eg.failGlobal(new Exception("fail global"));
@@ -200,6 +212,9 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
 		eg.scheduleForExecution();
+
+		verify(gateway, Mockito.timeout(2000L).times(eg.getTotalNumberOfVertices()))
+				.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
 		eg.cancel();
@@ -230,6 +245,9 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
 		eg.scheduleForExecution();
+
+		verify(gateway, Mockito.timeout(2000L).times(eg.getTotalNumberOfVertices()))
+				.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
 		eg.cancel();
@@ -253,10 +271,15 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendWhileRestarting() throws Exception {
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(10));
+		final TaskManagerGateway gateway = spy(new SimpleAckingTaskManagerGateway());
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(
+				new JobID(), gateway, new InfiniteDelayRestartStrategy(10), createNoOpVertex(10));
 		eg.scheduleForExecution();
 
 		assertEquals(JobStatus.RUNNING, eg.getState());
+
+		verify(gateway, Mockito.timeout(2000L).times(eg.getTotalNumberOfVertices()))
+				.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
 		eg.failGlobal(new Exception("test"));

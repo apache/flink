@@ -21,13 +21,13 @@ package org.apache.flink.yarn;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -58,8 +58,6 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
-import akka.actor.Terminated;
-import akka.dispatch.OnComplete;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
@@ -68,22 +66,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import scala.Option;
 import scala.Some;
-import scala.concurrent.Await;
-import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
-import static org.apache.flink.runtime.concurrent.Executors.directExecutionContext;
 import static org.apache.flink.yarn.Utils.require;
 
 /**
@@ -164,13 +157,6 @@ public class YarnApplicationMasterRunner {
 			LOG.debug("YARN dynamic properties: {}", dynamicProperties);
 
 			final Configuration flinkConfig = createConfiguration(currDir, dynamicProperties, LOG);
-
-			// configure the filesystems
-			try {
-				FileSystem.initialize(flinkConfig);
-			} catch (IOException e) {
-				throw new IOException("Error while configuring the filesystems.", e);
-			}
 
 			File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
 			if (remoteKeytabPrincipal != null && f.exists()) {
@@ -298,7 +284,7 @@ public class YarnApplicationMasterRunner {
 			final String amPortRange = config.getString(
 					YarnConfigOptions.APPLICATION_MASTER_PORT);
 
-			actorSystem = BootstrapTools.startActorSystem(config, appMasterHostname, amPortRange, LOG);
+			actorSystem = BootstrapTools.startActorSystem(config, appMasterHostname, amPortRange, LOG, true);
 
 			final String akkaHostname = AkkaUtils.getAddress(actorSystem).host().get();
 			final int akkaPort = (Integer) AkkaUtils.getAddress(actorSystem).port().get();
@@ -310,6 +296,8 @@ public class YarnApplicationMasterRunner {
 			final Configuration taskManagerConfig = BootstrapTools.generateTaskManagerConfiguration(
 					config, akkaHostname, akkaPort, slotsPerTaskManager, TASKMANAGER_REGISTRATION_TIMEOUT);
 			LOG.debug("TaskManager configuration: {}", taskManagerConfig);
+
+			Utils.uploadTaskManagerConf(taskManagerConfig, yarnConfig, ENV, currDir);
 
 			final ContainerLaunchContext taskManagerContext = Utils.createTaskExecutorContext(
 				config, yarnConfig, ENV,
@@ -416,14 +404,11 @@ public class YarnApplicationMasterRunner {
 			}
 
 			if (actorSystem != null) {
-				actorSystem.terminate().onComplete(
-					new OnComplete<Terminated>() {
-						public void onComplete(Throwable failure, Terminated result) {
-							if (failure != null) {
-								LOG.error("Error shutting down actor system", failure);
-							}
-						}
-					}, directExecutionContext());
+				try {
+					actorSystem.shutdown();
+				} catch (Throwable tt) {
+					LOG.error("Error shutting down actor system", tt);
+				}
 			}
 
 			futureExecutor.shutdownNow();
@@ -436,11 +421,7 @@ public class YarnApplicationMasterRunner {
 		LOG.info("YARN Application Master started");
 
 		// wait until everything is done
-		try {
-			Await.ready(actorSystem.whenTerminated(), Duration.Inf());
-		} catch (InterruptedException | TimeoutException e) {
-			LOG.error("Error shutting down actor system", e);
-		}
+		actorSystem.awaitTermination();
 
 		// if we get here, everything work out jolly all right, and we even exited smoothly
 		if (webMonitor != null) {
@@ -544,8 +525,16 @@ public class YarnApplicationMasterRunner {
 			ConfigConstants.YARN_TASK_MANAGER_ENV_PREFIX,
 			ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX);
 
-		final String localDirs = ENV.get(Environment.LOCAL_DIRS.key());
-		BootstrapTools.updateTmpDirectoriesInConfiguration(configuration, localDirs);
+		// configure local directory
+		if (configuration.contains(CoreOptions.TMP_DIRS)) {
+			log.info("Overriding YARN's temporary file directories with those " +
+				"specified in the Flink config: " + configuration.getValue(CoreOptions.TMP_DIRS));
+		}
+		else {
+			final String localDirs = ENV.get(Environment.LOCAL_DIRS.key());
+			log.info("Setting directories for temporary files to: {}", localDirs);
+			configuration.setString(CoreOptions.TMP_DIRS, localDirs);
+		}
 
 		return configuration;
 	}

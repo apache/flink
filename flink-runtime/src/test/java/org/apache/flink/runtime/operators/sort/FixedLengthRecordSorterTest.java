@@ -403,20 +403,18 @@ public class FixedLengthRecordSorterTest {
 		}
 		while (sorter.write(record) && num < NUM_RECORDS);
 
-		FileIOChannel.ID channelID = this.ioManager.createChannelEnumerator().next();
-		BlockChannelWriter<MemorySegment> blockChannelWriter = this.ioManager.createBlockChannelWriter(channelID);
 		final List<MemorySegment> writeBuffer = this.memoryManager.allocatePages(new DummyInvokable(), 3);
-		ChannelWriterOutputView outputView = new ChannelWriterOutputView(blockChannelWriter, writeBuffer, writeBuffer.get(0).size());
+		BlockSortedDataFileFactory<IntPair> blockSortedDataFileFactory =
+			new BlockSortedDataFileFactory<>(this.ioManager.createChannelEnumerator(), serializer, ioManager);
+		SortedDataFile<IntPair> blockSortedDataFile = blockSortedDataFileFactory.createFile(writeBuffer);
 
-		sorter.writeToOutput(outputView, 0, NUM_RECORDS);
+		sorter.writeToOutput(blockSortedDataFile, 0, NUM_RECORDS);
 
-		this.memoryManager.release(outputView.close());
+		blockSortedDataFile.finishWriting();
+		this.memoryManager.release(writeBuffer);
 
-		BlockChannelReader<MemorySegment> blockChannelReader = this.ioManager.createBlockChannelReader(channelID);
 		final List<MemorySegment> readBuffer = this.memoryManager.allocatePages(new DummyInvokable(), 3);
-		ChannelReaderInputView readerInputView = new ChannelReaderInputView(blockChannelReader, readBuffer, false);
-		final List<MemorySegment> dataBuffer = this.memoryManager.allocatePages(new DummyInvokable(), 3);
-		ChannelReaderInputViewIterator<IntPair> iterator = new ChannelReaderInputViewIterator(readerInputView, dataBuffer, this.serializer);
+		MutableObjectIterator<IntPair> iterator = blockSortedDataFile.createReader(readBuffer);
 
 		record = iterator.next(record);
 		int i =0;
@@ -428,7 +426,7 @@ public class FixedLengthRecordSorterTest {
 
 		Assert.assertEquals(NUM_RECORDS, i);
 
-		this.memoryManager.release(dataBuffer);
+		this.memoryManager.release(readBuffer);
 		// release the memory occupied by the buffers
 		sorter.dispose();
 		this.memoryManager.release(memory);
@@ -452,20 +450,19 @@ public class FixedLengthRecordSorterTest {
 		}
 		while (sorter.write(record) && num < NUM_RECORDS);
 
-		FileIOChannel.ID channelID = this.ioManager.createChannelEnumerator().next();
-		BlockChannelWriter<MemorySegment> blockChannelWriter = this.ioManager.createBlockChannelWriter(channelID);
 		final List<MemorySegment> writeBuffer = this.memoryManager.allocatePages(new DummyInvokable(), 3);
-		ChannelWriterOutputView outputView = new ChannelWriterOutputView(blockChannelWriter, writeBuffer, writeBuffer.get(0).size());
+		BlockSortedDataFileFactory<IntPair> blockSortedDataFileFactory =
+			new BlockSortedDataFileFactory<>(this.ioManager.createChannelEnumerator(), serializer, ioManager);
+		SortedDataFile<IntPair> blockSortedDataFile = blockSortedDataFileFactory.createFile(writeBuffer);
 
-		sorter.writeToOutput(outputView, 1, NUM_RECORDS - 1);
+		sorter.writeToOutput(blockSortedDataFile, 1, NUM_RECORDS - 1);
 
-		this.memoryManager.release(outputView.close());
+		blockSortedDataFile.finishWriting();
 
-		BlockChannelReader<MemorySegment> blockChannelReader = this.ioManager.createBlockChannelReader(channelID);
+		this.memoryManager.release(writeBuffer);
+
 		final List<MemorySegment> readBuffer = this.memoryManager.allocatePages(new DummyInvokable(), 3);
-		ChannelReaderInputView readerInputView = new ChannelReaderInputView(blockChannelReader, readBuffer, false);
-		final List<MemorySegment> dataBuffer = this.memoryManager.allocatePages(new DummyInvokable(), 3);
-		ChannelReaderInputViewIterator<IntPair> iterator = new ChannelReaderInputViewIterator(readerInputView, dataBuffer, this.serializer);
+		MutableObjectIterator<IntPair> iterator = blockSortedDataFile.createReader(readBuffer);
 
 		record = iterator.next(record);
 		int i =1;
@@ -477,7 +474,7 @@ public class FixedLengthRecordSorterTest {
 
 		Assert.assertEquals(NUM_RECORDS, i);
 
-		this.memoryManager.release(dataBuffer);
+		this.memoryManager.release(readBuffer);
 		// release the memory occupied by the buffers
 		sorter.dispose();
 		this.memoryManager.release(memory);

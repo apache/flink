@@ -24,8 +24,11 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 /**
  * {@link StreamTask} for executing a {@link StreamSource}.
@@ -47,14 +50,20 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	private volatile boolean externallyInducedCheckpoints;
 
+	protected OP headOperator;
+
 	public SourceStreamTask(Environment env) {
 		super(env);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	protected void init() {
+		// does not hold any resources, so no initialization needed
+
+		headOperator = getHeadOperator();
 		// we check if the source is actually inducing the checkpoints, rather
-		// than the trigger
+		// than the trigger ch
 		SourceFunction<?> source = headOperator.getUserFunction();
 		if (source instanceof ExternallyInducedSource) {
 			externallyInducedCheckpoints = true;
@@ -95,6 +104,16 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	@Override
 	protected void run() throws Exception {
 		headOperator.run(getCheckpointLock(), getStreamStatusMaintainer());
+
+		if (!headOperator.isCanceledOrStopped()) {
+			synchronized (getCheckpointLock()) {
+				for (StreamOperator operator : operatorChain.getAllOperatorsTopologySorted()) {
+					if (operator instanceof OneInputStreamOperator) {
+						((OneInputStreamOperator) operator).endInput();
+					}
+				}
+			}
+		}
 	}
 
 	@Override
@@ -102,6 +121,13 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		if (headOperator != null) {
 			headOperator.cancel();
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	protected OP getHeadOperator() {
+		Preconditions.checkState(operatorChain.getHeadOperators().length == 1,
+			"There should only one head operator, not " + operatorChain.getHeadOperators().length);
+		return (OP) operatorChain.getHeadOperators()[0];
 	}
 
 	// ------------------------------------------------------------------------

@@ -18,8 +18,6 @@
 
 package org.apache.flink.core.memory;
 
-import org.apache.flink.util.Preconditions;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,8 +50,8 @@ public class DataOutputSerializer implements DataOutputView {
 	// ------------------------------------------------------------------------
 
 	public DataOutputSerializer(int startSize) {
-		if (startSize < 1) {
-			throw new IllegalArgumentException();
+		if (startSize < 4) {
+			throw new IllegalArgumentException("The start size of DataOutputSerializer must not be less than 4.");
 		}
 
 		this.startBuffer = new byte[startSize];
@@ -64,6 +62,12 @@ public class DataOutputSerializer implements DataOutputView {
 	public ByteBuffer wrapAsByteBuffer() {
 		this.wrapper.position(0);
 		this.wrapper.limit(this.position);
+		return this.wrapper;
+	}
+
+	public ByteBuffer wrapAsWritableByteBuffer() {
+		this.wrapper.position(position);
+		this.wrapper.limit(this.wrapper.capacity());
 		return this.wrapper;
 	}
 
@@ -103,6 +107,8 @@ public class DataOutputSerializer implements DataOutputView {
 
 	public void clear() {
 		this.position = 0;
+		this.wrapper.position(0);
+		this.wrapper.limit(this.wrapper.capacity());
 	}
 
 	public int length() {
@@ -119,6 +125,14 @@ public class DataOutputSerializer implements DataOutputView {
 			this.buffer = this.startBuffer;
 			this.wrapper = ByteBuffer.wrap(this.buffer);
 		}
+	}
+
+	public int position() {
+		return position;
+	}
+
+	public void position(int position) {
+		this.position = position;
 	}
 
 	@Override
@@ -301,6 +315,13 @@ public class DataOutputSerializer implements DataOutputView {
 		this.position = count;
 	}
 
+	public void ensureCapacity(int len) throws IOException {
+		if (len <= this.buffer.length) {
+			return;
+		}
+		resize(len - this.buffer.length);
+	}
+
 	private void resize(int minCapacityAdd) throws IOException {
 		int newLen = Math.max(this.buffer.length * 2, this.buffer.length + minCapacityAdd);
 		byte[] nb;
@@ -345,16 +366,11 @@ public class DataOutputSerializer implements DataOutputView {
 	@Override
 	public void write(DataInputView source, int numBytes) throws IOException {
 		if (buffer.length - this.position < numBytes){
-			throw new EOFException("Could not write " + numBytes + " bytes. Buffer overflow.");
+			resize(numBytes - (buffer.length - this.position));
 		}
 
 		source.readFully(this.buffer, this.position, numBytes);
 		this.position += numBytes;
-	}
-
-	public void setPosition(int position) {
-		Preconditions.checkArgument(position >= 0 && position <= this.position, "Position out of bounds.");
-		this.position = position;
 	}
 
 	// ------------------------------------------------------------------------

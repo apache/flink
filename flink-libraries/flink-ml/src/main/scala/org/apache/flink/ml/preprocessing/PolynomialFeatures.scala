@@ -116,7 +116,7 @@ object PolynomialFeatures{
         val degree = resultingParameters(Degree)
 
         input.map {
-          vector: T => {
+          vector => {
             calculatePolynomial(degree, vector)
           }
         }

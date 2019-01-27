@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.expressions
 
-import java.sql.Date
-
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.types.DataTypes
 import org.apache.flink.table.expressions.utils.RowTypeTestBase
+import org.apache.flink.table.util.DateTimeTestUtil._
 import org.junit.Test
 
 class RowTypeTest extends RowTypeTestBase {
@@ -39,22 +38,24 @@ class RowTypeTest extends RowTypeTestBase {
 
     // special literal
     testAllApis(
-      row(Date.valueOf("1985-04-11"),
+      row(
+        UTCDate("1985-04-11"),
+        UTCTime("14:15:16"),
+        UTCTimestamp("1985-04-11 14:15:16"),
         BigDecimal("0.1").bigDecimal,
         array(1, 2, 3),
         map("foo", "bar"),
-        row(1, true)
-      ),
-      "row('1985-04-11'.toDate, 0.1p, Array(1, 2, 3), " +
-        "Map('foo', 'bar'), row(1, true))",
-      "ROW(DATE '1985-04-11', CAST(0.1 AS DECIMAL), ARRAY[1, 2, 3], " +
-        "MAP['foo', 'bar'], row(1, true))",
-      "1985-04-11,0.1,[1, 2, 3],{foo=bar},1,true") // string flatten
+        row(1, true)),
+      "row('1985-04-11'.toDate, '14:15:16'.toTime, '1985-04-11 14:15:16'.toTimestamp, " +
+        "0.1p, Array(1, 2, 3), Map('foo', 'bar'), row(1, true))",
+      "ROW(DATE '1985-04-11', TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16', " +
+        "CAST(0.1 AS DECIMAL(2, 1)), ARRAY[1, 2, 3], MAP['foo', 'bar'], row(1, true))",
+      "1985-04-11,14:15:16,1985-04-11 14:15:16.000,0.1,[1, 2, 3],{foo=bar},1,true")
 
     testAllApis(
-      row(1 + 1, 2 * 3, Null(Types.STRING)),
+      row(1 + 1, 2 * 3, Null(DataTypes.STRING)),
       "row(1 + 1, 2 * 3, Null(STRING))",
-      "ROW(1 + 1, 2 * 3, NULLIF(1,1))",
+      "ROW(1 + 1, 2 * 3, NULLIF(1, 1))",
       "2,6,null"
     )
 
@@ -88,7 +89,7 @@ class RowTypeTest extends RowTypeTestBase {
       'f4,
       "f4",
       "f4",
-      "1984-03-12,0E-8,[1, 2, 3]"
+      "1984-03-12,0.00000000,[1, 2, 3]"
     )
 
     testAllApis(

@@ -21,6 +21,6 @@ package org.apache.flink.test.util;
 /**
  * Exception that is thrown to terminate a program and indicate success.
  */
-public class SuccessException extends RuntimeException {
+public class SuccessException extends Exception {
 	private static final long serialVersionUID = -7011865671593955887L;
 }

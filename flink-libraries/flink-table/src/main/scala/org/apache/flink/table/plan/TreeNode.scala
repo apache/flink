@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.plan
 
-import org.apache.flink.table.typeutils.TypeCheckUtils
+import org.apache.commons.lang3.ClassUtils
 
 /**
  * Generic base class for trees that can be transformed and traversed.
@@ -88,28 +88,28 @@ abstract class TreeNode[A <: TreeNode[A]] extends Product { self: A =>
    * if children change.
    */
   private[flink] def makeCopy(newArgs: Array[AnyRef]): A = {
-    val ctors = getClass.getConstructors.filter(_.getParameterTypes.length > 0)
+    val ctors = getClass.getConstructors.filter(_.getParameterTypes.size > 0)
     if (ctors.isEmpty) {
       throw new RuntimeException(s"No valid constructor for ${getClass.getSimpleName}")
     }
 
     val defaultCtor = ctors.find { ctor =>
-      if (ctor.getParameterTypes.length != newArgs.length) {
+      if (ctor.getParameterTypes.size != newArgs.length) {
         false
       } else if (newArgs.contains(null)) {
         false
       } else {
         val argsClasses: Array[Class[_]] = newArgs.map(_.getClass)
-        TypeCheckUtils.isAssignable(argsClasses, ctor.getParameterTypes)
+        ClassUtils.isAssignable(argsClasses, ctor.getParameterTypes, false)
       }
-    }.getOrElse(ctors.maxBy(_.getParameterTypes.length))
+    }.getOrElse(ctors.maxBy(_.getParameterTypes.size))
 
     try {
       defaultCtor.newInstance(newArgs: _*).asInstanceOf[A]
     } catch {
       case e: Throwable =>
         throw new RuntimeException(
-          s"Fail to copy tree node ${getClass.getName}.", e)
+          s"Fail to copy treeNode ${getClass.getName}: ${e.getStackTraceString}")
     }
   }
 }

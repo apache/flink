@@ -24,6 +24,7 @@ import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
 /**
@@ -54,11 +55,7 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-
-		StreamGraph streamGraph = getStreamGraph();
-		streamGraph.setJobName(jobName);
-
+	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 		transformations.clear();
 
 		if (env instanceof OptimizerPlanEnvironment) {
@@ -68,5 +65,24 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 		}
 
 		throw new OptimizerPlanEnvironment.ProgramAbortException();
+	}
+
+	@Override
+	protected JobExecutionResult executeInternal(String jobName, boolean detached, SavepointRestoreSettings savepointRestoreSettings) throws Exception {
+
+		StreamGraph streamGraph = getStreamGraph();
+		streamGraph.setJobName(jobName);
+
+		return execute(streamGraph);
+	}
+
+	@Override
+	public void cancel(String jobId) {
+
+	}
+
+	@Override
+	public String triggerSavepoint(String jobId, String path) {
+		return null;
 	}
 }

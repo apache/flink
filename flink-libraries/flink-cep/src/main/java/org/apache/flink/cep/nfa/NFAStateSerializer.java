@@ -18,9 +18,7 @@
 
 package org.apache.flink.cep.nfa;
 
-import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
@@ -95,7 +93,7 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 	private static final StringSerializer STATE_NAME_SERIALIZER = StringSerializer.INSTANCE;
 	private static final LongSerializer TIMESTAMP_SERIALIZER = LongSerializer.INSTANCE;
 	private static final DeweyNumber.DeweyNumberSerializer VERSION_SERIALIZER = DeweyNumber.DeweyNumberSerializer.INSTANCE;
-	private static final NodeId.NodeIdSerializer NODE_ID_SERIALIZER = new NodeId.NodeIdSerializer();
+	private static final NodeId.NodeIdSerializer NODE_ID_SERIALIZER = NodeId.NodeIdSerializer.INSTANCE;
 	private static final EventId.EventIdSerializer EVENT_ID_SERIALIZER = EventId.EventIdSerializer.INSTANCE;
 
 	@Override
@@ -189,21 +187,4 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 		return true;
 	}
 
-	// -----------------------------------------------------------------------------------
-
-	@Override
-	public TypeSerializerSnapshot<NFAState> snapshotConfiguration() {
-		return new NFAStateSerializerSnapshot();
-	}
-
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class NFAStateSerializerSnapshot extends SimpleTypeSerializerSnapshot<NFAState> {
-
-		public NFAStateSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
-	}
 }

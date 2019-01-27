@@ -25,22 +25,22 @@ import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
-import org.apache.flink.api.common.typeinfo.TypeHint;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.operators.base.utils.TestAccumulatorRegistry;
 import org.apache.flink.api.java.operators.ReduceOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.Arrays.asList;
@@ -52,29 +52,35 @@ import static org.junit.Assert.fail;
  * Tests for {@link ReduceOperator}.
  */
 @SuppressWarnings({"serial", "unchecked"})
-public class ReduceOperatorTest extends TestLogger implements Serializable{
-
-	private static final TypeInformation<Tuple2<String, Integer>> STRING_INT_TUPLE =
-			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){});
+public class ReduceOperatorTest implements java.io.Serializable {
 
 	@Test
 	public void testReduceCollection() {
 		try {
-			final ReduceFunction<Tuple2<String, Integer>> reducer =
-					(value1, value2) -> new Tuple2<>(value1.f0, value1.f1 + value2.f1);
+			final ReduceFunction<Tuple2<String, Integer>> reducer = new
+					ReduceFunction<Tuple2<String, Integer>>() {
 
-			ReduceOperatorBase<Tuple2<String, Integer>, ReduceFunction<Tuple2<String, Integer>>> op =
-					new ReduceOperatorBase<>(
-							reducer,
-							new UnaryOperatorInformation<>(STRING_INT_TUPLE, STRING_INT_TUPLE),
-							new int[]{0},
-							"TestReducer");
+				@Override
+				public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1,
+														Tuple2<String, Integer> value2) throws
+						Exception {
+					return new Tuple2<String, Integer>(value1.f0, value1.f1 + value2.f1);
+				}
+			};
 
-			List<Tuple2<String, Integer>> input = new ArrayList<>(asList(
-					new Tuple2<>("foo", 1),
-					new Tuple2<>("foo", 3),
-					new Tuple2<>("bar", 2),
-					new Tuple2<>("bar", 4)));
+			ReduceOperatorBase<Tuple2<String, Integer>, ReduceFunction<Tuple2<String,
+					Integer>>> op = new ReduceOperatorBase<Tuple2<String, Integer>,
+					ReduceFunction<Tuple2<String, Integer>>>(reducer,
+					new UnaryOperatorInformation<Tuple2<String, Integer>, Tuple2<String,
+							Integer>>(TypeInfoParser.<Tuple2<String,
+							Integer>>parse("Tuple2<String, Integer>"),
+							TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, " +
+									"Integer>")), new int[]{0}, "TestReducer");
+
+			List<Tuple2<String, Integer>> input = new ArrayList<Tuple2<String,
+					Integer>>(asList(new Tuple2<String, Integer>("foo", 1), new Tuple2<String,
+					Integer>("foo", 3), new Tuple2<String, Integer>("bar", 2), new Tuple2<String,
+					Integer>("bar", 4)));
 
 			ExecutionConfig executionConfig = new ExecutionConfig();
 			executionConfig.disableObjectReuse();
@@ -82,12 +88,12 @@ public class ReduceOperatorTest extends TestLogger implements Serializable{
 			executionConfig.enableObjectReuse();
 			List<Tuple2<String, Integer>> resultRegular = op.executeOnCollections(input, null, executionConfig);
 
-			Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<>(resultMutableSafe);
-			Set<Tuple2<String, Integer>> resultSetRegular = new HashSet<>(resultRegular);
+			Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<Tuple2<String, Integer>>(resultMutableSafe);
+			Set<Tuple2<String, Integer>> resultSetRegular = new HashSet<Tuple2<String, Integer>>(resultRegular);
 
-			Set<Tuple2<String, Integer>> expectedResult = new HashSet<>(asList(
-					new Tuple2<>("foo", 4),
-					new Tuple2<>("bar", 6)));
+			Set<Tuple2<String, Integer>> expectedResult = new HashSet<Tuple2<String,
+					Integer>>(asList(new Tuple2<String, Integer>("foo", 4), new Tuple2<String,
+					Integer>("bar", 6)));
 
 			assertEquals(expectedResult, resultSetMutableSafe);
 			assertEquals(expectedResult, resultSetRegular);
@@ -105,14 +111,13 @@ public class ReduceOperatorTest extends TestLogger implements Serializable{
 			final AtomicBoolean opened = new AtomicBoolean();
 			final AtomicBoolean closed = new AtomicBoolean();
 
-			final ReduceFunction<Tuple2<String, Integer>> reducer = new RichReduceFunction<Tuple2<String, Integer>>() {
-
+			final ReduceFunction<Tuple2<String, Integer>> reducer = new
+					RichReduceFunction<Tuple2<String, Integer>>() {
 				@Override
-				public Tuple2<String, Integer> reduce(
-						Tuple2<String, Integer> value1,
-						Tuple2<String, Integer> value2) throws Exception {
-
-					return new Tuple2<>(value1.f0, value1.f1 + value2.f1);
+				public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1,
+														Tuple2<String, Integer> value2) throws
+						Exception {
+					return new Tuple2<String, Integer>(value1.f0, value1.f1 + value2.f1);
 				}
 
 				@Override
@@ -130,18 +135,19 @@ public class ReduceOperatorTest extends TestLogger implements Serializable{
 				}
 			};
 
-			ReduceOperatorBase<Tuple2<String, Integer>, ReduceFunction<Tuple2<String, Integer>>> op =
-					new ReduceOperatorBase<>(
-							reducer,
-							new UnaryOperatorInformation<>(STRING_INT_TUPLE, STRING_INT_TUPLE),
-							new int[]{0},
-							"TestReducer");
+			ReduceOperatorBase<Tuple2<String, Integer>, ReduceFunction<Tuple2<String,
+					Integer>>> op = new ReduceOperatorBase<Tuple2<String, Integer>,
+					ReduceFunction<Tuple2<String, Integer>>>(reducer,
+					new UnaryOperatorInformation<Tuple2<String, Integer>, Tuple2<String,
+							Integer>>(TypeInfoParser.<Tuple2<String,
+							Integer>>parse("Tuple2<String, Integer>"),
+							TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, " +
+									"Integer>")), new int[]{0}, "TestReducer");
 
-			List<Tuple2<String, Integer>> input = new ArrayList<>(asList(
-					new Tuple2<>("foo", 1),
-					new Tuple2<>("foo", 3),
-					new Tuple2<>("bar", 2),
-					new Tuple2<>("bar", 4)));
+			List<Tuple2<String, Integer>> input = new ArrayList<Tuple2<String,
+					Integer>>(asList(new Tuple2<String, Integer>("foo", 1), new Tuple2<String,
+					Integer>("foo", 3), new Tuple2<String, Integer>("bar", 2), new Tuple2<String,
+					Integer>("bar", 4)));
 
 			final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
 
@@ -150,25 +156,25 @@ public class ReduceOperatorTest extends TestLogger implements Serializable{
 			executionConfig.disableObjectReuse();
 			List<Tuple2<String, Integer>> resultMutableSafe = op.executeOnCollections(input,
 					new RuntimeUDFContext(taskInfo, null, executionConfig,
-							new HashMap<>(),
-							new HashMap<>(),
+							new HashMap<String, Future<Path>>(),
+							new TestAccumulatorRegistry(),
 							new UnregisteredMetricsGroup()),
 					executionConfig);
 
 			executionConfig.enableObjectReuse();
 			List<Tuple2<String, Integer>> resultRegular = op.executeOnCollections(input,
 					new RuntimeUDFContext(taskInfo, null, executionConfig,
-							new HashMap<>(),
-							new HashMap<>(),
+							new HashMap<String, Future<Path>>(),
+							new TestAccumulatorRegistry(),
 							new UnregisteredMetricsGroup()),
 					executionConfig);
 
-			Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<>(resultMutableSafe);
-			Set<Tuple2<String, Integer>> resultSetRegular = new HashSet<>(resultRegular);
+			Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<Tuple2<String, Integer>>(resultMutableSafe);
+			Set<Tuple2<String, Integer>> resultSetRegular = new HashSet<Tuple2<String, Integer>>(resultRegular);
 
-			Set<Tuple2<String, Integer>> expectedResult = new HashSet<>(asList(
-					new Tuple2<>("foo", 4),
-					new Tuple2<>("bar", 6)));
+			Set<Tuple2<String, Integer>> expectedResult = new HashSet<Tuple2<String,
+					Integer>>(asList(new Tuple2<String, Integer>("foo", 4), new Tuple2<String,
+					Integer>("bar", 6)));
 
 			assertEquals(expectedResult, resultSetMutableSafe);
 			assertEquals(expectedResult, resultSetRegular);

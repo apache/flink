@@ -22,7 +22,9 @@ import org.apache.calcite.avatica.util.{TimeUnit, TimeUnitRange}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlTrimFunction
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.types.{DataTypes, InternalType}
+import org.apache.flink.table.functions.sql.ScalarSqlFunctions
+import org.apache.flink.table.plan.logical.LogicalExprVisitor
 
 import scala.language.{existentials, implicitConversions}
 
@@ -31,7 +33,7 @@ import scala.language.{existentials, implicitConversions}
   */
 case class SymbolExpression(symbol: TableSymbol) extends LeafExpression {
 
-  override private[flink] def resultType: TypeInformation[_] =
+  override private[flink] def resultType: InternalType =
     throw new UnsupportedOperationException("This should not happen. A symbol has no result type.")
 
   def toExpr: SymbolExpression = this // triggers implicit conversion
@@ -44,6 +46,20 @@ case class SymbolExpression(symbol: TableSymbol) extends LeafExpression {
 
   override def toString: String = s"${symbol.symbols}.${symbol.name}"
 
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
+}
+
+case class Proctime() extends LeafExpression {
+
+  override private[flink] def resultType = DataTypes.PROCTIME_INDICATOR
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.PROCTIME)
+  }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 /**

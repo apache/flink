@@ -17,10 +17,9 @@
  */
 package org.apache.flink.table.runtime.harness
 
-import java.util
+import java.lang.{Integer => JInt, Long => JLong}
 import java.util.concurrent.ConcurrentLinkedQueue
-
-import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
+import org.apache.calcite.rel.core.JoinInfo
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.ImmutableIntList
@@ -32,32 +31,39 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness
+import org.apache.flink.table.api.types.{DataType, RowType, TypeInfoWrappedDataType}
 import org.apache.flink.table.api.{TableConfig, Types, ValidationException}
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin
-import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin.TEMPORAL_JOIN_CONDITION
-import org.apache.flink.table.plan.nodes.datastream.DataStreamTemporalJoinToCoProcessTranslator
-import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.runtime.CRowKeySelector
-import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, TestStreamQueryConfig}
-import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.dataformat.BinaryString.fromString
+import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, BinaryRowWriter, GenericRow}
+import org.apache.flink.table.plan.FlinkJoinRelType
+import org.apache.flink.table.plan.nodes.physical.stream.StreamExecTemporalJoinToCoProcessTranslator
+import org.apache.flink.table.plan.schema.BaseRowSchema
+import org.apache.flink.table.plan.util.TemporalJoinUtil
+import org.apache.flink.table.plan.util.TemporalJoinUtil.TEMPORAL_JOIN_CONDITION
+import org.apache.flink.table.runtime.BaseRowKeySelector
+import org.apache.flink.table.runtime.utils.BaseRowHarnessAssertor
+import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+
 import org.hamcrest.CoreMatchers
 import org.hamcrest.Matchers.{endsWith, startsWith}
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import collection.JavaConverters._
 
-class TemporalJoinHarnessTest extends HarnessTestBase {
+@RunWith(classOf[Parameterized])
+class TemporalJoinHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
 
   private val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
 
   private val tableConfig = new TableConfig
 
-  private val queryConfig =
-    new TestStreamQueryConfig(Time.milliseconds(2), Time.milliseconds(4))
+  tableConfig.withIdleStateRetentionTime(Time.milliseconds(2), Time.milliseconds(4))
 
   private val ORDERS_KEY = "o_currency"
 
@@ -111,49 +117,54 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     // process without conversion rates
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 0L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", 0L)))
 
     // process (out of order) with conversion rates
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 2L)))
-    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 2L, "Euro", 114L, 1L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", 2L)))
+    expectedOutput.add(new StreamRecord(
+      genericRow(2L, "Euro", 2L, "Euro", 114L, 1L)))
 
     // initiate conversion rates
-    testHarness.processElement2(new StreamRecord(CRow("US Dollar", 102L, 1L)))
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 114L, 1L)))
-    testHarness.processElement2(new StreamRecord(CRow("Yen", 1L, 1L)))
+    testHarness.processElement2(new StreamRecord(binaryRow2("US Dollar", 102L, 1L)))
+    testHarness.processElement2(new StreamRecord(binaryRow2("Euro", 114L, 1L)))
+    testHarness.processElement2(new StreamRecord(binaryRow2("Yen", 1L, 1L)))
 
     // process again without conversion rates
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 0L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", 0L)))
 
     // process with conversion rates
-    testHarness.processElement1(new StreamRecord(CRow(1L, "US Dollar", 3L)))
-    testHarness.processElement1(new StreamRecord(CRow(50L, "Yen", 4L)))
-    expectedOutput.add(new StreamRecord(CRow(1L, "US Dollar", 3L, "US Dollar", 102L, 1L)))
-    expectedOutput.add(new StreamRecord(CRow(50L, "Yen", 4L, "Yen", 1L, 1L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(1L, "US Dollar", 3L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(50L, "Yen", 4L)))
+    expectedOutput.add(new StreamRecord(genericRow(1L, "US Dollar", 3L, "US Dollar", 102L, 1L)))
+    expectedOutput.add(new StreamRecord(genericRow(50L, "Yen", 4L, "Yen", 1L, 1L)))
 
     // update Euro #1
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 116L, 5L)))
+    testHarness.processElement2(new StreamRecord(binaryRow2("Euro", 116L, 5L)))
 
     // process with old Euro
-    testHarness.processElement1(new StreamRecord(CRow(3L, "Euro", 4L)))
-    expectedOutput.add(new StreamRecord(CRow(3L, "Euro", 4L, "Euro", 114L, 1L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(3L, "Euro", 4L)))
+    expectedOutput.add(new StreamRecord(genericRow(3L, "Euro", 4L, "Euro", 114L, 1L)))
 
     // again update Euro #2
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 119L, 7L)))
+    testHarness.processElement2(new StreamRecord(binaryRow2("Euro", 119L, 7L)))
 
     // process with updated Euro #1
-    testHarness.processElement1(new StreamRecord(CRow(3L, "Euro", 5L)))
-    expectedOutput.add(new StreamRecord(CRow(3L, "Euro", 5L, "Euro", 116L, 5L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(3L, "Euro", 5L)))
+    expectedOutput.add(new StreamRecord(genericRow(3L, "Euro", 5L, "Euro", 116L, 5L)))
 
     // process US Dollar
-    testHarness.processElement1(new StreamRecord(CRow(5L, "US Dollar", 7L)))
-    expectedOutput.add(new StreamRecord(CRow(5L, "US Dollar", 7L, "US Dollar", 102L, 1L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(5L, "US Dollar", 7L)))
+    expectedOutput.add(new StreamRecord(genericRow(5L, "US Dollar", 7L, "US Dollar", 102L, 1L)))
 
     assertTrue(testHarness.getOutput.isEmpty)
     testHarness.processWatermark1(new Watermark(10L))
     assertTrue(testHarness.getOutput.isEmpty)
     testHarness.processWatermark2(new Watermark(10L))
-    verify(expectedOutput, testHarness.getOutput)
+
+    val assertor = new BaseRowHarnessAssertor(
+      Array(Types.LONG, Types.STRING, Types.LONG, Types.STRING, Types.LONG, Types.LONG))
+    assertor.assertOutputEqualsSorted(
+      "result mismatch", expectedOutput, removeWatermark(testHarness.getOutput))
 
     testHarness.close()
   }
@@ -166,18 +177,22 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     val time1 = 1L
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 112L, time1)))
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 114L, time1)))
+    testHarness.processElement2(new StreamRecord(binaryRow2("Euro", 112L, time1)))
+    testHarness.processElement2(new StreamRecord(binaryRow2("Euro", 114L, time1)))
 
     val time2 = 2L
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", time2)))
-    testHarness.processElement1(new StreamRecord(CRow(22L, "Euro", time2)))
-    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", time2, "Euro", 114L, time1)))
-    expectedOutput.add(new StreamRecord(CRow(22L, "Euro", time2, "Euro", 114L, time1)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", time2)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(22L, "Euro", time2)))
+    expectedOutput.add(new StreamRecord(genericRow(2L, "Euro", time2, "Euro", 114L, time1)))
+    expectedOutput.add(new StreamRecord(genericRow(22L, "Euro", time2, "Euro", 114L, time1)))
 
     testHarness.processWatermark1(new Watermark(time2))
     testHarness.processWatermark2(new Watermark(time2))
-    verify(expectedOutput, testHarness.getOutput)
+
+    val assertor = new BaseRowHarnessAssertor(
+      Array(Types.LONG, Types.STRING, Types.LONG, Types.STRING, Types.LONG, Types.LONG))
+    assertor.assertOutputEqualsSorted(
+      "result mismatch", expectedOutput, removeWatermark(testHarness.getOutput))
 
     testHarness.close()
   }
@@ -192,7 +207,11 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
 
     testHarness.processWatermark1(new Watermark(10L))
     testHarness.processWatermark2(new Watermark(10L))
-    verify(new util.LinkedList(expectedOutput.asJava), testHarness.getOutput)
+
+    val assertor = new BaseRowHarnessAssertor(
+      Array(Types.LONG, Types.STRING, Types.LONG, Types.STRING, Types.LONG, Types.LONG))
+    assertor.assertOutputEqualsSorted(
+      "result mismatch", expectedOutput.asJava, removeWatermark(testHarness.getOutput))
 
     testHarness.close()
   }
@@ -205,16 +224,22 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
 
     val expectedOutput = processEuro(testHarness)
 
+    val assertor = new BaseRowHarnessAssertor(
+      Array(Types.LONG, Types.STRING, Types.LONG, Types.STRING, Types.LONG, Types.LONG))
+
     testHarness.processWatermark1(new Watermark(3L))
     testHarness.processWatermark2(new Watermark(2L))
-    verify(new util.LinkedList(expectedOutput.slice(0, 2).asJava), testHarness.getOutput)
+    assertor.assertOutputEqualsSorted(
+      "result mismatch", expectedOutput.slice(0, 2).asJava, removeWatermark(testHarness.getOutput))
 
     testHarness.processWatermark1(new Watermark(12L))
     testHarness.processWatermark2(new Watermark(5L))
-    verify(new util.LinkedList(expectedOutput.slice(0, 5).asJava), testHarness.getOutput)
+    assertor.assertOutputEqualsSorted(
+      "result mismatch", expectedOutput.slice(0, 5).asJava, removeWatermark(testHarness.getOutput))
 
     testHarness.processWatermark2(new Watermark(10L))
-    verify(new util.LinkedList(expectedOutput.asJava), testHarness.getOutput)
+    assertor.assertOutputEqualsSorted(
+      "result mismatch", expectedOutput.asJava, removeWatermark(testHarness.getOutput))
 
     testHarness.close()
   }
@@ -234,52 +259,56 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
     testHarness.processWatermark1(new Watermark(9999L))
     testHarness.processWatermark2(new Watermark(9999L))
 
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 10000L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", 10000L)))
 
     testHarness.processWatermark1(new Watermark(10000L))
     testHarness.processWatermark2(new Watermark(10000L))
 
-    expectedOutput += new StreamRecord(CRow(2L, "Euro", 10000L, "Euro", 9L, 9L))
-    verify(new util.LinkedList(expectedOutput.asJava), testHarness.getOutput)
-    
+    expectedOutput += new StreamRecord(genericRow(2L, "Euro", 10000L, "Euro", 9L, 9L))
+
+    val assertor = new BaseRowHarnessAssertor(
+      Array(Types.LONG, Types.STRING, Types.LONG, Types.STRING, Types.LONG, Types.LONG))
+    assertor.assertOutputEqualsSorted(
+      "result mismatch", expectedOutput.asJava, removeWatermark(testHarness.getOutput))
+
     testHarness.close()
   }
 
   def processEuro(
-    testHarness: KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow])
+    testHarness: KeyedTwoInputStreamOperatorTestHarness[String, BaseRow, BaseRow, BaseRow])
   : ArrayBuffer[Object] = {
 
     // process conversion rates
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 1L, 1L)))
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 3L, 3L)))
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 5L, 5L)))
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 7L, 7L)))
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 9L, 9L)))
+    testHarness.processElement2(new StreamRecord(binaryRow2("Euro", 1L, 1L)))
+    testHarness.processElement2(new StreamRecord(binaryRow2("Euro", 3L, 3L)))
+    testHarness.processElement2(new StreamRecord(binaryRow2("Euro", 5L, 5L)))
+    testHarness.processElement2(new StreamRecord(binaryRow2("Euro", 7L, 7L)))
+    testHarness.processElement2(new StreamRecord(binaryRow2("Euro", 9L, 9L)))
 
     // process orders
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 0L)))
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 1L)))
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 2L)))
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 3L)))
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 4L)))
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 5L)))
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 6L)))
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 7L)))
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 8L)))
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 9L)))
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 10L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", 0L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", 1L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", 2L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", 3L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", 4L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", 5L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", 6L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", 7L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", 8L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", 9L)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", 10L)))
 
     var expectedOutput = new ArrayBuffer[Object]()
-    expectedOutput += new StreamRecord(CRow(2L, "Euro", 1L, "Euro", 1L, 1L))
-    expectedOutput += new StreamRecord(CRow(2L, "Euro", 2L, "Euro", 1L, 1L))
-    expectedOutput += new StreamRecord(CRow(2L, "Euro", 3L, "Euro", 3L, 3L))
-    expectedOutput += new StreamRecord(CRow(2L, "Euro", 4L, "Euro", 3L, 3L))
-    expectedOutput += new StreamRecord(CRow(2L, "Euro", 5L, "Euro", 5L, 5L))
-    expectedOutput += new StreamRecord(CRow(2L, "Euro", 6L, "Euro", 5L, 5L))
-    expectedOutput += new StreamRecord(CRow(2L, "Euro", 7L, "Euro", 7L, 7L))
-    expectedOutput += new StreamRecord(CRow(2L, "Euro", 8L, "Euro", 7L, 7L))
-    expectedOutput += new StreamRecord(CRow(2L, "Euro", 9L, "Euro", 9L, 9L))
-    expectedOutput += new StreamRecord(CRow(2L, "Euro", 10L, "Euro", 9L, 9L))
+    expectedOutput += new StreamRecord(genericRow(2L, "Euro", 1L, "Euro", 1L, 1L))
+    expectedOutput += new StreamRecord(genericRow(2L, "Euro", 2L, "Euro", 1L, 1L))
+    expectedOutput += new StreamRecord(genericRow(2L, "Euro", 3L, "Euro", 3L, 3L))
+    expectedOutput += new StreamRecord(genericRow(2L, "Euro", 4L, "Euro", 3L, 3L))
+    expectedOutput += new StreamRecord(genericRow(2L, "Euro", 5L, "Euro", 5L, 5L))
+    expectedOutput += new StreamRecord(genericRow(2L, "Euro", 6L, "Euro", 5L, 5L))
+    expectedOutput += new StreamRecord(genericRow(2L, "Euro", 7L, "Euro", 7L, 7L))
+    expectedOutput += new StreamRecord(genericRow(2L, "Euro", 8L, "Euro", 7L, 7L))
+    expectedOutput += new StreamRecord(genericRow(2L, "Euro", 9L, "Euro", 9L, 9L))
+    expectedOutput += new StreamRecord(genericRow(2L, "Euro", 10L, "Euro", 9L, 9L))
     expectedOutput
   }
 
@@ -291,39 +320,50 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     // process without conversion rates
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", null)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", null)))
 
     // initiate conversion rates
-    testHarness.processElement2(new StreamRecord(CRow("US Dollar", 102L, null)))
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 114L, null)))
-    testHarness.processElement2(new StreamRecord(CRow("Yen", 1L, null)))
+    testHarness.processElement2(new StreamRecord(binaryRow2("US Dollar", 102L, null)))
+    testHarness.processElement2(new StreamRecord(binaryRow2("Euro", 114L, null)))
+    testHarness.processElement2(new StreamRecord(binaryRow2("Yen", 1L, null)))
 
     // process with conversion rates
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", null)))
-    testHarness.processElement1(new StreamRecord(CRow(1L, "US Dollar", null)))
-    testHarness.processElement1(new StreamRecord(CRow(50L, "Yen", null)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(2L, "Euro", null)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(1L, "US Dollar", null)))
+    testHarness.processElement1(new StreamRecord(binaryRow1(50L, "Yen", null)))
 
-    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", null, "Euro", 114L, null)))
-    expectedOutput.add(new StreamRecord(CRow(1L, "US Dollar", null, "US Dollar", 102L, null)))
-    expectedOutput.add(new StreamRecord(CRow(50L, "Yen", null, "Yen", 1L, null)))
+    expectedOutput.add(new StreamRecord(GenericRow.of(
+      2L: JLong, fromString("Euro"), null, fromString("Euro"), 114L: JLong, null)))
+    expectedOutput.add(new StreamRecord(GenericRow.of(
+      1L: JLong, fromString("US Dollar"), null, fromString("US Dollar"), 102L: JLong, null)))
+    expectedOutput.add(new StreamRecord(GenericRow.of(
+      50L: JLong, fromString("Yen"), null, fromString("Yen"), 1L: JLong, null)))
 
     // update Euro
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 116L, null)))
+    testHarness.processElement2(new StreamRecord(
+      binaryRow2("Euro", 116L, null)))
 
     // process Euro
-    testHarness.processElement1(new StreamRecord(CRow(3L, "Euro", null)))
+    testHarness.processElement1(new StreamRecord(
+      binaryRow1(3L, "Euro", null)))
 
-    expectedOutput.add(new StreamRecord(CRow(3L, "Euro", null, "Euro", 116L, null)))
+    expectedOutput.add(new StreamRecord(GenericRow.of(
+      3L: JLong, fromString("Euro"), null, fromString("Euro"), 116L: JLong, null)))
 
     // again update Euro
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 119L, null)))
+    testHarness.processElement2(new StreamRecord(
+      binaryRow2("Euro", 119L, null)))
 
     // process US Dollar
-    testHarness.processElement1(new StreamRecord(CRow(5L, "US Dollar", null)))
+    testHarness.processElement1(new StreamRecord(
+      binaryRow1(5L, "US Dollar", null)))
 
-    expectedOutput.add(new StreamRecord(CRow(5L, "US Dollar", null, "US Dollar", 102L, null)))
+    expectedOutput.add(new StreamRecord(GenericRow.of(
+      5L: JLong, fromString("US Dollar"), null, fromString("US Dollar"), 102L: JLong, null)))
 
-    verify(expectedOutput, testHarness.getOutput, new RowResultSortComparator())
+    val assertor = new BaseRowHarnessAssertor(
+      Array(Types.LONG, Types.STRING, Types.LONG, Types.STRING, Types.LONG, Types.LONG))
+    assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, testHarness.getOutput)
 
     testHarness.close()
   }
@@ -342,8 +382,8 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
         RATES_KEY,
         ORDERS_PROCTIME) {
         /**
-          * @return [[LogicalTemporalTableJoin.TEMPORAL_JOIN_CONDITION]](...) AND
-          *        leftInputRef(3) > rightInputRef(3)
+          * @return TEMPORAL_JOIN_CONDITION(...) AND
+          *         leftInputRef(3) > rightInputRef(3)
           */
         override def getRemaining(rexBuilder: RexBuilder): RexNode = {
           rexBuilder.makeCall(
@@ -360,29 +400,44 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     // initiate conversion rates
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 114L, null, 42)))
-    testHarness.processElement2(new StreamRecord(CRow("Yen", 1L, null, 42)))
+    testHarness.processElement2(new StreamRecord(
+      binaryRow2("Euro", 114L, null, 42)))
+    testHarness.processElement2(new StreamRecord(
+      binaryRow2("Yen", 1L, null, 42)))
 
     // process with conversion rates
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", null, 0)))
-    testHarness.processElement1(new StreamRecord(CRow(50L, "Yen", null, 44)))
+    testHarness.processElement1(new StreamRecord(
+      binaryRow1(2L, "Euro", null, 0)))
+    testHarness.processElement1(new StreamRecord(
+      binaryRow1(50L, "Yen", null, 44)))
 
-    expectedOutput.add(new StreamRecord(CRow(50L, "Yen", null, 44, "Yen", 1L, null, 42)))
+    expectedOutput.add(new StreamRecord(GenericRow.of(
+      50L: JLong, fromString("Yen"), null, 44: JInt, fromString("Yen"), 1L: JLong, null, 42: JInt)))
 
     // update Euro
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 116L, null, 44)))
+    testHarness.processElement2(new StreamRecord(
+      binaryRow2("Euro", 116L, null, 44)))
 
     // process Euro
-    testHarness.processElement1(new StreamRecord(CRow(3L, "Euro", null, 42)))
-    testHarness.processElement1(new StreamRecord(CRow(4L, "Euro", null, 44)))
-    testHarness.processElement1(new StreamRecord(CRow(5L, "Euro", null, 1337)))
+    testHarness.processElement1(new StreamRecord(
+      binaryRow1(3L, "Euro", null, 42)))
+    testHarness.processElement1(new StreamRecord(
+      binaryRow1(4L, "Euro", null, 44)))
+    testHarness.processElement1(new StreamRecord(
+      binaryRow1(5L, "Euro", null, 1337)))
 
-    expectedOutput.add(new StreamRecord(CRow(5L, "Euro", null, 1337, "Euro", 116L, null, 44)))
+    expectedOutput.add(new StreamRecord(
+      GenericRow.of(5L: JLong, fromString("Euro"), null, 1337: JInt,
+                    fromString("Euro"), 116L: JLong, null, 44: JInt)))
 
     // process US Dollar
-    testHarness.processElement1(new StreamRecord(CRow(5L, "US Dollar", null, 1337)))
+    testHarness.processElement1(new StreamRecord(
+      binaryRow1(5L, "US Dollar", null, 1337)))
 
-    verify(expectedOutput, testHarness.getOutput, new RowResultSortComparator())
+    val assertor = new BaseRowHarnessAssertor(
+      Array(Types.LONG, Types.STRING, Types.LONG, Types.INT,
+            Types.STRING, Types.LONG, Types.LONG, Types.INT))
+    assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, testHarness.getOutput)
 
     testHarness.close()
   }
@@ -474,7 +529,7 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
     translateJoin(
       new OrdersRatesProctimeTemporalJoinInfo() {
         override def getRemaining(rexBuilder: RexBuilder): RexNode = {
-          LogicalTemporalTableJoin.makeProcTimeTemporalJoinConditionCall(
+          TemporalJoinUtil.makeProcTimeTemporalJoinConditionCall(
             rexBuilder,
             makeLeftInputRef(leftTimeAttribute),
             rexBuilder.makeCall(
@@ -498,7 +553,7 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
         ImmutableIntList.of(1, 0)) {
 
         override def getRemaining(rexBuilder: RexBuilder): RexNode = {
-          LogicalTemporalTableJoin.makeProcTimeTemporalJoinConditionCall(
+          TemporalJoinUtil.makeProcTimeTemporalJoinConditionCall(
             rexBuilder,
             makeLeftInputRef(ORDERS_PROCTIME),
             makeRightInputRef(RATES_KEY))
@@ -509,258 +564,56 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
   @Test
   def testNonInnerJoin() {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(startsWith(s"Only ${JoinRelType.INNER} temporal join"))
+    expectedException.expectMessage(startsWith(s"Only ${FlinkJoinRelType.INNER} temporal join"))
 
-    translateJoin(new OrdersRatesProctimeTemporalJoinInfo, JoinRelType.FULL)
+    translateJoin(new OrdersRatesProctimeTemporalJoinInfo, FlinkJoinRelType.FULL)
   }
 
   def createTestHarness(temporalJoinInfo: TemporalJoinInfo)
-    : KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow] = {
+    : KeyedTwoInputStreamOperatorTestHarness[String, BaseRow, BaseRow, BaseRow] = {
 
     val (leftKeySelector, rightKeySelector, joinOperator) =
       translateJoin(temporalJoinInfo)
 
-    new KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow](
+    new KeyedTwoInputStreamOperatorTestHarness[String, BaseRow, BaseRow, BaseRow](
       joinOperator,
-      leftKeySelector.asInstanceOf[KeySelector[CRow, String]],
-      rightKeySelector.asInstanceOf[KeySelector[CRow, String]],
+      leftKeySelector.asInstanceOf[KeySelector[BaseRow, String]],
+      rightKeySelector.asInstanceOf[KeySelector[BaseRow, String]],
       BasicTypeInfo.STRING_TYPE_INFO,
       1,
       1,
       0)
   }
 
-  // ---------------------- Row time TTL tests ----------------------
-
-  @Test
-  def testRowTimeJoinCleanupTimerUpdatedFromProbeSide(): Unit = {
-    // min=2ms max=4ms
-    val testHarness = createTestHarness(new OrdersRatesRowtimeTemporalJoinInfo())
-
-    testHarness.open()
-    val expectedOutput = new ConcurrentLinkedQueue[Object]()
-
-    testHarness.setProcessingTime(1L)
-
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 1L)))
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 114L, 0L)))
-
-    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 1L, "Euro", 114L, 0L)))
-
-    testHarness.processBothWatermarks(new Watermark(2L))
-
-    // this should update the clean-up timer to 8
-    testHarness.setProcessingTime(4L)
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 4L)))
-
-    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 4L, "Euro", 114L, 0L)))
-
-    // this should now do nothing (also it does not update the timer as 5 + 2ms (min) < 8)
-    testHarness.setProcessingTime(5L)
-
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 5L)))
-    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 5L, "Euro", 114L, 0L)))
-
-    testHarness.processBothWatermarks(new Watermark(5L))
-
-    // this should now clean up the state
-    testHarness.setProcessingTime(8L)
-
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 7L))) // this should find no match
-
-    testHarness.processBothWatermarks(new Watermark(10L))
-
-    verify(expectedOutput, testHarness.getOutput)
-
-    testHarness.close()
-  }
-
-  @Test
-  def testRowTimeJoinCleanupTimerUpdatedFromBuildSide(): Unit = {
-    // min=2ms max=4ms
-    val testHarness = createTestHarness(new OrdersRatesRowtimeTemporalJoinInfo())
-
-    testHarness.open()
-    val expectedOutput = new ConcurrentLinkedQueue[Object]()
-
-    testHarness.setProcessingTime(1L)
-
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 1L)))
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 114L, 0L)))
-
-    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 1L, "Euro", 114L, 0L)))
-
-    testHarness.processBothWatermarks(new Watermark(2L))
-
-    // this should update the clean-up timer to 8
-    testHarness.setProcessingTime(4L)
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 117L, 4L)))
-
-    // this should now do nothing
-    testHarness.setProcessingTime(5L)
-
-    // so this should be joined with the "old" value
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 3L)))
-    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 3L, "Euro", 114L, 0L)))
-
-    testHarness.processBothWatermarks(new Watermark(5L))
-
-    // this should now clean up the state
-    testHarness.setProcessingTime(8L)
-
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 7L))) // this should find no match
-
-    testHarness.processBothWatermarks(new Watermark(10L))
-
-    verify(expectedOutput, testHarness.getOutput)
-
-    testHarness.close()
-  }
-
-  @Test
-  def testRowTimeJoinCleanupTimerUpdatedAfterEvaluation(): Unit = {
-    // min=2ms max=4ms
-    val testHarness = createTestHarness(new OrdersRatesRowtimeTemporalJoinInfo())
-
-    testHarness.open()
-    val expectedOutput = new ConcurrentLinkedQueue[Object]()
-
-    testHarness.setProcessingTime(1L)
-
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 1L)))
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 114L, 0L)))
-
-    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 1L, "Euro", 114L, 0L)))
-
-    testHarness.setProcessingTime(4L)
-
-    // this should trigger an evaluation, which should also update the clean-up timer to 8
-    testHarness.processBothWatermarks(new Watermark(2L))
-
-    // this should now do nothing (also it does not update the timer as 5 + 2ms (min) < 8)
-    testHarness.setProcessingTime(5L)
-
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 3L)))
-    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 3L, "Euro", 114L, 0L)))
-
-    testHarness.processBothWatermarks(new Watermark(5L))
-
-    // this should now clean up the state
-    testHarness.setProcessingTime(8L)
-
-    // so this should not find any match
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 7L)))
-
-    testHarness.processBothWatermarks(new Watermark(10L))
-
-    verify(expectedOutput, testHarness.getOutput)
-
-    testHarness.close()
-  }
-
-  // ---------------------- Processing time TTL tests ----------------------
-
-  @Test
-  def testProcessingTimeJoinCleanupTimerUpdatedFromProbeSide(): Unit = {
-    // min=2ms max=4ms
-    val testHarness = createTestHarness(new OrdersRatesProctimeTemporalJoinInfo())
-
-    testHarness.open()
-    val expectedOutput = new ConcurrentLinkedQueue[Object]()
-
-    testHarness.setProcessingTime(1L)
-
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 114L, 0L)))
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 1L)))
-
-    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 1L, "Euro", 114L, 0L)))
-
-    // this should push further the clean-up the state
-    testHarness.setProcessingTime(4L)
-
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 6L)))
-    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 6L, "Euro", 114L, 0L)))
-
-    // this should do nothing
-    testHarness.setProcessingTime(5L)
-
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 8L)))
-    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 8L, "Euro", 114L, 0L)))
-
-    // this should clean up the state
-    testHarness.setProcessingTime(8L)
-
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 10L)))
-
-    verify(expectedOutput, testHarness.getOutput)
-
-    testHarness.close()
-  }
-
-  @Test
-  def testProcessingTimeJoinCleanupTimerUpdatedFromBuildSide(): Unit = {
-    // min=2ms max=4ms
-    val testHarness = createTestHarness(new OrdersRatesProctimeTemporalJoinInfo())
-
-    testHarness.open()
-    val expectedOutput = new ConcurrentLinkedQueue[Object]()
-
-    testHarness.setProcessingTime(1L)
-
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 114L, 0L)))
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 1L)))
-
-    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 1L, "Euro", 114L, 0L)))
-
-    // this should push further the clean-up the state
-    testHarness.setProcessingTime(4L)
-
-    testHarness.processElement2(new StreamRecord(CRow("Euro", 116L, 1L)))
-
-    // this should do nothing
-    testHarness.setProcessingTime(5L)
-
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 6L)))
-    expectedOutput.add(new StreamRecord(CRow(2L, "Euro", 6L, "Euro", 116L, 1L)))
-
-    // this should clean up the state
-    testHarness.setProcessingTime(8L)
-
-    // so this should find no match
-    testHarness.processElement1(new StreamRecord(CRow(2L, "Euro", 10L)))
-
-    verify(expectedOutput, testHarness.getOutput)
-
-    testHarness.close()
-  }
-
-  def translateJoin(joinInfo: TemporalJoinInfo, joinRelType: JoinRelType = JoinRelType.INNER)
-    : (CRowKeySelector, CRowKeySelector, TwoInputStreamOperator[CRow, CRow, CRow]) = {
+  def translateJoin(
+    joinInfo: TemporalJoinInfo,
+    joinRelType: FlinkJoinRelType = FlinkJoinRelType.INNER)
+  : (BaseRowKeySelector, BaseRowKeySelector, TwoInputStreamOperator[BaseRow, BaseRow, BaseRow]) = {
 
     val leftType = joinInfo.leftRowType
     val rightType = joinInfo.rightRowType
-    val joinType = new RowTypeInfo(
-      leftType.getFieldTypes ++ rightType.getFieldTypes,
+    val joinType = new RowType(
+      (leftType.getFieldTypes ++ rightType.getFieldTypes)
+          .map(new TypeInfoWrappedDataType(_)).toArray[DataType],
       leftType.getFieldNames ++ rightType.getFieldNames)
 
-    val joinTranslator = DataStreamTemporalJoinToCoProcessTranslator.create(
+    val joinTranslator = StreamExecTemporalJoinToCoProcessTranslator.create(
       "TemporalJoin",
       tableConfig,
       joinType,
-      new RowSchema(typeFactory.createTypeFromTypeInfo(leftType, false)),
-      new RowSchema(typeFactory.createTypeFromTypeInfo(rightType, false)),
+      new BaseRowSchema(typeFactory.createTypeFromTypeInfo(leftType, false)),
+      new BaseRowSchema(typeFactory.createTypeFromTypeInfo(rightType, false)),
       joinInfo,
       rexBuilder)
 
-    val joinOperator = joinTranslator.getJoinOperator(
+    val joinCoProcessFunction = joinTranslator.getJoinOperator(
       joinRelType,
       joinType.getFieldNames,
-      "TemporalJoin",
-      queryConfig)
+      "TemporalJoin")
 
     (joinTranslator.getLeftKeySelector(),
       joinTranslator.getRightKeySelector(),
-      joinOperator)
+      joinCoProcessFunction)
   }
 
   abstract class TemporalJoinInfo(
@@ -813,7 +666,7 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
     extends TemporalJoinInfo(leftRowType, rightRowType, leftKey, rightKey) {
 
     override def getRemaining(rexBuilder: RexBuilder): RexNode = {
-      LogicalTemporalTableJoin.makeProcTimeTemporalJoinConditionCall(
+      TemporalJoinUtil.makeProcTimeTemporalJoinConditionCall(
         rexBuilder,
         makeLeftInputRef(leftTimeAttribute),
         makeRightInputRef(rightKey))
@@ -842,7 +695,7 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
       leftKey,
       rightKey) {
     override def getRemaining(rexBuilder: RexBuilder): RexNode = {
-      LogicalTemporalTableJoin.makeRowTimeTemporalJoinConditionCall(
+      TemporalJoinUtil.makeRowTimeTemporalJoinConditionCall(
         rexBuilder,
         makeLeftInputRef(leftTimeAttribute),
         makeRightInputRef(rightTimeAttribute),
@@ -872,5 +725,63 @@ class TemporalJoinHarnessTest extends HarnessTestBase {
           makeLeftInputRef(leftKey)),
         makeRightInputRef(rightKey))
     }
+  }
+
+  private def binaryRow2(
+    currency: String,
+    rate: Long,
+    rowtime: JLong,
+    foo: JInt = null): BinaryRow = {
+    val row = if (foo == null ) {
+      new BinaryRow(3)
+    } else {
+      new BinaryRow(4)
+    }
+    val writer = new BinaryRowWriter(row)
+    writer.writeString(0, currency)
+    writer.writeLong(1, rate)
+    if (rowtime == null) {
+      writer.setNullAt(2)
+    } else {
+      writer.writeLong(2, rowtime)
+    }
+    if (foo != null) {
+      writer.writeInt(3, foo)
+    }
+    writer.complete()
+    row
+  }
+
+  private def binaryRow1(
+    amount: Long,
+    currency: String,
+    rowtime: JLong,
+    bar: JInt = null): BinaryRow = {
+    val row = if (bar == null ) {
+      new BinaryRow(3)
+    } else {
+      new BinaryRow(4)
+    }
+    val writer = new BinaryRowWriter(row)
+    writer.writeLong(0, amount)
+    writer.writeString(1, currency)
+    if (rowtime == null) {
+      writer.setNullAt(2)
+    } else {
+      writer.writeLong(2, rowtime)
+    }
+    if (bar != null) {
+      writer.writeInt(3, bar)
+    }
+    writer.complete()
+    row
+  }
+
+  private def genericRow(
+    amount: Long, currency1: String, rowtime1: Long,
+    currency2: String, rate: Long, rowtime2: Long): GenericRow = {
+
+    GenericRow.of(JLong.valueOf(amount), fromString(currency1), JLong.valueOf(rowtime1),
+                  fromString(currency2), JLong.valueOf(rate), JLong.valueOf(rowtime2))
   }
 }

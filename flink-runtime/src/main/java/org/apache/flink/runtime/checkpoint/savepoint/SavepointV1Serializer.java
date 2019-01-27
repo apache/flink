@@ -200,21 +200,21 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 		KeyedStateHandle keyedStateStream = deserializeKeyedStateHandle(dis);
 
 		ChainedStateHandle<OperatorStateHandle> operatorStateBackendChain =
-				new ChainedStateHandle<>(operatorStateBackend);
+			new ChainedStateHandle<>(operatorStateBackend);
 
 		ChainedStateHandle<OperatorStateHandle> operatorStateStreamChain =
-				new ChainedStateHandle<>(operatorStateStream);
+			new ChainedStateHandle<>(operatorStateStream);
 
 		return new SubtaskState(
-				operatorStateBackendChain,
-				operatorStateStreamChain,
-				keyedStateBackend,
-				keyedStateStream);
+			operatorStateBackendChain,
+			operatorStateStreamChain,
+			keyedStateBackend,
+			keyedStateStream);
 	}
 
 	@VisibleForTesting
 	public static void serializeKeyedStateHandle(
-			KeyedStateHandle stateHandle, DataOutputStream dos) throws IOException {
+		KeyedStateHandle stateHandle, DataOutputStream dos) throws IOException {
 
 		if (stateHandle == null) {
 			dos.writeByte(NULL_HANDLE);
@@ -262,7 +262,7 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 		if (stateHandle != null) {
 			dos.writeByte(PARTITIONABLE_OPERATOR_STATE_HANDLE);
 			Map<String, OperatorStateHandle.StateMetaInfo> partitionOffsetsMap =
-					stateHandle.getStateNameToPartitionOffsets();
+				stateHandle.getStateNameToPartitionOffsets();
 			dos.writeInt(partitionOffsetsMap.size());
 			for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> entry : partitionOffsetsMap.entrySet()) {
 				dos.writeUTF(entry.getKey());
@@ -286,7 +286,7 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 
 	@VisibleForTesting
 	public static OperatorStateHandle deserializeOperatorStateHandle(
-			DataInputStream dis) throws IOException {
+		DataInputStream dis) throws IOException {
 
 		final int type = dis.readByte();
 		if (NULL_HANDLE == type) {
@@ -306,7 +306,7 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 				}
 
 				OperatorStateHandle.StateMetaInfo metaInfo =
-						new OperatorStateHandle.StateMetaInfo(offsets, mode);
+					new OperatorStateHandle.StateMetaInfo(offsets, mode);
 				offsetsMap.put(key, metaInfo);
 			}
 			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis);
@@ -318,7 +318,7 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 
 	@VisibleForTesting
 	public static void serializeStreamStateHandle(
-			StreamStateHandle stateHandle, DataOutputStream dos) throws IOException {
+		StreamStateHandle stateHandle, DataOutputStream dos) throws IOException {
 
 		if (stateHandle == null) {
 			dos.writeByte(NULL_HANDLE);

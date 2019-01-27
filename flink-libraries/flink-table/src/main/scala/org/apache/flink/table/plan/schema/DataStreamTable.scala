@@ -19,11 +19,34 @@
 package org.apache.flink.table.plan.schema
 
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
 
 class DataStreamTable[T](
     val dataStream: DataStream[T],
+    val producesUpdates: Boolean,
+    val isAccRetract: Boolean,
     override val fieldIndexes: Array[Int],
     override val fieldNames: Array[String],
-    override val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends InlineTable[T](dataStream.getType, fieldIndexes, fieldNames, statistic)
+    statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
+  extends InlineTable(dataStream.getType, fieldIndexes, fieldNames, statistic) {
+
+  // This is only used for boundedStream now, we supply default statistic.
+  def this(
+      stream: DataStream[T],
+      fieldIndexes: Array[Int],
+      fieldNames: Array[String]) {
+    this(stream, false, false, fieldIndexes, fieldNames,
+         FlinkStatistic.builder.tableStats((TableStats(1000L))).build())
+  }
+
+  /**
+   * Creates a copy of this table, changing statistic.
+   *
+   * @param statistic A new FlinkStatistic.
+   * @return Copy of this table, substituting statistic.
+   */
+  override def copy(statistic: FlinkStatistic): FlinkTable =
+    new DataStreamTable(
+      dataStream, producesUpdates, isAccRetract, fieldIndexes, fieldNames, statistic)
+}

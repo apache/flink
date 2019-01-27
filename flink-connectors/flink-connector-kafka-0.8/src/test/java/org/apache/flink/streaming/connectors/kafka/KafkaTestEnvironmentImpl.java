@@ -113,7 +113,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 	@Override
 	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props) {
-		return new FlinkKafkaConsumer08<>(topics, readSchema, props);
+		return new FlinkKafkaConsumer08<T>(topics, readSchema, props);
 	}
 
 	@Override

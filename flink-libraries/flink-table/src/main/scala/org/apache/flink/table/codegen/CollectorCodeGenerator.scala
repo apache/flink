@@ -17,111 +17,237 @@
  */
 package org.apache.flink.table.codegen
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName}
+import org.apache.flink.table.api.{TableConfig, TableConfigOptions}
+import org.apache.flink.table.api.types.InternalType
+import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.runtime.TableFunctionCollector
-
+import org.apache.flink.table.runtime.collector.{TableAsyncCollector, TableFunctionCollector}
 
 /**
   * A code generator for generating [[org.apache.flink.util.Collector]]s.
-  *
-  * @param config configuration that determines runtime behavior
-  * @param nullableInput input(s) can be null.
-  * @param input1 type information about the first input of the Function
-  * @param input2 type information about the second input if the Function is binary
-  * @param input1FieldMapping additional mapping information for input1
-  *   (e.g. POJO types have no deterministic field order and some input fields might not be read)
-  * @param input2FieldMapping additional mapping information for input2
-  *   (e.g. POJO types have no deterministic field order and some input fields might not be read)
   */
-class CollectorCodeGenerator(
-    config: TableConfig,
-    nullableInput: Boolean,
-    input1: TypeInformation[_ <: Any],
-    input2: Option[TypeInformation[_ <: Any]] = None,
-    input1FieldMapping: Option[Array[Int]] = None,
-    input2FieldMapping: Option[Array[Int]] = None)
-  extends CodeGenerator(
-    config,
-    nullableInput,
-    input1,
-    input2,
-    input1FieldMapping,
-    input2FieldMapping) {
+object CollectorCodeGenerator {
 
   /**
-    * Generates a [[TableFunctionCollector]] that can be passed to Java compiler.
-    *
-    * @param name Class name of the table function collector. Must not be unique but has to be a
-    *             valid Java class identifier.
-    * @param bodyCode body code for the collector method
-    * @param collectedType The type information of the element collected by the collector
-    * @param filterGenerator generator containing context information for the generated body code
-    * @return instance of GeneratedCollector
-    */
+   * Generates a [[TableFunctionCollector]] that can be passed to Java compiler.
+   *
+   * @param ctx The context of the code generator
+   * @param name Class name of the table function collector. Must not be unique but has to be a
+   *             valid Java class identifier.
+   * @param bodyCode body code for the collector method
+   * @param inputType The type of the element being collected
+   * @param collectedType The type of the element collected by the collector
+   * @param inputTerm The term of the input element
+   * @param collectedTerm The term of the collected element
+   * @return instance of GeneratedCollector
+   */
   def generateTableFunctionCollector(
+      ctx: CodeGeneratorContext,
       name: String,
       bodyCode: String,
-      collectedType: TypeInformation[Any],
-      filterGenerator: CodeGenerator)
+      inputType: InternalType,
+      collectedType: InternalType,
+      config: TableConfig,
+      inputTerm: String = CodeGeneratorContext.DEFAULT_INPUT1_TERM,
+      collectedTerm: String = CodeGeneratorContext.DEFAULT_INPUT2_TERM,
+      converter: String => String = (a) => a)
     : GeneratedCollector = {
 
     val className = newName(name)
-    val input1TypeClass = boxedTypeTermForTypeInfo(input1)
-    val input2TypeClass = boxedTypeTermForTypeInfo(collectedType)
+    val input1TypeClass = boxedTypeTermForType(inputType)
+    val input2TypeClass = boxedTypeTermForType(collectedType)
 
-    // declaration in case of code splits
-    val recordMember = if (hasCodeSplits) {
-      s"private $input2TypeClass $input2Term;"
+    val unboxingCodeSplit = generateSplitFunctionCalls(
+      ctx.reusableInputUnboxingExprs.values.map(_.code).toSeq,
+      config.getConf.getInteger(TableConfigOptions.SQL_CODEGEN_LENGTH_MAX),
+      "inputUnbox",
+      "private final void",
+      ctx.reuseFieldCode().length,
+      defineParams = s"$input1TypeClass $inputTerm, $input2TypeClass $collectedTerm",
+      callingParams = s"$inputTerm, $collectedTerm"
+    )
+
+
+    val funcCode = if (unboxingCodeSplit.isSplit) {
+      j"""
+      public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
+
+        ${ctx.reuseMemberCode()}
+        ${ctx.reuseFieldCode()}
+
+        public $className() throws Exception {
+          ${ctx.reuseInitCode()}
+          ${ctx.reuseOpenCode()}
+        }
+
+        @Override
+        public void collect(Object record) throws Exception {
+          super.collect(record);
+          $input1TypeClass $inputTerm = ($input1TypeClass) getInput();
+          $input2TypeClass $collectedTerm = ($input2TypeClass) ${converter("record")};
+          ${unboxingCodeSplit.callings.mkString("\n")}
+          $bodyCode
+        }
+
+        ${unboxingCodeSplit.definitions.zip(unboxingCodeSplit.bodies) map {
+            case (define, body) => {
+              s"""
+                 |$define throws Exception {
+                 |  $body
+                 |}
+                 """.stripMargin
+            }
+          } mkString "\n"
+        }
+
+        @Override
+        public void close() {
+        }
+      }
+    """.stripMargin
     } else {
-      ""
+      j"""
+      public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
+
+        ${ctx.reuseMemberCode()}
+
+        public $className() throws Exception {
+          ${ctx.reuseInitCode()}
+          ${ctx.reuseOpenCode()}
+        }
+
+        @Override
+        public void collect(Object record) throws Exception {
+          super.collect(record);
+          $input1TypeClass $inputTerm = ($input1TypeClass) getInput();
+          $input2TypeClass $collectedTerm = ($input2TypeClass) ${converter("record")};
+          ${ctx.reuseFieldCode()}
+          ${ctx.reuseInputUnboxingCode()}
+          ${ctx.reusePerRecordCode()}
+          $bodyCode
+        }
+
+        @Override
+        public void close() {
+        }
+      }
+    """.stripMargin
     }
 
-    // assignment in case of code splits
-    val recordAssignment = if (hasCodeSplits) {
-      s"$input2Term" // use member
+    GeneratedCollector(className, funcCode)
+  }
+
+  /**
+   * Generates a [[TableFunctionCollector]] that can be passed to Java compiler.
+   *
+   * @param ctx The context of the code generator
+   * @param name Class name of the table function collector. Must not be unique but has to be a
+   *             valid Java class identifier.
+   * @param bodyCode body code for the collector method
+   * @param inputType The type information of the element being collected
+   * @param collectedType The type information of the element collected by the collector
+   * @param inputTerm The term of the input element
+   * @param collectedTerm The term of the collected element
+   * @return instance of GeneratedCollector
+   */
+  def generateTableAsyncCollector(
+      ctx: CodeGeneratorContext,
+      name: String,
+      bodyCode: String,
+      inputType: InternalType,
+      collectedType: InternalType,
+      config: TableConfig,
+      inputTerm: String = CodeGeneratorContext.DEFAULT_INPUT1_TERM,
+      collectedTerm: String = CodeGeneratorContext.DEFAULT_INPUT2_TERM)
+    : GeneratedCollector = {
+
+    val className = newName(name)
+    val input1TypeClass = boxedTypeTermForType(inputType)
+    val input2TypeClass = boxedTypeTermForType(collectedType)
+
+    val unboxingCodeSplit = generateSplitFunctionCalls(
+      ctx.reusableInputUnboxingExprs.values.map(_.code).toSeq,
+      config.getConf.getInteger(TableConfigOptions.SQL_CODEGEN_LENGTH_MAX),
+      "inputUnbox",
+      "private final void",
+      ctx.reuseFieldCode().length,
+      defineParams = s"$input1TypeClass $inputTerm, $input2TypeClass $collectedTerm",
+      callingParams = s"$inputTerm, $collectedTerm"
+    )
+
+    val funcCode = if (unboxingCodeSplit.isSplit) {
+      j"""
+      public class $className extends ${classOf[TableAsyncCollector[_]].getCanonicalName} {
+
+        ${ctx.reuseMemberCode()}
+        ${ctx.reuseFieldCode()}
+
+        public $className() throws Exception {
+          ${ctx.reuseInitCode()}
+          ${ctx.reuseOpenCode()}
+        }
+
+        @Override
+        public void complete(java.util.Collection records) throws Exception {
+          if (records == null || records.size() == 0) {
+            getCollector().complete(java.util.Collections.emptyList());
+            return;
+          }
+          try {
+            $input1TypeClass $inputTerm = ($input1TypeClass) getInput();
+            // TODO: currently, collection should only contain one element
+            $input2TypeClass $collectedTerm = ($input2TypeClass) records.iterator().next();
+            ${unboxingCodeSplit.callings.mkString("\n")}
+            $bodyCode
+          } catch (Exception e) {
+            getCollector().completeExceptionally(e);
+          }
+        }
+
+        ${
+          unboxingCodeSplit.definitions.zip(unboxingCodeSplit.bodies) map {
+            case (define, body) => {
+              s"""
+                 |$define throws Exception {
+                 |  $body
+                 |}
+                 """.stripMargin
+            }
+          } mkString "\n"
+        }
+      }
+    """.stripMargin
     } else {
-      s"$input2TypeClass $input2Term" // local variable
+      j"""
+      public class $className extends ${classOf[TableAsyncCollector[_]].getCanonicalName} {
+
+        ${ctx.reuseMemberCode()}
+
+        public $className() throws Exception {
+          ${ctx.reuseInitCode()}
+          ${ctx.reuseOpenCode()}
+        }
+
+        @Override
+        public void complete(java.util.Collection records) throws Exception {
+          if (records == null || records.size() == 0) {
+            getCollector().complete(java.util.Collections.emptyList());
+            return;
+          }
+          try {
+            $input1TypeClass $inputTerm = ($input1TypeClass) getInput();
+            // TODO: currently, collection should only contain one element
+            $input2TypeClass $collectedTerm = ($input2TypeClass) records.iterator().next();
+            ${ctx.reuseFieldCode()}
+            ${ctx.reuseInputUnboxingCode()}
+            $bodyCode
+          } catch (Exception e) {
+            getCollector().completeExceptionally(e);
+          }
+        }
+      }
+    """.stripMargin
     }
-
-    reusableMemberStatements ++= filterGenerator.reusableMemberStatements
-    reusableInitStatements ++= filterGenerator.reusableInitStatements
-    reusablePerRecordStatements ++= filterGenerator.reusablePerRecordStatements
-
-    val funcCode = j"""
-      |public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
-      |
-      |  $recordMember
-      |  ${reuseMemberCode()}
-      |
-      |  public $className() throws Exception {
-      |    ${reuseInitCode()}
-      |  }
-      |
-      |  @Override
-      |  public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
-      |    ${filterGenerator.reuseOpenCode()}
-      |  }
-      |
-      |  @Override
-      |  public void collect(Object record) throws Exception {
-      |    super.collect(record);
-      |    $input1TypeClass $input1Term = ($input1TypeClass) getInput();
-      |    $recordAssignment = ($input2TypeClass) record;
-      |    ${reuseInputUnboxingCode()}
-      |    ${reusePerRecordCode()}
-      |    $bodyCode
-      |  }
-      |
-      |  @Override
-      |  public void close() throws Exception {
-      |    ${filterGenerator.reuseCloseCode()}
-      |  }
-      |}
-      |""".stripMargin
 
     GeneratedCollector(className, funcCode)
   }

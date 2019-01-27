@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.fs;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.junit.Test;
@@ -34,11 +36,11 @@ public class SequenceFileWriterTest {
 	public void testDuplicate() {
 		SequenceFileWriter<Text, Text> writer = new SequenceFileWriter("BZ", SequenceFile.CompressionType.BLOCK);
 		writer.setSyncOnFlush(true);
-		SequenceFileWriter<Text, Text> other = writer.duplicate();
+		Writer<Tuple2<Text, Text>> other = writer.duplicate();
 
-		assertTrue(StreamWriterBaseComparator.equals(writer, other));
+		assertTrue(writer.equals(other));
 
 		writer.setSyncOnFlush(false);
-		assertFalse(StreamWriterBaseComparator.equals(writer, other));
+		assertFalse(writer.equals(other));
 	}
 }

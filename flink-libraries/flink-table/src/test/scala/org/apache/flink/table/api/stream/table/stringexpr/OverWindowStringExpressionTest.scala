@@ -24,7 +24,7 @@ import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.Weighted
 import org.apache.flink.table.api.java.{Over => JOver}
 import org.apache.flink.table.api.scala.{Over => SOver, _}
 import org.apache.flink.table.expressions.utils.Func1
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.util.TableTestBase
 import org.junit.Test
 
 class OverWindowStringExpressionTest extends TableTestBase {
@@ -120,7 +120,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
   }
 
   @Test
-  def testRowTimeUnboundedOverRange(): Unit = {
+  def testUnboundedOverRange(): Unit = {
     val util = streamTestUtil()
     val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
@@ -134,37 +134,8 @@ class OverWindowStringExpressionTest extends TableTestBase {
       .window(
         JOver.orderBy("rowtime").preceding("unbounded_range").following("current_range").as("w"))
       .select("a, SUM(b) OVER w, weightAvgFun(a, b) over w as myCnt")
-    val resJava2 = t
-      .window(
-        JOver.orderBy("rowtime").as("w"))
-      .select("a, SUM(b) OVER w, weightAvgFun(a, b) over w as myCnt")
 
     verifyTableEquals(resScala, resJava)
-    verifyTableEquals(resScala, resJava2)
-  }
-
-  @Test
-  def testProcTimeUnboundedOverRange(): Unit = {
-    val util = streamTestUtil()
-    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e, 'proctime.proctime)
-
-    val weightAvgFun = new WeightedAvg
-    util.tableEnv.registerFunction("weightAvgFun", weightAvgFun)
-
-    val resScala = t
-      .window(SOver orderBy 'proctime preceding UNBOUNDED_RANGE following CURRENT_RANGE as 'w)
-      .select('a, 'b.sum over 'w, weightAvgFun('a, 'b) over 'w as 'myCnt)
-    val resJava = t
-      .window(
-        JOver.orderBy("proctime").preceding("unbounded_range").following("current_range").as("w"))
-      .select("a, SUM(b) OVER w, weightAvgFun(a, b) over w as myCnt")
-    val resJava2 = t
-      .window(
-        JOver.orderBy("proctime").as("w"))
-      .select("a, SUM(b) OVER w, weightAvgFun(a, b) over w as myCnt")
-
-    verifyTableEquals(resScala, resJava)
-    verifyTableEquals(resScala, resJava2)
   }
 
   @Test

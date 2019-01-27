@@ -20,13 +20,9 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
-import org.apache.flink.runtime.state.StateSnapshotRestore;
+import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.util.Preconditions;
-
-import javax.annotation.Nonnull;
 
 import java.util.stream.Stream;
 
@@ -38,7 +34,8 @@ import java.util.stream.Stream;
  * @param <N> type of namespace
  * @param <S> type of state
  */
-public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
+@Deprecated
+public abstract class StateTable<K, N, S> {
 
 	/**
 	 * The key context view on the backend. This provides information, such as the currently active key.
@@ -46,16 +43,16 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 	protected final InternalKeyContext<K> keyContext;
 
 	/**
-	 * Combined meta information such as name and serializers for this state.
+	 * Combined meta information such as name and serializers for this state
 	 */
-	protected RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo;
+	protected RegisteredKeyedBackendStateMetaInfo<N, S> metaInfo;
 
 	/**
 	 *
 	 * @param keyContext the key context provides the key scope for all put/get/delete operations.
 	 * @param metaInfo the meta information, including the type serializer for state copy-on-write.
 	 */
-	public StateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
+	public StateTable(InternalKeyContext<K> keyContext, RegisteredKeyedBackendStateMetaInfo<N, S> metaInfo) {
 		this.keyContext = Preconditions.checkNotNull(keyContext);
 		this.metaInfo = Preconditions.checkNotNull(metaInfo);
 	}
@@ -63,9 +60,9 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 	// Main interface methods of StateTable -------------------------------------------------------
 
 	/**
-	 * Returns whether this {@link StateTable} is empty.
+	 * Returns whether this {@link NestedMapsStateTable} is empty.
 	 *
-	 * @return {@code true} if this {@link StateTable} has no elements, {@code false}
+	 * @return {@code true} if this {@link NestedMapsStateTable} has no elements, {@code false}
 	 * otherwise.
 	 * @see #size()
 	 */
@@ -74,9 +71,9 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 	}
 
 	/**
-	 * Returns the total number of entries in this {@link StateTable}. This is the sum of both sub-tables.
+	 * Returns the total number of entries in this {@link NestedMapsStateTable}. This is the sum of both sub-tables.
 	 *
-	 * @return the number of entries in this {@link StateTable}.
+	 * @return the number of entries in this {@link NestedMapsStateTable}.
 	 */
 	public abstract int size();
 
@@ -176,15 +173,17 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 		return metaInfo.getNamespaceSerializer();
 	}
 
-	public RegisteredKeyValueStateBackendMetaInfo<N, S> getMetaInfo() {
+	public RegisteredKeyedBackendStateMetaInfo<N, S> getMetaInfo() {
 		return metaInfo;
 	}
 
-	public void setMetaInfo(RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
+	public void setMetaInfo(RegisteredKeyedBackendStateMetaInfo<N, S> metaInfo) {
 		this.metaInfo = metaInfo;
 	}
 
 	// Snapshot / Restore -------------------------------------------------------------------------
+
+	abstract StateTableSnapshot createSnapshot();
 
 	public abstract void put(K key, int keyGroup, N namespace, S state);
 
@@ -192,10 +191,4 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 
 	@VisibleForTesting
 	public abstract int sizeOfNamespace(Object namespace);
-
-	@Nonnull
-	@Override
-	public StateSnapshotKeyGroupReader keyGroupReader(int readVersion) {
-		return StateTableByKeyGroupReaders.readerForVersion(this, readVersion);
-	}
 }

@@ -1,0 +1,60 @@
+<!--
+  ~   Licensed to the Apache Software Foundation (ASF) under one
+  ~   or more contributor license agreements.  See the NOTICE file
+  ~   distributed with this work for additional information
+  ~   regarding copyright ownership.  The ASF licenses this file
+  ~   to you under the Apache License, Version 2.0 (the
+  ~   "License"); you may not use this file except in compliance
+  ~   with the License.  You may obtain a copy of the License at
+  ~       http://www.apache.org/licenses/LICENSE-2.0
+  ~   Unless required by applicable law or agreed to in writing, software
+  ~   distributed under the License is distributed on an "AS IS" BASIS,
+  ~   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~   See the License for the specific language governing permissions and
+  ~   limitations under the License.
+  -->
+
+<div *ngIf="!isLoading" class="wrapper">
+  <div class="name">
+    <h2>{{ detail.name }}</h2>
+    <nz-divider [nzType]="'vertical'"></nz-divider>
+    <flink-job-badge [state]="detail.state"></flink-job-badge>
+    <nz-divider [nzType]="'vertical'"></nz-divider>
+    <flink-task-badge [tasks]="detail['status-counts']"></flink-task-badge>
+  </div>
+  <div class="status">
+    <div class="field">
+      <span>ID:</span>
+      <span>{{ detail.jid }}</span>
+    </div>
+    <nz-divider [nzType]="'vertical'"></nz-divider>
+    <div class="field">
+      <span>Start Time:</span>
+      <span>{{ detail['start-time'] | date:'yyyy-MM-dd HH:mm:ss' }}</span>
+    </div>
+    <nz-divider [nzType]="'vertical'"></nz-divider>
+    <ng-container *ngIf="detail['end-time']>-1">
+      <div class="field">
+        <span>End Time:</span>
+        <span>{{ detail['end-time'] | date:'yyyy-MM-dd HH:mm:ss' }}</span>
+      </div>
+      <nz-divider [nzType]="'vertical'"></nz-divider>
+    </ng-container>
+    <div class="field">
+      <span>Duration:</span>
+      <span>{{ detail.duration | nzHumanizeDuration: 's' }}</span>
+    </div>
+  </div>
+  <nz-navigation-tab [nzNavigationItems]="listOfNavigation"></nz-navigation-tab>
+  <div class="operate">
+    <span *ngIf="tips">{{ tips }}</span>
+    <ng-container *ngIf="!tips">
+      <ng-container *ngIf="detail.isStoppable && detail.state=='RUNNING'">
+        <a nz-popconfirm nzTitle="Stop Job?" (nzOnConfirm)="stopJob()">Stop Job</a>
+        <nz-divider [nzType]="'vertical'"></nz-divider>
+      </ng-container>
+      <a nz-popconfirm nzTitle="Cancel Job?" (nzOnConfirm)="cancelJob()" *ngIf="detail.state=='RUNNING' || detail.state=='CREATED' || detail.state=='RESTARTING'">Cancel Job</a>
+    </ng-container>
+  </div>
+</div>
+<nz-card nzLoading *ngIf="isLoading" [nzBordered]="false"></nz-card>

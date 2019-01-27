@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.messages;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.instance.TaskManagerResourceDescription;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
 /**
@@ -36,6 +38,8 @@ public class ClusterOverviewWithVersionTest extends RestResponseMarshallingTestB
 			1,
 			3,
 			3,
+			TaskManagerResourceDescription.fromResourceProfile(new ResourceProfile(1, 1024)),
+			TaskManagerResourceDescription.fromResourceProfile(new ResourceProfile(1, 1024)),
 			7,
 			4,
 			2,

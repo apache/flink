@@ -120,6 +120,7 @@ public class Kafka010FetcherTest {
 		final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
 				sourceContext,
 				partitionsWithInitialOffsets,
+				null,
 				null, /* periodic assigner */
 				null, /* punctuated assigner */
 				new TestProcessingTimeService(),
@@ -141,7 +142,7 @@ public class Kafka010FetcherTest {
 			@Override
 			public void run() {
 				try {
-					fetcher.runFetchLoop();
+					fetcher.runFetchLoop(true);
 				} catch (Throwable t) {
 					error.set(t);
 				}
@@ -257,6 +258,7 @@ public class Kafka010FetcherTest {
 		final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
 				sourceContext,
 				partitionsWithInitialOffsets,
+				null,
 				null, /* periodic assigner */
 				null, /* punctuated assigner */
 				new TestProcessingTimeService(),
@@ -278,7 +280,7 @@ public class Kafka010FetcherTest {
 			@Override
 			public void run() {
 				try {
-					fetcher.runFetchLoop();
+					fetcher.runFetchLoop(true);
 				} catch (Throwable t) {
 					error.set(t);
 				}
@@ -372,6 +374,7 @@ public class Kafka010FetcherTest {
 		final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
 				sourceContext,
 				partitionsWithInitialOffsets,
+				null,
 				null, /* periodic watermark extractor */
 				null, /* punctuated watermark extractor */
 				new TestProcessingTimeService(),
@@ -393,7 +396,7 @@ public class Kafka010FetcherTest {
 			@Override
 			public void run() {
 				try {
-					fetcher.runFetchLoop();
+					fetcher.runFetchLoop(true);
 				} catch (Throwable t) {
 					error.set(t);
 				}

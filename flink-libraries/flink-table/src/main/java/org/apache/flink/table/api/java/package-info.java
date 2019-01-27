@@ -19,9 +19,7 @@
 /**
  * <strong>Table API (Java)</strong><br>
  *
- * A {@link org.apache.flink.table.api.java.BatchTableEnvironment} can be used to create a
- * {@link org.apache.flink.table.api.Table} from a {@link org.apache.flink.api.java.DataSet}.
- * Equivalently, a {@link org.apache.flink.table.api.java.StreamTableEnvironment} can be used to
+ * A {@link org.apache.flink.table.api.java.StreamTableEnvironment} can be used to
  * create a {@link org.apache.flink.table.api.Table} from a
  * {@link org.apache.flink.streaming.api.datastream.DataStream}.
  *
@@ -57,7 +55,6 @@
  * <p>
  * As seen above, a {@link org.apache.flink.table.api.Table} can be converted back to the
  * underlying API representation using
- * {@link org.apache.flink.table.api.java.BatchTableEnvironment#toDataSet(Table, java.lang.Class)},
  * {@link org.apache.flink.table.api.java.StreamTableEnvironment#toAppendStream(Table, java.lang.Class)}}, or
  * {@link org.apache.flink.table.api.java.StreamTableEnvironment#toRetractStream(Table, java.lang.Class)}}.
  */

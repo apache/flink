@@ -31,7 +31,7 @@ import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, Val
 abstract class LogicalWindow(
     val aliasAttribute: Expression,
     val timeAttribute: Expression)
-  extends Resolvable[LogicalWindow] {
+  extends Resolvable[LogicalWindow] with LogicalExprVisitable {
 
   def resolveExpressions(resolver: (Expression) => Expression): LogicalWindow = this
 

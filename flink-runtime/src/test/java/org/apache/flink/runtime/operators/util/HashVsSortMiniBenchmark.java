@@ -31,7 +31,11 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.hash.ReusingBuildFirstHashJoinIterator;
 import org.apache.flink.runtime.operators.hash.ReusingBuildSecondHashJoinIterator;
+import org.apache.flink.runtime.operators.sort.BlockSortedDataFileFactory;
+import org.apache.flink.runtime.operators.sort.RecordComparisonMerger;
 import org.apache.flink.runtime.operators.sort.ReusingMergeInnerJoinIterator;
+import org.apache.flink.runtime.operators.sort.SortedDataFileFactory;
+import org.apache.flink.runtime.operators.sort.SortedDataFileMerger;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
@@ -128,15 +132,26 @@ public class HashVsSortMiniBenchmark {
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 			
 			long start = System.nanoTime();
-			
+
+			SortedDataFileFactory<Tuple2<Integer, String>> sortedDataFileFactory1 = new BlockSortedDataFileFactory<>(
+				ioManager.createChannelEnumerator(), serializer1.getSerializer(), ioManager);
+			SortedDataFileMerger<Tuple2<Integer, String>> merger1 = new RecordComparisonMerger<>(
+				sortedDataFileFactory1, ioManager, serializer1.getSerializer(), comparator1.duplicate(), 128, true);
 			final UnilateralSortMerger<Tuple2<Integer, String>> sorter1 = new UnilateralSortMerger<>(
+					sortedDataFileFactory1, merger1,
 					this.memoryManager, this.ioManager, input1, this.parentTask, this.serializer1, 
-					this.comparator1.duplicate(), (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, 0.8f,
+					this.comparator1.duplicate(), (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, true, 0.8f,
 					true /*use large record handler*/, true);
-			
+
+
+			SortedDataFileFactory<Tuple2<Integer, String>> sortedDataFileFactory2 = new BlockSortedDataFileFactory<>(
+				ioManager.createChannelEnumerator(), serializer2.getSerializer(), ioManager);
+			SortedDataFileMerger<Tuple2<Integer, String>> merger2 = new RecordComparisonMerger<>(
+				sortedDataFileFactory1, ioManager, serializer2.getSerializer(), comparator2.duplicate(), 128, true);
 			final UnilateralSortMerger<Tuple2<Integer, String>> sorter2 = new UnilateralSortMerger<>(
-					this.memoryManager, this.ioManager, input2, this.parentTask, this.serializer2, 
-					this.comparator2.duplicate(), (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, 0.8f,
+					sortedDataFileFactory2, merger2,
+					this.memoryManager, this.ioManager, input2, this.parentTask, this.serializer2,
+					this.comparator2.duplicate(), (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, true, 0.8f,
 					true /*use large record handler*/, true);
 			
 			final MutableObjectIterator<Tuple2<Integer, String>> sortedInput1 = sorter1.getIterator();
@@ -253,9 +268,14 @@ public class HashVsSortMiniBenchmark {
 
 		long start = System.nanoTime();
 
+		SortedDataFileFactory<Tuple2<Integer, String>> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+			ioManager.createChannelEnumerator(), serializer1.getSerializer(), ioManager);
+		SortedDataFileMerger<Tuple2<Integer, String>> merger = new RecordComparisonMerger<>(
+			sortedDataFileFactory, ioManager, serializer1.getSerializer(), comparator1.duplicate(), 128, true);
 		final UnilateralSortMerger<Tuple2<Integer, String>> sorter = new UnilateralSortMerger<>(
+				sortedDataFileFactory, merger,
 				this.memoryManager, this.ioManager, input1, this.parentTask, this.serializer1,
-				this.comparator1.duplicate(), (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, 0.8f,
+				this.comparator1.duplicate(), (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, true, 0.8f,
 				true /*use large record handler*/, true);
 
 		MutableObjectIterator<Tuple2<Integer, String>> iter = sorter.getIterator();

@@ -1,0 +1,35 @@
+<!--
+  ~   Licensed to the Apache Software Foundation (ASF) under one
+  ~   or more contributor license agreements.  See the NOTICE file
+  ~   distributed with this work for additional information
+  ~   regarding copyright ownership.  The ASF licenses this file
+  ~   to you under the Apache License, Version 2.0 (the
+  ~   "License"); you may not use this file except in compliance
+  ~   with the License.  You may obtain a copy of the License at
+  ~       http://www.apache.org/licenses/LICENSE-2.0
+  ~   Unless required by applicable law or agreed to in writing, software
+  ~   distributed under the License is distributed on an "AS IS" BASIS,
+  ~   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~   See the License for the specific language governing permissions and
+  ~   limitations under the License.
+  -->
+
+<svg:g class="node node-circle" nz-tooltip [nzTitle]="node.description" [(nzVisible)]="visible">
+  <svg:circle class="q-border" r="1"></svg:circle>
+  <svg:circle class="fill-percent-left" r="1"></svg:circle>
+  <svg:circle class="fill-percent-right" r="1"></svg:circle>
+  <svg:circle class="background" transform="scale(32)" r="1"></svg:circle>
+  <svg:text class="name">
+    <tspan x="0" y="0" dx="0" dy="-20">{{ name | slice:0:6 }}</tspan>
+    <tspan x="0" y="0" dx="0" dy="-10">{{ name | slice:6:18 }}</tspan>
+    <tspan x="0" y="0" dx="0" dy="0">{{ name | slice:18:33 }}</tspan>
+    <tspan x="0" y="0" dx="0" dy="10">{{ name | slice:33:45 }}</tspan>
+    <tspan *ngIf="name.length>52" x="0" y="0" dx="0" dy="20">{{ name | slice:45:51 }} ...</tspan>
+    <tspan *ngIf="name.length<=52" x="0" y="0" dx="0" dy="20">{{ name | slice:45:51 }} </tspan>
+  </svg:text>
+  <svg:foreignObject class="node-labels-container" y="-10" x="-60" width="120" height="6em">
+    <xhtml:div class="node-label-wrapper">
+      <xhtml:div class="node-label">parallelism: {{parallelism}}</xhtml:div>
+    </xhtml:div>
+  </svg:foreignObject>
+</svg:g>

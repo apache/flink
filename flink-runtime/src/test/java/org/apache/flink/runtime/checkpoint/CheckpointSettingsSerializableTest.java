@@ -23,12 +23,11 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
+import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -36,13 +35,13 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.AbstractInternalStateBackend;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -72,22 +71,22 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 		final Serializable outOfClassPath = CommonTestUtils.createObjectForClassNotInClassPath(classLoader);
 
 		final MasterTriggerRestoreHook.Factory[] hooks = {
-				new TestFactory(outOfClassPath) };
+			new TestFactory(outOfClassPath) };
 		final SerializedValue<MasterTriggerRestoreHook.Factory[]> serHooks = new SerializedValue<>(hooks);
 
 		final JobCheckpointingSettings checkpointingSettings = new JobCheckpointingSettings(
-				Collections.<JobVertexID>emptyList(),
-				Collections.<JobVertexID>emptyList(),
-				Collections.<JobVertexID>emptyList(),
-				new CheckpointCoordinatorConfiguration(
-					1000L,
-					10000L,
-					0L,
-					1,
-					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-					true),
-				new SerializedValue<StateBackend>(new CustomStateBackend(outOfClassPath)),
-				serHooks);
+			Collections.<JobVertexID>emptyList(),
+			Collections.<JobVertexID>emptyList(),
+			Collections.<JobVertexID>emptyList(),
+			new CheckpointCoordinatorConfiguration(
+				1000L,
+				10000L,
+				0L,
+				1,
+				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				true),
+			new SerializedValue<StateBackend>(new CustomStateBackend(outOfClassPath)),
+			serHooks);
 
 		final JobGraph jobGraph = new JobGraph(new JobID(), "test job");
 		jobGraph.setSnapshotSettings(checkpointingSettings);
@@ -97,7 +96,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 		final JobGraph copy = CommonTestUtils.createCopySerializable(jobGraph);
 
 		final Time timeout = Time.seconds(10L);
-		final ExecutionGraph eg = ExecutionGraphBuilder.buildGraph(
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraph(
 			null,
 			copy,
 			new Configuration(),
@@ -123,7 +122,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 	private static final class TestFactory implements MasterTriggerRestoreHook.Factory {
 
 		private static final long serialVersionUID = -612969579110202607L;
-		
+
 		private final Serializable payload;
 
 		TestFactory(Serializable payload) {
@@ -170,15 +169,22 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry,
-			TtlTimeProvider ttlTimeProvider,
-			MetricGroup metricGroup) throws Exception {
+			TaskKvStateRegistry kvStateRegistry) throws Exception {
 			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public OperatorStateBackend createOperatorStateBackend(
 			Environment env, String operatorIdentifier) throws Exception {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public AbstractInternalStateBackend createInternalStateBackend(
+			Environment env,
+			String operatorIdentifier,
+			int numberOfGroups,
+			KeyGroupRange keyGroupRange) throws Exception {
 			throw new UnsupportedOperationException();
 		}
 	}

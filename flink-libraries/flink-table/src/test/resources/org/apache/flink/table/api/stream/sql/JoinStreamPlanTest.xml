@@ -1,0 +1,492 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testFullJoin">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecJoin(where=[=(a1, b1)], join=[a1, b1], joinType=[FullOuterJoin], leftStateType=[WITHOUT_PRIMARY_KEY], leftMatchStateType=[ONLY_EQUALITY_CONDITION_EMPTY_MATCH], rightStateType=[WITHOUT_PRIMARY_KEY], rightMatchStateType=[ONLY_EQUALITY_CONDITION_EMPTY_MATCH])
+  StreamExecExchange(distribution=[hash[a1]])
+    StreamExecCalc(select=[a1])
+      StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+  StreamExecExchange(distribution=[hash[b1]])
+    StreamExecCalc(select=[b1])
+      StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFullJoinNonEqui">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a1, b1])
+  StreamExecJoin(where=[AND(=(a1, b1), >(a2, b2))], join=[a1, a2, b1, b2], joinType=[FullOuterJoin], leftStateType=[WITHOUT_PRIMARY_KEY], leftMatchStateType=[WITHOUT_PRIMARY_KEY_MATCH], rightStateType=[WITHOUT_PRIMARY_KEY], rightMatchStateType=[WITHOUT_PRIMARY_KEY_MATCH])
+    StreamExecExchange(distribution=[hash[a1]])
+      StreamExecCalc(select=[a1, a2])
+        StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+    StreamExecExchange(distribution=[hash[b1]])
+      StreamExecCalc(select=[b1, b2])
+        StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFullJoinWithEqualPk">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecJoin(where=[=(a1, b1)], join=[a1, b1], joinType=[FullOuterJoin], leftStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], leftMatchStateType=[ONLY_EQUALITY_CONDITION_EMPTY_MATCH], rightStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], rightMatchStateType=[ONLY_EQUALITY_CONDITION_EMPTY_MATCH])
+  StreamExecExchange(distribution=[hash[a1]])
+    StreamExecGroupAggregate(groupBy=[a1], select=[a1], aggWithRetract=[[]])
+      StreamExecExchange(distribution=[hash[a1]])
+        StreamExecCalc(select=[a1, a2])
+          StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+  StreamExecExchange(distribution=[hash[b1]])
+    StreamExecGroupAggregate(groupBy=[b1], select=[b1], aggWithRetract=[[]])
+      StreamExecExchange(distribution=[hash[b1]])
+        StreamExecCalc(select=[b1, b2])
+          StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFullJoinWithEqualPkNonEqui">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a1, b1])
+  StreamExecJoin(where=[AND(=(a1, b1), >(a2, b2))], join=[a2, a1, b2, b1], joinType=[FullOuterJoin], leftStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], leftMatchStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY_MATCH], rightStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], rightMatchStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY_MATCH])
+    StreamExecExchange(distribution=[hash[a1]])
+      StreamExecCalc(select=[a2, a1])
+        StreamExecGroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[a1]])
+            StreamExecCalc(select=[a1, a2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+    StreamExecExchange(distribution=[hash[b1]])
+      StreamExecCalc(select=[b2, b1])
+        StreamExecGroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[b1]])
+            StreamExecCalc(select=[b1, b2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFullJoinWithFullNotPk">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecJoin(where=[=(a1, b1)], join=[a1, b1], joinType=[FullOuterJoin], leftStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], leftMatchStateType=[ONLY_EQUALITY_CONDITION_EMPTY_MATCH], rightStateType=[WITHOUT_PRIMARY_KEY], rightMatchStateType=[ONLY_EQUALITY_CONDITION_EMPTY_MATCH])
+  StreamExecExchange(distribution=[hash[a1]])
+    StreamExecGroupAggregate(groupBy=[a1], select=[a1], aggWithRetract=[[]])
+      StreamExecExchange(distribution=[hash[a1]])
+        StreamExecCalc(select=[a1, a2])
+          StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+  StreamExecExchange(distribution=[hash[b1]])
+    StreamExecCalc(select=[b1])
+      StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFullJoinWithFullNotPkNonEqui">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a1, b1])
+  StreamExecJoin(where=[AND(=(a1, b1), >(a2, b2))], join=[a2, a1, b1, b2], joinType=[FullOuterJoin], leftStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], leftMatchStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY_MATCH], rightStateType=[WITHOUT_PRIMARY_KEY], rightMatchStateType=[WITHOUT_PRIMARY_KEY_MATCH])
+    StreamExecExchange(distribution=[hash[a1]])
+      StreamExecCalc(select=[a2, a1])
+        StreamExecGroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[a1]])
+            StreamExecCalc(select=[a1, a2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+    StreamExecExchange(distribution=[hash[b1]])
+      StreamExecCalc(select=[b1, b2])
+        StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFullJoinWithPk">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a1, a2, b1, b2])
+  StreamExecJoin(where=[=(a2, b2)], join=[a2, a1, b2, b1], joinType=[FullOuterJoin], leftStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY], leftMatchStateType=[ONLY_EQUALITY_CONDITION_EMPTY_MATCH], rightStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY], rightMatchStateType=[ONLY_EQUALITY_CONDITION_EMPTY_MATCH])
+    StreamExecExchange(distribution=[hash[a2]])
+      StreamExecCalc(select=[a2, a1])
+        StreamExecGroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[a1]])
+            StreamExecCalc(select=[a1, a2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+    StreamExecExchange(distribution=[hash[b2]])
+      StreamExecCalc(select=[b2, b1])
+        StreamExecGroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[b1]])
+            StreamExecCalc(select=[b1, b2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFullJoinWithPkNonEqui">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a1, a2, b1, b2])
+  StreamExecJoin(where=[AND(=(a2, b2), >(a1, b1))], join=[a2, a1, b2, b1], joinType=[FullOuterJoin], leftStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY], leftMatchStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY_MATCH], rightStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY], rightMatchStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY_MATCH])
+    StreamExecExchange(distribution=[hash[a2]])
+      StreamExecCalc(select=[a2, a1])
+        StreamExecGroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[a1]])
+            StreamExecCalc(select=[a1, a2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+    StreamExecExchange(distribution=[hash[b2]])
+      StreamExecCalc(select=[b2, b1])
+        StreamExecGroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[b1]])
+            StreamExecCalc(select=[b1, b2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoin">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecJoin(where=[=(a1, b1)], join=[a1, b1], joinType=[InnerJoin], leftStateType=[WITHOUT_PRIMARY_KEY], leftMatchStateType=[EMPTY_MATCH], rightStateType=[WITHOUT_PRIMARY_KEY], rightMatchStateType=[EMPTY_MATCH])
+  StreamExecExchange(distribution=[hash[a1]])
+    StreamExecCalc(select=[a1])
+      StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+  StreamExecExchange(distribution=[hash[b1]])
+    StreamExecCalc(select=[b1])
+      StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinWithEqualPk">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecJoin(where=[=(a1, b1)], join=[a1, b1], joinType=[InnerJoin], leftStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], leftMatchStateType=[EMPTY_MATCH], rightStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], rightMatchStateType=[EMPTY_MATCH])
+  StreamExecExchange(distribution=[hash[a1]])
+    StreamExecGroupAggregate(groupBy=[a1], select=[a1], aggWithRetract=[[]])
+      StreamExecExchange(distribution=[hash[a1]])
+        StreamExecCalc(select=[a1, a2])
+          StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+  StreamExecExchange(distribution=[hash[b1]])
+    StreamExecGroupAggregate(groupBy=[b1], select=[b1], aggWithRetract=[[]])
+      StreamExecExchange(distribution=[hash[b1]])
+        StreamExecCalc(select=[b1, b2])
+          StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinWithMiniBatch">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecJoin(where=[=(a1, b1)], join=[a1, b1], joinType=[InnerJoin], leftStateType=[WITHOUT_PRIMARY_KEY], leftMatchStateType=[EMPTY_MATCH], rightStateType=[WITHOUT_PRIMARY_KEY], rightMatchStateType=[EMPTY_MATCH])
+  StreamExecExchange(distribution=[hash[a1]])
+    StreamExecCalc(select=[a1])
+      StreamExecMiniBatchAssigner(interval=[1000ms])
+        StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+  StreamExecExchange(distribution=[hash[b1]])
+    StreamExecCalc(select=[b1])
+      StreamExecMiniBatchAssigner(interval=[1000ms])
+        StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoinWithEqualPk">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecJoin(where=[=(a1, b1)], join=[a1, b1], joinType=[LeftOuterJoin], leftStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], leftMatchStateType=[ONLY_EQUALITY_CONDITION_EMPTY_MATCH], rightStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], rightMatchStateType=[EMPTY_MATCH])
+  StreamExecExchange(distribution=[hash[a1]])
+    StreamExecGroupAggregate(groupBy=[a1], select=[a1], aggWithRetract=[[]])
+      StreamExecExchange(distribution=[hash[a1]])
+        StreamExecCalc(select=[a1, a2])
+          StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+  StreamExecExchange(distribution=[hash[b1]])
+    StreamExecGroupAggregate(groupBy=[b1], select=[b1], aggWithRetract=[[]])
+      StreamExecExchange(distribution=[hash[b1]])
+        StreamExecCalc(select=[b1, b2])
+          StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinWithPk">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a1, a2, b1, b2])
+  StreamExecJoin(where=[=(a2, b2)], join=[a2, a1, b2, b1], joinType=[InnerJoin], leftStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY], leftMatchStateType=[EMPTY_MATCH], rightStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY], rightMatchStateType=[EMPTY_MATCH])
+    StreamExecExchange(distribution=[hash[a2]])
+      StreamExecCalc(select=[a2, a1])
+        StreamExecGroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[a1]])
+            StreamExecCalc(select=[a1, a2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+    StreamExecExchange(distribution=[hash[b2]])
+      StreamExecCalc(select=[b2, b1])
+        StreamExecGroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[b1]])
+            StreamExecCalc(select=[b1, b2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoin">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecJoin(where=[=(a1, b1)], join=[a1, b1], joinType=[LeftOuterJoin], leftStateType=[WITHOUT_PRIMARY_KEY], leftMatchStateType=[ONLY_EQUALITY_CONDITION_EMPTY_MATCH], rightStateType=[WITHOUT_PRIMARY_KEY], rightMatchStateType=[EMPTY_MATCH])
+  StreamExecExchange(distribution=[hash[a1]])
+    StreamExecCalc(select=[a1])
+      StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+  StreamExecExchange(distribution=[hash[b1]])
+    StreamExecCalc(select=[b1])
+      StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoinNonEqui">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a1, b1])
+  StreamExecJoin(where=[AND(=(a1, b1), >(a2, b2))], join=[a1, a2, b1, b2], joinType=[LeftOuterJoin], leftStateType=[WITHOUT_PRIMARY_KEY], leftMatchStateType=[WITHOUT_PRIMARY_KEY_MATCH], rightStateType=[WITHOUT_PRIMARY_KEY], rightMatchStateType=[EMPTY_MATCH])
+    StreamExecExchange(distribution=[hash[a1]])
+      StreamExecCalc(select=[a1, a2])
+        StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+    StreamExecExchange(distribution=[hash[b1]])
+      StreamExecCalc(select=[b1, b2])
+        StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoinWithEqualPkNonEqui">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a1, b1])
+  StreamExecJoin(where=[AND(=(a1, b1), >(a2, b2))], join=[a2, a1, b2, b1], joinType=[LeftOuterJoin], leftStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], leftMatchStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY_MATCH], rightStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], rightMatchStateType=[EMPTY_MATCH])
+    StreamExecExchange(distribution=[hash[a1]])
+      StreamExecCalc(select=[a2, a1])
+        StreamExecGroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[a1]])
+            StreamExecCalc(select=[a1, a2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+    StreamExecExchange(distribution=[hash[b1]])
+      StreamExecCalc(select=[b2, b1])
+        StreamExecGroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[b1]])
+            StreamExecCalc(select=[b1, b2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoinWithPk">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a1, a2, b1, b2])
+  StreamExecJoin(where=[=(a2, b2)], join=[a2, a1, b2, b1], joinType=[LeftOuterJoin], leftStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY], leftMatchStateType=[ONLY_EQUALITY_CONDITION_EMPTY_MATCH], rightStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY], rightMatchStateType=[EMPTY_MATCH])
+    StreamExecExchange(distribution=[hash[a2]])
+      StreamExecCalc(select=[a2, a1])
+        StreamExecGroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[a1]])
+            StreamExecCalc(select=[a1, a2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+    StreamExecExchange(distribution=[hash[b2]])
+      StreamExecCalc(select=[b2, b1])
+        StreamExecGroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[b1]])
+            StreamExecCalc(select=[b1, b2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoinWithPkNonEqui">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a1, a2, b1, b2])
+  StreamExecJoin(where=[AND(=(a2, b2), >(a1, b1))], join=[a2, a1, b2, b1], joinType=[LeftOuterJoin], leftStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY], leftMatchStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY_MATCH], rightStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY], rightMatchStateType=[EMPTY_MATCH])
+    StreamExecExchange(distribution=[hash[a2]])
+      StreamExecCalc(select=[a2, a1])
+        StreamExecGroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[a1]])
+            StreamExecCalc(select=[a1, a2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+    StreamExecExchange(distribution=[hash[b2]])
+      StreamExecCalc(select=[b2, b1])
+        StreamExecGroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[b1]])
+            StreamExecCalc(select=[b1, b2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoinWithRightNotPk">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecJoin(where=[=(a1, b1)], join=[a1, b1], joinType=[LeftOuterJoin], leftStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], leftMatchStateType=[ONLY_EQUALITY_CONDITION_EMPTY_MATCH], rightStateType=[WITHOUT_PRIMARY_KEY], rightMatchStateType=[EMPTY_MATCH])
+  StreamExecExchange(distribution=[hash[a1]])
+    StreamExecGroupAggregate(groupBy=[a1], select=[a1], aggWithRetract=[[]])
+      StreamExecExchange(distribution=[hash[a1]])
+        StreamExecCalc(select=[a1, a2])
+          StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+  StreamExecExchange(distribution=[hash[b1]])
+    StreamExecCalc(select=[b1])
+      StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoinWithRightNotPkNonEqui">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a1, b1])
+  StreamExecJoin(where=[AND(=(a1, b1), >(a2, b2))], join=[a2, a1, b1, b2], joinType=[LeftOuterJoin], leftStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], leftMatchStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY_MATCH], rightStateType=[WITHOUT_PRIMARY_KEY], rightMatchStateType=[EMPTY_MATCH])
+    StreamExecExchange(distribution=[hash[a1]])
+      StreamExecCalc(select=[a2, a1])
+        StreamExecGroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[a1]])
+            StreamExecCalc(select=[a1, a2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+    StreamExecExchange(distribution=[hash[b1]])
+      StreamExecCalc(select=[b1, b2])
+        StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightJoinNonEqui">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a1, b1])
+  StreamExecJoin(where=[AND(=(a1, b1), >(a2, b2))], join=[a1, a2, b1, b2], joinType=[RightOuterJoin], leftStateType=[WITHOUT_PRIMARY_KEY], leftMatchStateType=[EMPTY_MATCH], rightStateType=[WITHOUT_PRIMARY_KEY], rightMatchStateType=[WITHOUT_PRIMARY_KEY_MATCH])
+    StreamExecExchange(distribution=[hash[a1]])
+      StreamExecCalc(select=[a1, a2])
+        StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+    StreamExecExchange(distribution=[hash[b1]])
+      StreamExecCalc(select=[b1, b2])
+        StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightJoin">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecJoin(where=[=(a1, b1)], join=[a1, b1], joinType=[RightOuterJoin], leftStateType=[WITHOUT_PRIMARY_KEY], leftMatchStateType=[EMPTY_MATCH], rightStateType=[WITHOUT_PRIMARY_KEY], rightMatchStateType=[ONLY_EQUALITY_CONDITION_EMPTY_MATCH])
+  StreamExecExchange(distribution=[hash[a1]])
+    StreamExecCalc(select=[a1])
+      StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+  StreamExecExchange(distribution=[hash[b1]])
+    StreamExecCalc(select=[b1])
+      StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightJoinWithEqualPk">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecJoin(where=[=(a1, b1)], join=[a1, b1], joinType=[RightOuterJoin], leftStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], leftMatchStateType=[EMPTY_MATCH], rightStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], rightMatchStateType=[ONLY_EQUALITY_CONDITION_EMPTY_MATCH])
+  StreamExecExchange(distribution=[hash[a1]])
+    StreamExecGroupAggregate(groupBy=[a1], select=[a1], aggWithRetract=[[]])
+      StreamExecExchange(distribution=[hash[a1]])
+        StreamExecCalc(select=[a1, a2])
+          StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+  StreamExecExchange(distribution=[hash[b1]])
+    StreamExecGroupAggregate(groupBy=[b1], select=[b1], aggWithRetract=[[]])
+      StreamExecExchange(distribution=[hash[b1]])
+        StreamExecCalc(select=[b1, b2])
+          StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightJoinWithRightNotPkNonEqui">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a1, b1])
+  StreamExecJoin(where=[AND(=(a1, b1), >(a2, b2))], join=[a2, a1, b1, b2], joinType=[RightOuterJoin], leftStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], leftMatchStateType=[EMPTY_MATCH], rightStateType=[WITHOUT_PRIMARY_KEY], rightMatchStateType=[WITHOUT_PRIMARY_KEY_MATCH])
+    StreamExecExchange(distribution=[hash[a1]])
+      StreamExecCalc(select=[a2, a1])
+        StreamExecGroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[a1]])
+            StreamExecCalc(select=[a1, a2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+    StreamExecExchange(distribution=[hash[b1]])
+      StreamExecCalc(select=[b1, b2])
+        StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightJoinWithEqualPkNonEqui">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a1, b1])
+  StreamExecJoin(where=[AND(=(a1, b1), >(a2, b2))], join=[a2, a1, b2, b1], joinType=[RightOuterJoin], leftStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], leftMatchStateType=[EMPTY_MATCH], rightStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], rightMatchStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY_MATCH])
+    StreamExecExchange(distribution=[hash[a1]])
+      StreamExecCalc(select=[a2, a1])
+        StreamExecGroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[a1]])
+            StreamExecCalc(select=[a1, a2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+    StreamExecExchange(distribution=[hash[b1]])
+      StreamExecCalc(select=[b2, b1])
+        StreamExecGroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[b1]])
+            StreamExecCalc(select=[b1, b2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightJoinWithPk">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a1, a2, b1, b2])
+  StreamExecJoin(where=[=(a2, b2)], join=[a2, a1, b2, b1], joinType=[RightOuterJoin], leftStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY], leftMatchStateType=[EMPTY_MATCH], rightStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY], rightMatchStateType=[ONLY_EQUALITY_CONDITION_EMPTY_MATCH])
+    StreamExecExchange(distribution=[hash[a2]])
+      StreamExecCalc(select=[a2, a1])
+        StreamExecGroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[a1]])
+            StreamExecCalc(select=[a1, a2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+    StreamExecExchange(distribution=[hash[b2]])
+      StreamExecCalc(select=[b2, b1])
+        StreamExecGroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[b1]])
+            StreamExecCalc(select=[b1, b2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightJoinWithRightNotPk">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecJoin(where=[=(a1, b1)], join=[a1, b1], joinType=[RightOuterJoin], leftStateType=[JOIN_KEY_CONTAIN_PRIMARY_KEY], leftMatchStateType=[EMPTY_MATCH], rightStateType=[WITHOUT_PRIMARY_KEY], rightMatchStateType=[ONLY_EQUALITY_CONDITION_EMPTY_MATCH])
+  StreamExecExchange(distribution=[hash[a1]])
+    StreamExecGroupAggregate(groupBy=[a1], select=[a1], aggWithRetract=[[]])
+      StreamExecExchange(distribution=[hash[a1]])
+        StreamExecCalc(select=[a1, a2])
+          StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+  StreamExecExchange(distribution=[hash[b1]])
+    StreamExecCalc(select=[b1])
+      StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightJoinWithPkNonEqui">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a1, a2, b1, b2])
+  StreamExecJoin(where=[AND(=(a2, b2), >(a1, b1))], join=[a2, a1, b2, b1], joinType=[RightOuterJoin], leftStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY], leftMatchStateType=[EMPTY_MATCH], rightStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY], rightMatchStateType=[JOIN_KEY_NOT_CONTAIN_PRIMARY_KEY_MATCH])
+    StreamExecExchange(distribution=[hash[a2]])
+      StreamExecCalc(select=[a2, a1])
+        StreamExecGroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[a1]])
+            StreamExecCalc(select=[a1, a2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+    StreamExecExchange(distribution=[hash[b2]])
+      StreamExecCalc(select=[b2, b1])
+        StreamExecGroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], aggWithRetract=[[false]])
+          StreamExecExchange(distribution=[hash[b1]])
+            StreamExecCalc(select=[b1, b2])
+              StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

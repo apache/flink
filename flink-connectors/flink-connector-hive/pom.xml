@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>com.alibaba.blink</groupId>
+		<artifactId>flink-connectors</artifactId>
+		<version>1.5.1</version>
+		<relativePath>..</relativePath>
+	</parent>
+
+	<artifactId>flink-connector-hive_${scala.binary.version}</artifactId>
+	<name>flink-connector-hive</name>
+
+	<packaging>jar</packaging>
+
+	<dependencies>
+		<!-- core dependencies -->
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-table_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>com.alibaba.blink</groupId>
+					<artifactId>flink-shaded-hive</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.alibaba.flink</groupId>
+					<artifactId>flink-shaded-hive</artifactId>
+				</exclusion>
+				<exclusion>
+					<artifactId>orc-core</artifactId>
+					<groupId>org.apache.orc</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>guava</artifactId>
+					<groupId>com.google.guava</groupId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- hadoop compatibility dependency -->
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-hadoop-compatibility_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<artifactId>guava</artifactId>
+					<groupId>com.google.guava</groupId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- Hive metastore dependencies-->
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-shaded-hadoop2-uber</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hive</groupId>
+			<artifactId>hive-metastore</artifactId>
+			<version>${hive.version}</version>
+            <exclusions>
+                <exclusion>
+                    <artifactId>hadoop-auth</artifactId>
+                    <groupId>org.apache.hadoop</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+		<!-- test dependencies -->
+
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-table_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-tests_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.alibaba.blink</groupId>
+			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<artifactSet>
+								<includes>
+									<include>org.apache.hive:*</include>
+									<include>org.apache.hive.hcatalog:*</include>
+									<include>org.apache.hadoop.hive:*</include>
+									<include>org.apache.hive.shims:*</include>
+									<include>org.apache.thrift:*</include>
+								</includes>
+							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+									</excludes>
+								</filter>
+							</filters>
+							<!--<relocations combine.children="override">-->
+								<!--&lt;!&ndash; DO NOT RELOCATE GUAVA IN THIS PACKAGE &ndash;&gt;-->
+								<!--<relocation>-->
+									<!--<pattern>org.apache.hive</pattern>-->
+									<!--<shadedPattern>org.apache.flink.hive.shaded.org.apache.hive</shadedPattern>-->
+								<!--</relocation>-->
+								<!--<relocation>-->
+									<!--<pattern>org.apache.hive.hcatalog</pattern>-->
+									<!--<shadedPattern>org.apache.flink.hive.hcatalog.shaded.org.apache.hive.hcatalog</shadedPattern>-->
+								<!--</relocation>-->
+								<!--<relocation>-->
+									<!--<pattern>org.apache.hadoop.hive</pattern>-->
+									<!--<shadedPattern>org.apache.flink.hive.shaded.org.apache.hadoop.hive</shadedPattern>-->
+								<!--</relocation>-->
+								<!--&lt;!&ndash; TODO: hive-metastore uses guava, but we probably shouln't shade guava here, as mentioned above.-->
+								 <!--Not shade guava here seems to be a flink tradition.&ndash;&gt;-->
+								<!--<relocation>-->
+									<!--<pattern>com.google</pattern>-->
+									<!--<shadedPattern>org.apache.flink.hive.shaded.com.google</shadedPattern>-->
+								<!--</relocation>-->
+							<!--</relocations>-->
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>

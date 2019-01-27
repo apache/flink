@@ -31,6 +31,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -148,6 +149,23 @@ public class CustomInputSplitProgram {
 					return remainingSplits.remove(size - 1);
 				} else {
 					return null;
+				}
+			}
+		}
+
+		@Override
+		public void inputSplitsAssigned(int taskId, List<InputSplit> inputSplits) {
+			for (InputSplit inputSplit : inputSplits) {
+				boolean found = false;
+				for (InputSplit split : remainingSplits) {
+					if (split.getSplitNumber() == inputSplit.getSplitNumber()) {
+						remainingSplits.remove(split);
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					throw new FlinkRuntimeException("InputSplit not found for " + inputSplit.getSplitNumber());
 				}
 			}
 		}

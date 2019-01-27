@@ -21,7 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 
 /**
- * A simple wrapper for using the SerializationSchema with the KeyedSerializationSchema
+ * A simple wrapper for using the SerializationSchema with the KeyedDeserializationSchema
  * interface.
  * @param <T> The type to serialize
  */

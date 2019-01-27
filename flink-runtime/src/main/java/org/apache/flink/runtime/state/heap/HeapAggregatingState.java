@@ -20,9 +20,6 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.AggregatingState;
-import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
@@ -40,9 +37,11 @@ import java.io.IOException;
  * @param <ACC> The type of the value stored in the state (the accumulator type).
  * @param <OUT> The type of the value returned from the state.
  */
-class HeapAggregatingState<K, N, IN, ACC, OUT>
-	extends AbstractHeapMergingState<K, N, IN, ACC, OUT>
-	implements InternalAggregatingState<K, N, IN, ACC, OUT> {
+@Deprecated
+public class HeapAggregatingState<K, N, IN, ACC, OUT>
+		extends AbstractHeapMergingState<K, N, IN, ACC, OUT, AggregatingState<IN, OUT>>
+		implements InternalAggregatingState<K, N, IN, ACC, OUT> {
+
 	private final AggregateTransformation<IN, ACC, OUT> aggregateTransformation;
 
 	/**
@@ -55,13 +54,13 @@ class HeapAggregatingState<K, N, IN, ACC, OUT>
 	 * @param defaultValue The default value for the state.
 	 * @param aggregateFunction The aggregating function used for aggregating state.
 	 */
-	private HeapAggregatingState(
-		StateTable<K, N, ACC> stateTable,
-		TypeSerializer<K> keySerializer,
-		TypeSerializer<ACC> valueSerializer,
-		TypeSerializer<N> namespaceSerializer,
-		ACC defaultValue,
-		AggregateFunction<IN, ACC, OUT> aggregateFunction) {
+	public HeapAggregatingState(
+			StateTable<K, N, ACC> stateTable,
+			TypeSerializer<K> keySerializer,
+			TypeSerializer<ACC> valueSerializer,
+			TypeSerializer<N> namespaceSerializer,
+			ACC defaultValue,
+			AggregateFunction<IN, ACC, OUT> aggregateFunction) {
 
 		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
 		this.aggregateTransformation = new AggregateTransformation<>(aggregateFunction);
@@ -88,7 +87,8 @@ class HeapAggregatingState<K, N, IN, ACC, OUT>
 
 	@Override
 	public OUT get() {
-		ACC accumulator = getInternal();
+
+		ACC accumulator = stateTable.get(currentNamespace);
 		return accumulator != null ? aggregateTransformation.aggFunction.getResult(accumulator) : null;
 	}
 
@@ -113,7 +113,7 @@ class HeapAggregatingState<K, N, IN, ACC, OUT>
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected ACC mergeState(ACC a, ACC b) {
+	protected ACC mergeState(ACC a, ACC b) throws Exception {
 		return aggregateTransformation.aggFunction.merge(a, b);
 	}
 
@@ -126,25 +126,11 @@ class HeapAggregatingState<K, N, IN, ACC, OUT>
 		}
 
 		@Override
-		public ACC apply(ACC accumulator, IN value) {
+		public ACC apply(ACC accumulator, IN value) throws Exception {
 			if (accumulator == null) {
 				accumulator = aggFunction.createAccumulator();
 			}
 			return aggFunction.add(value, accumulator);
 		}
-	}
-
-	@SuppressWarnings("unchecked")
-	static <T, K, N, SV, S extends State, IS extends S> IS create(
-		StateDescriptor<S, SV> stateDesc,
-		StateTable<K, N, SV> stateTable,
-		TypeSerializer<K> keySerializer) {
-		return (IS) new HeapAggregatingState<>(
-			stateTable,
-			keySerializer,
-			stateTable.getStateSerializer(),
-			stateTable.getNamespaceSerializer(),
-			stateDesc.getDefaultValue(),
-			((AggregatingStateDescriptor<T, SV, ?>) stateDesc).getAggregateFunction());
 	}
 }

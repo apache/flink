@@ -25,6 +25,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -75,6 +76,7 @@ public class BucketingSinkFsInitTest {
 		assertEquals("hdfs", fs.getUri().getScheme());
 	}
 
+	@Ignore
 	@Test(expected = UnsupportedFileSystemSchemeException.class)
 	public void testInitForUnsupportedFileSystem() throws Exception {
 		final Path path = new Path("nofs://localhost:51234/some/path/");

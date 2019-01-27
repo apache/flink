@@ -131,5 +131,10 @@ public class MemorySegmentChecksTest {
 
 		@Override
 		public void put(int offset, ByteBuffer source, int numBytes) {}
+
+		@Override
+		public MemorySegment cloneReference() {
+			return null;
+		}
 	}
 }

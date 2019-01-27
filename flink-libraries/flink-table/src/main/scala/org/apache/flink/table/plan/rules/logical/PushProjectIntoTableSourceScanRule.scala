@@ -20,69 +20,77 @@ package org.apache.flink.table.plan.rules.logical
 
 import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.util.{RexProgramExtractor, RexProgramRewriter}
-import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
+import org.apache.calcite.rel.core.Project
+import org.apache.calcite.rel.logical.LogicalTableScan
+import org.apache.calcite.rel.rules.ProjectRemoveRule
+import org.apache.flink.table.plan.schema.{FlinkRelOptTable, TableSourceTable}
+import org.apache.flink.table.plan.util._
 import org.apache.flink.table.sources._
 
 class PushProjectIntoTableSourceScanRule extends RelOptRule(
-  operand(classOf[FlinkLogicalCalc],
-    operand(classOf[FlinkLogicalTableSourceScan], none)),
+  operand(classOf[Project],
+    operand(classOf[LogicalTableScan], none)),
   "PushProjectIntoTableSourceScanRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val scan: FlinkLogicalTableSourceScan = call.rel(1).asInstanceOf[FlinkLogicalTableSourceScan]
-
-    // only continue if we haven't pushed down a projection yet.
-    scan.selectedFields.isEmpty
+    val scan: LogicalTableScan = call.rel(1).asInstanceOf[LogicalTableScan]
+    scan.getTable.unwrap(classOf[TableSourceTable]) match {
+      case table: TableSourceTable =>
+        table.tableSource match {
+          // projection pushdown is not supported for sources that provide time indicators
+          case r: DefinedRowtimeAttributes if r.getRowtimeAttributeDescriptors != null => false
+          case p: DefinedProctimeAttribute if p.getProctimeAttribute != null => false
+          case _: ProjectableTableSource => true
+          case _ => false
+        }
+      case _ => false
+    }
   }
 
   override def onMatch(call: RelOptRuleCall) {
-    val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
-    val scan: FlinkLogicalTableSourceScan = call.rel(1).asInstanceOf[FlinkLogicalTableSourceScan]
-    val source = scan.tableSource
+    val project: Project = call.rel(0).asInstanceOf[Project]
+    val scan: LogicalTableScan = call.rel(1).asInstanceOf[LogicalTableScan]
 
-    val accessedLogicalFields = RexProgramExtractor.extractRefInputFields(calc.getProgram)
-    val accessedPhysicalFields = TableSourceUtil.getPhysicalIndexes(source, accessedLogicalFields)
+    val usedFields = RexNodeExtractor.extractRefInputFields(project.getProjects)
 
-    // only continue if fields are projected or reordered.
-    // eager reordering can remove a calc operator.
-    if (!(0 until scan.getRowType.getFieldCount).toArray.sameElements(accessedLogicalFields)) {
-
-      // try to push projection of physical fields to TableSource
+    val table = scan.getTable.asInstanceOf[FlinkRelOptTable]
+    val tableSourceTable = table.unwrap(classOf[TableSourceTable])
+    val source = tableSourceTable.tableSource
+    // if no fields can be projected, we keep the original plan.
+    if (scan.getRowType.getFieldCount != usedFields.length) {
       val newTableSource = source match {
-        case nested: NestedFieldsProjectableTableSource[_] =>
-          val nestedFields = RexProgramExtractor
-            .extractRefNestedInputFields(calc.getProgram, accessedPhysicalFields)
-          nested.projectNestedFields(accessedPhysicalFields, nestedFields)
-        case projecting: ProjectableTableSource[_] =>
-          projecting.projectFields(accessedPhysicalFields)
-        case nonProjecting: TableSource[_] =>
-          // projection cannot be pushed to TableSource
-          nonProjecting
+        case nested: NestedFieldsProjectableTableSource =>
+          val nestedFields = RexNodeExtractor.extractRefNestedInputFields(
+            project.getProjects, usedFields)
+          nested.projectNestedFields(usedFields, nestedFields)
+        case projecting: ProjectableTableSource =>
+          projecting.projectFields(usedFields)
+      }
+      // project push down does not change the statistic, we can reuse origin statistic
+      val newTableSoureTable = tableSourceTable.replaceTableSource(newTableSource)
+      // row type is changed after project push down
+      val newRowType = newTableSoureTable.getRowType(scan.getCluster.getTypeFactory)
+      val newRelOptTable = table.copy(newTableSoureTable, newRowType)
+      val newScan = new LogicalTableScan(scan.getCluster, scan.getTraitSet, newRelOptTable)
+      if (scan.getRowType.getFieldCount == newScan.getRowType.getFieldCount) {
+        // field count does not change, no need transform to newScan
+        // e.g. select count(1) from table
+        return
       }
 
-      // check that table schema of the new table source is identical to original
-      if (source.getTableSchema != newTableSource.getTableSchema) {
-        throw new TableException("TableSchema of ProjectableTableSource must not be modified " +
-          "by projectFields() call. This is a bug in the implementation of the TableSource " +
-          s"${source.getClass.getCanonicalName}.")
-      }
+      // rewrite input field in projections
+      val newProjects = RexNodeRewriter.rewriteWithNewFieldInput(project.getProjects, usedFields)
+      val newProject = project.copy(
+        project.getTraitSet,
+        newScan,
+        newProjects,
+        project.getRowType)
 
-      // Apply the projection during the input conversion of the scan.
-      val newScan = scan.copy(scan.getTraitSet, newTableSource, Some(accessedLogicalFields))
-      val newCalcProgram = RexProgramRewriter.rewriteWithFieldProjection(
-        calc.getProgram,
-        newScan.getRowType,
-        calc.getCluster.getRexBuilder,
-        accessedLogicalFields)
-
-      if (newCalcProgram.isTrivial) {
-        // drop calc if the transformed program merely returns its input and doesn't exist filter
+      if (ProjectRemoveRule.isTrivial(newProject)) {
+        // drop project if the transformed program merely returns its input
         call.transformTo(newScan)
       } else {
-        val newCalc = calc.copy(calc.getTraitSet, newScan, newCalcProgram)
-        call.transformTo(newCalc)
+        call.transformTo(newProject)
       }
     }
   }

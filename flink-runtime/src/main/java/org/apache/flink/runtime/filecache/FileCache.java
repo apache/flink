@@ -21,12 +21,17 @@ package org.apache.flink.runtime.filecache;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -35,7 +40,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -47,17 +54,15 @@ import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The FileCache is used to access registered cache files when a task is deployed.
- *
- * <p>Files and zipped directories are retrieved from the {@link PermanentBlobService}. The life-cycle of these files
- * is managed by the blob-service.
- *
- * <p>Retrieved directories will be expanded in "{@code <system-tmp-dir>/tmp_<jobID>/}"
- * and deleted when the task is unregistered after a 5 second delay, unless a new task requests the file in the meantime.
+ * The FileCache is used to create the local files for the registered cache files when a task is deployed.
+ * The files will be removed when the task is unregistered after a 5 second delay.
+ * A given file x will be placed in "{@code <system-tmp-dir>/tmp_<jobID>/}".
  */
 public class FileCache {
 
@@ -164,7 +169,7 @@ public class FileCache {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * If the file doesn't exists locally, retrieve the file from the blob-service.
+	 * If the file doesn't exists locally, it will copy the file to the temp directory.
 	 *
 	 * @param entry The cache entry descriptor (path, executable flag)
 	 * @param jobID The ID of the job for which the file is copied.
@@ -210,6 +215,41 @@ public class FileCache {
 		}
 	}
 
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+
+	public static void copy(Path sourcePath, Path targetPath, boolean executable) throws IOException {
+		// TODO rewrite this to make it participate in the closable registry and the lifecycle of a task.
+		// we unwrap the file system to get raw streams without safety net
+		FileSystem sFS = FileSystem.getUnguardedFileSystem(sourcePath.toUri());
+		FileSystem tFS = FileSystem.getUnguardedFileSystem(targetPath.toUri());
+		if (!tFS.exists(targetPath)) {
+			if (sFS.getFileStatus(sourcePath).isDir()) {
+				tFS.mkdirs(targetPath);
+				FileStatus[] contents = sFS.listStatus(sourcePath);
+				for (FileStatus content : contents) {
+					String distPath = content.getPath().toString();
+					if (content.isDir()) {
+						if (distPath.endsWith("/")) {
+							distPath = distPath.substring(0, distPath.length() - 1);
+						}
+					}
+					String localPath = targetPath.toString() + distPath.substring(distPath.lastIndexOf("/"));
+					copy(content.getPath(), new Path(localPath), executable);
+				}
+			} else {
+				try (FSDataOutputStream lfsOutput = tFS.create(targetPath, FileSystem.WriteMode.NO_OVERWRITE); FSDataInputStream fsInput = sFS.open(sourcePath)) {
+					IOUtils.copyBytes(fsInput, lfsOutput);
+					//noinspection ResultOfMethodCallIgnored
+					new File(targetPath.toString()).setExecutable(executable);
+				} catch (IOException ioe) {
+					LOG.error("could not copy file to local file cache.", ioe);
+				}
+			}
+		}
+	}
+
 	private static Thread createShutdownHook(final FileCache cache, final Logger logger) {
 
 		return ShutdownHookUtil.addShutdownHook(
@@ -226,6 +266,7 @@ public class FileCache {
 			Set<ExecutionAttemptID> jobRefCounter = jobRefHolders.get(jobId);
 
 			if (jobRefCounter == null || jobRefCounter.isEmpty()) {
+				LOG.warn("improper use of releaseJob() without a matching number of createTmpFiles() calls for jobId " + jobId);
 				return;
 			}
 
@@ -266,8 +307,26 @@ public class FileCache {
 			final File file = blobService.getFile(jobID, blobKey);
 
 			if (isDirectory) {
-				Path directory = FileUtils.expandDirectory(new Path(file.getAbsolutePath()), target);
-				return directory;
+				try (ZipInputStream zis = new ZipInputStream(new FileInputStream(file))) {
+					ZipEntry entry;
+					while ((entry = zis.getNextEntry()) != null) {
+						String fileName = entry.getName();
+						Path newFile = new Path(target, fileName);
+						if (entry.isDirectory()) {
+							target.getFileSystem().mkdirs(newFile);
+						} else {
+							try (FSDataOutputStream fsDataOutputStream = target.getFileSystem()
+									.create(newFile, FileSystem.WriteMode.NO_OVERWRITE)) {
+								IOUtils.copyBytes(zis, fsDataOutputStream, false);
+							}
+							//noinspection ResultOfMethodCallIgnored
+							new File(newFile.getPath()).setExecutable(isExecutable);
+						}
+						zis.closeEntry();
+					}
+				}
+				Files.delete(file.toPath());
+				return target;
 			} else {
 				//noinspection ResultOfMethodCallIgnored
 				file.setExecutable(isExecutable);

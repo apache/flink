@@ -73,11 +73,11 @@ public class KvStateRegistryTest extends TestLogger {
 
 		final KvStateRegistry kvStateRegistry = new KvStateRegistry();
 		final KvStateID stateID = kvStateRegistry.registerKvState(
-				jobID,
-				jobVertexId,
-				keyGroupRange,
-				registrationName,
-				new DummyKvState()
+			jobID,
+			jobVertexId,
+			keyGroupRange,
+			registrationName,
+			new DummyKvState()
 		);
 
 		final AtomicReference<Throwable> exceptionHolder = new AtomicReference<>();
@@ -125,11 +125,11 @@ public class KvStateRegistryTest extends TestLogger {
 		}
 
 		kvStateRegistry.unregisterKvState(
-				jobID,
-				jobVertexId,
-				keyGroupRange,
-				registrationName,
-				stateID);
+			jobID,
+			jobVertexId,
+			keyGroupRange,
+			registrationName,
+			stateID);
 
 		Assert.assertEquals(0L, kvState.getCacheSize());
 
@@ -271,8 +271,8 @@ public class KvStateRegistryTest extends TestLogger {
 		private final Queue<JobID> stateDeregisteredNotifications;
 
 		private TestingKvStateRegistryListener(
-				Queue<JobID> stateRegisteredNotifications,
-				Queue<JobID> stateDeregisteredNotifications) {
+			Queue<JobID> stateRegisteredNotifications,
+			Queue<JobID> stateDeregisteredNotifications) {
 			this.stateRegisteredNotifications = stateRegisteredNotifications;
 			this.stateDeregisteredNotifications = stateDeregisteredNotifications;
 		}
@@ -401,12 +401,12 @@ public class KvStateRegistryTest extends TestLogger {
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot<String> snapshotConfiguration() {
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
 			return null;
 		}
 
 		@Override
-		public CompatibilityResult<String> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+		public CompatibilityResult<String> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			return null;
 		}
 	}

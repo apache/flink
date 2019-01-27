@@ -36,7 +36,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
@@ -49,6 +48,7 @@ import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.heap.KeyContextImpl;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -197,11 +197,8 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 
 				return new StreamTaskStateInitializerImpl(env, stateBackend, processingTimeService) {
 					@Override
-					protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
-						AbstractKeyedStateBackend<K> keyedStatedBackend,
-						KeyContext keyContext,
-						Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
-
+					protected <K> InternalTimeServiceManager<?, K> internalTimeServiceManager(
+						KeyContextImpl<K> keyContextImpl, KeyContext keyContext, Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
 						return null;
 					}
 				};
@@ -273,6 +270,11 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 
 		@Override
 		public void processWatermark(Watermark mark) throws Exception {
+
+		}
+
+		@Override
+		public void endInput() throws Exception {
 
 		}
 

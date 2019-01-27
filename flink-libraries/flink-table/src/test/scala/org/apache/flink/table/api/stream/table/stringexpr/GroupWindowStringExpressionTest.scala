@@ -22,8 +22,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.api.java.{Session => JSession, Slide => JSlide, Tumble => JTumble}
-import org.apache.flink.table.functions.aggfunctions.CountAggFunction
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.functions.aggregate.CountAggFunction
+import org.apache.flink.table.util.TableTestBase
 import org.junit.Test
 
 class GroupWindowStringExpressionTest extends TableTestBase {

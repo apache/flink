@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -44,5 +45,6 @@ public interface AllocatedSlotActions {
 	CompletableFuture<Acknowledge> releaseSlot(
 		SlotRequestId slotRequestId,
 		@Nullable SlotSharingGroupId slotSharingGroupId,
+		@Nullable CoLocationConstraint coLocationConstraint,
 		@Nullable Throwable cause);
 }

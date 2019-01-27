@@ -19,21 +19,19 @@
 package org.apache.flink.runtime.jobgraph;
 
 /**
- * The ScheduleMode decides how tasks of an execution graph are started.  
+ * The ScheduleMode decides whether vertices should be scheduled with
+ * {@link org.apache.flink.runtime.schedule.EagerSchedulingPlugin} or
+ * {@link org.apache.flink.runtime.schedule.StepwiseSchedulingPlugin}.
  */
 public enum ScheduleMode {
 
-	/** Schedule tasks lazily from the sources. Downstream tasks are started once their input data are ready */
+	/** Schedule vertices lazily from the sources. {@link org.apache.flink.runtime.schedule.StepwiseSchedulingPlugin}
+	 * will be used in this mode.
+	 */
 	LAZY_FROM_SOURCES,
 
-	/** Schedules all tasks immediately. */
-	EAGER;
-	
-	/**
-	 * Returns whether we are allowed to deploy consumers lazily.
+	/** Schedules all vertices immediately. {@link org.apache.flink.runtime.schedule.EagerSchedulingPlugin}
+	 * will be used in this mode.
 	 */
-	public boolean allowLazyDeployment() {
-		return this == LAZY_FROM_SOURCES;
-	}
-	
+	EAGER
 }

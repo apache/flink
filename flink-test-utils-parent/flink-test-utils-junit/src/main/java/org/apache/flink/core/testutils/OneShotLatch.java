@@ -18,9 +18,6 @@
 
 package org.apache.flink.core.testutils;
 
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -34,7 +31,6 @@ import java.util.concurrent.TimeoutException;
 public final class OneShotLatch {
 
 	private final Object lock = new Object();
-	private final Set<Thread> waitersSet = Collections.newSetFromMap(new IdentityHashMap<>());
 
 	private volatile boolean triggered;
 
@@ -57,13 +53,7 @@ public final class OneShotLatch {
 	public void await() throws InterruptedException {
 		synchronized (lock) {
 			while (!triggered) {
-				Thread thread = Thread.currentThread();
-				try {
-					waitersSet.add(thread);
-					lock.wait();
-				} finally {
-					waitersSet.remove(thread);
-				}
+				lock.wait();
 			}
 		}
 	}
@@ -116,12 +106,6 @@ public final class OneShotLatch {
 	 */
 	public boolean isTriggered() {
 		return triggered;
-	}
-
-	public int getWaitersCount() {
-		synchronized (lock) {
-			return waitersSet.size();
-		}
 	}
 
 	/**

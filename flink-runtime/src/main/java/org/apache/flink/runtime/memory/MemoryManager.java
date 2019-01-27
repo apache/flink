@@ -27,6 +27,9 @@ import org.apache.flink.util.MathUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -36,8 +39,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Set;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The memory manager governs the memory that Flink uses for sorting, hashing, and caching. Memory
@@ -58,6 +62,7 @@ import java.util.Set;
 public class MemoryManager {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MemoryManager.class);
+
 	/** The default memory page size. Currently set to 32 KiBytes. */
 	public static final int DEFAULT_PAGE_SIZE = 32 * 1024;
 
@@ -72,14 +77,11 @@ public class MemoryManager {
 	/** The memory pool from which we draw memory segments. Specific to on-heap or off-heap memory */
 	private final MemoryPool memoryPool;
 
-	/** Memory segments allocated per memory owner. */
-	private final HashMap<Object, Set<MemorySegment>> allocatedSegments;
+	/** The wrapper of core memory segments allocated per memory owner. */
+	private final AllocatedSegmentsWrapper allocatedCoreSegments;
 
-	/** The type of memory governed by this memory manager. */
-	private final MemoryType memoryType;
-
-	/** Mask used to round down sizes to multiples of the page size. */
-	private final long roundingMask;
+	/** The wrapper of floating memory segments allocated per memory owner. */
+	private final AllocatedSegmentsWrapper allocatedFloatingSegments;
 
 	/** The size of the memory segments. */
 	private final int pageSize;
@@ -87,8 +89,11 @@ public class MemoryManager {
 	/** The initial total size, for verification. */
 	private final int totalNumPages;
 
-	/** The total size of the memory managed by this memory manager. */
-	private final long memorySize;
+	/** The total size of the core memory managed by this memory manager. */
+	private final long coreMemorySize;
+
+	/** The total size of the floating memory managed by this memory manager. */
+	private final long floatingMemorySize;
 
 	/** Number of slots of the task manager. */
 	private final int numberOfSlots;
@@ -96,41 +101,65 @@ public class MemoryManager {
 	/** Flag marking whether the memory manager immediately allocates the memory. */
 	private final boolean isPreAllocated;
 
-	/** The number of memory pages that have not been allocated and are available for lazy allocation. */
-	private int numNonAllocatedPages;
-
 	/** Flag whether the close() has already been invoked. */
 	private boolean isShutDown;
 
-
 	/**
-	 * Creates a memory manager with the given capacity, using the default page size.
+	 * Creates a memory manager with the given core capacity, using the default page size.
 	 *
-	 * @param memorySize The total size of the memory to be managed by this memory manager.
+	 * @param coreMemorySize The total size of the core memory to be managed by this memory manager.
 	 * @param numberOfSlots The number of slots of the task manager.
 	 */
-	public MemoryManager(long memorySize, int numberOfSlots) {
-		this(memorySize, numberOfSlots, DEFAULT_PAGE_SIZE, MemoryType.HEAP, true);
+	public MemoryManager(long coreMemorySize, int numberOfSlots) {
+		this(coreMemorySize, 0, numberOfSlots, DEFAULT_PAGE_SIZE, MemoryType.HEAP, true);
 	}
 
 	/**
-	 * Creates a memory manager with the given capacity and given page size.
+	 * Creates a memory manager with the given core capacity and given page size.
 	 *
-	 * @param memorySize The total size of the memory to be managed by this memory manager.
+	 * @param coreMemorySize The total size of the memory to be managed by this memory manager.
 	 * @param numberOfSlots The number of slots of the task manager.
 	 * @param pageSize The size of the pages handed out by the memory manager.
 	 * @param memoryType The type of memory (heap / off-heap) that the memory manager should allocate.
 	 * @param preAllocateMemory True, if the memory manager should immediately allocate all memory, false
 	 *                          if it should allocate and release the memory as needed.
 	 */
-	public MemoryManager(long memorySize, int numberOfSlots, int pageSize,
-							MemoryType memoryType, boolean preAllocateMemory) {
+	public MemoryManager(
+			long coreMemorySize,
+			int numberOfSlots,
+			int pageSize,
+			MemoryType memoryType,
+			boolean preAllocateMemory) {
+		this(coreMemorySize, 0, numberOfSlots, pageSize, memoryType, preAllocateMemory);
+	}
+
+	/**
+	 * Creates a memory manager with the given core & floating capacities and given page size.
+	 *
+	 * @param coreMemorySize The total size of the core memory to be managed by this memory manager.
+	 * @param floatingMemorySize The total size of the floating memory to be managed by this memory manager.
+	 * @param numberOfSlots The number of slots of the task manager.
+	 * @param pageSize The size of the pages handed out by the memory manager.
+	 * @param memoryType The type of memory (heap / off-heap) that the memory manager should allocate.
+	 * @param preAllocateMemory True, if the memory manager should immediately allocate all memory, false
+	 *                          if it should allocate and release the memory as needed.
+	 */
+	public MemoryManager(
+			long coreMemorySize,
+			long floatingMemorySize,
+			int numberOfSlots,
+			int pageSize,
+			MemoryType memoryType,
+			boolean preAllocateMemory) {
 		// sanity checks
 		if (memoryType == null) {
 			throw new NullPointerException();
 		}
-		if (memorySize <= 0) {
-			throw new IllegalArgumentException("Size of total memory must be positive.");
+		if (coreMemorySize <= 0) {
+			throw new IllegalArgumentException("Size of total core memory must be positive.");
+		}
+		if (floatingMemorySize < 0) {
+			throw new IllegalArgumentException("Size of total floating memory must not be negative.");
 		}
 		if (pageSize < MIN_PAGE_SIZE) {
 			throw new IllegalArgumentException("The page size must be at least " + MIN_PAGE_SIZE + " bytes.");
@@ -139,29 +168,22 @@ public class MemoryManager {
 			throw new IllegalArgumentException("The given page size is not a power of two.");
 		}
 
-		this.memoryType = memoryType;
-		this.memorySize = memorySize;
+		this.coreMemorySize = coreMemorySize;
+		this.floatingMemorySize = floatingMemorySize;
 		this.numberOfSlots = numberOfSlots;
 
-		// assign page size and bit utilities
 		this.pageSize = pageSize;
-		this.roundingMask = ~((long) (pageSize - 1));
 
-		final long numPagesLong = memorySize / pageSize;
-		if (numPagesLong > Integer.MAX_VALUE) {
-			throw new IllegalArgumentException("The given number of memory bytes (" + memorySize
-					+ ") corresponds to more than MAX_INT pages.");
-		}
-		this.totalNumPages = (int) numPagesLong;
-		if (this.totalNumPages < 1) {
-			throw new IllegalArgumentException("The given amount of memory amounted to less than one page.");
-		}
+		int numCorePages = calculateNumPages(coreMemorySize);
+		int numFloatingPages = floatingMemorySize > 0 ? calculateNumPages(floatingMemorySize) : 0;
+		this.totalNumPages = numCorePages + numFloatingPages;
 
-		this.allocatedSegments = new HashMap<Object, Set<MemorySegment>>();
+		this.allocatedCoreSegments = new AllocatedSegmentsWrapper(numCorePages);
+		this.allocatedFloatingSegments = new AllocatedSegmentsWrapper(numFloatingPages);
+
 		this.isPreAllocated = preAllocateMemory;
 
-		this.numNonAllocatedPages = preAllocateMemory ? 0 : this.totalNumPages;
-		final int memToAllocate = preAllocateMemory ? this.totalNumPages : 0;
+		final int memToAllocate = preAllocateMemory ?  this.totalNumPages : 0;
 
 		switch (memoryType) {
 			case HEAP:
@@ -177,15 +199,19 @@ public class MemoryManager {
 			default:
 				throw new IllegalArgumentException("unrecognized memory type: " + memoryType);
 		}
+	}
 
-		LOG.debug("Initialized MemoryManager with total memory size {}, number of slots {}, page size {}, " +
-				"memory type {}, pre allocate memory {} and number of non allocated pages {}.",
-			memorySize,
-			numberOfSlots,
-			pageSize,
-			memoryType,
-			preAllocateMemory,
-			numNonAllocatedPages);
+	private int calculateNumPages(long memorySize) {
+		final long numPagesLong = memorySize / pageSize;
+		if (numPagesLong > Integer.MAX_VALUE) {
+			throw new IllegalArgumentException("The given number of memory bytes (" + memorySize
+				+ ") corresponds to more than MAX_INT pages.");
+		}
+		int totalNumPages = (int) numPagesLong;
+		if (totalNumPages < 1) {
+			throw new IllegalArgumentException("The given amount of core memory amounted to less than one page.");
+		}
+		return totalNumPages;
 	}
 
 	// ------------------------------------------------------------------------
@@ -199,24 +225,18 @@ public class MemoryManager {
 	 * code that allocated them from the memory manager.
 	 */
 	public void shutdown() {
-		// -------------------- BEGIN CRITICAL SECTION -------------------
 		synchronized (lock) {
 			if (!isShutDown) {
 				// mark as shutdown and release memory
 				isShutDown = true;
-				numNonAllocatedPages = 0;
 
 				// go over all allocated segments and release them
-				for (Set<MemorySegment> segments : allocatedSegments.values()) {
-					for (MemorySegment seg : segments) {
-						seg.free();
-					}
-				}
+				allocatedCoreSegments.freeAllocatedSegments();
+				allocatedFloatingSegments.freeAllocatedSegments();
 
 				memoryPool.clear();
 			}
 		}
-		// -------------------- END CRITICAL SECTION -------------------
 	}
 
 	/**
@@ -235,9 +255,11 @@ public class MemoryManager {
 	 */
 	public boolean verifyEmpty() {
 		synchronized (lock) {
+			int numTotalAvailablePages = allocatedCoreSegments.getNumAvailablePages() +
+				allocatedFloatingSegments.getNumAvailablePages();
 			return isPreAllocated ?
-					memoryPool.getNumberOfAvailableMemorySegments() == totalNumPages :
-					numNonAllocatedPages == totalNumPages;
+				memoryPool.getNumberOfAvailableMemorySegments() == totalNumPages &&
+					numTotalAvailablePages == totalNumPages : numTotalAvailablePages == totalNumPages;
 		}
 	}
 
@@ -257,9 +279,19 @@ public class MemoryManager {
 	 *                                   of memory pages any more.
 	 */
 	public List<MemorySegment> allocatePages(Object owner, int numPages) throws MemoryAllocationException {
-		final ArrayList<MemorySegment> segs = new ArrayList<MemorySegment>(numPages);
-		allocatePages(owner, segs, numPages);
-		return segs;
+		final ArrayList<MemorySegment> segments = new ArrayList<>(numPages);
+		allocatePages(owner, segments, numPages);
+		return segments;
+	}
+
+	public void allocatePages(Object owner, List<MemorySegment> target, int numPages) throws MemoryAllocationException {
+		allocatePages(owner, target, numPages, true);
+	}
+
+	public List<MemorySegment> allocatePages(Object owner, int numPages, boolean isCoreSegment) throws MemoryAllocationException {
+		final ArrayList<MemorySegment> segments = new ArrayList<>(numPages);
+		allocatePages(owner, segments, numPages, isCoreSegment);
+		return segments;
 	}
 
 	/**
@@ -270,10 +302,11 @@ public class MemoryManager {
 	 * @param owner The owner to associate with the memory segment, for the fallback release.
 	 * @param target The list into which to put the allocated memory pages.
 	 * @param numPages The number of pages to allocate.
+	 * @param isCoreSegment Whether to allocate core pages or not.
 	 * @throws MemoryAllocationException Thrown, if this memory manager does not have the requested amount
 	 *                                   of memory pages any more.
 	 */
-	public void allocatePages(Object owner, List<MemorySegment> target, int numPages)
+	public void allocatePages(Object owner, List<MemorySegment> target, int numPages, boolean isCoreSegment)
 			throws MemoryAllocationException {
 		// sanity check
 		if (owner == null) {
@@ -285,25 +318,14 @@ public class MemoryManager {
 			((ArrayList<MemorySegment>) target).ensureCapacity(numPages);
 		}
 
-		// -------------------- BEGIN CRITICAL SECTION -------------------
 		synchronized (lock) {
 			if (isShutDown) {
 				throw new IllegalStateException("Memory manager has been shut down.");
 			}
 
-			// in the case of pre-allocated memory, the 'numNonAllocatedPages' is zero, in the
-			// lazy case, the 'freeSegments.size()' is zero.
-			if (numPages > (memoryPool.getNumberOfAvailableMemorySegments() + numNonAllocatedPages)) {
-				throw new MemoryAllocationException("Could not allocate " + numPages + " pages. Only " +
-						(memoryPool.getNumberOfAvailableMemorySegments() + numNonAllocatedPages)
-						+ " pages are remaining.");
-			}
-
-			Set<MemorySegment> segmentsForOwner = allocatedSegments.get(owner);
-			if (segmentsForOwner == null) {
-				segmentsForOwner = new HashSet<MemorySegment>(numPages);
-				allocatedSegments.put(owner, segmentsForOwner);
-			}
+			AllocatedSegmentsWrapper allocatedSegments = isCoreSegment ?
+				allocatedCoreSegments : allocatedFloatingSegments;
+			Set<MemorySegment> segmentsForOwner = allocatedSegments.allocateSegments(owner, numPages);
 
 			if (isPreAllocated) {
 				for (int i = numPages; i > 0; i--) {
@@ -311,17 +333,18 @@ public class MemoryManager {
 					target.add(segment);
 					segmentsForOwner.add(segment);
 				}
-			}
-			else {
+			} else {
 				for (int i = numPages; i > 0; i--) {
 					MemorySegment segment = memoryPool.allocateNewSegment(owner);
 					target.add(segment);
 					segmentsForOwner.add(segment);
 				}
-				numNonAllocatedPages -= numPages;
 			}
 		}
-		// -------------------- END CRITICAL SECTION -------------------
+	}
+
+	public void release(@Nullable MemorySegment segment) {
+		release(segment, true);
 	}
 
 	/**
@@ -332,51 +355,40 @@ public class MemoryManager {
 	 * Otherwise, the segment is only freed and made eligible for reclamation by the GC.
 	 *
 	 * @param segment The segment to be released.
+	 * @param isCoreSegment Whether the released segment is core or not.
+	 * @return Whether the segment has been released.
 	 * @throws IllegalArgumentException Thrown, if the given segment is of an incompatible type.
 	 */
-	public void release(MemorySegment segment) {
+	public boolean release(@Nullable MemorySegment segment, boolean isCoreSegment) {
 		// check if segment is null or has already been freed
 		if (segment == null || segment.getOwner() == null) {
-			return;
+			return false;
 		}
 
-		final Object owner = segment.getOwner();
-
-		// -------------------- BEGIN CRITICAL SECTION -------------------
 		synchronized (lock) {
 			// prevent double return to this memory manager
 			if (segment.isFreed()) {
-				return;
+				return false;
 			}
 			if (isShutDown) {
 				throw new IllegalStateException("Memory manager has been shut down.");
 			}
 
 			// remove the reference in the map for the owner
-			try {
-				Set<MemorySegment> segsForOwner = this.allocatedSegments.get(owner);
+			AllocatedSegmentsWrapper allocatedSegments = isCoreSegment ?
+				allocatedCoreSegments : allocatedFloatingSegments;
+			boolean hasRemoved = allocatedSegments.removeAllocatedSegments(segment);
 
-				if (segsForOwner != null) {
-					segsForOwner.remove(segment);
-					if (segsForOwner.isEmpty()) {
-						this.allocatedSegments.remove(owner);
-					}
-				}
+			if (hasRemoved) {
+				releaseMemorySegment(segment);
+			}
 
-				if (isPreAllocated) {
-					// release the memory in any case
-					memoryPool.returnSegmentToPool(segment);
-				}
-				else {
-					segment.free();
-					numNonAllocatedPages++;
-				}
-			}
-			catch (Throwable t) {
-				throw new RuntimeException("Error removing book-keeping reference to allocated memory segment.", t);
-			}
+			return hasRemoved;
 		}
-		// -------------------- END CRITICAL SECTION -------------------
+	}
+
+	public void release(@Nullable Collection<MemorySegment> segments) {
+		release(segments, true);
 	}
 
 	/**
@@ -386,15 +398,17 @@ public class MemoryManager {
 	 * Otherwise, the segment is only freed and made eligible for reclamation by the GC.
 	 *
 	 * @param segments The segments to be released.
+	 * @param isCoreSegment Whether the released segments are core or not.
 	 * @throws NullPointerException Thrown, if the given collection is null.
 	 * @throws IllegalArgumentException Thrown, id the segments are of an incompatible type.
 	 */
-	public void release(Collection<MemorySegment> segments) {
+	public void release(@Nullable Collection<MemorySegment> segments, boolean isCoreSegment) {
 		if (segments == null) {
 			return;
 		}
 
-		// -------------------- BEGIN CRITICAL SECTION -------------------
+		List<MemorySegment> notReleased = new ArrayList<>();
+
 		synchronized (lock) {
 			if (isShutDown) {
 				throw new IllegalStateException("Memory manager has been shut down.");
@@ -405,63 +419,37 @@ public class MemoryManager {
 			boolean successfullyReleased = false;
 			do {
 				final Iterator<MemorySegment> segmentsIterator = segments.iterator();
-
-				Object lastOwner = null;
-				Set<MemorySegment> segsForOwner = null;
+				AllocatedSegmentsWrapper allocatedSegments = isCoreSegment ?
+					allocatedCoreSegments : allocatedFloatingSegments;
 
 				try {
 					// go over all segments
 					while (segmentsIterator.hasNext()) {
-
 						final MemorySegment seg = segmentsIterator.next();
 						if (seg == null || seg.isFreed()) {
 							continue;
 						}
 
-						final Object owner = seg.getOwner();
+						boolean hasRemoved = allocatedSegments.removeAllocatedSegments(seg);
 
-						try {
-							// get the list of segments by this owner only if it is a different owner than for
-							// the previous one (or it is the first segment)
-							if (lastOwner != owner) {
-								lastOwner = owner;
-								segsForOwner = this.allocatedSegments.get(owner);
-							}
-
-							// remove the segment from the list
-							if (segsForOwner != null) {
-								segsForOwner.remove(seg);
-								if (segsForOwner.isEmpty()) {
-									this.allocatedSegments.remove(owner);
-								}
-							}
-
-							if (isPreAllocated) {
-								memoryPool.returnSegmentToPool(seg);
-							}
-							else {
-								seg.free();
-								numNonAllocatedPages++;
-							}
-						}
-						catch (Throwable t) {
-							throw new RuntimeException(
-									"Error removing book-keeping reference to allocated memory segment.", t);
+						if (hasRemoved) {
+							releaseMemorySegment(seg);
+						} else {
+							notReleased.add(seg);
 						}
 					}
 
 					segments.clear();
+					segments.addAll(notReleased);
 
 					// the only way to exit the loop
 					successfullyReleased = true;
-				}
-				catch (ConcurrentModificationException | NoSuchElementException e) {
+				} catch (ConcurrentModificationException e) {
 					// this may happen in the case where an asynchronous
 					// call releases the memory. fall through the loop and try again
 				}
 			} while (!successfullyReleased);
 		}
-		// -------------------- END CRITICAL SECTION -------------------
 	}
 
 	/**
@@ -474,59 +462,46 @@ public class MemoryManager {
 			return;
 		}
 
-		// -------------------- BEGIN CRITICAL SECTION -------------------
 		synchronized (lock) {
 			if (isShutDown) {
 				throw new IllegalStateException("Memory manager has been shut down.");
 			}
 
-			// get all segments
-			final Set<MemorySegment> segments = allocatedSegments.remove(owner);
-
-			// all segments may have been freed previously individually
-			if (segments == null || segments.isEmpty()) {
-				return;
-			}
-
-			// free each segment
-			if (isPreAllocated) {
-				for (MemorySegment seg : segments) {
-					memoryPool.returnSegmentToPool(seg);
-				}
-			}
-			else {
-				for (MemorySegment seg : segments) {
-					seg.free();
-				}
-				numNonAllocatedPages += segments.size();
-			}
-
-			segments.clear();
+			releaseMemorySegments(allocatedCoreSegments.removeAllocatedSegments(owner));
+			releaseMemorySegments(allocatedFloatingSegments.removeAllocatedSegments(owner));
 		}
-		// -------------------- END CRITICAL SECTION -------------------
+	}
+
+	private void releaseMemorySegments(Set<MemorySegment> segments) {
+		if (segments == null || segments.isEmpty()) {
+			return;
+		}
+
+		// free each segment
+		if (isPreAllocated) {
+			for (MemorySegment seg : segments) {
+				memoryPool.returnSegmentToPool(seg);
+			}
+		} else {
+			for (MemorySegment seg : segments) {
+				seg.free();
+			}
+		}
+
+		segments.clear();
+	}
+
+	private void releaseMemorySegment(MemorySegment seg) {
+		if (isPreAllocated) {
+			memoryPool.returnSegmentToPool(seg);
+		} else {
+			seg.free();
+		}
 	}
 
 	// ------------------------------------------------------------------------
 	//  Properties, sizes and size conversions
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Gets the type of memory (heap / off-heap) managed by this memory manager.
-	 *
-	 * @return The type of memory managed by this memory manager.
-	 */
-	public MemoryType getMemoryType() {
-		return memoryType;
-	}
-
-	/**
-	 * Checks whether this memory manager pre-allocates the memory.
-	 *
-	 * @return True if the memory manager pre-allocates the memory, false if it allocates as needed.
-	 */
-	public boolean isPreAllocated() {
-		return isPreAllocated;
-	}
 
 	/**
 	 * Gets the size of the pages handled by the memory manager.
@@ -543,16 +518,7 @@ public class MemoryManager {
 	 * @return The total size of memory.
 	 */
 	public long getMemorySize() {
-		return memorySize;
-	}
-
-	/**
-	 * Gets the total number of memory pages managed by this memory manager.
-	 *
-	 * @return The total number of memory pages managed by this memory manager.
-	 */
-	public int getTotalNumPages() {
-		return totalNumPages;
+		return coreMemorySize + floatingMemorySize;
 	}
 
 	/**
@@ -572,24 +538,98 @@ public class MemoryManager {
 	}
 
 	/**
-	 * Computes the memory size of the fraction per slot.
-	 *
-	 * @param fraction The fraction of the memory of the task slot.
-	 * @return The number of pages corresponding to the memory fraction.
+	 * Manages the allocated segments for each memory owner.
 	 */
-	public long computeMemorySize(double fraction) {
-		return pageSize * (long) computeNumberOfPages(fraction);
-	}
+	private static class AllocatedSegmentsWrapper {
 
-	/**
-	 * Rounds the given value down to a multiple of the memory manager's page size.
-	 *
-	 * @return The given value, rounded down to a multiple of the page size.
-	 */
-	public long roundDownToPageSizeMultiple(long numBytes) {
-		return numBytes & roundingMask;
-	}
+		/** Memory segments allocated per memory owner. */
+		private final HashMap<Object, Set<MemorySegment>> allocatedSegments;
 
+		/** The number of available segments, for verification. */
+		private int numAvailablePages;
+
+		AllocatedSegmentsWrapper(int numPages) {
+			this.numAvailablePages = numPages;
+			this.allocatedSegments = new HashMap<>();
+		}
+
+		/**
+		 * Allocates a number of pages for the specific owner.
+		 *
+		 * @param owner The memory owner.
+		 * @param numRequiredPages How many pages are required for this owner.
+		 * @return A set of allocated memory segments for this owner.
+		 */
+		@Nonnull
+		Set<MemorySegment> allocateSegments(Object owner, int numRequiredPages) throws MemoryAllocationException {
+			if (numRequiredPages > numAvailablePages) {
+				throw new MemoryAllocationException("Could not allocate " + numRequiredPages + " pages. Only " + numAvailablePages
+					+ " pages are remaining.");
+			}
+
+			Set<MemorySegment> segmentsForOwner = allocatedSegments.get(owner);
+			if (segmentsForOwner == null) {
+				segmentsForOwner = new HashSet<>(numRequiredPages);
+				allocatedSegments.put(owner, segmentsForOwner);
+			}
+			numAvailablePages -= numRequiredPages;
+			return segmentsForOwner;
+		}
+
+		/**
+		 * Removes a specific segment from the allocated segments.
+		 *
+		 * @param segment The memory segment to be released.
+		 * @return Whether the segment has been released.
+		 */
+		boolean removeAllocatedSegments(MemorySegment segment) {
+			Object owner = checkNotNull(segment.getOwner());
+
+			Set<MemorySegment> segmentsForOwner = allocatedSegments.get(owner);
+			if (segmentsForOwner != null) {
+				boolean hasRemoved = segmentsForOwner.remove(segment);
+
+				if (hasRemoved) {
+					if (segmentsForOwner.isEmpty()) {
+						allocatedSegments.remove(owner);
+					}
+					numAvailablePages++;
+				}
+
+				return hasRemoved;
+			}
+
+			return false;
+		}
+
+		/**
+		 * Releases all the segments for the specific memory owner from the allocated segments.
+		 *
+		 * @param owner The memory owner.
+		 * @return All the memory segments for this owner.
+		 */
+		@Nullable
+		Set<MemorySegment> removeAllocatedSegments(Object owner) {
+			Set<MemorySegment> segmentsForOwner = allocatedSegments.remove(owner);
+			if (segmentsForOwner != null) {
+				numAvailablePages += segmentsForOwner.size();
+			}
+			return segmentsForOwner;
+		}
+
+		void freeAllocatedSegments() {
+			for (Set<MemorySegment> segments : allocatedSegments.values()) {
+				for (MemorySegment seg : segments) {
+					seg.free();
+				}
+			}
+			allocatedSegments.clear();
+		}
+
+		int getNumAvailablePages() {
+			return numAvailablePages;
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	//  Memory Pools
@@ -676,7 +716,8 @@ public class MemoryManager {
 
 		@Override
 		MemorySegment allocateNewSegment(Object owner) {
-			return MemorySegmentFactory.allocateUnpooledOffHeapMemory(segmentSize, owner);
+			ByteBuffer memory = ByteBuffer.allocateDirect(segmentSize);
+			return MemorySegmentFactory.wrapPooledOffHeapMemory(memory, owner);
 		}
 
 		@Override

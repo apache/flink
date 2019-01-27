@@ -24,10 +24,13 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -63,15 +66,17 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 		StreamConfig configuration = getConfiguration();
 		ClassLoader userClassLoader = getUserCodeClassLoader();
 
+		TwoInputStreamOperator<IN1, IN2, OUT> headOperator = getHeadOperator();
+
 		TypeSerializer<IN1> inputDeserializer1 = configuration.getTypeSerializerIn1(userClassLoader);
 		TypeSerializer<IN2> inputDeserializer2 = configuration.getTypeSerializerIn2(userClassLoader);
 
 		int numberOfInputs = configuration.getNumberOfInputs();
 
-		ArrayList<InputGate> inputList1 = new ArrayList<InputGate>();
-		ArrayList<InputGate> inputList2 = new ArrayList<InputGate>();
+		ArrayList<InputGate> inputList1 = new ArrayList<>();
+		ArrayList<InputGate> inputList2 = new ArrayList<>();
 
-		List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
+		List<StreamEdge> inEdges = getStreamTaskConfig().getInStreamEdgesOfChain();
 
 		for (int i = 0; i < numberOfInputs; i++) {
 			int inputType = inEdges.get(i).getTypeNumber();
@@ -91,21 +96,24 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 		this.inputProcessor = new StreamTwoInputProcessor<>(
 				inputList1, inputList2,
 				inputDeserializer1, inputDeserializer2,
+				configuration.isCheckpointingEnabled(),
 				this,
 				configuration.getCheckpointMode(),
 				getCheckpointLock(),
 				getEnvironment().getIOManager(),
 				getEnvironment().getTaskManagerInfo().getConfiguration(),
 				getStreamStatusMaintainer(),
-				this.headOperator,
+				headOperator,
 				getEnvironment().getMetricGroup().getIOMetricGroup(),
 				input1WatermarkGauge,
-				input2WatermarkGauge);
+				input2WatermarkGauge,
+				getExecutionConfig().isObjectReuseEnabled(),
+				getExecutionConfig().isTracingMetricsEnabled(),
+				getExecutionConfig().getTracingMetricsInterval());
 
 		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
 		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_1_WATERMARK, input1WatermarkGauge);
 		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_2_WATERMARK, input2WatermarkGauge);
-		// wrap watermark gauge since registered metrics must be unique
 		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge::getValue);
 	}
 
@@ -116,6 +124,21 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 
 		while (running && inputProcessor.processInput()) {
 			// all the work happens in the "processInput" method
+		}
+
+		// all inputs are finished, notify non-head operators
+		if (running) {
+			synchronized (getCheckpointLock()) {
+				TwoInputStreamOperator<?, ?, ?> headOperator = getHeadOperator();
+				for (StreamOperator<?> operator : operatorChain.getAllOperatorsTopologySorted()) {
+					if (operator.getOperatorID().equals(headOperator.getOperatorID())) {
+						continue;
+					}
+
+					Preconditions.checkState(operator instanceof OneInputStreamOperator);
+					((OneInputStreamOperator<?, ?>) operator).endInput();
+				}
+			}
 		}
 	}
 
@@ -129,5 +152,12 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 	@Override
 	protected void cancelTask() {
 		running = false;
+	}
+
+	@SuppressWarnings("unchecked")
+	protected TwoInputStreamOperator<IN1, IN2, OUT> getHeadOperator() {
+		Preconditions.checkState(operatorChain.getHeadOperators().length == 1,
+			"There should only one head operator, not " + operatorChain.getHeadOperators().length);
+		return (TwoInputStreamOperator<IN1, IN2, OUT>) operatorChain.getHeadOperators()[0];
 	}
 }

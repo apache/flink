@@ -20,14 +20,15 @@ package org.apache.flink.table.expressions
 
 import java.sql.Timestamp
 
-import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
+import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
 import org.joda.time.{DateTime, DateTimeZone}
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
+@Ignore //has been replaced
 class DateTimeFunctionTest extends ExpressionTestBase {
   private val INSTANT = DateTime.parse("1990-01-02T03:04:05.678Z")
   private val LOCAL_ZONE = DateTimeZone.getDefault
@@ -53,7 +54,7 @@ class DateTimeFunctionTest extends ExpressionTestBase {
       expected)
   }
 
-  override def testData: Any = {
+  override def rowTestData: Row = {
     val testData = new Row(2)
     // SQL expect a timestamp in the local timezone
     testData.setField(0, new Timestamp(LOCAL_ZONE.convertLocalToUTC(INSTANT.getMillis, true)))
@@ -61,6 +62,6 @@ class DateTimeFunctionTest extends ExpressionTestBase {
     testData
   }
 
-  override def typeInfo: TypeInformation[Any] =
-    new RowTypeInfo(Types.SQL_TIMESTAMP, Types.STRING).asInstanceOf[TypeInformation[Any]]
+  override def rowType: RowTypeInfo =
+    new RowTypeInfo(Types.SQL_TIMESTAMP, Types.STRING)
 }

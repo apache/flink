@@ -28,6 +28,9 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.util.FileUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.io.FileNotFoundException;
@@ -42,12 +45,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractFsCheckpointStorage.class);
+
 	// ------------------------------------------------------------------------
 	//  Constants
 	// ------------------------------------------------------------------------
 
-	/** The prefix of the directory containing the data exclusive to a checkpoint. */
+	/** The prefix of the directory containing the meta data of a checkpoint. */
 	public static final String CHECKPOINT_DIR_PREFIX = "chk-";
+
+	/** The name of the directory for exclusive checkpoint state not shared. */
+	public static final String CHECKPOINT_EXCLUSICE_STATE_DIR = "exclusive";
 
 	/** The name of the directory for shared checkpoint state. */
 	public static final String CHECKPOINT_SHARED_STATE_DIR = "shared";
@@ -57,6 +65,12 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 
 	/** The name of the metadata files in checkpoints / savepoints. */
 	public static final String METADATA_FILE_NAME = "_metadata";
+
+	/** The prefix of the checkpoint file for both exclusive and shared state. */
+	public static final String CHECKPOINT_FILE_PREFIX = "chk-";
+
+	/** The dummy checkpoint id, mainly used for task owned state. */
+	public static final long DUMMY_CHECKPOINT_ID = -1;
 
 	/** The magic number that is put in front of any reference. */
 	private static final byte[] REFERENCE_MAGIC_NUMBER = new byte[] { 0x05, 0x5F, 0x3F, 0x18 };
@@ -107,6 +121,11 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 	@Override
 	public CompletedCheckpointStorageLocation resolveCheckpoint(String checkpointPointer) throws IOException {
 		return resolveCheckpointPointer(checkpointPointer);
+	}
+
+	@Override
+	public CompletedCheckpointStorageLocation resolveLatestCheckpoint(String checkpointPointer) throws IOException {
+		return resolveCheckpointPointer(checkpointPointer, true);
 	}
 
 	/**
@@ -189,7 +208,7 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 	}
 
 	/**
-	 * Creates the directory path for the data exclusive to a specific checkpoint.
+	 * Creates the directory path for the meta data to a specific checkpoint.
 	 *
 	 * @param baseDirectory The base directory into which the job checkpoints.
 	 * @param checkpointId The ID (logical timestamp) of the checkpoint.
@@ -198,17 +217,25 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 		return new Path(baseDirectory, CHECKPOINT_DIR_PREFIX + checkpointId);
 	}
 
+	protected static CompletedCheckpointStorageLocation resolveCheckpointPointer(String checkpointPointer) throws IOException {
+		return resolveCheckpointPointer(checkpointPointer, false);
+	}
+
 	/**
 	 * Takes the given string (representing a pointer to a checkpoint) and resolves it to a file
 	 * status for the checkpoint's metadata file.
 	 *
 	 * @param checkpointPointer The pointer to resolve.
+	 * @param resumeFromLatestCheckpoint
 	 * @return A state handle to checkpoint/savepoint's metadata.
 	 *
 	 * @throws IOException Thrown, if the pointer cannot be resolved, the file system not accessed, or
 	 *                     the pointer points to a location that does not seem to be a checkpoint/savepoint.
 	 */
-	protected static CompletedCheckpointStorageLocation resolveCheckpointPointer(String checkpointPointer) throws IOException {
+	protected static CompletedCheckpointStorageLocation resolveCheckpointPointer(
+		String checkpointPointer,
+		boolean resumeFromLatestCheckpoint) throws IOException {
+
 		checkNotNull(checkpointPointer, "checkpointPointer");
 		checkArgument(!checkpointPointer.isEmpty(), "empty checkpoint pointer");
 
@@ -245,36 +272,75 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 		final Path checkpointDir;
 		final FileStatus metadataFileStatus;
 
-		// If this is a directory, we need to find the meta data file
-		if (status.isDir()) {
-			checkpointDir = status.getPath();
-			final Path metadataFilePath = new Path(path, METADATA_FILE_NAME);
-			try {
-				metadataFileStatus = fs.getFileStatus(metadataFilePath);
+		if (resumeFromLatestCheckpoint) {
+			if (!status.isDir()) {
+				throw new IOException("When resuming from latest completed checkpoint, the given target checkpoint path " +
+					checkpointPointer + " is not a directory.");
 			}
-			catch (FileNotFoundException e) {
-				throw new FileNotFoundException("Cannot find meta data file '" + METADATA_FILE_NAME +
+
+			Path checkpointParentDir = status.getPath();
+			FileStatus[] fileStatuses = fs.listStatus(checkpointParentDir);
+			long latestCompletedCheckpointId = -1L;
+			FileStatus latestCompletedCheckpointMetadataStatus = null;
+
+			for (FileStatus fileStatus : fileStatuses) {
+				final Path statusPath = fileStatus.getPath();
+				final String fileName = statusPath.getName();
+				if (fileName.startsWith(CHECKPOINT_DIR_PREFIX)) {
+					final Path metadataFilePath = new Path(statusPath, METADATA_FILE_NAME);
+					if (fs.exists(metadataFilePath)) {
+						final FileStatus metaFileStatus = fs.getFileStatus(metadataFilePath);
+						final long checkpointId = Long.parseLong(fileName.substring(CHECKPOINT_DIR_PREFIX.length()));
+						if (latestCompletedCheckpointId < checkpointId) {
+							latestCompletedCheckpointId = checkpointId;
+							latestCompletedCheckpointMetadataStatus = metaFileStatus;
+						}
+					}
+				}
+			}
+
+			if (latestCompletedCheckpointMetadataStatus == null) {
+				LOG.warn("When resuming from latest completed checkpoint, cannot find any meta data file '" + METADATA_FILE_NAME +
+					"' within sub-checkpoint directories under given parentDir: " + checkpointParentDir + ".");
+				return null;
+			} else {
+				metadataFileStatus = latestCompletedCheckpointMetadataStatus;
+				checkpointDir = latestCompletedCheckpointMetadataStatus.getPath().getParent();
+			}
+
+		} else {
+
+			// If this is a directory, we need to find the meta data file
+			if (status.isDir()) {
+				checkpointDir = status.getPath();
+				final Path metadataFilePath = new Path(path, METADATA_FILE_NAME);
+				try {
+					metadataFileStatus = fs.getFileStatus(metadataFilePath);
+				}
+				catch (FileNotFoundException e) {
+					throw new FileNotFoundException("Cannot find meta data file '" + METADATA_FILE_NAME +
 						"' in directory '" + path + "'. Please try to load the checkpoint/savepoint " +
 						"directly from the metadata file instead of the directory.");
+				}
 			}
-		}
-		else {
-			// this points to a file and we either do no name validation, or
-			// the name is actually correct, so we can return the path
-			metadataFileStatus = status;
-			checkpointDir = status.getPath().getParent();
+			else {
+				// this points to a file and we either do no name validation, or
+				// the name is actually correct, so we can return the path
+				metadataFileStatus = status;
+				checkpointDir = status.getPath().getParent();
+			}
 		}
 
 		final FileStateHandle metaDataFileHandle = new FileStateHandle(
-				metadataFileStatus.getPath(), metadataFileStatus.getLen());
+			metadataFileStatus.getPath(), metadataFileStatus.getLen());
 
 		final String pointer = checkpointDir.makeQualified(fs).toString();
 
 		return new FsCompletedCheckpointStorageLocation(
-				fs,
-				checkpointDir,
-				metaDataFileHandle,
-				pointer);
+			fs,
+			checkpointDir,
+			metaDataFileHandle,
+			pointer);
 	}
 
 	// ------------------------------------------------------------------------

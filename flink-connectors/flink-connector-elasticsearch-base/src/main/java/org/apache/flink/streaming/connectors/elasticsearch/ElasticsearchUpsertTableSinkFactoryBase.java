@@ -149,9 +149,11 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 	public StreamTableSink<Tuple2<Boolean, Row>> createStreamTableSink(Map<String, String> properties) {
 		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
+		final TableSchema schema = descriptorProperties.getTableSchema(SCHEMA());
+
 		return createElasticsearchUpsertTableSink(
 			descriptorProperties.isValue(UPDATE_MODE(), UPDATE_MODE_VALUE_APPEND()),
-			descriptorProperties.getTableSchema(SCHEMA()),
+			schema,
 			getHosts(descriptorProperties),
 			descriptorProperties.getString(CONNECTOR_INDEX),
 			descriptorProperties.getString(CONNECTOR_DOCUMENT_TYPE),

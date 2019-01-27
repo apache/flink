@@ -18,18 +18,17 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.net.InetAddress;
-import java.util.Optional;
+import java.util.Arrays;
 
-import static org.apache.flink.util.MathUtils.checkedDownCast;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -45,24 +44,28 @@ public class NetworkBufferCalculationTest extends TestLogger {
 	public void calculateNetworkBufFromHeapSize() throws Exception {
 		TaskManagerServicesConfiguration tmConfig;
 
-		tmConfig = getTmConfig(Long.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()),
+		tmConfig = getTmConfig(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue(),
+			TaskManagerOptions.FLOATING_MANAGED_MEMORY_SIZE.defaultValue(),
 			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.1f, 60L << 20, 1L << 30, MemoryType.HEAP);
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
 			TaskManagerServices.calculateNetworkBufferMemory(tmConfig, 900L << 20)); // 900MB
 
-		tmConfig = getTmConfig(Long.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()),
+		tmConfig = getTmConfig(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue(),
+			TaskManagerOptions.FLOATING_MANAGED_MEMORY_SIZE.defaultValue(),
 			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.2f, 60L << 20, 1L << 30, MemoryType.HEAP);
 		assertEquals((200L << 20) + 3 /* slightly too many due to floating point imprecision */,
 			TaskManagerServices.calculateNetworkBufferMemory(tmConfig, 800L << 20)); // 800MB
 
-		tmConfig = getTmConfig(10, TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
+		tmConfig = getTmConfig(10,
+			TaskManagerOptions.FLOATING_MANAGED_MEMORY_SIZE.defaultValue(),
+			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.1f, 60L << 20, 1L << 30, MemoryType.OFF_HEAP);
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
 			TaskManagerServices.calculateNetworkBufferMemory(tmConfig, 890L << 20)); // 890MB
 
-		tmConfig = getTmConfig(-1, 0.1f,
+		tmConfig = getTmConfig(-1, TaskManagerOptions.FLOATING_MANAGED_MEMORY_SIZE.defaultValue(),0.1f,
 			0.1f, 60L << 20, 1L << 30, MemoryType.OFF_HEAP);
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
 			TaskManagerServices.calculateNetworkBufferMemory(tmConfig, 810L << 20)); // 810MB
@@ -81,7 +84,7 @@ public class NetworkBufferCalculationTest extends TestLogger {
 	 * @return configuration object
 	 */
 	private static TaskManagerServicesConfiguration getTmConfig(
-		final long managedMemory, final float managedMemoryFraction, float networkBufFraction,
+		final long managedMemory, final long floatingMemory, final float managedMemoryFraction, float networkBufFraction,
 		long networkBufMin, long networkBufMax,
 		final MemoryType memType) {
 
@@ -89,12 +92,15 @@ public class NetworkBufferCalculationTest extends TestLogger {
 			networkBufFraction,
 			networkBufMin,
 			networkBufMax,
-			checkedDownCast(MemorySize.parse(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()).getBytes()),
+			TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue(),
 			null,
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL.defaultValue(),
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX.defaultValue(),
 			TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue(),
 			TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.defaultValue(),
+			TaskManagerOptions.NETWORK_BUFFERS_PER_EXTERNAL_BLOCKING_CHANNEL.defaultValue(),
+			TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_EXTERNAL_BLOCKING_GATE.defaultValue(),
+			TaskManagerOptions.NETWORK_BUFFERS_PER_SUBPARTITION.defaultValue(),
 			null);
 
 		return new TaskManagerServicesConfiguration(
@@ -106,10 +112,15 @@ public class NetworkBufferCalculationTest extends TestLogger {
 			QueryableStateConfiguration.disabled(),
 			1,
 			managedMemory,
+			floatingMemory,
 			memType,
 			false,
 			managedMemoryFraction,
 			0,
-			Optional.empty());
+			Arrays.asList(ResourceProfile.UNKNOWN),
+			ResourceProfile.UNKNOWN,
+			-1,
+			-1,
+			1);
 	}
 }

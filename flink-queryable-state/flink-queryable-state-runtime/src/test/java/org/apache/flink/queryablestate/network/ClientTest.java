@@ -35,9 +35,12 @@ import org.apache.flink.queryablestate.server.KvStateServerImpl;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.AbstractInternalStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackendWrapper;
+import org.apache.flink.runtime.state.context.ContextStateHelper;
+import org.apache.flink.runtime.state.heap.KeyContextImpl;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.ExceptionUtils;
@@ -627,16 +630,15 @@ public class ClientTest {
 		AbstractStateBackend abstractBackend = new MemoryStateBackend();
 		KvStateRegistry dummyRegistry = new KvStateRegistry();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
+		dummyRegistry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId());
 		dummyEnv.setKvStateRegistry(dummyRegistry);
 
-		AbstractKeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
-				dummyEnv,
-				new JobID(),
-				"test_op",
-				IntSerializer.INSTANCE,
-				numKeyGroups,
-				new KeyGroupRange(0, 0),
-				dummyRegistry.createTaskRegistry(new JobID(), new JobVertexID()));
+		KeyGroupRange groupRange = new KeyGroupRange(0, 0);
+		AbstractInternalStateBackend internalStateBackend =
+			abstractBackend.createInternalStateBackend(dummyEnv, "test_op", numKeyGroups, groupRange);
+		ContextStateHelper contextStateHelper =
+			new ContextStateHelper(new KeyContextImpl(IntSerializer.INSTANCE, numKeyGroups, groupRange), dummyEnv.getExecutionConfig(), internalStateBackend);
+		KeyedStateBackendWrapper<Integer> backend = new KeyedStateBackendWrapper(contextStateHelper);
 
 		final FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
@@ -679,9 +681,9 @@ public class ClientTest {
 
 				// Value per server
 				ValueState<Integer> state = backend.getPartitionedState(
-						VoidNamespace.INSTANCE,
-						VoidNamespaceSerializer.INSTANCE,
-						desc);
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
+					desc);
 
 				state.update(201 + i);
 
@@ -689,7 +691,7 @@ public class ClientTest {
 				InternalKvState<Integer, ?, Integer> kvState = (InternalKvState<Integer, ?, Integer>) state;
 
 				// Register KvState (one state instance for all server)
-				ids[i] = registry[i].registerKvState(new JobID(), new JobVertexID(), new KeyGroupRange(0, 0), "any", kvState);
+				ids[i] = registry[i].registerKvState(new JobID(), new JobVertexID(), groupRange, "any", kvState);
 			}
 
 			final Client<KvStateInternalRequest, KvStateResponse> finalClient = client;
@@ -713,10 +715,10 @@ public class ClientTest {
 						int targetServer = random.get(j) % numServers;
 
 						byte[] serializedKeyAndNamespace = KvStateSerializer.serializeKeyAndNamespace(
-								1010 + targetServer,
-								IntSerializer.INSTANCE,
-								VoidNamespace.INSTANCE,
-								VoidNamespaceSerializer.INSTANCE);
+							1010 + targetServer,
+							IntSerializer.INSTANCE,
+							VoidNamespace.INSTANCE,
+							VoidNamespaceSerializer.INSTANCE);
 
 						KvStateInternalRequest request = new KvStateInternalRequest(ids[targetServer], serializedKeyAndNamespace);
 						futures.add(finalClient.sendRequest(server[targetServer].getServerAddress(), request));
@@ -759,7 +761,7 @@ public class ClientTest {
 					fail("Did not throw expected Exception after shut down");
 				} catch (ExecutionException t) {
 					if (t.getCause().getCause() instanceof ClosedChannelException ||
-							t.getCause().getCause() instanceof IllegalStateException) {
+						t.getCause().getCause() instanceof IllegalStateException) {
 						// Expected
 					} else {
 						t.printStackTrace();

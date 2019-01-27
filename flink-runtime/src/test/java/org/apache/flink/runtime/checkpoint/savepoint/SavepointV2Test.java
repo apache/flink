@@ -45,7 +45,7 @@ public class SavepointV2Test {
 		final int numMasterStates = 7;
 
 		Collection<OperatorState> taskStates =
-				CheckpointTestUtils.createOperatorStates(rnd, numTaskStates, numSubtaskStates);
+				CheckpointTestUtils.createOperatorStatesV2(rnd, numTaskStates, numSubtaskStates);
 
 		Collection<MasterState> masterStates =
 				CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);

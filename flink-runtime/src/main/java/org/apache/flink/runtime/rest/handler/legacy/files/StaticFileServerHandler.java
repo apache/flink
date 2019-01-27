@@ -27,14 +27,13 @@ package org.apache.flink.runtime.rest.handler.legacy.files;
  *****************************************************************************/
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.rest.handler.LeaderRetrievalHandler;
-import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
-import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
+import org.apache.flink.runtime.rest.handler.RedirectHandler;
 import org.apache.flink.runtime.rest.handler.util.MimeTypes;
-import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
+import org.apache.flink.runtime.util.FileOffsetRange;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -49,8 +48,12 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
+import org.apache.flink.shaded.netty4.io.netty.util.CharsetUtil;
+
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -69,6 +72,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CACHE_CONTROL;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
@@ -92,7 +96,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * example.</p>
  */
 @ChannelHandler.Sharable
-public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRetrievalHandler<T> {
+public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectHandler<T> {
 
 	/** Timezone in which this server answers its "if-modified" requests. */
 	private static final TimeZone GMT_TIMEZONE = TimeZone.getTimeZone("GMT");
@@ -110,10 +114,11 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 
 	public StaticFileServerHandler(
 			GatewayRetriever<? extends T> retriever,
+			CompletableFuture<String> localJobManagerAddressFuture,
 			Time timeout,
 			File rootPath) throws IOException {
 
-		super(retriever, timeout, Collections.emptyMap());
+		super(localJobManagerAddressFuture, retriever, timeout, Collections.emptyMap());
 
 		this.rootPath = checkNotNull(rootPath).getCanonicalFile();
 	}
@@ -123,28 +128,40 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected void respondAsLeader(ChannelHandlerContext channelHandlerContext, RoutedRequest routedRequest, T gateway) throws Exception {
-		final HttpRequest request = routedRequest.getRequest();
+	protected void respondAsLeader(ChannelHandlerContext channelHandlerContext, Routed routed, T gateway) throws Exception {
+		final HttpRequest request = routed.request();
 		final String requestPath;
-
+		final Long start;
+		final Long count;
+		String fileReadStartFromQueryParameter = routed.queryParam("start");
+		String countFromQueryParameter = routed.queryParam("count");
+		if (StringUtils.isNotBlank(fileReadStartFromQueryParameter)) {
+			start = Long.parseLong(fileReadStartFromQueryParameter);
+		} else {
+			start = null;
+		}
+		if (StringUtils.isNotBlank(countFromQueryParameter)) {
+			count = Long.parseLong(countFromQueryParameter);
+		} else {
+			count = null;
+		}
 		// make sure we request the "index.html" in case there is a directory request
-		if (routedRequest.getPath().endsWith("/")) {
-			requestPath = routedRequest.getPath() + "index.html";
+		if (routed.path().endsWith("/")) {
+			requestPath = routed.path() + "index.html";
 		}
 		// in case the files being accessed are logs or stdout files, find appropriate paths.
-		else if (routedRequest.getPath().equals("/jobmanager/log") || routedRequest.getPath().equals("/jobmanager/stdout")) {
+		else if (routed.path().equals("/jobmanager/log") || routed.path().equals("/jobmanager/stdout")) {
 			requestPath = "";
 		} else {
-			requestPath = routedRequest.getPath();
+			requestPath = routed.path();
 		}
-
-		respondToRequest(channelHandlerContext, request, requestPath);
+		respondToRequest(channelHandlerContext, request, requestPath, start, count);
 	}
 
 	/**
 	 * Response when running with leading JobManager.
 	 */
-	private void respondToRequest(ChannelHandlerContext ctx, HttpRequest request, String requestPath)
+	private void respondToRequest(ChannelHandlerContext ctx, HttpRequest request, String requestPath, Long start, Long count)
 			throws IOException, ParseException, URISyntaxException {
 
 		// convert to absolute path
@@ -182,12 +199,7 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 				} finally {
 					if (!success) {
 						logger.debug("Unable to load requested file {} from classloader", requestPath);
-						HandlerUtils.sendErrorResponse(
-							ctx,
-							request,
-							new ErrorResponseBody(String.format("Unable to load requested file %s.", requestPath)),
-							NOT_FOUND,
-							responseHeaders);
+						sendError(ctx, NOT_FOUND);
 						return;
 					}
 				}
@@ -195,22 +207,12 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 		}
 
 		if (!file.exists() || file.isHidden() || file.isDirectory() || !file.isFile()) {
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				request,
-				new ErrorResponseBody("File not found."),
-				NOT_FOUND,
-				responseHeaders);
+			sendError(ctx, NOT_FOUND);
 			return;
 		}
 
 		if (!file.getCanonicalFile().toPath().startsWith(rootPath.toPath())) {
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				request,
-				new ErrorResponseBody("File not found."),
-				NOT_FOUND,
-				responseHeaders);
+			sendError(ctx, NOT_FOUND);
 			return;
 		}
 
@@ -244,18 +246,17 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 			raf = new RandomAccessFile(file, "r");
 		}
 		catch (FileNotFoundException e) {
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				request,
-				new ErrorResponseBody("File not found."),
-				HttpResponseStatus.NOT_FOUND,
-				responseHeaders);
+			sendError(ctx, NOT_FOUND);
 			return;
 		}
 
 		try {
 			long fileLength = raf.length();
-
+			start = start != null ? start : FileOffsetRange.getStartDefaultValue();
+			count = count != null ? count : FileOffsetRange.getSizeDefaultValue();
+			FileOffsetRange fs = (new FileOffsetRange(start, count)).normalize(fileLength);
+			long position = fs.getStart();
+			fileLength = fs.getSize();
 			HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
 			setContentTypeHeader(response, file);
 
@@ -274,10 +275,10 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 			// write the content.
 			ChannelFuture lastContentFuture;
 			if (ctx.pipeline().get(SslHandler.class) == null) {
-				ctx.write(new DefaultFileRegion(raf.getChannel(), 0, fileLength), ctx.newProgressivePromise());
+				ctx.write(new DefaultFileRegion(raf.getChannel(), position, fileLength), ctx.newProgressivePromise());
 				lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
 			} else {
-				lastContentFuture = ctx.writeAndFlush(new HttpChunkedInput(new ChunkedFile(raf, 0, fileLength, 8192)),
+				lastContentFuture = ctx.writeAndFlush(new HttpChunkedInput(new ChunkedFile(raf, position, fileLength, 8192)),
 					ctx.newProgressivePromise());
 				// HttpChunkedInput will write the end marker (LastHttpContent) for us.
 			}
@@ -289,12 +290,7 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 		} catch (Exception e) {
 			raf.close();
 			logger.error("Failed to serve file.", e);
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				request,
-				new ErrorResponseBody("Internal server error."),
-				INTERNAL_SERVER_ERROR,
-				responseHeaders);
+			sendError(ctx, INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -302,18 +298,28 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
 		if (ctx.channel().isActive()) {
 			logger.error("Caught exception", cause);
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				false,
-				new ErrorResponseBody("Internal server error."),
-				INTERNAL_SERVER_ERROR,
-				Collections.emptyMap());
+			sendError(ctx, INTERNAL_SERVER_ERROR);
 		}
 	}
 
 	// ------------------------------------------------------------------------
 	//  Utilities to encode headers and responses
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Writes a simple  error response message.
+	 *
+	 * @param ctx    The channel context to write the response to.
+	 * @param status The response status.
+	 */
+	public static void sendError(ChannelHandlerContext ctx, HttpResponseStatus status) {
+		FullHttpResponse response = new DefaultFullHttpResponse(
+				HTTP_1_1, status, Unpooled.copiedBuffer("Failure: " + status + "\r\n", CharsetUtil.UTF_8));
+		response.headers().set(CONTENT_TYPE, "text/plain; charset=UTF-8");
+
+		// close the connection as soon as the error message is sent.
+		ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+	}
 
 	/**
 	 * Send the "304 Not Modified" response. This response can be used when the

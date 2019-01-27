@@ -32,6 +32,7 @@ import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
+import org.apache.flink.runtime.io.network.partition.consumer.PartitionRequestManager;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
@@ -47,6 +48,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.concurrent.Executors;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
@@ -137,7 +139,8 @@ public class PartitionRequestClientHandlerTest {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
 			inputGate.setBufferPool(bufferPool);
 			final int numExclusiveBuffers = 2;
-			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
+			inputGate.setNetworkProperties(networkBufferPool, numExclusiveBuffers);
+			inputGate.assignExclusiveSegments();
 
 			final PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
 			handler.addInputChannel(inputChannel);
@@ -222,7 +225,10 @@ public class PartitionRequestClientHandlerTest {
 			1,
 			mock(TaskActions.class),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-			true);
+			new PartitionRequestManager(Integer.MAX_VALUE, 1),
+			Executors.newSingleThreadExecutor(),
+			true,
+			false);
 	}
 
 	/**
@@ -282,7 +288,7 @@ public class PartitionRequestClientHandlerTest {
 	/**
 	 * Returns a deserialized buffer message as it would be received during runtime.
 	 */
-	static BufferResponse createBufferResponse(
+	private BufferResponse createBufferResponse(
 			Buffer buffer,
 			int sequenceNumber,
 			InputChannelID receivingChannelId,

@@ -27,6 +27,11 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 public enum DataExchangeMode {
 
 	/**
+	 * Let the framework decide the actual data exchange mode.
+	 */
+	AUTO,
+
+	/**
 	 * The data exchange is streamed, sender and receiver are online at the same time,
 	 * and the receiver back-pressures the sender.
 	 */

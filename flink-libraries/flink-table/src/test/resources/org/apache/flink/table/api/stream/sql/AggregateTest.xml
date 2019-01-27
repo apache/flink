@@ -1,0 +1,106 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAggAfterUnionWithMiniBatch">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGlobalGroupAggregate(groupBy=[a], select=[a, SUM(sum$0) AS EXPR$1, COUNT(distinct$0 count$1) AS EXPR$2])
++- StreamExecExchange(distribution=[hash[a]])
+   +- StreamExecUnion(all=[true], union=[a, sum$0, count$1, distinct$0])
+      :- StreamExecLocalGroupAggregate(groupBy=[a], select=[a, SUM(b) AS sum$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0])
+      :  +- StreamExecMiniBatchAssigner(interval=[1000ms])
+      :     +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+      +- StreamExecLocalGroupAggregate(groupBy=[a], select=[a, SUM(b) AS sum$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0])
+         +- StreamExecMiniBatchAssigner(interval=[1000ms])
+            +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggWithFilterClause">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupAggregate(groupBy=[a], select=[a, SUM(b) FILTER $f2 AS EXPR$1, COUNT(DISTINCT c) FILTER $f4 AS EXPR$2, MAX(b) AS EXPR$3])
++- StreamExecExchange(distribution=[hash[a]])
+   +- StreamExecCalc(select=[a, b, IS TRUE(=(c, 'A')) AS $f2, c, IS TRUE(d) AS $f4])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggWithFilterClauseWithLocalGlobal">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGlobalGroupAggregate(groupBy=[a], select=[a, SUM(sum$0) AS EXPR$1, COUNT(distinct$0 count$1) AS EXPR$2, COUNT(distinct$0 count$2) AS EXPR$3, MAX(max$3) AS EXPR$4])
++- StreamExecExchange(distribution=[hash[a]])
+   +- StreamExecLocalGroupAggregate(groupBy=[a], select=[a, SUM(b) FILTER $f2 AS sum$0, COUNT(distinct$0 c) FILTER $f4 AS count$1, COUNT(distinct$0 c) FILTER $f5 AS count$2, MAX(b) AS max$3, DISTINCT(c) AS distinct$0])
+      +- StreamExecCalc(select=[a, b, IS TRUE(=(c, 'A')) AS $f2, c, IS TRUE(d) AS $f4, IS TRUE(=(b, 1)) AS $f5])
+         +- StreamExecMiniBatchAssigner(interval=[1000ms])
+            +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggWithMiniBatch">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1, MAX(max$1) AS EXPR$2, SUM(sum$2) AS EXPR$3])
++- StreamExecExchange(distribution=[hash[b]])
+   +- StreamExecLocalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 a) AS count$0, MAX(b) AS max$1, SUM(c) AS sum$2, DISTINCT(a) AS distinct$0])
+      +- StreamExecCalc(select=[b, a, c])
+         +- StreamExecMiniBatchAssigner(interval=[1000ms])
+            +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testColumnIntervalOnDifferentType">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupAggregate(groupBy=[a], select=[a, SUM($f1) AS EXPR$1, SUM($f2) AS EXPR$2, SUM($f3) AS EXPR$3, SUM($f4) AS EXPR$4, SUM($f5) AS EXPR$5, SUM($f6) AS EXPR$6, SUM($f7) AS EXPR$7])
++- StreamExecExchange(distribution=[hash[a]])
+   +- StreamExecCalc(select=[a, 1 AS $f1, 2 AS $f2, 3 AS $f3, 4 AS $f4, 5 AS $f5, 6 AS $f6, 7 AS $f7])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupbyWithoutWindow">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[EXPR$0])
++- StreamExecGroupAggregate(groupBy=[b], select=[b, COUNT(a) AS EXPR$0])
+   +- StreamExecExchange(distribution=[hash[b]])
+      +- StreamExecCalc(select=[b, a])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLocalGlobalAggAfterUnion">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGlobalGroupAggregate(groupBy=[a], select=[a, SUM(sum$0) AS EXPR$1, COUNT(distinct$0 count$1) AS EXPR$2])
++- StreamExecExchange(distribution=[hash[a]])
+   +- StreamExecUnion(all=[true], union=[a, sum$0, count$1, distinct$0])
+      :- StreamExecLocalGroupAggregate(groupBy=[a], select=[a, SUM(c) AS sum$0, COUNT(distinct$0 b) AS count$1, DISTINCT(b) AS distinct$0])
+      :  +- StreamExecCalc(select=[a, c, b])
+      :     +- StreamExecMiniBatchAssigner(interval=[1000ms])
+      :        +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+      +- StreamExecLocalGroupAggregate(groupBy=[a], select=[a, SUM(c) AS sum$0, COUNT(distinct$0 b) AS count$1, DISTINCT(b) AS distinct$0])
+         +- StreamExecCalc(select=[a, c, b])
+            +- StreamExecMiniBatchAssigner(interval=[1000ms])
+               +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_2]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

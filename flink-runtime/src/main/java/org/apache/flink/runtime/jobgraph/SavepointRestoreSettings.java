@@ -30,10 +30,10 @@ public class SavepointRestoreSettings implements Serializable {
 	private static final long serialVersionUID = 87377506900849777L;
 
 	/** No restore should happen. */
-	private static final SavepointRestoreSettings NONE = new SavepointRestoreSettings(null, false);
+	private final static SavepointRestoreSettings NONE = new SavepointRestoreSettings(null, false, false);
 
 	/** By default, be strict when restoring from a savepoint.  */
-	private static final boolean DEFAULT_ALLOW_NON_RESTORED_STATE = false;
+	private final static boolean DEFAULT_ALLOW_NON_RESTORED_STATE = false;
 
 	/** Savepoint restore path. */
 	private final String restorePath;
@@ -45,14 +45,23 @@ public class SavepointRestoreSettings implements Serializable {
 	private final boolean allowNonRestoredState;
 
 	/**
+	 * Flag indicating whether to resume from latest completed checkpoint.
+	 * If restore from savepoint or specific checkpoint, this value is false;
+	 * If resume from given checkpoint directory at job level, this value is true.
+	 */
+	private final boolean resumeFromLatestCheckpoint;
+
+	/**
 	 * Creates the restore settings.
 	 *
 	 * @param restorePath Savepoint restore path.
 	 * @param allowNonRestoredState Ignore unmapped state.
+	 * @param resumeFromLatestCheckpoint Resume from latest completed checkpoint automatically.
 	 */
-	private SavepointRestoreSettings(String restorePath, boolean allowNonRestoredState) {
+	private SavepointRestoreSettings(String restorePath, boolean allowNonRestoredState, boolean resumeFromLatestCheckpoint) {
 		this.restorePath = restorePath;
 		this.allowNonRestoredState = allowNonRestoredState;
+		this.resumeFromLatestCheckpoint = resumeFromLatestCheckpoint;
 	}
 
 	/**
@@ -83,14 +92,19 @@ public class SavepointRestoreSettings implements Serializable {
 		return allowNonRestoredState;
 	}
 
+	/**
+	 * Returns whether to resume latest completed checkpoint automatically.
+	 *
+	 * @return <code>true</code> if resuming from latest completed checkpoint automatically.
+	 */
+	public boolean resumeFromLatestCheckpoint() {
+		return resumeFromLatestCheckpoint;
+	}
+
 	@Override
 	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+		if (this == o) { return true; }
+		if (o == null || getClass() != o.getClass()) { return false; }
 
 		SavepointRestoreSettings that = (SavepointRestoreSettings) o;
 		return allowNonRestoredState == that.allowNonRestoredState &&
@@ -128,7 +142,12 @@ public class SavepointRestoreSettings implements Serializable {
 
 	public static SavepointRestoreSettings forPath(String savepointPath, boolean allowNonRestoredState) {
 		checkNotNull(savepointPath, "Savepoint restore path.");
-		return new SavepointRestoreSettings(savepointPath, allowNonRestoredState);
+		return new SavepointRestoreSettings(savepointPath, allowNonRestoredState, false);
+	}
+
+	public static SavepointRestoreSettings forResumePath(String checkpointPath, boolean allowNonRestoredState) {
+		checkNotNull(checkpointPath, "Checkpoint resume path.");
+		return new SavepointRestoreSettings(checkpointPath, allowNonRestoredState, true);
 	}
 
 }

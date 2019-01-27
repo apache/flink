@@ -17,18 +17,11 @@
  */
 package org.apache.flink.table.api.stream.table
 
-import org.apache.calcite.rel.rules.{CalcMergeRule, FilterCalcMergeRule, ProjectCalcMergeRule}
-import org.apache.calcite.tools.RuleSets
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.calcite.{CalciteConfig, CalciteConfigBuilder}
 import org.apache.flink.table.expressions.utils.Func13
-import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.utils._
+import org.apache.flink.table.util._
 import org.junit.Test
-
-import scala.collection.JavaConversions._
 
 class CorrelateTest extends TableTestBase {
 
@@ -36,280 +29,203 @@ class CorrelateTest extends TableTestBase {
   def testCrossJoin(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-    val function = util.addFunction("func1", new TableFunc1)
+    val function = new TableFunc1
+    util.addFunction("func1", function)
 
-    val result1 = table.join(function('c) as 's).select('c, 's)
+    val result = table.join(function('c) as 's).select('c, 's)
+    
+    util.verifyPlan(result)
+  }
 
-    val expected1 = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", s"${function.functionIdentifier}($$2)"),
-        term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-        term("select", "a", "b", "c", "s"),
-        term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
-        term("joinType", "INNER")
-      ),
-      term("select", "c", "s")
-    )
-
-    util.verifyTable(result1, expected1)
-
-    // test overloading
-
-    val result2 = table.join(function('c, "$") as 's).select('c, 's)
-
-    val expected2 = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", s"${function.functionIdentifier}($$2, '$$')"),
-        term("correlate", s"table(${function.getClass.getSimpleName}(c, '$$'))"),
-        term("select", "a", "b", "c", "s"),
-        term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
-        term("joinType", "INNER")
-      ),
-      term("select", "c", "s")
-    )
-
-    util.verifyTable(result2, expected2)
+  @Test
+  def testCrossJoinWithOverloading(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val function = new TableFunc1
+    util.addFunction("func1", function)
+    
+    val result = table.join(function('c, "$") as 's).select('c, 's)
+    
+    util.verifyPlan(result)
   }
 
   @Test
   def testLeftOuterJoinWithLiteralTrue(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-    val function = util.addFunction("func1", new TableFunc1)
+    val function = new TableFunc1
+    util.addFunction("func1", function)
 
     val result = table.leftOuterJoin(function('c) as 's, true).select('c, 's)
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", s"${function.functionIdentifier}($$2)"),
-        term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-        term("select", "a", "b", "c", "s"),
-        term("rowType",
-          "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
-        term("joinType", "LEFT")
-      ),
-      term("select", "c", "s")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
   }
 
   @Test
   def testCustomType(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-    val function = util.addFunction("func2", new TableFunc2)
+    val function = new TableFunc2
     val scalarFunc = new Func13("pre")
+    util.addFunction("func2", function)
 
     val result = table.join(function(scalarFunc('c)) as ('name, 'len)).select('c, 'name, 'len)
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation",
-             s"${function.functionIdentifier}(${scalarFunc.functionIdentifier}($$2))"),
-        term("correlate", s"table(${function.getClass.getSimpleName}(Func13(c)))"),
-        term("select", "a", "b", "c", "name", "len"),
-        term("rowType",
-          "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, " +
-           "VARCHAR(65536) name, INTEGER len)"),
-        term("joinType", "INNER")
-      ),
-      term("select", "c", "name", "len")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
   }
 
   @Test
   def testHierarchyType(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-    val function = util.addFunction("hierarchy", new HierarchyTableFunction)
+    val function = new HierarchyTableFunction
+    util.addFunction("hierarchy", function)
 
     val result = table.join(function('c) as ('name, 'adult, 'len))
 
-    val expected = unaryNode(
-      "DataStreamCorrelate",
-      streamTableNode(0),
-      term("invocation", s"${function.functionIdentifier}($$2)"),
-      term("correlate", "table(HierarchyTableFunction(c))"),
-      term("select", "a", "b", "c", "name", "adult", "len"),
-      term("rowType",
-        "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c," +
-        " VARCHAR(65536) name, BOOLEAN adult, INTEGER len)"),
-      term("joinType", "INNER")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
   }
 
   @Test
   def testPojoType(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-    val function = util.addFunction("pojo", new PojoTableFunc)
+    val function = new PojoTableFunc
+    util.addFunction("pojo", function)
 
     val result = table.join(function('c))
 
-    val expected = unaryNode(
-      "DataStreamCorrelate",
-      streamTableNode(0),
-      term("invocation", s"${function.functionIdentifier}($$2)"),
-      term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-      term("select", "a", "b", "c", "age", "name"),
-      term("rowType",
-        "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, " +
-         "INTEGER age, VARCHAR(65536) name)"),
-      term("joinType", "INNER")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
   }
 
   @Test
   def testFilter(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-    val function = util.addFunction("func2", new TableFunc2)
+    val function = new TableFunc2
+    util.addFunction("func2", function)
 
     val result = table
       .join(function('c) as ('name, 'len))
       .select('c, 'name, 'len)
       .filter('len > 2)
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", s"${function.functionIdentifier}($$2)"),
-        term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-        term("select", "a", "b", "c", "name", "len"),
-        term("rowType",
-          "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, " +
-          "VARCHAR(65536) name, INTEGER len)"),
-        term("joinType", "INNER"),
-        term("condition", ">($1, 2)")
-      ),
-      term("select", "c", "name", "len")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
   }
 
   @Test
   def testScalarFunction(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-    val function = util.addFunction("func1", new TableFunc1)
+    val function = new TableFunc1
+    util.addFunction("func1", function)
 
     val result = table.join(function('c.substring(2)) as 's)
 
-    val expected = unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation",  s"${function.functionIdentifier}(SUBSTRING($$2, 2, CHAR_LENGTH($$2)))"),
-        term("correlate",
-             s"table(${function.getClass.getSimpleName}(SUBSTRING(c, 2, CHAR_LENGTH(c))))"),
-        term("select", "a", "b", "c", "s"),
-        term("rowType",
-          "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
-        term("joinType", "INNER")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
   }
 
   @Test
-  def testCorrelateWithMultiFilter(): Unit = {
+  def testDynamicType(): Unit = {
     val util = streamTestUtil()
-    val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-    val function = util.addFunction("func1", new TableFunc0)
-
-    val result = sourceTable.select('a, 'b, 'c)
-      .join(function('c) as('d, 'e))
-      .select('c, 'd, 'e)
-      .where('e > 10)
-      .where('e > 20)
-      .select('c, 'd)
-
-    val expected = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", s"${function.functionIdentifier}($$2)"),
-        term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-        term("select", "a", "b", "c", "d", "e"),
-        term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, " +
-               "VARCHAR(65536) d, INTEGER e)"),
-        term("joinType", "INNER"),
-        term("condition", "AND(>($1, 10), >($1, 20))")
-      ),
-      term("select", "c", "d")
-    )
-
-    util.verifyTable(result, expected)
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val funcDyn = new UDTFWithDynamicType
+    util.addFunction("funcDyn", funcDyn)
+    val result = table
+        .join(funcDyn('c, 1) as 'name)
+        .select('c, 'name)
+    util.verifyPlan(result)
   }
 
   @Test
-  def testCorrelateWithMultiFilterAndWithoutCalcMergeRules(): Unit = {
+  def testDynamicType1(): Unit = {
     val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val funcDyn = new UDTFWithDynamicType
+    util.addFunction("funcDyn", funcDyn)
+    val result1 = table
+        .join(funcDyn('c, 2) as ('name, 'len0))
+        .select('c, 'name, 'len0)
+    util.verifyPlan(result1)
+  }
 
-    val logicalRuleSet = FlinkRuleSets.LOGICAL_OPT_RULES.filter {
-      case CalcMergeRule.INSTANCE => false
-      case FilterCalcMergeRule.INSTANCE => false
-      case ProjectCalcMergeRule.INSTANCE => false
-      case _ => true
-    }
+  @Test
+  def testDynamicType2(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val funcDyn = new UDTFWithDynamicType
+    util.addFunction("funcDyn", funcDyn)
+    val result2 = table
+        .join(funcDyn('c, 3) as ('name, 'len0, 'len1))
+        .select('c, 'name, 'len0, 'len1)
+    util.verifyPlan(result2)
+  }
 
-    val cc: CalciteConfig = new CalciteConfigBuilder()
-      .replaceLogicalOptRuleSet(RuleSets.ofList(logicalRuleSet.toList))
-      .build()
+  @Test
+  def testDynamicType3(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val funcDyn = new UDTFWithDynamicType
+    util.addFunction("funcDyn", funcDyn)
+    val result3 = table
+        .join(funcDyn('c, 3) as ('name, 'len0, 'len1))
+        .select('c, 'name, 'len0, 'len1)
+        .join(funcDyn('c, 2) as ('name1, 'len10))
+        .select('c, 'name, 'len0, 'len1, 'name1, 'len10)
+    util.verifyPlan(result3)
+  }
 
-    util.tableEnv.getConfig.setCalciteConfig(cc)
+  @Test
+  def testDynamicType4(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val funcDyn1 = new UDTFWithDynamicType1
+    val result4 = table.join(funcDyn1("string") as 'col)
+        .select('col)
+    util.verifyPlan(result4)
+  }
 
-    val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-    val function = util.addFunction("func1", new TableFunc0)
-    val result = sourceTable.select('a, 'b, 'c)
-      .join(function('c) as('d, 'e))
-      .select('c, 'd, 'e)
-      .where('e > 10)
-      .where('e > 20)
-      .select('c, 'd)
+  @Test
+  def testDynamicType5(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val funcDyn1 = new UDTFWithDynamicType1
+    util.addFunction("funcDyn1", funcDyn1)
+    val result5 = table.join(funcDyn1("int") as 'col)
+        .select('col)
+    util.verifyPlan(result5)
+  }
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      unaryNode(
-        "DataStreamCorrelate",
-        streamTableNode(0),
-        term("invocation", s"${function.functionIdentifier}($$2)"),
-        term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-        term("select", "a", "b", "c", "d", "e"),
-        term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, " +
-               "VARCHAR(65536) d, INTEGER e)"),
-        term("joinType", "INNER"),
-        term("condition", "AND(>($1, 10), >($1, 20))")
-      ),
-      term("select", "c", "d")
-    )
+  @Test
+  def testDynamicType6(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val funcDyn1 = new UDTFWithDynamicType1
+    util.addFunction("funcDyn1", funcDyn1)
+    val result6 = table.join(funcDyn1("double") as 'col)
+        .select('col)
+    util.verifyPlan(result6)
+  }
 
-    util.verifyTable(result, expected)
+  @Test
+  def testDynamicType7(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val funcDyn1 = new UDTFWithDynamicType1
+    util.addFunction("funcDyn1", funcDyn1)
+    val result7 = table.join(funcDyn1("boolean") as 'col)
+        .select('col)
+    util.verifyPlan(result7)
+  }
+
+  @Test
+  def testDynamicType8(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val funcDyn1 = new UDTFWithDynamicType1
+    util.addFunction("funcDyn1", funcDyn1)
+    val result8 = table.join(funcDyn1("timestamp") as 'col)
+        .select('col)
+    util.verifyPlan(result8)
   }
 }

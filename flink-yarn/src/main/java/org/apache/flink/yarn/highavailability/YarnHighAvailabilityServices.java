@@ -142,7 +142,7 @@ public abstract class YarnHighAvailabilityServices implements HighAvailabilitySe
 			throw new IOException("Cannot instantiate YARN's Hadoop file system for " + fsUri, e);
 		}
 
-		this.flinkFileSystem = new HadoopFileSystem(hadoopFileSystem);
+		this.flinkFileSystem = new HadoopFileSystem(hadoopConf, hadoopFileSystem);
 
 		this.workingDirectory = new Path(hadoopFileSystem.getWorkingDirectory().toUri());
 		this.haDataDirectory = new Path(workingDirectory, FLINK_RECOVERY_DATA_DIR);
@@ -327,6 +327,7 @@ public abstract class YarnHighAvailabilityServices implements HighAvailabilitySe
 			case NONE:
 				return new YarnIntraNonHaMasterServices(flinkConfig, hadoopConfig);
 
+			case FILESYSTEM:
 			case ZOOKEEPER:
 				throw  new UnsupportedOperationException("to be implemented");
 
@@ -361,6 +362,7 @@ public abstract class YarnHighAvailabilityServices implements HighAvailabilitySe
 					hadoopConfig,
 					HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
 
+			case FILESYSTEM:
 			case ZOOKEEPER:
 				throw  new UnsupportedOperationException("to be implemented");
 

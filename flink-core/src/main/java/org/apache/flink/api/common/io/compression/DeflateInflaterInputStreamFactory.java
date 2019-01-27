@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.common.io.compression;
 
 import org.apache.flink.annotation.Internal;
@@ -32,9 +31,12 @@ import java.util.zip.InflaterInputStream;
 @Internal
 public class DeflateInflaterInputStreamFactory implements InflaterInputStreamFactory<InflaterInputStream> {
 
-	private static final DeflateInflaterInputStreamFactory INSTANCE = new DeflateInflaterInputStreamFactory();
+	private static DeflateInflaterInputStreamFactory INSTANCE = null;
 
 	public static DeflateInflaterInputStreamFactory getInstance() {
+		if (INSTANCE == null) {
+			INSTANCE = new DeflateInflaterInputStreamFactory();
+		}
 		return INSTANCE;
 	}
 

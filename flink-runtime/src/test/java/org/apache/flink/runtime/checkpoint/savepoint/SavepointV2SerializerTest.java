@@ -84,7 +84,7 @@ public class SavepointV2SerializerTest {
 			final int numTasks = rnd.nextInt(maxTaskStates) + 1;
 			final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
 			final Collection<OperatorState> taskStates = 
-					CheckpointTestUtils.createOperatorStates(rnd, numTasks, numSubtasks);
+					CheckpointTestUtils.createOperatorStatesV2(rnd, numTasks, numSubtasks);
 
 			final Collection<MasterState> masterStates = Collections.emptyList();
 
@@ -106,7 +106,7 @@ public class SavepointV2SerializerTest {
 			final int numTasks = rnd.nextInt(maxTaskStates) + 1;
 			final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
 			final Collection<OperatorState> taskStates =
-					CheckpointTestUtils.createOperatorStates(rnd, numTasks, numSubtasks);
+					CheckpointTestUtils.createOperatorStatesV2(rnd, numTasks, numSubtasks);
 
 			final int numMasterStates = rnd.nextInt(maxNumMasterStates) + 1;
 			final Collection<MasterState> masterStates =

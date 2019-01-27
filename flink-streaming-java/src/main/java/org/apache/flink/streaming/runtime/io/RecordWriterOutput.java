@@ -18,17 +18,14 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
@@ -45,9 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExposingOutput<StreamRecord<OUT>> {
 
-	private RecordWriter<SerializationDelegate<StreamElement>> recordWriter;
-
-	private SerializationDelegate<StreamElement> serializationDelegate;
+	private StreamRecordWriter<StreamElement> recordWriter;
 
 	private final StreamStatusProvider streamStatusProvider;
 
@@ -57,8 +52,7 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 
 	@SuppressWarnings("unchecked")
 	public RecordWriterOutput(
-			RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
-			TypeSerializer<OUT> outSerializer,
+			StreamRecordWriter<StreamRecord<OUT>> recordWriter,
 			OutputTag outputTag,
 			StreamStatusProvider streamStatusProvider) {
 
@@ -66,15 +60,8 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 		this.outputTag = outputTag;
 		// generic hack: cast the writer to generic Object type so we can use it
 		// with multiplexed records and watermarks
-		this.recordWriter = (RecordWriter<SerializationDelegate<StreamElement>>)
-				(RecordWriter<?>) recordWriter;
-
-		TypeSerializer<StreamElement> outRecordSerializer =
-				new StreamElementSerializer<>(outSerializer);
-
-		if (outSerializer != null) {
-			serializationDelegate = new SerializationDelegate<StreamElement>(outRecordSerializer);
-		}
+		this.recordWriter = (StreamRecordWriter<StreamElement>)
+				(StreamRecordWriter<?>) recordWriter;
 
 		this.streamStatusProvider = checkNotNull(streamStatusProvider);
 	}
@@ -101,10 +88,9 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 	}
 
 	private <X> void pushToRecordWriter(StreamRecord<X> record) {
-		serializationDelegate.setInstance(record);
 
 		try {
-			recordWriter.emit(serializationDelegate);
+			recordWriter.emit(record);
 		}
 		catch (Exception e) {
 			throw new RuntimeException(e.getMessage(), e);
@@ -114,11 +100,10 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 	@Override
 	public void emitWatermark(Watermark mark) {
 		watermarkGauge.setCurrentWatermark(mark.getTimestamp());
-		serializationDelegate.setInstance(mark);
 
 		if (streamStatusProvider.getStreamStatus().isActive()) {
 			try {
-				recordWriter.broadcastEmit(serializationDelegate);
+				recordWriter.broadcastEmit(mark);
 			} catch (Exception e) {
 				throw new RuntimeException(e.getMessage(), e);
 			}
@@ -126,10 +111,8 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 	}
 
 	public void emitStreamStatus(StreamStatus streamStatus) {
-		serializationDelegate.setInstance(streamStatus);
-
 		try {
-			recordWriter.broadcastEmit(serializationDelegate);
+			recordWriter.broadcastEmit(streamStatus);
 		}
 		catch (Exception e) {
 			throw new RuntimeException(e.getMessage(), e);
@@ -138,17 +121,15 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 
 	@Override
 	public void emitLatencyMarker(LatencyMarker latencyMarker) {
-		serializationDelegate.setInstance(latencyMarker);
-
 		try {
-			recordWriter.randomEmit(serializationDelegate);
+			recordWriter.randomEmit(latencyMarker);
 		}
 		catch (Exception e) {
 			throw new RuntimeException(e.getMessage(), e);
 		}
 	}
 
-	public void broadcastEvent(AbstractEvent event) throws IOException {
+	public void broadcastEvent(AbstractEvent event) throws IOException, InterruptedException {
 		recordWriter.broadcastEvent(event);
 	}
 

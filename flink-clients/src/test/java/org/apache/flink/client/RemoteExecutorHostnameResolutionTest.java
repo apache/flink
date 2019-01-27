@@ -54,7 +54,7 @@ public class RemoteExecutorHostnameResolutionTest extends TestLogger {
 
 		RemoteExecutor exec = new RemoteExecutor(nonExistingHostname, port);
 		try {
-			exec.executePlan(getProgram());
+			exec.executePlan(getProgram(), false);
 			fail("This should fail with an ProgramInvocationException");
 		}
 		catch (UnknownHostException ignored) {
@@ -69,7 +69,7 @@ public class RemoteExecutorHostnameResolutionTest extends TestLogger {
 		RemoteExecutor exec = new RemoteExecutor(add, new Configuration(),
 				Collections.<URL>emptyList(), Collections.<URL>emptyList());
 		try {
-			exec.executePlan(getProgram());
+			exec.executePlan(getProgram(), false);
 			fail("This should fail with an ProgramInvocationException");
 		}
 		catch (UnknownHostException ignored) {

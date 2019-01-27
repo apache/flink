@@ -18,23 +18,23 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.standalone.TaskManagerResourceCalculator;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.TaskManagerResource;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
+import org.apache.flink.runtime.resourcemanager.slotmanager.DynamicAssigningSlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import javax.annotation.Nullable;
-
-import java.util.Collection;
-import java.util.Collections;
 
 /**
  * A standalone implementation of the resource manager. Used when the system is started in
@@ -44,30 +44,79 @@ import java.util.Collections;
  */
 public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 
+	private final TaskManagerResource taskManagerResource;
+
 	public StandaloneResourceManager(
 			RpcService rpcService,
 			String resourceManagerEndpointId,
 			ResourceID resourceId,
+			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			SlotManager slotManager,
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
 			ClusterInformation clusterInformation,
-			FatalErrorHandler fatalErrorHandler,
-			JobManagerMetricGroup jobManagerMetricGroup) {
-		super(
+			FatalErrorHandler fatalErrorHandler) {
+		this(
 			rpcService,
 			resourceManagerEndpointId,
 			resourceId,
+			new Configuration(),
+			resourceManagerConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,
 			slotManager,
 			metricRegistry,
 			jobLeaderIdService,
 			clusterInformation,
-			fatalErrorHandler,
-			jobManagerMetricGroup);
+			fatalErrorHandler);
+	}
+
+	public StandaloneResourceManager(
+			RpcService rpcService,
+			String resourceManagerEndpointId,
+			ResourceID resourceId,
+			Configuration configuration,
+			ResourceManagerConfiguration resourceManagerConfiguration,
+			HighAvailabilityServices highAvailabilityServices,
+			HeartbeatServices heartbeatServices,
+			SlotManager slotManager,
+			MetricRegistry metricRegistry,
+			JobLeaderIdService jobLeaderIdService,
+			ClusterInformation clusterInformation,
+			FatalErrorHandler fatalErrorHandler) {
+		super(
+			rpcService,
+			resourceManagerEndpointId,
+			resourceId,
+			resourceManagerConfiguration,
+			highAvailabilityServices,
+			heartbeatServices,
+			slotManager,
+			metricRegistry,
+			jobLeaderIdService,
+			clusterInformation,
+			fatalErrorHandler);
+
+		// build the task manager's total resource according to user's resource
+		taskManagerResource =
+				TaskManagerResource.fromConfiguration(configuration,
+						TaskManagerResourceCalculator.initContainerResourceConfig(configuration), 1);
+		log.info(taskManagerResource.toString());
+
+		if (slotManager instanceof DynamicAssigningSlotManager) {
+			((DynamicAssigningSlotManager) slotManager).setTotalResourceOfTaskExecutor(
+				taskManagerResource.getTaskResourceProfile());
+			log.info("TaskExecutors should be started with JVM heap size {} MB, " +
+							"new generation size {} MB, JVM direct memory limit {} MB",
+					taskManagerResource.getTotalHeapMemory(),
+					taskManagerResource.getYoungHeapMemory(),
+					taskManagerResource.getTotalDirectMemory());
+		} else {
+			log.warn("DynamicAssigningSlotManager have not been set in StandaloneResourceManager, " +
+					"setResources() of operator may not work!");
+		}
 	}
 
 	@Override
@@ -80,14 +129,22 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 	}
 
 	@Override
-	public Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile) {
-		return Collections.emptyList();
+	public void startNewWorker(ResourceProfile resourceProfile) {
 	}
 
 	@Override
 	public boolean stopWorker(ResourceID resourceID) {
 		// standalone resource manager cannot stop workers
 		return false;
+	}
+
+	@Override
+	public void cancelNewWorker(ResourceProfile resourceProfile) {
+	}
+
+	@Override
+	protected int getNumberAllocatedWorkers() {
+		return 0;
 	}
 
 	@Override

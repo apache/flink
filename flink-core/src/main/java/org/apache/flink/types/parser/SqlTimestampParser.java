@@ -20,8 +20,11 @@
 package org.apache.flink.types.parser;
 
 import java.sql.Timestamp;
+import java.util.TimeZone;
+
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.util.TimeConvertUtils;
 
 /**
  * Parses a text field into a {@link Timestamp}.
@@ -33,6 +36,12 @@ public class SqlTimestampParser extends FieldParser<Timestamp> {
 
 	private Timestamp result;
 
+	private TimeZone timezone = null;
+
+	public void setTimeZone(TimeZone timezone) {
+		this.timezone = timezone;
+	}
+
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Timestamp reusable) {
 		final int endPos = nextStringEndPos(bytes, startPos, limit, delimiter);
@@ -41,14 +50,16 @@ public class SqlTimestampParser extends FieldParser<Timestamp> {
 		}
 
 		if (endPos > startPos &&
-				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[(endPos - 1)]))) {
+			(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[(endPos - 1)]))) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
 			return -1;
 		}
 
 		String str = new String(bytes, startPos, endPos - startPos, ConfigConstants.DEFAULT_CHARSET);
 		try {
-			this.result = Timestamp.valueOf(str);
+			long val = TimeConvertUtils.timestampStringToUnixDate(str);
+			long offset = timezone == null? 0 : timezone.getOffset(val);
+			this.result = new Timestamp(val - offset);
 			return (endPos == limit) ? limit : endPos + delimiter.length;
 		} catch (IllegalArgumentException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);
@@ -99,11 +110,11 @@ public class SqlTimestampParser extends FieldParser<Timestamp> {
 		final int limitedLen = nextStringLength(bytes, startPos, length, delimiter);
 
 		if (limitedLen > 0 &&
-				(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[startPos + limitedLen - 1]))) {
+			(Character.isWhitespace(bytes[startPos]) || Character.isWhitespace(bytes[startPos + limitedLen - 1]))) {
 			throw new NumberFormatException("There is leading or trailing whitespace in the numeric field.");
 		}
 
 		final String str = new String(bytes, startPos, limitedLen, ConfigConstants.DEFAULT_CHARSET);
-		return Timestamp.valueOf(str);
+		return new Timestamp(TimeConvertUtils.timestampStringToUnixDate(str));
 	}
 }

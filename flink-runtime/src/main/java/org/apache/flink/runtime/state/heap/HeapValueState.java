@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.state.heap;
 
-import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalValueState;
@@ -31,9 +29,10 @@ import org.apache.flink.runtime.state.internal.InternalValueState;
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-class HeapValueState<K, N, V>
-	extends AbstractHeapState<K, N, V>
-	implements InternalValueState<K, N, V> {
+@Deprecated
+public class HeapValueState<K, N, V>
+		extends AbstractHeapState<K, N, V, ValueState<V>>
+		implements InternalValueState<K, N, V> {
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
@@ -44,12 +43,12 @@ class HeapValueState<K, N, V>
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param defaultValue The default value for the state.
 	 */
-	private HeapValueState(
-		StateTable<K, N, V> stateTable,
-		TypeSerializer<K> keySerializer,
-		TypeSerializer<V> valueSerializer,
-		TypeSerializer<N> namespaceSerializer,
-		V defaultValue) {
+	public HeapValueState(
+			StateTable<K, N, V> stateTable,
+			TypeSerializer<K> keySerializer,
+			TypeSerializer<V> valueSerializer,
+			TypeSerializer<N> namespaceSerializer,
+			V defaultValue) {
 		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
 	}
 
@@ -88,18 +87,5 @@ class HeapValueState<K, N, V>
 		}
 
 		stateTable.put(currentNamespace, value);
-	}
-
-	@SuppressWarnings("unchecked")
-	static <K, N, SV, S extends State, IS extends S> IS create(
-		StateDescriptor<S, SV> stateDesc,
-		StateTable<K, N, SV> stateTable,
-		TypeSerializer<K> keySerializer) {
-		return (IS) new HeapValueState<>(
-			stateTable,
-			keySerializer,
-			stateTable.getStateSerializer(),
-			stateTable.getNamespaceSerializer(),
-			stateDesc.getDefaultValue());
 	}
 }

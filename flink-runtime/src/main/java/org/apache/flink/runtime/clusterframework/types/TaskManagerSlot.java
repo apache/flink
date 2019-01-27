@@ -23,6 +23,8 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.resourcemanager.slotmanager.PendingSlotRequest;
 import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -35,6 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * resource profile associated.
  */
 public class TaskManagerSlot {
+	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerSlot.class);
 
 	/** The unique identification of this slot. */
 	private final SlotID slotId;
@@ -57,10 +60,13 @@ public class TaskManagerSlot {
 
 	private State state;
 
+	private long version;
+
 	public TaskManagerSlot(
 			SlotID slotId,
 			ResourceProfile resourceProfile,
-			TaskExecutorConnection taskManagerConnection) {
+			TaskExecutorConnection taskManagerConnection,
+			long initialVersion) {
 		this.slotId = checkNotNull(slotId);
 		this.resourceProfile = checkNotNull(resourceProfile);
 		this.taskManagerConnection = checkNotNull(taskManagerConnection);
@@ -68,10 +74,15 @@ public class TaskManagerSlot {
 		this.state = State.FREE;
 		this.allocationId = null;
 		this.assignedSlotRequest = null;
+		this.version = initialVersion;
 	}
 
 	public State getState() {
 		return state;
+	}
+
+	public long getVersion() {
+		return version;
 	}
 
 	public SlotID getSlotId() {
@@ -103,8 +114,15 @@ public class TaskManagerSlot {
 		return taskManagerConnection.getInstanceID();
 	}
 
+	public void increaseVersion() {
+		//TODO: handling overflow for long-running session.
+		version += 1;
+	}
+
 	public void freeSlot() {
 		Preconditions.checkState(state == State.ALLOCATED, "Slot must be allocated before freeing it.");
+
+		LOG.debug("Free slot {}", this);
 
 		state = State.FREE;
 		allocationId = null;
@@ -112,10 +130,18 @@ public class TaskManagerSlot {
 	}
 
 	public void clearPendingSlotRequest() {
-		Preconditions.checkState(state == State.PENDING, "No slot request to clear.");
+		Preconditions.checkState(state == State.PENDING || state == State.SYNCING, "No slot request to clear.");
 
 		state = State.FREE;
 		assignedSlotRequest = null;
+	}
+
+	public void syncPendingSlotRequest() {
+		Preconditions.checkState(state == State.PENDING, "No slot request to syncing.");
+
+		state = State.SYNCING;
+
+		LOG.debug("Sync pending slot {}", this);
 	}
 
 	public void assignPendingSlotRequest(PendingSlotRequest pendingSlotRequest) {
@@ -123,6 +149,8 @@ public class TaskManagerSlot {
 
 		state = State.PENDING;
 		assignedSlotRequest = Preconditions.checkNotNull(pendingSlotRequest);
+
+		LOG.debug("Assign pending slot {}", this);
 	}
 
 	public void completeAllocation(AllocationID allocationId, JobID jobId) {
@@ -135,6 +163,8 @@ public class TaskManagerSlot {
 		this.allocationId = allocationId;
 		this.jobId = jobId;
 		assignedSlotRequest = null;
+
+		LOG.debug("Complete allocation for slot {}", this);
 	}
 
 	public void updateAllocation(AllocationID allocationId, JobID jobId) {
@@ -143,6 +173,16 @@ public class TaskManagerSlot {
 		state = State.ALLOCATED;
 		this.allocationId = Preconditions.checkNotNull(allocationId);
 		this.jobId = Preconditions.checkNotNull(jobId);
+
+		LOG.debug("Update allocation for slot {}", this);
+	}
+
+	public void syncState(State state) {
+		Preconditions.checkState(this.state == State.SYNCING);
+
+		this.state = state;
+
+		LOG.debug("Syncing state to {}", state);
 	}
 
 	/**
@@ -161,6 +201,13 @@ public class TaskManagerSlot {
 	public enum State {
 		FREE,
 		PENDING,
+		SYNCING,
 		ALLOCATED
 	}
+
+	@Override
+	public String toString() {
+		return "Slot " + slotId + " [" + allocationId + " with " + state + "]";
+	}
+
 }

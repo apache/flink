@@ -91,6 +91,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	public Kafka08Fetcher(
 			SourceContext<T> sourceContext,
 			Map<KafkaTopicPartition, Long> seedPartitionsWithInitialOffsets,
+			Map<KafkaTopicPartition, Long> partitionsToEndOffsets,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			StreamingRuntimeContext runtimeContext,
@@ -102,6 +103,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 		super(
 				sourceContext,
 				seedPartitionsWithInitialOffsets,
+				partitionsToEndOffsets,
 				watermarksPeriodic,
 				watermarksPunctuated,
 				runtimeContext.getProcessingTimeService(),
@@ -122,7 +124,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void runFetchLoop() throws Exception {
+	public void runFetchLoop(boolean dynamicDiscoverEnabled) throws Exception {
 		// the map from broker to the thread that is connected to that broker
 		final Map<Node, SimpleConsumerThread<T>> brokerToThread = new HashMap<>();
 
@@ -162,6 +164,14 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 					}
 				} else {
 					// the partition already has a specific start offset and is ready to be consumed
+				}
+
+				// refine end offsets.
+				if (partition.getEndOffset() == KafkaTopicPartitionStateSentinel.LATEST_OFFSET) {
+					// this will be replaced by an actual offset in SimpleConsumerThread
+					partition.setEndOffset(OffsetRequest.LatestTime());
+				} else if (partition.getEndOffset() == KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET) {
+					partition.setEndOffset(Long.MAX_VALUE);
 				}
 			}
 
@@ -247,12 +257,10 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 					}
 				}
 
-				if (brokerToThread.size() == 0 && unassignedPartitionsQueue.isEmpty()) {
-					if (unassignedPartitionsQueue.close()) {
-						LOG.info("All consumer threads are finished, there are no more unassigned partitions. Stopping fetcher");
-						break;
-					}
+				if (brokerToThread.size() == 0 && !dynamicDiscoverEnabled) {
+					LOG.info("All consumer threads are finished, there are no more unassigned partitions. Stopping fetcher");
 					// we end up here if somebody added something to the queue in the meantime --> continue to poll queue again
+					break;
 				}
 			}
 		}

@@ -43,8 +43,13 @@ public class KafkaTopicPartitionState<KPH> {
 	/** The offset within the Kafka partition that we already processed. */
 	private volatile long offset;
 
+	/** The max offset to finish processing partition. */
+	private volatile long endOffset;
+
 	/** The offset of the Kafka partition that has been committed. */
 	private volatile long committedOffset;
+
+	private volatile boolean finished = false;
 
 	// ------------------------------------------------------------------------
 
@@ -52,6 +57,7 @@ public class KafkaTopicPartitionState<KPH> {
 		this.partition = partition;
 		this.kafkaPartitionHandle = kafkaPartitionHandle;
 		this.offset = KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET;
+		this.endOffset = KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET;
 		this.committedOffset = KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET;
 	}
 
@@ -106,11 +112,32 @@ public class KafkaTopicPartitionState<KPH> {
 		return committedOffset;
 	}
 
+	public final void setEndOffset(long offset) {
+		this.endOffset = offset;
+	}
+
+	public final long getEndOffset() {
+		return endOffset;
+	}
+
+	public final boolean isEndOffsetDefined() {
+		return endOffset != KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET;
+	}
+
 	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
 		return "Partition: " + partition + ", KafkaPartitionHandle=" + kafkaPartitionHandle
-				+ ", offset=" + (isOffsetDefined() ? String.valueOf(offset) : "(not set)");
+				+ ", offset=" + (isOffsetDefined() ? String.valueOf(offset) : "(not set) " +
+				", endOffset=" + (isEndOffsetDefined() ? String.valueOf(endOffset) : "(not set)"));
+	}
+
+	public void setFinished() {
+		finished = true;
+	}
+
+	public boolean isFinished() {
+		return finished;
 	}
 }

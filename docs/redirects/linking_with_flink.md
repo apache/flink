@@ -1,7 +1,7 @@
 ---
 title: "Linking with Flink"
 layout: redirect
-redirect: /dev/projectsetup/dependencies.html
+redirect: /start/dependencies.html
 permalink: /dev/linking_with_flink.html
 ---
 <!--

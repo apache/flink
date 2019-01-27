@@ -19,8 +19,7 @@
 package org.apache.flink.table.expressions
 
 import scala.collection.mutable
-
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.types.InternalType
 import org.apache.flink.table.validate._
 
 /**
@@ -40,7 +39,7 @@ trait InputTypeSpec extends Expression {
     * use the decimal type with caution as all numeric types would be casted to a very
     * inefficient type.
     */
-  private[flink] def expectedTypes: Seq[TypeInformation[_]]
+  private[flink] def expectedTypes: Seq[InternalType]
 
   override private[flink] def validateInput(): ValidationResult = {
     val typeMismatches = mutable.ArrayBuffer.empty[String]

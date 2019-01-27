@@ -37,13 +37,15 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import org.junit.Test;
 
-import static org.apache.flink.runtime.io.network.netty.PartitionRequestClientHandlerTest.createBufferResponse;
+import java.io.IOException;
+
 import static org.apache.flink.runtime.io.network.netty.PartitionRequestClientHandlerTest.createRemoteInputChannel;
 import static org.apache.flink.runtime.io.network.netty.PartitionRequestClientHandlerTest.createSingleInputGate;
 import static org.apache.flink.runtime.io.network.netty.PartitionRequestQueueTest.blockChannel;
@@ -89,7 +91,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 		when(inputChannel.getBufferProvider()).thenReturn(bufferProvider);
 
 		final BufferResponse receivedBuffer = createBufferResponse(
-				TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE), 0, inputChannel.getInputChannelId(), 2);
+				TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE), 0, inputChannel, 2);
 
 		final CreditBasedPartitionRequestClientHandler client = new CreditBasedPartitionRequestClientHandler();
 		client.addInputChannel(inputChannel);
@@ -117,7 +119,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 
 		final int backlog = 2;
 		final BufferResponse receivedBuffer = createBufferResponse(
-			emptyBuffer, 0, inputChannel.getInputChannelId(), backlog);
+			emptyBuffer, 0, inputChannel, backlog);
 
 		final CreditBasedPartitionRequestClientHandler client = new CreditBasedPartitionRequestClientHandler();
 		client.addInputChannel(inputChannel);
@@ -143,14 +145,15 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
 			inputGate.setBufferPool(bufferPool);
 			final int numExclusiveBuffers = 2;
-			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
+			inputGate.setNetworkProperties(networkBufferPool, numExclusiveBuffers);
+			inputGate.assignExclusiveSegments();
 
 			final CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
 			handler.addInputChannel(inputChannel);
 
 			final int backlog = 2;
 			final BufferResponse bufferResponse = createBufferResponse(
-				TestBufferFactory.createBuffer(32), 0, inputChannel.getInputChannelId(), backlog);
+				TestBufferFactory.createBuffer(32), 0, inputChannel, backlog);
 			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
 
 			assertEquals(1, inputChannel.getNumberOfQueuedBuffers());
@@ -180,7 +183,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 				0, inputChannel.getNumberOfAvailableBuffers());
 
 		final BufferResponse bufferResponse = createBufferResponse(
-			TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE), 0, inputChannel.getInputChannelId(), 2);
+			TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE), 0, inputChannel, 2);
 		handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
 
 		verify(inputChannel, times(1)).onError(any(IllegalStateException.class));
@@ -253,7 +256,8 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
 			final int numExclusiveBuffers = 2;
-			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
+			inputGate.setNetworkProperties(networkBufferPool, numExclusiveBuffers);
+			inputGate.assignExclusiveSegments();
 
 			inputChannel1.requestSubpartition(0);
 			inputChannel2.requestSubpartition(0);
@@ -273,9 +277,9 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			// The buffer response will take one available buffer from input channel, and it will trigger
 			// requesting (backlog + numExclusiveBuffers - numAvailableBuffers) floating buffers
 			final BufferResponse bufferResponse1 = createBufferResponse(
-				TestBufferFactory.createBuffer(32), 0, inputChannel1.getInputChannelId(), 1);
+				TestBufferFactory.createBuffer(32), 0, inputChannel1, 1);
 			final BufferResponse bufferResponse2 = createBufferResponse(
-				TestBufferFactory.createBuffer(32), 0, inputChannel2.getInputChannelId(), 1);
+				TestBufferFactory.createBuffer(32), 0, inputChannel2, 1);
 			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse1);
 			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse2);
 
@@ -300,7 +304,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 
 			// Trigger notify credits availability via buffer response on the condition of an un-writable channel
 			final BufferResponse bufferResponse3 = createBufferResponse(
-				TestBufferFactory.createBuffer(32), 1, inputChannel1.getInputChannelId(), 1);
+				TestBufferFactory.createBuffer(32), 1, inputChannel1, 1);
 			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse3);
 
 			assertEquals(1, inputChannel1.getUnannouncedCredit());
@@ -353,7 +357,8 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
 			final int numExclusiveBuffers = 2;
-			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
+			inputGate.setNetworkProperties(networkBufferPool, numExclusiveBuffers);
+			inputGate.assignExclusiveSegments();
 
 			inputChannel.requestSubpartition(0);
 
@@ -364,7 +369,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 
 			// Trigger request floating buffers via buffer response to notify credits available
 			final BufferResponse bufferResponse = createBufferResponse(
-				TestBufferFactory.createBuffer(32), 0, inputChannel.getInputChannelId(), 1);
+				TestBufferFactory.createBuffer(32), 0, inputChannel, 1);
 			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
 
 			assertEquals(2, inputChannel.getUnannouncedCredit());
@@ -387,5 +392,46 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			networkBufferPool.destroyAllBufferPools();
 			networkBufferPool.destroy();
 		}
+	}
+
+	private BufferResponse createBufferResponse(
+		Buffer buffer,
+		int sequenceNumber,
+		RemoteInputChannel receivingChannel,
+		int backlog) throws IOException {
+
+		// Mock buffer to serialize
+		BufferResponse resp = new BufferResponse(buffer, sequenceNumber, receivingChannel.getInputChannelId(), backlog);
+
+		ByteBuf serialized = resp.write(UnpooledByteBufAllocator.DEFAULT);
+
+		// Skip general header bytes
+		serialized.readBytes(NettyMessage.FRAME_HEADER_LENGTH);
+
+		// Deserialize the bytes again. We have to go this way, because we only partly deserialize
+		// the header of the response and wait for a buffer from the buffer pool to copy the payload
+		// data into.
+		BufferResponse deserialized = BufferResponse.readFrom(serialized, new NetworkBufferAllocator() {
+			@Override
+			public Buffer allocatePooledNetworkBuffer(InputChannelID receiverId, int size) {
+				Buffer buffer = receivingChannel.requestBuffer();
+				if (buffer != null) {
+					buffer.asByteBuf().capacity(size);
+				}
+
+				return buffer;
+			}
+
+			@Override
+			public Buffer allocateUnPooledNetworkBuffer(int size) {
+				throw new UnsupportedOperationException();
+			}
+		});
+
+		if (deserialized.getBuffer() != null) {
+			deserialized.getBuffer().writeBytes(buffer.asByteBuf());
+		}
+
+		return deserialized;
 	}
 }

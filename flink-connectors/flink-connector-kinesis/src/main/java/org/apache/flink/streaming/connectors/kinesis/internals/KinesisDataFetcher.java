@@ -21,10 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kinesis.KinesisShardAssigner;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.metrics.KinesisConsumerMetricConstants;
@@ -38,10 +35,7 @@ import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.Preconditions;
 
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
@@ -57,7 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -170,9 +163,6 @@ public class KinesisDataFetcher<T> {
 	/** Reference to the first error thrown by any of the {@link ShardConsumer} threads. */
 	private final AtomicReference<Throwable> error;
 
-	/** The Kinesis proxy factory that will be used to create instances for discovery and shard consumers. */
-	private final FlinkKinesisProxyFactory kinesisProxyFactory;
-
 	/** The Kinesis proxy that the fetcher will be using to discover new shards. */
 	private final KinesisProxyInterface kinesis;
 
@@ -189,35 +179,6 @@ public class KinesisDataFetcher<T> {
 
 	private volatile boolean running = true;
 
-	private final AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner;
-
-	/**
-	 * The watermark related state for each shard consumer. Entries in this map will be created when shards
-	 * are discovered. After recovery, this shard map will be recreated, possibly with different shard index keys,
-	 * since those are transient and not part of checkpointed state.
-	 */
-	private ConcurrentHashMap<Integer, ShardWatermarkState> shardWatermarks = new ConcurrentHashMap<>();
-
-	/**
-	 * The most recent watermark, calculated from the per shard watermarks. The initial value will never be emitted and
-	 * also apply after recovery. The fist watermark that will be emitted is derived from actually consumed records.
-	 * In case of recovery and replay, the watermark will rewind, consistent wth the shard consumer sequence.
-	 */
-	private long lastWatermark = Long.MIN_VALUE;
-
-	/**
-	 * The time span since last consumed record, after which a shard will be considered idle for purpose of watermark
-	 * calculation. A positive value will allow the watermark to progress even when some shards don't receive new records.
-	 */
-	private long shardIdleIntervalMillis = ConsumerConfigConstants.DEFAULT_SHARD_IDLE_INTERVAL_MILLIS;
-
-	/**
-	 * Factory to create Kinesis proxy instances used by a fetcher.
-	 */
-	public interface FlinkKinesisProxyFactory {
-		KinesisProxyInterface create(Properties configProps);
-	}
-
 	/**
 	 * Creates a Kinesis Data Fetcher.
 	 *
@@ -232,8 +193,7 @@ public class KinesisDataFetcher<T> {
 							RuntimeContext runtimeContext,
 							Properties configProps,
 							KinesisDeserializationSchema<T> deserializationSchema,
-							KinesisShardAssigner shardAssigner,
-							AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner) {
+							KinesisShardAssigner shardAssigner) {
 		this(streams,
 			sourceContext,
 			sourceContext.getCheckpointLock(),
@@ -241,11 +201,10 @@ public class KinesisDataFetcher<T> {
 			configProps,
 			deserializationSchema,
 			shardAssigner,
-			periodicWatermarkAssigner,
 			new AtomicReference<>(),
 			new ArrayList<>(),
 			createInitialSubscribedStreamsToLastDiscoveredShardsState(streams),
-			KinesisProxy::create);
+			KinesisProxy.create(configProps));
 	}
 
 	@VisibleForTesting
@@ -256,11 +215,10 @@ public class KinesisDataFetcher<T> {
 								Properties configProps,
 								KinesisDeserializationSchema<T> deserializationSchema,
 								KinesisShardAssigner shardAssigner,
-								AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner,
 								AtomicReference<Throwable> error,
 								List<KinesisStreamShardState> subscribedShardsState,
 								HashMap<String, String> subscribedStreamsToLastDiscoveredShardIds,
-								FlinkKinesisProxyFactory kinesisProxyFactory) {
+								KinesisProxyInterface kinesis) {
 		this.streams = checkNotNull(streams);
 		this.configProps = checkNotNull(configProps);
 		this.sourceContext = checkNotNull(sourceContext);
@@ -270,9 +228,7 @@ public class KinesisDataFetcher<T> {
 		this.indexOfThisConsumerSubtask = runtimeContext.getIndexOfThisSubtask();
 		this.deserializationSchema = checkNotNull(deserializationSchema);
 		this.shardAssigner = checkNotNull(shardAssigner);
-		this.periodicWatermarkAssigner = periodicWatermarkAssigner;
-		this.kinesisProxyFactory = checkNotNull(kinesisProxyFactory);
-		this.kinesis = kinesisProxyFactory.create(configProps);
+		this.kinesis = checkNotNull(kinesis);
 
 		this.consumerMetricGroup = runtimeContext.getMetricGroup()
 			.addGroup(KinesisConsumerMetricConstants.KINESIS_CONSUMER_METRICS_GROUP);
@@ -283,29 +239,6 @@ public class KinesisDataFetcher<T> {
 
 		this.shardConsumersExecutor =
 			createShardConsumersThreadPool(runtimeContext.getTaskNameWithSubtasks());
-	}
-
-	/**
-	 * Create a new shard consumer.
-	 * Override this method to customize shard consumer behavior in subclasses.
-	 * @param subscribedShardStateIndex the state index of the shard this consumer is subscribed to
-	 * @param subscribedShard the shard this consumer is subscribed to
-	 * @param lastSequenceNum the sequence number in the shard to start consuming
-	 * @param shardMetricsReporter the reporter to report metrics to
-	 * @return shard consumer
-	 */
-	protected ShardConsumer createShardConsumer(
-		Integer subscribedShardStateIndex,
-		StreamShardHandle subscribedShard,
-		SequenceNumber lastSequenceNum,
-		ShardMetricsReporter shardMetricsReporter) {
-		return new ShardConsumer<>(
-			this,
-			subscribedShardStateIndex,
-			subscribedShard,
-			lastSequenceNum,
-			this.kinesisProxyFactory.create(configProps),
-			shardMetricsReporter);
 	}
 
 	/**
@@ -364,25 +297,13 @@ public class KinesisDataFetcher<T> {
 					}
 
 				shardConsumersExecutor.submit(
-					createShardConsumer(
+					new ShardConsumer<>(
+						this,
 						seededStateIndex,
 						subscribedShardsState.get(seededStateIndex).getStreamShardHandle(),
 						subscribedShardsState.get(seededStateIndex).getLastProcessedSequenceNum(),
 						registerShardMetrics(consumerMetricGroup, subscribedShardsState.get(seededStateIndex))));
 			}
-		}
-
-        // start periodic watermark emitter, if a watermark assigner was configured
-		if (periodicWatermarkAssigner != null) {
-			long periodicWatermarkIntervalMillis = runtimeContext.getExecutionConfig().getAutoWatermarkInterval();
-			if (periodicWatermarkIntervalMillis > 0) {
-				ProcessingTimeService timerService = ((StreamingRuntimeContext) runtimeContext).getProcessingTimeService();
-				LOG.info("Starting periodic watermark emitter with interval {}", periodicWatermarkIntervalMillis);
-				new PeriodicWatermarkEmitter(timerService, periodicWatermarkIntervalMillis).start();
-			}
-			this.shardIdleIntervalMillis = Long.parseLong(
-				getConsumerConfiguration().getProperty(ConsumerConfigConstants.SHARD_IDLE_INTERVAL_MILLIS,
-					Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_IDLE_INTERVAL_MILLIS)));
 		}
 
 		// ------------------------------------------------------------------------
@@ -423,7 +344,8 @@ public class KinesisDataFetcher<T> {
 				}
 
 				shardConsumersExecutor.submit(
-					createShardConsumer(
+					new ShardConsumer<>(
+						this,
 						newStateIndex,
 						newShardState.getStreamShardHandle(),
 						newShardState.getLastProcessedSequenceNum(),
@@ -518,14 +440,9 @@ public class KinesisDataFetcher<T> {
 		if (lastSeenShardIdOfStream == null) {
 			// if not previously set, simply put as the last seen shard id
 			this.subscribedStreamsToLastDiscoveredShardIds.put(stream, shardId);
-		} else if (shouldAdvanceLastDiscoveredShardId(shardId, lastSeenShardIdOfStream)) {
+		} else if (StreamShardHandle.compareShardIds(shardId, lastSeenShardIdOfStream) > 0) {
 			this.subscribedStreamsToLastDiscoveredShardIds.put(stream, shardId);
 		}
-	}
-
-	/** Given lastSeenShardId, check if last discovered shardId should be advanced. */
-	protected boolean shouldAdvanceLastDiscoveredShardId(String shardId, String lastSeenShardIdOfStream) {
-		return (StreamShardHandle.compareShardIds(shardId, lastSeenShardIdOfStream) > 0);
 	}
 
 	/**
@@ -597,18 +514,6 @@ public class KinesisDataFetcher<T> {
 	 * @param lastSequenceNumber the last sequence number value to update
 	 */
 	protected void emitRecordAndUpdateState(T record, long recordTimestamp, int shardStateIndex, SequenceNumber lastSequenceNumber) {
-		// track per shard watermarks and emit timestamps extracted from the record,
-		// when a watermark assigner was configured.
-		if (periodicWatermarkAssigner != null) {
-			ShardWatermarkState sws = shardWatermarks.get(shardStateIndex);
-			Preconditions.checkNotNull(
-				sws, "shard watermark state initialized in registerNewSubscribedShardState");
-			recordTimestamp =
-				sws.periodicWatermarkAssigner.extractTimestamp(record, sws.lastRecordTimestamp);
-			sws.lastRecordTimestamp = recordTimestamp;
-			sws.lastUpdated = getCurrentTimeMillis();
-		}
-
 		synchronized (checkpointLock) {
 			if (record != null) {
 				sourceContext.collectWithTimestamp(record, recordTimestamp);
@@ -672,110 +577,7 @@ public class KinesisDataFetcher<T> {
 				this.numberOfActiveShards.incrementAndGet();
 			}
 
-			int shardStateIndex = subscribedShardsState.size() - 1;
-
-			// track all discovered shards for watermark determination
-			ShardWatermarkState sws = shardWatermarks.get(shardStateIndex);
-			if (sws == null) {
-				sws = new ShardWatermarkState();
-				try {
-					sws.periodicWatermarkAssigner = InstantiationUtil.clone(periodicWatermarkAssigner);
-				} catch (Exception e) {
-					throw new RuntimeException("Failed to instantiate new WatermarkAssigner", e);
-				}
-				sws.lastUpdated = getCurrentTimeMillis();
-				sws.lastRecordTimestamp = Long.MIN_VALUE;
-				shardWatermarks.put(shardStateIndex, sws);
-			}
-
-			return shardStateIndex;
-		}
-	}
-
-	/**
-	 * Return the current system time. Allow tests to override this to simulate progress for watermark
-	 * logic.
-	 *
-	 * @return current processing time
-	 */
-	@VisibleForTesting
-	protected long getCurrentTimeMillis() {
-		return System.currentTimeMillis();
-	}
-
-	/**
-	 * Called periodically to emit a watermark. Checks all shards for the current event time
-	 * watermark, and possibly emits the next watermark.
-	 *
-	 * <p>Shards that have not received an update for a certain interval are considered inactive so as
-	 * to not hold back the watermark indefinitely. When all shards are inactive, the subtask will be
-	 * marked as temporarily idle to not block downstream operators.
-	 */
-	@VisibleForTesting
-	protected void emitWatermark() {
-		LOG.debug("Evaluating watermark for subtask {} time {}", indexOfThisConsumerSubtask, getCurrentTimeMillis());
-		long potentialWatermark = Long.MAX_VALUE;
-		long idleTime =
-			(shardIdleIntervalMillis > 0)
-				? getCurrentTimeMillis() - shardIdleIntervalMillis
-				: Long.MAX_VALUE;
-
-		for (Map.Entry<Integer, ShardWatermarkState> e : shardWatermarks.entrySet()) {
-			// consider only active shards, or those that would advance the watermark
-			Watermark w = e.getValue().periodicWatermarkAssigner.getCurrentWatermark();
-			if (w != null && (e.getValue().lastUpdated >= idleTime || w.getTimestamp() > lastWatermark)) {
-				potentialWatermark = Math.min(potentialWatermark, w.getTimestamp());
-			}
-		}
-
-		// advance watermark if possible (watermarks can only be ascending)
-		if (potentialWatermark == Long.MAX_VALUE) {
-			if (shardWatermarks.isEmpty() || shardIdleIntervalMillis > 0) {
-				LOG.debug("No active shard for subtask {}, marking the source idle.",
-					indexOfThisConsumerSubtask);
-				// no active shard, signal downstream operators to not wait for a watermark
-				sourceContext.markAsTemporarilyIdle();
-			}
-		} else if (potentialWatermark > lastWatermark) {
-			LOG.debug("Emitting watermark {} from subtask {}",
-				potentialWatermark,
-				indexOfThisConsumerSubtask);
-			sourceContext.emitWatermark(new Watermark(potentialWatermark));
-			lastWatermark = potentialWatermark;
-		}
-	}
-
-	/** Per shard tracking of watermark and last activity. */
-	private static class ShardWatermarkState<T> {
-		private AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner;
-		private volatile long lastRecordTimestamp;
-		private volatile long lastUpdated;
-	}
-
-	/**
-	 * The periodic watermark emitter. In its given interval, it checks all shards for the current
-	 * event time watermark, and possibly emits the next watermark.
-	 */
-	private class PeriodicWatermarkEmitter implements ProcessingTimeCallback {
-
-		private final ProcessingTimeService timerService;
-		private final long interval;
-
-		PeriodicWatermarkEmitter(ProcessingTimeService timerService, long autoWatermarkInterval) {
-			this.timerService = checkNotNull(timerService);
-			this.interval = autoWatermarkInterval;
-		}
-
-		public void start() {
-			LOG.debug("registering periodic watermark timer with interval {}", interval);
-			timerService.registerTimer(timerService.getCurrentProcessingTime() + interval, this);
-		}
-
-		@Override
-		public void onProcessingTime(long timestamp) {
-			emitWatermark();
-			// schedule the next watermark
-			timerService.registerTimer(timerService.getCurrentProcessingTime() + interval, this);
+			return subscribedShardsState.size() - 1;
 		}
 	}
 
@@ -796,14 +598,7 @@ public class KinesisDataFetcher<T> {
 				shardState.getStreamShardHandle().getShard().getShardId());
 
 		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.MILLIS_BEHIND_LATEST_GAUGE, shardMetrics::getMillisBehindLatest);
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.MAX_RECORDS_PER_FETCH, shardMetrics::getMaxNumberOfRecordsPerFetch);
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.NUM_AGGREGATED_RECORDS_PER_FETCH, shardMetrics::getNumberOfAggregatedRecords);
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.NUM_DEAGGREGATED_RECORDS_PER_FETCH, shardMetrics::getNumberOfDeaggregatedRecords);
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.AVG_RECORD_SIZE_BYTES, shardMetrics::getAverageRecordSizeBytes);
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.BYTES_PER_READ, shardMetrics::getBytesPerRead);
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.RUNTIME_LOOP_NANOS, shardMetrics::getRunLoopTimeNanos);
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.LOOP_FREQUENCY_HZ, shardMetrics::getLoopFrequencyHz);
-		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.SLEEP_TIME_MILLIS, shardMetrics::getSleepTimeMillis);
+
 		return shardMetrics;
 	}
 

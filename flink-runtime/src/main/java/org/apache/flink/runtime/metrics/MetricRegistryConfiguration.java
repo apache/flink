@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -67,18 +66,14 @@ public class MetricRegistryConfiguration {
 	// contains for every configured reporter its name and the configuration object
 	private final List<Tuple2<String, Configuration>> reporterConfigurations;
 
-	private final long queryServiceMessageSizeLimit;
-
 	public MetricRegistryConfiguration(
 		ScopeFormats scopeFormats,
 		char delimiter,
-		List<Tuple2<String, Configuration>> reporterConfigurations,
-		long queryServiceMessageSizeLimit) {
+		List<Tuple2<String, Configuration>> reporterConfigurations) {
 
 		this.scopeFormats = Preconditions.checkNotNull(scopeFormats);
 		this.delimiter = delimiter;
 		this.reporterConfigurations = Preconditions.checkNotNull(reporterConfigurations);
-		this.queryServiceMessageSizeLimit = queryServiceMessageSizeLimit;
 	}
 
 	// ------------------------------------------------------------------------
@@ -95,10 +90,6 @@ public class MetricRegistryConfiguration {
 
 	public List<Tuple2<String, Configuration>> getReporterConfigurations() {
 		return reporterConfigurations;
-	}
-
-	public long getQueryServiceMessageSizeLimit() {
-		return queryServiceMessageSizeLimit;
 	}
 
 	// ------------------------------------------------------------------------
@@ -169,12 +160,7 @@ public class MetricRegistryConfiguration {
 			}
 		}
 
-		final long maximumFrameSize = AkkaRpcServiceUtils.extractMaximumFramesize(configuration);
-
-		// padding to account for serialization overhead
-		final long messageSizeLimitPadding = 256;
-
-		return new MetricRegistryConfiguration(scopeFormats, delim, reporterConfigurations, maximumFrameSize - messageSizeLimitPadding);
+		return new MetricRegistryConfiguration(scopeFormats, delim, reporterConfigurations);
 	}
 
 	public static MetricRegistryConfiguration defaultMetricRegistryConfiguration() {

@@ -20,11 +20,10 @@ package org.apache.flink.table.api.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.batch.table.JoinTest.Merger
+import org.apache.flink.table.api.functions.ScalarFunction
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.utils.TableTestBase
-import org.apache.flink.table.utils.TableTestUtil._
-import org.junit.Test
+import org.apache.flink.table.util.TableTestBase
+import org.junit.{Ignore, Test}
 
 class JoinTest extends TableTestBase {
 
@@ -36,28 +35,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.leftOuterJoin(s, 'a === 'z).select('b, 'y)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(1),
-          term("select", "y", "z")
-        ),
-        term("where", "=(a, z)"),
-        term("join", "a", "b", "y", "z"),
-        term("joinType", "LeftOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(joined, expected)
+    util.verifyPlan(joined)
   }
 
   @Test
@@ -68,28 +46,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.leftOuterJoin(s, 'a === 'z && 'b < 2).select('b, 'y)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(1),
-          term("select", "y", "z")
-        ),
-        term("where", "AND(=(a, z), <(b, 2))"),
-        term("join", "a", "b", "y", "z"),
-        term("joinType", "LeftOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(joined, expected)
+    util.verifyPlan(joined)
   }
 
   @Test
@@ -100,24 +57,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.leftOuterJoin(s, 'a === 'z && 'b < 'x).select('b, 'y)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        batchTableNode(1),
-        term("where", "AND(=(a, z), <(b, x))"),
-        term("join", "a", "b", "x", "y", "z"),
-        term("joinType", "LeftOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(joined, expected)
+    util.verifyPlan(joined)
   }
 
   @Test
@@ -128,28 +68,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.rightOuterJoin(s, 'a === 'z).select('b, 'y)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(1),
-          term("select", "y", "z")
-        ),
-        term("where", "=(a, z)"),
-        term("join", "a", "b", "y", "z"),
-        term("joinType", "RightOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(joined, expected)
+    util.verifyPlan(joined)
   }
 
   @Test
@@ -160,28 +79,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.rightOuterJoin(s, 'a === 'z && 'x < 2).select('b, 'x)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(1),
-          term("select", "x", "z")
-        ),
-        term("where", "AND(=(a, z), <(x, 2))"),
-        term("join", "a", "b", "x", "z"),
-        term("joinType", "RightOuterJoin")
-      ),
-      term("select", "b", "x")
-    )
-
-    util.verifyTable(joined, expected)
+    util.verifyPlan(joined)
   }
 
   @Test
@@ -192,24 +90,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.rightOuterJoin(s, 'a === 'z && 'b < 'x).select('b, 'y)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        batchTableNode(1),
-        term("where", "AND(=(a, z), <(b, x))"),
-        term("join", "a", "b", "x", "y", "z"),
-        term("joinType", "RightOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(joined, expected)
+    util.verifyPlan(joined)
   }
 
   @Test
@@ -220,28 +101,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.fullOuterJoin(s, 'a === 'z).select('b, 'y)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(1),
-          term("select", "y", "z")
-        ),
-        term("where", "=(a, z)"),
-        term("join", "a", "b", "y", "z"),
-        term("joinType", "FullOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(joined, expected)
+    util.verifyPlan(joined)
   }
 
   @Test
@@ -252,28 +112,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.fullOuterJoin(s, 'a === 'z && 'b < 2).select('b, 'y)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(1),
-          term("select", "y", "z")
-        ),
-        term("where", "AND(=(a, z), <(b, 2))"),
-        term("join", "a", "b", "y", "z"),
-        term("joinType", "FullOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(joined, expected)
+    util.verifyPlan(joined)
   }
 
   @Test
@@ -284,26 +123,11 @@ class JoinTest extends TableTestBase {
 
     val joined = t.fullOuterJoin(s, 'a === 'z && 'b < 'x).select('b, 'y)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        batchTableNode(1),
-        term("where", "AND(=(a, z), <(b, x))"),
-        term("join", "a", "b", "x", "y", "z"),
-        term("joinType", "FullOuterJoin")
-      ),
-      term("select", "b", "y")
-    )
-
-    util.verifyTable(joined, expected)
+    util.verifyPlan(joined)
   }
 
+  // TODO [FLINK-7942] [table] Reduce aliasing in RexNodes
+  @Ignore
   @Test
   def testFilterJoinRule(): Unit = {
     val util = batchTestUtil()
@@ -315,29 +139,58 @@ class JoinTest extends TableTestBase {
       .select(Merger('c, 'c0) as 'c1)
       .where('c1 >= 0)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "b", "c")
-        ),
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(1),
-          term("select", "e", "f")
-        ),
-        term("where", "=(b, e)"),
-        term("join", "b", "c", "e", "f"),
-        term("joinType", "LeftOuterJoin")
-      ),
-      term("select", "Merger$(c, Merger$(c, f)) AS c1"),
-      term("where", ">=(Merger$(c, Merger$(c, f)), 0)")
-    )
+    util.verifyPlan(results)
+  }
 
-    util.verifyTable(results, expected)
+  @Test
+  def testFullJoinNoEquiJoinPredicate(): Unit = {
+    val util = batchTestUtil()
+    val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
+
+    util.verifyPlan(ds2.fullOuterJoin(ds1, 'b < 'd).select('c, 'g))
+  }
+
+  @Test
+  def testLeftJoinNoEquiJoinPredicate(): Unit = {
+    val util = batchTestUtil()
+    val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
+
+    util.verifyPlan(ds2.leftOuterJoin(ds1, 'b < 'd).select('c, 'g))
+  }
+
+  @Test
+  def testRightJoinNoEquiJoinPredicate(): Unit = {
+    val util = batchTestUtil()
+    val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
+
+    util.verifyPlan(ds2.rightOuterJoin(ds1, 'b < 'd).select('c, 'g))
+  }
+
+  @Test
+  def testNoEqualityJoinPredicate1(): Unit = {
+    val util = batchTestUtil()
+    val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
+
+    util.verifyPlan(ds1.join(ds2)
+        // must fail. No equality join predicate
+        .where('d === 'f)
+        .select('c, 'g))
+  }
+
+  @Test
+  def testNoEqualityJoinPredicate2(): Unit = {
+    val util = batchTestUtil()
+    val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
+
+    util.verifyPlan(ds1.join(ds2)
+        // must fail. No equality join predicate
+        .where('a < 'd)
+        .select('c, 'g))
   }
 }
 

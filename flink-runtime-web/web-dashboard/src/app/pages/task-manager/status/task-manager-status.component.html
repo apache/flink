@@ -1,0 +1,51 @@
+<!--
+  ~   Licensed to the Apache Software Foundation (ASF) under one
+  ~   or more contributor license agreements.  See the NOTICE file
+  ~   distributed with this work for additional information
+  ~   regarding copyright ownership.  The ASF licenses this file
+  ~   to you under the Apache License, Version 2.0 (the
+  ~   "License"); you may not use this file except in compliance
+  ~   with the License.  You may obtain a copy of the License at
+  ~       http://www.apache.org/licenses/LICENSE-2.0
+  ~   Unless required by applicable law or agreed to in writing, software
+  ~   distributed under the License is distributed on an "AS IS" BASIS,
+  ~   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~   See the License for the specific language governing permissions and
+  ~   limitations under the License.
+  -->
+
+<div *ngIf="!isLoading" class="wrapper">
+  <div class="name">
+    <h2>{{ detail.path }}</h2>
+    <nz-divider [nzType]="'vertical'"></nz-divider>
+    <span>{{ detail.id }}</span>
+  </div>
+  <div class="status">
+    <div class="field">
+      <span>Data Port:</span>
+      <span>{{ detail.dataPort }}</span>
+    </div>
+    <nz-divider [nzType]="'vertical'"></nz-divider>
+    <div class="field">
+      <span>Free Slots / All Slots:</span>
+      <span>{{ detail.freeSlots }} / {{ detail.slotsNumber }}</span>
+    </div>
+    <nz-divider [nzType]="'vertical'"></nz-divider>
+    <div class="field">
+      <span>CPU Cores:</span>
+      <span>{{ detail.hardware.cpuCores }}</span>
+    </div>
+    <nz-divider [nzType]="'vertical'"></nz-divider>
+    <div class="field">
+      <span>Physical Memory:</span>
+      <span>{{ detail.hardware.physicalMemory | nzHumanizeBytes }}</span>
+    </div>
+    <nz-divider [nzType]="'vertical'"></nz-divider>
+    <div class="field">
+      <span>JVM Heap Size:</span>
+      <span>{{ detail.hardware.freeMemory | nzHumanizeBytes }}</span>
+    </div>
+  </div>
+  <nz-navigation-tab [nzNavigationItems]="listOfNavigation"></nz-navigation-tab>
+</div>
+<nz-card nzLoading *ngIf="isLoading" [nzBordered]="false"></nz-card>

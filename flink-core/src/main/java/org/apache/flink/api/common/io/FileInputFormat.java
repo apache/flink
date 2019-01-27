@@ -33,12 +33,14 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.LocatedFileStatus;
 import org.apache.flink.core.fs.Path;
 
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,6 +49,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -84,7 +94,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 * unsplittable files.
 	 */
 	protected static final Map<String, InflaterInputStreamFactory<?>> INFLATER_INPUT_STREAM_FACTORIES =
-			new HashMap<String, InflaterInputStreamFactory<?>>();
+			new HashMap<>();
 	
 	/**
 	 * The splitLength is set to -1L for reading the whole split.
@@ -225,7 +235,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 * Some file input formats are not splittable on a block level (avro, deflate)
 	 * Therefore, the FileInputFormat can only read whole files.
 	 */
-	protected boolean unsplittable = false;
+	protected volatile boolean unsplittable = false;
 
 	/**
 	 * The flag to specify whether recursive traversal of the input directory
@@ -237,6 +247,11 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 * Files filter for determining what files/directories should be included.
 	 */
 	private FilePathFilter filesFilter = new GlobFilePathFilter();
+
+	/**
+	 * thread pool size for split provider.
+	 */
+	private int splitProviderThreadPoolSize = Runtime.getRuntime().availableProcessors();
 
 	// --------------------------------------------------------------------------------------------
 	//  Constructors
@@ -253,7 +268,24 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	// --------------------------------------------------------------------------------------------
 	//  Getters/setters for the configurable parameters
 	// --------------------------------------------------------------------------------------------
-	
+
+	/**
+	 *
+	 * @return The thread pool size when generate splits.
+	 */
+	public int getSplitProviderThreadPoolSize() {
+		return splitProviderThreadPoolSize;
+	}
+
+	/**
+	 * Set the thread pool size when generate splits.
+	 *
+	 * @param splitProviderThreadPoolSize The thread pool size when generate splits.
+	 */
+	public void setSplitProviderThreadPoolSize(int splitProviderThreadPoolSize) {
+		this.splitProviderThreadPoolSize = splitProviderThreadPoolSize;
+	}
+
 	/**
 	 *
 	 * @return The path of the file to read.
@@ -573,125 +605,248 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		if (minNumSplits < 1) {
 			throw new IllegalArgumentException("Number of input splits has to be at least 1.");
 		}
-		
-		// take the desired number of splits into account
-		minNumSplits = Math.max(minNumSplits, this.numSplits);
-		
-		final List<FileInputSplit> inputSplits = new ArrayList<FileInputSplit>(minNumSplits);
 
-		// get all the files that are involved in the splits
-		List<FileStatus> files = new ArrayList<>();
-		long totalLength = 0;
+		final ExecutorService executorService = Executors.newFixedThreadPool(splitProviderThreadPoolSize, new ThreadFactory() {
+			private int count = 0;
+			@Override
+			public Thread newThread(@Nonnull Runnable r) {
+				Thread thread = new Thread(r);
+				thread.setDaemon(true);
+				thread.setName("SplitProvider-" + (count++));
+				return thread;
+			}
+		});
 
-		for (Path path : getFilePaths()) {
+		try {
+			LOG.info("Start to get all files");
+
+			final Path[] paths = getFilePaths();
+
+			// get all the files that are involved in the splits
+			final BlockingQueue<LocatedFileStatus> files = new LinkedBlockingQueue<>();
+
+			getFileStatus(paths, files, executorService);
+
+			LOG.info("Start to create all file splits");
+
+			final FileInputSplit[] inputSplits = createFileInputSplits(minNumSplits, files, executorService);
+
+			LOG.info("Finish create input splits");
+
+			return inputSplits;
+		} catch (Exception e) {
+			throw new IOException(e);
+		} finally {
+			executorService.shutdownNow();
+		}
+	}
+
+	protected void getFileStatus(
+		Path[] paths,
+		BlockingQueue<LocatedFileStatus> files,
+		ExecutorService executorService
+	) throws InterruptedException, IOException, ExecutionException {
+
+		final BlockingQueue<Future> tasks = new LinkedBlockingQueue<>();
+
+		// trigger concurrent get
+		for (Path path : paths) {
 			final FileSystem fs = path.getFileSystem();
-			final FileStatus pathFile = fs.getFileStatus(path);
-
-			if (pathFile.isDir()) {
-				totalLength += addFilesInDir(path, files, true);
-			} else {
-				testForUnsplittable(pathFile);
-
-				files.add(pathFile);
-				totalLength += pathFile.getLen();
-			}
+			getFileStatusInternal(fs, path, files, tasks, executorService, true);
 		}
 
-		// returns if unsplittable
-		if (unsplittable) {
-			int splitNum = 0;
-			for (final FileStatus file : files) {
-				final FileSystem fs = file.getPath().getFileSystem();
-				final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, file.getLen());
-				Set<String> hosts = new HashSet<String>();
-				for(BlockLocation block : blocks) {
-					hosts.addAll(Arrays.asList(block.getHosts()));
-				}
-				long len = file.getLen();
-				if(testForUnsplittable(file)) {
-					len = READ_WHOLE_SPLIT_FLAG;
-				}
-				FileInputSplit fis = new FileInputSplit(splitNum++, file.getPath(), 0, len,
-						hosts.toArray(new String[hosts.size()]));
-				inputSplits.add(fis);
-			}
-			return inputSplits.toArray(new FileInputSplit[inputSplits.size()]);
+		// wait all task finish
+		while(!tasks.isEmpty()) {
+			tasks.poll().get();
 		}
-		
+	}
 
-		final long maxSplitSize = totalLength / minNumSplits + (totalLength % minNumSplits == 0 ? 0 : 1);
+	private void getFileStatusInternal(
+		FileSystem fs,
+		Path path,
+		BlockingQueue<LocatedFileStatus> files,
+		BlockingQueue<Future> tasks,
+		ExecutorService executorService,
+		boolean logExcludedFiles
+	) throws IOException {
 
-		// now that we have the files, generate the splits
-		int splitNum = 0;
-		for (final FileStatus file : files) {
+		LocatedFileStatus[] fileStatuses = fs.listLocatedStatus(path);
+		if (fileStatuses == null) {
+			throw new IOException(path + " not existed");
+		}
 
-			final FileSystem fs = file.getPath().getFileSystem();
-			final long len = file.getLen();
-			final long blockSize = file.getBlockSize();
-			
-			final long minSplitSize;
-			if (this.minSplitSize <= blockSize) {
-				minSplitSize = this.minSplitSize;
-			}
-			else {
-				if (LOG.isWarnEnabled()) {
-					LOG.warn("Minimal split size of " + this.minSplitSize + " is larger than the block size of " + 
-						blockSize + ". Decreasing minimal split size to block size.");
-				}
-				minSplitSize = blockSize;
-			}
-
-			final long splitSize = Math.max(minSplitSize, Math.min(maxSplitSize, blockSize));
-			final long halfSplit = splitSize >>> 1;
-
-			final long maxBytesForLastSplit = (long) (splitSize * MAX_SPLIT_SIZE_DISCREPANCY);
-
-			if (len > 0) {
-
-				// get the block locations and make sure they are in order with respect to their offset
-				final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, len);
-				Arrays.sort(blocks);
-
-				long bytesUnassigned = len;
-				long position = 0;
-
-				int blockIndex = 0;
-
-				while (bytesUnassigned > maxBytesForLastSplit) {
-					// get the block containing the majority of the data
-					blockIndex = getBlockIndexForPosition(blocks, position, halfSplit, blockIndex);
-					// create a new split
-					FileInputSplit fis = new FileInputSplit(splitNum++, file.getPath(), position, splitSize,
-						blocks[blockIndex].getHosts());
-					inputSplits.add(fis);
-
-					// adjust the positions
-					position += splitSize;
-					bytesUnassigned -= splitSize;
-				}
-
-				// assign the last split
-				if (bytesUnassigned > 0) {
-					blockIndex = getBlockIndexForPosition(blocks, position, halfSplit, blockIndex);
-					final FileInputSplit fis = new FileInputSplit(splitNum++, file.getPath(), position,
-						bytesUnassigned, blocks[blockIndex].getHosts());
-					inputSplits.add(fis);
-				}
-			} else {
-				// special case with a file of zero bytes size
-				final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, 0);
-				String[] hosts;
-				if (blocks.length > 0) {
-					hosts = blocks[0].getHosts();
+		for (LocatedFileStatus fileStatus: fileStatuses) {
+			if (fileStatus.isDir()) {
+				if (enumerateNestedFiles && acceptFile(fileStatus)) {
+					tasks.add(executorService.submit(() -> {
+						try {
+							getFileStatusInternal(fs, fileStatus.getPath(), files, tasks, executorService, logExcludedFiles);
+						} catch (IOException e) {
+							LOG.error("Fail to get file status.", e);
+							throw new RuntimeException(e);
+						}
+					}));
 				} else {
-					hosts = new String[0];
+					if (logExcludedFiles && LOG.isDebugEnabled()) {
+						LOG.debug("Directory " + fileStatus.getPath().toString() + " did not pass the file-filter and is excluded.");
+					}
 				}
-				final FileInputSplit fis = new FileInputSplit(splitNum++, file.getPath(), 0, 0, hosts);
-				inputSplits.add(fis);
+			} else { // !fileStatus.isDir()
+				if (acceptFile(fileStatus)) {
+					files.add(fileStatus);
+					testForUnsplittable(fileStatus);
+				} else {
+					if (logExcludedFiles && LOG.isDebugEnabled()) {
+						LOG.debug("Directory " + fileStatus.getPath().toString() + " did not pass the file-filter and is excluded.");
+					}
+				}
+			}
+		}
+	}
+
+
+	private FileInputSplit[] createFileInputSplits(
+		int minNumSplits,
+		BlockingQueue<LocatedFileStatus> files,
+		ExecutorService executorService
+	) throws ExecutionException, InterruptedException {
+
+		BlockingQueue<Future> tasks = new LinkedBlockingQueue<>();
+		AtomicInteger splitNumber = new AtomicInteger();
+		BlockingQueue<FileInputSplit> inputSplits = new LinkedBlockingQueue<>();
+
+		if (unsplittable) {
+			for (LocatedFileStatus file : files) {
+				tasks.add(executorService.submit(() ->{
+					try {
+						createSplitForUnSplittableFile(file, inputSplits, splitNumber);
+					} catch (IOException e) {
+						LOG.error("Fail to create split", e);
+						throw new RuntimeException(e);
+					}
+				}));
+			}
+		} else { // splittable
+			// take the desired number of splits into account
+			minNumSplits = Math.max(minNumSplits, this.numSplits);
+
+			long totalLength = 0;
+			for (FileStatus file: files) {
+				totalLength += file.getLen();
+			}
+
+			final long maxSplitSize = (minNumSplits < 1) ? Long.MAX_VALUE : (totalLength / minNumSplits + (totalLength % minNumSplits == 0 ? 0 : 1));
+
+			// now that we have the files, generate the splits
+			for (LocatedFileStatus file : files) {
+				tasks.add(executorService.submit(() ->{
+					try {
+						createSplitForSplittableFile(file, inputSplits, maxSplitSize, splitNumber);
+					} catch (IOException e) {
+						LOG.error("Fail to create split", e);
+						throw new RuntimeException(e);
+					}
+				}));
 			}
 		}
 
-		return inputSplits.toArray(new FileInputSplit[inputSplits.size()]);
+		// wait all task finish
+		while(!tasks.isEmpty()) {
+			tasks.poll().get();
+		}
+
+		return inputSplits.toArray(new FileInputSplit[0]);
+	}
+
+	private void createSplitForUnSplittableFile(
+		LocatedFileStatus file,
+		BlockingQueue<FileInputSplit> inputSplits,
+		AtomicInteger splitNumber) throws IOException {
+
+		final FileSystem fs = file.getPath().getFileSystem();
+		final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, file.getLen());
+
+		final Set<String> hosts = new HashSet<>();
+		for (BlockLocation block : blocks) {
+			hosts.addAll(Arrays.asList(block.getHosts()));
+		}
+
+		long len = file.getLen();
+		if (testForUnsplittable(file)) {
+			len = READ_WHOLE_SPLIT_FLAG;
+		}
+
+		FileInputSplit fis = new FileInputSplit(splitNumber.incrementAndGet(), file.getPath(), 0, len,
+			hosts.toArray(new String[0]));
+		inputSplits.add(fis);
+	}
+
+	private void createSplitForSplittableFile(
+		LocatedFileStatus file,
+		BlockingQueue<FileInputSplit> inputSplits,
+		long maxSplitSize,
+		AtomicInteger splitNumber) throws IOException {
+
+		final long len = file.getLen();
+		final long blockSize = file.getBlockSize();
+
+		final long minSplitSize;
+		if (this.minSplitSize <= blockSize) {
+			minSplitSize = this.minSplitSize;
+		}
+		else {
+			if (LOG.isWarnEnabled()) {
+				LOG.warn("Minimal split size of " + this.minSplitSize + " is larger than the block size of " +
+					blockSize + ". Decreasing minimal split size to block size.");
+			}
+			minSplitSize = blockSize;
+		}
+
+		final long splitSize = Math.max(minSplitSize, Math.min(maxSplitSize, blockSize));
+		final long halfSplit = splitSize >>> 1;
+
+		final long maxBytesForLastSplit = (long) (splitSize * MAX_SPLIT_SIZE_DISCREPANCY);
+
+		if (len > 0) {
+			// get the block locations and make sure they are in order with respect to their offset
+			final BlockLocation[] blocks = file.getBlockLocation();
+			Arrays.sort(blocks);
+
+			int blockIndex = 0;
+
+			long position = 0;
+			long bytesUnassigned = len;
+
+			while (bytesUnassigned > maxBytesForLastSplit) {
+				// get the block containing the majority of the data
+				blockIndex = getBlockIndexForPosition(blocks, position, halfSplit, blockIndex);
+				// create a new split
+				FileInputSplit fis = new FileInputSplit(splitNumber.incrementAndGet(), file.getPath(), position, splitSize,
+					blocks[blockIndex].getHosts());
+				inputSplits.add(fis);
+
+				// adjust the positions
+				position += splitSize;
+				bytesUnassigned -= splitSize;
+			}
+
+			// assign the last split
+			if (bytesUnassigned > 0) {
+				blockIndex = getBlockIndexForPosition(blocks, position, halfSplit, blockIndex);
+				final FileInputSplit fis = new FileInputSplit(splitNumber.incrementAndGet(), file.getPath(), position,
+					bytesUnassigned, blocks[blockIndex].getHosts());
+				inputSplits.add(fis);
+			}
+		} else {
+			// special case with a file of zero bytes size
+			final FileSystem fs = file.getPath().getFileSystem();
+			final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, 0);
+
+			final String[] hosts = (blocks.length > 0) ? blocks[0].getHosts() : new String[0];
+
+			final FileInputSplit fis = new FileInputSplit(splitNumber.incrementAndGet(), file.getPath(), 0, 0, hosts);
+			inputSplits.add(fis);
+		}
 	}
 
 	/**

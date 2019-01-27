@@ -19,16 +19,16 @@
 package org.apache.flink.api.scala
 
 import java.io.{BufferedReader, File, FileOutputStream}
+import java.util.concurrent.atomic.AtomicBoolean
 
 import org.apache.flink.api.java.{JarHelper, ScalaShellRemoteEnvironment, ScalaShellRemoteStreamEnvironment}
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.{TableConfigOptions, TableEnvironment}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment, StreamTableEnvironment}
 import org.apache.flink.util.AbstractID
 
 import scala.tools.nsc.interpreter._
-
 
 class FlinkILoop(
     val host: String,
@@ -85,9 +85,7 @@ class FlinkILoop(
       this,
       clientConfig,
       getExternalJars(): _*)
-    // prevent further instantiation of environments
-    ScalaShellRemoteEnvironment.disableAllContextAndOtherEnvironments()
-    
+
     (remoteBenv,remoteSenv)
   }
 
@@ -100,9 +98,16 @@ class FlinkILoop(
     ) = {
     val scalaBenv = new ExecutionEnvironment(remoteBenv)
     val scalaSenv = new StreamExecutionEnvironment(remoteSenv)
-    val scalaBTEnv = TableEnvironment.getTableEnvironment(scalaBenv)
+    val scalaBTEnv = TableEnvironment.getBatchTableEnvironment(scalaSenv)
+    scalaBTEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM,1)
     val scalaSTEnv = TableEnvironment.getTableEnvironment(scalaSenv)
     (scalaBenv,scalaSenv,scalaBTEnv,scalaSTEnv)
+  }
+
+  val isShutdown: AtomicBoolean = new AtomicBoolean(false)
+
+  def saveEnvAsContext(): Unit = {
+    remoteSenv.setAsContext()
   }
 
   /**
@@ -165,6 +170,13 @@ class FlinkILoop(
       intp.bind("senv", this.scalaSenv)
       intp.bind("btenv", this.scalaBTEnv)
       intp.bind("stenv", this.scalaSTEnv)
+    }
+  }
+
+  override def closeInterpreter(): Unit = {
+    if (isShutdown.compareAndSet(false, true)) {
+      super.closeInterpreter()
+      scalaBTEnv.close()
     }
   }
 
@@ -264,11 +276,11 @@ NOTE: Use the prebound Execution Environments and Table Environment to implement
     * dataSet.writeAsText("/path/to/output")
     * benv.execute("My batch program")
     *
-    * val batchTable = btenv.fromDataSet(dataSet)
-    * btenv.registerTable("tableName", batchTable)
+    * val batchTable = btenv.fromElements(1,2,3,4).as('num)
+    * btenv.registerTable(batchTable, "tableName")
     * val result = btenv.sqlQuery("SELECT * FROM tableName").collect
-    HINT: You can use print() on a DataSet to print the contents or collect()
-    a sql query result back to the shell.
+    * result.foreach(println)
+    HINT: You can use print() on a DataSet to print the contents to the shell.
 
   Streaming - Use the 'senv' and 'stenv' variable
 
@@ -277,7 +289,8 @@ NOTE: Use the prebound Execution Environments and Table Environment to implement
     *
     * val streamTable = stenv.fromDataStream(dataStream, 'num)
     * val resultTable = streamTable.select('num).where('num % 2 === 1 )
-    * resultTable.toAppendStream[Row].print()
+    * val resultStream = resultTable.toAppendStream[Row]
+    * resultStream.print
     * senv.execute("My streaming program")
     HINT: You can only print a DataStream to the shell in local mode.
       """

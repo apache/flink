@@ -26,6 +26,7 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartiti
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.types.TypeConverters;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
@@ -37,6 +38,7 @@ import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.table.util.TableSchemaUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -83,7 +85,7 @@ import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
 
 /**
- * Factory for creating configured instances of {@link KafkaTableSourceBase}.
+ * Factory for creating configured instances of {@link KafkaTableSource}.
  */
 public abstract class KafkaTableSourceSinkFactoryBase implements
 		StreamTableSourceFactory<Row>,
@@ -144,8 +146,10 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		final DeserializationSchema<Row> deserializationSchema = getDeserializationSchema(properties);
 		final StartupOptions startupOptions = getStartupOptions(descriptorProperties, topic);
 
+		final TableSchema schema = descriptorProperties.getTableSchema(SCHEMA());
+
 		return createKafkaTableSource(
-			descriptorProperties.getTableSchema(SCHEMA()),
+			schema,
 			SchemaValidator.deriveProctimeAttribute(descriptorProperties),
 			SchemaValidator.deriveRowtimeAttributes(descriptorProperties),
 			SchemaValidator.deriveFieldMapping(
@@ -213,7 +217,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	 * @param specificStartupOffsets      Specific startup offsets; only relevant when startup
 	 *                                    mode is {@link StartupMode#SPECIFIC_OFFSETS}.
 	 */
-	protected abstract KafkaTableSourceBase createKafkaTableSource(
+	protected abstract KafkaTableSource createKafkaTableSource(
 		TableSchema schema,
 		Optional<String> proctimeAttribute,
 		List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
@@ -232,7 +236,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	 * @param properties  Properties for the Kafka consumer.
 	 * @param partitioner Partitioner to select Kafka partition for each item.
 	 */
-	protected abstract KafkaTableSinkBase createKafkaTableSink(
+	protected abstract KafkaTableSink createKafkaTableSink(
 		TableSchema schema,
 		String topic,
 		Properties properties,
@@ -335,7 +339,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 					case CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM:
 						final Class<? extends FlinkKafkaPartitioner> partitionerClass =
 							descriptorProperties.getClass(CONNECTOR_SINK_PARTITIONER_CLASS, FlinkKafkaPartitioner.class);
-						return Optional.of((FlinkKafkaPartitioner<Row>) InstantiationUtil.instantiate(partitionerClass));
+						return Optional.of(InstantiationUtil.instantiate(partitionerClass));
 					default:
 						throw new TableException("Unsupported sink partitioner. Validator should have checked that.");
 				}
@@ -345,8 +349,9 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	private boolean checkForCustomFieldMapping(DescriptorProperties descriptorProperties, TableSchema schema) {
 		final Map<String, String> fieldMapping = SchemaValidator.deriveFieldMapping(
 			descriptorProperties,
-			Optional.of(schema.toRowType())); // until FLINK-9870 is fixed we assume that the table schema is the output type
-		return fieldMapping.size() != schema.getFieldNames().length ||
+			// until FLINK-9870 is fixed we assume that the table schema is the output type
+			Optional.of(TypeConverters.createExternalTypeInfoFromDataType(TableSchemaUtil.toRowType(schema))));
+		return fieldMapping.size() != schema.getColumnNames().length ||
 			!fieldMapping.entrySet().stream().allMatch(mapping -> mapping.getKey().equals(mapping.getValue()));
 	}
 

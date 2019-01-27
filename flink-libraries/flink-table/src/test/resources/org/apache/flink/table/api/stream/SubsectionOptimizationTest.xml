@@ -1,0 +1,131 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testMultiSinksWithWindow">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$1], sum_c=[$2], time=[CAST(TUMBLE_END($0)):INTEGER NOT NULL], window_start=[CAST(TUMBLE_START($0)):INTEGER NOT NULL], window_end=[CAST(TUMBLE_END($0)):INTEGER NOT NULL])
++- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
+   +- LogicalProject($f0=[TUMBLE($4, 15000)], a=[$0], $f2=[CAST($2):DOUBLE])
+      +- LogicalTableScan(table=[[builtin, default, MyTable]])
+
+LogicalProject(a=[$1], sum_c=[$2], time=[CAST(TUMBLE_END($0)):INTEGER NOT NULL])
++- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
+   +- LogicalProject($f0=[TUMBLE($4, 15000)], a=[$0], $f2=[CAST($2):DOUBLE])
+      +- LogicalTableScan(table=[[builtin, default, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[StreamExecSink(fields=[a, sum_c, time, window_start, window_end])
++- StreamExecCalc(select=[a, sum_c, CAST(w$end) AS time, CAST(w$start) AS window_start, CAST(w$end) AS window_end])
+   +- StreamExecGroupWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, 'rowtime, 15000.millis)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[a, SUM(c) AS sum_c, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
+      +- StreamExecExchange(distribution=[hash[a]])
+         +- StreamExecCalc(select=[rowtime, a, CAST(c) AS c])
+            +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+
+StreamExecSink(fields=[a, sum_c, time])
++- StreamExecCalc(select=[a, sum_c, CAST(w$end) AS time])
+   +- StreamExecGroupWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, 'rowtime, 15000.millis)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[a, SUM(c) AS sum_c, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
+      +- StreamExecExchange(distribution=[hash[a]])
+         +- StreamExecCalc(select=[rowtime, a, CAST(c) AS c])
+            +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiSinksWithUDTF">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalFilter(condition=[>($0, 50)])
++- LogicalUnion(all=[true])
+   :- LogicalProject(a=[$0], total_c=[$2])
+   :  +- LogicalTableScan(table=[[builtin, default, view3]])
+   +- LogicalProject(a=[$0], total_c=[0])
+      +- LogicalTableScan(table=[[builtin, default, view1]])
+
+LogicalFilter(condition=[<($0, 50)])
++- LogicalUnion(all=[true])
+   :- LogicalProject(a=[$0], total_c=[$2])
+   :  +- LogicalTableScan(table=[[builtin, default, view3]])
+   +- LogicalProject(a=[$0], total_c=[0])
+      +- LogicalTableScan(table=[[builtin, default, view1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[StreamExecSink(fields=[a, total_c])
++- StreamExecUnion(all=[true], union=[a, total_c])
+   :- StreamExecCalc(select=[a, total_c])
+   :  +- StreamExecGroupAggregate(groupBy=[a, b], select=[a, b, COUNT(DISTINCT f0) AS total_c])
+   :     +- StreamExecExchange(distribution=[hash[a, b]])
+   :        +- StreamExecCalc(select=[a, b, f0], where=[>(a, 50)])
+   :           +- StreamExecCorrelate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) f0)], joinType=[INNER])
+   :              +- StreamExecCalc(select=[a, -(b, MOD(b, 300)) AS b, c])
+   :                 +- StreamExecCalc(select=[a, b, c], where=[AND(>=(b, UNIX_TIMESTAMP('${startTime}')), <>(c, ''))])
+   :                    +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+   +- StreamExecCalc(select=[a, 0 AS total_c])
+      +- StreamExecCalc(select=[a, b], where=[AND(>=(b, UNIX_TIMESTAMP('${startTime}')), >(a, 50))])
+         +- StreamExecCalc(select=[a, b])
+            +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+
+StreamExecSink(fields=[a, total_c])
++- StreamExecUnion(all=[true], union=[a, total_c])
+   :- StreamExecCalc(select=[a, total_c])
+   :  +- StreamExecGroupAggregate(groupBy=[a, b], select=[a, b, COUNT(DISTINCT f0) AS total_c])
+   :     +- StreamExecExchange(distribution=[hash[a, b]])
+   :        +- StreamExecCalc(select=[a, b, f0], where=[<(a, 50)])
+   :           +- StreamExecCorrelate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(65536) f0)], joinType=[INNER])
+   :              +- StreamExecCalc(select=[a, -(b, MOD(b, 300)) AS b, c])
+   :                 +- StreamExecCalc(select=[a, b, c], where=[AND(>=(b, UNIX_TIMESTAMP('${startTime}')), <>(c, ''))])
+   :                    +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+   +- StreamExecCalc(select=[a, 0 AS total_c])
+      +- StreamExecCalc(select=[a, b], where=[AND(>=(b, UNIX_TIMESTAMP('${startTime}')), <(a, 50))])
+         +- StreamExecCalc(select=[a, b])
+            +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleSinkWithTemporalTableSource">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[HOP_START($0)], EXPR$1=[HOP_END($0)], name1=[$1], name2=[$2], avg_b=[$3])
++- LogicalAggregate(group=[{0, 1, 2}], avg_b=[AVG($3)])
+   +- LogicalProject($f0=[HOP($3, 60000, 180000)], name1=[$0], name2=[$1], b=[$2])
+      +- LogicalProject(name1=[$7], name2=[$10], b=[$1], rowtime=[$4])
+         +- LogicalJoin(condition=[=($2, $9)], joinType=[inner])
+            :- LogicalJoin(condition=[=($0, $6)], joinType=[inner])
+            :  :- LogicalTableScan(table=[[builtin, default, MyTable]])
+            :  +- LogicalSnapshot(period=[PROCTIME()])
+            :     +- LogicalTableScan(table=[[builtin, default, TemporalSource, source: [TestingTemporalTableSource(age, id, name)]]])
+            +- LogicalSnapshot(period=[PROCTIME()])
+               +- LogicalTableScan(table=[[builtin, default, TemporalSource, source: [TestingTemporalTableSource(age, id, name)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[StreamExecSink(fields=[EXPR$0, EXPR$1, name1, name2, avg_b])
++- StreamExecCalc(select=[w$start AS EXPR$0, w$end AS EXPR$1, name1, name2, avg_b])
+   +- StreamExecGroupWindowAggregate(groupBy=[name1, name2], window=[SlidingGroupWindow('w$, 'rowtime, 180000.millis, 60000.millis)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[name1, name2, AVG(b) AS avg_b, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
+      +- StreamExecExchange(distribution=[hash[name1, name2]])
+         +- StreamExecCalc(select=[rowtime, name AS name1, name0 AS name2, b])
+            +- StreamExecTemporalTableJoin(join=[b, c, rowtime, name, id, name0], source=[TestingTemporalTableSource(age, id, name)], on=[c=age], joinType=[InnerJoin], period=[PROCTIME()])
+               +- StreamExecCalc(select=[b, c, rowtime, name])
+                  +- StreamExecTemporalTableJoin(join=[a, b, c, rowtime, id, name], source=[TestingTemporalTableSource(age, id, name)], on=[a=age], joinType=[InnerJoin], period=[PROCTIME()])
+                     +- StreamExecCalc(select=[a, b, c, rowtime])
+                        +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_1]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

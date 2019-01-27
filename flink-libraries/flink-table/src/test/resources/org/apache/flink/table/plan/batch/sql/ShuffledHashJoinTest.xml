@@ -1,0 +1,221 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testInnerJoinWithNonEquiJoinPredicate">
+    <Resource name="sql">
+      <![CDATA[SELECT c, g FROM Table5 INNER JOIN Table3 ON a = d AND d < 2 AND b < h]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$7], g=[$3])
++- LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$6], b=[$7], c=[$8])
+   +- LogicalJoin(condition=[AND(=($6, $0), $5, <($7, $4))], joinType=[inner])
+      :- LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], $f5=[<($0, 2)])
+      :  +- LogicalTableScan(table=[[builtin, default, Table5]])
+      +- LogicalTableScan(table=[[builtin, default, Table3]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, g])
++- HashJoin(where=[AND(=(a, d), <(b, h))], join=[a, b, c, d, g, h], joinType=[InnerJoin], build=[right])
+   :- Exchange(distribution=[hash[a]])
+   :  +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[d]])
+      +- Calc(select=[d, g, h], where=[<(d, 2)])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFullOuterJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT c, g FROM Table3 FULL OUTER JOIN Table5 ON b = e]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], g=[$6])
++- LogicalJoin(condition=[=($1, $4)], joinType=[full])
+   :- LogicalTableScan(table=[[builtin, default, Table3]])
+   +- LogicalTableScan(table=[[builtin, default, Table5]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, g])
++- HashJoin(where=[=(b, e)], join=[e, g, b, c], joinType=[FullOuterJoin], build=[left])
+   :- Exchange(distribution=[hash[e]])
+   :  +- Calc(select=[e, g])
+   :     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[d, e, f, g, h])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[b, c])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT c, g FROM Table3, Table5 WHERE a = d]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], g=[$6])
++- LogicalFilter(condition=[=($0, $3)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, Table3]])
+      +- LogicalTableScan(table=[[builtin, default, Table5]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, g])
++- HashJoin(where=[=(a, d)], join=[d, g, a, c], joinType=[InnerJoin], build=[left])
+   :- Exchange(distribution=[hash[d]])
+   :  +- Calc(select=[d, g])
+   :     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[d, e, f, g, h])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinWithFilter">
+    <Resource name="sql">
+      <![CDATA[SELECT c, g FROM Table5, Table3 WHERE a = d AND d < 2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$7], g=[$3])
++- LogicalFilter(condition=[AND(=($5, $0), <($0, 2))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, Table5]])
+      +- LogicalTableScan(table=[[builtin, default, Table3]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, g])
++- HashJoin(where=[=(a, d)], join=[a, c, d, g], joinType=[InnerJoin], build=[right])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, c])
+   :     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[d]])
+      +- Calc(select=[d, g], where=[<(d, 2)])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinWithInvertedField">
+    <Resource name="sql">
+      <![CDATA[SELECT c,g FROM Table3, Table5 WHERE b = e AND a = d]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], g=[$6])
++- LogicalFilter(condition=[AND(=($1, $4), =($0, $3))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[builtin, default, Table3]])
+      +- LogicalTableScan(table=[[builtin, default, Table5]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, g])
++- HashJoin(where=[AND(=(b, e), =(a, d))], join=[d, e, g, a, b, c], joinType=[InnerJoin], build=[left])
+   :- Exchange(distribution=[hash[e, d]])
+   :  +- Calc(select=[d, e, g])
+   :     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[d, e, f, g, h])
+   +- Exchange(distribution=[hash[b, a]])
+      +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinWithMultipleKeys">
+    <Resource name="sql">
+      <![CDATA[SELECT c, g FROM Table5 INNER JOIN Table3 ON a = d AND b = e]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$7], g=[$3])
++- LogicalJoin(condition=[AND(=($5, $0), =($6, $1))], joinType=[inner])
+   :- LogicalTableScan(table=[[builtin, default, Table5]])
+   +- LogicalTableScan(table=[[builtin, default, Table3]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, g])
++- HashJoin(where=[AND(=(a, d), =(b, e))], join=[d, e, g, a, b, c], joinType=[InnerJoin], build=[left])
+   :- Exchange(distribution=[hash[d, e]])
+   :  +- Calc(select=[d, e, g])
+   :     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[d, e, f, g, h])
+   +- Exchange(distribution=[hash[a, b]])
+      +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftOuterJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT c, g FROM Table3 LEFT OUTER JOIN Table5 ON b = e]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], g=[$6])
++- LogicalJoin(condition=[=($1, $4)], joinType=[left])
+   :- LogicalTableScan(table=[[builtin, default, Table3]])
+   +- LogicalTableScan(table=[[builtin, default, Table5]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, g])
++- HashJoin(where=[=(b, e)], join=[e, g, b, c], joinType=[RightOuterJoin], build=[left])
+   :- Exchange(distribution=[hash[e]])
+   :  +- Calc(select=[e, g])
+   :     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[d, e, f, g, h])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[b, c])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightOuterJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT c, g FROM Table3 RIGHT OUTER JOIN Table5 ON b = e]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(c=[$2], g=[$6])
++- LogicalJoin(condition=[=($1, $4)], joinType=[right])
+   :- LogicalTableScan(table=[[builtin, default, Table3]])
+   +- LogicalTableScan(table=[[builtin, default, Table5]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[c, g])
++- HashJoin(where=[=(b, e)], join=[e, g, b, c], joinType=[LeftOuterJoin], build=[left])
+   :- Exchange(distribution=[hash[e]])
+   :  +- Calc(select=[e, g])
+   :     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_1]], fields=[d, e, f, g, h])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[b, c])
+         +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -18,16 +18,14 @@
 
 package org.apache.flink.table.expressions.utils
 
-import java.sql.Date
-
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.table.api.Types
+import org.apache.flink.table.util.DateTimeTestUtil.UTCDate
 import org.apache.flink.types.Row
 
 class RowTypeTestBase extends ExpressionTestBase {
 
-  override def testData: Any = {
+  override def rowTestData: Row = {
     val row = new Row(3)
     row.setField(0, 2)
     row.setField(1, "foo")
@@ -36,9 +34,9 @@ class RowTypeTestBase extends ExpressionTestBase {
     nestedRow.setField(0, 3)
     nestedRow.setField(1, row)
     val specialTypeRow = new Row(3)
-    specialTypeRow.setField(0, Date.valueOf("1984-03-12"))
+    specialTypeRow.setField(0, UTCDate("1984-03-12"))
     specialTypeRow.setField(1, BigDecimal("0.00000000").bigDecimal)
-    specialTypeRow.setField(2, Array(1, 2, 3))
+    specialTypeRow.setField(2, Array[java.lang.Integer](1, 2, 3))
     val testData = new Row(7)
     testData.setField(0, null)
     testData.setField(1, 1)
@@ -50,15 +48,15 @@ class RowTypeTestBase extends ExpressionTestBase {
     testData
   }
 
-  override def typeInfo: TypeInformation[Any] = {
+  override def rowType: RowTypeInfo = {
     new RowTypeInfo(
       Types.STRING,
       Types.INT,
       Types.ROW(Types.INT, Types.STRING, Types.BOOLEAN),
       Types.ROW(Types.INT, Types.ROW(Types.INT, Types.STRING, Types.BOOLEAN)),
-      Types.ROW(Types.SQL_DATE, Types.DECIMAL, ObjectArrayTypeInfo.getInfoFor(Types.INT)),
+      Types.ROW(Types.SQL_DATE, Types.DECIMAL(9, 8), ObjectArrayTypeInfo.getInfoFor(Types.INT)),
       Types.ROW(Types.STRING, Types.BOOLEAN),
       Types.ROW(Types.STRING, Types.STRING)
-    ).asInstanceOf[TypeInformation[Any]]
+    )
   }
 }

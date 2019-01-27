@@ -20,9 +20,9 @@ package org.apache.flink.table.expressions
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.UnresolvedException
+import org.apache.flink.table.api.types.{DataTypes, InternalType, RowType}
+import org.apache.flink.table.plan.logical.LogicalExprVisitor
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 /**
@@ -33,11 +33,14 @@ case class Flattening(child: Expression) extends UnaryExpression {
 
   override def toString = s"$child.flatten()"
 
-  override private[flink] def resultType: TypeInformation[_] =
+  override private[flink] def resultType: InternalType =
     throw UnresolvedException(s"Invalid call to on ${this.getClass}.")
 
   override private[flink] def validateInput(): ValidationResult =
     ValidationFailure(s"Unresolved flattening of $child")
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 case class GetCompositeField(child: Expression, key: Any) extends UnaryExpression {
@@ -48,10 +51,10 @@ case class GetCompositeField(child: Expression, key: Any) extends UnaryExpressio
 
   override private[flink] def validateInput(): ValidationResult = {
     // check for composite type
-    if (!child.resultType.isInstanceOf[CompositeType[_]]) {
+    if (!child.resultType.isInstanceOf[RowType]) {
       return ValidationFailure(s"Cannot access field of non-composite type '${child.resultType}'.")
     }
-    val compositeType = child.resultType.asInstanceOf[CompositeType[_]]
+    val compositeType = child.resultType.asInstanceOf[RowType]
 
     // check key
     key match {
@@ -75,8 +78,8 @@ case class GetCompositeField(child: Expression, key: Any) extends UnaryExpressio
     }
   }
 
-  override private[flink] def resultType: TypeInformation[_] =
-    child.resultType.asInstanceOf[CompositeType[_]].getTypeAt(fieldIndex.get)
+  override private[flink] def resultType: InternalType =
+    child.resultType.asInstanceOf[RowType].getInternalTypeAt(fieldIndex.get)
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder
@@ -103,4 +106,7 @@ case class GetCompositeField(child: Expression, key: Any) extends UnaryExpressio
     case c: ResolvedFieldReference => Some(s"${c.name}$$$key")
     case _ => None
   }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }

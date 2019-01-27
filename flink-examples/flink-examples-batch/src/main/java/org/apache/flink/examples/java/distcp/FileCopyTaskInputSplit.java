@@ -43,4 +43,20 @@ public class FileCopyTaskInputSplit implements InputSplit {
 	public int getSplitNumber() {
 		return splitNumber;
 	}
+
+	@Override
+	public boolean equals(Object obj) {
+
+		if (obj == this) {
+			return true;
+		}
+		else if (obj instanceof FileCopyTaskInputSplit) {
+			FileCopyTaskInputSplit other = (FileCopyTaskInputSplit) obj;
+
+			return this.getSplitNumber() == other.getSplitNumber();
+		}
+		else {
+			return false;
+		}
+	}
 }

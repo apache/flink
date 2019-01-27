@@ -72,6 +72,7 @@ public class JarUploadHandlerTest extends TestLogger {
 
 		jarDir = temporaryFolder.newFolder().toPath();
 		jarUploadHandler = new JarUploadHandler(
+			CompletableFuture.completedFuture("localhost:12345"),
 			() -> CompletableFuture.completedFuture(mockDispatcherGateway),
 			Time.seconds(10),
 			Collections.emptyMap(),

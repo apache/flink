@@ -18,12 +18,10 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
-
-import javax.annotation.Nonnull;
 
 import java.io.IOException;
 
@@ -32,7 +30,7 @@ import java.io.IOException;
  */
 public class RocksDBKeySerializationUtils {
 
-	static int readKeyGroup(int keyGroupPrefixBytes, DataInputView inputView) throws IOException {
+	public static int readKeyGroup(int keyGroupPrefixBytes, DataInputView inputView) throws IOException {
 		int keyGroup = 0;
 		for (int i = 0; i < keyGroupPrefixBytes; ++i) {
 			keyGroup <<= 8;
@@ -43,12 +41,13 @@ public class RocksDBKeySerializationUtils {
 
 	public static <K> K readKey(
 		TypeSerializer<K> keySerializer,
-		DataInputDeserializer inputView,
+		ByteArrayInputStreamWithPos inputStream,
+		DataInputView inputView,
 		boolean ambiguousKeyPossible) throws IOException {
-		int beforeRead = inputView.getPosition();
+		int beforeRead = inputStream.getPosition();
 		K key = keySerializer.deserialize(inputView);
 		if (ambiguousKeyPossible) {
-			int length = inputView.getPosition() - beforeRead;
+			int length = inputStream.getPosition() - beforeRead;
 			readVariableIntBytes(inputView, length);
 		}
 		return key;
@@ -56,12 +55,13 @@ public class RocksDBKeySerializationUtils {
 
 	public static <N> N readNamespace(
 		TypeSerializer<N> namespaceSerializer,
-		DataInputDeserializer inputView,
+		ByteArrayInputStreamWithPos inputStream,
+		DataInputView inputView,
 		boolean ambiguousKeyPossible) throws IOException {
-		int beforeRead = inputView.getPosition();
+		int beforeRead = inputStream.getPosition();
 		N namespace = namespaceSerializer.deserialize(inputView);
 		if (ambiguousKeyPossible) {
-			int length = inputView.getPosition() - beforeRead;
+			int length = inputStream.getPosition() - beforeRead;
 			readVariableIntBytes(inputView, length);
 		}
 		return namespace;
@@ -70,24 +70,22 @@ public class RocksDBKeySerializationUtils {
 	public static <N> void writeNameSpace(
 		N namespace,
 		TypeSerializer<N> namespaceSerializer,
-		DataOutputSerializer keySerializationDataOutputView,
+		ByteArrayOutputStreamWithPos keySerializationStream,
+		DataOutputView keySerializationDataOutputView,
 		boolean ambiguousKeyPossible) throws IOException {
 
-		int beforeWrite = keySerializationDataOutputView.length();
+		int beforeWrite = keySerializationStream.getPosition();
 		namespaceSerializer.serialize(namespace, keySerializationDataOutputView);
 
 		if (ambiguousKeyPossible) {
 			//write length of namespace
-			writeLengthFrom(beforeWrite, keySerializationDataOutputView);
+			writeLengthFrom(beforeWrite, keySerializationStream,
+				keySerializationDataOutputView);
 		}
 	}
 
-	public static boolean isSerializerTypeVariableSized(@Nonnull TypeSerializer<?> serializer) {
-		return serializer.getLength() < 0;
-	}
-
 	public static boolean isAmbiguousKeyPossible(TypeSerializer keySerializer, TypeSerializer namespaceSerializer) {
-		return (isSerializerTypeVariableSized(keySerializer) && isSerializerTypeVariableSized(namespaceSerializer));
+		return (keySerializer.getLength() < 0) && (namespaceSerializer.getLength() < 0);
 	}
 
 	public static void writeKeyGroup(
@@ -95,26 +93,28 @@ public class RocksDBKeySerializationUtils {
 		int keyGroupPrefixBytes,
 		DataOutputView keySerializationDateDataOutputView) throws IOException {
 		for (int i = keyGroupPrefixBytes; --i >= 0; ) {
-			keySerializationDateDataOutputView.writeByte(extractByteAtPosition(keyGroup, i));
+			keySerializationDateDataOutputView.writeByte(keyGroup >>> (i << 3));
 		}
 	}
 
 	public static <K> void writeKey(
 		K key,
 		TypeSerializer<K> keySerializer,
-		DataOutputSerializer keySerializationDataOutputView,
+		ByteArrayOutputStreamWithPos keySerializationStream,
+		DataOutputView keySerializationDataOutputView,
 		boolean ambiguousKeyPossible) throws IOException {
 		//write key
-		int beforeWrite = keySerializationDataOutputView.length();
+		int beforeWrite = keySerializationStream.getPosition();
 		keySerializer.serialize(key, keySerializationDataOutputView);
 
 		if (ambiguousKeyPossible) {
 			//write size of key
-			writeLengthFrom(beforeWrite, keySerializationDataOutputView);
+			writeLengthFrom(beforeWrite, keySerializationStream,
+				keySerializationDataOutputView);
 		}
 	}
 
-	public static void readVariableIntBytes(DataInputView inputView, int value) throws IOException {
+	private static void readVariableIntBytes(DataInputView inputView, int value) throws IOException {
 		do {
 			inputView.readByte();
 			value >>>= 8;
@@ -123,12 +123,13 @@ public class RocksDBKeySerializationUtils {
 
 	private static void writeLengthFrom(
 		int fromPosition,
-		DataOutputSerializer keySerializationDateDataOutputView) throws IOException {
-		int length = keySerializationDateDataOutputView.length() - fromPosition;
+		ByteArrayOutputStreamWithPos keySerializationStream,
+		DataOutputView keySerializationDateDataOutputView) throws IOException {
+		int length = keySerializationStream.getPosition() - fromPosition;
 		writeVariableIntBytes(length, keySerializationDateDataOutputView);
 	}
 
-	public static void writeVariableIntBytes(
+	private static void writeVariableIntBytes(
 		int value,
 		DataOutputView keySerializationDateDataOutputView)
 		throws IOException {
@@ -136,20 +137,5 @@ public class RocksDBKeySerializationUtils {
 			keySerializationDateDataOutputView.writeByte(value);
 			value >>>= 8;
 		} while (value != 0);
-	}
-
-	public static void serializeKeyGroup(int keyGroup, byte[] startKeyGroupPrefixBytes) {
-		final int keyGroupPrefixBytes = startKeyGroupPrefixBytes.length;
-		for (int j = 0; j < keyGroupPrefixBytes; ++j) {
-			startKeyGroupPrefixBytes[j] = extractByteAtPosition(keyGroup, keyGroupPrefixBytes - j - 1);
-		}
-	}
-
-	private static byte extractByteAtPosition(int value, int byteIdx) {
-		return (byte) ((value >>> (byteIdx << 3)));
-	}
-
-	public static int computeRequiredBytesInKeyGroupPrefix(int totalKeyGroupsInJob) {
-		return totalKeyGroupsInJob > (Byte.MAX_VALUE + 1) ? 2 : 1;
 	}
 }

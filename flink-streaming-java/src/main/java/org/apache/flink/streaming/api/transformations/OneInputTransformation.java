@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.transformations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.operators.DamBehavior;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 
@@ -47,6 +48,11 @@ public class OneInputTransformation<IN, OUT> extends StreamTransformation<OUT> {
 	private KeySelector<IN, ?> stateKeySelector;
 
 	private TypeInformation<?> stateKeyType;
+
+	/**
+	 * The {@link DamBehavior} of the operator on main output.
+	 */
+	private DamBehavior damBehavior;
 
 	/**
 	 * Creates a new {@code OneInputTransformation} from the given input and operator.
@@ -127,5 +133,13 @@ public class OneInputTransformation<IN, OUT> extends StreamTransformation<OUT> {
 	@Override
 	public final void setChainingStrategy(ChainingStrategy strategy) {
 		operator.setChainingStrategy(strategy);
+	}
+
+	public DamBehavior getDamBehavior() {
+		return this.damBehavior;
+	}
+
+	public void setDamBehavior(DamBehavior damBehavior) {
+		this.damBehavior = damBehavior;
 	}
 }

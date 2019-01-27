@@ -19,16 +19,17 @@
 package org.apache.flink.table.api.batch.table
 
 import java.sql.Timestamp
-
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.types.{DataTypes, TypeConverters}
 import org.apache.flink.table.expressions.Null
 import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
-import org.apache.flink.table.utils.TableTestBase
-import org.apache.flink.table.utils.TableTestUtil._
-import org.junit.Test
+import org.apache.flink.table.util.DateTimeTestUtil.UTCTimestamp
+import org.apache.flink.table.util.TableTestBase
+
+import org.junit.{Ignore, Test}
 
 class SetOperatorsTest extends TableTestBase {
 
@@ -40,29 +41,7 @@ class SetOperatorsTest extends TableTestBase {
     val elements = t.where('b === "two").select('a).as("a1")
     val in = t.select("*").where('c.in(elements))
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      binaryNode(
-        "DataSetJoin",
-        batchTableNode(0),
-        unaryNode(
-          "DataSetDistinct",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(0),
-            term("select", "a AS a1"),
-            term("where", "=(b, 'two')")
-          ),
-          term("distinct", "a1")
-        ),
-        term("where", "=(c, a1)"),
-        term("join", "a", "b", "c", "a1"),
-        term("joinType", "InnerJoin")
-      ),
-      term("select", "a", "b", "c")
-    )
-
-    util.verifyTable(in, expected)
+    util.verifyPlan(in)
   }
 
   @Test
@@ -70,15 +49,9 @@ class SetOperatorsTest extends TableTestBase {
     val util = batchTestUtil()
     val t = util.addTable[(Int, Timestamp, String)]("A", 'a, 'b, 'c)
 
-    val in = t.select('b.in(Timestamp.valueOf("1972-02-22 07:12:00.333"))).as("b2")
+    val in = t.select('b.in(UTCTimestamp("1972-02-22 07:12:00.333"))).as("b2")
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      batchTableNode(0),
-      term("select", "IN(b, 1972-02-22 07:12:00.333) AS b2")
-    )
-
-    util.verifyTable(in, expected)
+    util.verifyPlan(in)
   }
 
   @Test
@@ -88,25 +61,10 @@ class SetOperatorsTest extends TableTestBase {
 
     val in = t.select('a)
       .unionAll(
-        t.select(('c > 0) ? ('b, Null(createTypeInformation[(Int, String)]))))
+        t.select(('c > 0) ? ('b, Null(
+          TypeConverters.createInternalTypeFromTypeInfo(createTypeInformation[(Int, String)])))))
 
-    val expected = binaryNode(
-      "DataSetUnion",
-      unaryNode(
-        "DataSetCalc",
-        batchTableNode(0),
-        term("select", "a")
-      ),
-      unaryNode(
-        "DataSetCalc",
-        batchTableNode(0),
-        term("select", "CASE(>(c, 0), b, null) AS _c0")
-      ),
-      term("all", "true"),
-      term("union", "a")
-    )
-
-    util.verifyTable(in, expected)
+    util.verifyPlan(in)
   }
 
   @Test
@@ -115,27 +73,11 @@ class SetOperatorsTest extends TableTestBase {
     val typeInfo = Types.ROW(
       new GenericTypeInfo(classOf[NonPojo]),
       new GenericTypeInfo(classOf[NonPojo]))
-    val t = util.addJavaTable(typeInfo, "A", "a, b")
+    val t = util.addJavaTable(typeInfo, "A", 'a, 'b)
 
     val in = t.select('a).unionAll(t.select('b))
 
-    val expected = binaryNode(
-      "DataSetUnion",
-      unaryNode(
-        "DataSetCalc",
-        batchTableNode(0),
-        term("select", "a")
-      ),
-      unaryNode(
-        "DataSetCalc",
-        batchTableNode(0),
-        term("select", "b")
-      ),
-      term("all", "true"),
-      term("union", "a")
-    )
-
-    util.verifyJavaTable(in, expected)
+    util.verifyPlan(in)
   }
 
   @Test
@@ -148,37 +90,10 @@ class SetOperatorsTest extends TableTestBase {
       .where('a > 0)
       .groupBy('b)
       .select('a.sum as 'a, 'b as 'b, 'c.count as 'c)
-
-    val expected = unaryNode(
-      "DataSetCalc",
-      unaryNode(
-        "DataSetAggregate",
-        binaryNode(
-          "DataSetUnion",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(0),
-            term("select", "a", "b", "c"),
-            term("where", ">(a, 0)")
-          ),
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(1),
-            term("select", "a", "b", "c"),
-            term("where", ">(a, 0)")
-          ),
-          term("all", "true"),
-          term("union", "a", "b", "c")
-        ),
-        term("groupBy", "b"),
-        term("select", "b", "SUM(a) AS TMP_0", "COUNT(c) AS TMP_1")
-      ),
-      term("select", "TMP_0 AS a", "b", "TMP_1 AS c")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
   }
 
+  @Ignore
   @Test
   def testFilterMinusTranspose(): Unit = {
     val util = batchTestUtil()
@@ -190,33 +105,7 @@ class SetOperatorsTest extends TableTestBase {
       .groupBy('b)
       .select('a.sum as 'a, 'b as 'b, 'c.count as 'c)
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      unaryNode(
-        "DataSetAggregate",
-        binaryNode(
-          "DataSetMinus",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(0),
-            term("select", "a", "b", "c"),
-            term("where", ">(a, 0)")
-          ),
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(1),
-            term("select", "a", "b", "c"),
-            term("where", ">(a, 0)")
-          ),
-          term("minus", "a", "b", "c")
-        ),
-        term("groupBy", "b"),
-        term("select", "b", "SUM(a) AS TMP_0", "COUNT(c) AS TMP_1")
-      ),
-      term("select", "TMP_0 AS a", "b", "TMP_1 AS c")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
   }
 
   @Test
@@ -229,26 +118,11 @@ class SetOperatorsTest extends TableTestBase {
                  .unionAll(right.select('a, 'b, 'c))
                  .select('b, 'c)
 
-    val expected = binaryNode(
-      "DataSetUnion",
-      unaryNode(
-        "DataSetCalc",
-        batchTableNode(0),
-        term("select", "b", "c")
-      ),
-      unaryNode(
-        "DataSetCalc",
-        batchTableNode(1),
-        term("select", "b", "c")
-      ),
-      term("all", "true"),
-      term("union", "b", "c")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
 
   }
 
+  @Ignore
   @Test
   def testProjectMinusTranspose(): Unit = {
     val util = batchTestUtil()
@@ -259,22 +133,7 @@ class SetOperatorsTest extends TableTestBase {
                  .minusAll(right.select('a, 'b, 'c))
                  .select('b, 'c)
 
-    val expected = binaryNode(
-      "DataSetMinus",
-      unaryNode(
-        "DataSetCalc",
-        batchTableNode(0),
-        term("select", "b", "c")
-      ),
-      unaryNode(
-        "DataSetCalc",
-        batchTableNode(1),
-        term("select", "b", "c")
-      ),
-      term("minus", "b", "c")
-    )
-
-    util.verifyTable(result, expected)
+    util.verifyPlan(result)
 
   }
 }

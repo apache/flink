@@ -19,7 +19,7 @@ package org.apache.flink.table.api
 
 import _root_.java.{lang, math, sql, util}
 
-import org.apache.flink.api.common.typeinfo.{PrimitiveArrayTypeInfo, TypeInformation, Types => JTypes}
+import org.apache.flink.api.common.typeinfo.{BigDecimalTypeInfo, PrimitiveArrayTypeInfo, TypeInformation, Types => JTypes}
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, MultisetTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.types.Row
@@ -72,9 +72,19 @@ object Types {
   val DOUBLE: TypeInformation[lang.Double] = JTypes.DOUBLE
 
   /**
+    * Returns type information for a Table API decimal or SQL DECIMAL type with precision and scale.
+    */
+  def DECIMAL(p: Int, s: Int): BigDecimalTypeInfo = new BigDecimalTypeInfo(p, s)
+
+  /**
     * Returns type information for a Table API big decimal or SQL DECIMAL type.
     */
   val DECIMAL: TypeInformation[math.BigDecimal] = JTypes.BIG_DEC
+
+  /**
+    * Returns type information for a Table API binary or SQL BINARY type.
+    */
+  val BINARY: TypeInformation[Array[Byte]] = PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO
 
   /**
     * Returns type information for a Table API SQL date or SQL DATE type.
@@ -160,7 +170,7 @@ object Types {
       case DOUBLE =>  PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO
       case _ =>
         throw new TableException(s"$elementType cannot be an element of a primitive array." +
-            s"Only Java primitive types are supported.")
+          s"Only Java primitive types are supported.")
     }
   }
 

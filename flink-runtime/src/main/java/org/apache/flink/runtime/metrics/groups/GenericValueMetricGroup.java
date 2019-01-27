@@ -51,7 +51,7 @@ public class GenericValueMetricGroup extends GenericMetricGroup {
 	}
 
 	@Override
-	protected String createLogicalScope(CharacterFilter filter, char delimiter) {
+	public String getLogicalScope(CharacterFilter filter, char delimiter) {
 		return parent.getLogicalScope(filter, delimiter);
 	}
 }

@@ -18,21 +18,25 @@
 
 package org.apache.flink.table.expressions
 
-import java.sql.{Date, Time, Timestamp}
+import java.util.TimeZone
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.types.Row
-import org.apache.flink.table.api.{Types, ValidationException}
-import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.{ExpressionTestBase, GraduatedStudent, _}
-import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.api.types.DataTypes
+import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.expressions.utils.{ExpressionTestBase, _}
+import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions._
+import org.apache.flink.table.util.DateTimeTestUtil._
+import org.apache.flink.types.Row
 import org.junit.Test
 import java.lang.{Boolean => JBoolean}
 
+import org.apache.flink.table.api.functions.ScalarFunction
+
 class UserDefinedScalarFunctionTest extends ExpressionTestBase {
+
+  TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
 
   @Test
   def testParameters(): Unit = {
@@ -78,6 +82,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Func0(123)",
       "123")
 
+    // TODO: GenericType with Date/Time/Timestamp -> String would call toString implicitl
     testAllApis(
       Func6('f4, 'f5, 'f6),
       "Func6(f4, f5, f6)",
@@ -111,9 +116,9 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
 
     // test row type input
     testAllApis(
-      Func19('f14),
-      "Func19(f14)",
-      "Func19(f14)",
+      Func20('f14),
+      "Func20(f14)",
+      "Func20(f14)",
       "12,true,1,2,3"
     )
   }
@@ -121,28 +126,38 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   @Test
   def testNullableParameters(): Unit = {
     testAllApis(
-      Func3(Null(INT_TYPE_INFO), Null(STRING_TYPE_INFO)),
+      Func3(Null(DataTypes.INT), Null(DataTypes.STRING)),
       "Func3(Null(INT), Null(STRING))",
       "Func3(NULL, NULL)",
       "null and null")
 
     testAllApis(
-      Func3(Null(INT_TYPE_INFO), "Test"),
+      Func3(Null(DataTypes.INT), "Test"),
       "Func3(Null(INT), 'Test')",
       "Func3(NULL, 'Test')",
       "null and Test")
 
     testAllApis(
-      Func3(42, Null(STRING_TYPE_INFO)),
+      Func3(42, Null(DataTypes.STRING)),
       "Func3(42, Null(STRING))",
       "Func3(42, NULL)",
       "42 and null")
 
     testAllApis(
-      Func0(Null(INT_TYPE_INFO)),
+      Func0(Null(DataTypes.INT)),
       "Func0(Null(INT))",
       "Func0(NULL)",
       "-1")
+  }
+
+  @Test
+  def testDoubleQuoteParameters(): Unit = {
+    val hello = "\"<hello>\""
+    testAllApis(
+      Func3(42, hello),
+      s"Func3(42, '$hello')",
+      s"Func3(42, '$hello')",
+      s"42 and $hello")
   }
 
   @Test
@@ -200,18 +215,6 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Func8('a', 'a')",
       "Func8('a', 'a')",
       "c")
-
-    testAllApis(
-      Func21('f15),
-      "Func21(f15)",
-      "Func21(f15)",
-      "student#Bob")
-
-    testAllApis(
-      Func22('f16),
-      "Func22(f16)",
-      "Func22(f16)",
-      "student#Bob")
   }
 
   @Test
@@ -226,7 +229,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Func10('f6),
       "Func10(f6)",
       "Func10(f6)",
-      "1990-10-14 12:10:10.0")
+      "1990-10-14 12:10:10.000")
   }
 
   @Test
@@ -349,7 +352,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "7591 and 43810000 and 655906210000")
 
     testAllApis(
-      JavaFunc1(Null(Types.SQL_TIME), 15, Null(Types.SQL_TIMESTAMP)),
+      JavaFunc1(Null(DataTypes.TIME), 15, Null(DataTypes.TIMESTAMP)),
       "JavaFunc1(Null(SQL_TIME), 15, Null(SQL_TIMESTAMP))",
       "JavaFunc1(NULL, 15, NULL)",
       "null and 15 and null")
@@ -388,15 +391,15 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
 
   // ----------------------------------------------------------------------------------------------
 
-  override def testData: Any = {
-    val testData = new Row(17)
+  override def rowTestData: Row = {
+    val testData = new Row(15)
     testData.setField(0, 42)
     testData.setField(1, "Test")
     testData.setField(2, null)
     testData.setField(3, SimplePojo("Bob", 36))
-    testData.setField(4, Date.valueOf("1990-10-14"))
-    testData.setField(5, Time.valueOf("12:10:10"))
-    testData.setField(6, Timestamp.valueOf("1990-10-14 12:10:10"))
+    testData.setField(4, UTCDate("1990-10-14"))
+    testData.setField(5, UTCTime("12:10:10"))
+    testData.setField(6, UTCTimestamp("1990-10-14 12:10:10"))
     testData.setField(7, 12)
     testData.setField(8, 1000L)
     testData.setField(9, Seq("Hello", "World"))
@@ -409,12 +412,10 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       true.asInstanceOf[JBoolean],
       Row.of(1.asInstanceOf[Integer], 2.asInstanceOf[Integer], 3.asInstanceOf[Integer]))
     )
-    testData.setField(15, new GraduatedStudent("Bob"))
-    testData.setField(16, Array(new GraduatedStudent("Bob")))
     testData
   }
 
-  override def typeInfo: TypeInformation[Any] = {
+  override def rowType: RowTypeInfo = {
     new RowTypeInfo(
       Types.INT,
       Types.STRING,
@@ -430,10 +431,8 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Types.BYTE,
       Types.SHORT,
       Types.FLOAT,
-      Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT)),
-      TypeInformation.of(classOf[GraduatedStudent]),
-      TypeInformation.of(classOf[Array[GraduatedStudent]])
-    ).asInstanceOf[TypeInformation[Any]]
+      Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
+    )
   }
 
   override def functions: Map[String, ScalarFunction] = Map(
@@ -459,8 +458,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "Func16" -> Func16,
     "Func17" -> Func17,
     "Func19" -> Func19,
-    "Func21" -> Func21,
-    "Func22" -> Func22,
+    "Func20" -> Func20,
     "JavaFunc0" -> new JavaFunc0,
     "JavaFunc1" -> new JavaFunc1,
     "JavaFunc2" -> new JavaFunc2,

@@ -24,6 +24,7 @@ import org.apache.flink.table.api.{TableEnvironment, ValidationException}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.typeutils.TypeCoercion
 import org.apache.flink.table.validate._
+import scala.util.Random
 
 /**
   * LogicalNode is created and validated as we construct query plan using Table API.
@@ -46,7 +47,8 @@ import org.apache.flink.table.validate._
   *
   * Once we pass the validation phase, we can safely convert LogicalNode into Calcite's RelNode.
   */
-abstract class LogicalNode extends TreeNode[LogicalNode] {
+abstract class LogicalNode extends TreeNode[LogicalNode] with LogicalNodeVisitable {
+
   def output: Seq[Attribute]
 
   def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
@@ -84,14 +86,7 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
     resolvedNode.expressionPostOrderTransform {
       case a: Attribute if !a.valid =>
         val from = children.flatMap(_.output).map(_.name).mkString(", ")
-        // give helpful error message for null literals
-        if (a.name == "null") {
-          failValidation(s"Cannot resolve field [${a.name}] given input [$from]. If you want to " +
-            s"express a null literal, use 'Null(TYPE)' for typed null expressions. " +
-            s"For example: Null(INT)")
-        } else {
-          failValidation(s"Cannot resolve field [${a.name}] given input [$from].")
-        }
+        failValidation(s"Cannot resolve [${a.name}] given input [$from].")
 
       case e: Expression if e.validateInput().isFailure =>
         failValidation(s"Expression $e failed on input check: " +
@@ -106,7 +101,7 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
   def resolveReference(tableEnv: TableEnvironment, name: String): Option[NamedExpression] = {
     // try to resolve a field
     val childrenOutput = children.flatMap(_.output)
-    val fieldCandidates = childrenOutput.filter(_.name.equalsIgnoreCase(name))
+    val fieldCandidates = childrenOutput.filter(_.name.equals(name))
     if (fieldCandidates.length > 1) {
       failValidation(s"Reference $name is ambiguous.")
     } else if (fieldCandidates.nonEmpty) {

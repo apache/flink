@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.util;
 
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
 
 import org.apache.flink.core.memory.MemorySegmentFactory;

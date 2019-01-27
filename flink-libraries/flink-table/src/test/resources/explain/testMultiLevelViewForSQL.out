@@ -1,0 +1,96 @@
+== Abstract Syntax Tree ==
+LogicalProject(id=[$0], num=[$1], text=[$2])
++- LogicalFilter(condition=[LIKE($2, '%hello%')])
+   +- LogicalTableScan(table=[[builtin, default, T]])
+
+LogicalProject(num=[$0], cnt=[$1])
++- LogicalFilter(condition=[<($0, 4)])
+   +- LogicalTableScan(table=[[builtin, default, T3]])
+
+LogicalProject(num=[$0], cnt=[$1])
++- LogicalFilter(condition=[AND(>=($0, 4), <($0, 6))])
+   +- LogicalTableScan(table=[[builtin, default, T3]])
+
+== Optimized Logical Plan ==
+StreamExecCalc(select=[id, num, text], where=[LIKE(text, '%hello%')], retract=[true], accMode=[Acc], reuse_id=[1])
++- StreamExecDataStreamScan(table=[[builtin, default, T]], retract=[true], accMode=[Acc])
+
+StreamExecSink(fields=[id, num, text], retract=[false], accMode=[Acc])
++- Reused(reference_id=[1])
+
+StreamExecGroupAggregate(groupBy=[num], select=[num, COUNT(id) AS cnt], retract=[true], accMode=[AccRetract], reuse_id=[2])
++- StreamExecExchange(distribution=[hash[num]], retract=[true], accMode=[Acc])
+   +- StreamExecUnion(all=[true], union=[num, id], retract=[true], accMode=[Acc])
+      :- StreamExecCalc(select=[num, id], retract=[true], accMode=[Acc])
+      :  +- Reused(reference_id=[1])
+      +- StreamExecCalc(select=[num, id], where=[LIKE(text, '%world%')], retract=[true], accMode=[Acc])
+         +- StreamExecDataStreamScan(table=[[builtin, default, T]], retract=[true], accMode=[Acc])
+
+StreamExecSink(fields=[num, cnt], retract=[false], accMode=[AccRetract])
++- StreamExecCalc(select=[num, cnt], where=[<(num, 4)], retract=[true], accMode=[AccRetract])
+   +- Reused(reference_id=[2])
+
+StreamExecSink(fields=[num, cnt], retract=[false], accMode=[AccRetract])
++- StreamExecCalc(select=[num, cnt], where=[AND(>=(num, 4), <(num, 6))], retract=[false], accMode=[AccRetract])
+   +- Reused(reference_id=[2])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:[builtin, default, T], fields:(id, num, text))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : Calc(where: (text LIKE '%hello%'), select: (id, num, text))
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : SinkConversion to Row
+				ship_strategy : FORWARD
+
+				 : Operator
+					content : Calc(select: (num, id))
+					ship_strategy : FORWARD
+
+					 : Operator
+						content : SourceConversion(table:[builtin, default, T], fields:(id, num, text))
+						ship_strategy : FORWARD
+
+						 : Operator
+							content : Calc(where: (text LIKE '%world%'), select: (num, id))
+							ship_strategy : FORWARD
+
+							 : Operator
+								content : GroupAggregate(groupBy: (num), select: (num, COUNT(id) AS cnt))
+								ship_strategy : HASH
+
+								 : Operator
+									content : Calc(where: (num < 4), select: (num, cnt))
+									ship_strategy : FORWARD
+
+									 : Operator
+										content : SinkConversion to Tuple2
+										ship_strategy : FORWARD
+
+										 : Operator
+											content : Map
+											ship_strategy : FORWARD
+
+											 : Operator
+												content : Calc(where: ((num >= 4) AND (num < 6)), select: (num, cnt))
+												ship_strategy : FORWARD
+
+												 : Data Sink
+													content : Sink: TestingAppendTableSink
+													ship_strategy : FORWARD
+
+													 : Data Sink
+														content : Sink: TestingRetractTableSink
+														ship_strategy : FORWARD
+
+														 : Data Sink
+															content : Sink: TestingUpsertTableSink(keys=())
+															ship_strategy : REBALANCE
+

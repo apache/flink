@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -111,15 +112,37 @@ public class StreamTaskTestHarnessTest {
 		@Override
 		public void processElement(StreamRecord<String> element) throws Exception {
 		}
+
+		@Override
+		public void endInput() throws Exception {
+
+		}
 	}
 
 	private static class TwoInputTestOperator extends AbstractStreamOperator<String> implements TwoInputStreamOperator<String, String, String> {
 		@Override
-		public void processElement1(StreamRecord<String> element) throws Exception {
+		public TwoInputSelection firstInputSelection() {
+			return TwoInputSelection.ANY;
 		}
 
 		@Override
-		public void processElement2(StreamRecord<String> element) throws Exception {
+		public TwoInputSelection processElement1(StreamRecord<String> element) throws Exception {
+			return TwoInputSelection.ANY;
+		}
+
+		@Override
+		public TwoInputSelection processElement2(StreamRecord<String> element) throws Exception {
+			return TwoInputSelection.ANY;
+		}
+
+		@Override
+		public void endInput1() throws Exception {
+
+		}
+
+		@Override
+		public void endInput2() throws Exception {
+
 		}
 	}
 }

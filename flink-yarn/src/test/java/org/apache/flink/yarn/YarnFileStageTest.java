@@ -178,7 +178,8 @@ public class YarnFileStageTest extends TestLogger {
 			List<Path> remotePaths = new ArrayList<>();
 			HashMap<String, LocalResource> localResources = new HashMap<>();
 			AbstractYarnClusterDescriptor.uploadAndRegisterFiles(
-				Collections.singletonList(new File(srcPath.toUri().getPath())),
+				Collections.singletonMap(srcPath.toUri(), null),
+				null,
 				targetFileSystem,
 				targetDir,
 				ApplicationId.newInstance(0, 0),

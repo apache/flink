@@ -29,6 +29,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.AbstractFileCheckpointStorageTestBase;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCheckpointOutputStream;
 
+import org.junit.AssumptionViolatedException;
 import org.junit.Test;
 
 import java.io.ObjectInputStream;
@@ -57,12 +58,12 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 
 	@Override
 	protected CheckpointStorage createCheckpointStorage(Path checkpointDir) throws Exception {
-		return new MemoryBackendCheckpointStorage(new JobID(), checkpointDir, null, DEFAULT_MAX_STATE_SIZE);
+		return new MemoryBackendCheckpointStorage(new JobID(), createCheckpointSubDir, checkpointDir, null, DEFAULT_MAX_STATE_SIZE);
 	}
 
 	@Override
 	protected CheckpointStorage createCheckpointStorageWithSavepointDir(Path checkpointDir, Path savepointDir) throws Exception {
-		return new MemoryBackendCheckpointStorage(new JobID(), checkpointDir, savepointDir, DEFAULT_MAX_STATE_SIZE);
+		return new MemoryBackendCheckpointStorage(new JobID(), createCheckpointSubDir, checkpointDir, savepointDir, DEFAULT_MAX_STATE_SIZE);
 	}
 
 	// ------------------------------------------------------------------------
@@ -73,10 +74,10 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 	public void testParametrizationDefault() throws Exception {
 		final JobID jid = new JobID();
 
-		MemoryStateBackend backend = new MemoryStateBackend();
-
 		MemoryBackendCheckpointStorage storage =
-				(MemoryBackendCheckpointStorage) backend.createCheckpointStorage(jid);
+			new MemoryBackendCheckpointStorage(
+				jid, createCheckpointSubDir, null, null, DEFAULT_MAX_STATE_SIZE);
+
 
 		assertFalse(storage.supportsHighlyAvailableStorage());
 		assertFalse(storage.hasDefaultSavepointLocation());
@@ -90,11 +91,9 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 		final Path checkpointPath = new Path(tmp.newFolder().toURI().toString());
 		final Path savepointPath = new Path(tmp.newFolder().toURI().toString());
 
-		MemoryStateBackend backend = new MemoryStateBackend(
-				checkpointPath.toString(), savepointPath.toString());
-
 		MemoryBackendCheckpointStorage storage =
-				(MemoryBackendCheckpointStorage) backend.createCheckpointStorage(jid);
+			new MemoryBackendCheckpointStorage(
+				jid, createCheckpointSubDir, checkpointPath, savepointPath, DEFAULT_MAX_STATE_SIZE);
 
 		assertTrue(storage.supportsHighlyAvailableStorage());
 		assertTrue(storage.hasDefaultSavepointLocation());
@@ -107,9 +106,9 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 	public void testParametrizationStateSize() throws Exception {
 		final int maxSize = 17;
 
-		MemoryStateBackend backend = new MemoryStateBackend(maxSize);
 		MemoryBackendCheckpointStorage storage =
-				(MemoryBackendCheckpointStorage) backend.createCheckpointStorage(new JobID());
+			new MemoryBackendCheckpointStorage(
+				new JobID(), createCheckpointSubDir, null, null, maxSize);
 
 		assertEquals(maxSize, storage.getMaxStateSize());
 	}
@@ -117,7 +116,7 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 	@Test
 	public void testNonPersistentCheckpointLocation() throws Exception {
 		MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
-				new JobID(), null, null, DEFAULT_MAX_STATE_SIZE);
+				new JobID(), createCheckpointSubDir, null, null, DEFAULT_MAX_STATE_SIZE);
 
 		CheckpointStorageLocation location = storage.initializeLocationForCheckpoint(9);
 
@@ -142,7 +141,7 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 		// non persistent memory state backend for checkpoint
 		{
 			MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
-					new JobID(), null, null, DEFAULT_MAX_STATE_SIZE);
+					new JobID(), createCheckpointSubDir, null, null, DEFAULT_MAX_STATE_SIZE);
 			CheckpointStorageLocation location = storage.initializeLocationForCheckpoint(42);
 			assertTrue(location.getLocationReference().isDefaultReference());
 		}
@@ -150,7 +149,7 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 		// non persistent memory state backend for checkpoint
 		{
 			MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
-					new JobID(), randomTempPath(), null, DEFAULT_MAX_STATE_SIZE);
+					new JobID(), createCheckpointSubDir, randomTempPath(), null, DEFAULT_MAX_STATE_SIZE);
 			CheckpointStorageLocation location = storage.initializeLocationForCheckpoint(42);
 			assertTrue(location.getLocationReference().isDefaultReference());
 		}
@@ -158,7 +157,7 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 		// memory state backend for savepoint
 		{
 			MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
-					new JobID(), null, null, DEFAULT_MAX_STATE_SIZE);
+					new JobID(), createCheckpointSubDir, null, null, DEFAULT_MAX_STATE_SIZE);
 			CheckpointStorageLocation location = storage.initializeLocationForSavepoint(
 					1337, randomTempPath().toString());
 			assertTrue(location.getLocationReference().isDefaultReference());
@@ -170,7 +169,7 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 		final List<String> state = Arrays.asList("Flopsy", "Mopsy", "Cotton Tail", "Peter");
 
 		final MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
-				new JobID(), null, null, DEFAULT_MAX_STATE_SIZE);
+				new JobID(), createCheckpointSubDir, null, null, DEFAULT_MAX_STATE_SIZE);
 
 		StreamStateHandle stateHandle;
 
@@ -183,6 +182,16 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 
 		try (ObjectInputStream in = new ObjectInputStream(stateHandle.openInputStream())) {
 			assertEquals(state, in.readObject());
+		}
+	}
+
+	@Override
+	public void testPersistMultipleMetadataOnlyCheckpoints() throws Exception {
+		if (createCheckpointSubDir) {
+			super.testPersistMultipleMetadataOnlyCheckpoints();
+		} else {
+			throw new AssumptionViolatedException("Multiple checkpoints from different jobs with the same checkpoint ID cannot be guaranteed that they do not interfere with each other, " +
+				"due to we have not created checkpoint sub-directory.");
 		}
 	}
 }

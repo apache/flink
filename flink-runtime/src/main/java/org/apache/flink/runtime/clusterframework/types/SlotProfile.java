@@ -25,7 +25,6 @@ import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Set;
 
 /**
  * A slot profile describes the profile of a slot into which a task wants to be scheduled. The profile contains
@@ -48,30 +47,16 @@ public class SlotProfile {
 
 	/** This contains desired allocation ids of the slot. */
 	@Nonnull
-	private final Collection<AllocationID> preferredAllocations;
-
-	/** This contains all prior allocation ids from the whole execution graph. */
-	@Nonnull
-	private final Set<AllocationID> previousExecutionGraphAllocations;
+	private final Collection<AllocationID> priorAllocations;
 
 	public SlotProfile(
 		@Nonnull ResourceProfile resourceProfile,
 		@Nonnull Collection<TaskManagerLocation> preferredLocations,
-		@Nonnull Collection<AllocationID> preferredAllocations) {
-
-		this(resourceProfile, preferredLocations, preferredAllocations, Collections.emptySet());
-	}
-
-	public SlotProfile(
-		@Nonnull ResourceProfile resourceProfile,
-		@Nonnull Collection<TaskManagerLocation> preferredLocations,
-		@Nonnull Collection<AllocationID> preferredAllocations,
-		@Nonnull Set<AllocationID> previousExecutionGraphAllocations) {
+		@Nonnull Collection<AllocationID> priorAllocations) {
 
 		this.resourceProfile = resourceProfile;
 		this.preferredLocations = preferredLocations;
-		this.preferredAllocations = preferredAllocations;
-		this.previousExecutionGraphAllocations = previousExecutionGraphAllocations;
+		this.priorAllocations = priorAllocations;
 	}
 
 	/**
@@ -94,18 +79,8 @@ public class SlotProfile {
 	 * Returns the desired allocation ids for the slot.
 	 */
 	@Nonnull
-	public Collection<AllocationID> getPreferredAllocations() {
-		return preferredAllocations;
-	}
-
-	/**
-	 * Returns a set of all previous allocation ids from the execution graph.
-	 *
-	 * This is optional and can be empty if unused.
-	 */
-	@Nonnull
-	public Set<AllocationID> getPreviousExecutionGraphAllocations() {
-		return previousExecutionGraphAllocations;
+	public Collection<AllocationID> getPriorAllocations() {
+		return priorAllocations;
 	}
 
 	/**

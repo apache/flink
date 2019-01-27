@@ -101,4 +101,19 @@ public abstract class BasicTypeComparator<T extends Comparable<T>> extends TypeC
 	public T readWithKeyDenormalization(T reuse, DataInputView source) throws IOException {
 		throw new UnsupportedOperationException();
 	}
+
+	@Override
+	public boolean equals(Object o) {
+		return this == o || (
+			o != null &&
+				getClass() == o.getClass() &&
+				this.ascendingComparison == ((BasicTypeComparator) o).ascendingComparison);
+	}
+
+	@Override
+	public int hashCode() {
+		int result = this.getClass().hashCode();
+		result = 31 * result + Boolean.hashCode(ascendingComparison);
+		return result;
+	}
 }

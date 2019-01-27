@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -52,16 +53,26 @@ public class CheckpointExceptionHandlerConfigurationTest extends TestLogger {
 	@Test
 	public void testFailIsDefaultConfig() {
 		ExecutionConfig newExecutionConfig = new ExecutionConfig();
-		Assert.assertTrue(newExecutionConfig.isFailTaskOnCheckpointError());
+		Assert.assertFalse(newExecutionConfig.isFailTaskOnCheckpointError());
 	}
 
 	private void testConfigForwarding(boolean failOnException) throws Exception {
+		StreamExecutionEnvironment streamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
+		streamExecutionEnvironment.fromElements(1, 2, 3).print().setParallelism(1);
 
+		JobGraph jobGraph = streamExecutionEnvironment.getStreamGraph().getJobGraph();
+		Assert.assertTrue(jobGraph.getVerticesSortedTopologicallyFromSources().size() == 1);
+
+		JobVertex sourceVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
+		StreamTaskConfig streamTaskConfig = new StreamTaskConfig(sourceVertex.getConfiguration());
+
+		//
 		final boolean expectedHandlerFlag = failOnException;
 
 		final DummyEnvironment environment = new DummyEnvironment("test", 1, 0);
 		environment.setTaskStateManager(new TestTaskStateManager());
 		environment.getExecutionConfig().setFailTaskOnCheckpointError(expectedHandlerFlag);
+		environment.setTaskConfiguration(streamTaskConfig.getConfiguration());
 
 		final CheckpointExceptionHandlerFactory inspectingFactory = new CheckpointExceptionHandlerFactory() {
 
@@ -100,7 +111,7 @@ public class CheckpointExceptionHandlerConfigurationTest extends TestLogger {
 	@Test
 	public void testCheckpointConfigDefault() throws Exception {
 		StreamExecutionEnvironment streamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
-		Assert.assertTrue(streamExecutionEnvironment.getCheckpointConfig().isFailOnCheckpointingErrors());
+		Assert.assertFalse(streamExecutionEnvironment.getCheckpointConfig().isFailOnCheckpointingErrors());
 	}
 
 	@Test

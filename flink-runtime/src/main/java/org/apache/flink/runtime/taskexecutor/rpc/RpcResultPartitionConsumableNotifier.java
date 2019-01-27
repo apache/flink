@@ -36,9 +36,10 @@ public class RpcResultPartitionConsumableNotifier implements ResultPartitionCons
 
 	private static final Logger LOG = LoggerFactory.getLogger(RpcResultPartitionConsumableNotifier.class);
 
-	private final JobMasterGateway jobMasterGateway;
 	private final Executor executor;
 	private final Time timeout;
+
+	private JobMasterGateway jobMasterGateway;
 
 	public RpcResultPartitionConsumableNotifier(
 			JobMasterGateway jobMasterGateway,
@@ -48,6 +49,7 @@ public class RpcResultPartitionConsumableNotifier implements ResultPartitionCons
 		this.executor = Preconditions.checkNotNull(executor);
 		this.timeout = Preconditions.checkNotNull(timeout);
 	}
+
 	@Override
 	public void notifyPartitionConsumable(JobID jobId, ResultPartitionID partitionId, final TaskActions taskActions) {
 		CompletableFuture<Acknowledge> acknowledgeFuture = jobMasterGateway.scheduleOrUpdateConsumers(partitionId, timeout);
@@ -61,5 +63,9 @@ public class RpcResultPartitionConsumableNotifier implements ResultPartitionCons
 				}
 			},
 			executor);
+	}
+
+	public void notifyJobMasterGatewayChanged(JobMasterGateway jobMasterGateway) {
+		this.jobMasterGateway = jobMasterGateway;
 	}
 }

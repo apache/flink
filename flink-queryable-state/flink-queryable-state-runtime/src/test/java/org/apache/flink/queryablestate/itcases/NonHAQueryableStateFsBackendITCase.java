@@ -24,10 +24,9 @@ import org.apache.flink.configuration.QueryableStateOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.MiniClusterResource;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -44,7 +43,6 @@ public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTe
 	// we always use all TaskManagers so that the JM oracle is always properly re-registered
 	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 2;
-	private static final int NUM_PORT_COUNT = 100;
 
 	private static final int QS_PROXY_PORT_RANGE_START = 9084;
 	private static final int QS_SERVER_PORT_RANGE_START = 9089;
@@ -53,15 +51,15 @@ public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTe
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@ClassRule
-	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(getConfig())
-			.setNumberTaskManagers(NUM_TMS)
-			.setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
-			.build());
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResource.MiniClusterResourceConfiguration(
+			getConfig(),
+			NUM_TMS,
+			NUM_SLOTS_PER_TM),
+		true);
 
 	@Override
-	protected StateBackend createStateBackend() throws Exception {
+	protected AbstractStateBackend createStateBackend() throws Exception {
 		return new FsStateBackend(temporaryFolder.newFolder().toURI().toString());
 	}
 
@@ -79,8 +77,7 @@ public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTe
 
 	private static Configuration getConfig() {
 		Configuration config = new Configuration();
-		config.setBoolean(QueryableStateOptions.ENABLE_QUERYABLE_STATE_PROXY_SERVER, true);
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
+		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
 		config.setInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS, 1);
@@ -88,10 +85,10 @@ public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTe
 		config.setInteger(QueryableStateOptions.SERVER_NETWORK_THREADS, 1);
 		config.setString(
 			QueryableStateOptions.PROXY_PORT_RANGE,
-			QS_PROXY_PORT_RANGE_START + "-" + (QS_PROXY_PORT_RANGE_START + NUM_PORT_COUNT));
+			QS_PROXY_PORT_RANGE_START + "-" + (QS_PROXY_PORT_RANGE_START + NUM_TMS));
 		config.setString(
 			QueryableStateOptions.SERVER_PORT_RANGE,
-			QS_SERVER_PORT_RANGE_START + "-" + (QS_SERVER_PORT_RANGE_START + NUM_PORT_COUNT));
+			QS_SERVER_PORT_RANGE_START + "-" + (QS_SERVER_PORT_RANGE_START + NUM_TMS));
 		config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
 		return config;
 	}

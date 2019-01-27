@@ -21,17 +21,18 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.VoidPermanentBlobService;
+import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmanager.StandaloneSubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
@@ -39,6 +40,7 @@ import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraph
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.runtime.util.TestingLeaderShipLostHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -72,6 +74,8 @@ public class JobManagerRunnerTest extends TestLogger {
 
 	private static TestingRpcService rpcService;
 
+	private static BlobServer blobServer;
+
 	private static HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
 
 	private static JobManagerSharedServices jobManagerSharedServices;
@@ -84,6 +88,8 @@ public class JobManagerRunnerTest extends TestLogger {
 
 	private TestingFatalErrorHandler fatalErrorHandler;
 
+	private TestingLeaderShipLostHandler leaderShipLostHandler;
+
 	@BeforeClass
 	public static void setupClass() throws Exception {
 		configuration = new Configuration();
@@ -91,7 +97,11 @@ public class JobManagerRunnerTest extends TestLogger {
 
 		configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-		jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+		blobServer = new BlobServer(
+			configuration,
+			new VoidBlobStore());
+
+		jobManagerSharedServices = JobManagerSharedServices.fromConfiguration(configuration, blobServer);
 
 		final JobVertex jobVertex = new JobVertex("Test vertex");
 		jobVertex.setInvokableClass(NoOpInvokable.class);
@@ -109,8 +119,10 @@ public class JobManagerRunnerTest extends TestLogger {
 		haServices.setJobMasterLeaderElectionService(jobGraph.getJobID(), new TestingLeaderElectionService());
 		haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
 		haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
+		haServices.setSubmittedJobGraphStore(new StandaloneSubmittedJobGraphStore());
 
 		fatalErrorHandler = new TestingFatalErrorHandler();
+		leaderShipLostHandler = new TestingLeaderShipLostHandler();
 	}
 
 	@After
@@ -122,6 +134,10 @@ public class JobManagerRunnerTest extends TestLogger {
 	public static void tearDownClass() throws Exception {
 		if (jobManagerSharedServices != null) {
 			jobManagerSharedServices.shutdown();
+		}
+
+		if (blobServer != null) {
+			blobServer.close();
 		}
 
 		if (rpcService != null) {
@@ -198,17 +214,12 @@ public class JobManagerRunnerTest extends TestLogger {
 
 	@Test
 	public void testLibraryCacheManagerRegistration() throws Exception {
-		final BlobLibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(
-			VoidPermanentBlobService.INSTANCE,
-			FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
-			new String[]{});
-		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder()
-			.setLibraryCacheManager(libraryCacheManager)
-			.build();
-		final JobManagerRunner jobManagerRunner = createJobManagerRunner(jobManagerSharedServices);
+		final JobManagerRunner jobManagerRunner = createJobManagerRunner();
 
 		try {
 			jobManagerRunner.start();
+
+			final LibraryCacheManager libraryCacheManager = jobManagerSharedServices.getLibraryCacheManager();
 
 			final JobID jobID = jobGraph.getJobID();
 			assertThat(libraryCacheManager.hasClassLoader(jobID), is(true));
@@ -223,11 +234,6 @@ public class JobManagerRunnerTest extends TestLogger {
 
 	@Nonnull
 	private JobManagerRunner createJobManagerRunner() throws Exception {
-		return createJobManagerRunner(jobManagerSharedServices);
-	}
-
-	@Nonnull
-	private JobManagerRunner createJobManagerRunner(final JobManagerSharedServices jobManagerSharedServices) throws Exception {
 		return new JobManagerRunner(
 			ResourceID.generate(),
 			jobGraph,
@@ -235,8 +241,11 @@ public class JobManagerRunnerTest extends TestLogger {
 			rpcService,
 			haServices,
 			heartbeatServices,
+			blobServer,
 			jobManagerSharedServices,
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
-			fatalErrorHandler);
+			fatalErrorHandler,
+			leaderShipLostHandler,
+			haServices.getSubmittedJobGraphStore());
 	}
 }

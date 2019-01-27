@@ -19,11 +19,11 @@
 
 package org.apache.flink.testutils.serialization.types;
 
-import java.io.IOException;
-import java.util.Random;
-
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
+import java.util.Random;
 
 public class IntType implements SerializationTestType {
 
@@ -35,6 +35,10 @@ public class IntType implements SerializationTestType {
 
 	public IntType(int value) {
 		this.value = value;
+	}
+
+	public int getValue() {
+		return value;
 	}
 
 	@Override

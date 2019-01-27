@@ -18,9 +18,8 @@
 
 package org.apache.flink.table.sources.tsextractors
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.sources.FieldComputer
+import org.apache.flink.table.api.types.{DataTypes, InternalType}
 
 /**
   * Provides the an expression to extract the timestamp for a rowtime attribute.
@@ -28,5 +27,5 @@ import org.apache.flink.table.sources.FieldComputer
 abstract class TimestampExtractor extends FieldComputer[Long] with Serializable {
 
   /** Timestamp extractors compute the timestamp as Long. */
-  override def getReturnType: TypeInformation[Long] = Types.LONG.asInstanceOf[TypeInformation[Long]]
+  override def getReturnType: InternalType = DataTypes.TIMESTAMP
 }

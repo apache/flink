@@ -20,19 +20,150 @@ package org.apache.flink.table.api
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableEnvironmentTest._
-import org.apache.flink.table.api.Types._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATOR => PROCTIME}
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{ROWTIME_INDICATOR => ROWTIME}
-import org.apache.flink.table.utils.TableTestBase
-import org.apache.flink.types.Row
 import org.apache.flink.api.java.tuple.{Tuple3 => JTuple3}
-import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala.typeutils.UnitTypeInfo
+import org.apache.flink.table.api.TableEnvironmentTest._
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.types.{DataType, DataTypes, TypeConverters}
+import org.apache.flink.table.api.types.DataTypes.{PROCTIME_INDICATOR => PROCTIME}
+import org.apache.flink.table.api.types.DataTypes.{ROWTIME_INDICATOR => ROWTIME}
+import org.apache.flink.table.api.types.DataTypes._
+import org.apache.flink.table.catalog._
+import org.apache.flink.table.errorcode.TableErrors
+import org.apache.flink.table.runtime.utils.CommonTestData
+import org.apache.flink.table.util.MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
+import org.apache.flink.table.util.{TableSchemaUtil, TableTestBase}
+import org.apache.flink.types.Row
+
 import org.junit.Test
 
 class TableEnvironmentTest extends TableTestBase {
+
+  private val TEST_DB_NAME = FlinkInMemoryCatalog.DEFAULT_DB
+
+  @Test
+  def testListCatalogsAndDatabasesAndTables(): Unit = {
+    var tEnv = streamTestUtil().tableEnv
+
+    assert(tEnv.listCatalogs().sameElements(Array(CatalogManager.BUILTIN_CATALOG_NAME)))
+
+    var testCatalog = "test"
+    tEnv.registerCatalog(testCatalog, CommonTestData.getTestFlinkInMemoryCatalog)
+
+    assert(tEnv.listCatalogs().sameElements(Array("test", CatalogManager.BUILTIN_CATALOG_NAME)))
+
+    tEnv.setDefaultDatabase(testCatalog, "db2")
+
+    assert(tEnv.listDatabases().sameElements(Array(TEST_DB_NAME, "db1", "db2")))
+    assert(tEnv.listTables().sameElements(Array("tb2")))
+
+    tEnv.setDefaultDatabase("db2")
+
+    assert(tEnv.listDatabases().sameElements(Array(TEST_DB_NAME, "db1", "db2")))
+    assert(tEnv.listTables().sameElements(Array("tb2")))
+
+    tEnv.setDefaultDatabase(CatalogManager.BUILTIN_CATALOG_NAME, TEST_DB_NAME)
+
+    assert(tEnv.listDatabases().sameElements(Array(TEST_DB_NAME)))
+    assert(tEnv.listTables().sameElements(Array.empty[String]))
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testInvalidEmptyDbPath(): Unit = {
+    streamTestUtil().tableEnv.setDefaultDatabase("")
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testInvalidEmptyDbPath2(): Unit = {
+    streamTestUtil().tableEnv.setDefaultDatabase(".")
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testNullDbPath(): Unit = {
+    streamTestUtil().tableEnv.setDefaultDatabase(null)
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testNonExistCatalog(): Unit = {
+    streamTestUtil().tableEnv.setDefaultDatabase("non.exist.path")
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testNonExistDb(): Unit = {
+    streamTestUtil().tableEnv.setDefaultDatabase(
+      String.format("%s.%s", CatalogManager.BUILTIN_CATALOG_NAME, "nonexistdb"))
+  }
+
+  @Test
+  def testGetTable(): Unit = {
+    var tEnv = streamTestUtil().tableEnv
+
+    registerTestTable(tEnv)
+
+    assert(!tEnv.getTable(Array("t1")).isEmpty);
+    assert(tEnv.getTable(Array("t2")).isEmpty);
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testLongTablePath(): Unit = {
+    var tEnv = streamTestUtil().tableEnv
+
+    tEnv.getTable(Array("1", "2", "3", "4"))
+  }
+
+  @Test
+  def testScan(): Unit = {
+    var tEnv = streamTestUtil().tableEnv
+
+    registerTestTable(tEnv)
+
+    var tableSchema = tEnv.scan(
+      CatalogManager.BUILTIN_CATALOG_NAME, TEST_DB_NAME, "t1").getSchema
+
+    assert(tableSchema.getColumnNames.sameElements(Array("a", "b")))
+    assert(TableSchemaUtil.toRowType(tableSchema) ==
+        TypeConverters.createInternalTypeFromTypeInfo(CatalogTestUtil.getRowTypeInfo))
+
+    // test table inference
+    tableSchema = tEnv.scan("t1").getSchema
+
+    assert(tableSchema.getColumnNames.sameElements(Array("a", "b")))
+    assert(TableSchemaUtil.toRowType(tableSchema) ==
+        TypeConverters.createInternalTypeFromTypeInfo(CatalogTestUtil.getRowTypeInfo))
+  }
+
+  @Test(expected = classOf[TableException])
+  def testScanNonExistCatalog(): Unit = {
+    var tEnv = streamTestUtil().tableEnv
+    registerTestTable(tEnv)
+    var tableSchema = tEnv.scan(
+      "nonexist", TEST_DB_NAME, "t1").getSchema
+  }
+
+  @Test(expected = classOf[TableException])
+  def testScanNonExistDb(): Unit = {
+    var tEnv = streamTestUtil().tableEnv
+    registerTestTable(tEnv)
+    var tableSchema = tEnv.scan(CatalogManager.BUILTIN_CATALOG_NAME, "nonexist", "t1").getSchema
+  }
+
+  @Test(expected = classOf[TableException])
+  def testScanNonExistTable(): Unit = {
+    var tEnv = streamTestUtil().tableEnv
+    registerTestTable(tEnv)
+    var tableSchema = tEnv.scan(
+      CatalogManager.BUILTIN_CATALOG_NAME, TEST_DB_NAME, "nonexist")
+      .getSchema
+  }
+
+  def registerTestTable(tEnv: TableEnvironment): Unit = {
+    val catalog = tEnv.getDefaultCatalog()
+
+    catalog.createTable(
+      new ObjectPath(tEnv.getDefaultDatabaseName(), "t1"),
+      CatalogTestUtil.createCatalogTableWithPrimaryKey(true),
+      false)
+  }
 
   // ----------------------------------------------------------------------------------------------
   // schema definition by position
@@ -40,7 +171,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testProjectByPosition(): Unit = {
-    val utils = Seq(streamTestUtil(), batchTestUtil())
+    val utils = Seq(streamTestUtil())
 
     utils.foreach { util =>
 
@@ -167,7 +298,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testProjectByName(): Unit = {
-    val utils = Seq(streamTestUtil(), batchTestUtil())
+    val utils = Seq(streamTestUtil())
 
     utils.foreach { util =>
 
@@ -251,20 +382,20 @@ class TableEnvironmentTest extends TableTestBase {
       // generic
       util.verifySchema(
         util.addTable[Class[_]]('mygeneric),
-        Seq("mygeneric" -> new GenericTypeInfo[Class[_]](classOf[Class[_]])))
+        Seq("mygeneric" -> DataTypes.createGenericType[Class[_]](classOf[Class[_]])))
 
       util.verifySchema(
         util.addTable[Class[_]](),
-        Seq("f0" -> new GenericTypeInfo[Class[_]](classOf[Class[_]])))
+        Seq("f0" -> DataTypes.createGenericType[Class[_]](classOf[Class[_]])))
 
       // any type info
       util.verifySchema(
         util.addTable[Unit](),
-        Seq("f0" -> new UnitTypeInfo()))
+        Seq("f0" -> TypeConverters.createInternalTypeFromTypeInfo(new UnitTypeInfo())))
 
       util.verifySchema(
         util.addTable[Unit]('unit),
-        Seq("unit" -> new UnitTypeInfo()))
+        Seq("unit" -> TypeConverters.createInternalTypeFromTypeInfo(new UnitTypeInfo())))
     }
   }
 
@@ -331,11 +462,11 @@ class TableEnvironmentTest extends TableTestBase {
       util.addTable('rf3, 'rowtime.rowtime, 'rf1)(TEST_ROW),
       Seq("rf3" -> DOUBLE, "rowtime" -> ROWTIME, "rf1" -> INT))
 
-        util.verifySchema(
+    util.verifySchema(
       util.addTable('rf3, 'rf1, 'proctime.proctime)(TEST_ROW),
       Seq("rf3" -> DOUBLE, "rf1" -> INT, "proctime" -> PROCTIME))
 
-        util.verifySchema(
+    util.verifySchema(
       util.addTable('rf3, 'rf1, 'rowtime.rowtime)(TEST_ROW),
       Seq("rf3" -> DOUBLE, "rf1" -> INT, "rowtime" -> ROWTIME))
 
@@ -392,36 +523,46 @@ class TableEnvironmentTest extends TableTestBase {
     // generic
     util.verifySchema(
       util.addTable[Class[_]]('proctime.proctime, 'mygeneric),
-      Seq("proctime" -> PROCTIME, "mygeneric" -> new GenericTypeInfo[Class[_]](classOf[Class[_]])))
+      Seq("proctime" -> PROCTIME,
+        "mygeneric" -> DataTypes.createGenericType[Class[_]](classOf[Class[_]])))
 
     util.verifySchema(
       util.addTable[Class[_]]('rowtime.rowtime, 'mygeneric),
-      Seq("rowtime" -> ROWTIME, "mygeneric" -> new GenericTypeInfo[Class[_]](classOf[Class[_]])))
+      Seq("rowtime" -> ROWTIME,
+        "mygeneric" -> DataTypes.createGenericType[Class[_]](classOf[Class[_]])))
 
     util.verifySchema(
       util.addTable[Class[_]]('mygeneric, 'proctime.proctime),
-      Seq("mygeneric" -> new GenericTypeInfo[Class[_]](classOf[Class[_]]), "proctime" -> PROCTIME))
+      Seq(
+        "mygeneric" -> DataTypes.createGenericType[Class[_]](classOf[Class[_]]),
+        "proctime" -> PROCTIME))
 
     util.verifySchema(
       util.addTable[Class[_]]('mygeneric, 'rowtime.rowtime),
-      Seq("mygeneric" -> new GenericTypeInfo[Class[_]](classOf[Class[_]]), "rowtime" -> ROWTIME))
+      Seq(
+        "mygeneric" -> DataTypes.createGenericType[Class[_]](classOf[Class[_]]),
+        "rowtime" -> ROWTIME))
 
     // any type info
     util.verifySchema(
       util.addTable[Unit]('proctime.proctime, 'unit),
-      Seq("proctime" -> PROCTIME, "unit" -> new UnitTypeInfo()))
+      Seq("proctime" -> PROCTIME,
+        "unit" -> TypeConverters.createInternalTypeFromTypeInfo(new UnitTypeInfo())))
 
     util.verifySchema(
       util.addTable[Unit]('rowtime.rowtime, 'unit),
-      Seq("rowtime" -> ROWTIME, "unit" -> new UnitTypeInfo()))
+      Seq("rowtime" -> ROWTIME,
+        "unit" -> TypeConverters.createInternalTypeFromTypeInfo(new UnitTypeInfo())))
 
     util.verifySchema(
       util.addTable[Unit]('unit, 'proctime.proctime),
-      Seq("unit" -> new UnitTypeInfo(), "proctime" -> PROCTIME))
+      Seq("unit" -> TypeConverters.createInternalTypeFromTypeInfo(
+        new UnitTypeInfo()), "proctime" -> PROCTIME))
 
     util.verifySchema(
       util.addTable[Unit]('unit, 'rowtime.rowtime),
-      Seq("unit" -> new UnitTypeInfo(), "rowtime" -> ROWTIME))
+      Seq("unit" -> TypeConverters.createInternalTypeFromTypeInfo
+      (new UnitTypeInfo()), "rowtime" -> ROWTIME))
   }
 
   @Test
@@ -467,7 +608,7 @@ class TableEnvironmentTest extends TableTestBase {
 
   @Test
   def testAliasByName(): Unit = {
-    val utils = Seq(streamTestUtil(), batchTestUtil())
+    val utils = Seq(streamTestUtil())
 
     utils.foreach { util =>
 
@@ -531,18 +672,63 @@ class TableEnvironmentTest extends TableTestBase {
 
     // case class
     util.verifySchema(
-      util.addTable[CClassWithTime]('cf1, 'cf2.rowtime as 'new, 'cf3),
+      util.addTable[CClassWithTime]('cf1, ('cf2 as 'new).rowtime, 'cf3),
       Seq("cf1" -> INT, "new" -> ROWTIME, "cf3" -> STRING))
 
     // row
     util.verifySchema(
-      util.addTable('rf1, 'rf2.rowtime as 'new, 'rf3)(TEST_ROW_WITH_TIME),
+      util.addTable('rf1, ('rf2 as 'new).rowtime, 'rf3)(TEST_ROW_WITH_TIME),
       Seq("rf1" -> INT, "new" -> ROWTIME, "rf3" -> STRING))
 
     // tuple
     util.verifySchema(
-      util.addTable[JTuple3[Int, Long, String]]('f0, 'f1.rowtime as 'new, 'f2),
+      util.addTable[JTuple3[Int, Long, String]]('f0, ('f1 as 'new).rowtime, 'f2),
       Seq("f0" -> INT, "new" -> ROWTIME, "f2" -> STRING))
+  }
+
+  @Test
+  def testInsertInto(): Unit = {
+    val util = streamTestUtil()
+
+    val t: Table = util.addTable[(Int, Double)]("table_1", 'id, 'text)
+
+    val sinkFieldNames = Array("a", "b")
+
+    val sinkFieldTypes: Array[DataType] = Array(DataTypes.INT, DataTypes.LONG)
+
+    util.tableEnv.registerTableSink("sink_1", sinkFieldNames,
+                  sinkFieldTypes, new UnsafeMemoryAppendTableSink)
+
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage(
+      TableErrors.prettyPrint(
+        "Insert into: Query result and target table 'sink_1' field type(s) not match."))
+    t.insertInto("sink_1")
+  }
+
+  @Test
+  def testSqlUpdate(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Int, Double, String)]("MyTable", 'a, 'b, 'c, 'proctime.proctime)
+    val sinkFieldNames = Array("a", "proctime", "c")
+    val sinkFieldTypes: Array[DataType] = Array(
+      DataTypes.INT,
+      DataTypes.TIMESTAMP,
+      DataTypes.STRING)
+    util.tableEnv.getConfig.setSubsectionOptimization(true)
+    util.tableEnv.registerTableSink(
+      "sink_1",
+      sinkFieldNames,
+      sinkFieldTypes,
+      new UnsafeMemoryAppendTableSink)
+
+    val sql = "INSERT INTO sink_1 SELECT a, proctime, c FROM MyTable ORDER BY proctime, c"
+
+    util.tableEnv.sqlUpdate(sql)
+    val node = util.tableEnv.sinkNodes.head
+    val resultTable = new Table(util.tableEnv, node.children.head)
+
+    util.verifyPlan(resultTable)
   }
 }
 
@@ -560,14 +746,13 @@ object TableEnvironmentTest {
     def this() = this("", 0, 0L)
   }
 
-  val TEST_ROW: TypeInformation[Row] = ROW(
+  val TEST_ROW: TypeInformation[Row] = Types.ROW(
     Array("rf1", "rf2", "rf3"),
-    Array[TypeInformation[_]](INT, STRING, DOUBLE))
+    Array[TypeInformation[_]](Types.INT, Types.STRING, Types.DOUBLE))
 
-  val TEST_ROW_WITH_TIME: TypeInformation[Row] = ROW(
+  val TEST_ROW_WITH_TIME: TypeInformation[Row] = Types.ROW(
     Array("rf1", "rf2", "rf3"),
-    Array[TypeInformation[_]](INT, LONG, STRING))
+    Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING))
 
 }
-
 

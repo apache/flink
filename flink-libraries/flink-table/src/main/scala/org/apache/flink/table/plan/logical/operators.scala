@@ -19,35 +19,31 @@ package org.apache.flink.table.plan.logical
 
 import java.lang.reflect.Method
 import java.util
-
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{CorrelationId, JoinRelType}
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, Types, UnresolvedException}
+import org.apache.flink.table.api.functions.TableFunction
+import org.apache.flink.table.api.types.{DataType, DataTypes, InternalType, TypeConverters}
+import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, UnresolvedException}
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.expressions.ExpressionUtils.isRowCountLiteral
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.TableFunction
-import org.apache.flink.table.functions.utils.TableSqlFunction
+import org.apache.flink.table.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
+import org.apache.flink.table.plan.schema.TypedFlinkTableFunction
+import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.typeutils.TypeUtils
 import org.apache.flink.table.validate.{ValidationFailure, ValidationSuccess}
 
 import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-case class Project(
-    projectList: Seq[NamedExpression],
-    child: LogicalNode,
-    explicitAlias: Boolean = false)
-  extends UnaryNode {
-
+case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extends UnaryNode {
   override def output: Seq[Attribute] = projectList.map(_.toAttribute)
 
   override def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
@@ -66,7 +62,7 @@ case class Project(
             throw new RuntimeException("This should never be called and probably points to a bug.")
         }
     }
-    Project(newProjectList, child, explicitAlias)
+    Project(newProjectList, child)
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
@@ -95,22 +91,14 @@ case class Project(
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
-
-    val exprs = if (explicitAlias) {
-      projectList
-    } else {
-      // remove AS expressions, according to Calcite they should not be in a final RexNode
-      projectList.map {
-        case Alias(e: Expression, _, _) => e
-        case e: Expression => e
-      }
-    }
-
     relBuilder.project(
-      exprs.map(_.toRexNode(relBuilder)).asJava,
+      projectList.map(_.toRexNode(relBuilder)).asJava,
       projectList.map(_.name).asJava,
       true)
   }
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T =
+    logicalSqlVisitor.visit(this)
 }
 
 case class AliasNode(aliasList: Seq[Expression], child: LogicalNode) extends UnaryNode {
@@ -132,11 +120,12 @@ case class AliasNode(aliasList: Seq[Expression], child: LogicalNode) extends Una
       val input = child.output
       Project(
         names.zip(input).map { case (name, attr) =>
-          Alias(attr, name)} ++ input.drop(names.length),
-        child,
-        explicitAlias = true)
+          Alias(attr, name)} ++ input.drop(names.length), child)
     }
   }
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T =
+    logicalSqlVisitor.visit(this)
 }
 
 case class Distinct(child: LogicalNode) extends UnaryNode {
@@ -146,6 +135,9 @@ case class Distinct(child: LogicalNode) extends UnaryNode {
     child.construct(relBuilder)
     relBuilder.distinct()
   }
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T =
+    logicalSqlVisitor.visit(this)
 }
 
 case class Sort(order: Seq[Ordering], child: LogicalNode) extends UnaryNode {
@@ -162,6 +154,9 @@ case class Sort(order: Seq[Ordering], child: LogicalNode) extends UnaryNode {
     }
     super.validate(tableEnv)
   }
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T =
+    logicalSqlVisitor.visit(this)
 }
 
 case class Limit(offset: Int, fetch: Int = -1, child: LogicalNode) extends UnaryNode {
@@ -176,14 +171,14 @@ case class Limit(offset: Int, fetch: Int = -1, child: LogicalNode) extends Unary
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
       failValidation(s"Limit on stream tables is currently not supported.")
     }
-    if (!child.isInstanceOf[Sort]) {
-      failValidation(s"Limit operator must be preceded by an OrderBy operator.")
-    }
     if (offset < 0) {
       failValidation(s"Offset should be greater than or equal to zero.")
     }
     super.validate(tableEnv)
   }
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T =
+    logicalSqlVisitor.visit(this)
 }
 
 case class Filter(condition: Expression, child: LogicalNode) extends UnaryNode {
@@ -196,12 +191,15 @@ case class Filter(condition: Expression, child: LogicalNode) extends UnaryNode {
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     val resolvedFilter = super.validate(tableEnv).asInstanceOf[Filter]
-    if (resolvedFilter.condition.resultType != BOOLEAN_TYPE_INFO) {
+    if (resolvedFilter.condition.resultType != DataTypes.BOOLEAN) {
       failValidation(s"Filter operator requires a boolean expression as input," +
         s" but ${resolvedFilter.condition} is of type ${resolvedFilter.condition.resultType}")
     }
     resolvedFilter
   }
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T =
+    logicalSqlVisitor.visit(this)
 }
 
 case class Aggregate(
@@ -267,7 +265,7 @@ case class Aggregate(
     }
 
     def validateGroupingExpression(expr: Expression): Unit = {
-      if (!expr.resultType.isKeyType) {
+      if (!TypeConverters.createExternalTypeInfoFromDataType(expr.resultType).isKeyType) {
         failValidation(
           s"expression $expr cannot be used as a grouping expression " +
             "because it's not a valid key type which must be hashable and comparable")
@@ -275,6 +273,9 @@ case class Aggregate(
     }
     resolvedAggregate
   }
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T =
+    logicalSqlVisitor.visit(this)
 }
 
 case class Minus(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
@@ -306,6 +307,9 @@ case class Minus(left: LogicalNode, right: LogicalNode, all: Boolean) extends Bi
     }
     resolvedMinus
   }
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T =
+    logicalSqlVisitor.visit(this)
 }
 
 case class Union(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
@@ -337,6 +341,9 @@ case class Union(left: LogicalNode, right: LogicalNode, all: Boolean) extends Bi
     }
     resolvedUnion
   }
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T =
+    logicalSqlVisitor.visit(this)
 }
 
 case class Intersect(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
@@ -369,6 +376,46 @@ case class Intersect(left: LogicalNode, right: LogicalNode, all: Boolean) extend
     }
     resolvedIntersect
   }
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T =
+    logicalSqlVisitor.visit(this)
+}
+
+case class JoinFieldReference(
+    name: String,
+    resultType: InternalType,
+    left: LogicalNode,
+    right: LogicalNode) extends Attribute {
+
+  val isFromLeftInput: Boolean = left.output.map(_.name).contains(name)
+
+  val (indexInInput, indexInJoin) = if (isFromLeftInput) {
+    val indexInLeft = left.output.map(_.name).indexOf(name)
+    (indexInLeft, indexInLeft)
+  } else {
+    val indexInRight = right.output.map(_.name).indexOf(name)
+    (indexInRight, indexInRight + left.output.length)
+  }
+
+  override def toString = s"'$name"
+
+  override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    // look up type of field
+    val fieldType = relBuilder.field(2, if (isFromLeftInput) 0 else 1, name).getType
+    // create a new RexInputRef with index offset
+    new RexInputRef(indexInJoin, fieldType)
+  }
+
+  override def withName(newName: String): Attribute = {
+    if (newName == name) {
+      this
+    } else {
+      JoinFieldReference(newName, resultType, left, right)
+    }
+  }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    s"`$name`".asInstanceOf[T]
 }
 
 case class Join(
@@ -380,40 +427,6 @@ case class Join(
 
   override def output: Seq[Attribute] = {
     left.output ++ right.output
-  }
-
-  private case class JoinFieldReference(
-    name: String,
-    resultType: TypeInformation[_],
-    left: LogicalNode,
-    right: LogicalNode) extends Attribute {
-
-    val isFromLeftInput: Boolean = left.output.map(_.name).contains(name)
-
-    val (indexInInput, indexInJoin) = if (isFromLeftInput) {
-      val indexInLeft = left.output.map(_.name).indexOf(name)
-      (indexInLeft, indexInLeft)
-    } else {
-      val indexInRight = right.output.map(_.name).indexOf(name)
-      (indexInRight, indexInRight + left.output.length)
-    }
-
-    override def toString = s"'$name"
-
-    override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-      // look up type of field
-      val fieldType = relBuilder.field(2, if (isFromLeftInput) 0 else 1, name).getType
-      // create a new RexInputRef with index offset
-      new RexInputRef(indexInJoin, fieldType)
-    }
-
-    override def withName(newName: String): Attribute = {
-      if (newName == name) {
-        this
-      } else {
-        JoinFieldReference(newName, resultType, left, right)
-      }
-    }
   }
 
   override def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
@@ -456,7 +469,7 @@ case class Join(
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     val resolvedJoin = super.validate(tableEnv).asInstanceOf[Join]
-    if (!resolvedJoin.condition.forall(_.resultType == BOOLEAN_TYPE_INFO)) {
+    if (!resolvedJoin.condition.forall(_.resultType == DataTypes.BOOLEAN)) {
       failValidation(s"Filter operator requires a boolean expression as input, " +
         s"but ${resolvedJoin.condition} is of type ${resolvedJoin.joinType}")
     } else if (ambiguousName.nonEmpty) {
@@ -498,7 +511,7 @@ case class Join(
         }
       case x: BinaryComparison =>
       // The boolean literal should be a valid condition type.
-      case x: Literal if x.resultType == Types.BOOLEAN =>
+      case x: Literal if x.resultType == DataTypes.BOOLEAN =>
       case x => failValidation(
         s"Unsupported condition type: ${x.getClass.getSimpleName}. Condition: $x")
     }
@@ -510,14 +523,11 @@ case class Join(
     if (correlated && right.isInstanceOf[LogicalTableFunctionCall] && joinType != JoinType.INNER ) {
       if (!alwaysTrue) failValidation("TableFunction left outer join predicate can only be " +
         "empty or literal true.")
-    } else {
-      if (!equiJoinPredicateFound) {
-        failValidation(
-          s"Invalid join condition: $expression. At least one equi-join predicate is " +
-            s"required.")
-      }
     }
   }
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T =
+    logicalSqlVisitor.visit(this)
 }
 
 case class CatalogNode(
@@ -525,7 +535,7 @@ case class CatalogNode(
     rowType: RelDataType) extends LeafNode {
 
   val output: Seq[Attribute] = rowType.getFieldList.asScala.map { field =>
-    ResolvedFieldReference(field.getName, FlinkTypeFactory.toTypeInfo(field.getType))
+    ResolvedFieldReference(field.getName, FlinkTypeFactory.toInternalType(field.getType))
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
@@ -533,6 +543,22 @@ case class CatalogNode(
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = this
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T =
+    logicalSqlVisitor.visit(this)
+}
+
+case class SinkNode(child: LogicalNode, sink: TableSink[_], sinkName: String) extends UnaryNode {
+  override def output: Seq[Attribute] = child.output
+
+  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+    val flinkRelBuilder = relBuilder.asInstanceOf[FlinkRelBuilder]
+    child.construct(flinkRelBuilder)
+    flinkRelBuilder.sink(sink, sinkName)
+  }
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T =
+    logicalSqlVisitor.visit(this)
 }
 
 /**
@@ -542,7 +568,7 @@ case class LogicalRelNode(
     relNode: RelNode) extends LeafNode {
 
   val output: Seq[Attribute] = relNode.getRowType.getFieldList.asScala.map { field =>
-    ResolvedFieldReference(field.getName, FlinkTypeFactory.toTypeInfo(field.getType))
+    ResolvedFieldReference(field.getName, FlinkTypeFactory.toInternalType(field.getType))
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
@@ -550,6 +576,9 @@ case class LogicalRelNode(
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = this
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T =
+    logicalSqlVisitor.visit(this)
 }
 
 case class WindowAggregate(
@@ -633,8 +662,6 @@ case class WindowAggregate(
       case aggExpr: Aggregation
         if aggExpr.getSqlAggFunction.requiresOver =>
         failValidation(s"OVER clause is necessary for window functions: [${aggExpr.getClass}].")
-      case aggExpr: DistinctAgg =>
-        validateAggregateExpression(aggExpr.child)
       // check no nested aggregation exists.
       case aggExpr: Aggregation =>
         aggExpr.children.foreach { child =>
@@ -655,7 +682,7 @@ case class WindowAggregate(
     }
 
     def validateGroupingExpression(expr: Expression): Unit = {
-      if (!expr.resultType.isKeyType) {
+      if (!TypeConverters.createExternalTypeInfoFromDataType(expr.resultType).isKeyType) {
         failValidation(
           s"Expression $expr cannot be used as a grouping expression " +
             "because it's not a valid key type which must be hashable and comparable")
@@ -686,6 +713,9 @@ case class WindowAggregate(
 
     resolvedWindowAggregate
   }
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T =
+    logicalSqlVisitor.visit(this)
 }
 
 case class TemporalTable(
@@ -700,6 +730,10 @@ case class TemporalTable(
     throw new UnsupportedOperationException(
       "This should never be called. This node is supposed to be used only for validation")
   }
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T = {
+    logicalSqlVisitor.visit(this)
+  }
 }
 
 /**
@@ -709,18 +743,18 @@ case class TemporalTable(
   * @param tableFunction table function to be called (might be overloaded)
   * @param parameters actual parameters
   * @param fieldNames output field names
-  * @param child child logical node
+  * @param input input node of table function
   */
 case class LogicalTableFunctionCall(
     functionName: String,
     tableFunction: TableFunction[_],
     parameters: Seq[Expression],
-    resultType: TypeInformation[_],
+    externalResultType: DataType,
     fieldNames: Array[String],
-    child: LogicalNode)
-  extends UnaryNode {
+    input: LogicalNode)
+  extends LeafNode {
 
-  private val (generatedNames, fieldIndexes, fieldTypes) = getFieldInfo(resultType)
+  private val (generatedNames, fieldIndexes, fieldTypes) = getFieldInfo(externalResultType)
   private var evalMethod: Method = _
 
   override def output: Seq[Attribute] = {
@@ -735,6 +769,22 @@ case class LogicalTableFunctionCall(
     }
   }
 
+  override def resolveReference(
+      tableEnv: TableEnvironment,
+      name: String): Option[NamedExpression] = {
+    // try to resolve a field
+    val childrenOutput = input.output
+    val fieldCandidates = childrenOutput.filter(_.name.equals(name))
+    if (fieldCandidates.isEmpty) {
+      val from = childrenOutput.map(_.name).mkString(", ")
+      failValidation(s"""Cannot resolve [$name] given input [$from].""")
+    }
+    if (fieldCandidates.size > 1) {
+      failValidation(s"Reference $name is ambiguous.")
+    }
+    Some(fieldCandidates.head.withName(name))
+  }
+
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     val node = super.validate(tableEnv).asInstanceOf[LogicalTableFunctionCall]
     // check if not Scala object
@@ -743,7 +793,7 @@ case class LogicalTableFunctionCall(
     checkForInstantiation(tableFunction.getClass)
     // look for a signature that matches the input types
     val signature = node.parameters.map(_.resultType)
-    val foundMethod = getUserDefinedMethod(tableFunction, "eval", typeInfoToClass(signature))
+    val foundMethod = getEvalUserDefinedMethod(tableFunction, signature)
     if (foundMethod.isEmpty) {
       failValidation(
         s"Given parameters of function '$functionName' do not match any signature. \n" +
@@ -756,18 +806,15 @@ case class LogicalTableFunctionCall(
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    val fieldIndexes = getFieldInfo(resultType)._2
-    val function = new FlinkTableFunctionImpl(
-      resultType,
-      fieldIndexes,
-      if (fieldNames.isEmpty) generatedNames else fieldNames
-    )
+    val function = new TypedFlinkTableFunction(
+      tableFunction,
+      externalResultType)
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val sqlFunction = new TableSqlFunction(
       tableFunction.functionIdentifier,
       tableFunction.toString,
       tableFunction,
-      resultType,
+      externalResultType,
       typeFactory,
       function)
 
@@ -776,9 +823,16 @@ case class LogicalTableFunctionCall(
       new util.ArrayList[RelNode](),
       relBuilder.call(sqlFunction, parameters.map(_.toRexNode(relBuilder)).asJava),
       function.getElementType(null),
-      function.getRowType(relBuilder.getTypeFactory, null),
+      UserDefinedFunctionUtils.buildRelDataType(
+        relBuilder.getTypeFactory,
+        externalResultType.toInternalType,
+        if (fieldNames.isEmpty) generatedNames else fieldNames,
+        fieldIndexes),
       null)
 
     relBuilder.push(scan)
   }
+
+  override def accept[T](logicalSqlVisitor: LogicalNodeVisitor[T]): T =
+    logicalSqlVisitor.visit(this)
 }

@@ -62,8 +62,4 @@ public class BlobServerResource extends ExternalResource {
 	public int getBlobServerPort() {
 		return blobServer.getPort();
 	}
-
-	public BlobServer getBlobServer() {
-		return blobServer;
-	}
 }

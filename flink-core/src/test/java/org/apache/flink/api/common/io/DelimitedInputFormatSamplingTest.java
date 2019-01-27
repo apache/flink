@@ -28,11 +28,7 @@ import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.types.IntValue;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
-import java.io.File;
 
 
 public class DelimitedInputFormatSamplingTest {
@@ -72,11 +68,6 @@ public class DelimitedInputFormatSamplingTest {
 	private static final int DEFAULT_NUM_SAMPLES = 4;
 	
 	private static Configuration CONFIG;
-
-	@ClassRule
-	public static TemporaryFolder tempFolder = new TemporaryFolder();
-
-	private static File testTempFolder;
 	
 	// ========================================================================
 	//  Setup
@@ -85,13 +76,11 @@ public class DelimitedInputFormatSamplingTest {
 	@BeforeClass
 	public static void initialize() {
 		try {
-			testTempFolder = tempFolder.newFolder();
 			// make sure we do 4 samples
 			CONFIG = TestConfigUtils.loadGlobalConf(
 				new String[] { OptimizerOptions.DELIMITED_FORMAT_MIN_LINE_SAMPLES.key(),
 								OptimizerOptions.DELIMITED_FORMAT_MAX_LINE_SAMPLES.key() },
-				new String[] { "4", "4" },
-				testTempFolder);
+				new String[] { "4", "4" });
 
 
 		} catch (Throwable t) {
@@ -136,7 +125,7 @@ public class DelimitedInputFormatSamplingTest {
 	@Test
 	public void testNumSamplesMultipleFiles() {
 		try {
-			final String tempFile = TestFileUtils.createTempFileDir(testTempFolder, TEST_DATA1, TEST_DATA1, TEST_DATA1, TEST_DATA1);
+			final String tempFile = TestFileUtils.createTempFileDir(TEST_DATA1, TEST_DATA1, TEST_DATA1, TEST_DATA1);
 			final Configuration conf = new Configuration();
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat(CONFIG);
@@ -186,7 +175,7 @@ public class DelimitedInputFormatSamplingTest {
 	@Test
 	public void testSamplingDirectory() {
 		try {
-			final String tempFile = TestFileUtils.createTempFileDir(testTempFolder, TEST_DATA1, TEST_DATA2);
+			final String tempFile = TestFileUtils.createTempFileDir(TEST_DATA1, TEST_DATA2);
 			final Configuration conf = new Configuration();
 			
 			final TestDelimitedInputFormat format = new TestDelimitedInputFormat(CONFIG);

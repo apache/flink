@@ -17,22 +17,22 @@
  */
 package org.apache.flink.table.runtime.join
 
-import java.util
+import org.apache.flink.api.common.functions.FlatJoinFunction
+import org.apache.flink.table.api.{TableConfig, TableConfigOptions}
+import org.apache.flink.table.api.types.{RowType}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen._
+import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
+import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
+import org.apache.flink.table.plan.util.FlinkRexUtil
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.sql.{SqlKind, SqlOperatorTable}
-import org.apache.flink.api.common.functions.FlatJoinFunction
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
-import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
-import org.apache.flink.table.functions.sql.ProctimeSqlFunction
-import org.apache.flink.table.plan.schema.{RowSchema, TimeIndicatorRelDataType}
-import org.apache.flink.types.Row
+import org.apache.calcite.sql.SqlKind
+
+import java.util
 
 import scala.collection.JavaConverters._
 
@@ -41,23 +41,23 @@ import scala.collection.JavaConverters._
   */
 object WindowJoinUtil {
 
-  case class WindowBounds(
-    isEventTime: Boolean,
-    leftLowerBound: Long,
-    leftUpperBound: Long,
-    leftTimeIdx: Int,
-    rightTimeIdx: Int)
-
-  protected case class WindowBound(bound: Long, isLeftLower: Boolean)
-
-  protected case class TimePredicate(
-    isEventTime: Boolean,
-    leftInputOnLeftSide: Boolean,
-    leftTimeIdx: Int,
-    rightTimeIdx: Int,
-    pred: RexCall)
-
-  protected case class TimeAttributeAccess(isEventTime: Boolean, isLeftInput: Boolean, idx: Int)
+  /**
+    * Checks if an expression accesses a time attribute.
+    *
+    * @param expr      The expression to check.
+    * @param inputType The input type of the expression.
+    * @return True, if the expression accesses a time attribute. False otherwise.
+    */
+  def accessesTimeAttribute(expr: RexNode, inputType: RelDataType): Boolean = {
+    expr match {
+      case i: RexInputRef =>
+        val accessedType = inputType.getFieldList.get(i.getIndex).getType
+        FlinkTypeFactory.isTimeIndicatorType(accessedType)
+      case c: RexCall =>
+        c.operands.asScala.exists(accessesTimeAttribute(_, inputType))
+      case _ => false
+    }
+  }
 
   /**
     * Extracts the window bounds from a join predicate.
@@ -67,18 +67,19 @@ object WindowJoinUtil {
     * @param  inputSchema         schema of the join result
     * @param  rexBuilder          RexBuilder
     * @param  config              TableConfig
-    *
     * @return A Tuple2 of extracted window bounds and remaining predicates.
     */
   private[flink] def extractWindowBoundsFromPredicate(
-      predicate: RexNode,
-      leftLogicalFieldCnt: Int,
-      inputSchema: RelDataType,
-      rexBuilder: RexBuilder,
-      config: TableConfig): (Option[WindowBounds], Option[RexNode]) = {
+    predicate: RexNode,
+    leftLogicalFieldCnt: Int,
+    inputSchema: RelDataType,
+    rexBuilder: RexBuilder,
+    config: TableConfig): (Option[WindowBounds], Option[RexNode]) = {
 
     // Converts the condition to conjunctive normal form (CNF)
-    val cnfCondition = RexUtil.toCnf(rexBuilder, predicate)
+    val cnfCondition = FlinkRexUtil.toCnf(rexBuilder,
+      config.getConf.getInteger(TableConfigOptions.SQL_OPTIMIZER_CNF_NODES_LIMIT),
+      predicate)
 
     // split the condition into time predicates and other predicates
     // We need two range predicates or an equality predicate for a properly bounded window join.
@@ -114,9 +115,9 @@ object WindowJoinUtil {
         // pair of range predicate must not include equals predicate
         return (None, Some(predicate))
       case Seq(_) =>
-        // Single equality predicate is OK
+      // Single equality predicate is OK
       case Seq(_, _) =>
-        // Two range (i.e., non-equality predicates are OK
+      // Two range (i.e., non-equality predicates are OK
       case _ =>
         return (None, Some(predicate))
     }
@@ -186,9 +187,9 @@ object WindowJoinUtil {
     * @return Either a valid time predicate (Left) or a valid non-time predicate (Right)
     */
   private def identifyTimePredicate(
-      pred: RexNode,
-      leftFieldCount: Int,
-      inputType: RelDataType): Either[TimePredicate, RexNode] = {
+    pred: RexNode,
+    leftFieldCount: Int,
+    inputType: RelDataType): Either[TimePredicate, RexNode] = {
 
     pred match {
       case c: RexCall =>
@@ -204,7 +205,7 @@ object WindowJoinUtil {
 
             // validate that both sides of the condition do not access non-time attributes
             if (accessesNonTimeAttribute(leftTerm, inputType) ||
-                accessesNonTimeAttribute(rightTerm, inputType)) {
+              accessesNonTimeAttribute(rightTerm, inputType)) {
               return Right(pred)
             }
 
@@ -261,9 +262,9 @@ object WindowJoinUtil {
     * @return A Seq of all time attribute accessed in the expression.
     */
   private def extractTimeAttributeAccesses(
-      expr: RexNode,
-      leftFieldCount: Int,
-      inputType: RelDataType): Seq[TimeAttributeAccess] = {
+    expr: RexNode,
+    leftFieldCount: Int,
+    inputType: RelDataType): Seq[TimeAttributeAccess] = {
 
     expr match {
       case i: RexInputRef =>
@@ -293,7 +294,7 @@ object WindowJoinUtil {
   /**
     * Checks if an expression accesses a non-time attribute.
     *
-    * @param expr The expression to check.
+    * @param expr      The expression to check.
     * @param inputType The input type of the expression.
     * @return True, if the expression accesses a non-time attribute. False otherwise.
     */
@@ -318,9 +319,9 @@ object WindowJoinUtil {
     * @return window boundary, is left lower bound
     */
   private def computeWindowBoundFromPredicate(
-      timePred: TimePredicate,
-      rexBuilder: RexBuilder,
-      config: TableConfig): Option[WindowBound] = {
+    timePred: TimePredicate,
+    rexBuilder: RexBuilder,
+    config: TableConfig): Option[WindowBound] = {
 
     val isLeftLowerBound: Boolean =
       timePred.pred.getKind match {
@@ -367,28 +368,28 @@ object WindowJoinUtil {
     * Replaces the time attributes on both sides of a time predicate by a zero literal and
     * reduces the expressions on both sides to a long literal.
     *
-    * @param timePred The time predicate which both sides are reduced.
+    * @param timePred   The time predicate which both sides are reduced.
     * @param rexBuilder A RexBuilder
-    * @param config A TableConfig.
+    * @param config     A TableConfig.
     * @return The values of the reduced literals on both sides of the time comparison predicate.
     */
   private def reduceTimeExpression(
-      timePred: TimePredicate,
-      rexBuilder: RexBuilder,
-      config: TableConfig): (Option[Long], Option[Long]) = {
+    timePred: TimePredicate,
+    rexBuilder: RexBuilder,
+    config: TableConfig): (Option[Long], Option[Long]) = {
 
     /**
       * Replace the time attribute by zero literal.
       */
     def replaceTimeFieldWithLiteral(expr: RexNode): RexNode = {
       expr match {
-        case c: RexCall if RelTimeIndicatorConverter.isMaterializationCall(c) =>
-          // replace with timestamp
-          rexBuilder.makeZeroLiteral(expr.getType)
         case c: RexCall =>
           // replace in call operands
           val newOps = c.operands.asScala.map(replaceTimeFieldWithLiteral).asJava
           rexBuilder.makeCall(c.getType, c.getOperator, newOps)
+        case i: RexInputRef if FlinkTypeFactory.isTimeIndicatorType(i.getType) =>
+          // replace with timestamp
+          rexBuilder.makeZeroLiteral(expr.getType)
         case _ => expr
       }
     }
@@ -430,13 +431,14 @@ object WindowJoinUtil {
     * @param  ruleDescription rule description
     */
   private[flink] def generateJoinFunction(
-      config: TableConfig,
-      joinType: JoinRelType,
-      leftType: TypeInformation[Row],
-      rightType: TypeInformation[Row],
-      returnType: RowSchema,
-      otherCondition: Option[RexNode],
-      ruleDescription: String): GeneratedFunction[FlatJoinFunction[Row, Row, Row], Row] = {
+    config: TableConfig,
+    joinType: JoinRelType,
+    leftType: RowType,
+    rightType: RowType,
+    returnType: RelDataType,
+    otherCondition: Option[RexNode],
+    ruleDescription: String): GeneratedFunction[FlatJoinFunction[BaseRow, BaseRow, BaseRow],
+    BaseRow] = {
 
     // whether input can be null
     val nullCheck = joinType match {
@@ -446,41 +448,67 @@ object WindowJoinUtil {
       case JoinRelType.FULL => true
     }
 
-    // generate other non-equi function code
-    val generator = new FunctionCodeGenerator(
-      config,
-      nullCheck,
-      leftType,
-      Some(rightType))
+    val ctx = CodeGeneratorContext(config)
+    val collectorTerm = CodeGeneratorContext.DEFAULT_COLLECTOR_TERM
 
-    val conversion = generator.generateConverterResultExpression(
-      returnType.typeInfo,
-      returnType.fieldNames)
+    val returnTypeInfo = FlinkTypeFactory.toInternalRowType(returnType)
+    val joinedRow = "joinedRow"
+    ctx.addOutputRecord(returnTypeInfo, classOf[JoinedRow], joinedRow)
 
-    // if other condition is none, then output the result directly
+    val exprGenerator = new ExprCodeGenerator(ctx, nullCheck, config.getNullCheck)
+      .bindInput(leftType)
+      .bindSecondInput(rightType)
+
+    val leftRow = CodeGeneratorContext.DEFAULT_INPUT1_TERM
+    val rightRow = CodeGeneratorContext.DEFAULT_INPUT2_TERM
+    val buildJoinedRow =
+      s"""
+         |$joinedRow.replace($leftRow,$rightRow);""".stripMargin
+
     val body = otherCondition match {
       case None =>
         s"""
-           |${conversion.code}
-           |${generator.collectorTerm}.collect(${conversion.resultTerm});
+           |$buildJoinedRow
+           |$collectorTerm.collect($joinedRow)
            |""".stripMargin
       case Some(remainCondition) =>
-        // generate code for remaining condition
-        val genCond = generator.generateExpression(remainCondition)
+        val genCond = exprGenerator.generateExpression(remainCondition)
         s"""
            |${genCond.code}
            |if (${genCond.resultTerm}) {
-           |  ${conversion.code}
-           |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
-           |}
-           |""".stripMargin
+           |  $buildJoinedRow
+           |  $collectorTerm.collect($joinedRow);
+           |}""".stripMargin
     }
 
-    generator.generateFunction(
+    FunctionCodeGenerator.generateFunction(
+      ctx,
       ruleDescription,
-      classOf[FlatJoinFunction[Row, Row, Row]],
+      classOf[FlatJoinFunction[BaseRow, BaseRow, BaseRow]],
       body,
-      returnType.typeInfo)
+      returnTypeInfo,
+      leftType,
+      config,
+      input2Type = Some(rightType),
+      collectorTerm = collectorTerm)
   }
+
+  case class WindowBounds(
+    isEventTime: Boolean,
+    leftLowerBound: Long,
+    leftUpperBound: Long,
+    leftTimeIdx: Int,
+    rightTimeIdx: Int)
+
+  protected case class WindowBound(bound: Long, isLeftLower: Boolean)
+
+  protected case class TimePredicate(
+    isEventTime: Boolean,
+    leftInputOnLeftSide: Boolean,
+    leftTimeIdx: Int,
+    rightTimeIdx: Int,
+    pred: RexCall)
+
+  protected case class TimeAttributeAccess(isEventTime: Boolean, isLeftInput: Boolean, idx: Int)
 
 }

@@ -13,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 
 package org.apache.flink.streaming.connectors.kafka.config;
 
@@ -30,21 +30,19 @@ public class OffsetCommitModes {
 	 *
 	 * @param enableAutoCommit whether or not auto committing is enabled in the provided Kafka properties.
 	 * @param enableCommitOnCheckpoint whether or not committing on checkpoints is enabled.
-	 * @param enableCheckpointing whether or not checkpoint is enabled for the consumer.
 	 *
 	 * @return the offset commit mode to use, based on the configuration values.
 	 */
 	public static OffsetCommitMode fromConfiguration(
 			boolean enableAutoCommit,
-			boolean enableCommitOnCheckpoint,
-			boolean enableCheckpointing) {
+			boolean enableCommitOnCheckpoint) {
 
-		if (enableCheckpointing) {
+		if (enableCommitOnCheckpoint) {
 			// if checkpointing is enabled, the mode depends only on whether committing on checkpoints is enabled
-			return (enableCommitOnCheckpoint) ? OffsetCommitMode.ON_CHECKPOINTS : OffsetCommitMode.DISABLED;
+			return OffsetCommitMode.ON_CHECKPOINTS;
 		} else {
 			// else, the mode depends only on whether auto committing is enabled in the provided Kafka properties
-			return (enableAutoCommit) ? OffsetCommitMode.KAFKA_PERIODIC : OffsetCommitMode.DISABLED;
+			return enableAutoCommit ? OffsetCommitMode.KAFKA_PERIODIC : OffsetCommitMode.DISABLED;
 		}
 	}
 }

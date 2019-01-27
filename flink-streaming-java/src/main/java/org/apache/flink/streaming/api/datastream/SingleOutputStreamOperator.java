@@ -23,6 +23,9 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.TypeInfoParser;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -181,7 +184,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 * @param preferredResources The preferred resources for this operator.
 	 * @return The operator with set minimum and preferred resources.
 	 */
-	private SingleOutputStreamOperator<T> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+	public SingleOutputStreamOperator<T> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
 		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
 		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
 		Preconditions.checkArgument(minResources.isValid() && preferredResources.isValid() && minResources.lessThanOrEqual(preferredResources),
@@ -195,10 +198,15 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	/**
 	 * Sets the resources for this operator, the minimum and preferred resources are the same by default.
 	 *
+	 * <p>Note: If the resources of the operator is explicitly set, the default resource settings will be used
+	 * by other operators in the same job that are not explicitly set required resources. Please see
+	 * {@link StreamExecutionEnvironment#setDefaultResources(ResourceSpec)}, {@link CoreOptions#DEFAULT_RESOURCE_CPU_CORES}
+	 * and {@link CoreOptions#DEFAULT_RESOURCE_HEAP_MEMORY} to set the default resources.
+	 *
 	 * @param resources The resources for this operator.
 	 * @return The operator with set minimum and preferred resources.
 	 */
-	private SingleOutputStreamOperator<T> setResources(ResourceSpec resources) {
+	public SingleOutputStreamOperator<T> setResources(ResourceSpec resources) {
 		Preconditions.checkNotNull(resources, "The resources must be not null.");
 		Preconditions.checkArgument(resources.isValid(), "The values in resources must be not less than 0.");
 
@@ -366,6 +374,50 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 		return this;
 	}
 
+	/**
+	 * Adds a type information hint about the return type of this operator.
+	 *
+	 * <p>Type hints are important in cases where the Java compiler throws away generic type
+	 * information necessary for efficient execution.
+	 *
+	 * <p>This method takes a type information string that will be parsed. A type information string
+	 * can contain the following types:
+	 *
+	 * <ul>
+	 * <li>Basic types such as <code>Integer</code>, <code>String</code>, etc.
+	 * <li>Basic type arrays such as <code>Integer[]</code>,
+	 * <code>String[]</code>, etc.
+	 * <li>Tuple types such as <code>Tuple1&lt;TYPE0&gt;</code>,
+	 * <code>Tuple2&lt;TYPE0, TYPE1&gt;</code>, etc.</li>
+	 * <li>Pojo types such as <code>org.my.MyPojo&lt;myFieldName=TYPE0,myFieldName2=TYPE1&gt;</code>, etc.</li>
+	 * <li>Generic types such as <code>java.lang.Class</code>, etc.
+	 * <li>Custom type arrays such as <code>org.my.CustomClass[]</code>,
+	 * <code>org.my.CustomClass$StaticInnerClass[]</code>, etc.
+	 * <li>Value types such as <code>DoubleValue</code>,
+	 * <code>StringValue</code>, <code>IntegerValue</code>, etc.</li>
+	 * <li>Tuple array types such as <code>Tuple2&lt;TYPE0,TYPE1&gt;[], etc.</code></li>
+	 * <li>Writable types such as <code>Writable&lt;org.my.CustomWritable&gt;</code></li>
+	 * <li>Enum types such as <code>Enum&lt;org.my.CustomEnum&gt;</code></li>
+	 * </ul>
+	 *
+	 * <p>Example:
+	 * <code>"Tuple2&lt;String,Tuple2&lt;Integer,org.my.MyJob$Pojo&lt;word=String&gt;&gt;&gt;"</code>
+	 *
+	 * @param typeInfoString
+	 *            type information string to be parsed
+	 * @return This operator with a given return type hint.
+	 *
+	 * @deprecated Please use {@link #returns(Class)} or {@link #returns(TypeHint)} instead.
+	 */
+	@Deprecated
+	@PublicEvolving
+	public SingleOutputStreamOperator<T> returns(String typeInfoString) {
+		if (typeInfoString == null) {
+			throw new IllegalArgumentException("Type information string must not be null.");
+		}
+		return returns(TypeInfoParser.<T>parse(typeInfoString));
+	}
+
 	// ------------------------------------------------------------------------
 	//  Miscellaneous
 	// ------------------------------------------------------------------------
@@ -428,5 +480,32 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 
 		SideOutputTransformation<X> sideOutputTransformation = new SideOutputTransformation<>(this.getTransformation(), sideOutputTag);
 		return new DataStream<>(this.getExecutionEnvironment(), sideOutputTransformation);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Configuration
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Sets the value of the given option for the operator.
+	 *
+	 * @param key The option to be updated.
+	 * @param value The value of the option to be updated.
+	 */
+	@PublicEvolving
+	public SingleOutputStreamOperator<T> setConfigItem(ConfigOption<String> key, String value) {
+		transformation.getCustomConfiguration().setString(key, value);
+		return this;
+	}
+
+	/**
+	 * Sets the value of the given option for the operator.
+	 *
+	 * @param key The name of the option to be updated.
+	 * @param value The value of the option to be updated.
+	 */
+	public SingleOutputStreamOperator<T> setConfigItem(String key, String value) {
+		transformation.getCustomConfiguration().setString(key, value);
+		return this;
 	}
 }

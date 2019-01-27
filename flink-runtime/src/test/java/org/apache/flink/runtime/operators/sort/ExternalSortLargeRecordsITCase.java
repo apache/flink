@@ -123,13 +123,20 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
 							}
 						}
 					};
-			
+
+			RuntimeSerializerFactory<Tuple2<Long, SomeMaybeLongValue>> serializerFactory =
+				new RuntimeSerializerFactory<Tuple2<Long, SomeMaybeLongValue>>(serializer, (Class<Tuple2<Long, SomeMaybeLongValue>>) (Class<?>) Tuple2.class);
+			SortedDataFileFactory<Tuple2<Long, SomeMaybeLongValue>> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+				ioManager.createChannelEnumerator(), serializerFactory.getSerializer(), ioManager);
+			SortedDataFileMerger<Tuple2<Long, SomeMaybeLongValue>> mergePolicy = new RecordComparisonMerger<>(
+				sortedDataFileFactory, ioManager, serializerFactory.getSerializer(),
+				comparator, 128, false);
 			@SuppressWarnings("unchecked")
 			Sorter<Tuple2<Long, SomeMaybeLongValue>> sorter = new UnilateralSortMerger<Tuple2<Long, SomeMaybeLongValue>>(
+					sortedDataFileFactory, mergePolicy,
 					this.memoryManager, this.ioManager, 
-					source, this.parentTask,
-					new RuntimeSerializerFactory<Tuple2<Long, SomeMaybeLongValue>>(serializer, (Class<Tuple2<Long, SomeMaybeLongValue>>) (Class<?>) Tuple2.class),
-					comparator, 1.0, 1, 128, 0.7f, true /* use large record handler */ , false);
+					source, this.parentTask, serializerFactory,
+					comparator, 1.0, 1, 128, true, 0.7f, true /* use large record handler */ , false);
 			
 			// check order
 			MutableObjectIterator<Tuple2<Long, SomeMaybeLongValue>> iterator = sorter.getIterator();
@@ -193,13 +200,20 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
 							}
 						}
 					};
-			
+
+			RuntimeSerializerFactory<Tuple2<Long, SomeMaybeLongValue>> serializerFactory =
+				new RuntimeSerializerFactory<Tuple2<Long, SomeMaybeLongValue>>(serializer, (Class<Tuple2<Long, SomeMaybeLongValue>>) (Class<?>) Tuple2.class);
+			SortedDataFileFactory<Tuple2<Long, SomeMaybeLongValue>> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+				ioManager.createChannelEnumerator(), serializerFactory.getSerializer(), ioManager);
+			SortedDataFileMerger<Tuple2<Long, SomeMaybeLongValue>> mergePolicy = new RecordComparisonMerger<>(
+				sortedDataFileFactory, ioManager, serializerFactory.getSerializer(),
+				comparator, 128, true);
 			@SuppressWarnings("unchecked")
 			Sorter<Tuple2<Long, SomeMaybeLongValue>> sorter = new UnilateralSortMerger<Tuple2<Long, SomeMaybeLongValue>>(
+					sortedDataFileFactory, mergePolicy,
 					this.memoryManager, this.ioManager, 
-					source, this.parentTask,
-					new RuntimeSerializerFactory<Tuple2<Long, SomeMaybeLongValue>>(serializer, (Class<Tuple2<Long, SomeMaybeLongValue>>) (Class<?>) Tuple2.class),
-					comparator, 1.0, 1, 128, 0.7f, true /*use large record handler*/, true);
+					source, this.parentTask, serializerFactory,
+					comparator, 1.0, 1, 128, true, 0.7f, true /*use large record handler*/, true);
 			
 			// check order
 			MutableObjectIterator<Tuple2<Long, SomeMaybeLongValue>> iterator = sorter.getIterator();
@@ -278,13 +292,20 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
 							}
 						}
 					};
-			
+
+			RuntimeSerializerFactory<Tuple2<Long, SmallOrMediumOrLargeValue>> serializerFactory =
+				new RuntimeSerializerFactory<Tuple2<Long, SmallOrMediumOrLargeValue>>(serializer, (Class<Tuple2<Long, SmallOrMediumOrLargeValue>>) (Class<?>) Tuple2.class);
+			SortedDataFileFactory<Tuple2<Long, SmallOrMediumOrLargeValue>> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+				ioManager.createChannelEnumerator(), serializerFactory.getSerializer(), ioManager);
+			SortedDataFileMerger<Tuple2<Long, SmallOrMediumOrLargeValue>> mergePolicy = new RecordComparisonMerger<>(
+				sortedDataFileFactory, ioManager, serializerFactory.getSerializer(),
+				comparator, 128, false);
 			@SuppressWarnings("unchecked")
 			Sorter<Tuple2<Long, SmallOrMediumOrLargeValue>> sorter = new UnilateralSortMerger<Tuple2<Long, SmallOrMediumOrLargeValue>>(
+					sortedDataFileFactory, mergePolicy,
 					this.memoryManager, this.ioManager, 
-					source, this.parentTask,
-					new RuntimeSerializerFactory<Tuple2<Long, SmallOrMediumOrLargeValue>>(serializer, (Class<Tuple2<Long, SmallOrMediumOrLargeValue>>) (Class<?>) Tuple2.class),
-					comparator, 1.0, 1, 128, 0.7f, true /*use large record handler*/, false);
+					source, this.parentTask, serializerFactory,
+					comparator, 1.0, 1, 128, true, 0.7f, true /*use large record handler*/, false);
 			
 			// check order
 			MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>> iterator = sorter.getIterator();
@@ -349,13 +370,21 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
 							}
 						}
 					};
-			
+
+			RuntimeSerializerFactory<Tuple2<Long, SmallOrMediumOrLargeValue>> serializerFactory =
+				new RuntimeSerializerFactory<Tuple2<Long, SmallOrMediumOrLargeValue>>(serializer, (Class<Tuple2<Long, SmallOrMediumOrLargeValue>>) (Class<?>) Tuple2.class);
+			SortedDataFileFactory<Tuple2<Long, SmallOrMediumOrLargeValue>> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+				ioManager.createChannelEnumerator(), serializerFactory.getSerializer(), ioManager);
+			SortedDataFileMerger<Tuple2<Long, SmallOrMediumOrLargeValue>> mergePolicy = new RecordComparisonMerger<>(
+				sortedDataFileFactory, ioManager, serializerFactory.getSerializer(),
+				comparator, 128, true);
 			@SuppressWarnings("unchecked")
 			Sorter<Tuple2<Long, SmallOrMediumOrLargeValue>> sorter = new UnilateralSortMerger<Tuple2<Long, SmallOrMediumOrLargeValue>>(
+					sortedDataFileFactory, mergePolicy,
 					this.memoryManager, this.ioManager, 
 					source, this.parentTask,
 					new RuntimeSerializerFactory<Tuple2<Long, SmallOrMediumOrLargeValue>>(serializer, (Class<Tuple2<Long, SmallOrMediumOrLargeValue>>) (Class<?>) Tuple2.class),
-					comparator, 1.0, 1, 128, 0.7f, true /*use large record handler*/, true);
+					comparator, 1.0, 1, 128, true, 0.7f, true /*use large record handler*/, true);
 			
 			// check order
 			MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>> iterator = sorter.getIterator();

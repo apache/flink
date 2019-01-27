@@ -52,7 +52,7 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 	@Test
 	public void testPrioritization() {
 
-		for (int i = 0; i < 81; ++i) { // 3^4 possible configurations.
+		for (int i = 0; i < 243; ++i) { // 3^5 possible configurations.
 
 			OperatorSubtaskState primaryAndFallback = generateForConfiguration(i);
 
@@ -115,15 +115,16 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 	}
 
 	/**
-	 * Generator for all 3^4 = 81 possible configurations of a OperatorSubtaskState:
-	 * - 4 different sub-states:
-	 *      managed/raw + operator/keyed.
+	 * Generator for all 3^5 = 243 possible configurations of a OperatorSubtaskState:
+	 * - 5 different sub-states:
+	 *      (managed/raw + operator/keyed) + managed internal state.
 	 * - 3 different options per sub-state:
 	 *      empty (simulate no state), single handle (simulate recovery), 2 handles (simulate e.g. rescaling)
+	 *
 	 */
 	private OperatorSubtaskState generateForConfiguration(int conf) {
 
-		Preconditions.checkState(conf >= 0 && conf <= 80); // 3^4
+		Preconditions.checkState(conf >= 0 && conf <= 242); // 3^5
 		final int numModes = 3;
 
 		KeyGroupRange keyGroupRange = new KeyGroupRange(0, 4);
@@ -203,6 +204,7 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 				return new OperatorSubtaskState();
 			case 2:
 				KeyGroupRange otherRange = new KeyGroupRange(8, 16);
+
 				int numNamedStates = 2;
 				return new OperatorSubtaskState(
 					createNewOperatorStateHandle(numNamedStates, random),

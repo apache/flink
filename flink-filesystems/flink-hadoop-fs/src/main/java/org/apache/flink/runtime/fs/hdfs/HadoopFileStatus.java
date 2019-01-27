@@ -25,7 +25,7 @@ import org.apache.flink.core.fs.Path;
  * Concrete implementation of the {@link FileStatus} interface for the
  * Hadoop Distribution File System.
  */
-public final class HadoopFileStatus implements FileStatus {
+public class HadoopFileStatus implements FileStatus {
 
 	private org.apache.hadoop.fs.FileStatus fileStatus;
 

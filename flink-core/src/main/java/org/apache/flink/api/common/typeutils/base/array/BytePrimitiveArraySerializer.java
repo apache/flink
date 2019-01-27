@@ -18,14 +18,12 @@
 
 package org.apache.flink.api.common.typeutils.base.array;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
 
 /**
  * A serializer for byte arrays.
@@ -34,7 +32,7 @@ import org.apache.flink.core.memory.DataOutputView;
 public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<byte[]>{
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private static final byte[] EMPTY = new byte[0];
 
 	public static final BytePrimitiveArraySerializer INSTANCE = new BytePrimitiveArraySerializer();
@@ -55,7 +53,7 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 		System.arraycopy(from, 0, copy, 0, from.length);
 		return copy;
 	}
-	
+
 	@Override
 	public byte[] copy(byte[] from, byte[] reuse) {
 		return copy(from);
@@ -72,7 +70,7 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 		if (record == null) {
 			throw new IllegalArgumentException("The record must not be null.");
 		}
-		
+
 		final int len = record.length;
 		target.writeInt(len);
 		target.write(record);
@@ -85,7 +83,7 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 		source.readFully(result);
 		return result;
 	}
-	
+
 	@Override
 	public byte[] deserialize(byte[] reuse, DataInputView source) throws IOException {
 		return deserialize(source);
@@ -101,23 +99,5 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof BytePrimitiveArraySerializer;
-	}
-
-	@Override
-	public TypeSerializerSnapshot<byte[]> snapshotConfiguration() {
-		return new BytePrimitiveArraySerializerSnapshot();
-	}
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class BytePrimitiveArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<byte[]> {
-
-		public BytePrimitiveArraySerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
 	}
 }

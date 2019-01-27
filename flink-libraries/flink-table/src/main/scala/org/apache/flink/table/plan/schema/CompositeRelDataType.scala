@@ -39,8 +39,7 @@ class CompositeRelDataType(
     val nullable: Boolean,
     typeFactory: FlinkTypeFactory)
   extends RelRecordType(
-    StructKind.PEEK_FIELDS_NO_EXPAND,
-    createFieldList(compositeType, typeFactory)) {
+    StructKind.PEEK_FIELDS_NO_EXPAND, createFieldList(compositeType, typeFactory)) {
 
   override def toString = s"COMPOSITE($compositeType)"
 

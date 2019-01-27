@@ -20,8 +20,9 @@ package org.apache.flink.table.runtime.aggfunctions
 
 import java.math.BigDecimal
 
-import org.apache.flink.table.functions.AggregateFunction
-import org.apache.flink.table.functions.aggfunctions._
+import org.apache.flink.table.api.functions.AggregateFunction
+import org.apache.flink.table.api.types.DecimalType
+import org.apache.flink.table.functions.aggregate._
 
 /**
   * Test case for built-in sum0 aggregate function
@@ -152,7 +153,7 @@ class DecimalSum0AggFunctionTest
   )
 
   override def aggregator: AggregateFunction[BigDecimal, DecimalSumAccumulator] =
-    new DecimalSum0AggFunction()
+    new DecimalSum0AggFunction(new DecimalType(24, 12))
 }
 
 

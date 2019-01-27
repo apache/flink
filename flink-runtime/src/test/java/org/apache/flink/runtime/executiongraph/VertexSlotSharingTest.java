@@ -81,7 +81,7 @@ public class VertexSlotSharingTest {
 			
 			List<JobVertex> vertices = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 			
-			ExecutionGraph eg = new ExecutionGraph(
+			ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraphDirectly(
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
 				new JobID(),
@@ -90,8 +90,8 @@ public class VertexSlotSharingTest {
 				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy(),
-				new Scheduler(TestingUtils.defaultExecutionContext()));
-			eg.attachJobGraph(vertices);
+				new Scheduler(TestingUtils.defaultExecutionContext()),
+				vertices);
 			
 			// verify that the vertices are all in the same slot sharing group
 			SlotSharingGroup group1 = null;

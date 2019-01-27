@@ -37,7 +37,7 @@ These classes can be divided into two domains:
     (via REST, CLI, web UI). They are loaded (and unloaded) dynamically per job.
 
 What classes are part of which domain depends on the particular setup in which you run Apache Flink. As a general rule, whenever you start the Flink
-processes first, and submit jobs, the job's classes are loaded dynamically. If the Flink processes are started together with the job/application,
+processes first, and the submit jobs, the job's classes are loaded dynamically. If the Flink processes are started together with the job/application,
 or the application spawns the Flink components (JobManager, TaskManager, etc.) then all classes are in the Java classpath.
 
 In the following are some more details about the different deployment modes:
@@ -46,15 +46,6 @@ In the following are some more details about the different deployment modes:
 
 When starting a Flink cluster as a standalone session, the JobManagers and TaskManagers are started with the Flink framework classes in the
 Java classpath. The classes from all jobs/applications that are submitted against the session (via REST / CLI) are loaded *dynamically*.
-
-<!--
-**Docker Containers with Flink-as-a-Library**
-
-If you package a Flink job/application such that your application treats Flink like a library (Flink JobManager/TaskManager daemons as spawned as needed),
-then typically all classes are in the *application classpath*. This is the recommended way for container-based setups where the container is specifically
-created for an job/application and will contain the job/application's jar files.
-
--->
 
 **Docker / Kubernetes Sessions**
 
@@ -85,6 +76,7 @@ classes are loaded dynamically when the jobs are submitted.
 In setups where dynamic classloading is involved (sessions), there is a hierarchy of typically two ClassLoaders: 
 (1) Java's *application classloader*, which has all classes in the classpath, and (2) the dynamic *user code classloader*.
 for loading classes from the user-code jar(s). The user-code ClassLoader has the application classloader as its parent.
+cases.
 
 By default, Flink inverts classloading order, meaning it looks into the user code classloader first, and only looks into
 the parent (application classloader) if the class is not part of the dynamically loaded user code.
@@ -93,7 +85,7 @@ The benefit of inverted classloading is that jobs can use different library vers
 useful when the different versions of the libraries are not compatible. The mechanism helps to avoid the common dependency conflict
 errors like `IllegalAccessError` or `NoSuchMethodError`. Different parts of the code simply have separate copies of the
 classes (Flink's core or one of its dependencies can use a different copy than the user code).
-In most cases, this works well and no additional configuration from the user is needed.
+In most cases, this work well and no additional configuration from the user is needed.
 
 However, there are cases when the inverted classloading causes problems (see below, "X cannot be cast to X"). 
 You can revert back to Java's default mode by configuring the ClassLoader resolution order via

@@ -24,9 +24,9 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>org.apache.flink</groupId>
+		<groupId>com.alibaba.blink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.5.1</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -38,9 +38,6 @@ under the License.
 	<modules>
 		<module>flink-avro</module>
 		<module>flink-json</module>
-		<module>flink-avro-confluent-registry</module>
-		<module>flink-parquet</module>
-		<module>flink-sequence-file</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
@@ -55,7 +52,7 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
 	</dependencies>

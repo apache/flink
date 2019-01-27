@@ -89,6 +89,11 @@ public class LegacyKeyedProcessOperator<K, IN, OUT>
 		context.element = null;
 	}
 
+	@Override
+	public void endInput() throws Exception {
+
+	}
+
 	private void invokeUserFunction(
 			TimeDomain timeDomain,
 			InternalTimer<K, VoidNamespace> timer) throws Exception {

@@ -18,38 +18,31 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import org.apache.flink.api.java.typeutils.runtime.NullableSerializer;
-import org.apache.flink.core.memory.DataInputDeserializer;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLogger;
-
-import org.apache.commons.lang3.SerializationException;
-import org.apache.commons.lang3.SerializationUtils;
-import org.junit.Assert;
-import org.junit.Test;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.CyclicBarrier;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.TestLogger;
+import org.junit.Assert;
+
+import org.apache.commons.lang3.SerializationException;
+import org.apache.commons.lang3.SerializationUtils;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.junit.Test;
 
 /**
  * Abstract test base for serializers.
@@ -60,23 +53,23 @@ import static org.junit.Assert.fail;
  * internal state would be corrupt, which becomes evident when toString is called.
  */
 public abstract class SerializerTestBase<T> extends TestLogger {
-
+	
 	protected abstract TypeSerializer<T> createSerializer();
 
 	/**
 	 * Gets the expected length for the serializer's {@link TypeSerializer#getLength()} method.
-	 *
+	 * 
 	 * <p>The expected length should be positive, for fix-length data types, or {@code -1} for
 	 * variable-length types.
 	 */
 	protected abstract int getLength();
-
+	
 	protected abstract Class<T> getTypeClass();
-
+	
 	protected abstract T[] getTestData();
 
 	// --------------------------------------------------------------------------------------------
-
+	
 	@Test
 	public void testInstantiate() {
 		try {
@@ -87,13 +80,13 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			}
 			T instance = serializer.createInstance();
 			assertNotNull("The created instance must not be null.", instance);
-
+			
 			Class<T> type = getTypeClass();
 			assertNotNull("The test is corrupt: type class is null.", type);
 
 			if (!type.isAssignableFrom(instance.getClass())) {
 				fail("Type of the instantiated object is wrong. " +
-					"Expected Type: " + type + " present type " + instance.getClass());
+						"Expected Type: " + type + " present type " + instance.getClass());
 			}
 		}
 		catch (Exception e) {
@@ -105,36 +98,36 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 
 	@Test
 	public void testConfigSnapshotInstantiation() {
-		TypeSerializerSnapshot<T> configSnapshot = getSerializer().snapshotConfiguration();
+		TypeSerializerConfigSnapshot configSnapshot = getSerializer().snapshotConfiguration();
 
 		InstantiationUtil.instantiate(configSnapshot.getClass());
 	}
 
 	@Test
 	public void testSnapshotConfigurationAndReconfigure() throws Exception {
-		final TypeSerializer<T> serializer = getSerializer();
-		final TypeSerializerSnapshot<T> configSnapshot = serializer.snapshotConfiguration();
+		final TypeSerializerConfigSnapshot configSnapshot = getSerializer().snapshotConfiguration();
 
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-				new DataOutputViewStreamWrapper(out), configSnapshot, serializer);
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
+				new DataOutputViewStreamWrapper(out), configSnapshot);
 			serializedConfig = out.toByteArray();
 		}
 
-		TypeSerializerSnapshot<T> restoredConfig;
+		TypeSerializerConfigSnapshot restoredConfig;
 		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			restoredConfig = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
-				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader(), getSerializer());
+			restoredConfig = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
+				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		TypeSerializerSchemaCompatibility<T> strategy = restoredConfig.resolveSchemaCompatibility(getSerializer());
-		assertTrue(strategy.isCompatibleAsIs());
+		CompatibilityResult strategy = getSerializer().ensureCompatibility(restoredConfig);
+		assertFalse(strategy.isRequiresMigration());
 
-		TypeSerializer<T> restoreSerializer = restoredConfig.restoreSerializer();
-		assertEquals(serializer.getClass(), restoreSerializer.getClass());
+		// also verify that the serializer's reconfigure implementation detects incompatibility
+		strategy = getSerializer().ensureCompatibility(new TestIncompatibleSerializerConfigSnapshot());
+		assertTrue(strategy.isRequiresMigration());
 	}
-
+	
 	@Test
 	public void testGetLength() {
 		final int len = getLength();
@@ -153,16 +146,16 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			fail("Exception in test: " + e.getMessage());
 		}
 	}
-
+	
 	@Test
 	public void testCopy() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
 			T[] testData = getData();
-
+			
 			for (T datum : testData) {
 				T copy = serializer.copy(datum);
-				checkToString(copy);
+				copy.toString();
 				deepEquals("Copied element is not equal to the original element.", datum, copy);
 			}
 		}
@@ -172,16 +165,16 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			fail("Exception in test: " + e.getMessage());
 		}
 	}
-
+	
 	@Test
 	public void testCopyIntoNewElements() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
 			T[] testData = getData();
-
+			
 			for (T datum : testData) {
 				T copy = serializer.copy(datum, serializer.createInstance());
-				checkToString(copy);
+				copy.toString();
 				deepEquals("Copied element is not equal to the original element.", datum, copy);
 			}
 		}
@@ -191,18 +184,18 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			fail("Exception in test: " + e.getMessage());
 		}
 	}
-
+	
 	@Test
 	public void testCopyIntoReusedElements() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
 			T[] testData = getData();
-
+			
 			T target = serializer.createInstance();
-
+			
 			for (T datum : testData) {
 				T copy = serializer.copy(datum, target);
-				checkToString(copy);
+				copy.toString();
 				deepEquals("Copied element is not equal to the original element.", datum, copy);
 				target = copy;
 			}
@@ -213,25 +206,25 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			fail("Exception in test: " + e.getMessage());
 		}
 	}
-
+	
 	@Test
 	public void testSerializeIndividually() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
 			T[] testData = getData();
-
+			
 			for (T value : testData) {
 				TestOutputView out = new TestOutputView();
 				serializer.serialize(value, out);
 				TestInputView in = out.getInputView();
-
+				
 				assertTrue("No data available during deserialization.", in.available() > 0);
-
+				
 				T deserialized = serializer.deserialize(serializer.createInstance(), in);
-				checkToString(deserialized);
+ 				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", value, deserialized);
-
+				
 				assertTrue("Trailing data available after deserialization.", in.available() == 0);
 			}
 		}
@@ -248,23 +241,23 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
 			T[] testData = getData();
-
+			
 			T reuseValue = serializer.createInstance();
-
+			
 			for (T value : testData) {
 				TestOutputView out = new TestOutputView();
 				serializer.serialize(value, out);
 				TestInputView in = out.getInputView();
-
+				
 				assertTrue("No data available during deserialization.", in.available() > 0);
-
+				
 				T deserialized = serializer.deserialize(reuseValue, in);
-				checkToString(deserialized);
+				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", value, deserialized);
-
+				
 				assertTrue("Trailing data available after deserialization.", in.available() == 0);
-
+				
 				reuseValue = deserialized;
 			}
 		}
@@ -274,29 +267,29 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			fail("Exception in test: " + e.getMessage());
 		}
 	}
-
+	
 	@Test
 	public void testSerializeAsSequenceNoReuse() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
 			T[] testData = getData();
-
+			
 			TestOutputView out = new TestOutputView();
 			for (T value : testData) {
 				serializer.serialize(value, out);
 			}
-
+			
 			TestInputView in = out.getInputView();
-
+			
 			int num = 0;
 			while (in.available() > 0) {
 				T deserialized = serializer.deserialize(in);
-				checkToString(deserialized);
+				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
 				num++;
 			}
-
+			
 			assertEquals("Wrong number of elements deserialized.", testData.length, num);
 		}
 		catch (Exception e) {
@@ -305,31 +298,31 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			fail("Exception in test: " + e.getMessage());
 		}
 	}
-
+	
 	@Test
 	public void testSerializeAsSequenceReusingValues() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
 			T[] testData = getData();
-
+			
 			TestOutputView out = new TestOutputView();
 			for (T value : testData) {
 				serializer.serialize(value, out);
 			}
-
+			
 			TestInputView in = out.getInputView();
 			T reuseValue = serializer.createInstance();
-
+			
 			int num = 0;
 			while (in.available() > 0) {
 				T deserialized = serializer.deserialize(reuseValue, in);
-				checkToString(deserialized);
+				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
 				reuseValue = deserialized;
 				num++;
 			}
-
+			
 			assertEquals("Wrong number of elements deserialized.", testData.length, num);
 		}
 		catch (Exception e) {
@@ -338,30 +331,30 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			fail("Exception in test: " + e.getMessage());
 		}
 	}
-
+	
 	@Test
 	public void testSerializedCopyIndividually() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
 			T[] testData = getData();
-
+			
 			for (T value : testData) {
 				TestOutputView out = new TestOutputView();
 				serializer.serialize(value, out);
-
+				
 				TestInputView source = out.getInputView();
 				TestOutputView target = new TestOutputView();
 				serializer.copy(source, target);
-
+				
 				TestInputView toVerify = target.getInputView();
-
+				
 				assertTrue("No data available copying.", toVerify.available() > 0);
-
+				
 				T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
-				checkToString(deserialized);
+				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", value, deserialized);
-
+				
 				assertTrue("Trailing data available after deserialization.", toVerify.available() == 0);
 			}
 		}
@@ -371,36 +364,36 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			fail("Exception in test: " + e.getMessage());
 		}
 	}
-
-
+	
+	
 	@Test
 	public void testSerializedCopyAsSequence() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
 			T[] testData = getData();
-
+			
 			TestOutputView out = new TestOutputView();
 			for (T value : testData) {
 				serializer.serialize(value, out);
 			}
-
+			
 			TestInputView source = out.getInputView();
 			TestOutputView target = new TestOutputView();
 			for (int i = 0; i < testData.length; i++) {
 				serializer.copy(source, target);
 			}
-
+			
 			TestInputView toVerify = target.getInputView();
 			int num = 0;
-
+			
 			while (toVerify.available() > 0) {
 				T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
-				checkToString(deserialized);
+				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
 				num++;
 			}
-
+			
 			assertEquals("Wrong number of elements copied.", testData.length, num);
 		}
 		catch (Exception e) {
@@ -409,7 +402,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			fail("Exception in test: " + e.getMessage());
 		}
 	}
-
+	
 	@Test
 	public void testSerializabilityAndEquals() {
 		try {
@@ -421,7 +414,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 				fail("The serializer is not serializable: " + e);
 				return;
 			}
-
+			
 			assertEquals("The copy of the serializer is not equal to the original one.", ser1, ser2);
 		}
 		catch (Exception e) {
@@ -430,53 +423,10 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			fail("Exception in test: " + e.getMessage());
 		}
 	}
-
-	@Test
-	public void testNullability() {
-		TypeSerializer<T> serializer = getSerializer();
-		try {
-			NullableSerializer.checkIfNullSupported(serializer);
-		} catch (Throwable t) {
-			System.err.println(t.getMessage());
-			t.printStackTrace();
-			fail("Unexpected failure of null value handling: " + t.getMessage());
-		}
-	}
-
-	@Test
-	public void testDuplicate() throws Exception {
-		final int numThreads = 10;
-		final TypeSerializer<T> serializer = getSerializer();
-		final CyclicBarrier startLatch = new CyclicBarrier(numThreads);
-		final List<SerializerRunner<T>> concurrentRunners = new ArrayList<>(numThreads);
-		Assert.assertEquals(serializer, serializer.duplicate());
-
-		T[] testData = getData();
-
-		for (int i = 0; i < numThreads; ++i) {
-			SerializerRunner<T> runner = new SerializerRunner<>(
-				startLatch,
-				serializer.duplicate(),
-				testData,
-				120L);
-
-			runner.start();
-			concurrentRunners.add(runner);
-		}
-
-		for (SerializerRunner<T> concurrentRunner : concurrentRunners) {
-			concurrentRunner.join();
-			concurrentRunner.checkResult();
-		}
-	}
-
+	
 	// --------------------------------------------------------------------------------------------
-
+	
 	protected void deepEquals(String message, T should, T is) {
-		Assert.assertTrue((should == null && is == null) || (should != null && is != null));
-		if (should == null) {
-			return;
-		}
 		if (should.getClass().isArray()) {
 			if (should instanceof boolean[]) {
 				Assert.assertTrue(message, Arrays.equals((boolean[]) should, (boolean[]) is));
@@ -513,9 +463,9 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			assertEquals(message,  should, is);
 		}
 	}
-
+	
 	// --------------------------------------------------------------------------------------------
-
+	
 	protected TypeSerializer<T> getSerializer() {
 		TypeSerializer<T> serializer = createSerializer();
 		if (serializer == null) {
@@ -523,7 +473,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		}
 		return serializer;
 	}
-
+	
 	private T[] getData() {
 		T[] data = getTestData();
 		if (data == null) {
@@ -531,15 +481,15 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		}
 		return data;
 	}
-
+	
 	// --------------------------------------------------------------------------------------------
-
+	
 	private static final class TestOutputView extends DataOutputStream implements DataOutputView {
-
+		
 		public TestOutputView() {
 			super(new ByteArrayOutputStream(4096));
 		}
-
+		
 		public TestInputView getInputView() {
 			ByteArrayOutputStream baos = (ByteArrayOutputStream) out;
 			return new TestInputView(baos.toByteArray());
@@ -559,70 +509,8 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			write(buffer);
 		}
 	}
-
-	/**
-	 * Runner to test serializer duplication via concurrency.
-	 * @param <T> type of the test elements.
-	 */
-	static class SerializerRunner<T> extends Thread {
-		final CyclicBarrier allReadyBarrier;
-		final TypeSerializer<T> serializer;
-		final T[] testData;
-		final long durationLimitMillis;
-		Exception failure;
-
-		SerializerRunner(
-			CyclicBarrier allReadyBarrier,
-			TypeSerializer<T> serializer,
-			T[] testData,
-			long testTargetDurationMillis) {
-
-			this.allReadyBarrier = allReadyBarrier;
-			this.serializer = serializer;
-			this.testData = testData;
-			this.durationLimitMillis =  testTargetDurationMillis;
-			this.failure = null;
-		}
-
-		@Override
-		public void run() {
-			DataInputDeserializer dataInputDeserializer = new DataInputDeserializer();
-			DataOutputSerializer dataOutputSerializer = new DataOutputSerializer(128);
-			try {
-				allReadyBarrier.await();
-				final long endTimeNanos = System.nanoTime() + durationLimitMillis * 1_000_000L;
-				while (true) {
-					for (T testItem : testData) {
-						serializer.serialize(testItem, dataOutputSerializer);
-						dataInputDeserializer.setBuffer(
-							dataOutputSerializer.getSharedBuffer(),
-							0,
-							dataOutputSerializer.length());
-						T serdeTestItem = serializer.deserialize(dataInputDeserializer);
-						T copySerdeTestItem = serializer.copy(serdeTestItem);
-						dataOutputSerializer.clear();
-
-						Preconditions.checkState(Objects.deepEquals(testItem, copySerdeTestItem),
-							"Serialization/Deserialization cycle resulted in an object that are not equal to the original.");
-
-						// try to enforce some upper bound to the test time
-						if (System.nanoTime() >= endTimeNanos) {
-							return;
-						}
-					}
-				}
-			} catch (Exception ex) {
-				failure = ex;
-			}
-		}
-
-		void checkResult() throws Exception {
-			if (failure != null) {
-				throw failure;
-			}
-		}
-	}
-
+	
+	
 	private static final class TestInputView extends DataInputStream implements DataInputView {
 
 		public TestInputView(byte[] data) {
@@ -638,9 +526,20 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		}
 	}
 
-	private static <T> void checkToString(T value) {
-		if (value != null) {
-			value.toString();
+	public static final class TestIncompatibleSerializerConfigSnapshot extends TypeSerializerConfigSnapshot {
+		@Override
+		public int getVersion() {
+			return 0;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof TestIncompatibleSerializerConfigSnapshot;
+		}
+
+		@Override
+		public int hashCode() {
+			return getClass().hashCode();
 		}
 	}
 }

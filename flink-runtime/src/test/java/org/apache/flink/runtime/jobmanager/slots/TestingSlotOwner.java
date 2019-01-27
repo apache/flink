@@ -37,7 +37,7 @@ public class TestingSlotOwner implements SlotOwner {
 
 	@Override
 	public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
-		final Consumer<LogicalSlot> currentReturnAllocatedSlotConsumer = returnAllocatedSlotConsumer;
+		final Consumer<LogicalSlot> currentReturnAllocatedSlotConsumer = this.returnAllocatedSlotConsumer;
 
 		if (currentReturnAllocatedSlotConsumer != null) {
 			currentReturnAllocatedSlotConsumer.accept(logicalSlot);

@@ -18,14 +18,22 @@
 
 package org.apache.flink.table.expressions
 
-import java.sql.Date
-
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.types.DataTypes
 import org.apache.flink.table.expressions.utils.MapTypeTestBase
+import org.apache.flink.table.util.DateTimeTestUtil._
 import org.junit.Test
 
 class MapTypeTest extends MapTypeTestBase {
+
+  @Test
+  def testItem(): Unit = {
+    testSqlApi("f0['map is null']", "null")
+    testSqlApi("f1['map is empty']", "null")
+    testSqlApi("f2['b']", "13")
+    testSqlApi("f3[1]", "null")
+    testSqlApi("f3[12]", "a")
+  }
 
   @Test
   def testMapLiteral(): Unit = {
@@ -48,13 +56,13 @@ class MapTypeTest extends MapTypeTestBase {
       "{{1=2}={3=4}}")
 
     testAllApis(
-      map(1 + 2, 3 * 3, 6 / 3, 4 - 2),
-      "map(1 + 2, 3 * 3, 6 / 3, 4 - 2)",
-      "map[1 + 2, 3 * 3, 6 / 3, 4 - 2]",
-      "{2=2, 3=9}")
+      map(1 + 2, 3 * 3, 3 - 6, 4 - 2),
+      "map(1 + 2, 3 * 3, 3 - 6, 4 - 2)",
+      "map[1 + 2, 3 * 3, 3 - 6, 4 - 2]",
+      "{3=9, -3=2}")
 
     testAllApis(
-      map(1, Null(Types.INT)),
+      map(1, Null(DataTypes.INT)),
       "map(1, Null(INT))",
       "map[1, NULLIF(1,1)]",
       "{1=null}")
@@ -67,18 +75,27 @@ class MapTypeTest extends MapTypeTestBase {
       "{1=2, 3=4}")
 
     testAllApis(
-      map(Date.valueOf("1985-04-11"), 1),
-      "map('1985-04-11'.toDate, 1)",
-      "MAP[DATE '1985-04-11', 1]",
-      "{1985-04-11=1}")
+      map(UTCDate("1985-04-11"), UTCTime("14:15:16"), UTCDate("2018-07-26"), UTCTime("17:18:19")),
+      "map('1985-04-11'.toDate, '14:15:16'.toTime, '2018-07-26'.toDate, '17:18:19'.toTime)",
+      "MAP[DATE '1985-04-11', TIME '14:15:16', DATE '2018-07-26', TIME '17:18:19']",
+      "{1985-04-11=14:15:16, 2018-07-26=17:18:19}")
+
+    testAllApis(
+      map(UTCTime("14:15:16"), UTCTimestamp("1985-04-11 14:15:16"),
+        UTCTime("17:18:19"), UTCTimestamp("2018-07-26 17:18:19")),
+      "map('14:15:16'.toTime, '1985-04-11 14:15:16'.toTimestamp, " +
+        "'17:18:19'.toTime, '2018-07-26 17:18:19'.toTimestamp)",
+      "MAP[TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16', " +
+        "TIME '17:18:19', TIMESTAMP '2018-07-26 17:18:19']",
+      "{14:15:16=1985-04-11 14:15:16.000, 17:18:19=2018-07-26 17:18:19.000}")
 
     testAllApis(
       map(BigDecimal(2.0002), BigDecimal(2.0003)),
       "map(2.0002p, 2.0003p)",
-      "MAP[CAST(2.0002 AS DECIMAL), CAST(2.0003 AS DECIMAL)]",
+      "MAP[CAST(2.0002 AS DECIMAL(5, 4)), CAST(2.0003 AS DECIMAL(5, 4))]",
       "{2.0002=2.0003}")
 
-    // implicit conversion
+    // implicit type cast only works on SQL API
     testSqlApi("MAP['k1', CAST(1 AS DOUBLE), 'k2', CAST(2 AS FLOAT)]", "{k1=1.0, k2=2.0}")
   }
 
@@ -162,6 +179,30 @@ class MapTypeTest extends MapTypeTestBase {
       "true")
 
     testAllApis(
+      'f8 === 'f9,
+      "f8 === f9",
+      "f8 = f9",
+      "true")
+
+    testAllApis(
+      'f10 === 'f11,
+      "f10 === f11",
+      "f10 = f11",
+      "true")
+
+    testAllApis(
+      'f8 !== 'f9,
+      "f8 !== f9",
+      "f8 <> f9",
+      "false")
+
+    testAllApis(
+      'f10 !== 'f11,
+      "f10 !== f11",
+      "f10 <> f11",
+      "false")
+
+    testAllApis(
       'f0.at("map is null"),
       "f0.at('map is null')",
       "f0['map is null']",
@@ -201,35 +242,31 @@ class MapTypeTest extends MapTypeTestBase {
       'f2.at("a").isNotNull,
       "f2.at('a').isNotNull",
       "f2['a'] IS NOT NULL",
-      "true"
-    )
+      "true")
 
     testAllApis(
       'f2.at("a").isNull,
       "f2.at('a').isNull",
       "f2['a'] IS NULL",
-      "false"
-    )
+      "false")
 
     testAllApis(
       'f2.at("c").isNotNull,
       "f2.at('c').isNotNull",
       "f2['c'] IS NOT NULL",
-      "false"
-    )
+      "false")
 
     testAllApis(
       'f2.at("c").isNull,
       "f2.at('c').isNull",
       "f2['c'] IS NULL",
-      "true"
-    )
+      "true")
   }
 
   @Test
   def testMapTypeCasting(): Unit = {
     testTableApi(
-      'f2.cast(Types.MAP(Types.STRING, Types.INT)),
+      'f2.cast(DataTypes.createMapType(DataTypes.STRING, DataTypes.INT)),
       "f2.cast(MAP(STRING, INT))",
       "{a=12, b=13}"
     )

@@ -75,10 +75,10 @@ For further information on configuring logback see [LOGback's manual](http://log
 The loggers using slf4j are created by calling
 
 {% highlight java %}
-import org.slf4j.LoggerFactory
-import org.slf4j.Logger
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
-Logger LOG = LoggerFactory.getLogger(Foobar.class)
+Logger LOG = LoggerFactory.getLogger(Foobar.class);
 {% endhighlight %}
 
 In order to benefit most from slf4j, it is recommended to use its placeholder mechanism.
@@ -92,7 +92,7 @@ LOG.info("This message contains {} placeholders. {}", 2, "Yippie");
 Placeholders can also be used in conjunction with exceptions which shall be logged.
 
 {% highlight java %}
-catch(Exception exception){
+catch (Exception exception) {
 	LOG.error("An {} occurred.", "error", exception);
 }
 {% endhighlight %}

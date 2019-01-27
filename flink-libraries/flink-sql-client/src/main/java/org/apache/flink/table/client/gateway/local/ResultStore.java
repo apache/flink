@@ -19,12 +19,12 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.types.DataType;
+import org.apache.flink.table.api.types.DataTypes;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
@@ -33,7 +33,6 @@ import org.apache.flink.table.client.gateway.local.result.ChangelogCollectStream
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedCollectBatchResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedCollectStreamResult;
-import org.apache.flink.types.Row;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -61,7 +60,7 @@ public class ResultStore {
 	 */
 	public <T> DynamicResult<T> createResult(Environment env, TableSchema schema, ExecutionConfig config) {
 
-		final TypeInformation<Row> outputType = Types.ROW_NAMED(schema.getFieldNames(), schema.getFieldTypes());
+		final DataType outputType = DataTypes.createRowType(schema.getFieldTypes(), schema.getFieldNames());
 
 		if (env.getExecution().isStreamingExecution()) {
 			// determine gateway address (and port if possible)

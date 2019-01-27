@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.api.operators.TwoInputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -63,19 +64,36 @@ public class CoProcessOperator<IN1, IN2, OUT>
 	}
 
 	@Override
-	public void processElement1(StreamRecord<IN1> element) throws Exception {
+	public TwoInputSelection firstInputSelection() {
+		return TwoInputSelection.ANY;
+	}
+
+	@Override
+	public TwoInputSelection processElement1(StreamRecord<IN1> element) throws Exception {
 		collector.setTimestamp(element);
 		context.element = element;
 		userFunction.processElement1(element.getValue(), context, collector);
 		context.element = null;
+		return TwoInputSelection.ANY;
 	}
 
 	@Override
-	public void processElement2(StreamRecord<IN2> element) throws Exception {
+	public TwoInputSelection processElement2(StreamRecord<IN2> element) throws Exception {
 		collector.setTimestamp(element);
 		context.element = element;
 		userFunction.processElement2(element.getValue(), context, collector);
 		context.element = null;
+		return TwoInputSelection.ANY;
+	}
+
+	@Override
+	public void endInput1() throws Exception {
+
+	}
+
+	@Override
+	public void endInput2() throws Exception {
+
 	}
 
 	@Override
@@ -120,22 +138,12 @@ public class CoProcessOperator<IN1, IN2, OUT>
 
 		@Override
 		public void registerProcessingTimeTimer(long time) {
-			throw new UnsupportedOperationException(UNSUPPORTED_REGISTER_TIMER_MSG);
+			throw new UnsupportedOperationException("Setting timers is only supported on a keyed streams.");
 		}
 
 		@Override
 		public void registerEventTimeTimer(long time) {
-			throw new UnsupportedOperationException(UNSUPPORTED_REGISTER_TIMER_MSG);
-		}
-
-		@Override
-		public void deleteProcessingTimeTimer(long time) {
-			throw new UnsupportedOperationException(UNSUPPORTED_DELETE_TIMER_MSG);
-		}
-
-		@Override
-		public void deleteEventTimeTimer(long time) {
-			throw new UnsupportedOperationException(UNSUPPORTED_DELETE_TIMER_MSG);
+			throw new UnsupportedOperationException("Setting timers is only supported on a keyed streams.");
 		}
 
 		@Override

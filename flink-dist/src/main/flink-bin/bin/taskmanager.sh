@@ -22,8 +22,6 @@ USAGE="Usage: taskmanager.sh (start|start-foreground|stop|stop-all)"
 
 STARTSTOP=$1
 
-ARGS=("${@:2}")
-
 if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "start-foreground" ]] && [[ $STARTSTOP != "stop" ]] && [[ $STARTSTOP != "stop-all" ]]; then
   echo $USAGE
   exit 1
@@ -34,7 +32,11 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-ENTRYPOINT=taskexecutor
+TYPE=taskmanager
+
+if [[ "${FLINK_MODE}" == "new" ]]; then
+    TYPE=taskexecutor
+fi
 
 if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 
@@ -44,25 +46,20 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
         export JVM_ARGS="$JVM_ARGS -XX:+UseG1GC"
     fi
 
-    if [ ! -z "${FLINK_TM_HEAP_MB}" ] && [ "${FLINK_TM_HEAP}" == 0 ]; then
-	    echo "used deprecated key \`${KEY_TASKM_MEM_MB}\`, please replace with key \`${KEY_TASKM_MEM_SIZE}\`"
-    else
-	    flink_tm_heap_bytes=$(parseBytes ${FLINK_TM_HEAP})
-	    FLINK_TM_HEAP_MB=$(getMebiBytes ${flink_tm_heap_bytes})
-    fi
-
-    if [[ ! ${FLINK_TM_HEAP_MB} =~ ${IS_NUMBER} ]] || [[ "${FLINK_TM_HEAP_MB}" -lt "0" ]]; then
+    if [[ ! ${FLINK_TM_HEAP} =~ ${IS_NUMBER} ]] || [[ "${FLINK_TM_HEAP}" -lt "0" ]]; then
         echo "[ERROR] Configured TaskManager JVM heap size is not a number. Please set '${KEY_TASKM_MEM_SIZE}' in ${FLINK_CONF_FILE}."
         exit 1
     fi
 
-    if [ "${FLINK_TM_HEAP_MB}" -gt "0" ]; then
+    if [ "${FLINK_TM_HEAP}" -gt "0" ]; then
 
-        TM_HEAP_SIZE=$(calculateTaskManagerHeapSizeMB)
-        # Long.MAX_VALUE in TB: This is an upper bound, much less direct memory will be used
-        TM_MAX_OFFHEAP_SIZE="8388607T"
+        TASK_MANAGER_RESOURCE=$(CalculateTaskManagerResource)
 
-        export JVM_ARGS="${JVM_ARGS} -Xms${TM_HEAP_SIZE}M -Xmx${TM_HEAP_SIZE}M -XX:MaxDirectMemorySize=${TM_MAX_OFFHEAP_SIZE}"
+        TM_HEAP_SIZE=$(echo ${TASK_MANAGER_RESOURCE} | sed 's/.*TotalHeapMemory:\([0-9]*\).*/\1/g')
+        TM_YOUNG_HEAP_SIZE=$(echo ${TASK_MANAGER_RESOURCE} | sed 's/.*YoungHeapMemory:\([0-9]*\).*/\1/g')
+        TM_MAX_OFFHEAP_SIZE=$(echo ${TASK_MANAGER_RESOURCE} | sed 's/.*TotalDirectMemory:\([0-9]*\).*/\1/g')
+
+        export JVM_ARGS="${JVM_ARGS} -Xms${TM_HEAP_SIZE}M -Xmx${TM_HEAP_SIZE}M -Xmn${TM_YOUNG_HEAP_SIZE}M -XX:MaxDirectMemorySize=${TM_MAX_OFFHEAP_SIZE}M"
 
     fi
 
@@ -70,15 +67,15 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_TM}"
 
     # Startup parameters
-    ARGS+=("--configDir" "${FLINK_CONF_DIR}")
+    args=("--configDir" "${FLINK_CONF_DIR}")
 fi
 
 if [[ $STARTSTOP == "start-foreground" ]]; then
-    exec "${FLINK_BIN_DIR}"/flink-console.sh $ENTRYPOINT "${ARGS[@]}"
+    exec "${FLINK_BIN_DIR}"/flink-console.sh $TYPE "${args[@]}"
 else
     if [[ $FLINK_TM_COMPUTE_NUMA == "false" ]]; then
         # Start a single TaskManager
-        "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $ENTRYPOINT "${ARGS[@]}"
+        "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $TYPE "${args[@]}"
     else
         # Example output from `numactl --show` on an AWS c4.8xlarge:
         # policy: default
@@ -90,7 +87,7 @@ else
         read -ra NODE_LIST <<< $(numactl --show | grep "^nodebind: ")
         for NODE_ID in "${NODE_LIST[@]:1}"; do
             # Start a TaskManager for each NUMA node
-            numactl --membind=$NODE_ID --cpunodebind=$NODE_ID -- "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $ENTRYPOINT "${ARGS[@]}"
+            numactl --membind=$NODE_ID --cpunodebind=$NODE_ID -- "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $TYPE "${args[@]}"
         done
     fi
 fi

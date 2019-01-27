@@ -43,6 +43,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TimeZone;
 
 import static junit.framework.TestCase.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -363,18 +364,18 @@ public class RowCsvInputFormatTest {
 	@Test
 	public void testTailingEmptyFields() throws Exception {
 		String fileContent = "abc|-def|-ghijk\n" +
-				"abc|-def|-\n" +
-				"abc|-|-\n" +
-				"|-|-|-\n" +
-				"|-|-\n" +
-				"abc|-def\n";
+			"abc|-def|-\n" +
+			"abc|-|-\n" +
+			"|-|-|-\n" +
+			"|-|-\n" +
+			"abc|-def\n";
 
 		FileInputSplit split = createTempFile(fileContent);
 
 		TypeInformation[] fieldTypes = new TypeInformation[]{
-				BasicTypeInfo.STRING_TYPE_INFO,
-				BasicTypeInfo.STRING_TYPE_INFO,
-				BasicTypeInfo.STRING_TYPE_INFO};
+			BasicTypeInfo.STRING_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO};
 
 		RowCsvInputFormat format = new RowCsvInputFormat(PATH, fieldTypes, "\n", "|");
 		format.setFieldDelimiter("|-");
@@ -715,8 +716,9 @@ public class RowCsvInputFormatTest {
 		}
 	}
 
+	// Test disabled because we do not support double-quote escaped quotes right now.
 	@Test
-	@Ignore("Test disabled because we do not support double-quote escaped quotes right now.")
+	@Ignore
 	public void testParserCorrectness() throws Exception {
 		// RFC 4180 Compliance Test content
 		// Taken from http://en.wikipedia.org/wiki/Comma-separated_values#Example
@@ -888,6 +890,11 @@ public class RowCsvInputFormatTest {
 
 		Row result = new Row(4);
 
+		// java.sql.*.valueOf use LOCAL TimeZone to normalize java.sql.* object
+		// so we should set LOCAL TimeZone to UTC_ZONE to verify SqlTime fields
+		TimeZone original = TimeZone.getDefault();
+		TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+
 		result = format.nextRecord(result);
 		assertNotNull(result);
 		assertEquals(Date.valueOf("1990-10-14"), result.getField(0));
@@ -905,6 +912,8 @@ public class RowCsvInputFormatTest {
 		result = format.nextRecord(result);
 		assertNull(result);
 		assertTrue(format.reachedEnd());
+
+		TimeZone.setDefault(original);
 	}
 
 	@Test
@@ -912,8 +921,8 @@ public class RowCsvInputFormatTest {
 		String fileContent =
 			// first row
 			"111|222|333|444|555|666|777|888|999|000|\n" +
-			// second row
-			"000|999|888|777|666|555|444|333|222|111|";
+				// second row
+				"000|999|888|777|666|555|444|333|222|111|";
 		FileInputSplit split = createTempFile(fileContent);
 
 		TypeInformation[] fieldTypes = new TypeInformation[]{

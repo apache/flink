@@ -24,6 +24,7 @@ import java.util.Random
 import org.apache.flink.api.common.typeutils.base.{LongSerializer, MapSerializer, StringSerializer}
 import org.apache.flink.api.common.typeutils.{SerializerTestBase, TypeSerializer}
 import org.apache.flink.table.api.dataview.MapView
+import org.apache.flink.table.typeutils.MapViewSerializer
 
 /**
   * A test for the [[MapViewSerializer]].

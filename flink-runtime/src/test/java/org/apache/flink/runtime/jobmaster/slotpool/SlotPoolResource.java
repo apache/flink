@@ -23,6 +23,8 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.util.clock.SystemClock;
 import org.junit.rules.ExternalResource;
 
 import javax.annotation.Nonnull;
@@ -46,12 +48,20 @@ public class SlotPoolResource extends ExternalResource {
 
 	private TestingResourceManagerGateway testingResourceManagerGateway;
 
+	private Boolean enableSharedSlot;
+
 	public SlotPoolResource(@Nonnull RpcService rpcService, @Nonnull SchedulingStrategy schedulingStrategy) {
+		this(rpcService, schedulingStrategy, true);
+	}
+
+	public SlotPoolResource(@Nonnull RpcService rpcService, @Nonnull SchedulingStrategy schedulingStrategy,
+							@Nonnull Boolean enableSharedSlot) {
 		this.rpcService = rpcService;
 		this.schedulingStrategy = schedulingStrategy;
 		slotPool = null;
 		slotPoolGateway = null;
 		testingResourceManagerGateway = null;
+		this.enableSharedSlot = enableSharedSlot;
 	}
 
 	public SlotProvider getSlotProvider() {
@@ -84,7 +94,11 @@ public class SlotPoolResource extends ExternalResource {
 		slotPool = new SlotPool(
 			rpcService,
 			new JobID(),
-			schedulingStrategy);
+			schedulingStrategy,
+			SystemClock.getInstance(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime(),
+			enableSharedSlot);
 
 		slotPool.start(JobMasterId.generate(), "foobar");
 

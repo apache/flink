@@ -52,9 +52,14 @@ class ScalarOperatorsValidationTest extends ScalarOperatorsTestBase {
   @Test(expected = classOf[ValidationException])
   def testInMoreThanOneTypes(): Unit = {
     testTableApi(
-      'f2.in('f3, 'f4, 4),
+      'f2.in('f3, 'f10, 4),
       "FAIL",
       "FAIL"
+    )
+    testTableApi(
+      'f2.in('f3, 'f4, 4),  // OK if all numeric
+      "true",
+      "true"
     )
   }
 

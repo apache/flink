@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -42,7 +41,10 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for {@link InputFormatSourceFunction}.
@@ -96,20 +98,20 @@ public class InputFormatSourceFunctionTest {
 		}
 	}
 
-	private static class LifeCycleTestInputFormat extends RichInputFormat<Integer, InputSplit> {
+	static class LifeCycleTestInputFormat extends RichInputFormat<Integer, InputSplit> {
 
 		private static final long serialVersionUID = 7408902249499583273L;
-		private boolean isConfigured = false;
-		private boolean isInputFormatOpen = false;
-		private boolean isSplitOpen = false;
+		boolean isConfigured = false;
+		boolean isInputFormatOpen = false;
+		boolean isSplitOpen = false;
 
 		// end of split
-		private boolean eos = false;
+		boolean eos = false;
 
-		private int splitCounter = 0;
+		int splitCounter = 0;
 
-		private int reachedEndCalls = 0;
-		private int nextRecordCalls = 0;
+		int reachedEndCalls = 0;
+		int nextRecordCalls = 0;
 
 		@Override
 		public void openInputFormat() {
@@ -210,7 +212,7 @@ public class InputFormatSourceFunctionTest {
 
 		int splitIdx = 0;
 
-		private TestSourceContext(InputFormatSourceFunction<Integer> reader, LifeCycleTestInputFormat format, boolean shouldCancel, int cancelAt) {
+		TestSourceContext(InputFormatSourceFunction<Integer> reader, LifeCycleTestInputFormat format, boolean shouldCancel, int cancelAt) {
 			this.reader = reader;
 			this.format = format;
 			this.shouldCancel = shouldCancel;
@@ -259,17 +261,16 @@ public class InputFormatSourceFunctionTest {
 	}
 
 	@SuppressWarnings("deprecation")
-	private static class MockRuntimeContext extends StreamingRuntimeContext {
+	static class MockRuntimeContext extends StreamingRuntimeContext {
 
 		private final int noOfSplits;
 		private int nextSplit = 0;
 		private final LifeCycleTestInputFormat format;
 		private InputSplit[] inputSplits;
 
-		private MockRuntimeContext(LifeCycleTestInputFormat format, int noOfSplits, Environment environment) {
+		MockRuntimeContext(LifeCycleTestInputFormat format, int noOfSplits, Environment environment) {
 			super(new MockStreamOperator(),
-				environment,
-				Collections.<String, Accumulator<?, ?>>emptyMap());
+				environment);
 
 			this.noOfSplits = noOfSplits;
 			this.format = format;
@@ -291,10 +292,17 @@ public class InputFormatSourceFunctionTest {
 
 			return new InputSplitProvider() {
 				@Override
-				public InputSplit getNextInputSplit(ClassLoader userCodeClassLoader) {
+				public InputSplit getNextInputSplit(OperatorID operatorID, ClassLoader userCodeClassLoader) {
+					assertEquals(MockRuntimeContext.this.getOperatorID(), operatorID);
+
 					if (nextSplit < inputSplits.length) {
 						return inputSplits[nextSplit++];
 					}
+					return null;
+				}
+
+				@Override
+				public Map<OperatorID, List<InputSplit>> getAssignedInputSplits() {
 					return null;
 				}
 			};
@@ -305,6 +313,8 @@ public class InputFormatSourceFunctionTest {
 		private static class MockStreamOperator extends AbstractStreamOperator<Integer> {
 			private static final long serialVersionUID = -1153976702711944427L;
 
+			private final OperatorID operatorID = new OperatorID();
+
 			@Override
 			public ExecutionConfig getExecutionConfig() {
 				return new ExecutionConfig();
@@ -312,7 +322,7 @@ public class InputFormatSourceFunctionTest {
 
 			@Override
 			public OperatorID getOperatorID() {
-				return new OperatorID();
+				return operatorID;
 			}
 		}
 	}

@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
@@ -45,13 +44,15 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.preaggregatedaccumulators.AccumulatorAggregationManager;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.AbstractInternalStateBackend;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -63,7 +64,6 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
@@ -72,7 +72,9 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -87,6 +89,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.streaming.runtime.tasks.StreamTaskTestHarness.createSingleOperatorTaskConfig;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
@@ -110,8 +113,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 	 */
 	@Test
 	public void testConcurrentAsyncCheckpointCannotFailFinishedStreamTask() throws Exception {
-		final Configuration taskConfiguration = new Configuration();
-		final StreamConfig streamConfig = new StreamConfig(taskConfiguration);
+		final StreamConfig streamConfig = new StreamConfig(new Configuration());
 		final NoOpStreamOperator<Long> noOpStreamOperator = new NoOpStreamOperator<>();
 
 		final StateBackend blockingStateBackend = new BlockingStateBackend();
@@ -137,7 +139,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 			1,
 			1,
 			BlockingStreamTask.class.getName(),
-			taskConfiguration);
+			createSingleOperatorTaskConfig(streamConfig).getConfiguration());
 
 		final TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
 
@@ -159,10 +161,12 @@ public class StreamTaskTerminationTest extends TestLogger {
 			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 			Collections.<InputGateDeploymentDescriptor>emptyList(),
 			0,
+			System.currentTimeMillis(),
 			new MemoryManager(32L * 1024L, 1),
 			new IOManagerAsync(),
 			networkEnv,
 			mock(BroadcastVariableManager.class),
+			mock(AccumulatorAggregationManager.class),
 			new TestTaskStateManager(),
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
@@ -175,9 +179,10 @@ public class StreamTaskTerminationTest extends TestLogger {
 			mock(FileCache.class),
 			taskManagerRuntimeInfo,
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-			new NoOpResultPartitionConsumableNotifier(),
+			mock(ResultPartitionConsumableNotifier.class),
 			mock(PartitionProducerStateChecker.class),
-			Executors.directExecutor());
+			Executors.directExecutor(),
+			java.util.concurrent.Executors.newSingleThreadExecutor());
 
 		CompletableFuture<Void> taskRun = CompletableFuture.runAsync(
 			() -> task.run(),
@@ -237,8 +242,19 @@ public class StreamTaskTerminationTest extends TestLogger {
 		}
 	}
 
-	private static class NoOpStreamOperator<T> extends AbstractStreamOperator<T> {
+	private static class NoOpStreamOperator<T> extends AbstractStreamOperator<T> implements
+		OneInputStreamOperator<T, T> {
 		private static final long serialVersionUID = 4517845269225218312L;
+
+		@Override
+		public void processElement(StreamRecord<T> element) throws Exception {
+
+		}
+
+		@Override
+		public void endInput() throws Exception {
+
+		}
 	}
 
 	static class BlockingStateBackend implements StateBackend {
@@ -252,7 +268,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 
 		@Override
 		public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
-			return new MemoryBackendCheckpointStorage(jobId, null, null, Integer.MAX_VALUE);
+			return new MemoryBackendCheckpointStorage(jobId, true, null, null, Integer.MAX_VALUE);
 		}
 
 		@Override
@@ -263,9 +279,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry,
-			TtlTimeProvider ttlTimeProvider,
-			MetricGroup metricGroup) {
+			TaskKvStateRegistry kvStateRegistry) {
 			return null;
 		}
 
@@ -276,6 +290,15 @@ public class StreamTaskTerminationTest extends TestLogger {
 				.thenReturn(new FutureTask<>(new BlockingCallable()));
 
 			return operatorStateBackend;
+		}
+
+		@Override
+		public AbstractInternalStateBackend createInternalStateBackend(
+			Environment env,
+			String operatorIdentifier,
+			int numberOfGroups,
+			KeyGroupRange keyGroupRange) throws Exception {
+				return null;
 		}
 	}
 

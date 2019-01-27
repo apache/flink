@@ -20,9 +20,8 @@ package org.apache.flink.cep;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.RichFunction;
-
-import java.util.List;
-import java.util.Map;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Rich variant of the {@link PatternSelectFunction}. As a {@link RichFunction}, it gives access to the
@@ -39,5 +38,14 @@ public abstract class RichPatternSelectFunction<IN, OUT>
 
 	private static final long serialVersionUID = 1L;
 
-	public abstract OUT select(final Map<String, List<IN>> pattern) throws Exception;
+	@Override
+	public void setRuntimeContext(RuntimeContext runtimeContext) {
+		Preconditions.checkNotNull(runtimeContext);
+
+		if (runtimeContext instanceof CepRuntimeContext) {
+			super.setRuntimeContext(runtimeContext);
+		} else {
+			super.setRuntimeContext(new CepRuntimeContext(runtimeContext));
+		}
+	}
 }

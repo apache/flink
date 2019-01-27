@@ -31,10 +31,6 @@ You can also run tests individually via
 $ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh your_test.sh arg1 arg2
 ```
 
-### Kubernetes test
-
-Kubernetes test (test_kubernetes_embedded_job.sh) assumes a running minikube cluster.
-
 ## Writing Tests
 
 ### Examples
@@ -46,8 +42,6 @@ to put new functionality in `common.sh` so that it can be reused by other tests.
 In order to add a new test case you need add it to either `test-scripts/run-nightly-tests.sh` and / or `test-scripts/run-pre-commit-tests.sh`. Templates on how to add tests can be found in those respective files.
 
 _Note: If you want to parameterize your tests please do so by adding multiple test cases with parameters as arguments to the nightly / pre-commit test suites. This allows the test runner to do a cleanup in between each individual test and also to fail those tests individually._
-
-_Note: While developing a new test case make sure to enable bash's error handling in `test-scripts/common.sh` by uncommenting `set -Eexuo pipefail` and commenting the current default `set` call. Once your test is implemented properly, add `set -Eeuo pipefail` on the very top of your test script (before any `common` script)._
 
 ### Passing your test
 A test is considered to have passed if it:

@@ -23,6 +23,7 @@ import org.apache.flink.testutils.junit.RetryOnFailure;
 import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -70,6 +71,7 @@ public class RocksDBListStatePerformanceTest extends TestLogger {
 	@Rule
 	public final RetryRule retry = new RetryRule();
 
+	@Ignore
 	@Test(timeout = 2000)
 	@RetryOnFailure(times = 3)
 	public void testRocksDbListStateAPIs() throws Exception {

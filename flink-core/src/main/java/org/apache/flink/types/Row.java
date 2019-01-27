@@ -20,6 +20,7 @@ package org.apache.flink.types;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.TimeConvertUtils;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -90,7 +91,14 @@ public class Row implements Serializable{
 			if (i > 0) {
 				sb.append(",");
 			}
-			sb.append(StringUtils.arrayAwareToString(fields[i]));
+
+			if (fields[i] instanceof java.sql.Date
+				|| fields[i] instanceof java.sql.Time
+				|| fields[i] instanceof java.sql.Timestamp) {
+				sb.append(TimeConvertUtils.unixDateTimeToString(fields[i]));
+			} else {
+				sb.append(StringUtils.arrayAwareToString(fields[i]));
+			}
 		}
 		return sb.toString();
 	}

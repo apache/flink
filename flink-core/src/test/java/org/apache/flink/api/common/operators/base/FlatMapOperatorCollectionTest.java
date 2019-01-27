@@ -20,7 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.AbstractAccumulatorRegistry;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -41,6 +41,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Future;
+
+import static org.powermock.api.mockito.PowerMockito.mock;
 
 @SuppressWarnings("serial")
 public class FlatMapOperatorCollectionTest implements Serializable {
@@ -83,7 +85,7 @@ public class FlatMapOperatorCollectionTest implements Serializable {
 				.executeOnCollections(input,
 						new RuntimeUDFContext(
 							taskInfo,  null, executionConfig, new HashMap<String, Future<Path>>(),
-							new HashMap<String, Accumulator<?, ?>>(), new UnregisteredMetricsGroup()),
+							mock(AbstractAccumulatorRegistry.class), new UnregisteredMetricsGroup()),
 						executionConfig);
 
 		Assert.assertEquals(input.size(), result.size());

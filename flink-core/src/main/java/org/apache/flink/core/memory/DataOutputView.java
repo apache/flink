@@ -19,6 +19,7 @@
 package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.DataOutput;
 import java.io.IOException;
@@ -29,7 +30,7 @@ import java.io.IOException;
  * The view is typically backed by one or more {@link org.apache.flink.core.memory.MemorySegment}.
  */
 @Public
-public interface DataOutputView extends DataOutput {
+public interface DataOutputView extends DataOutput, MemorySegmentWritable {
 
 	/**
 	 * Skips {@code numBytes} bytes memory. If some program reads the memory that was skipped over, the
@@ -52,4 +53,12 @@ public interface DataOutputView extends DataOutput {
 	 *                     could not be read, or the output could not be written.
 	 */
 	void write(DataInputView source, int numBytes) throws IOException;
+
+	@PublicEvolving
+	@Override
+	default void write(MemorySegment segment, int off, int len) throws IOException {
+		for (int i = off; i < off + len; i++) {
+			write(segment.get(i));
+		}
+	}
 }

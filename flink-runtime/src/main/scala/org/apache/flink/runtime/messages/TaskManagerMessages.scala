@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.messages
 
 import java.util.UUID
+
+import akka.actor.ActorRef
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.instance.InstanceID
 

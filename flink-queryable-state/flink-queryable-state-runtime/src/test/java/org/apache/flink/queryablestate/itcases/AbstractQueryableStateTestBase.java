@@ -48,16 +48,14 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
-import org.apache.flink.queryablestate.client.VoidNamespace;
-import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
 import org.apache.flink.queryablestate.exceptions.UnknownKeyOrNamespaceException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.QueryableStateStream;
@@ -106,8 +104,8 @@ import static org.junit.Assert.fail;
  */
 public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
-	private static final Duration TEST_TIMEOUT = Duration.ofSeconds(200L);
-	private static final long RETRY_TIMEOUT = 50L;
+	private static final Duration TEST_TIMEOUT = Duration.ofSeconds(10000L);
+	public static final long RETRY_TIMEOUT = 50L;
 
 	private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
 	private final ScheduledExecutor executor = new ScheduledExecutorServiceAdapter(executorService);
@@ -115,7 +113,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	/**
 	 * State backend to use.
 	 */
-	private StateBackend stateBackend;
+	protected AbstractStateBackend stateBackend;
 
 	/**
 	 * Client shared between all the test.
@@ -142,7 +140,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	 *
 	 * @return a state backend instance for each unit test
 	 */
-	protected abstract StateBackend createStateBackend() throws Exception;
+	protected abstract AbstractStateBackend createStateBackend() throws Exception;
 
 	/**
 	 * Runs a simple topology producing random (key, 1) pairs at the sources (where
@@ -153,6 +151,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	 * to query the counts of each key in rounds until all keys have non-zero counts.
 	 */
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testQueryableState() throws Exception {
 		final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
 		final int numKeys = 256;
@@ -187,7 +186,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
 			clusterClient.setDetached(true);
-			clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader());
+			clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader(), false);
 
 			final AtomicLongArray counts = new AtomicLongArray(numKeys);
 
@@ -300,7 +299,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 		boolean caughtException = false;
 		try {
-			clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader());
+			clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader(), false);
 		} catch (ProgramInvocationException e) {
 			String failureCause = ExceptionUtils.stringifyException(e);
 			assertThat(failureCause, containsString("KvState with name '" + queryName + "' has already been registered by another operator"));
@@ -349,7 +348,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
 			clusterClient.setDetached(true);
-			clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader());
+			clusterClient.submitJob(jobGraph, AbstractQueryableStateTestBase.class.getClassLoader(), false);
 
 			executeValueQuery(deadline, client, jobId, "hakuna", valueState, numElements);
 		}
@@ -596,7 +595,6 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 					}
 				}).asQueryableState("matata");
 
-		@SuppressWarnings("unchecked")
 		final ValueStateDescriptor<Tuple2<Integer, Long>> stateDesc =
 				(ValueStateDescriptor<Tuple2<Integer, Long>>) queryableState.getStateDescriptor();
 
@@ -836,11 +834,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 							false,
 							executor);
 
-					Tuple2<Integer, Long> value =
-						future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get(key);
-
-					if (value != null && value.f0 != null && expected == value.f1) {
-						assertEquals("Key mismatch", key, value.f0.intValue());
+					Tuple2<Integer, Long> value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get(key);
+					assertEquals("Key mismatch", key, value.f0.intValue());
+					if (expected == value.f1) {
 						success = true;
 					} else {
 						// Retry
@@ -1165,15 +1161,17 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		@Override
 		public void open() throws Exception {
 			super.open();
-			this.state = getKeyedStateBackend().getPartitionedState(
-					VoidNamespace.INSTANCE,
-					VoidNamespaceSerializer.INSTANCE,
-					stateDescriptor);
+			this.state = getRuntimeContext().getAggregatingState(stateDescriptor);
 		}
 
 		@Override
 		public void processElement(StreamRecord<Tuple2<Integer, Long>> element) throws Exception {
 			state.add(element.getValue());
+		}
+
+		@Override
+		public void endInput() throws Exception {
+
 		}
 	}
 
@@ -1273,7 +1271,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			// Free cluster resources
 			clusterClient.cancel(jobId);
 			// cancel() is non-blocking so do this to make sure the job finished
-			CompletableFuture<JobStatus> jobStatusFuture = FutureUtils.retrySuccessfulWithDelay(
+			CompletableFuture<JobStatus> jobStatusFuture = FutureUtils.retrySuccesfulWithDelay(
 				() -> clusterClient.getJobStatus(jobId),
 				Time.milliseconds(50),
 				deadline,

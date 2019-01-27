@@ -17,91 +17,95 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.api.StreamQueryConfig
-import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
-import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.api.common.state.ValueStateDescriptor
+import org.apache.flink.runtime.state.keyed.KeyedValueState
+import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.types.{DataTypes, InternalType, TypeConverters}
+import org.apache.flink.table.codegen.GeneratedAggsHandleFunction
+import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
+import org.apache.flink.table.runtime.functions.ProcessFunction.{Context, OnTimerContext}
+import org.apache.flink.table.runtime.functions.{AggsHandleFunction, ExecutionContext}
+import org.apache.flink.table.typeutils.{BaseRowTypeInfo, TypeUtils}
 import org.apache.flink.table.util.Logging
-import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 /**
   * Process Function for processing-time unbounded OVER window
   *
-  * @param genAggregations Generated aggregate helper function
-  * @param aggregationStateType     row type info of aggregation
+  * @param genAggsHandler      Generated aggregate helper function
+  * @param accTypes            accumulator types of aggregation
   */
 class ProcTimeUnboundedOver(
-    genAggregations: GeneratedAggregationsFunction,
-    aggregationStateType: RowTypeInfo,
-    queryConfig: StreamQueryConfig)
-  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
-    with Compiler[GeneratedAggregations]
-    with Logging {
+    genAggsHandler: GeneratedAggsHandleFunction,
+    accTypes: Seq[InternalType],
+    tableConfig: TableConfig)
+  extends ProcessFunctionWithCleanupState[BaseRow, BaseRow](tableConfig)
+  with Logging {
 
-  private var output: CRow = _
-  private var state: ValueState[Row] = _
-  private var function: GeneratedAggregations = _
+  private var function: AggsHandleFunction = _
+  private var accState: KeyedValueState[BaseRow, BaseRow] = _
+  private var output: JoinedRow = _
 
-  override def open(config: Configuration) {
-    LOG.debug(s"Compiling AggregateHelper: ${genAggregations.name} \n\n" +
-                s"Code:\n${genAggregations.code}")
-    val clazz = compile(
-      getRuntimeContext.getUserCodeClassLoader,
-      genAggregations.name,
-      genAggregations.code)
-    LOG.debug("Instantiating AggregateHelper.")
-    function = clazz.newInstance()
-    function.open(getRuntimeContext)
+  override def open(ctx: ExecutionContext): Unit = {
+    super.open(ctx)
+    LOG.debug(s"Compiling AggregateHelper: ${genAggsHandler.name} \n\n" +
+        s"Code:\n${genAggsHandler.code}")
+    function = genAggsHandler.newInstance(ctx.getRuntimeContext.getUserCodeClassLoader)
+    function.open(ctx)
 
-    output = new CRow(function.createOutputRow(), true)
-    val stateDescriptor: ValueStateDescriptor[Row] =
-      new ValueStateDescriptor[Row]("overState", aggregationStateType)
-    state = getRuntimeContext.getState(stateDescriptor)
+    output = new JoinedRow()
 
-    initCleanupTimeState("ProcTimeUnboundedPartitionedOverCleanupTime")
+    val accTypeInfo = new BaseRowTypeInfo(
+      accTypes.map(TypeConverters.createExternalTypeInfoFromDataType): _*)
+    val stateDescriptor = new ValueStateDescriptor("accState", accTypeInfo)
+    accState = ctx.getKeyedValueState(stateDescriptor)
+
+    initCleanupTimeState("ProcTimeUnboundedOverCleanupTime")
   }
 
   override def processElement(
-    inputC: CRow,
-    ctx: ProcessFunction[CRow, CRow]#Context,
-    out: Collector[CRow]): Unit = {
+      input: BaseRow,
+      ctx: Context,
+      out: Collector[BaseRow]): Unit = {
 
+    val currentKey = executionContext.currentKey()
     // register state-cleanup timer
-    processCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
-    val input = inputC.row
-
-    var accumulators = state.value()
-
+    var accumulators = accState.get(currentKey)
     if (null == accumulators) {
       accumulators = function.createAccumulators()
     }
+    // set accumulators in context first
+    function.setAccumulators(accumulators)
 
-    function.setForwardedFields(input, output.row)
+    // accumulate input row
+    function.accumulate(input)
 
-    function.accumulate(accumulators, input)
-    function.setAggregationResults(accumulators, output.row)
+    // update the value of accumulators for future incremental computation
+    accumulators = function.getAccumulators
+    accState.put(currentKey, accumulators)
 
-    state.update(accumulators)
+    // prepare output row
+    val aggValue = function.getValue
+    output.replace(input, aggValue)
     out.collect(output)
   }
 
   override def onTimer(
-    timestamp: Long,
-    ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
-    out: Collector[CRow]): Unit = {
+      timestamp: Long,
+      ctx: OnTimerContext,
+      out: Collector[BaseRow]): Unit = {
 
-    if (stateCleaningEnabled) {
-      cleanupState(state)
+    if (needToCleanupState(timestamp)) {
+      cleanupState(accState)
       function.cleanup()
     }
   }
-  
+
   override def close(): Unit = {
-    function.close()
+    if (null != function) {
+      function.close()
+    }
   }
 }

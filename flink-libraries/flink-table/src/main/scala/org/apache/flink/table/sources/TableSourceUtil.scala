@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.sources
 
-import java.sql.Timestamp
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rel.RelNode
@@ -27,12 +25,10 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalValues
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.api.{TableException, Types, ValidationException}
+import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.types.{DataType, DataTypes, InternalType, RowType}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions.{Cast, ResolvedFieldReference}
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import scala.collection.JavaConverters._
 
@@ -40,11 +36,11 @@ import scala.collection.JavaConverters._
 object TableSourceUtil {
 
   /** Returns true if the [[TableSource]] has a rowtime attribute. */
-  def hasRowtimeAttribute(tableSource: TableSource[_]): Boolean =
+  def hasRowtimeAttribute(tableSource: TableSource): Boolean =
     getRowtimeAttributes(tableSource).nonEmpty
 
   /** Returns true if the [[TableSource]] has a proctime attribute. */
-  def hasProctimeAttribute(tableSource: TableSource[_]): Boolean =
+  def hasProctimeAttribute(tableSource: TableSource): Boolean =
     getProctimeAttribute(tableSource).nonEmpty
 
   /**
@@ -56,11 +52,11 @@ object TableSourceUtil {
     *
     * @param tableSource The [[TableSource]] for which the time attributes are checked.
     */
-  def validateTableSource(tableSource: TableSource[_]): Unit = {
+  def validateTableSource(tableSource: TableSource): Unit = {
 
     val schema = tableSource.getTableSchema
-    val tableFieldNames = schema.getFieldNames
-    val tableFieldTypes = schema.getFieldTypes
+    val tableFieldNames = schema.getColumnNames
+    val tableFieldTypes = schema.getTypes
 
     // get rowtime and proctime attributes
     val rowtimeAttributes = getRowtimeAttributes(tableSource)
@@ -69,21 +65,21 @@ object TableSourceUtil {
     // validate that schema fields can be resolved to a return type field of correct type
     var mappedFieldCnt = 0
     tableFieldTypes.zip(tableFieldNames).foreach {
-      case (t: SqlTimeTypeInfo[_], name: String)
-        if t.getTypeClass == classOf[Timestamp] && proctimeAttribute.contains(name) =>
+      case (DataTypes.TIMESTAMP, name: String)
+        if proctimeAttribute.contains(name) =>
         // OK, field was mapped to proctime attribute
-      case (t: SqlTimeTypeInfo[_], name: String)
-        if t.getTypeClass == classOf[Timestamp] && rowtimeAttributes.contains(name) =>
+      case (DataTypes.TIMESTAMP, name: String)
+        if rowtimeAttributes.contains(name) =>
         // OK, field was mapped to rowtime attribute
-      case (t: TypeInformation[_], name) =>
+      case (t: InternalType, name) =>
         // check if field is registered as time indicator
         if (getProctimeAttribute(tableSource).contains(name)) {
           throw new ValidationException(s"Processing time field '$name' has invalid type $t. " +
-            s"Processing time attributes must be of type ${Types.SQL_TIMESTAMP}.")
+            s"Processing time attributes must be of type ${DataTypes.TIMESTAMP}.")
         }
         if (getRowtimeAttributes(tableSource).contains(name)) {
           throw new ValidationException(s"Rowtime field '$name' has invalid type $t. " +
-            s"Rowtime attributes must be of type ${Types.SQL_TIMESTAMP}.")
+            s"Rowtime attributes must be of type ${DataTypes.TIMESTAMP}.")
         }
         // check that field can be resolved in input type
         val (physicalName, _, tpe) = resolveInputField(name, tableSource)
@@ -95,7 +91,8 @@ object TableSourceUtil {
         mappedFieldCnt += 1
     }
     // ensure that only one field is mapped to an atomic type
-    if (!tableSource.getReturnType.isInstanceOf[CompositeType[_]] && mappedFieldCnt > 1) {
+    if (!tableSource.getReturnType.toInternalType.isInstanceOf[RowType]
+        && mappedFieldCnt > 1) {
       throw new ValidationException(
         s"More than one table field matched to atomic input type ${tableSource.getReturnType}.")
     }
@@ -111,15 +108,15 @@ object TableSourceUtil {
         } else if (descriptors.size() == 1) {
           val descriptor = descriptors.get(0)
           val rowtimeAttribute = descriptor.getAttributeName
-          val rowtimeIdx = schema.getFieldNames.indexOf(rowtimeAttribute)
+          val rowtimeIdx = schema.getColumnNames.indexOf(rowtimeAttribute)
           // ensure that field exists
           if (rowtimeIdx < 0) {
-            throw new ValidationException(s"Found a rowtime attribute for field " +
+            throw new ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
               s"'$rowtimeAttribute' but field '$rowtimeAttribute' does not exist in table.")
           }
           // ensure that field is of type TIMESTAMP
-          if (schema.getFieldTypes()(rowtimeIdx) != Types.SQL_TIMESTAMP) {
-            throw new ValidationException(s"Found a rowtime attribute for field " +
+          if (schema.getFieldType(rowtimeIdx).get() != DataTypes.TIMESTAMP) {
+            throw new ValidationException(s"Found a RowtimeAttributeDescriptor for field " +
               s"'$rowtimeAttribute' but field '$rowtimeAttribute' is not of type TIMESTAMP.")
           }
           // look up extractor input fields in return type
@@ -135,15 +132,15 @@ object TableSourceUtil {
     tableSource match {
       case p: DefinedProctimeAttribute if p.getProctimeAttribute != null =>
         val proctimeAttribute = p.getProctimeAttribute
-        val proctimeIdx = schema.getFieldNames.indexOf(proctimeAttribute)
+        val proctimeIdx = schema.getColumnNames.indexOf(proctimeAttribute)
         // ensure that field exists
         if (proctimeIdx < 0) {
-          throw new ValidationException(s"Found a processing time attribute for field " +
+          throw new ValidationException(s"Found a ProctimeAttribute for field " +
             s"'$proctimeAttribute' but field '$proctimeAttribute' does not exist in table.")
         }
         // ensure that field is of type TIMESTAMP
-        if (schema.getFieldTypes()(proctimeIdx) != Types.SQL_TIMESTAMP) {
-          throw new ValidationException(s"Found a processing time attribute for field " +
+        if (schema.getFieldType(proctimeIdx).get() != DataTypes.TIMESTAMP) {
+          throw new ValidationException(s"Found a ProctimeAttribute for field " +
             s"'$proctimeAttribute' but field '$proctimeAttribute' is not of type TIMESTAMP.")
         }
       case _ => // nothing to validate
@@ -169,26 +166,26 @@ object TableSourceUtil {
     * @return An index mapping from input type to table schema.
     */
   def computeIndexMapping(
-      tableSource: TableSource[_],
+      tableSource: TableSource,
       isStreamTable: Boolean,
       selectedFields: Option[Array[Int]]): Array[Int] = {
-    val inputType = tableSource.getReturnType
+    val inputType = tableSource.getReturnType.toInternalType
     val tableSchema = tableSource.getTableSchema
 
     // get names of selected fields
     val tableFieldNames = if (selectedFields.isDefined) {
-      val names = tableSchema.getFieldNames
+      val names = tableSchema.getColumnNames
       selectedFields.get.map(names(_))
     } else {
-      tableSchema.getFieldNames
+      tableSchema.getColumnNames
     }
 
     // get types of selected fields
     val tableFieldTypes = if (selectedFields.isDefined) {
-      val types = tableSchema.getFieldTypes
+      val types = tableSchema.getTypes
       selectedFields.get.map(types(_))
     } else {
-      tableSchema.getFieldTypes
+      tableSchema.getTypes
     }
 
     // get rowtime and proctime attributes
@@ -197,29 +194,29 @@ object TableSourceUtil {
 
     // compute mapping of selected fields and time attributes
     val mapping: Array[Int] = tableFieldTypes.zip(tableFieldNames).map {
-      case (t: SqlTimeTypeInfo[_], name: String)
-        if t.getTypeClass == classOf[Timestamp] && proctimeAttributes.contains(name) =>
+      case (DataTypes.TIMESTAMP, name: String)
+        if proctimeAttributes.contains(name) =>
         if (isStreamTable) {
-          TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER
+          DataTypes.PROCTIME_STREAM_MARKER
         } else {
-          TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER
+          DataTypes.PROCTIME_BATCH_MARKER
         }
-      case (t: SqlTimeTypeInfo[_], name: String)
-        if t.getTypeClass == classOf[Timestamp] && rowtimeAttributes.contains(name) =>
+      case (DataTypes.TIMESTAMP, name: String)
+        if rowtimeAttributes.contains(name) =>
         if (isStreamTable) {
-          TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER
+          DataTypes.ROWTIME_STREAM_MARKER
         } else {
-          TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER
+          DataTypes.ROWTIME_BATCH_MARKER
         }
-      case (t: TypeInformation[_], name) =>
+      case (t: InternalType, name) =>
         // check if field is registered as time indicator
         if (getProctimeAttribute(tableSource).contains(name)) {
           throw new ValidationException(s"Processing time field '$name' has invalid type $t. " +
-            s"Processing time attributes must be of type ${Types.SQL_TIMESTAMP}.")
+            s"Processing time attributes must be of type ${DataTypes.TIMESTAMP}.")
         }
         if (getRowtimeAttributes(tableSource).contains(name)) {
           throw new ValidationException(s"Rowtime field '$name' has invalid type $t. " +
-            s"Rowtime attributes must be of type ${Types.SQL_TIMESTAMP}.")
+            s"Rowtime attributes must be of type ${DataTypes.TIMESTAMP}.")
         }
 
         val (physicalName, idx, tpe) = resolveInputField(name, tableSource)
@@ -232,7 +229,7 @@ object TableSourceUtil {
     }
 
     // ensure that only one field is mapped to an atomic type
-    if (!inputType.isInstanceOf[CompositeType[_]] && mapping.count(_ >= 0) > 1) {
+    if (!inputType.isInstanceOf[RowType] && mapping.count(_ >= 0) > 1) {
       throw new ValidationException(
         s"More than one table field matched to atomic input type $inputType.")
     }
@@ -250,13 +247,14 @@ object TableSourceUtil {
     * @return The Calcite schema for the selected fields of the given [[TableSource]].
     */
   def getRelDataType(
-      tableSource: TableSource[_],
+      tableSource: TableSource,
       selectedFields: Option[Array[Int]],
       streaming: Boolean,
       typeFactory: FlinkTypeFactory): RelDataType = {
 
     val fieldNames = tableSource.getTableSchema.getFieldNames
     var fieldTypes = tableSource.getTableSchema.getFieldTypes
+    var fieldNullables = tableSource.getTableSchema.getFieldNullables
 
     if (streaming) {
       // adjust the type of time attributes for streaming tables
@@ -266,22 +264,28 @@ object TableSourceUtil {
       // patch rowtime fields with time indicator type
       rowtimeAttributes.foreach { rowtimeField =>
         val idx = fieldNames.indexOf(rowtimeField)
-        fieldTypes = fieldTypes.patch(idx, Seq(TimeIndicatorTypeInfo.ROWTIME_INDICATOR), 1)
+        fieldTypes = fieldTypes.patch(idx, Seq(DataTypes.ROWTIME_INDICATOR), 1)
+        fieldNullables = fieldNullables.patch(idx, Seq(false), 1)
       }
       // patch proctime field with time indicator type
       proctimeAttributes.foreach { proctimeField =>
         val idx = fieldNames.indexOf(proctimeField)
-        fieldTypes = fieldTypes.patch(idx, Seq(TimeIndicatorTypeInfo.PROCTIME_INDICATOR), 1)
+        fieldTypes = fieldTypes.patch(idx, Seq(DataTypes.PROCTIME_INDICATOR), 1)
+        fieldNullables = fieldNullables.patch(idx, Seq(false), 1)
       }
     }
 
-    val (selectedFieldNames, selectedFieldTypes) = if (selectedFields.isDefined) {
-      // filter field names and types by selected fields
-      (selectedFields.get.map(fieldNames(_)), selectedFields.get.map(fieldTypes(_)))
-    } else {
-      (fieldNames, fieldTypes)
-    }
-    typeFactory.buildLogicalRowType(selectedFieldNames, selectedFieldTypes)
+    val (selectedFieldNames, selectedFieldTypes, selectedFieldNullables) =
+      if (selectedFields.isDefined) {
+        // filter field names and types by selected fields
+        (
+            selectedFields.get.map(fieldNames(_)),
+            selectedFields.get.map(fieldTypes(_)),
+            selectedFields.get.map(fieldNullables(_)))
+      } else {
+        (fieldNames, fieldTypes,  fieldNullables)
+      }
+    typeFactory.buildRelDataType(selectedFieldNames, selectedFieldTypes, selectedFieldNullables)
   }
 
   /**
@@ -294,7 +298,7 @@ object TableSourceUtil {
     * @return The [[RowtimeAttributeDescriptor]] of the [[TableSource]].
     */
   def getRowtimeAttributeDescriptor(
-      tableSource: TableSource[_],
+      tableSource: TableSource,
       selectedFields: Option[Array[Int]]): Option[RowtimeAttributeDescriptor] = {
 
     tableSource match {
@@ -303,7 +307,7 @@ object TableSourceUtil {
         if (descriptors.size() == 0) {
           None
         } else if (descriptors.size > 1) {
-          throw new ValidationException("Table with has more than a single rowtime attribute.")
+          throw new ValidationException("Table with has more than a single rowtime attribute..")
         } else {
           // exactly one rowtime attribute descriptor
           if (selectedFields.isEmpty) {
@@ -312,7 +316,7 @@ object TableSourceUtil {
           } else {
             val descriptor = descriptors.get(0)
             // look up index of row time attribute in schema
-            val fieldIdx = tableSource.getTableSchema.getFieldNames.indexOf(
+            val fieldIdx = tableSource.getTableSchema.getColumnNames.indexOf(
               descriptor.getAttributeName)
             // is field among selected fields?
             if (selectedFields.get.contains(fieldIdx)) {
@@ -338,11 +342,11 @@ object TableSourceUtil {
     * @return The [[RexNode]] expression to extract the timestamp of the table source.
     */
   def getRowtimeExtractionExpression(
-      tableSource: TableSource[_],
+      tableSource: TableSource,
       selectedFields: Option[Array[Int]],
       cluster: RelOptCluster,
       relBuilder: RelBuilder,
-      resultType: TypeInformation[_]): Option[RexNode] = {
+      resultType: InternalType): Option[RexNode] = {
 
     val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
@@ -350,13 +354,13 @@ object TableSourceUtil {
       * Creates a RelNode with a schema that corresponds on the given fields
       * Fields for which no information is available, will have default values.
       */
-    def createSchemaRelNode(fields: Array[(String, Int, TypeInformation[_])]): RelNode = {
+    def createSchemaRelNode(fields: Array[(String, Int, InternalType)]): RelNode = {
       val maxIdx = fields.map(_._2).max
-      val idxMap: Map[Int, (String, TypeInformation[_])] = Map(
+      val idxMap: Map[Int, (String, InternalType)] = Map(
         fields.map(f => f._2 -> (f._1, f._3)): _*)
       val (physicalFields, physicalTypes) = (0 to maxIdx)
-        .map(i => idxMap.getOrElse(i, ("", Types.BYTE))).unzip
-      val physicalSchema: RelDataType = typeFactory.buildLogicalRowType(
+        .map(i => idxMap.getOrElse(i, ("", DataTypes.BYTE))).unzip
+      val physicalSchema: RelDataType = typeFactory.buildRelDataType(
         physicalFields,
         physicalTypes)
       LogicalValues.create(
@@ -397,7 +401,7 @@ object TableSourceUtil {
     *         fields.
     */
   def getPhysicalIndexes(
-      tableSource: TableSource[_],
+      tableSource: TableSource,
       logicalFieldIndexes: Array[Int]): Array[Int] = {
 
     // get the mapping from logical to physical positions.
@@ -409,10 +413,10 @@ object TableSourceUtil {
       .map(fieldMapping(_))
       // resolve time indicator markers to physical indexes
       .flatMap {
-      case TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER =>
+      case DataTypes.PROCTIME_STREAM_MARKER =>
         // proctime field do not access a physical field
         Seq()
-      case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER =>
+      case DataTypes.ROWTIME_STREAM_MARKER =>
         // rowtime field is computed.
         // get names of fields which are accessed by the expression to compute the rowtime field.
         val rowtimeAttributeDescriptor = getRowtimeAttributeDescriptor(tableSource, None)
@@ -431,7 +435,7 @@ object TableSourceUtil {
   }
 
   /** Returns a list with all rowtime attribute names of the [[TableSource]]. */
-  private def getRowtimeAttributes(tableSource: TableSource[_]): Array[String] = {
+  private def getRowtimeAttributes(tableSource: TableSource): Array[String] = {
     tableSource match {
       case r: DefinedRowtimeAttributes =>
         r.getRowtimeAttributeDescriptors.asScala.map(_.getAttributeName).toArray
@@ -441,7 +445,7 @@ object TableSourceUtil {
   }
 
   /** Returns the proctime attribute of the [[TableSource]] if it is defined. */
-  private def getProctimeAttribute(tableSource: TableSource[_]): Option[String] = {
+  private def getProctimeAttribute(tableSource: TableSource): Option[String] = {
     tableSource match {
       case p: DefinedProctimeAttribute if p.getProctimeAttribute != null =>
         Some(p.getProctimeAttribute)
@@ -460,24 +464,24 @@ object TableSourceUtil {
     */
   private def resolveInputField(
       fieldName: String,
-      tableSource: TableSource[_]): (String, Int, TypeInformation[_]) = {
+      tableSource: TableSource): (String, Int, InternalType) = {
 
     val returnType = tableSource.getReturnType
 
     /** Look up a field by name in a type information */
-    def lookupField(fieldName: String, failMsg: String): (String, Int, TypeInformation[_]) = {
-      returnType match {
+    def lookupField(fieldName: String, failMsg: String): (String, Int, InternalType) = {
+      returnType.toInternalType match {
 
-        case c: CompositeType[_] =>
+        case c: RowType =>
           // get and check field index
           val idx = c.getFieldIndex(fieldName)
           if (idx < 0) {
             throw new ValidationException(failMsg)
           }
           // return field name, index, and field type
-          (fieldName, idx, c.getTypeAt(idx))
+          (fieldName, idx, c.getInternalTypeAt(idx).toInternalType)
 
-        case t: TypeInformation[_] =>
+        case t: InternalType =>
           // no composite type, we return the full atomic type as field
           (fieldName, 0, t)
       }
@@ -508,7 +512,7 @@ object TableSourceUtil {
   }
 
   /**
-    * Identifies the physical fields in the return type [[TypeInformation]] of a [[TableSource]]
+    * Identifies the physical fields in the return type [[DataType]] of a [[TableSource]]
     * for a list of field names of the [[TableSource]]'s [[org.apache.flink.table.api.TableSchema]].
     *
     * @param fieldNames The field names to look up.
@@ -517,7 +521,7 @@ object TableSourceUtil {
     */
   private def resolveInputFields(
       fieldNames: Array[String],
-      tableSource: TableSource[_]): Array[(String, Int, TypeInformation[_])] = {
+      tableSource: TableSource): Array[(String, Int, InternalType)] = {
     fieldNames.map(resolveInputField(_, tableSource))
   }
 

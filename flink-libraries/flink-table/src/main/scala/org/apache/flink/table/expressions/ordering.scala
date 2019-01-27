@@ -17,10 +17,12 @@
  */
 package org.apache.flink.table.expressions
 
+import org.apache.calcite.rel.RelFieldCollation.{Direction, NullDirection}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.types.InternalType
+import org.apache.flink.table.plan.logical.LogicalExprVisitor
+import org.apache.flink.table.runtime.aggregate.RelFieldCollations
 import org.apache.flink.table.validate._
 
 abstract class Ordering extends UnaryExpression {
@@ -37,18 +39,107 @@ case class Asc(child: Expression) extends Ordering {
   override def toString: String = s"($child).asc"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    child.toRexNode
+    toRexNode(relBuilder, useDefaultNullCollation = true)
   }
 
-  override private[flink] def resultType: TypeInformation[_] = child.resultType
+  private[flink] def toRexNode(
+    implicit relBuilder: RelBuilder, useDefaultNullCollation: Boolean): RexNode = {
+    val node = child.toRexNode
+    if (useDefaultNullCollation) {
+      if (RelFieldCollations.defaultNullDirection(Direction.ASCENDING) == NullDirection.FIRST) {
+        relBuilder.nullsFirst(node)
+      } else {
+        relBuilder.nullsLast(node)
+      }
+    } else {
+      node
+    }
+  }
+
+  override private[flink] def resultType: InternalType = child.resultType
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 case class Desc(child: Expression) extends Ordering {
   override def toString: String = s"($child).desc"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.desc(child.toRexNode)
+    toRexNode(relBuilder, useDefaultNullCollation = true)
   }
 
-  override private[flink] def resultType: TypeInformation[_] = child.resultType
+  private[flink] def toRexNode(
+    implicit relBuilder: RelBuilder, useDefaultNullCollation: Boolean): RexNode = {
+    val node = relBuilder.desc(child.toRexNode)
+    if (useDefaultNullCollation) {
+      if (RelFieldCollations.defaultNullDirection(Direction.DESCENDING) == NullDirection.FIRST) {
+        relBuilder.nullsFirst(node)
+      } else {
+        relBuilder.nullsLast(node)
+      }
+    } else {
+      node
+    }
+  }
+
+  override private[flink] def resultType: InternalType = child.resultType
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
+}
+
+abstract class NullsOrdering extends UnaryExpression {
+  override private[flink] def validateInput(): ValidationResult = {
+    if (child.isInstanceOf[NamedExpression] ||
+      child.isInstanceOf[Asc] || child.isInstanceOf[Desc]) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"Nulls first/last should only based on field reference, asc or desc")
+    }
+  }
+}
+
+case class NullsFirst(child: Expression) extends NullsOrdering {
+  override def toString: String = s"($child).nulls_first"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    child match {
+      case c: Asc =>
+        relBuilder.nullsFirst(
+          c.toRexNode(relBuilder, useDefaultNullCollation = false))
+      case c: Desc =>
+        relBuilder.nullsFirst(
+          c.toRexNode(relBuilder, useDefaultNullCollation = false))
+      case _ =>
+        relBuilder.nullsFirst(child.toRexNode(relBuilder))
+    }
+  }
+
+  override private[flink] def resultType: InternalType = child.resultType
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
+}
+
+case class NullsLast(child: Expression) extends Ordering {
+  override def toString: String = s"($child).nulls_last"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    child match {
+      case c: Asc =>
+        relBuilder.nullsLast(
+          c.toRexNode(relBuilder, useDefaultNullCollation = false))
+      case c: Desc =>
+        relBuilder.nullsLast(
+          c.toRexNode(relBuilder, useDefaultNullCollation = false))
+      case _ =>
+        relBuilder.nullsLast(child.toRexNode(relBuilder))
+    }
+  }
+
+  override private[flink] def resultType: InternalType = child.resultType
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }

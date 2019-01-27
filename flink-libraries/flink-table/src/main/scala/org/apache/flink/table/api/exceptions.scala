@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.api
 
+import org.apache.flink.table.catalog.CatalogPartition
 import org.apache.flink.table.descriptors.DescriptorProperties
-import org.apache.flink.table.factories.TableFactory
+import org.apache.flink.table.factories.{TableFactory => JTableFactory}
 
 import _root_.scala.collection.JavaConverters._
 
@@ -46,7 +47,7 @@ case class SqlParserException(
 case class UnresolvedException(msg: String) extends RuntimeException(msg)
 
 /**
-  * Exception for an operation on a nonexistent table
+  * Exception for an operation on a nonexistent table.
   *
   * @param catalog    catalog name
   * @param table      table name
@@ -60,6 +61,38 @@ case class TableNotExistException(
 
   def this(catalog: String, table: String) = this(catalog, table, null)
 
+}
+
+/**
+  * Exception for an operation on a nonexistent function.
+  *
+  * @param catalog    catalog name
+  * @param function   function name
+  * @param cause      the cause
+  */
+case class FunctionNotExistException(
+    catalog: String,
+    function: String,
+    cause: Throwable)
+  extends RuntimeException(s"Function $catalog.$function does not exist.", cause) {
+
+  def this(catalog: String, function: String) = this(catalog, function, null)
+
+}
+
+/**
+  * Exception for an invalid function.
+  * @param catalog catalog name
+  * @param functionName function name
+  * @param className class name
+  * @param cause the cause
+  */
+case class InvalidFunctionException(
+    catalog: String,
+    functionName: String,
+    className: String,
+    cause: Throwable)
+    extends RuntimeException(s"Function $functionName, class $className is invalid.", cause) {
 }
 
 /**
@@ -77,6 +110,55 @@ case class TableAlreadyExistException(
 
   def this(catalog: String, table: String) = this(catalog, table, null)
 
+}
+
+/**
+  * Exception for adding an already existent function
+  *
+  * @param catalog    catalog name
+  * @param function   function name
+  * @param cause      the cause
+  */
+case class FunctionAlreadyExistException(
+    catalog: String,
+    function: String,
+    cause: Throwable)
+  extends RuntimeException(s"Function $catalog.$function already exists.", cause) {
+
+  def this(catalog: String, function: String) = this(catalog, function, null)
+
+}
+
+/**
+  * Exception for operation on a nonexistent database
+  *
+  * @param catalog catalog name
+  * @param database database name
+  * @param cause the cause
+  */
+case class DatabaseNotExistException(
+  catalog: String,
+  database: String,
+  cause: Throwable)
+  extends RuntimeException(s"Database $catalog.$database does not exist.", cause) {
+
+  def this(catalog: String, database: String) = this(catalog, database, null)
+}
+
+/**
+  * Exception for adding an already existent database
+  *
+  * @param catalog catalog name
+  * @param database database name
+  * @param cause the cause
+  */
+case class DatabaseAlreadyExistException(
+  catalog: String,
+  database: String,
+  cause: Throwable)
+  extends RuntimeException(s"Database $catalog.$database already exists.", cause) {
+
+  def this(catalog: String, database: String) = this(catalog, database, null)
 }
 
 /**
@@ -108,7 +190,7 @@ case class CatalogAlreadyExistException(
 }
 
 /**
-  * Exception for not finding a [[TableFactory]] for the given properties.
+  * Exception for not finding a [[JTableFactory]] for the given properties.
   *
   * @param message message that indicates the current matching step
   * @param factoryClass required factory class
@@ -117,36 +199,36 @@ case class CatalogAlreadyExistException(
   * @param cause the cause
   */
 case class NoMatchingTableFactoryException(
-      message: String,
-      factoryClass: Class[_],
-      factories: Seq[TableFactory],
-      properties: Map[String, String],
-      cause: Throwable)
-    extends RuntimeException(
-      s"""Could not find a suitable table factory for '${factoryClass.getName}' in
-        |the classpath.
-        |
+  message: String,
+  factoryClass: Class[_],
+  factories: Seq[JTableFactory],
+  properties: Map[String, String],
+  cause: Throwable)
+  extends RuntimeException(
+    s"""Could not find a suitable table factory for '${factoryClass.getName}' in
+       |the classpath.
+       |
         |Reason: $message
-        |
+       |
         |The following properties are requested:
-        |${DescriptorProperties.toString(properties.asJava)}
-        |
+       |${DescriptorProperties.toString(properties.asJava)}
+       |
         |The following factories have been considered:
-        |${factories.map(_.getClass.getName).mkString("\n")}
-        |""".stripMargin,
-      cause) {
+       |${factories.map(_.getClass.getName).mkString("\n")}
+       |""".stripMargin,
+    cause) {
 
   def this(
-      message: String,
-      factoryClass: Class[_],
-      factories: Seq[TableFactory],
-      properties: Map[String, String]) = {
+    message: String,
+    factoryClass: Class[_],
+    factories: Seq[JTableFactory],
+    properties: Map[String, String]) = {
     this(message, factoryClass, factories, properties, null)
   }
 }
 
 /**
-  * Exception for finding more than one [[TableFactory]] for the given properties.
+  * Exception for finding more than one [[JTableFactory]] for the given properties.
   *
   * @param matchingFactories factories that match the properties
   * @param factoryClass required factory class
@@ -155,59 +237,31 @@ case class NoMatchingTableFactoryException(
   * @param cause the cause
   */
 case class AmbiguousTableFactoryException(
-      matchingFactories: Seq[TableFactory],
-      factoryClass: Class[_],
-      factories: Seq[TableFactory],
-      properties: Map[String, String],
-      cause: Throwable)
-    extends RuntimeException(
-      s"""More than one suitable table factory for '${factoryClass.getName}' could
-        |be found in the classpath.
-        |
+  matchingFactories: Seq[JTableFactory],
+  factoryClass: Class[_],
+  factories: Seq[JTableFactory],
+  properties: Map[String, String],
+  cause: Throwable)
+  extends RuntimeException(
+    s"""More than one suitable table factory for '${factoryClass.getName}' could
+       |be found in the classpath.
+       |
         |The following factories match:
-        |${matchingFactories.map(_.getClass.getName).mkString("\n")}
-        |
+       |${matchingFactories.map(_.getClass.getName).mkString("\n")}
+       |
         |The following properties are requested:
-        |${DescriptorProperties.toString(properties.asJava)}
-        |
+       |${DescriptorProperties.toString(properties.asJava)}
+       |
         |The following factories have been considered:
-        |${factories.map(_.getClass.getName).mkString("\n")}
-        |""".stripMargin,
-      cause) {
+       |${factories.map(_.getClass.getName).mkString("\n")}
+       |""".stripMargin,
+    cause) {
 
   def this(
-      matchingFactories: Seq[TableFactory],
-      factoryClass: Class[_],
-      factories: Seq[TableFactory],
-      properties: Map[String, String]) = {
+    matchingFactories: Seq[JTableFactory],
+    factoryClass: Class[_],
+    factories: Seq[JTableFactory],
+    properties: Map[String, String]) = {
     this(matchingFactories, factoryClass, factories, properties, null)
   }
-}
-
-/**
-  * Exception for operation on a nonexistent external catalog
-  *
-  * @param catalogName external catalog name
-  * @param cause the cause
-  */
-case class ExternalCatalogNotExistException(
-    catalogName: String,
-    cause: Throwable)
-    extends RuntimeException(s"External catalog $catalogName does not exist.", cause) {
-
-  def this(catalogName: String) = this(catalogName, null)
-}
-
-/**
-  * Exception for adding an already existent external catalog
-  *
-  * @param catalogName external catalog name
-  * @param cause the cause
-  */
-case class ExternalCatalogAlreadyExistException(
-    catalogName: String,
-    cause: Throwable)
-    extends RuntimeException(s"External catalog $catalogName already exists.", cause) {
-
-  def this(catalogName: String) = this(catalogName, null)
 }

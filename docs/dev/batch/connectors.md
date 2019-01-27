@@ -27,7 +27,7 @@ under the License.
 
 ## Reading from file systems
 
-Flink has built-in support for the following file systems:
+Flink has build-in support for the following file systems:
 
 | Filesystem                            | Scheme       | Notes  |
 | ------------------------------------- |--------------| ------ |
@@ -84,14 +84,69 @@ users to use all existing Hadoop input formats with Flink.
 This section shows some examples for connecting Flink to other systems.
 [Read more about Hadoop compatibility in Flink]({{ site.baseurl }}/dev/batch/hadoop_compatibility.html).
 
+## Access Hive data in Flink（beta）
+
+Apache Flink develops a HiveTableSource which supports reading hive data from partition or non-partition table, and also support partition-pruning on given partition filter condition. It's implemention is based on aboved `Input/OutputFormat` wrappers for Hadoop. 
+
+To access hive data, add the following dependency to your flink project:
+
+{% highlight xml %}
+<dependency>
+  <groupId>com.alibaba.blink</groupId>
+  <artifactId>flink-connector-hive{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+
+<dependency>
+  <groupId>com.alibaba.blink</groupId>
+  <artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+{% endhighlight %}
+
+
+Paste the following code into it:
+
+{% highlight java %}
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableConfigOptions;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
+
+public class HiveTableSourceExample {
+
+  public static void main(String[] args) throws Exception {
+    Configuration config = new Configuration();
+    StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1, config);
+    BatchTableEnvironment tEnv = TableEnvironment.getBatchTableEnvironment(env, new TableConfig());
+    tEnv.getConfig().getConf().setInteger(TableConfigOptions.SQL_RESOURCE_SINK_PARALLELISM, 1);
+    tEnv.getConfig().getConf().setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1);
+    // use hiveCatalog to obtain properties from hive metastore
+    HiveCatalog hiveCatalog = new HiveCatalog("myHive","thrift://<ip1>:<port1>;thrift://<ip2>:<port2>;...");
+    hiveCatalog.open();
+    BatchTableSource hiveTableSource = new HiveTableFactory().createBatchTableSource(hiveCatalog.getTable
+        (new ObjectPath("default", "products")).getProperties());
+    tEnv.registerTableSource("products", hiveTableSource);
+    tEnv.sqlQuery("select * from products").print();
+  }
+}
+{% endhighlight %}
+
+
+
 ## Avro support in Flink
 
-Flink has extensive built-in support for [Apache Avro](http://avro.apache.org/). This allows to easily read from Avro files with Flink.
+Flink has extensive build-in support for [Apache Avro](http://avro.apache.org/). This allows to easily read from Avro files with Flink.
 Also, the serialization framework of Flink is able to handle classes generated from Avro schemas. Be sure to include the Flink Avro dependency to the pom.xml of your project.
 
 {% highlight xml %}
 <dependency>
-  <groupId>org.apache.flink</groupId>
+  <groupId>com.alibaba.blink</groupId>
   <artifactId>flink-avro</artifactId>
   <version>{{site.version }}</version>
 </dependency>
@@ -145,7 +200,7 @@ Execute the following commands:
 
    {% highlight xml %}
    <dependency>
-       <groupId>org.apache.flink</groupId>
+       <groupId>com.alibaba.blink</groupId>
        <artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
        <version>{{site.version}}</version>
    </dependency>

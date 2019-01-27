@@ -142,8 +142,13 @@ public class FlinkILoopTest extends TestLogger {
 		}
 
 		@Override
-		public JobExecutionResult executePlan(Plan plan) throws Exception {
+		public JobExecutionResult executePlan(Plan plan, boolean detached) throws Exception {
 			return null;
+		}
+
+		@Override
+		public void cancelPlan(JobID jobId) {
+
 		}
 
 		@Override

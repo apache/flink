@@ -18,9 +18,9 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
-import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -115,19 +115,19 @@ public class EventId implements Comparable<EventId> {
 
 		@Override
 		public int getLength() {
-			return Integer.BYTES + Long.BYTES;
+			return 2 * LongSerializer.INSTANCE.getLength();
 		}
 
 		@Override
 		public void serialize(EventId record, DataOutputView target) throws IOException {
-			target.writeInt(record.id);
-			target.writeLong(record.timestamp);
+			IntSerializer.INSTANCE.serialize(record.id, target);
+			LongSerializer.INSTANCE.serialize(record.timestamp, target);
 		}
 
 		@Override
 		public EventId deserialize(DataInputView source) throws IOException {
-			int id = source.readInt();
-			long timestamp = source.readLong();
+			int id = IntSerializer.INSTANCE.deserialize(source);
+			long timestamp = LongSerializer.INSTANCE.deserialize(source);
 
 			return new EventId(id, timestamp);
 		}
@@ -139,31 +139,13 @@ public class EventId implements Comparable<EventId> {
 
 		@Override
 		public void copy(DataInputView source, DataOutputView target) throws IOException {
-			target.writeInt(source.readInt());
-			target.writeLong(source.readLong());
+			IntSerializer.INSTANCE.copy(source, target);
+			LongSerializer.INSTANCE.copy(source, target);
 		}
 
 		@Override
 		public boolean canEqual(Object obj) {
 			return obj.getClass().equals(EventIdSerializer.class);
-		}
-
-		// -----------------------------------------------------------------------------------
-
-		@Override
-		public TypeSerializerSnapshot<EventId> snapshotConfiguration() {
-			return new EventIdSerializerSnapshot();
-		}
-
-		/**
-		 * Serializer configuration snapshot for compatibility and format evolution.
-		 */
-		@SuppressWarnings("WeakerAccess")
-		public static final class EventIdSerializerSnapshot extends SimpleTypeSerializerSnapshot<EventId> {
-
-			public EventIdSerializerSnapshot() {
-				super(() -> INSTANCE);
-			}
 		}
 	}
 }

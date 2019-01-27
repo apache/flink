@@ -19,17 +19,22 @@
 package org.apache.flink.test.manual;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.api.java.typeutils.runtime.CopyableValueComparator;
 import org.apache.flink.api.java.typeutils.runtime.CopyableValueSerializer;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.sort.BlockSortedDataFileFactory;
+import org.apache.flink.runtime.operators.sort.RecordComparisonMerger;
+import org.apache.flink.runtime.operators.sort.SortedDataFileFactory;
+import org.apache.flink.runtime.operators.sort.SortedDataFileMerger;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.StringValue;
@@ -96,8 +101,13 @@ public class MassiveStringValueSorting {
 				reader = new BufferedReader(new FileReader(input));
 				MutableObjectIterator<StringValue> inputIterator = new StringValueReaderMutableObjectIterator(reader);
 
-				sorter = new UnilateralSortMerger<StringValue>(mm, ioMan, inputIterator, new DummyInvokable(),
-						new RuntimeSerializerFactory<StringValue>(serializer, StringValue.class), comparator, 1.0, 4, 0.8f,
+				TypeSerializerFactory<StringValue> serializerFactory = new RuntimeSerializerFactory<StringValue>(serializer, StringValue.class);
+				SortedDataFileFactory<StringValue> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+					ioMan.createChannelEnumerator(), serializerFactory.getSerializer(), ioMan);
+				SortedDataFileMerger<StringValue> merger = new RecordComparisonMerger<>(
+					sortedDataFileFactory, ioMan, serializerFactory.getSerializer(), comparator.duplicate(), 4, false);
+				sorter = new UnilateralSortMerger<StringValue>(sortedDataFileFactory, merger, mm, ioMan, inputIterator, new DummyInvokable(),
+						serializerFactory, comparator, 1.0, 4, true, 0.8f,
 						true /* use large record handler */, true);
 
 				MutableObjectIterator<StringValue> sortedData = sorter.getIterator();
@@ -193,7 +203,7 @@ public class MassiveStringValueSorting {
 				ioMan = new IOManagerAsync();
 
 				TupleTypeInfo<Tuple2<StringValue, StringValue[]>> typeInfo = (TupleTypeInfo<Tuple2<StringValue, StringValue[]>>)
-						new TypeHint<Tuple2<StringValue, StringValue[]>>(){}.getTypeInfo();
+						TypeInfoParser.<Tuple2<StringValue, StringValue[]>>parse("Tuple2<org.apache.flink.types.StringValue, org.apache.flink.types.StringValue[]>");
 
 				TypeSerializer<Tuple2<StringValue, StringValue[]>> serializer = typeInfo.createSerializer(new ExecutionConfig());
 				TypeComparator<Tuple2<StringValue, StringValue[]>> comparator = typeInfo.createComparator(new int[] { 0 }, new boolean[] { true }, 0, new ExecutionConfig());
@@ -201,8 +211,13 @@ public class MassiveStringValueSorting {
 				reader = new BufferedReader(new FileReader(input));
 				MutableObjectIterator<Tuple2<StringValue, StringValue[]>> inputIterator = new StringValueTupleReaderMutableObjectIterator(reader);
 
-				sorter = new UnilateralSortMerger<Tuple2<StringValue, StringValue[]>>(mm, ioMan, inputIterator, new DummyInvokable(),
-						new RuntimeSerializerFactory<Tuple2<StringValue, StringValue[]>>(serializer, (Class<Tuple2<StringValue, StringValue[]>>) (Class<?>) Tuple2.class), comparator, 1.0, 4, 0.8f,
+				TypeSerializerFactory<Tuple2<StringValue, StringValue[]>> serializerFactory = new RuntimeSerializerFactory<>(serializer, (Class<Tuple2<StringValue, StringValue[]>>) (Class<?>) Tuple2.class);
+				SortedDataFileFactory<Tuple2<StringValue, StringValue[]>> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+					ioMan.createChannelEnumerator(), serializerFactory.getSerializer(), ioMan);
+				SortedDataFileMerger<Tuple2<StringValue, StringValue[]>> merger = new RecordComparisonMerger<>(
+					sortedDataFileFactory, ioMan, serializerFactory.getSerializer(), comparator.duplicate(), 4, false);
+				sorter = new UnilateralSortMerger<Tuple2<StringValue, StringValue[]>>(sortedDataFileFactory, merger, mm, ioMan, inputIterator, new DummyInvokable(),
+						serializerFactory, comparator, 1.0, 4, true, 0.8f,
 						true /* use large record handler */, false);
 
 				// use this part to verify that all if good when sorting in memory

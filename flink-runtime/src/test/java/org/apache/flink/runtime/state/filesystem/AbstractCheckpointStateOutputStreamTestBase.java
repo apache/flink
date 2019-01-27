@@ -147,10 +147,10 @@ public abstract class AbstractCheckpointStateOutputStreamTestBase extends TestLo
 			for (int i = 0; i < rnd.nextInt(1000); i++) {
 				stream.write(rnd.nextInt(100));
 			}
-			assertTrue(fs.exists(path));
+			assertTrue(fs.exists(getWritingPath(path)));
 		}
 
-		assertFalse(fs.exists(path));
+		assertFalse(fs.exists(getTargetPath(path)));
 	}
 
 	/**
@@ -175,7 +175,7 @@ public abstract class AbstractCheckpointStateOutputStreamTestBase extends TestLo
 			// expected exception
 		}
 
-		verify(fs).delete(filePath, false);
+		verify(fs).delete(getWritingPath(filePath), false);
 	}
 
 	/**
@@ -229,6 +229,20 @@ public abstract class AbstractCheckpointStateOutputStreamTestBase extends TestLo
 	 * Closes the stream successfully and returns a FileStateHandle to the result.
 	 */
 	protected abstract FileStateHandle closeAndGetResult(FSDataOutputStream stream) throws IOException;
+
+	/**
+	 * Return the temporary path of the FSDataOutputStream that is used for writing data.
+	 */
+	protected Path getWritingPath(Path path) {
+		return path;
+	}
+
+	/**
+	 * Return the final target path of FSDataOutputStream.
+	 */
+	protected Path getTargetPath(Path path) {
+		return path;
+	}
 
 	// ------------------------------------------------------------------------
 	//  utilities

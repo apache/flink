@@ -207,6 +207,15 @@ public class CoLocationConstraint {
 		return slotRequestId;
 	}
 
+	/**
+	 * Gets the co-location group.
+	 *
+	 * @return the co-location group
+	 */
+	public CoLocationGroup getGroup() {
+		return group;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------

@@ -19,11 +19,15 @@
 package org.apache.flink.table.descriptors
 
 import java.util.Optional
-
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.types.{DataType, DataTypes, TypeConverters, Types => InternalTypes}
 import org.apache.flink.table.api.{TableException, TableSchema, Types}
 import org.apache.flink.table.descriptors.RowtimeTest.CustomExtractor
 import org.apache.flink.table.sources.tsextractors.{ExistingField, StreamRecordTimestamp}
 import org.apache.flink.table.sources.wmstrategies.{BoundedOutOfOrderTimestamps, PreserveWatermarks}
+import org.apache.flink.table.typeutils.TypeUtils
+import org.apache.flink.types.Row
+
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 
@@ -46,9 +50,9 @@ class SchemaValidatorTest {
     props.putProperties(desc1.toProperties)
 
     val inputSchema = TableSchema.builder()
-      .field("csvField", Types.STRING)
-      .field("abcField", Types.STRING)
-      .field("myField", Types.BOOLEAN)
+      .field("csvField", InternalTypes.STRING)
+      .field("abcField", InternalTypes.STRING)
+      .field("myField", InternalTypes.BOOLEAN)
       .build()
 
     // test proctime
@@ -66,9 +70,15 @@ class SchemaValidatorTest {
       "csvField" -> "csvField",
       "abcField" -> "abcField",
       "myField" -> "myField").asJava
+    // TODO: fix me if this is not correct!
     assertEquals(
       expectedMapping,
-      SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema.toRowType)))
+      SchemaValidator.deriveFieldMapping(props, Optional.of(
+        TypeConverters.createExternalTypeInfoFromDataType(
+          DataTypes.createRowType(
+            inputSchema.getFieldTypes.toArray[DataType], inputSchema.getFieldNames)
+        ).asInstanceOf[TypeInformation[Row]]
+      )))
   }
 
   @Test(expected = classOf[TableException])
@@ -97,9 +107,9 @@ class SchemaValidatorTest {
     props.putProperties(desc1.toProperties)
 
     val expectedTableSinkSchema = TableSchema.builder()
-      .field("csvField", Types.STRING) // aliased
-      .field("abcField", Types.STRING)
-      .field("myTime", Types.SQL_TIMESTAMP)
+      .field("csvField", InternalTypes.STRING) // aliased
+      .field("abcField", InternalTypes.STRING)
+      .field("myTime", InternalTypes.TIMESTAMP)
       .build()
 
     assertEquals(expectedTableSinkSchema, SchemaValidator.deriveTableSinkSchema(props))
@@ -117,10 +127,10 @@ class SchemaValidatorTest {
     props.putProperties(desc1.toProperties)
 
     val inputSchema = TableSchema.builder()
-      .field("csvField", Types.STRING)
-      .field("abcField", Types.STRING)
-      .field("myField", Types.BOOLEAN)
-      .field("myTime", Types.SQL_TIMESTAMP)
+      .field("csvField", InternalTypes.STRING)
+      .field("abcField", InternalTypes.STRING)
+      .field("myField", InternalTypes.BOOLEAN)
+      .field("myTime", InternalTypes.TIMESTAMP)
       .build()
 
     // test proctime
@@ -139,9 +149,15 @@ class SchemaValidatorTest {
       "abcField" -> "abcField",
       "myField" -> "myField",
       "myTime" -> "myTime").asJava
+    // TODO: fix me if this is not correct!
     assertEquals(
       expectedMapping,
-      SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema.toRowType)))
+      SchemaValidator.deriveFieldMapping(props, Optional.of(
+        TypeConverters.createExternalTypeInfoFromDataType(
+          DataTypes.createRowType(
+            inputSchema.getFieldTypes.toArray[DataType], inputSchema.getFieldNames)
+        ).asInstanceOf[TypeInformation[Row]]
+      )))
   }
 
   @Test

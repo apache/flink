@@ -109,6 +109,7 @@ public class JMXReporter implements MetricReporter {
 				int port = ports.next();
 				try {
 					server.start(port);
+					//org.apache.flink.runtime.taskexecutor.TaskExecutor.requestJmx need blow log prefix
 					LOG.info("Started JMX server on port " + port + ".");
 					// only set our field if the server was actually started
 					jmxServer = server;
@@ -231,7 +232,8 @@ public class JMXReporter implements MetricReporter {
 	}
 
 	static String generateJmxDomain(String metricName, MetricGroup group) {
-		return JMX_DOMAIN_PREFIX + ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(CHARACTER_FILTER, '.') + '.' + metricName;
+		return JMX_DOMAIN_PREFIX + ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(CHARACTER_FILTER, '.') + '.' +
+			CHARACTER_FILTER.filterCharacters(metricName);
 	}
 
 	/**

@@ -74,6 +74,7 @@ public class BlockerCheckpointStreamFactory implements CheckpointStreamFactory {
 
 	@Override
 	public CheckpointStateOutputStream createCheckpointStateOutputStream(
+		long checkpointId,
 		CheckpointedStateScope scope) throws IOException {
 
 		BlockingCheckpointOutputStream blockingStream = new BlockingCheckpointOutputStream(

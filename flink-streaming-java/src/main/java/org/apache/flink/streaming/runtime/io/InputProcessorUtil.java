@@ -27,6 +27,9 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import java.io.IOException;
+import java.util.Collection;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Utility for creating {@link CheckpointBarrierHandler} based on checkpoint mode
@@ -35,29 +38,61 @@ import java.io.IOException;
 @Internal
 public class InputProcessorUtil {
 
-	public static CheckpointBarrierHandler createCheckpointBarrierHandler(
-			StreamTask<?, ?> checkpointedTask,
-			CheckpointingMode checkpointMode,
-			IOManager ioManager,
-			InputGate inputGate,
-			Configuration taskManagerConfig) throws IOException {
+	public static SelectedReadingBarrierHandler createCheckpointBarrierHandler(
+		boolean isCheckpointingEnabled,
+		StreamTask<?, ?> checkpointedTask,
+		CheckpointingMode checkpointMode,
+		IOManager ioManager,
+		Configuration taskManagerConfig,
+		Collection<InputGate>... inputGateGroups) throws IOException {
 
-		CheckpointBarrierHandler barrierHandler;
-		if (checkpointMode == CheckpointingMode.EXACTLY_ONCE) {
+		InputGate[][] inputGateGroupArray = new InputGate[inputGateGroups.length][];
+		for (int i = 0; i < inputGateGroups.length; i++) {
+			inputGateGroupArray[i] = inputGateGroups[i].toArray(new InputGate[0]);
+		}
+
+		return createCheckpointBarrierHandler(
+			isCheckpointingEnabled,
+			checkpointedTask,
+			checkpointMode,
+			ioManager,
+			taskManagerConfig,
+			inputGateGroupArray
+		);
+	}
+
+	public static SelectedReadingBarrierHandler createCheckpointBarrierHandler(
+		boolean isCheckpointingEnabled,
+		StreamTask<?, ?> checkpointedTask,
+		CheckpointingMode checkpointMode,
+		IOManager ioManager,
+		Configuration taskManagerConfig,
+		InputGate[]... inputGateGroups) throws IOException {
+
+		checkState(inputGateGroups.length > 0);
+
+		SelectedReadingBarrierHandler barrierHandler;
+		if (!isCheckpointingEnabled || checkpointMode == CheckpointingMode.AT_LEAST_ONCE) {
+			InputGate[] unionInputGates = new InputGate[inputGateGroups.length];
+			for (int i = 0; i < inputGateGroups.length; i++) {
+				unionInputGates[i] = InputGateUtil.createInputGate(inputGateGroups[i]);
+			}
+
+			barrierHandler = new BarrierTracker(InputGateUtil.createInputGate(unionInputGates));
+		} else if (checkpointMode == CheckpointingMode.EXACTLY_ONCE) {
 			long maxAlign = taskManagerConfig.getLong(TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT);
 			if (!(maxAlign == -1 || maxAlign > 0)) {
 				throw new IllegalConfigurationException(
 					TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT.key()
-					+ " must be positive or -1 (infinite)");
+						+ " must be positive or -1 (infinite)");
 			}
 
+			InputGate unionInputGate = InputGateUtil.createInputGate(inputGateGroups);
 			if (taskManagerConfig.getBoolean(TaskManagerOptions.NETWORK_CREDIT_MODEL)) {
-				barrierHandler = new BarrierBuffer(inputGate, new CachedBufferBlocker(inputGate.getPageSize()), maxAlign);
+				barrierHandler = new BarrierBuffer(unionInputGate, new CachedBufferBlocker(unionInputGate.getPageSize()), maxAlign);
 			} else {
-				barrierHandler = new BarrierBuffer(inputGate, new BufferSpiller(ioManager, inputGate.getPageSize()), maxAlign);
+				barrierHandler = new BarrierBuffer(unionInputGate, new BufferSpiller(ioManager, unionInputGate.getPageSize()), maxAlign);
 			}
-		} else if (checkpointMode == CheckpointingMode.AT_LEAST_ONCE) {
-			barrierHandler = new BarrierTracker(inputGate);
 		} else {
 			throw new IllegalArgumentException("Unrecognized Checkpointing Mode: " + checkpointMode);
 		}

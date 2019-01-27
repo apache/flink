@@ -20,6 +20,9 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorDescriptor;
+
+import java.util.List;
 
 /**
  * Common interface for the runtime {@link ExecutionJobVertex} and {@link ArchivedExecutionJobVertex}.
@@ -74,4 +77,10 @@ public interface AccessExecutionJobVertex {
 	 */
 	StringifiedAccumulatorResult[] getAggregatedUserAccumulatorsStringified();
 
+	/**
+	 * Returns a list of all operator descriptors of this job vertex.
+	 *
+	 * @return List of all operator descriptors of this job vertex
+	 */
+	List<OperatorDescriptor> getOperatorDescriptors();
 }

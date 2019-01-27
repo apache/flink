@@ -101,9 +101,6 @@ public class Slf4jReporterTest extends TestLogger {
 	public void testAddGauge() throws Exception {
 		String gaugeName = "gauge";
 
-		taskMetricGroup.gauge(gaugeName, null);
-		assertTrue(reporter.getGauges().isEmpty());
-
 		Gauge<Long> gauge = () -> null;
 		taskMetricGroup.gauge(gaugeName, gauge);
 		assertTrue(reporter.getGauges().containsKey(gauge));

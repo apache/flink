@@ -30,7 +30,6 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
@@ -47,6 +46,7 @@ import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Handle request for listing uploaded jars.
@@ -55,23 +55,20 @@ public class JarListHandler extends AbstractRestHandler<RestfulGateway, EmptyReq
 
 	private static final File[] EMPTY_FILES_ARRAY = new File[0];
 
-	private final CompletableFuture<String> localAddressFuture;
-
 	private final File jarDir;
 
 	private final Executor executor;
 
 	public JarListHandler(
+			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, JarListInfo, EmptyMessageParameters> messageHeaders,
-			CompletableFuture<String> localAddressFuture,
 			File jarDir,
 			Executor executor) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
 
-		this.localAddressFuture = localAddressFuture;
 		this.jarDir = requireNonNull(jarDir);
 		this.executor = requireNonNull(executor);
 	}
@@ -79,7 +76,7 @@ public class JarListHandler extends AbstractRestHandler<RestfulGateway, EmptyReq
 	@Override
 	protected CompletableFuture<JarListInfo> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
 		final String localAddress;
-		Preconditions.checkState(localAddressFuture.isDone());
+		checkState(localAddressFuture.isDone());
 
 		try {
 			localAddress = localAddressFuture.get();
@@ -106,7 +103,8 @@ public class JarListHandler extends AbstractRestHandler<RestfulGateway, EmptyReq
 
 					List<JarListInfo.JarEntryInfo> jarEntryList = new ArrayList<>();
 					String[] classes = new String[0];
-					try (JarFile jar = new JarFile(f)) {
+					try {
+						JarFile jar = new JarFile(f);
 						Manifest manifest = jar.getManifest();
 						String assemblerClass = null;
 

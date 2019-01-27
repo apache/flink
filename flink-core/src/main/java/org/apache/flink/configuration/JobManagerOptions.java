@@ -19,11 +19,8 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.docs.Documentation;
-import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
-import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * Configuration options for the JobManager.
@@ -76,20 +73,9 @@ public class JobManagerOptions {
 			" leader from potentially multiple standby JobManagers.");
 
 	/**
-	 * JVM heap size for the JobManager with memory size.
-	 */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
-	public static final ConfigOption<String> JOB_MANAGER_HEAP_MEMORY =
-		key("jobmanager.heap.size")
-		.defaultValue("1024m")
-		.withDescription("JVM heap size for the JobManager.");
-
-	/**
 	 * JVM heap size (in megabytes) for the JobManager.
-	 * @deprecated use {@link #JOB_MANAGER_HEAP_MEMORY}
 	 */
-	@Deprecated
-	public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY_MB =
+	public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY =
 		key("jobmanager.heap.mb")
 		.defaultValue(1024)
 		.withDescription("JVM heap size (in megabytes) for the JobManager.");
@@ -104,20 +90,35 @@ public class JobManagerOptions {
 			.withDescription("The maximum number of prior execution attempts kept in history.");
 
 	/**
-	 * This option specifies the failover strategy, i.e. how the job computation recovers from task failures.
+	 * The strategy to handle task failures.
+	 * 'full' failover strategy will restart all tasks in the job.
+	 * 'region' failover strategy will restart the tasks in the same region with the failed task.
+	 * Regions are PIPELINED connected task groups in a job.
 	 */
-	@Documentation.ExcludeFromDocumentation("The failover strategy feature is highly experimental.")
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
 		key("jobmanager.execution.failover-strategy")
 			.defaultValue("full")
-			.withDescription(Description.builder()
-				.text("This option specifies how the job computation recovers from task failures. " +
-					"Accepted values are:")
-				.list(
-					text("'full': Restarts all tasks."),
-					text("'individual': Restarts only the failed task. Should only be used if all tasks are independent components."),
-					text("'region': Restarts all tasks that could be affected by the task failure.")
-				).build());
+			.withDescription("The strategy to handle task failures. " +
+				"'full' failover strategy will restart all tasks in the job. " +
+				"'region' failover strategy will restart the tasks in the same region with the failed task. " +
+				"Regions are PIPELINED connected task groups in a job.");
+
+	/**
+	 * The maximum number that a region can attempt to restart before triggering job failures.
+	 */
+	public static final ConfigOption<Integer> EXECUTION_FAILOVER_STRATEGY_REGION_MAX_ATTEMPTS =
+		key("jobmanager.execution.failover-strategy.region.attempts")
+			.defaultValue(100)
+			.withDescription("The maximum number that a region can attempt to restart before triggering job failures. " +
+				"This only works with 'region' failover strategy.");
+
+	/**
+	 * The class name of the graph manager plugin.
+	 */
+	public static final ConfigOption<String> GRAPH_MANAGER_PLUGIN =
+		key("jobmanager.execution.graph-manager-plugin")
+			.noDefaultValue()
+			.withDescription("The class name of the graph manager plugin.");
 
 	/**
 	 * This option specifies the interval in order to trigger a resource manager reconnection if the connection
@@ -136,8 +137,7 @@ public class JobManagerOptions {
 	 */
 	public static final ConfigOption<String> ARCHIVE_DIR =
 		key("jobmanager.archive.fs.dir")
-			.noDefaultValue()
-			.withDescription("Dictionary for JobManager to store the archives of completed jobs.");
+			.noDefaultValue();
 
 	/**
 	 * The job store cache size in bytes which is used to keep completed
@@ -156,22 +156,41 @@ public class JobManagerOptions {
 		.defaultValue(60L * 60L)
 		.withDescription("The time in seconds after which a completed job expires and is purged from the job store.");
 
-	/**
-	 * The timeout in milliseconds for requesting a slot from Slot Pool.
-	 */
+	public static final ConfigOption<Long> UPDATE_PARTITION_INFO_SEND_INTERVAL =
+		key("jobmanager.update-partition-info.send-interval")
+		.defaultValue(10L)
+		.withDescription("The interval of send update-partition-info message.");
+
 	public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
 		key("slot.request.timeout")
 		.defaultValue(5L * 60L * 1000L)
 		.withDescription("The timeout in milliseconds for requesting a slot from Slot Pool.");
 
-	/**
-	 * The timeout in milliseconds for a idle slot in Slot Pool.
-	 */
 	public static final ConfigOption<Long> SLOT_IDLE_TIMEOUT =
 		key("slot.idle.timeout")
 			// default matches heartbeat.timeout so that sticky allocation is not lost on timeouts for local recovery
 			.defaultValue(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT.defaultValue())
 			.withDescription("The timeout in milliseconds for a idle slot in Slot Pool.");
+
+	public static final ConfigOption<Boolean> SLOT_ENABLE_SHARED_SLOT =
+		key("slot.enable-shared-slot")
+			.defaultValue(true)
+			.withDescription("Whether to enable slot sharing group when allocating slots in Slot Pool.");
+
+	public static final ConfigOption<Long> JOB_RECONCILE_TIMEOUT =
+		key("jobmanager.failover.reconcile-timeout")
+			.defaultValue(60L)
+			.withDescription("The timeout for job master to reconcile with task executors for recovering the execution status.");
+
+	public static final ConfigOption<String> OPERATION_LOG_STORE =
+		key("jobmanager.failover.operation-log-store")
+			.defaultValue("none")
+			.withDescription("The operation log store type for job master failover.");
+
+	public static final ConfigOption<Integer> OPLOG_FLUSH_INTERVAL =
+			key("jobmanager.failover.operation-log-flush-interval")
+					.defaultValue(3000)
+					.withDescription("The operation log store flush interval in ms.");
 
 	// ---------------------------------------------------------------------------------------------
 

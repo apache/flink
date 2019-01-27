@@ -20,6 +20,8 @@
 package org.apache.flink.types.parser;
 
 
+import org.apache.flink.util.TimeConvertUtils;
+
 import java.sql.Date;
 
 public class SqlDateParserTest extends ParserTestBase<Date> {
@@ -34,16 +36,20 @@ public class SqlDateParserTest extends ParserTestBase<Date> {
 	@Override
 	public Date[] getValidTestResults() {
 		return new Date[] {
-			Date.valueOf("1970-01-01"), Date.valueOf("1990-10-14"), Date.valueOf("2013-08-12"),
-			Date.valueOf("2040-05-12"), Date.valueOf("2040-05-12"), Date.valueOf("1970-01-01")
+			new Date(TimeConvertUtils.dateStringToUnixDate("1970-01-01") * TimeConvertUtils.MILLIS_PER_DAY),
+			new Date(TimeConvertUtils.dateStringToUnixDate("1990-10-14") * TimeConvertUtils.MILLIS_PER_DAY),
+			new Date(TimeConvertUtils.dateStringToUnixDate("2013-08-12") * TimeConvertUtils.MILLIS_PER_DAY),
+			new Date(TimeConvertUtils.dateStringToUnixDate("2040-05-12") * TimeConvertUtils.MILLIS_PER_DAY),
+			new Date(TimeConvertUtils.dateStringToUnixDate("2040-05-12") * TimeConvertUtils.MILLIS_PER_DAY),
+			new Date(TimeConvertUtils.dateStringToUnixDate("1970-01-01") * TimeConvertUtils.MILLIS_PER_DAY)
 		};
 	}
 
 	@Override
 	public String[] getInvalidTestValues() {
 		return new String[] {
-			" 2013-08-12", "2013-08-12 ", "2013-08--12", "13-08-12", "2013/08/12", " ", "\t",
-			"2013-XX-XX", "2000-02-35"
+			" 2013-08-12", "2013-08-12 ", "2013/08/12", " ", "\t",
+			"2013-XX-XX"
 		};
 	}
 

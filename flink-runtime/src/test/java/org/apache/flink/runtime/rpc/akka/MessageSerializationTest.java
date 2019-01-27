@@ -19,8 +19,6 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
@@ -29,6 +27,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
 import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -60,15 +60,14 @@ public class MessageSerializationTest extends TestLogger {
 
 	@BeforeClass
 	public static void setup() {
-		Configuration configuration = new Configuration();
-		configuration.setString(AkkaOptions.FRAMESIZE, maxFrameSize + "b");
+		Config akkaConfig = AkkaUtils.getDefaultAkkaConfig();
+		Config modifiedAkkaConfig = akkaConfig.withValue(AkkaRpcService.MAXIMUM_FRAME_SIZE_PATH, ConfigValueFactory.fromAnyRef(maxFrameSize + "b"));
 
-		actorSystem1 = AkkaUtils.createDefaultActorSystem();
-		actorSystem2 = AkkaUtils.createDefaultActorSystem();
+		actorSystem1 = AkkaUtils.createActorSystem(modifiedAkkaConfig);
+		actorSystem2 = AkkaUtils.createActorSystem(modifiedAkkaConfig);
 
-		AkkaRpcServiceConfiguration akkaRpcServiceConfig = AkkaRpcServiceConfiguration.fromConfiguration(configuration);
-		akkaRpcService1 = new AkkaRpcService(actorSystem1, akkaRpcServiceConfig);
-		akkaRpcService2 = new AkkaRpcService(actorSystem2, akkaRpcServiceConfig);
+		akkaRpcService1 = new AkkaRpcService(actorSystem1, timeout);
+		akkaRpcService2 = new AkkaRpcService(actorSystem2, timeout);
 	}
 
 	@AfterClass

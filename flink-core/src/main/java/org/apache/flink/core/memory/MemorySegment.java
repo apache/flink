@@ -27,6 +27,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ReadOnlyBufferException;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * This class represents a piece of memory managed by Flink.
  * The segment may be backed by heap memory (byte array) or by off-heap memory.
@@ -124,7 +126,7 @@ public abstract class MemorySegment {
 	 * segment will point to undefined addresses outside the heap and may in out-of-order execution
 	 * cases cause segmentation faults.
 	 */
-	protected final byte[] heapMemory;
+	protected byte[] heapMemory;
 
 	/**
 	 * The address to the data, relative to the heap memory byte array. If the heap memory byte
@@ -136,17 +138,17 @@ public abstract class MemorySegment {
 	 * The address one byte after the last addressable byte, i.e. <tt>address + size</tt> while the
 	 * segment is not disposed.
 	 */
-	protected final long addressLimit;
+	protected long addressLimit;
 
 	/**
 	 * The size in bytes of the memory segment.
 	 */
-	protected final int size;
+	protected int size;
 
 	/**
 	 * Optional owner of the memory segment.
 	 */
-	private final Object owner;
+	protected Object owner;
 
 	/**
 	 * Creates a new memory segment that represents the memory of the byte array.
@@ -1270,6 +1272,26 @@ public abstract class MemorySegment {
 		}
 	}
 
+	/**
+	 * Bulk copy method. Copies {@code numBytes} bytes to target unsafe object and pointer.
+	 * NOTE: This is a unsafe method, no check here, please be carefully.
+	 */
+	public final void copyToUnsafe(int offset, Object target, int targetPointer, int numBytes) {
+		final long thisPointer = this.address + offset;
+		checkArgument(thisPointer + numBytes <= addressLimit);
+		UNSAFE.copyMemory(this.heapMemory, thisPointer, target, targetPointer, numBytes);
+	}
+
+	/**
+	 * Bulk copy method. Copies {@code numBytes} bytes from source unsafe object and pointer.
+	 * NOTE: This is a unsafe method, no check here, please be carefully.
+	 */
+	public final void copyFromUnsafe(int offset, Object source, int sourcePointer, int numBytes) {
+		final long thisPointer = this.address + offset;
+		checkArgument(thisPointer + numBytes <= addressLimit);
+		UNSAFE.copyMemory(source, sourcePointer, this.heapMemory, thisPointer, numBytes);
+	}
+
 	// -------------------------------------------------------------------------
 	//                      Comparisons & Swapping
 	// -------------------------------------------------------------------------
@@ -1312,6 +1334,36 @@ public abstract class MemorySegment {
 	}
 
 	/**
+	 * Equals two memory segment regions.
+	 *
+	 * @param seg2 Segment to equal this segment with
+	 * @param offset1 Offset of this segment to start equaling
+	 * @param offset2 Offset of seg2 to start equaling
+	 * @param len Length of the equaled memory region
+	 *
+	 * @return true if equal, false otherwise
+	 */
+	public final boolean equalTo(MemorySegment seg2, int offset1, int offset2, int len) {
+		while (len >= 8) {
+			if (this.getLong(offset1) != seg2.getLong(offset2)) {
+				return false;
+			}
+			offset1 += 8;
+			offset2 += 8;
+			len -= 8;
+		}
+		while (len > 0) {
+			if (this.get(offset1) != seg2.get(offset2)) {
+				return false;
+			}
+			offset1++;
+			offset2++;
+			len--;
+		}
+		return true;
+	}
+
+	/**
 	 * Swaps bytes between two memory segments, using the given auxiliary buffer.
 	 *
 	 * @param tempBuffer The auxiliary buffer in which to put data during triangle swap.
@@ -1349,4 +1401,38 @@ public abstract class MemorySegment {
 					String.format("offset1=%d, offset2=%d, len=%d, bufferSize=%d, address1=%d, address2=%d",
 							offset1, offset2, len, tempBuffer.length, this.address, seg2.address));
 	}
+
+	/**
+	 * Get the heap byte array object.
+	 * @return Return non-null if the memory is on the heap, and return null, if the memory if off the heap.
+	 */
+	public byte[] getHeapMemory() {
+		return heapMemory;
+	}
+
+	/**
+	 * Point this MemorySegment to a new buff and owner (reuse this MemorySegment object).
+	 * @param buffer the new buffer to point to.
+	 */
+	public void pointTo(byte[] buffer, Object owner) {
+		if (buffer == null) {
+			throw new NullPointerException("buffer should not be null");
+		}
+
+		this.heapMemory = buffer;
+		this.address = BYTE_ARRAY_BASE_OFFSET;
+		this.size = buffer.length;
+		this.addressLimit = this.address + this.size;
+		this.owner = owner;
+	}
+
+	public void pointTo(byte[] buffer) {
+		pointTo(buffer, null);
+	}
+
+	/**
+	 * Return a new MemorySegment with the same buffer and clear the data (reuse the buffer).
+	 * @return a new MemorySegment object.
+	 */
+	public abstract MemorySegment cloneReference();
 }

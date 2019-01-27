@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.RandomAccessInputView;
 import org.apache.flink.runtime.io.disk.SimpleCollectingOutputView;
-import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
 import org.apache.flink.runtime.memory.ListMemorySegmentSource;
 import org.apache.flink.util.MutableObjectIterator;
 import org.slf4j.Logger;
@@ -310,7 +309,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 	// ------------------------------------------------------------------------
 	
 	private long readPointer(int logicalPosition) {
-		if (logicalPosition < 0 || logicalPosition >= this.numRecords) {
+		if (logicalPosition < 0 | logicalPosition >= this.numRecords) {
 			throw new IndexOutOfBoundsException();
 		}
 		
@@ -486,14 +485,13 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
 	 */
 	@Override
-	public void writeToOutput(ChannelWriterOutputView output) throws IOException {
+	public void writeToOutput(SortedDataFile<T> output) throws IOException {
 		writeToOutput(output, null);
 	}
 	
 	@Override
-	public void writeToOutput(ChannelWriterOutputView output, LargeRecordHandler<T> largeRecordsOutput)
-			throws IOException
-	{
+	public void writeToOutput(SortedDataFile<T> output, LargeRecordHandler<T> largeRecordsOutput)
+		throws IOException {
 		if (LOG.isDebugEnabled()) {
 			if (largeRecordsOutput == null) {
 				LOG.debug("Spilling sort buffer without large record handling.");
@@ -516,7 +514,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 				// small records go into the regular spill file, large records into the special code path
 				if (pointer >= 0 || largeRecordsOutput == null) {
 					this.recordBuffer.setReadPosition(pointer);
-					this.serializer.copy(this.recordBuffer, output);
+					output.copyRecord(this.recordBuffer);
 				}
 				else {
 					
@@ -541,7 +539,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
 	 */
 	@Override
-	public void writeToOutput(final ChannelWriterOutputView output, final int start, int num) throws IOException {
+	public void writeToOutput(final SortedDataFile<T> output, final int start, int num) throws IOException {
 		int currentMemSeg = start / this.indexEntriesPerSegment;
 		int offset = (start % this.indexEntriesPerSegment) * this.indexEntrySize;
 		
@@ -554,7 +552,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 				for (;offset <= this.lastIndexEntryOffset; offset += this.indexEntrySize) {
 					final long pointer = currentIndexSegment.getLong(offset) & POINTER_MASK;
 					this.recordBuffer.setReadPosition(pointer);
-					this.serializer.copy(this.recordBuffer, output);
+					output.copyRecord(recordBuffer);
 				}
 				num -= this.indexEntriesPerSegment;
 			} else {
@@ -563,7 +561,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 				{
 					final long pointer = currentIndexSegment.getLong(offset) & POINTER_MASK;
 					this.recordBuffer.setReadPosition(pointer);
-					this.serializer.copy(this.recordBuffer, output);
+					output.copyRecord(recordBuffer);
 				}
 			}
 			offset = 0;

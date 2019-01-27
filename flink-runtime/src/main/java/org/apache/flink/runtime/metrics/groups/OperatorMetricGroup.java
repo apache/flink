@@ -60,7 +60,8 @@ public class OperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup> {
 			this.parent.parent.jobId.toString(),
 			this.parent.vertexId.toString(),
 			this.parent.subtaskIndex,
-			filter.filterCharacters(this.operatorName));
+			filter.filterCharacters(this.operatorName),
+			this.operatorID.toString());
 	}
 
 	/**

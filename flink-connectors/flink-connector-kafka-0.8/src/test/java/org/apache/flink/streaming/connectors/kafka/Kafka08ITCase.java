@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.ZookeeperOffsetHandler;
@@ -203,8 +204,9 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		readProps.putAll(standardProps);
 
 		// make sure that auto commit is enabled in the properties
-		readProps.setProperty("auto.commit.enable", "true");
-		readProps.setProperty("auto.commit.interval.ms", "500");
+		// The offset commit is now associated with the checkpointing. So enable checkpointing.
+		env.enableCheckpointing(500, CheckpointingMode.AT_LEAST_ONCE);
+		env.getCheckpointConfig().setCheckpointInterval(500);
 
 		// read so that the offset can be committed to ZK
 		readSequence(env, StartupMode.GROUP_OFFSETS, null, null, readProps, parallelism, topicName, 100, 0);

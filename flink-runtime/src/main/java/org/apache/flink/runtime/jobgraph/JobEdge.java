@@ -18,6 +18,11 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * This class represent edges (communication channels) in a job graph.
  * The edges always go from an intermediate result partition to a job vertex.
@@ -50,6 +55,9 @@ public class JobEdge implements java.io.Serializable {
 
 	/** Optional description of the caching inside an operator, to be displayed in the JSON plan */
 	private String operatorLevelCachingDescription;
+
+	/** This cache helps to reduce the calculation load of consumer vertices for each partition */
+	private transient Map<Integer, Collection<ExecutionVertexID>> consumerExecutionVerticesCache;
 	
 	/**
 	 * Constructs a new job edge, that connects an intermediate result to a consumer task.
@@ -198,6 +206,108 @@ public class JobEdge implements java.io.Serializable {
 	 */
 	public void setOperatorLevelCachingDescription(String operatorLevelCachingDescription) {
 		this.operatorLevelCachingDescription = operatorLevelCachingDescription;
+	}
+
+	/**
+	 * Clear the cache of consumer execution vertices, should be invoked if a parallelism
+	 * change happens to any of the producer or consumer vertices.
+	 */
+	public void clearConsumerExecutionVerticesCache() {
+		if (consumerExecutionVerticesCache != null) {
+			consumerExecutionVerticesCache.clear();
+		}
+	}
+
+	public Collection<ExecutionVertexID> getConsumerExecutionVertices(int partitionNumber) {
+		if (consumerExecutionVerticesCache == null) {
+			consumerExecutionVerticesCache = new HashMap<>();
+		}
+		if (consumerExecutionVerticesCache.containsKey(partitionNumber)) {
+			return consumerExecutionVerticesCache.get(partitionNumber);
+		}
+
+		Collection<ExecutionVertexID> consumers;
+		switch (distributionPattern) {
+			case POINTWISE:
+				consumers = getConsumerExecutionVerticesPointwise(partitionNumber);
+				break;
+			case ALL_TO_ALL:
+				consumers = getConsumerExecutionVerticesAllToAll();
+				break;
+			default:
+				throw new RuntimeException("Unrecognized distribution pattern.");
+		}
+		consumerExecutionVerticesCache.put(partitionNumber, consumers);
+		return consumers;
+	}
+
+	private Collection<ExecutionVertexID> getConsumerExecutionVerticesPointwise(int partitionNumber) {
+		final int sourceCount = source.getProducer().getParallelism();
+		final int targetCount = target.getParallelism();
+
+		final Collection<ExecutionVertexID> consumerVertices = new ArrayList<>();
+
+		// simple case same number of sources as targets
+		if (sourceCount == targetCount) {
+			consumerVertices.add(new ExecutionVertexID(target.getID(), partitionNumber));
+		} else if (sourceCount > targetCount) {
+			int vertexSubtaskIndex;
+
+			// check if the pattern is regular or irregular
+			// we use int arithmetics for regular, and floating point with rounding for irregular
+			if (sourceCount % targetCount == 0) {
+				// same number of targets per source
+				int factor = sourceCount / targetCount;
+				vertexSubtaskIndex = partitionNumber / factor;
+			}
+			else {
+				// different number of targets per source
+				float factor = ((float) sourceCount) / targetCount;
+
+				// Do mirror to generate the same edge mapping as in old Flink version
+				int mirrorPartitionNumber = sourceCount - 1 - partitionNumber;
+				int mirrorVertexSubTaskIndex =  (int) (mirrorPartitionNumber / factor);
+				vertexSubtaskIndex = targetCount - 1 - mirrorVertexSubTaskIndex;
+			}
+
+			consumerVertices.add(new ExecutionVertexID(target.getID(), vertexSubtaskIndex));
+		} else {
+			if (targetCount % sourceCount == 0) {
+				// same number of targets per source
+				int factor = targetCount / sourceCount;
+				int startIndex = partitionNumber * factor;
+
+				for (int i = 0; i < factor; i++) {
+					consumerVertices.add(new ExecutionVertexID(target.getID(), startIndex + i));
+				}
+			}
+			else {
+				float factor = ((float) targetCount) / sourceCount;
+
+				// Do mirror to generate the same edge mapping as in old Flink version
+				int mirrorPartitionNumber = sourceCount - 1 - partitionNumber;
+				int start = (int) (mirrorPartitionNumber * factor);
+				int end = (mirrorPartitionNumber == sourceCount - 1) ?
+					targetCount :
+					(int) ((mirrorPartitionNumber + 1) * factor);
+
+				for (int i = 0; i < end - start; i++) {
+					int mirrorVertexSubTaskIndex = start + i;
+					int vertexSubtaskIndex = targetCount - 1 - mirrorVertexSubTaskIndex;
+					consumerVertices.add(new ExecutionVertexID(target.getID(), vertexSubtaskIndex));
+				}
+			}
+		}
+
+		return consumerVertices;
+	}
+
+	private Collection<ExecutionVertexID> getConsumerExecutionVerticesAllToAll() {
+		Collection<ExecutionVertexID> consumerVertices = new ArrayList<>();
+		for (int i = 0; i < target.getParallelism(); i++) {
+			consumerVertices.add(new ExecutionVertexID(target.getID(), i));
+		}
+		return consumerVertices;
 	}
 
 	// --------------------------------------------------------------------------------------------

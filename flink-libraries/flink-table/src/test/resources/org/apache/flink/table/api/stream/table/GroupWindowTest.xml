@@ -1,0 +1,307 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAllEventTimeSessionGroupWindowOverTime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(window=[SessionGroupWindow('w, 'long, 7.millis)], select=[COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[single])
+   +- StreamExecCalc(select=[int, long])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllEventTimeSlidingGroupWindowOverCount">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(window=[SlidingGroupWindow('w, 'long, 8.millis, 10.millis)], select=[COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[single])
+   +- StreamExecCalc(select=[int, long])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllEventTimeSlidingGroupWindowOverTime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(window=[SlidingGroupWindow('w, 'rowtime, 8.millis, 10.millis)], select=[COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[single])
+   +- StreamExecCalc(select=[int, rowtime])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllEventTimeTumblingGroupWindowOverCount">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(window=[TumblingGroupWindow('w, 'long, 5.millis)], select=[COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[single])
+   +- StreamExecCalc(select=[int, long])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllProcessingTimeSlidingGroupWindowOverCount">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(window=[SlidingGroupWindow('w, 'proctime, 2.rows, 1.rows)], select=[COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[single])
+   +- StreamExecCalc(select=[int, proctime])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllEventTimeTumblingGroupWindowOverTime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(window=[TumblingGroupWindow('w, 'rowtime, 5.millis)], select=[COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[single])
+   +- StreamExecCalc(select=[int, rowtime])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllProcessingTimeSlidingGroupWindowOverTime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(window=[SlidingGroupWindow('w, 'proctime, 50.millis, 50.millis)], select=[COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[single])
+   +- StreamExecCalc(select=[int, proctime])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllProcessingTimeTumblingGroupWindowOverCount">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(window=[TumblingGroupWindow('w, 'proctime, 2.rows)], select=[COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[single])
+   +- StreamExecCalc(select=[int, proctime])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllProcessingTimeTumblingGroupWindowOverTime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, 'proctime, 50.millis)], select=[string, COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[hash[string]])
+   +- StreamExecCalc(select=[string, int, proctime])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDecomposableAggFunctions">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[CAST(/(-($f0, /(*(CAST($f1), CAST($f1)), $f2)), $f2)) AS TMP_0, CAST(/(-($f3, /(*(CAST($f1), CAST($f1)), $f2)), CASE(=($f2, 1), null, -($f2, 1)))) AS TMP_1, CAST(POWER(/(-($f4, /(*(CAST($f1), CAST($f1)), $f2)), $f2), 0.5)) AS TMP_2, CAST(POWER(/(-($f5, /(*(CAST($f1), CAST($f1)), $f2)), CASE(=($f2, 1), null, -($f2, 1))), 0.5)) AS TMP_3, TMP_4, TMP_5])
++- StreamExecGroupWindowAggregate(window=[TumblingGroupWindow('w, 'rowtime, 900000.millis)], properties=[TMP_4, TMP_5], select=[SUM($f2) AS $f0, SUM(c) AS $f1, COUNT(c) AS $f2, SUM($f3) AS $f3, SUM($f4) AS $f4, SUM($f5) AS $f5, start('w) AS TMP_4, end('w) AS TMP_5])
+   +- StreamExecExchange(distribution=[single])
+      +- StreamExecCalc(select=[c, rowtime, *(CAST(c), CAST(c)) AS $f2, *(CAST(c), CAST(c)) AS $f3, *(CAST(c), CAST(c)) AS $f4, *(CAST(c), CAST(c)) AS $f5])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeSessionGroupWindowOverTime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(groupBy=[string], window=[SessionGroupWindow('w, 'long, 7.millis)], select=[string, COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[hash[string]])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeSessionGroupWindowWithUdAgg">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(groupBy=[string], window=[SessionGroupWindow('w, 'rowtime, 7.millis)], select=[string, myWeightedAvg(long, int) AS TMP_0])
++- StreamExecExchange(distribution=[hash[string]])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcessingTimeSlidingGroupWindowOverCount">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, 'proctime, 2.rows, 1.rows)], select=[string, COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[hash[string]])
+   +- StreamExecCalc(select=[string, int, proctime])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeSlidingGroupWindowOverCount">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, 'long, 8.millis, 10.millis)], select=[string, COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[hash[string]])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeSlidingGroupWindowOverTime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, 'rowtime, 8.millis, 10.millis)], select=[string, COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[hash[string]])
+   +- StreamExecCalc(select=[string, int, rowtime])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeSlidingGroupWindowWithUdAgg">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, 'rowtime, 8.millis, 10.millis)], select=[string, myWeightedAvg(long, int) AS TMP_0])
++- StreamExecExchange(distribution=[hash[string]])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeTumblingGroupWindowOverTime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, 'long, 5.millis)], select=[string, COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[hash[string]])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeTumblingGroupWindowWithUdAgg">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, 'rowtime, 5.millis)], select=[string, myWeightedAvg(long, int) AS TMP_0])
++- StreamExecExchange(distribution=[hash[string]])
+   +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSlideWindowStartEnd">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, 'rowtime, 10.millis, 5.millis)], properties=[TMP_1, TMP_2], select=[string, COUNT(int) AS TMP_0, start('w) AS TMP_1, end('w) AS TMP_2])
++- StreamExecExchange(distribution=[hash[string]])
+   +- StreamExecCalc(select=[string, int, rowtime])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiWindow">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(window=[SlidingGroupWindow('w2, 'proctime, 20.millis, 10.millis)], select=[COUNT(string) AS TMP_2])
++- StreamExecExchange(distribution=[single])
+   +- StreamExecGroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w1, 'proctime, 50.millis)], properties=[TMP_0], select=[string, proctime('w1) AS TMP_0])
+      +- StreamExecExchange(distribution=[hash[string]])
+         +- StreamExecCalc(select=[string, int, proctime])
+            +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcessingTimeSlidingGroupWindowOverTime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, 'proctime, 50.millis, 50.millis)], select=[string, COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[hash[string]])
+   +- StreamExecCalc(select=[string, int, proctime])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcessingTimeTumblingGroupWindowOverCount">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, 'proctime, 2.rows)], select=[string, COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[hash[string]])
+   +- StreamExecCalc(select=[string, int, proctime])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcessingTimeTumblingGroupWindowOverTime">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, 'proctime, 50.millis)], select=[string, COUNT(int) AS TMP_0])
++- StreamExecExchange(distribution=[hash[string]])
+   +- StreamExecCalc(select=[string, int, proctime])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSelectFromGroupedWindow">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[TMP_0, TMP_1, b])
++- StreamExecGroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w, 'rowtime, 5.millis)], select=[b, COUNT($f4) AS TMP_0, SUM(a) AS TMP_1])
+   +- StreamExecExchange(distribution=[hash[b]])
+      +- StreamExecCalc(select=[c, a, b, rowtime, UPPER(c) AS $f4])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSelectFromWindow">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(window=[TumblingGroupWindow('w, 'rowtime, 5.millis)], select=[COUNT($f3) AS TMP_0, SUM(a) AS TMP_1])
++- StreamExecExchange(distribution=[single])
+   +- StreamExecCalc(select=[c, a, rowtime, UPPER(c) AS $f3])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSessionWindowStartWithTwoEnd">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[TMP_0 AS we1, string, TMP_1 AS cnt, TMP_2 AS ws, TMP_0 AS we2])
++- StreamExecGroupWindowAggregate(groupBy=[string], window=[SessionGroupWindow('w, 'long, 3.millis)], properties=[TMP_0, TMP_2], select=[string, COUNT(int) AS TMP_1, end('w) AS TMP_0, start('w) AS TMP_2])
+   +- StreamExecExchange(distribution=[hash[string]])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSlidingWindowWithUDAF">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[TMP_0])
++- StreamExecGroupWindowAggregate(groupBy=[string, int2, int3], window=[SlidingGroupWindow('w, 'proctime, 2.rows, 1.rows)], select=[string, int2, int3, WeightedAvg(long, int) AS TMP_0])
+   +- StreamExecExchange(distribution=[hash[string, int2, int3]])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTumbleWindowStartEnd">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecGroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, 'rowtime, 5.millis)], properties=[TMP_1, TMP_2], select=[string, COUNT(int) AS TMP_0, start('w) AS TMP_1, end('w) AS TMP_2])
++- StreamExecExchange(distribution=[hash[string]])
+   +- StreamExecCalc(select=[string, int, rowtime])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTumbleWindowWithDuplicateAggsAndProps">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[string, +(TMP_0, 1) AS s1, +(TMP_0, 3) AS s2, TMP_1 AS x, TMP_1 AS x2, TMP_2 AS x3, TMP_2])
++- StreamExecGroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, 'long, 5.millis)], properties=[TMP_1, TMP_2], select=[string, SUM(int) AS TMP_0, start('w) AS TMP_1, end('w) AS TMP_2])
+   +- StreamExecExchange(distribution=[hash[string]])
+      +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

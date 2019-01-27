@@ -19,19 +19,17 @@
 package org.apache.flink.table.functions.utils
 
 import java.util
-import java.util.Collections
 
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.sql
 import org.apache.calcite.sql._
-import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
+import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction
-import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.functions.AggregateFunction
+import org.apache.flink.table.api.types.{DataType, DataTypes, InternalType}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.utils.AggSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 
@@ -41,24 +39,24 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
   * @param name function name (used by SQL parser)
   * @param displayName name to be displayed in operator name
   * @param aggregateFunction aggregate function to be called
-  * @param returnType the type information of returned value
-  * @param accType the type information of the accumulator
+  * @param externalResultType the type information of returned value
+  * @param externalAccType the type information of the accumulator
   * @param typeFactory type factory for converting Flink's between Calcite's types
   */
 class AggSqlFunction(
     name: String,
     displayName: String,
     aggregateFunction: AggregateFunction[_, _],
-    val returnType: TypeInformation[_],
-    val accType: TypeInformation[_],
+    val externalResultType: DataType,
+    val externalAccType: DataType,
     typeFactory: FlinkTypeFactory,
     requiresOver: Boolean)
   extends SqlUserDefinedAggFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
-    createReturnTypeInference(returnType, typeFactory),
-    createOperandTypeInference(aggregateFunction, typeFactory),
-    createOperandTypeChecker(aggregateFunction),
-    // Do not need to provide a calcite aggregateFunction here. Flink aggregation function
+    createReturnTypeInference(externalResultType.toInternalType, typeFactory),
+    createOperandTypeInference(name, aggregateFunction, typeFactory),
+    createOperandTypeChecker(name, aggregateFunction),
+    // Do not need to provide a calcite aggregateFunction here. Flink aggregateion function
     // will be generated when translating the calcite relnode to flink runtime execution plan
     null,
     false,
@@ -81,8 +79,8 @@ object AggSqlFunction {
       name: String,
       displayName: String,
       aggregateFunction: AggregateFunction[_, _],
-      returnType: TypeInformation[_],
-      accType: TypeInformation[_],
+      externalResultType: DataType,
+      externalAccType: DataType,
       typeFactory: FlinkTypeFactory,
       requiresOver: Boolean): AggSqlFunction = {
 
@@ -90,13 +88,14 @@ object AggSqlFunction {
       name,
       displayName,
       aggregateFunction,
-      returnType,
-      accType,
+      externalResultType,
+      externalAccType,
       typeFactory,
       requiresOver)
   }
 
   private[flink] def createOperandTypeInference(
+      name: String,
       aggregateFunction: AggregateFunction[_, _],
       typeFactory: FlinkTypeFactory)
   : SqlOperandTypeInference = {
@@ -109,17 +108,17 @@ object AggSqlFunction {
           returnType: RelDataType,
           operandTypes: Array[RelDataType]): Unit = {
 
-        val operandTypeInfo = getOperandTypeInfo(callBinding)
+        val operandTypeInfo = getOperandType(callBinding)
 
         val foundSignature = getAccumulateMethodSignature(aggregateFunction, operandTypeInfo)
           .getOrElse(
             throw new ValidationException(
-              s"Given parameters of function do not match any signature. \n" +
+              s"Given parameters of function '$name' do not match any signature. \n" +
                 s"Actual: ${signatureToString(operandTypeInfo)} \n" +
                 s"Expected: ${signaturesToString(aggregateFunction, "accumulate")}"))
 
         val inferredTypes = getParameterTypes(aggregateFunction, foundSignature.drop(1))
-          .map(typeFactory.createTypeFromTypeInfo(_, isNullable = true))
+          .map(typeFactory.createTypeFromInternalType(_, isNullable = true))
 
         for (i <- operandTypes.indices) {
           if (i < inferredTypes.length - 1) {
@@ -136,19 +135,21 @@ object AggSqlFunction {
   }
 
   private[flink] def createReturnTypeInference(
-      resultType: TypeInformation[_],
+      resultType: InternalType,
       typeFactory: FlinkTypeFactory)
   : SqlReturnTypeInference = {
 
     new SqlReturnTypeInference {
       override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
-        typeFactory.createTypeFromTypeInfo(resultType, isNullable = true)
+        typeFactory.createTypeFromInternalType(resultType, isNullable = true)
       }
     }
   }
 
-  private[flink] def createOperandTypeChecker(aggregateFunction: AggregateFunction[_, _])
-  : SqlOperandTypeChecker = {
+  private[flink] def createOperandTypeChecker(
+      name: String,
+      aggregateFunction: AggregateFunction[_, _])
+    : SqlOperandTypeChecker = {
 
     val methods = checkAndExtractMethods(aggregateFunction, "accumulate")
 
@@ -187,14 +188,14 @@ object AggSqlFunction {
           callBinding: SqlCallBinding,
           throwOnFailure: Boolean)
       : Boolean = {
-        val operandTypeInfo = getOperandTypeInfo(callBinding)
+        val operandTypeInfo = getOperandType(callBinding)
 
         val foundSignature = getAccumulateMethodSignature(aggregateFunction, operandTypeInfo)
 
         if (foundSignature.isEmpty) {
           if (throwOnFailure) {
             throw new ValidationException(
-              s"Given parameters of function do not match any signature. \n" +
+              s"Given parameters of function '$name' do not match any signature. \n" +
                 s"Actual: ${signatureToString(operandTypeInfo)} \n" +
                 s"Expected: ${signaturesToString(aggregateFunction, "accumulate")}")
           } else {

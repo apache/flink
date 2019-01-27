@@ -125,10 +125,14 @@ public class KinesisConfigUtilTest {
 		assertEquals("incorrect region", region, kpc.getRegion());
 	}
 
+	// ----------------------------------------------------------------------
+	// validateAwsConfiguration() tests
+	// ----------------------------------------------------------------------
+
 	@Test
-	public void testMissingAwsRegionInProducerConfig() {
-		String expectedMessage = String.format("For FlinkKinesisProducer AWS region ('%s') must be set in the config.",
-				AWSConfigConstants.AWS_REGION);
+	public void testMissingAwsRegionInConfig() {
+		String expectedMessage = String.format("Either AWS region ('%s') or AWS endpoint ('%s') must be set in the config.",
+			AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_REGION);
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage(expectedMessage);
 
@@ -136,12 +140,8 @@ public class KinesisConfigUtilTest {
 		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKey");
 		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 
-		KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
+		KinesisConfigUtil.validateAwsConfiguration(testConfig);
 	}
-
-	// ----------------------------------------------------------------------
-	// validateAwsConfiguration() tests
-	// ----------------------------------------------------------------------
 
 	@Test
 	public void testUnrecognizableAwsRegionInConfig() {
@@ -151,6 +151,22 @@ public class KinesisConfigUtilTest {
 		Properties testConfig = new Properties();
 		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "wrongRegionId");
 		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+
+		KinesisConfigUtil.validateAwsConfiguration(testConfig);
+	}
+
+	@Test
+	public void testAwsRegionOrEndpointInConfig() {
+		String expectedMessage = String.format("Either AWS region ('%s') or AWS endpoint ('%s') must be set in the config.",
+			AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_REGION);
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage(expectedMessage);
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east");
+		testConfig.setProperty(AWSConfigConstants.AWS_ENDPOINT, "fake");
+		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKey");
 		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 
 		KinesisConfigUtil.validateAwsConfiguration(testConfig);
@@ -183,22 +199,6 @@ public class KinesisConfigUtilTest {
 	// ----------------------------------------------------------------------
 	// validateConsumerConfiguration() tests
 	// ----------------------------------------------------------------------
-
-	@Test
-	public void testAwsRegionOrEndpointInConsumerConfig() {
-		String expectedMessage = String.format("For FlinkKinesisConsumer either AWS region ('%s') or AWS endpoint ('%s') must be set in the config.",
-				AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_ENDPOINT);
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage(expectedMessage);
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(AWSConfigConstants.AWS_ENDPOINT, "fake");
-		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKey");
-		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
 
 	@Test
 	public void testUnrecognizableStreamInitPositionTypeInConfig() {
@@ -324,38 +324,43 @@ public class KinesisConfigUtilTest {
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, unixTimestamp);
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT, pattern);
 
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+		try {
+			KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail();
+		}
 	}
 
 	@Test
-	public void testUnparsableLongForListShardsBackoffBaseMillisInConfig() {
+	public void testUnparsableLongForDescribeStreamBackoffBaseMillisInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for list shards operation base backoff milliseconds");
+		exception.expectMessage("Invalid value given for describe stream operation base backoff milliseconds");
 
 		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.LIST_SHARDS_BACKOFF_BASE, "unparsableLong");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableLongForListShardsBackoffMaxMillisInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for list shards operation max backoff milliseconds");
-
-		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.LIST_SHARDS_BACKOFF_MAX, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
-	public void testUnparsableDoubleForListShardsBackoffExponentialConstantInConfig() {
+	public void testUnparsableLongForDescribeStreamBackoffMaxMillisInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for list shards operation backoff exponential constant");
+		exception.expectMessage("Invalid value given for describe stream operation max backoff milliseconds");
 
 		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
+		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX, "unparsableLong");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableDoubleForDescribeStreamBackoffExponentialConstantInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for describe stream operation backoff exponential constant");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}

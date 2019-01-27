@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.AbstractAccumulatorRegistry;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
@@ -29,7 +29,6 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -50,7 +49,11 @@ import org.apache.flink.runtime.operators.resettable.SpillingResettableMutableOb
 import org.apache.flink.runtime.operators.shipping.OutputCollector;
 import org.apache.flink.runtime.operators.shipping.OutputEmitter;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.apache.flink.runtime.operators.sort.BlockSortedDataFileFactory;
 import org.apache.flink.runtime.operators.sort.CombiningUnilateralSortMerger;
+import org.apache.flink.runtime.operators.sort.RecordComparisonMerger;
+import org.apache.flink.runtime.operators.sort.SortedDataFileFactory;
+import org.apache.flink.runtime.operators.sort.SortedDataFileMerger;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.util.CloseableInputProvider;
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
@@ -58,7 +61,6 @@ import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
@@ -70,7 +72,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * The base class for all batch tasks. Encapsulated common behavior and implements the main life-cycle
@@ -119,22 +120,22 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	 * The input readers for the configured broadcast variables for this task.
 	 */
 	protected MutableReader<?>[] broadcastInputReaders;
-	
+
 	/**
 	 * The inputs reader, wrapped in an iterator. Prior to the local strategies, etc...
 	 */
 	protected MutableObjectIterator<?>[] inputIterators;
 
 	/**
-	 * The indices of the iterative inputs. Empty, if the task is not iterative. 
+	 * The indices of the iterative inputs. Empty, if the task is not iterative.
 	 */
 	protected int[] iterativeInputs;
-	
+
 	/**
 	 * The indices of the iterative broadcast inputs. Empty, if non of the inputs is iterative.
 	 */
 	protected int[] iterativeBroadcastInputs;
-	
+
 	/**
 	 * The local strategies that are applied on the inputs.
 	 */
@@ -210,9 +211,9 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	protected volatile boolean running = true;
 
 	/**
-	 * The accumulator map used in the RuntimeContext.
+	 * The accumulator registry used in the RuntimeContext.
 	 */
-	protected Map<String, Accumulator<?,?>> accumulatorMap;
+	protected AbstractAccumulatorRegistry accumulatorRegistry;
 	private OperatorMetricGroup metrics;
 
 	// --------------------------------------------------------------------------------------------
@@ -254,7 +255,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 		String headName =  getEnvironment().getTaskInfo().getTaskName().split("->")[0].trim();
 		this.metrics = getEnvironment().getMetricGroup()
-			.getOrAddOperator(headName.startsWith("CHAIN") ? headName.substring(6) : headName);
+			.addOperator(headName.startsWith("CHAIN") ? headName.substring(6) : headName);
 		this.metrics.getIOMetricGroup().reuseInputMetricsForTask();
 		if (config.getNumberOfChainedStubs() == 0) {
 			this.metrics.getIOMetricGroup().reuseOutputMetricsForTask();
@@ -292,24 +293,24 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				int numInputs = driver.getNumberOfInputs();
 				int numComparators = driver.getNumberOfDriverComparators();
 				int numBroadcastInputs = this.config.getNumBroadcastInputs();
-				
+
 				initInputsSerializersAndComparators(numInputs, numComparators);
 				initBroadcastInputsSerializers(numBroadcastInputs);
-				
+
 				// set the iterative status for inputs and broadcast inputs
 				{
 					List<Integer> iterativeInputs = new ArrayList<Integer>();
-					
+
 					for (int i = 0; i < numInputs; i++) {
 						final int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeGate(i);
-			
+
 						if (numberOfEventsUntilInterrupt < 0) {
 							throw new IllegalArgumentException();
 						}
 						else if (numberOfEventsUntilInterrupt > 0) {
 							this.inputReaders[i].setIterativeReader();
 							iterativeInputs.add(i);
-				
+
 							if (LOG.isDebugEnabled()) {
 								LOG.debug(formatLogString("Input [" + i + "] reads in supersteps with [" +
 										+ numberOfEventsUntilInterrupt + "] event(s) till next superstep."));
@@ -318,20 +319,20 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 					}
 					this.iterativeInputs = asArray(iterativeInputs);
 				}
-				
+
 				{
 					List<Integer> iterativeBcInputs = new ArrayList<Integer>();
-					
+
 					for (int i = 0; i < numBroadcastInputs; i++) {
 						final int numberOfEventsUntilInterrupt = getTaskConfig().getNumberOfEventsUntilInterruptInIterativeBroadcastGate(i);
-						
+
 						if (numberOfEventsUntilInterrupt < 0) {
 							throw new IllegalArgumentException();
 						}
 						else if (numberOfEventsUntilInterrupt > 0) {
 							this.broadcastInputReaders[i].setIterativeReader();
 							iterativeBcInputs.add(i);
-				
+
 							if (LOG.isDebugEnabled()) {
 								LOG.debug(formatLogString("Broadcast input [" + i + "] reads in supersteps with [" +
 										+ numberOfEventsUntilInterrupt + "] event(s) till next superstep."));
@@ -340,7 +341,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 					}
 					this.iterativeBroadcastInputs = asArray(iterativeBcInputs);
 				}
-				
+
 				initLocalStrategies(numInputs);
 			}
 			catch (Exception e) {
@@ -358,7 +359,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			// pre main-function initialization
 			initialize();
 
-			// read the broadcast variables. they will be released in the finally clause 
+			// read the broadcast variables. they will be released in the finally clause
 			for (int i = 0; i < this.config.getNumBroadcastInputs(); i++) {
 				final String name = this.config.getBroadcastInputName(i);
 				readAndSetBroadcastInput(i, name, this.runtimeUdfContext, 1 /* superstep one for the start */);
@@ -417,7 +418,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			throw new Exception("The driver setup for '" + this.getEnvironment().getTaskInfo().getTaskName() +
 				"' , caused an error: " + t.getMessage(), t);
 		}
-		
+
 		// instantiate the UDF
 		try {
 			final Class<? super S> userCodeFunctionType = this.driver.getStubType();
@@ -430,33 +431,33 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 					(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 		}
 	}
-	
+
 	protected <X> void readAndSetBroadcastInput(int inputNum, String bcVarName, DistributedRuntimeUDFContext context, int superstep) throws IOException {
-		
+
 		if (LOG.isDebugEnabled()) {
-			LOG.debug(formatLogString("Setting broadcast variable '" + bcVarName + "'" + 
+			LOG.debug(formatLogString("Setting broadcast variable '" + bcVarName + "'" +
 				(superstep > 1 ? ", superstep " + superstep : "")));
 		}
-		
+
 		@SuppressWarnings("unchecked")
 		final TypeSerializerFactory<X> serializerFactory =  (TypeSerializerFactory<X>) this.broadcastInputSerializers[inputNum];
-		
+
 		final MutableReader<?> reader = this.broadcastInputReaders[inputNum];
 
 		BroadcastVariableMaterialization<X, ?> variable = getEnvironment().getBroadcastVariableManager().materializeBroadcastVariable(bcVarName, superstep, this, reader, serializerFactory);
 		context.setBroadcastVariable(bcVarName, variable);
 	}
-	
+
 	protected void releaseBroadcastVariables(String bcVarName, int superstep, DistributedRuntimeUDFContext context) {
 		if (LOG.isDebugEnabled()) {
-			LOG.debug(formatLogString("Releasing broadcast variable '" + bcVarName + "'" + 
+			LOG.debug(formatLogString("Releasing broadcast variable '" + bcVarName + "'" +
 				(superstep > 1 ? ", superstep " + superstep : "")));
 		}
-		
+
 		getEnvironment().getBroadcastVariableManager().releaseReference(bcVarName, superstep, this);
 		context.clearBroadcastVariable(bcVarName);
 	}
-	
+
 
 	protected void run() throws Exception {
 		// ---------------------------- Now, the actual processing starts ------------------------
@@ -523,7 +524,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 					// do nothing
 				}
 			}
-			
+
 			// if resettable driver invoke teardown
 			if (this.driver instanceof ResettableDriver) {
 				final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
@@ -543,7 +544,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				throw ex;
 			}
 			else if (this.running) {
-				// throw only if task was not cancelled. in the case of canceling, exceptions are expected 
+				// throw only if task was not cancelled. in the case of canceling, exceptions are expected
 				BatchTask.logAndThrowException(ex, this);
 			}
 		}
@@ -553,19 +554,19 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	}
 
 	protected void closeLocalStrategiesAndCaches() {
-		
+
 		// make sure that all broadcast variable references held by this task are released
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Releasing all broadcast variables."));
 		}
-		
+
 		getEnvironment().getBroadcastVariableManager().releaseAllReferencesFromTask(this);
 		if (runtimeUdfContext != null) {
 			runtimeUdfContext.clearAllBroadcastVariables();
 		}
-		
-		// clean all local strategies and caches/pipeline breakers. 
-		
+
+		// clean all local strategies and caches/pipeline breakers.
+
 		if (this.localStrategies != null) {
 			for (int i = 0; i < this.localStrategies.length; i++) {
 				if (this.localStrategies[i] != null) {
@@ -644,7 +645,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			S stub = config.<S>getStubWrapper(userCodeClassLoader).getUserCodeObject(stubSuperClass, userCodeClassLoader);
 			// check if the class is a subclass, if the check is required
 			if (stubSuperClass != null && !stubSuperClass.isAssignableFrom(stub.getClass())) {
-				throw new RuntimeException("The class '" + stub.getClass().getName() + "' is not a subclass of '" + 
+				throw new RuntimeException("The class '" + stub.getClass().getName() + "' is not a subclass of '" +
 						stubSuperClass.getName() + "' as is required.");
 			}
 			FunctionUtils.setFunctionRuntimeContext(stub, this.runtimeUdfContext);
@@ -673,18 +674,20 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 			if (groupSize == 1) {
 				// non-union case
-				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(
+				inputReaders[i] = new MutableRecordReader<>(
 						getEnvironment().getInputGate(currentReaderOffset),
-						getEnvironment().getTaskManagerInfo().getTmpDirectories());
+						getEnvironment().getTaskManagerInfo().getTmpDirectories(),
+						getEnvironment().getTaskManagerInfo().getConfiguration());
 			} else if (groupSize > 1){
 				// union case
 				InputGate[] readers = new InputGate[groupSize];
 				for (int j = 0; j < groupSize; ++j) {
 					readers[j] = getEnvironment().getInputGate(currentReaderOffset + j);
 				}
-				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(
+				inputReaders[i] = new MutableRecordReader<>(
 						new UnionInputGate(readers),
-						getEnvironment().getTaskManagerInfo().getTmpDirectories());
+						getEnvironment().getTaskManagerInfo().getTmpDirectories(),
+						getEnvironment().getTaskManagerInfo().getConfiguration());
 			} else {
 				throw new Exception("Illegal input group size in task configuration: " + groupSize);
 			}
@@ -716,18 +719,20 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			final int groupSize = this.config.getBroadcastGroupSize(i);
 			if (groupSize == 1) {
 				// non-union case
-				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(
+				broadcastInputReaders[i] = new MutableRecordReader<>(
 						getEnvironment().getInputGate(currentReaderOffset),
-						getEnvironment().getTaskManagerInfo().getTmpDirectories());
+						getEnvironment().getTaskManagerInfo().getTmpDirectories(),
+						getEnvironment().getTaskManagerInfo().getConfiguration());
 			} else if (groupSize > 1){
 				// union case
 				InputGate[] readers = new InputGate[groupSize];
 				for (int j = 0; j < groupSize; ++j) {
 					readers[j] = getEnvironment().getInputGate(currentReaderOffset + j);
 				}
-				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(
+				broadcastInputReaders[i] = new MutableRecordReader<>(
 						new UnionInputGate(readers),
-						getEnvironment().getTaskManagerInfo().getTmpDirectories());
+						getEnvironment().getTaskManagerInfo().getTmpDirectories(),
+						getEnvironment().getTaskManagerInfo().getConfiguration());
 			} else {
 				throw new Exception("Illegal input group size in task configuration: " + groupSize);
 			}
@@ -736,7 +741,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		}
 		this.broadcastInputReaders = broadcastInputReaders;
 	}
-	
+
 	/**
 	 * Creates all the serializers and comparators.
 	 */
@@ -746,25 +751,25 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		this.inputIterators = new MutableObjectIterator<?>[numInputs];
 
 		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
-		
+
 		for (int i = 0; i < numInputs; i++) {
-			
+
 			final TypeSerializerFactory<?> serializerFactory = this.config.getInputSerializer(i, userCodeClassLoader);
 			this.inputSerializers[i] = serializerFactory;
-			
+
 			this.inputIterators[i] = createInputIterator(this.inputReaders[i], this.inputSerializers[i]);
 		}
-		
+
 		//  ---------------- create the driver's comparators ---------------------
 		for (int i = 0; i < numComparators; i++) {
-			
+
 			if (this.inputComparators != null) {
 				final TypeComparatorFactory<?> comparatorFactory = this.config.getDriverComparator(i, userCodeClassLoader);
 				this.inputComparators[i] = comparatorFactory.createComparator();
 			}
 		}
 	}
-	
+
 	/**
 	 * Creates all the serializers and iterators for the broadcast inputs.
 	 */
@@ -935,10 +940,19 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				this.inputs[inputNum] = this.inputIterators[inputNum];
 				break;
 			case SORT:
+				SortedDataFileFactory<?> sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+					getIOManager().createChannelEnumerator(), this.inputSerializers[inputNum].getSerializer(),
+					getIOManager());
 				@SuppressWarnings({ "rawtypes", "unchecked" })
-				UnilateralSortMerger<?> sorter = new UnilateralSortMerger(getMemoryManager(), getIOManager(),
+				SortedDataFileMerger<?> merger = new RecordComparisonMerger(sortedDataFileFactory, getIOManager(),
+					this.inputSerializers[inputNum].getSerializer(), getLocalStrategyComparator(inputNum),
+					this.config.getFilehandlesInput(inputNum),
+					this.getExecutionConfig().isObjectReuseEnabled());
+				@SuppressWarnings({ "rawtypes", "unchecked" })
+				UnilateralSortMerger<?> sorter = new UnilateralSortMerger(sortedDataFileFactory, merger,
+					getMemoryManager(), getIOManager(),
 					this.inputIterators[inputNum], this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
-					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
+					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum), true,
 					this.config.getSpillingThresholdInput(inputNum), this.config.getUseLargeRecordHandler(),
 					this.getExecutionConfig().isObjectReuseEnabled());
 				// set the input to null such that it will be lazily fetched from the input strategy
@@ -966,16 +980,19 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 					throw new RuntimeException("Initializing the user code and the configuration failed" +
 							(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 				}
-				
+
 				if (!(localStub instanceof GroupCombineFunction)) {
 					throw new IllegalStateException("Performing combining sort outside a reduce task!");
 				}
 
+				sortedDataFileFactory = new BlockSortedDataFileFactory<>(
+					getIOManager().createChannelEnumerator(), this.inputSerializers[inputNum].getSerializer(),
+					getIOManager());
 				@SuppressWarnings({ "rawtypes", "unchecked" })
-				CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(
+				CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(sortedDataFileFactory,
 					(GroupCombineFunction) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
 					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
-					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
+					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum), true,
 					this.config.getSpillingThresholdInput(inputNum), this.getTaskConfig().getUseLargeRecordHandler(),
 					this.getExecutionConfig().isObjectReuseEnabled());
 				cSorter.setUdfConfiguration(this.config.getStubParameters());
@@ -1000,7 +1017,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		}
 		return compFact.createComparator();
 	}
-	
+
 	protected MutableObjectIterator<?> createInputIterator(MutableReader<?> inputReader, TypeSerializerFactory<?> serializerFactory) {
 		@SuppressWarnings("unchecked")
 		MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
@@ -1023,17 +1040,17 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 
-		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
+		this.accumulatorRegistry = getEnvironment().getAccumulatorRegistry();
 
 		this.output = initOutputs(this, userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs,
-				this.getExecutionConfig(), this.accumulatorMap);
+				this.getExecutionConfig(), this.accumulatorRegistry);
 	}
 
 	public DistributedRuntimeUDFContext createRuntimeContext(MetricGroup metrics) {
 		Environment env = getEnvironment();
 
 		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
-				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap, metrics);
+				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorRegistry, metrics);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1228,7 +1245,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 		// get the factory for the serializer
 		final TypeSerializerFactory<T> serializerFactory = config.getOutputSerializer(cl);
-		final List<RecordWriter<SerializationDelegate<T>>> writers = new ArrayList<>(numOutputs);
+		final List<RecordWriter<T>> writers = new ArrayList<>(numOutputs);
 
 		// create a writer for each output
 		for (int i = 0; i < numOutputs; i++)
@@ -1238,7 +1255,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			final int indexInSubtaskGroup = task.getIndexInSubtaskGroup();
 			final TypeComparatorFactory<T> compFactory = config.getOutputComparator(i, cl);
 
-			final ChannelSelector<SerializationDelegate<T>> oe;
+			final ChannelSelector<T> oe;
 			if (compFactory == null) {
 				oe = new OutputEmitter<T>(strategy, indexInSubtaskGroup);
 			}
@@ -1250,17 +1267,24 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				oe = new OutputEmitter<T>(strategy, indexInSubtaskGroup, comparator, partitioner, dataDist);
 			}
 
-			final RecordWriter<SerializationDelegate<T>> recordWriter =
-					new RecordWriter<SerializationDelegate<T>>(task.getEnvironment().getWriter(outputOffset + i), oe);
+			task.getEnvironment().getWriter(outputOffset + i).setTypeSerializer(serializerFactory.getSerializer());
+			task.getEnvironment().getWriter(outputOffset + i).setParentTask(task);
 
-			recordWriter.setMetricGroup(task.getEnvironment().getMetricGroup().getIOMetricGroup());
+			final RecordWriter<T> recordWriter =
+					new RecordWriter<T>(task.getEnvironment().getWriter(outputOffset + i),
+						oe, strategy == ShipStrategyType.BROADCAST);
+
+			recordWriter.setMetricGroup(
+				task.getEnvironment().getMetricGroup().getIOMetricGroup(),
+				task.getExecutionConfig().isTracingMetricsEnabled(),
+				task.getExecutionConfig().getTracingMetricsInterval());
 
 			writers.add(recordWriter);
 		}
 		if (eventualOutputs != null) {
 			eventualOutputs.addAll(writers);
 		}
-		return new OutputCollector<T>(writers, serializerFactory.getSerializer());
+		return new OutputCollector<T>(writers);
 	}
 
 	/**
@@ -1272,7 +1296,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 										List<ChainedDriver<?, ?>> chainedTasksTarget,
 										List<RecordWriter<?>> eventualOutputs,
 										ExecutionConfig executionConfig,
-										Map<String, Accumulator<?,?>> accumulatorMap)
+										AbstractAccumulatorRegistry accumulatorRegistry)
 	throws Exception
 	{
 		final int numOutputs = config.getNumOutputs();
@@ -1309,7 +1333,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 					previous = getOutputCollector(containingTask, chainedStubConf, cl, eventualOutputs, 0, chainedStubConf.getNumOutputs());
 				}
 
-				ct.setup(chainedStubConf, taskName, previous, containingTask, cl, executionConfig, accumulatorMap);
+				ct.setup(chainedStubConf, taskName, previous, containingTask, cl, executionConfig, accumulatorRegistry);
 				chainedTasksTarget.add(0, ct);
 
 				if (i == numChained - 1) {
@@ -1326,19 +1350,19 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		// instantiate the output collector the default way from this configuration
 		return getOutputCollector(containingTask , config, cl, eventualOutputs, 0, numOutputs);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//                                  User Code LifeCycle
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Opens the given stub using its {@link org.apache.flink.api.common.functions.RichFunction#open(Configuration)} method. If the open call produces
 	 * an exception, a new exception with a standard error message is created, using the encountered exception
 	 * as its cause.
-	 * 
+	 *
 	 * @param stub The user code instance to be opened.
 	 * @param parameters The parameters supplied to the user code.
-	 * 
+	 *
 	 * @throws Exception Thrown, if the user code's open method produces an exception.
 	 */
 	public static void openUserCode(Function stub, Configuration parameters) throws Exception {
@@ -1348,14 +1372,14 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			throw new Exception("The user defined 'open(Configuration)' method in " + stub.getClass().toString() + " caused an exception: " + t.getMessage(), t);
 		}
 	}
-	
+
 	/**
 	 * Closes the given stub using its {@link org.apache.flink.api.common.functions.RichFunction#close()} method. If the close call produces
 	 * an exception, a new exception with a standard error message is created, using the encountered exception
 	 * as its cause.
-	 * 
+	 *
 	 * @param stub The user code instance to be closed.
-	 * 
+	 *
 	 * @throws Exception Thrown, if the user code's close method produces an exception.
 	 */
 	public static void closeUserCode(Function stub) throws Exception {
@@ -1365,15 +1389,15 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			throw new Exception("The user defined 'close()' method caused an exception: " + t.getMessage(), t);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//                               Chained Task LifeCycle
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Opens all chained tasks, in the order as they are stored in the array. The opening process
 	 * creates a standardized log info message.
-	 * 
+	 *
 	 * @param tasks The tasks to be opened.
 	 * @param parent The parent task, used to obtain parameters to include in the log message.
 	 * @throws Exception Thrown, if the opening encounters an exception.
@@ -1388,11 +1412,11 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			task.openTask();
 		}
 	}
-	
+
 	/**
 	 * Closes all chained tasks, in the order as they are stored in the array. The closing process
 	 * creates a standardized log info message.
-	 * 
+	 *
 	 * @param tasks The tasks to be closed.
 	 * @param parent The parent task, used to obtain parameters to include in the log message.
 	 * @throws Exception Thrown, if the closing encounters an exception.
@@ -1401,17 +1425,17 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		for (int i = 0; i < tasks.size(); i++) {
 			final ChainedDriver<?, ?> task = tasks.get(i);
 			task.closeTask();
-			
+
 			if (LOG.isDebugEnabled()) {
 				LOG.debug(constructLogString("Finished task code", task.getTaskName(), parent));
 			}
 		}
 	}
-	
+
 	/**
 	 * Cancels all tasks via their {@link ChainedDriver#cancelTask()} method. Any occurring exception
 	 * and error is suppressed, such that the canceling method of every task is invoked in all cases.
-	 * 
+	 *
 	 * @param tasks The tasks to be canceled.
 	 */
 	public static void cancelChainedTasks(List<ChainedDriver<?, ?>> tasks) {
@@ -1423,21 +1447,21 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			}
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//                                     Miscellaneous Utilities
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Instantiates a user code class from is definition in the task configuration.
 	 * The class is instantiated without arguments using the null-ary constructor. Instantiation
 	 * will fail if this constructor does not exist or is not public.
-	 * 
+	 *
 	 * @param <T> The generic type of the user code class.
 	 * @param config The task configuration containing the class description.
 	 * @param cl The class loader to be used to load the class.
 	 * @param superClass The super class that the user code class extends or implements, for type checking.
-	 * 
+	 *
 	 * @return An instance of the user code class.
 	 */
 	public static <T> T instantiateUserCode(TaskConfig config, ClassLoader cl, Class<? super T> superClass) {
@@ -1445,7 +1469,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			T stub = config.<T>getStubWrapper(cl).getUserCodeObject(superClass, cl);
 			// check if the class is a subclass, if the check is required
 			if (superClass != null && !superClass.isAssignableFrom(stub.getClass())) {
-				throw new RuntimeException("The class '" + stub.getClass().getName() + "' is not a subclass of '" + 
+				throw new RuntimeException("The class '" + stub.getClass().getName() + "' is not a subclass of '" +
 						superClass.getName() + "' as is required.");
 			}
 			return stub;
@@ -1454,10 +1478,10 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			throw new RuntimeException("The UDF class is not a proper subclass of " + superClass.getName(), ccex);
 		}
 	}
-	
+
 	private static int[] asArray(List<Integer> list) {
 		int[] a = new int[list.size()];
-		
+
 		int i = 0;
 		for (int val : list) {
 			a[i++] = val;

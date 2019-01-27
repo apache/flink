@@ -34,7 +34,6 @@ public class RestOptions {
 	public static final ConfigOption<String> BIND_ADDRESS =
 		key("rest.bind-address")
 			.noDefaultValue()
-			.withDeprecatedKeys(WebOptions.ADDRESS.key(), ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS.key())
 			.withDescription("The address that the server binds itself.");
 
 	/**
@@ -43,7 +42,7 @@ public class RestOptions {
 	public static final ConfigOption<String> ADDRESS =
 		key("rest.address")
 			.noDefaultValue()
-			.withFallbackKeys(JobManagerOptions.ADDRESS.key())
+			.withDeprecatedKeys(JobManagerOptions.ADDRESS.key())
 			.withDescription("The address that should be used by clients to connect to the server.");
 
 	/**
@@ -94,14 +93,6 @@ public class RestOptions {
 			.withDescription("The maximum time in ms for the client to establish a TCP connection.");
 
 	/**
-	 * The maximum time in ms for a connection to stay idle before failing.
-	 */
-	public static final ConfigOption<Long> IDLENESS_TIMEOUT =
-		key("rest.idleness-timeout")
-			.defaultValue(5L * 60L * 1_000L) // 5 minutes
-			.withDescription("The maximum time in ms for a connection to stay idle before failing.");
-
-	/**
 	 * The maximum content length that the server will handle.
 	 */
 	public static final ConfigOption<Integer> SERVER_MAX_CONTENT_LENGTH =
@@ -117,14 +108,15 @@ public class RestOptions {
 			.defaultValue(104_857_600)
 			.withDescription("The maximum content length in bytes that the client will handle.");
 
-	public static final ConfigOption<Integer> SERVER_NUM_THREADS =
-		key("rest.server.numThreads")
-			.defaultValue(4)
-			.withDescription("The number of threads for the asynchronous processing of requests.");
+	/**
+	 * The max waited milliseconds of retries to poll the asynchronously created resource for the client
+	 * after a successful poll where the asynchronously resource is not completed.
+	 * @see org.apache.flink.client.program.rest.retry.WaitStrategy
+	 */
+	public static final ConfigOption<Long> POLL_MAX_INTERVAL = ConfigOptions
+		.key("rest.poll.wait-strategy.max-interval")
+		.defaultValue(2_000L)
+		.withDescription("The max waited milliseconds of retries to poll the asynchronously created resource " +
+			"if the resource is not completed.");
 
-	public static final ConfigOption<Integer> SERVER_THREAD_PRIORITY = key("rest.server.thread-priority")
-		.defaultValue(Thread.NORM_PRIORITY)
-		.withDescription("Thread priority of the REST server's executor for processing asynchronous requests. " +
-				"Lowering the thread priority will give Flink's main components more CPU time whereas " +
-				"increasing will allocate more time for the REST server's processing.");
 }

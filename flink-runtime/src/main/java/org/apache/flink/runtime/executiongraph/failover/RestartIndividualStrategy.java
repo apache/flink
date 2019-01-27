@@ -33,6 +33,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -114,9 +115,7 @@ public class RestartIndividualStrategy extends FailoverStrategy {
 		terminationFuture.thenAcceptAsync(
 			(ExecutionState value) -> {
 				try {
-					long createTimestamp = System.currentTimeMillis();
-					Execution newExecution = vertexToRecover.resetForNewExecution(createTimestamp, globalModVersion);
-					newExecution.scheduleForExecution();
+					executionGraph.resetExecutionVerticesAndNotify(globalModVersion, Collections.singletonList(vertexToRecover));
 				}
 				catch (GlobalModVersionMismatch e) {
 					// this happens if a concurrent global recovery happens. simply do nothing.

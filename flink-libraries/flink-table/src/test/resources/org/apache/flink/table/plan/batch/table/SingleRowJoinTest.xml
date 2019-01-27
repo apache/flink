@@ -1,0 +1,46 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testSingleRowCrossJoin">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], asum=[$2])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+   +- LogicalProject(asum=[AS(+($0, $1), 'asum')])
+      +- LogicalAggregate(group=[{}], TMP_0=[SUM($0)], TMP_1=[SUM($1)])
+         +- LogicalProject(a1=[$0], a2=[$1])
+            +- LogicalTableScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(where=[true], join=[a1, asum], joinType=[InnerJoin], build=[right], singleRowJoin=[true])
+:- Exchange(distribution=[any], exchange_mode=[BATCH])
+:  +- Calc(select=[a1])
+:     +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a1, a2])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[+(TMP_0, TMP_1) AS asum])
+      +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS TMP_0, Final_SUM(sum$1) AS TMP_1])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_SUM(a1) AS sum$0, Partial_SUM(a2) AS sum$1])
+               +- BoundedStreamScan(table=[[builtin, default, _DataStreamTable_0]], fields=[a1, a2])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -18,13 +18,17 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.resourcemanager.slotmanager.DynamicAssigningSlotManager;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -57,8 +61,7 @@ public class ResourceManagerRunner implements FatalErrorHandler, AutoCloseableAs
 			final HighAvailabilityServices highAvailabilityServices,
 			final HeartbeatServices heartbeatServices,
 			final MetricRegistry metricRegistry,
-			final ClusterInformation clusterInformation,
-			final JobManagerMetricGroup jobManagerMetricGroup) throws Exception {
+			final ClusterInformation clusterInformation) throws Exception {
 
 		Preconditions.checkNotNull(resourceId);
 		Preconditions.checkNotNull(configuration);
@@ -67,6 +70,8 @@ public class ResourceManagerRunner implements FatalErrorHandler, AutoCloseableAs
 		Preconditions.checkNotNull(heartbeatServices);
 		Preconditions.checkNotNull(metricRegistry);
 
+		final ResourceManagerConfiguration resourceManagerConfiguration = ResourceManagerConfiguration.fromConfiguration(configuration);
+
 		final ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
 
 		resourceManagerRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
@@ -74,18 +79,29 @@ public class ResourceManagerRunner implements FatalErrorHandler, AutoCloseableAs
 			highAvailabilityServices,
 			rpcService.getScheduledExecutor());
 
+		// Use DynamicAssigningSlotManager as default for StandaloneResourceManager.
+		SlotManager slotManager = new DynamicAssigningSlotManager(
+				rpcService.getScheduledExecutor(),
+				resourceManagerRuntimeServicesConfiguration.getSlotManagerConfiguration().getTaskManagerRequestTimeout(),
+				resourceManagerRuntimeServicesConfiguration.getSlotManagerConfiguration().getSlotRequestTimeout(),
+				configuration.contains(ResourceManagerOptions.TASK_MANAGER_TIMEOUT) ?
+						resourceManagerRuntimeServicesConfiguration.getSlotManagerConfiguration().getTaskManagerTimeout() :
+						Time.seconds(AkkaUtils.INF_TIMEOUT().toSeconds()),
+				resourceManagerRuntimeServicesConfiguration.getSlotManagerConfiguration().getTaskManagerCheckerInitialDelay());
+
 		this.resourceManager = new StandaloneResourceManager(
 			rpcService,
 			resourceManagerEndpointId,
 			resourceId,
+			configuration,
+			resourceManagerConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,
-			resourceManagerRuntimeServices.getSlotManager(),
+			slotManager,
 			metricRegistry,
 			resourceManagerRuntimeServices.getJobLeaderIdService(),
 			clusterInformation,
-			this,
-			jobManagerMetricGroup);
+			this);
 	}
 
 	public ResourceManagerGateway getResourceManageGateway() {

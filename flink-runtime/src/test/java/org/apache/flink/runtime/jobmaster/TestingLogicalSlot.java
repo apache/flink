@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -151,4 +152,11 @@ public class TestingLogicalSlot implements LogicalSlot {
 	public SlotSharingGroupId getSlotSharingGroupId() {
 		return slotSharingGroupId;
 	}
+
+	@Nullable
+	@Override
+	public CoLocationConstraint getCoLocationConstraint() {
+		return null;
+	}
+
 }

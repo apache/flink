@@ -126,9 +126,7 @@ public class PythonPlanStreamer {
 			process.destroy();
 		} finally {
 			try {
-				if (server != null) {
-					server.close();
-				}
+				server.close();
 			} catch (IOException e) {
 				LOG.error("Failed to close socket.", e);
 			}

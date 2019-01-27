@@ -1,0 +1,206 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testProcTimeBoundedNonPartitionedRangeOver">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, w0$o0 AS _c1])
++- StreamExecOverAggregate(orderBy=[proctime ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(c) AS w0$o0])
+   +- StreamExecExchange(distribution=[single])
+      +- StreamExecCalc(select=[a, c, proctime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeBoundedNonPartitionedRowsOver">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[c, w0$o0 AS _c1])
++- StreamExecOverAggregate(orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0])
+   +- StreamExecExchange(distribution=[single])
+      +- StreamExecCalc(select=[a, c, proctime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeBoundedPartitionedRangeOver">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, w0$o0 AS myAvg])
++- StreamExecOverAggregate(partitionBy=[a], orderBy=[proctime ASC], window=[ RANG BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, WeightedAvgWithRetract(c, a) AS w0$o0])
+   +- StreamExecExchange(distribution=[hash[a]])
+      +- StreamExecCalc(select=[a, c, proctime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeBoundedPartitionedRowsOver">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[c, w0$o0 AS _c1])
++- StreamExecOverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, WeightedAvgWithRetract(c, a) AS w0$o0])
+   +- StreamExecExchange(distribution=[hash[b]])
+      +- StreamExecCalc(select=[a, b, c, proctime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeUnboundedNonPartitionedRangeOver">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, c, w0$o0 AS _c2, w0$o1 AS _c3])
++- StreamExecOverAggregate(orderBy=[proctime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, SUM(a) AS w0$o1])
+   +- StreamExecExchange(distribution=[single])
+      +- StreamExecCalc(select=[a, c, proctime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeUnboundedNonPartitionedRowsOver">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[c, w0$o0 AS _c1])
++- StreamExecOverAggregate(orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0])
+   +- StreamExecExchange(distribution=[single])
+      +- StreamExecCalc(select=[a, c, proctime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeUnboundedPartitionedRangeOver">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, c, w0$o0 AS _c2, w0$o1 AS _c3])
++- StreamExecOverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, WeightedAvgWithRetract(c, a) AS w0$o1])
+   +- StreamExecExchange(distribution=[hash[c]])
+      +- StreamExecCalc(select=[a, c, proctime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcTimeUnboundedPartitionedRowsOver">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[c, w0$o0 AS _c1, w0$o1 AS _c2])
++- StreamExecOverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, WeightedAvgWithRetract(c, a) AS w0$o1])
+   +- StreamExecExchange(distribution=[hash[c]])
+      +- StreamExecCalc(select=[a, c, proctime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeBoundedNonPartitionedRangeOver">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, w0$o0 AS _c1])
++- StreamExecOverAggregate(orderBy=[rowtime ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(c) AS w0$o0])
+   +- StreamExecExchange(distribution=[single])
+      +- StreamExecCalc(select=[a, c, rowtime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeBoundedPartitionedRangeOver">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, w0$o0 AS _c1, w0$o1 AS wAvg])
++- StreamExecOverAggregate(partitionBy=[a], orderBy=[rowtime ASC], window=[ RANG BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, AVG(c) AS w0$o0, WeightedAvgWithRetract(c, a) AS w0$o1])
+   +- StreamExecExchange(distribution=[hash[a]])
+      +- StreamExecCalc(select=[a, c, rowtime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeBoundedNonPartitionedRowsOver">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[c, w0$o0 AS _c1])
++- StreamExecOverAggregate(orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
+   +- StreamExecExchange(distribution=[single])
+      +- StreamExecCalc(select=[a, c, rowtime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeBoundedPartitionedRowsOver">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[c, w0$o0 AS _c1, w0$o1 AS wAvg])
++- StreamExecOverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, c, rowtime, COUNT(b) AS w0$o0, WeightedAvgWithRetract(c, a) AS w0$o1])
+   +- StreamExecExchange(distribution=[hash[b]])
+      +- StreamExecCalc(select=[a, b, c, rowtime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeUnboundedNonPartitionedRangeOver">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, c, w0$o0 AS _c2, w0$o1 AS _c3])
++- StreamExecOverAggregate(orderBy=[rowtime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, SUM(a) AS w0$o1])
+   +- StreamExecExchange(distribution=[single])
+      +- StreamExecCalc(select=[a, c, rowtime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeUnboundedNonPartitionedRowsOver">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[c, w0$o0 AS _c1])
++- StreamExecOverAggregate(orderBy=[rowtime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
+   +- StreamExecExchange(distribution=[single])
+      +- StreamExecCalc(select=[a, c, rowtime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeUnboundedPartitionedRowsOver">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[c, w0$o0 AS _c1, w0$o1 AS wAvg])
++- StreamExecOverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, WeightedAvgWithRetract(c, a) AS w0$o1])
+   +- StreamExecExchange(distribution=[hash[c]])
+      +- StreamExecCalc(select=[a, c, rowtime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeUnboundedPartitionedRangeOver">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[a, c, w0$o0 AS _c2, w0$o1 AS wAvg])
++- StreamExecOverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, WeightedAvgWithRetract(c, a) AS w0$o1])
+   +- StreamExecExchange(distribution=[hash[c]])
+      +- StreamExecCalc(select=[a, c, rowtime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testScalarFunctionsOnOverWindow">
+    <Resource name="plan">
+      <![CDATA[
+StreamExecCalc(select=[Func1$(w0$o0) AS d, EXP(CAST(w0$o1)) AS _c1, +(w0$o2, 1) AS _c2, ||('AVG:', CAST(w0$o2)) AS _c3, ARRAY(w0$o2, w0$o1) AS _c4])
++- StreamExecOverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, SUM(a) AS w0$o0, COUNT(a) AS w0$o1, WeightedAvgWithRetract(c, a) AS w0$o2])
+   +- StreamExecExchange(distribution=[hash[b]])
+      +- StreamExecCalc(select=[a, b, c, proctime])
+         +- StreamExecDataStreamScan(table=[[builtin, default, _DataStreamTable_0]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

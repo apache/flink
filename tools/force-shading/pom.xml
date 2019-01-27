@@ -36,20 +36,15 @@ under the License.
 	and thus be suffixed along with all other modules.
 	-->
 
-	<groupId>org.apache.flink</groupId>
+	<groupId>com.alibaba.blink</groupId>
 	<artifactId>force-shading</artifactId>
-	<version>1.8-SNAPSHOT</version>
+	<version>1.5.1</version>
 
 	<packaging>jar</packaging>
 
 	<profiles>
 		<profile>
 			<id>release</id>
-			<activation>
-				<property>
-					<name>release</name>
-				</property>
-			</activation>
 			<build>
 				<plugins>
 					<plugin>

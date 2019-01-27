@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -151,6 +154,143 @@ public class TaskManagerMetricsInfo {
 		this.memorySegmentsAvailable = memorySegmentsAvailable;
 		this.memorySegmentsTotal = memorySegmentsTotal;
 		this.garbageCollectorsInfo = Preconditions.checkNotNull(garbageCollectorsInfo);
+	}
+
+	public TaskManagerMetricsInfo (MetricStore.TaskManagerMetricStore tmMetrics) {
+
+		Preconditions.checkNotNull(tmMetrics);
+
+		long heapUsed = Long.valueOf(tmMetrics.getMetric("Status.JVM.Memory.Heap.Used", "0"));
+		long heapCommitted = Long.valueOf(tmMetrics.getMetric("Status.JVM.Memory.Heap.Committed", "0"));
+		long heapTotal = Long.valueOf(tmMetrics.getMetric("Status.JVM.Memory.Heap.Max", "0"));
+
+		long nonHeapUsed = Long.valueOf(tmMetrics.getMetric("Status.JVM.Memory.NonHeap.Used", "0"));
+		long nonHeapCommitted = Long.valueOf(tmMetrics.getMetric("Status.JVM.Memory.NonHeap.Committed", "0"));
+		long nonHeapTotal = Long.valueOf(tmMetrics.getMetric("Status.JVM.Memory.NonHeap.Max", "0"));
+
+		long directCount = Long.valueOf(tmMetrics.getMetric("Status.JVM.Memory.Direct.Count", "0"));
+		long directUsed = Long.valueOf(tmMetrics.getMetric("Status.JVM.Memory.Direct.MemoryUsed", "0"));
+		long directMax = Long.valueOf(tmMetrics.getMetric("Status.JVM.Memory.Direct.TotalCapacity", "0"));
+
+		long mappedCount = Long.valueOf(tmMetrics.getMetric("Status.JVM.Memory.Mapped.Count", "0"));
+		long mappedUsed = Long.valueOf(tmMetrics.getMetric("Status.JVM.Memory.Mapped.MemoryUsed", "0"));
+		long mappedMax = Long.valueOf(tmMetrics.getMetric("Status.JVM.Memory.Mapped.TotalCapacity", "0"));
+
+		long memorySegmentsAvailable = Long.valueOf(tmMetrics.getMetric("Status.Network.AvailableMemorySegments", "0"));
+		long memorySegmentsTotal = Long.valueOf(tmMetrics.getMetric("Status.Network.TotalMemorySegments", "0"));
+
+		final List<TaskManagerMetricsInfo.GarbageCollectorInfo> garbageCollectorInfo = createGarbageCollectorInfo(tmMetrics);
+
+		this.heapUsed = heapUsed;
+		this.heapCommitted = heapCommitted;
+		this.heapMax = heapTotal;
+		this.nonHeapUsed = nonHeapUsed;
+		this.nonHeapCommitted = nonHeapCommitted;
+		this.nonHeapMax = nonHeapTotal;
+		this.directCount = directCount;
+		this.directUsed = directUsed;
+		this.directMax = directMax;
+		this.mappedCount = mappedCount;
+		this.mappedUsed = mappedUsed;
+		this.mappedMax = mappedMax;
+		this.memorySegmentsAvailable = memorySegmentsAvailable;
+		this.memorySegmentsTotal = memorySegmentsTotal;
+		this.garbageCollectorsInfo = Preconditions.checkNotNull(garbageCollectorInfo);
+	}
+
+	private static List<TaskManagerMetricsInfo.GarbageCollectorInfo> createGarbageCollectorInfo(MetricStore.TaskManagerMetricStore taskManagerMetricStore) {
+		Preconditions.checkNotNull(taskManagerMetricStore);
+
+		ArrayList<GarbageCollectorInfo> garbageCollectorInfos = new ArrayList<>(taskManagerMetricStore.garbageCollectorNames.size());
+
+		for (String garbageCollectorName: taskManagerMetricStore.garbageCollectorNames) {
+			final String count = taskManagerMetricStore.getMetric("Status.JVM.GarbageCollector." + garbageCollectorName + ".Count", null);
+			final String time = taskManagerMetricStore.getMetric("Status.JVM.GarbageCollector." + garbageCollectorName + ".Time", null);
+
+			if (count != null && time != null) {
+				garbageCollectorInfos.add(
+					new TaskManagerMetricsInfo.GarbageCollectorInfo(
+						garbageCollectorName,
+						Long.valueOf(count),
+						Long.valueOf(time)));
+			}
+		}
+
+		return garbageCollectorInfos;
+	}
+
+	@JsonIgnore
+	public long getHeapUsed() {
+		return heapUsed;
+	}
+
+	@JsonIgnore
+	public long getHeapCommitted() {
+		return heapCommitted;
+	}
+
+	public long getHeapMax() {
+		return heapMax;
+	}
+
+	@JsonIgnore
+	public long getNonHeapUsed() {
+		return nonHeapUsed;
+	}
+
+	@JsonIgnore
+	public long getNonHeapCommitted() {
+		return nonHeapCommitted;
+	}
+
+	@JsonIgnore
+	public long getNonHeapMax() {
+		return nonHeapMax;
+	}
+
+	@JsonIgnore
+	public long getDirectCount() {
+		return directCount;
+	}
+
+	@JsonIgnore
+	public long getDirectUsed() {
+		return directUsed;
+	}
+
+	@JsonIgnore
+	public long getDirectMax() {
+		return directMax;
+	}
+
+	@JsonIgnore
+	public long getMappedCount() {
+		return mappedCount;
+	}
+
+	@JsonIgnore
+	public long getMappedUsed() {
+		return mappedUsed;
+	}
+
+	@JsonIgnore
+	public long getMappedMax() {
+		return mappedMax;
+	}
+
+	@JsonIgnore
+	public long getMemorySegmentsAvailable() {
+		return memorySegmentsAvailable;
+	}
+
+	@JsonIgnore
+	public long getMemorySegmentsTotal() {
+		return memorySegmentsTotal;
+	}
+
+	@JsonIgnore
+	public List<GarbageCollectorInfo> getGarbageCollectorsInfo() {
+		return garbageCollectorsInfo;
 	}
 
 	@Override

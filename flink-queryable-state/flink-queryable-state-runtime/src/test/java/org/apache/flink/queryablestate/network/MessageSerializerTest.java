@@ -63,9 +63,9 @@ public class MessageSerializerTest {
 	public void testRequestSerialization() throws Exception {
 		long requestId = Integer.MAX_VALUE + 1337L;
 		KvStateID kvStateId = new KvStateID();
-		byte[] serializedKeyAndNamespace = randomByteArray(1024);
+		byte[] serializedKey = randomByteArray(1024);
 
-		final KvStateInternalRequest request = new KvStateInternalRequest(kvStateId, serializedKeyAndNamespace);
+		final KvStateInternalRequest request = new KvStateInternalRequest(kvStateId, serializedKey);
 		final MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
 				new MessageSerializer<>(new KvStateInternalRequest.KvStateInternalRequestDeserializer(), new KvStateResponse.KvStateResponseDeserializer());
 
@@ -79,7 +79,7 @@ public class MessageSerializerTest {
 		assertEquals(buf.readerIndex(), frameLength + 4);
 
 		assertEquals(kvStateId, requestDeser.getKvStateId());
-		assertArrayEquals(serializedKeyAndNamespace, requestDeser.getSerializedKeyAndNamespace());
+		assertArrayEquals(serializedKey, requestDeser.getSerializedKey());
 	}
 
 	/**
@@ -90,9 +90,9 @@ public class MessageSerializerTest {
 
 		long requestId = Integer.MAX_VALUE + 1337L;
 		KvStateID kvStateId = new KvStateID();
-		byte[] serializedKeyAndNamespace = new byte[0];
+		byte[] serializedKey = new byte[0];
 
-		final KvStateInternalRequest request = new KvStateInternalRequest(kvStateId, serializedKeyAndNamespace);
+		final KvStateInternalRequest request = new KvStateInternalRequest(kvStateId, serializedKey);
 		final MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
 				new MessageSerializer<>(new KvStateInternalRequest.KvStateInternalRequestDeserializer(), new KvStateResponse.KvStateResponseDeserializer());
 
@@ -106,7 +106,7 @@ public class MessageSerializerTest {
 		assertEquals(buf.readerIndex(), frameLength + 4);
 
 		assertEquals(kvStateId, requestDeser.getKvStateId());
-		assertArrayEquals(serializedKeyAndNamespace, requestDeser.getSerializedKeyAndNamespace());
+		assertArrayEquals(serializedKey, requestDeser.getSerializedKey());
 	}
 
 	/**

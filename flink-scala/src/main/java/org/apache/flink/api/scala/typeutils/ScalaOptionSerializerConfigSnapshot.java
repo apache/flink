@@ -22,8 +22,6 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapsh
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 
-import scala.Option;
-
 /**
  * A {@link TypeSerializerConfigSnapshot} for the Scala {@link OptionSerializer}.
  *
@@ -31,7 +29,7 @@ import scala.Option;
  * allow calling different base class constructors from subclasses, while we need that
  * for the default empty constructor.
  */
-public final class ScalaOptionSerializerConfigSnapshot<E> extends CompositeTypeSerializerConfigSnapshot<Option<E>> {
+public final class ScalaOptionSerializerConfigSnapshot<E> extends CompositeTypeSerializerConfigSnapshot {
 
 	private static final int VERSION = 1;
 

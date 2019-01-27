@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentWritable;
 
 import javax.annotation.Nullable;
 
@@ -37,12 +40,13 @@ public interface CheckpointStreamFactory {
 	 * Creates an new {@link CheckpointStateOutputStream}. When the stream
 	 * is closed, it returns a state handle that can retrieve the state back.
 	 *
+	 * @param checkpointId The checkpoint id for this output stream.
 	 * @param scope The state's scope, whether it is exclusive or shared.
 	 * @return An output stream that writes state for the given checkpoint.
 	 *
 	 * @throws IOException Exceptions may occur while creating the stream and should be forwarded.
 	 */
-	CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException;
+	CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointId, CheckpointedStateScope scope) throws IOException;
 
 	/**
 	 * A dedicated output stream that produces a {@link StreamStateHandle} when closed.
@@ -58,7 +62,7 @@ public interface CheckpointStreamFactory {
 	 * <p>Note: This is an abstract class and not an interface because {@link OutputStream}
 	 * is an abstract class.
 	 */
-	abstract class CheckpointStateOutputStream extends FSDataOutputStream {
+	abstract class CheckpointStateOutputStream extends FSDataOutputStream implements MemorySegmentWritable {
 
 		/**
 		 * Closes the stream and gets a state handle that can create an input stream
@@ -87,5 +91,13 @@ public interface CheckpointStreamFactory {
 		 */
 		@Override
 		public abstract void close() throws IOException;
+
+		@PublicEvolving
+		@Override
+		public void write(MemorySegment segment, int off, int len) throws IOException {
+			for (int i = off; i < off + len; i++) {
+				write(segment.get(i));
+			}
+		}
 	}
 }

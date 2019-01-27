@@ -33,6 +33,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -51,16 +52,17 @@ public class LegacyJobVertexIdTest {
 		JobVertex jobVertex = new JobVertex("test", defaultId, Arrays.asList(legacyId1, legacyId2), new ArrayList<OperatorID>(), new ArrayList<OperatorID>());
 		jobVertex.setInvokableClass(AbstractInvokable.class);
 
-		ExecutionGraph executionGraph = new ExecutionGraph(
+		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createExecutionGraphDirectly(
 			mock(ScheduledExecutorService.class),
 			mock(Executor.class),
 			new JobID(),
 			"test",
-			mock(Configuration.class),
+			new Configuration(),
 			mock(SerializedValue.class),
 			Time.seconds(1),
 			mock(RestartStrategy.class),
-			mock(SlotProvider.class));
+			mock(SlotProvider.class),
+			Collections.emptyList());
 
 		ExecutionJobVertex executionJobVertex =
 				new ExecutionJobVertex(executionGraph, jobVertex, 1, Time.seconds(1));

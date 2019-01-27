@@ -193,7 +193,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 
 	// ---------------------------------------------------------------------------------------------
 
-	public static TestCompletedCheckpoint createCheckpoint(
+	protected TestCompletedCheckpoint createCheckpoint(
 		int id,
 		SharedStateRegistry sharedStateRegistry) throws IOException {
 
@@ -226,12 +226,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		}
 	}
 
-	public static void verifyCheckpointDiscarded(TestCompletedCheckpoint completedCheckpoint) {
-		assertTrue(completedCheckpoint.isDiscarded());
-		verifyCheckpointDiscarded(completedCheckpoint.getOperatorStates().values());
-	}
-
-	protected static void verifyCheckpointDiscarded(Collection<OperatorState> operatorStates) {
+	protected void verifyCheckpointDiscarded(Collection<OperatorState> operatorStates) {
 		for (OperatorState operatorState : operatorStates) {
 			for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
 				Assert.assertTrue(((TestOperatorSubtaskState)subtaskState).discarded);

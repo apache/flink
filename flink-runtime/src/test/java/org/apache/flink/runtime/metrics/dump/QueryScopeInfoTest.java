@@ -124,12 +124,13 @@ public class QueryScopeInfoTest {
 
 	@Test
 	public void testOperatorQueryScopeInfo() {
-		QueryScopeInfo.OperatorQueryScopeInfo info = new QueryScopeInfo.OperatorQueryScopeInfo("jobid", "taskid", 2, "opname");
+		QueryScopeInfo.OperatorQueryScopeInfo info = new QueryScopeInfo.OperatorQueryScopeInfo("jobid", "taskid", 2, "opname", "opid");
 		assertEquals(QueryScopeInfo.INFO_CATEGORY_OPERATOR, info.getCategory());
 		assertEquals("", info.scope);
 		assertEquals("jobid", info.jobID);
 		assertEquals("taskid", info.vertexID);
 		assertEquals("opname", info.operatorName);
+		assertEquals("opid", info.operatorId);
 		assertEquals(2, info.subtaskIndex);
 
 		info = info.copy("world");
@@ -138,14 +139,16 @@ public class QueryScopeInfoTest {
 		assertEquals("jobid", info.jobID);
 		assertEquals("taskid", info.vertexID);
 		assertEquals("opname", info.operatorName);
+		assertEquals("opid", info.operatorId);
 		assertEquals(2, info.subtaskIndex);
 
-		info = new QueryScopeInfo.OperatorQueryScopeInfo("jobid", "taskid", 2, "opname", "hello");
+		info = new QueryScopeInfo.OperatorQueryScopeInfo("jobid", "taskid", 2, "opname", "hello", "opid");
 		assertEquals(QueryScopeInfo.INFO_CATEGORY_OPERATOR, info.getCategory());
 		assertEquals("hello", info.scope);
 		assertEquals("jobid", info.jobID);
 		assertEquals("taskid", info.vertexID);
 		assertEquals("opname", info.operatorName);
+		assertEquals("opid", info.operatorId);
 		assertEquals(2, info.subtaskIndex);
 
 		info = info.copy("world");
@@ -154,6 +157,7 @@ public class QueryScopeInfoTest {
 		assertEquals("jobid", info.jobID);
 		assertEquals("taskid", info.vertexID);
 		assertEquals("opname", info.operatorName);
+		assertEquals("opid", info.operatorId);
 		assertEquals(2, info.subtaskIndex);
 	}
 }

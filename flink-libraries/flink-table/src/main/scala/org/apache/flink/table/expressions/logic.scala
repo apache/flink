@@ -20,16 +20,16 @@ package org.apache.flink.table.expressions
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
-
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.table.api.types.DataTypes
+import org.apache.flink.table.plan.logical.LogicalExprVisitor
 import org.apache.flink.table.validate._
 
 abstract class BinaryPredicate extends BinaryExpression {
-  override private[flink] def resultType = BasicTypeInfo.BOOLEAN_TYPE_INFO
+  override private[flink] def resultType = DataTypes.BOOLEAN
 
   override private[flink] def validateInput(): ValidationResult = {
-    if (left.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&
-        right.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
+    if (left.resultType == DataTypes.BOOLEAN &&
+        right.resultType == DataTypes.BOOLEAN) {
       ValidationSuccess
     } else {
       ValidationFailure(s"$this only accepts children of Boolean type, " +
@@ -46,16 +46,19 @@ case class Not(child: Expression) extends UnaryExpression {
     relBuilder.not(child.toRexNode)
   }
 
-  override private[flink] def resultType = BasicTypeInfo.BOOLEAN_TYPE_INFO
+  override private[flink] def resultType = DataTypes.BOOLEAN
 
   override private[flink] def validateInput(): ValidationResult = {
-    if (child.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
+    if (child.resultType == DataTypes.BOOLEAN) {
       ValidationSuccess
     } else {
       ValidationFailure(s"Not operator requires a boolean expression as input, " +
         s"but $child is of type ${child.resultType}")
     }
   }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 case class And(left: Expression, right: Expression) extends BinaryPredicate {
@@ -65,6 +68,9 @@ case class And(left: Expression, right: Expression) extends BinaryPredicate {
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.and(left.toRexNode, right.toRexNode)
   }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 case class Or(left: Expression, right: Expression) extends BinaryPredicate {
@@ -74,6 +80,9 @@ case class Or(left: Expression, right: Expression) extends BinaryPredicate {
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.or(left.toRexNode, right.toRexNode)
   }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }
 
 case class If(
@@ -95,7 +104,7 @@ case class If(
   }
 
   override private[flink] def validateInput(): ValidationResult = {
-    if (condition.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&
+    if (condition.resultType == DataTypes.BOOLEAN &&
         ifTrue.resultType == ifFalse.resultType) {
       ValidationSuccess
     } else {
@@ -104,4 +113,7 @@ case class If(
           s"(${condition.resultType}, ${ifTrue.resultType}, ${ifFalse.resultType})")
     }
   }
+
+  override def accept[T](logicalExprVisitor: LogicalExprVisitor[T]): T =
+    logicalExprVisitor.visit(this)
 }

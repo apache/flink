@@ -21,7 +21,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchApiCallBridge;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.util.ElasticsearchUtils;
-import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.elasticsearch.action.bulk.BackoffPolicy;
@@ -73,10 +72,6 @@ public class Elasticsearch2ApiCallBridge implements ElasticsearchApiCallBridge<T
 
 		// verify that we actually are connected to a cluster
 		if (transportClient.connectedNodes().isEmpty()) {
-
-			// close the transportClient here
-			IOUtils.closeQuietly(transportClient);
-
 			throw new RuntimeException("Elasticsearch client is not connected to any Elasticsearch nodes!");
 		}
 

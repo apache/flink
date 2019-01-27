@@ -1,13 +1,12 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -41,12 +40,19 @@ public class ValidatingExactlyOnceSink extends RichSinkFunction<Integer> impleme
 
 	private final int numElementsTotal;
 
+	private final boolean exitOnFinish;
+
 	private BitSet duplicateChecker = new BitSet();  // this is checkpointed
 
 	private int numElements; // this is checkpointed
 
 	public ValidatingExactlyOnceSink(int numElementsTotal) {
+		this(numElementsTotal, true);
+	}
+
+	public ValidatingExactlyOnceSink(int numElementsTotal, boolean exitOnFinish) {
 		this.numElementsTotal = numElementsTotal;
+		this.exitOnFinish = exitOnFinish;
 	}
 
 	@Override
@@ -64,10 +70,18 @@ public class ValidatingExactlyOnceSink extends RichSinkFunction<Integer> impleme
 			}
 			else if (duplicateChecker.nextClearBit(0) != numElementsTotal) {
 				throw new Exception("Received sparse sequence");
-			}
-			else {
+			} else if (exitOnFinish) {
 				throw new SuccessException();
 			}
+		} else if (numElements > numElementsTotal) {
+			throw new Exception("Receive too many records");
+		}
+	}
+
+	@Override
+	public void close() {
+		if (numElements != numElementsTotal) {
+			throw new RuntimeException("Receive too many records");
 		}
 	}
 

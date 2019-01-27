@@ -55,13 +55,13 @@ under the License.
 		<!-- Apache Flink dependencies -->
 		<!-- These dependencies are provided, because they should not be packaged into the JAR file. -->
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-java</artifactId>
 			<version>${flink.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
 			<scope>provided</scope>
@@ -72,7 +72,7 @@ under the License.
 		<!-- Example:
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>com.alibaba.blink</groupId>
 			<artifactId>flink-connector-kafka-0.10_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
@@ -124,7 +124,7 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<excludes>
-									<exclude>org.apache.flink:force-shading</exclude>
+									<exclude>com.alibaba.blink:force-shading</exclude>
 									<exclude>com.google.code.findbugs:jsr305</exclude>
 									<exclude>org.slf4j:*</exclude>
 									<exclude>log4j:*</exclude>
@@ -155,6 +155,25 @@ under the License.
 
 		<pluginManagement>
 			<plugins>
+
+				<!-- If you want to use Java 8 Lambda Expressions uncomment the following lines -->
+				<!--
+				<plugin>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<configuration>
+						<source>${java.version}</source>
+						<target>${java.version}</target>
+						<compilerId>jdt</compilerId>
+					</configuration>
+					<dependencies>
+						<dependency>
+							<groupId>org.eclipse.tycho</groupId>
+							<artifactId>tycho-compiler-jdt</artifactId>
+							<version>0.21.0</version>
+						</dependency>
+					</dependencies>
+				</plugin>
+				-->
 
 				<!-- This improves the out-of-the-box experience in Eclipse by resolving some warnings. -->
 				<plugin>
@@ -214,13 +233,13 @@ under the License.
 
 			<dependencies>
 				<dependency>
-					<groupId>org.apache.flink</groupId>
+					<groupId>com.alibaba.blink</groupId>
 					<artifactId>flink-java</artifactId>
 					<version>${flink.version}</version>
 					<scope>compile</scope>
 				</dependency>
 				<dependency>
-					<groupId>org.apache.flink</groupId>
+					<groupId>com.alibaba.blink</groupId>
 					<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 					<version>${flink.version}</version>
 					<scope>compile</scope>

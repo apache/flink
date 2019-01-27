@@ -55,9 +55,9 @@ In order to not overload the task managers with stack trace samples, the web int
 
 You can configure the number of samples for the job manager with the following configuration keys:
 
-- `web.backpressure.refresh-interval`: Time after which available stats are deprecated and need to be refreshed (DEFAULT: 60000, 1 min).
-- `web.backpressure.num-samples`: Number of stack trace samples to take to determine back pressure (DEFAULT: 100).
-- `web.backpressure.delay-between-samples`: Delay between stack trace samples to determine back pressure (DEFAULT: 50, 50 ms).
+- `jobmanager.web.backpressure.refresh-interval`: Time after which available stats are deprecated and need to be refreshed (DEFAULT: 60000, 1 min).
+- `jobmanager.web.backpressure.num-samples`: Number of stack trace samples to take to determine back pressure (DEFAULT: 100).
+- `jobmanager.web.backpressure.delay-between-samples`: Delay between stack trace samples to determine back pressure (DEFAULT: 50, 50 ms).
 
 
 ## Example
@@ -79,5 +79,13 @@ If you see status **OK** for the tasks, there is no indication of back pressure.
 <img src="{{ site.baseurl }}/fig/back_pressure_sampling_ok.png" class="img-responsive">
 
 <img src="{{ site.baseurl }}/fig/back_pressure_sampling_high.png" class="img-responsive">
+
+## Other Metrics Related to Back Pressure
+
+Stack trace samples provide relatively accurate measure of the back pressure, However, it requires users to view the back pressure status of tasks belonging to different job vertices separately. For large jobs with many tasks, it may not be easy to identify who may cause the back pressure at the first glance. 
+
+To help identify the tasks causing back pressure more easily, we also shown the `inPoolUsage` and `outPoolUsage` in the web UI. The `inPoolUsage` and `outPoolUsage` reflect the estimated usage of the input/output buffers ([Metrics]({{ site.baseurl }}/monitoring/metrics.html#network)). If a task is back pressured, the buffers will be accumulated in its output queue and the downstream tasks' input queue, thus it is very likely that its `outPoolUsage` and the downstream tasks' `inPoolUsage` become 100%. Generalized to a chain of tasks, the first task whose `inPoolUsage` is 100% and `outPoolUsage` is not 100% usually causes the back pressure.
+
+However, sometimes there may not be back pressure when `inPoolUsage` and `outPoolUsage` reach 100%, because buffers may be still written by the serializer or they are cached in the input channels. Therefore, `inPoolUsage` and `outPoolUsage` are more suitable to help identify the suspicious tasks causing back pressure first, then you could further determine the specific tasks causing back pressure finally with the stack trace sampling. 
 
 {% top %}

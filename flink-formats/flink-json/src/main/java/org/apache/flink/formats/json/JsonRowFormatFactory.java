@@ -22,11 +22,13 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.api.types.TypeConverters;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.JsonValidator;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
 import org.apache.flink.table.factories.SerializationSchemaFactory;
 import org.apache.flink.table.factories.TableFormatFactoryBase;
+import org.apache.flink.table.util.TableSchemaUtil;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
@@ -45,7 +47,7 @@ public class JsonRowFormatFactory extends TableFormatFactoryBase<Row>
 	}
 
 	@Override
-	protected List<String> supportedFormatProperties() {
+	public List<String> supportedFormatProperties() {
 		final List<String> properties = new ArrayList<>();
 		properties.add(JsonValidator.FORMAT_JSON_SCHEMA);
 		properties.add(JsonValidator.FORMAT_SCHEMA);
@@ -80,7 +82,8 @@ public class JsonRowFormatFactory extends TableFormatFactoryBase<Row>
 		} else if (descriptorProperties.containsKey(JsonValidator.FORMAT_JSON_SCHEMA)) {
 			return JsonRowSchemaConverter.convert(descriptorProperties.getString(JsonValidator.FORMAT_JSON_SCHEMA));
 		} else {
-			return deriveSchema(descriptorProperties.asMap()).toRowType();
+			return (TypeInformation<Row>) TypeConverters.createExternalTypeInfoFromDataType(
+					TableSchemaUtil.toRowType(deriveSchema(descriptorProperties.asMap())));
 		}
 	}
 

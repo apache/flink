@@ -20,29 +20,35 @@ package org.apache.flink.table.factories.utils
 
 import java.util
 
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api.types.DataType
+import org.apache.flink.table.api.RichTableSchema
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
-import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
-import org.apache.flink.table.factories.utils.TestTableSinkFactory.{CONNECTOR_TYPE_VALUE_TEST, FORMAT_TYPE_VALUE_TEST}
+import org.apache.flink.table.factories.utils.TestTableSinkFactory.CONNECTOR_TYPE_VALUE_TEST
 import org.apache.flink.table.factories.{StreamTableSourceFactory, TableFactory}
 import org.apache.flink.table.sources.StreamTableSource
+import org.apache.flink.table.util.{TableProperties, TableSchemaUtil}
 import org.apache.flink.types.Row
+import java.lang.{Integer => JInt, Long => JLong}
 
 /**
   * Table source factory for testing.
   */
-class TestTableSourceFactory extends StreamTableSourceFactory[Row] with TableFactory {
+class TestTableSourceFactory
+  extends StreamTableSourceFactory[Row]
+    with TableFactory {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
     context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_TEST)
-    context.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST)
     context.put(CONNECTOR_PROPERTY_VERSION, "1")
-    context.put(FORMAT_PROPERTY_VERSION, "1")
     context
   }
 
   override def supportedProperties(): util.List[String] = {
     val properties = new util.ArrayList[String]()
+    properties.add("schema")
     // connector
     properties.add("format.path")
     properties.add("schema.#.name")
@@ -53,11 +59,39 @@ class TestTableSourceFactory extends StreamTableSourceFactory[Row] with TableFac
   override def createStreamTableSource(
       properties: util.Map[String, String])
     : StreamTableSource[Row] = {
-    throw new UnsupportedOperationException()
+    val props = new TableProperties
+    props.putProperties(properties)
+    val schema = props.readSchemaFromProperties(Thread.currentThread().getContextClassLoader)
+    val tableName = props.readTableNameFromProperties()
+    TestingTableSource(tableName, schema, props)
   }
 }
 
 object TestTableSourceFactory {
   val CONNECTOR_TYPE_VALUE_TEST = "test"
   val FORMAT_TYPE_VALUE_TEST = "test"
+}
+
+case class TestingTableSource(
+     tableName: String,
+     schema: RichTableSchema,
+     properties: TableProperties) extends StreamTableSource[Row] {
+  override def getReturnType: DataType = {
+    schema.getResultRowType
+  }
+
+  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
+
+    val data = new util.ArrayList[Row]
+    data.add(Row.of(new JInt(1), new JLong(1L), "Hi"))
+    data.add(Row.of(new JInt(2), new JLong(2L), "Hello"))
+    data.add(Row.of(new JInt(3), new JLong(2L), "Hello world"))
+
+    execEnv.fromCollection(data).returns(schema.getResultTypeInfo())
+  }
+
+  /** Returns the table schema of the table source */
+  override def getTableSchema = TableSchemaUtil.fromDataType(getReturnType)
+
+  override def explainSource(): String = ""
 }

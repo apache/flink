@@ -18,17 +18,27 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.mockito.Mockito;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 
 public class ExecutionGraphVariousFailuesTest extends TestLogger {
@@ -40,10 +50,15 @@ public class ExecutionGraphVariousFailuesTest extends TestLogger {
 	 */
 	@Test
 	public void testFailureWhileRestarting() throws Exception {
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(2));
+		final TaskManagerGateway taskManagerGateway = spy(new SimpleAckingTaskManagerGateway());
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(
+				new JobID(), taskManagerGateway, new InfiniteDelayRestartStrategy(2), createNoOpVertex(10));
 		eg.scheduleForExecution();
 
 		assertEquals(JobStatus.RUNNING, eg.getState());
+
+		verify(taskManagerGateway, Mockito.timeout(2000L).times(eg.getTotalNumberOfVertices()))
+				.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
 		eg.failGlobal(new Exception("Test 1"));
@@ -70,10 +85,14 @@ public class ExecutionGraphVariousFailuesTest extends TestLogger {
 	 */
 	@Test
 	public void testSuppressRestartFailureWhileRestarting() throws Exception {
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(10));
+		final TaskManagerGateway taskManagerGateway = spy(new SimpleAckingTaskManagerGateway());
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(
+				new JobID(), taskManagerGateway, new InfiniteDelayRestartStrategy(10), createNoOpVertex(10));
 		eg.scheduleForExecution();
 
 		assertEquals(JobStatus.RUNNING, eg.getState());
+		verify(taskManagerGateway, Mockito.timeout(2000L).times(eg.getTotalNumberOfVertices()))
+				.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
 		eg.failGlobal(new Exception("test"));
@@ -94,10 +113,14 @@ public class ExecutionGraphVariousFailuesTest extends TestLogger {
 	 */
 	@Test
 	public void testFailingScheduleOrUpdateConsumers() throws Exception {
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(10));
+		final TaskManagerGateway taskManagerGateway = spy(new SimpleAckingTaskManagerGateway());
+		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(
+				new JobID(), taskManagerGateway, new InfiniteDelayRestartStrategy(10), createNoOpVertex(10));
 		eg.scheduleForExecution();
 
 		assertEquals(JobStatus.RUNNING, eg.getState());
+		verify(taskManagerGateway, Mockito.timeout(2000L).times(eg.getTotalNumberOfVertices()))
+				.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
 		IntermediateResultPartitionID intermediateResultPartitionId = new IntermediateResultPartitionID();

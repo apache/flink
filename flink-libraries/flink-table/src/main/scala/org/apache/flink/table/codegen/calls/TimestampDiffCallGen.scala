@@ -21,18 +21,19 @@ package org.apache.flink.table.codegen.calls
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.util.BuiltInMethod
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
+import org.apache.flink.table.api.types.{DataTypes, InternalType}
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
-import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
 
 class TimestampDiffCallGen extends CallGenerator {
 
   override def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: InternalType,
+      nullCheck: Boolean)
+  : GeneratedExpression = {
 
     val unit = getEnum(operands.head).asInstanceOf[TimeUnit]
     unit match {
@@ -40,31 +41,31 @@ class TimestampDiffCallGen extends CallGenerator {
            TimeUnit.MONTH |
            TimeUnit.QUARTER =>
         (operands(1).resultType, operands(2).resultType) match {
-          case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.DATE) =>
-            generateCallIfArgsNotNull(codeGenerator.nullCheck, INT_TYPE_INFO, operands) {
+          case (DataTypes.TIMESTAMP, DataTypes.DATE) =>
+            generateCallIfArgsNotNull(ctx, nullCheck, DataTypes.INT, operands) {
               (terms) =>
                 s"""
-                  |${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}(${terms(1)},
-                  |  ${terms(2)} * ${MILLIS_PER_DAY}L) / ${unit.multiplier.intValue()}
-                  |""".stripMargin
+                   |${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}(${terms(1)},
+                   |  ${terms(2)} * ${MILLIS_PER_DAY}L) / ${unit.multiplier.intValue()}
+                   |""".stripMargin
             }
 
-          case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIMESTAMP) =>
-            generateCallIfArgsNotNull(codeGenerator.nullCheck, INT_TYPE_INFO, operands) {
+          case (DataTypes.DATE, DataTypes.TIMESTAMP) =>
+            generateCallIfArgsNotNull(ctx, nullCheck, DataTypes.INT, operands) {
               (terms) =>
                 s"""
-                  |${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}(
-                  |${terms(1)} * ${MILLIS_PER_DAY}L, ${terms(2)}) / ${unit.multiplier.intValue()}
-                  |""".stripMargin
+                   |${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}(
+                   |${terms(1)} * ${MILLIS_PER_DAY}L, ${terms(2)}) / ${unit.multiplier.intValue()}
+                   |""".stripMargin
             }
 
           case _ =>
-            generateCallIfArgsNotNull(codeGenerator.nullCheck, INT_TYPE_INFO, operands) {
+            generateCallIfArgsNotNull(ctx, nullCheck, DataTypes.INT, operands) {
               (terms) =>
                 s"""
-                  |${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}(${terms(1)},
-                  |  ${terms(2)}) / ${unit.multiplier.intValue()}
-                  |""".stripMargin
+                   |${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}(${terms(1)},
+                   |  ${terms(2)}) / ${unit.multiplier.intValue()}
+                   |""".stripMargin
             }
         }
 
@@ -74,45 +75,45 @@ class TimestampDiffCallGen extends CallGenerator {
            TimeUnit.MINUTE |
            TimeUnit.SECOND =>
         (operands(1).resultType, operands(2).resultType) match {
-          case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.TIMESTAMP) =>
-            generateCallIfArgsNotNull(codeGenerator.nullCheck, INT_TYPE_INFO, operands) {
+          case (DataTypes.TIMESTAMP, DataTypes.TIMESTAMP) =>
+            generateCallIfArgsNotNull(ctx, nullCheck, DataTypes.INT, operands) {
               (terms) =>
                 s"""
-                  |(int)((${terms(1)} - ${terms(2)}) / ${unit.multiplier.intValue()})
-                  |""".stripMargin
+                   |(int)((${terms(1)} - ${terms(2)}) / ${unit.multiplier.intValue()})
+                   |""".stripMargin
             }
 
-          case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.DATE) =>
-            generateCallIfArgsNotNull(codeGenerator.nullCheck, INT_TYPE_INFO, operands) {
+          case (DataTypes.TIMESTAMP, DataTypes.DATE) =>
+            generateCallIfArgsNotNull(ctx, nullCheck, DataTypes.INT, operands) {
               (terms) =>
                 s"""
-                  |(int)((${terms(1)} -
-                  |  ${terms(2)} * ${MILLIS_PER_DAY}L) / ${unit.multiplier.intValue()})
-                  |""".stripMargin
+                   |(int)((${terms(1)} -
+                   |  ${terms(2)} * ${MILLIS_PER_DAY}L) / ${unit.multiplier.intValue()})
+                   |""".stripMargin
             }
 
-          case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIMESTAMP) =>
-            generateCallIfArgsNotNull(codeGenerator.nullCheck, INT_TYPE_INFO, operands) {
+          case (DataTypes.DATE, DataTypes.TIMESTAMP) =>
+            generateCallIfArgsNotNull(ctx, nullCheck, DataTypes.INT, operands) {
               (terms) =>
                 s"""
-                  |(int)((${terms(1)} * ${MILLIS_PER_DAY}L -
-                  |  ${terms(2)}) / ${unit.multiplier.intValue()})
-                  |""".stripMargin
+                   |(int)((${terms(1)} * ${MILLIS_PER_DAY}L -
+                   |  ${terms(2)}) / ${unit.multiplier.intValue()})
+                   |""".stripMargin
             }
 
-          case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.DATE) =>
-            generateCallIfArgsNotNull(codeGenerator.nullCheck, INT_TYPE_INFO, operands) {
+          case (DataTypes.DATE, DataTypes.DATE) =>
+            generateCallIfArgsNotNull(ctx, nullCheck, DataTypes.INT, operands) {
               (terms) =>
                 s"""
-                  |(int)((${terms(1)} * ${MILLIS_PER_DAY}L -
-                  |  ${terms(2)} * ${MILLIS_PER_DAY}L) / ${unit.multiplier.intValue()})
-                  |""".stripMargin
+                   |(int)((${terms(1)} * ${MILLIS_PER_DAY}L -
+                   |  ${terms(2)} * ${MILLIS_PER_DAY}L) / ${unit.multiplier.intValue()})
+                   |""".stripMargin
             }
         }
 
       case _ =>
         throw new CodeGenException(
           "Unit '" + unit + "' can not be applied to the timestamp difference function.")
-     }
+    }
   }
 }

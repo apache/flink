@@ -19,13 +19,13 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.experimental.SocketStreamIterator;
+import org.apache.flink.table.api.types.DataType;
+import org.apache.flink.table.api.types.DataTypes;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
@@ -44,7 +44,7 @@ import java.net.InetAddress;
  */
 public abstract class CollectStreamResult<C> extends BasicResult<C> implements DynamicResult<C> {
 
-	private final TypeInformation<Row> outputType;
+	private final DataType outputType;
 	private final SocketStreamIterator<Tuple2<Boolean, Row>> iterator;
 	private final CollectStreamTableSink collectTableSink;
 	private final ResultRetrievalThread retrievalThread;
@@ -54,15 +54,16 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 	protected final Object resultLock;
 	protected SqlExecutionException executionException;
 
-	public CollectStreamResult(TypeInformation<Row> outputType, ExecutionConfig config,
+	public CollectStreamResult(DataType outputType, ExecutionConfig config,
 			InetAddress gatewayAddress, int gatewayPort) {
 		this.outputType = outputType;
 
 		resultLock = new Object();
 
 		// create socket stream iterator
-		final TypeInformation<Tuple2<Boolean, Row>> socketType = Types.TUPLE(Types.BOOLEAN, outputType);
-		final TypeSerializer<Tuple2<Boolean, Row>> serializer = socketType.createSerializer(config);
+		final DataType socketType = DataTypes.createTupleType(DataTypes.BOOLEAN, outputType);
+		final TypeSerializer<Tuple2<Boolean, Row>> serializer =
+				DataTypes.createExternalSerializer(socketType);
 		try {
 			// pass gateway port and address such that iterator knows where to bind to
 			iterator = new SocketStreamIterator<>(gatewayPort, gatewayAddress, serializer);
@@ -78,7 +79,7 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 	}
 
 	@Override
-	public TypeInformation<Row> getOutputType() {
+	public DataType getOutputType() {
 		return outputType;
 	}
 

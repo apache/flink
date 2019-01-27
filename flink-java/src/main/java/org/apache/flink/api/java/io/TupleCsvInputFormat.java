@@ -34,6 +34,8 @@ public class TupleCsvInputFormat<OUT> extends CsvInputFormat<OUT> {
 
 	private TupleSerializerBase<OUT> tupleSerializer;
 
+	private TupleTypeInfoBase<OUT> tupleTypeInfo;
+
 	public TupleCsvInputFormat(Path filePath, TupleTypeInfoBase<OUT> tupleTypeInfo) {
 		this(filePath, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, tupleTypeInfo);
 	}
@@ -74,6 +76,7 @@ public class TupleCsvInputFormat<OUT> extends CsvInputFormat<OUT> {
 			includedFieldsMask = createDefaultMask(tupleTypeInfo.getArity());
 		}
 
+		this.tupleTypeInfo = tupleTypeInfo;
 		tupleSerializer = (TupleSerializerBase<OUT>) tupleTypeInfo.createSerializer(new ExecutionConfig());
 
 		setDelimiter(lineDelimiter);
@@ -91,5 +94,9 @@ public class TupleCsvInputFormat<OUT> extends CsvInputFormat<OUT> {
 	@Override
 	public OUT fillRecord(OUT reuse, Object[] parsedValues) {
 		return tupleSerializer.createOrReuseInstance(parsedValues, reuse);
+	}
+
+	public TupleTypeInfoBase<OUT> getTupleTypeInfo() {
+		return tupleTypeInfo;
 	}
 }

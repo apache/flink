@@ -22,6 +22,7 @@ package org.apache.flink.types.parser;
 import java.sql.Date;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.util.TimeConvertUtils;
 
 /**
  * Parses a text field into a {@link java.sql.Date}.
@@ -48,7 +49,7 @@ public class SqlDateParser extends FieldParser<Date> {
 
 		String str = new String(bytes, startPos, endPos - startPos, ConfigConstants.DEFAULT_CHARSET);
 		try {
-			this.result = Date.valueOf(str);
+			this.result = new Date(TimeConvertUtils.dateStringToUnixDate(str) * TimeConvertUtils.MILLIS_PER_DAY);
 			return (endPos == limit) ? limit : endPos + delimiter.length;
 		} catch (IllegalArgumentException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);
@@ -104,6 +105,6 @@ public class SqlDateParser extends FieldParser<Date> {
 		}
 
 		final String str = new String(bytes, startPos, limitedLen, ConfigConstants.DEFAULT_CHARSET);
-		return Date.valueOf(str);
+		return new Date(TimeConvertUtils.dateStringToUnixDate(str) * TimeConvertUtils.MILLIS_PER_DAY);
 	}
 }

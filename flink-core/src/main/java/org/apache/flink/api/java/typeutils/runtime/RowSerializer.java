@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapsh
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
@@ -60,6 +59,15 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		this.fieldSerializers = (TypeSerializer<Object>[]) checkNotNull(fieldSerializers);
 		this.arity = fieldSerializers.length;
 		this.nullMask = new boolean[fieldSerializers.length];
+	}
+
+	/**
+	 * Returns the serializers for the fields in the row.
+	 *
+	 * @return The serializers for the fields in the row.
+	 */
+	public TypeSerializer<?>[] getFieldSerializers() {
+		return fieldSerializers;
 	}
 
 	@Override
@@ -269,9 +277,9 @@ public final class RowSerializer extends TypeSerializer<Row> {
 	}
 
 	@Override
-	public CompatibilityResult<Row> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+	public CompatibilityResult<Row> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof RowSerializerConfigSnapshot) {
-			List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> previousFieldSerializersAndConfigs =
+			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousFieldSerializersAndConfigs =
 				((RowSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
 
 			if (previousFieldSerializersAndConfigs.size() == fieldSerializers.length) {
@@ -280,7 +288,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 				CompatibilityResult<?> compatResult;
 				int i = 0;
-				for (Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> f : previousFieldSerializersAndConfigs) {
+				for (Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> f : previousFieldSerializersAndConfigs) {
 					compatResult = CompatibilityUtil.resolveCompatibilityResult(
 							f.f0,
 							UnloadableDummyTypeSerializer.class,
@@ -313,7 +321,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		return CompatibilityResult.requiresMigration();
 	}
 
-	public static final class RowSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot<Row> {
+	public static final class RowSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
 
 		private static final int VERSION = 1;
 
