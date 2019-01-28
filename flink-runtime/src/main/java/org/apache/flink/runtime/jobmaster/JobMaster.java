@@ -1340,7 +1340,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				}
 			});
 		} else {
-			log.debug("Ignoring resource manager connection to {} because its a duplicate or outdated.", resourceManagerId);
+			log.debug("Ignoring resource manager connection to {} because it's duplicated or outdated.", resourceManagerId);
 
 		}
 	}
