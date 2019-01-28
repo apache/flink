@@ -86,14 +86,21 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 		this.targetFile = checkNotNull(recoverable.targetFile());
 		this.tempFile = checkNotNull(recoverable.tempFile());
 
+		waitUntilLeaseIsRevoked(tempFile);
+
 		// truncate back and append
+		boolean truncated;
 		try {
-			truncate(fs, tempFile, recoverable.offset());
+			truncated = truncate(fs, tempFile, recoverable.offset());
 		} catch (Exception e) {
 			throw new IOException("Missing data in tmp file: " + tempFile, e);
 		}
 
-		waitUntilLeaseIsRevoked(tempFile);
+		if (!truncated) {
+			// Truncate did not complete immediately, we must wait for the operation to complete and release the lease
+			waitUntilLeaseIsRevoked(tempFile);
+		}
+
 		out = fs.append(tempFile);
 
 		// sanity check
@@ -173,10 +180,10 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 		}
 	}
 
-	static void truncate(FileSystem hadoopFs, Path file, long length) throws IOException {
+	static boolean truncate(FileSystem hadoopFs, Path file, long length) throws IOException {
 		if (truncateHandle != null) {
 			try {
-				truncateHandle.invoke(hadoopFs, file, length);
+				return (Boolean) truncateHandle.invoke(hadoopFs, file, length);
 			}
 			catch (InvocationTargetException e) {
 				ExceptionUtils.rethrowIOException(e.getTargetException());
@@ -190,6 +197,7 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 		else {
 			throw new IllegalStateException("Truncation handle has not been initialized");
 		}
+		return true;
 	}
 
 	// ------------------------------------------------------------------------
