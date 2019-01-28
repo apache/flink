@@ -45,6 +45,8 @@ import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.DynamicCodeLoadingException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TernaryBoolean;
 
@@ -123,7 +125,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	private File[] localRocksDbDirectories;
 
 	/** The pre-configured option settings. */
-	private PredefinedOptions predefinedOptions = PredefinedOptions.DEFAULT;
+	@Nullable
+	private PredefinedOptions predefinedOptions;
 
 	/** The options factory to create the RocksDB options in the cluster. */
 	@Nullable
@@ -338,9 +341,21 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		// configure metric options
 		this.defaultMetricOptions = RocksDBNativeMetricOptions.fromConfig(config);
 
-		// copy remaining settings
-		this.predefinedOptions = original.predefinedOptions;
-		this.optionsFactory = original.optionsFactory;
+		// configure RocksDB predefined options
+		this.predefinedOptions = original.predefinedOptions == null ?
+			PredefinedOptions.valueOf(config.getString(RocksDBOptions.PREDEFINED_OPTIONS)) : original.predefinedOptions;
+		LOG.info("Using predefined options: {}.", predefinedOptions.name());
+
+		// configure RocksDB options factory
+		try {
+			this.optionsFactory = configureOptionsFactory(
+				original.optionsFactory,
+				config.getString(RocksDBOptions.OPTIONS_FACTORY),
+				config,
+				classLoader);
+		} catch (DynamicCodeLoadingException e) {
+			throw new FlinkRuntimeException(e);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -524,6 +539,53 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				asyncSnapshots);
 	}
 
+	private OptionsFactory configureOptionsFactory(
+			@Nullable OptionsFactory originalOptionsFactory,
+			String factoryClassName,
+			Configuration config,
+			ClassLoader classLoader) throws DynamicCodeLoadingException {
+
+		if (originalOptionsFactory != null) {
+			if (originalOptionsFactory instanceof ConfigurableOptionsFactory) {
+				originalOptionsFactory = ((ConfigurableOptionsFactory) originalOptionsFactory).configure(config);
+			}
+			LOG.info("Using application-defined options factory: {}.", originalOptionsFactory);
+
+			return originalOptionsFactory;
+		}
+
+		// if using DefaultConfigurableOptionsFactory by default, we could avoid reflection to speed up.
+		if (factoryClassName.equalsIgnoreCase(DefaultConfigurableOptionsFactory.class.getName())) {
+			DefaultConfigurableOptionsFactory optionsFactory = new DefaultConfigurableOptionsFactory();
+			optionsFactory.configure(config);
+			LOG.info("Using default options factory: {}.", optionsFactory);
+
+			return optionsFactory;
+		} else {
+			try {
+				@SuppressWarnings("rawtypes")
+				Class<? extends OptionsFactory> clazz =
+					Class.forName(factoryClassName, false, classLoader)
+						.asSubclass(OptionsFactory.class);
+
+				OptionsFactory optionsFactory = clazz.newInstance();
+				if (optionsFactory instanceof ConfigurableOptionsFactory) {
+					optionsFactory = ((ConfigurableOptionsFactory) optionsFactory).configure(config);
+				}
+				LOG.info("Using configured options factory: {}.", optionsFactory);
+
+				return optionsFactory;
+			} catch (ClassNotFoundException e) {
+				throw new DynamicCodeLoadingException(
+					"Cannot find configured options factory class: " + factoryClassName, e);
+			} catch (ClassCastException | InstantiationException | IllegalAccessException e) {
+				throw new DynamicCodeLoadingException("The class configured under '" +
+					RocksDBOptions.OPTIONS_FACTORY.key() + "' is not a valid options factory (" +
+					factoryClassName + ')', e);
+			}
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Parameters
 	// ------------------------------------------------------------------------
@@ -663,9 +725,10 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	/**
 	 * Sets the predefined options for RocksDB.
 	 *
-	 * <p>If a user-defined options factory is set (via {@link #setOptions(OptionsFactory)}),
+	 * <p>If user-configured options within {@link RocksDBConfigurableOptions} is set (through flink-conf.yaml)
+	 * or a user-defined options factory is set (via {@link #setOptions(OptionsFactory)}),
 	 * then the options from the factory are applied on top of the here specified
-	 * predefined options.
+	 * predefined options and customized options.
 	 *
 	 * @param options The options to set (must not be null).
 	 */
@@ -678,12 +741,16 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * The default options (if nothing was set via {@link #setPredefinedOptions(PredefinedOptions)})
 	 * are {@link PredefinedOptions#DEFAULT}.
 	 *
-	 * <p>If a user-defined  options factory is set (via {@link #setOptions(OptionsFactory)}),
-	 * then the options from the factory are applied on top of the predefined options.
+	 * <p>If user-configured options within {@link RocksDBConfigurableOptions} is set (through flink-conf.yaml)
+	 * of a user-defined options factory is set (via {@link #setOptions(OptionsFactory)}),
+	 * then the options from the factory are applied on top of the predefined and customized options.
 	 *
 	 * @return The currently set predefined options for RocksDB.
 	 */
 	public PredefinedOptions getPredefinedOptions() {
+		if (predefinedOptions == null) {
+			predefinedOptions = PredefinedOptions.DEFAULT;
+		}
 		return predefinedOptions;
 	}
 
@@ -718,9 +785,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	public DBOptions getDbOptions() {
 		// initial options from pre-defined profile
-		DBOptions opt = predefinedOptions.createDBOptions();
+		DBOptions opt = getPredefinedOptions().createDBOptions();
 
-		// add user-defined options, if specified
+		// add user-defined options factory, if specified
 		if (optionsFactory != null) {
 			opt = optionsFactory.createDBOptions(opt);
 		}
@@ -736,7 +803,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	public ColumnFamilyOptions getColumnOptions() {
 		// initial options from pre-defined profile
-		ColumnFamilyOptions opt = predefinedOptions.createColumnOptions();
+		ColumnFamilyOptions opt = getPredefinedOptions().createColumnOptions();
 
 		// add user-defined options, if specified
 		if (optionsFactory != null) {

@@ -153,36 +153,61 @@ Possible choices are `heap` (to store timers on the heap, default) and `rocksdb`
 <span class="label label-info">Note</span> *The combination RocksDB state backend / with incremental checkpoint / with heap-based timers currently does NOT support asynchronous snapshots for the timers state.
 Other state like keyed state is still snapshotted asynchronously. Please note that this is not a regression from previous versions and will be resolved with `FLINK-10026`.*
 
-**Passing Options to RocksDB**
-
-{% highlight java %}
-RocksDBStateBackend.setOptions(new MyOptions());
-
-public class MyOptions implements OptionsFactory {
-
-    @Override
-    public DBOptions createDBOptions(DBOptions currentOptions) {
-    	return currentOptions.setIncreaseParallelism(4)
-    		   .setUseFsync(false);
-    }
-    		
-    @Override
-    public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
-    	return currentOptions.setTableFormatConfig(
-    		new BlockBasedTableConfig()
-    			.setBlockCacheSize(256 * 1024 * 1024)  // 256 MB
-    			.setBlockSize(128 * 1024));            // 128 KB
-    }
-}
-{% endhighlight %}
-
 **Predefined Options**
 
-Flink provides some predefined collections of option for RocksDB for different settings, which can be set for example via
-`RocksDBStateBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)`.
+Flink provides some predefined collections of option for RocksDB for different settings, and there existed two ways
+to pass these predefined options to RocksDB:
+  - Configure the predefined options through `flink-conf.yaml` via option key `state.backend.rocksdb.predefined-options`.
+    The default value of this option is `DEFAULT` which means `PredefinedOptions.DEFAULT`.
+  - Set the predefined options programmatically, e.g. `RocksDBStateBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)`.
 
 We expect to accumulate more such profiles over time. Feel free to contribute such predefined option profiles when you
 found a set of options that work well and seem representative for certain workloads.
+
+<span class="label label-info">Note</span> Predefined options which set programmatically would override the one configured via `flink-conf.yaml`.
+
+**Passing Options Factory to RocksDB**
+
+There existed two ways to pass options factory to RocksDB in Flink:
+
+  - Configure options factory through `flink-conf.yaml`. You could set the options factory class name via option key `state.backend.rocksdb.options-factory`.
+    The default value for this option is `org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory`, and all candidate configurable options are defined in `RocksDBConfigurableOptions`.
+    Moreover, you could also define your customized and configurable options factory class like below and pass the class name to `state.backend.rocksdb.options-factory`.
+
+    {% highlight java %}
+
+    public class MyOptionsFactory implements ConfigurableOptionsFactory {
+
+        private static final long DEFAULT_SIZE = 256 * 1024 * 1024;  // 256 MB
+        private long blockCacheSize = DEFAULT_SIZE;
+
+        @Override
+        public DBOptions createDBOptions(DBOptions currentOptions) {
+            return currentOptions.setIncreaseParallelism(4)
+                   .setUseFsync(false);
+        }
+
+        @Override
+        public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+            return currentOptions.setTableFormatConfig(
+                new BlockBasedTableConfig()
+                    .setBlockCacheSize(blockCacheSize)
+                    .setBlockSize(128 * 1024));            // 128 KB
+        }
+
+        @Override
+        public OptionsFactory configure(Configuration configuration) {
+            this.blockCacheSize =
+                configuration.getLong("my.custom.rocksdb.block.cache.size", DEFAULT_SIZE);
+            return this;
+        }
+    }
+    {% endhighlight %}
+
+  - Set the options factory programmatically, e.g. `RocksDBStateBackend.setOptions(new MyOptionsFactory());`
+
+<span class="label label-info">Note</span> Options factory which set programmatically would override the one configured via `flink-conf.yaml`,
+and options factory has a higher priority over the predefined options if ever configured or set.
 
 <span class="label label-info">Note</span> RocksDB is a native library that allocates memory directly from the process,
 and not from the JVM. Any memory you assign to RocksDB will have to be accounted for, typically by decreasing the JVM heap size
