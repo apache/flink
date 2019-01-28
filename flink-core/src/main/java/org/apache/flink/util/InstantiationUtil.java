@@ -210,11 +210,12 @@ public final class InstantiationUtil {
 
 			final Class localClass = resolveClass(streamClassDescriptor);
 			final String name = localClass.getName();
-			if (scalaSerializerClassnames.contains(name) || scalaTypes.contains(name) || isAnonymousClass(localClass) || isAvroSerializer(name)) {
+			if (scalaSerializerClassnames.contains(name) || scalaTypes.contains(name) || isAnonymousClass(localClass)
+				|| isOldAvroSerializer(name, streamClassDescriptor.getSerialVersionUID())) {
 				final ObjectStreamClass localClassDescriptor = ObjectStreamClass.lookup(localClass);
 				if (localClassDescriptor != null
 					&& localClassDescriptor.getSerialVersionUID() != streamClassDescriptor.getSerialVersionUID()) {
-					LOG.warn("Ignoring serialVersionUID mismatch for anonymous class {}; was {}, now {}.",
+					LOG.warn("Ignoring serialVersionUID mismatch for class {}; was {}, now {}.",
 						streamClassDescriptor.getName(), streamClassDescriptor.getSerialVersionUID(), localClassDescriptor.getSerialVersionUID());
 
 					streamClassDescriptor = localClassDescriptor;
@@ -243,8 +244,8 @@ public final class InstantiationUtil {
 		}
 	}
 
-	private static boolean isAvroSerializer(String name) {
-		return "org.apache.flink.formats.avro.typeutils.AvroSerializer".equals(name);
+	private static boolean isOldAvroSerializer(String name, long serialVersionUID) {
+		return (serialVersionUID == 1) && "org.apache.flink.formats.avro.typeutils.AvroSerializer".equals(name);
 	}
 
 	/**
