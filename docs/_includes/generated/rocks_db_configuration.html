@@ -18,6 +18,16 @@
             <td>The local directory (on the TaskManager) where RocksDB puts its files.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.options-factory</h5></td>
+            <td style="word-wrap: break-word;">"org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory"</td>
+            <td>The options factory class for RocksDB to create DBOptions and ColumnFamilyOptions. The default options factory is org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory, and it would read the configured options which provided in 'RocksDBConfigurableOptions'.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.predefined-options</h5></td>
+            <td style="word-wrap: break-word;">"DEFAULT"</td>
+            <td>The predefined settings for RocksDB DBOptions and ColumnFamilyOptions by Flink community. Current supported candidate predefined-options are DEFAULT, SPINNING_DISK_OPTIMIZED, SPINNING_DISK_OPTIMIZED_HIGH_MEM or FLASH_SSD_OPTIMIZED. Note that user customized options and options from the OptionsFactory are applied on top of these predefined ones.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.timer-service.factory</h5></td>
             <td style="word-wrap: break-word;">"HEAP"</td>
             <td>This determines the factory for timer service state implementation. Options are either HEAP (heap-based, default) or ROCKSDB for an implementation based on RocksDB .</td>
