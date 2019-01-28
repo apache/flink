@@ -118,7 +118,7 @@ public class ValueWithTs<V> implements Serializable {
 	 */
 	public static final class ValueWithTsSerializerSnapshot extends CompositeTypeSerializerSnapshot<ValueWithTs<?>, Serializer> {
 
-		private final static int VERSION = 2;
+		private static final int VERSION = 2;
 
 		@SuppressWarnings("unused")
 		public ValueWithTsSerializerSnapshot() {

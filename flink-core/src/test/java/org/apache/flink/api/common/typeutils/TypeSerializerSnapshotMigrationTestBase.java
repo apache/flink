@@ -25,11 +25,9 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.CoreMatchers;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
-
 import org.junit.Test;
 
 import java.io.IOException;
@@ -196,6 +194,10 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 	// Test Specification
 	// --------------------------------------------------------------------------------------------------------------
 
+	/**
+	 * Test Specification.
+	 */
+	@SuppressWarnings("WeakerAccess")
 	protected static final class TestSpecification<T> {
 		private final Class<? extends TypeSerializer<T>> serializerType;
 		private final Class<? extends TypeSerializerSnapshot<T>> snapshotClass;
@@ -208,7 +210,7 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 		private int testDataCount;
 
 		@SuppressWarnings("unchecked")
-		private Matcher<T> testDataElementMatcher = (Matcher<T>)notNullValue();
+		private Matcher<T> testDataElementMatcher = (Matcher<T>) notNullValue();
 
 		@SuppressWarnings("unchecked")
 		public static <T> TestSpecification<T> builder(
@@ -283,10 +285,6 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 
 		private MigrationVersion getTestMigrationVersion() {
 			return testMigrationVersion;
-		}
-
-		public Class<? extends TypeSerializerSnapshot<T>> getSnapshotClass() {
-			return snapshotClass;
 		}
 
 		@Override
@@ -435,6 +433,9 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 		}
 	}
 
+	/**
+	 * Supplier of paths based on {@link MigrationVersion}.
+	 */
 	protected interface TestResourceFilenameSupplier {
 		String get(MigrationVersion testVersion);
 	}
