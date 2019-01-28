@@ -83,8 +83,27 @@ public class YarnConfigOptions {
 	 */
 	public static final ConfigOption<String> MAX_FAILED_CONTAINERS =
 		key("yarn.maximum-failed-containers")
-		.noDefaultValue()
-		.withDescription("Maximum number of containers the system is going to reallocate in case of a failure.");
+			.noDefaultValue()
+			.withDescription("Maximum number of containers the system is going to reallocate in case of a failure.");
+
+	/**
+	 * The maximum number of failed YARN containers within an interval before entirely stopping
+	 * the YARN session / job on YARN.
+	 * By default, the value is -1
+	 */
+	public static final ConfigOption<Integer> MAX_FAILED_CONTAINERS_PER_INTERVAL =
+		key("yarn.maximum-failed-containers-per-interval")
+		.defaultValue(-1)
+		.withDescription("Maximum number of containers the system is going to reallocate in case of a failure in an interval.");
+
+	/**
+	 * The interval for measuring failure rate of containers in second unit.
+	 * By default, the value is 5 minutes.
+	 **/
+	public static final ConfigOption<Integer> CONTAINERS_FAILURE_RATE_INTERVAL =
+		key("yarn.containers-failure-rate-interval")
+		.defaultValue(300)
+		.withDeprecatedKeys("The interval for measuring failure rate of containers");
 
 	/**
 	 * Set the number of retries for failed YARN ApplicationMasters/JobManagers in high

@@ -45,7 +45,6 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
-import org.apache.flink.runtime.resourcemanager.exceptions.MaximumFailedTaskManagerExceedingException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -58,6 +57,7 @@ import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 
@@ -101,7 +101,6 @@ import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_HOME_DIR;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_SHIP_FILES;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_HADOOP_USER_NAME;
-import static org.apache.flink.yarn.YarnConfigKeys.ENV_TM_COUNT;
 import static org.apache.flink.yarn.YarnConfigKeys.FLINK_JAR_PATH;
 import static org.apache.flink.yarn.YarnConfigKeys.FLINK_YARN_FILES;
 import static org.hamcrest.Matchers.instanceOf;
@@ -114,7 +113,6 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -141,6 +139,7 @@ public class YarnResourceManagerTest extends TestLogger {
 
 		flinkConfig = new Configuration();
 		flinkConfig.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 100);
+		flinkConfig.setInteger(YarnConfigOptions.MAX_FAILED_CONTAINERS_PER_INTERVAL, 1);
 
 		File root = folder.getRoot();
 		File home = new File(root, "home");
@@ -154,7 +153,6 @@ public class YarnResourceManagerTest extends TestLogger {
 		env.put(ENV_FLINK_CLASSPATH, "");
 		env.put(ENV_HADOOP_USER_NAME, "foo");
 		env.put(FLINK_JAR_PATH, root.toURI().toString());
-		env.put(ENV_TM_COUNT, "1");
 	}
 
 	@After
@@ -188,7 +186,9 @@ public class YarnResourceManagerTest extends TestLogger {
 				@Nullable String webInterfaceUrl,
 				AMRMClientAsync<AMRMClient.ContainerRequest> mockResourceManagerClient,
 				NMClient mockNMClient,
-				JobManagerMetricGroup jobManagerMetricGroup) {
+				JobManagerMetricGroup jobManagerMetricGroup,
+				Time failureInterval,
+				int maxFailurePerInterval) {
 			super(
 				rpcService,
 				resourceManagerEndpointId,
@@ -203,7 +203,9 @@ public class YarnResourceManagerTest extends TestLogger {
 				clusterInformation,
 				fatalErrorHandler,
 				webInterfaceUrl,
-				jobManagerMetricGroup);
+				jobManagerMetricGroup,
+				failureInterval,
+				maxFailurePerInterval);
 			this.mockNMClient = mockNMClient;
 			this.mockResourceManagerClient = mockResourceManagerClient;
 		}
@@ -269,6 +271,9 @@ public class YarnResourceManagerTest extends TestLogger {
 			rpcService = new TestingRpcService();
 			rmServices = new MockResourceManagerRuntimeServices();
 
+			int maxFailurePerInternal = flinkConfig.getInteger(YarnConfigOptions.MAX_FAILED_CONTAINERS_PER_INTERVAL);
+			long failureInterval = flinkConfig.getInteger(YarnConfigOptions.CONTAINERS_FAILURE_RATE_INTERVAL);
+
 			// resource manager
 			rmResourceID = ResourceID.generate();
 			resourceManager =
@@ -288,7 +293,9 @@ public class YarnResourceManagerTest extends TestLogger {
 							null,
 							mockResourceManagerClient,
 							mockNMClient,
-							mockJMMetricGroup);
+							mockJMMetricGroup,
+							Time.of(failureInterval, TimeUnit.SECONDS),
+							maxFailurePerInternal);
 		}
 
 		/**
@@ -313,9 +320,9 @@ public class YarnResourceManagerTest extends TestLogger {
 				highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
 				heartbeatServices = new TestingHeartbeatServices(5L, 5L, scheduledExecutor);
 				metricRegistry = NoOpMetricRegistry.INSTANCE;
-				slotManager = spy(new SlotManager(
+				slotManager = new SlotManager(
 						new ScheduledExecutorServiceAdapter(new DirectScheduledExecutorService()),
-						Time.seconds(10), Time.seconds(10), Time.minutes(1)));
+						Time.seconds(10), Time.seconds(10), Time.minutes(1));
 				jobLeaderIdService = new JobLeaderIdService(
 						highAvailabilityServices,
 						rpcService.getScheduledExecutor(),
@@ -574,8 +581,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				Container failedContainer = mockContainer("container2", 2345, 2, resourceManager.getContainerResource());
 				when(mockNMClient.startContainer(eq(failedContainer), any())).thenThrow(new YarnException("Failed"));
 				resourceManager.onContainersAllocated(ImmutableList.of(failedContainer));
-				verify(rmServices.slotManager, times(1))
-					.rejectAllPendingSlotRequests(any(MaximumFailedTaskManagerExceedingException.class));
+				assertEquals(rmServices.slotManager.getNumberPendingSlotRequest(), 0);
 			});
 		}};
 	}

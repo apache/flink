@@ -71,6 +71,7 @@ import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -83,7 +84,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -147,11 +148,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	/** All registered listeners for status updates of the ResourceManager. */
 	private ConcurrentMap<String, InfoMessageListenerRpcGateway> infoMessageListeners;
 
-	/** The number of failed containers since the master became active. */
-	protected AtomicInteger failedContainerSoFar = new AtomicInteger(0);
+	protected final Time failureInterval;
 
-	/** Number of failed TaskManager containers before stopping the application. Default is Integer.MAX_VALUE */
-	protected int maximumAllowedTaskManagerFailureCount = Integer.MAX_VALUE;
+	protected final int maximumFailureTaskExecutorPerInternal;
+
+	private boolean checkFailureRate;
+
+	private final ArrayDeque<Long> taskExecutorFailureTimestamps;
+
 
 	/**
 	 * Represents asynchronous state clearing work.
@@ -160,6 +164,35 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 * @see #clearStateInternal()
 	 */
 	private CompletableFuture<Void> clearStateFuture = CompletableFuture.completedFuture(null);
+
+	public ResourceManager(
+		RpcService rpcService,
+		String resourceManagerEndpointId,
+		ResourceID resourceId,
+		HighAvailabilityServices highAvailabilityServices,
+		HeartbeatServices heartbeatServices,
+		SlotManager slotManager,
+		MetricRegistry metricRegistry,
+		JobLeaderIdService jobLeaderIdService,
+		ClusterInformation clusterInformation,
+		FatalErrorHandler fatalErrorHandler,
+		JobManagerMetricGroup jobManagerMetricGroup) {
+		this(
+			rpcService,
+			resourceManagerEndpointId,
+			resourceId,
+			highAvailabilityServices,
+			heartbeatServices,
+			slotManager,
+			metricRegistry,
+			jobLeaderIdService,
+			clusterInformation,
+			fatalErrorHandler,
+			jobManagerMetricGroup,
+			Time.of(300, TimeUnit.SECONDS),
+			-1
+		);
+	}
 
 	public ResourceManager(
 			RpcService rpcService,
@@ -172,7 +205,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			JobLeaderIdService jobLeaderIdService,
 			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler,
-			JobManagerMetricGroup jobManagerMetricGroup) {
+			JobManagerMetricGroup jobManagerMetricGroup,
+			Time failureInterval,
+			int maxFailurePerInterval) {
 
 		super(rpcService, resourceManagerEndpointId);
 
@@ -200,7 +235,17 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		this.jobManagerRegistrations = new HashMap<>(4);
 		this.jmResourceIdRegistrations = new HashMap<>(4);
 		this.taskExecutors = new HashMap<>(8);
-		infoMessageListeners = new ConcurrentHashMap<>(8);
+		this.infoMessageListeners = new ConcurrentHashMap<>(8);
+		this.failureInterval = failureInterval;
+		this.maximumFailureTaskExecutorPerInternal = maxFailurePerInterval;
+
+		if (maximumFailureTaskExecutorPerInternal > 0) {
+			this.taskExecutorFailureTimestamps = new ArrayDeque<>(maximumFailureTaskExecutorPerInternal);
+			this.checkFailureRate = true;
+		} else {
+			this.taskExecutorFailureTimestamps = new ArrayDeque<>(0);
+			this.checkFailureRate = false;
+		}
 	}
 
 
@@ -429,10 +474,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 					slotRequest.getJobId(),
 					slotRequest.getAllocationId());
 
-				if (failedContainerSoFar.intValue() >= maximumAllowedTaskManagerFailureCount) {
+				if (shouldRejectRequests()) {
 					return FutureUtils.completedExceptionally(new MaximumFailedTaskManagerExceedingException(
-						String.format("Maximum number of failed container %d "
-							+ "is detected in Resource Manager", failedContainerSoFar.intValue())));
+						new RuntimeException(String.format("Maximum number of failed container %d in interval %s "
+							+ "is detected in Resource Manager.", taskExecutorFailureTimestamps.size(),
+							failureInterval.toString()))));
 				}
 
 				try {
@@ -644,6 +690,40 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		slotManager.rejectAllPendingSlotRequests(e);
 	}
 
+	protected synchronized void recordFailure() {
+		if (!checkFailureRate) {
+			return;
+		}
+		if (isFailureTimestampFull()) {
+			taskExecutorFailureTimestamps.remove();
+		}
+		taskExecutorFailureTimestamps.add(System.currentTimeMillis());
+	}
+
+	protected boolean shouldRejectRequests() {
+		if (!checkFailureRate) {
+			return false;
+		}
+
+		Long currentTimeStamp = System.currentTimeMillis();
+		while (currentTimeStamp - taskExecutorFailureTimestamps.peek() > failureInterval.toMilliseconds()) {
+			taskExecutorFailureTimestamps.remove();
+		}
+
+		if (!isFailureTimestampFull()) {
+			return false;
+		} else {
+			Long earliestFailure = taskExecutorFailureTimestamps.peek();
+			Long latestFailure = taskExecutorFailureTimestamps.getLast();
+
+			return latestFailure - earliestFailure < failureInterval.toMilliseconds();
+		}
+	}
+
+	private boolean isFailureTimestampFull() {
+		return taskExecutorFailureTimestamps.size() >= maximumFailureTaskExecutorPerInternal;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Internal methods
 	// ------------------------------------------------------------------------
@@ -843,12 +923,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			slotManager.unregisterTaskManager(workerRegistration.getInstanceID());
 
 			workerRegistration.getTaskExecutorGateway().disconnectResourceManager(cause);
-			failedContainerSoFar.getAndAdd(1);
-			if (failedContainerSoFar.intValue() >= maximumAllowedTaskManagerFailureCount) {
-				rejectAllPendingSlotRequests(new MaximumFailedTaskManagerExceedingException(
-					String.format("Maximum number of failed container %d "
-						+ "is detected in Resource Manager", failedContainerSoFar.intValue())));
-			}
 		} else {
 			log.debug(
 				"No open TaskExecutor connection {}. Ignoring close TaskExecutor connection. Closing reason was: {}",

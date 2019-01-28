@@ -35,7 +35,10 @@ public class SuppressRestartsException extends RuntimeException {
 
 	public SuppressRestartsException(Throwable cause) {
 		super("Unrecoverable failure. This suppresses job restarts. Please check the " +
-				"stack trace for the root cause.", cause);
+			"stack trace for the root cause.", cause);
 	}
 
+	public SuppressRestartsException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

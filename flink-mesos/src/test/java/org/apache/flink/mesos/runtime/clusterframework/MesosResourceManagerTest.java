@@ -40,6 +40,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -114,6 +115,7 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -175,7 +177,9 @@ public class MesosResourceManagerTest extends TestLogger {
 			MesosConfiguration mesosConfig,
 			MesosTaskManagerParameters taskManagerParameters,
 			ContainerSpecification taskManagerContainerSpec,
-			JobManagerMetricGroup jobManagerMetricGroup) {
+			JobManagerMetricGroup jobManagerMetricGroup,
+			Time failureInterval,
+			int maxFailurePerInterval) {
 			super(
 				rpcService,
 				resourceManagerEndpointId,
@@ -193,7 +197,13 @@ public class MesosResourceManagerTest extends TestLogger {
 				taskManagerParameters,
 				taskManagerContainerSpec,
 				null,
-				jobManagerMetricGroup);
+				jobManagerMetricGroup,
+				failureInterval,
+				maxFailurePerInterval);
+		}
+
+		<T> CompletableFuture<T> runInMainThread(Callable<T> callable) {
+			return callAsync(callable, timeout);
 		}
 
 		@Override
@@ -303,7 +313,9 @@ public class MesosResourceManagerTest extends TestLogger {
 					rmServices.mesosConfig,
 					tmParams,
 					containerSpecification,
-					UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
+					UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+					Time.of(300, TimeUnit.SECONDS),
+					2);
 
 			// TaskExecutors
 			task1Executor = mockTaskExecutor(task1);
@@ -705,6 +717,50 @@ public class MesosResourceManagerTest extends TestLogger {
 
 			// verify that `closeTaskManagerConnection` was called
 			assertThat(resourceManager.closedTaskManagerConnections, hasItem(extractResourceID(task1)));
+		}};
+	}
+
+	/**
+	 * Test worker failure hit maximum worker failure rate.
+	 */
+	@Test
+	public void testWorkerFailedAtFailureRate() throws Exception {
+		new Context() {{
+			// set the initial persistent state with a launched worker
+			MesosWorkerStore.Worker worker1launched = MesosWorkerStore.Worker.newWorker(task1).launchWorker(slave1, slave1host);
+			MesosWorkerStore.Worker worker2launched = MesosWorkerStore.Worker.newWorker(task2).launchWorker(slave1, slave1host);
+
+			when(rmServices.workerStore.getFrameworkID()).thenReturn(Option.apply(framework1));
+			when(rmServices.workerStore.recoverWorkers()).thenReturn(Arrays.asList(worker1launched, worker2launched));
+			when(rmServices.workerStore.newTaskID()).thenReturn(task3);
+			startResourceManager();
+
+			// tell the RM that a tasks failed
+			when(rmServices.workerStore.removeWorker(task1)).thenReturn(true);
+			when(rmServices.workerStore.removeWorker(task2)).thenReturn(true);
+			resourceManager.taskTerminated(new TaskMonitor.TaskTerminated(task1, Protos.TaskStatus.newBuilder()
+				.setTaskId(task1).setSlaveId(slave1).setState(Protos.TaskState.TASK_FAILED).build()));
+
+			// tell the RM that a task failed
+			resourceManager.taskTerminated(new TaskMonitor.TaskTerminated(task2, Protos.TaskStatus.newBuilder()
+				.setTaskId(task2).setSlaveId(slave1).setState(Protos.TaskState.TASK_FAILED).build()));
+
+			verify(rmServices.workerStore).removeWorker(task1);
+			verify(rmServices.workerStore).removeWorker(task2);
+			assertThat(resourceManager.workersInLaunch.entrySet(), empty());
+			assertThat(resourceManager.workersBeingReturned.entrySet(), empty());
+			assertThat(resourceManager.workersInNew, hasKey(extractResourceID(task3)));
+
+			// request second slot
+			CompletableFuture<?> registerSlotRequestFuture = resourceManager.runInMainThread(() -> {
+				rmServices.slotManager.registerSlotRequest(
+					new SlotRequest(new JobID(), new AllocationID(), resourceProfile1, slave1host));
+				return null;
+			});
+
+			// wait for the registerSlotRequest completion
+			registerSlotRequestFuture.get();
+			assertEquals(0, rmServices.slotManager.getNumberPendingSlotRequest());
 		}};
 	}
 

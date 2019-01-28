@@ -19,6 +19,7 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
@@ -147,7 +148,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler,
 			@Nullable String webInterfaceUrl,
-			JobManagerMetricGroup jobManagerMetricGroup) {
+			JobManagerMetricGroup jobManagerMetricGroup,
+			Time failureInterval,
+			int maxFailurePerInterval) {
 		super(
 			rpcService,
 			resourceManagerEndpointId,
@@ -159,7 +162,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			jobLeaderIdService,
 			clusterInformation,
 			fatalErrorHandler,
-			jobManagerMetricGroup);
+			jobManagerMetricGroup,
+			failureInterval,
+			maxFailurePerInterval);
 		this.flinkConfig  = flinkConfig;
 		this.yarnConfig = new YarnConfiguration();
 		this.env = env;
@@ -176,11 +181,6 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 					"than YARN's expiry interval ({}). The application is likely to be killed by YARN.",
 					yarnHeartbeatIntervalMS, yarnExpiryIntervalMS);
 		}
-
-		final int numInitialTM = Integer.parseInt(env.getOrDefault(
-			YarnConfigKeys.ENV_TM_COUNT, DEFAULT_INITIAL_NUM_TASK_MANAGER));
-		this.maximumAllowedTaskManagerFailureCount =
-			flinkConfig.getInteger(YarnConfigOptions.MAX_FAILED_CONTAINERS.key(), numInitialTM);
 
 		yarnHeartbeatIntervalMillis = yarnHeartbeatIntervalMS;
 		numPendingContainerRequests = 0;
@@ -405,20 +405,19 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 						nodeManagerClient.startContainer(container, taskExecutorLaunchContext);
 					} catch (Throwable t) {
 						log.error("Could not start TaskManager in container {}.", container.getId(), t);
-
-						failedContainerSoFar.getAndAdd(1);
 						// release the failed container
 						workerNodeMap.remove(resourceId);
 						resourceManagerClient.releaseAssignedContainer(container.getId());
-
-						if (failedContainerSoFar.intValue() < maximumAllowedTaskManagerFailureCount) {
+						log.error("Could not start TaskManager in container {}.", container.getId(), t);
+						recordFailure();
+						if (shouldRejectRequests()) {
+							rejectAllPendingSlotRequests(new MaximumFailedTaskManagerExceedingException(
+								String.format("Maximum number of failed container %d in interval %s"
+										+ "is detected in Resource Manager", maximumFailureTaskExecutorPerInternal,
+									failureInterval.toString()), t));
+						} else {
 							// and ask for a new one
 							requestYarnContainerIfRequired();
-						} else {
-							log.error("Could not start TaskManager in container {}.", container.getId(), t);
-							rejectAllPendingSlotRequests(new MaximumFailedTaskManagerExceedingException(
-								String.format("Maximum number of failed container %d "
-										+ "is detected in Resource Manager", failedContainerSoFar.intValue())));
 						}
 					}
 				} else {

@@ -178,6 +178,10 @@ public class SlotManager implements AutoCloseable {
 		return pendingSlots.size();
 	}
 
+	public int getNumberPendingSlotRequest() {
+		return pendingSlotRequests.size();
+	}
+
 	@VisibleForTesting
 	int getNumberAssignedPendingTaskManagerSlots() {
 		return (int) pendingSlots.values().stream().filter(slot -> slot.getAssignedPendingSlotRequest() != null).count();
@@ -312,14 +316,13 @@ public class SlotManager implements AutoCloseable {
 		pendingSlotRequests.clear();
 	}
 
-
-		/**
-         * Cancels and removes a pending slot request with the given allocation id. If there is no such
-         * pending request, then nothing is done.
-         *
-         * @param allocationId identifying the pending slot request
-         * @return True if a pending slot request was found; otherwise false
-         */
+	/**
+	 * Cancels and removes a pending slot request with the given allocation id. If there is no such
+	 * pending request, then nothing is done.
+	 *
+	 * @param allocationId identifying the pending slot request
+	 * @return True if a pending slot request was found; otherwise false
+	 */
 	public boolean unregisterSlotRequest(AllocationID allocationId) {
 		checkInit();
 

@@ -18,18 +18,16 @@
 
 package org.apache.flink.runtime.resourcemanager.exceptions;
 
+import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 
 /**
  * Exception for {@link ResourceManager} when it identified that the maximum number of failed containers is hit.
  */
-public class MaximumFailedTaskManagerExceedingException extends ResourceManagerException {
+public class MaximumFailedTaskManagerExceedingException extends SuppressRestartsException {
 	private static final long serialVersionUID = -2333228226519195160L;
 
-
-	public MaximumFailedTaskManagerExceedingException(String message) { super(message); }
+	public MaximumFailedTaskManagerExceedingException(Throwable cause) { super(cause); }
 
 	public MaximumFailedTaskManagerExceedingException(String message, Throwable cause) { super(message, cause); }
-
-	public MaximumFailedTaskManagerExceedingException(Throwable cause) { super(cause); }
 }

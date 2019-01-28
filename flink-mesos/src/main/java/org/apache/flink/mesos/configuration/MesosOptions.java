@@ -99,6 +99,25 @@ public class MesosOptions {
 			.withDescription("The config parameter defining the Mesos artifact server port to use. Setting the port to" +
 				" 0 will let the OS choose an available port.");
 
+	/**
+	 * The maximum number of failed Mesos worker within an interval before entirely stopping
+	 * the Mesos session / job on Mesos.
+	 * By default, the value is -1
+	 */
+	public static final ConfigOption<Integer> MAX_FAILED_WORKERS_PER_INTERVAL =
+		key("mesos.maximum-failed-workers-per-interval")
+			.defaultValue(-1)
+			.withDescription("Maximum number of workers the system is going to reallocate in case of a failure in an interval.");
+
+	/**
+	 * The interval for measuring failure rate of containers in second unit.
+	 * By default, the value is 5 minutes.
+	 **/
+	public static final ConfigOption<Integer> WORKERS_FAILURE_RATE_INTERVAL =
+		key("mesos.workers-failure-rate-interval")
+			.defaultValue(300)
+			.withDeprecatedKeys("The interval for measuring failure rate of workers");
+
 	public static final ConfigOption<String> RESOURCEMANAGER_FRAMEWORK_NAME =
 		key("mesos.resourcemanager.framework.name")
 			.defaultValue("Flink")

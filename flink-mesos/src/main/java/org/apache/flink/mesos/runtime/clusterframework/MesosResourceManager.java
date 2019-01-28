@@ -18,6 +18,7 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
@@ -53,6 +54,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.resourcemanager.exceptions.MaximumFailedTaskManagerExceedingException;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -167,7 +169,9 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			MesosTaskManagerParameters taskManagerParameters,
 			ContainerSpecification taskManagerContainerSpec,
 			@Nullable String webUiUrl,
-			JobManagerMetricGroup jobManagerMetricGroup) {
+			JobManagerMetricGroup jobManagerMetricGroup,
+			Time failureInterval,
+			int maxFailurePerInterval) {
 		super(
 			rpcService,
 			resourceManagerEndpointId,
@@ -179,7 +183,9 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			jobLeaderIdService,
 			clusterInformation,
 			fatalErrorHandler,
-			jobManagerMetricGroup);
+			jobManagerMetricGroup,
+			failureInterval,
+			maxFailurePerInterval);
 
 		this.mesosServices = Preconditions.checkNotNull(mesosServices);
 		this.actorSystem = Preconditions.checkNotNull(mesosServices.getLocalActorSystem());
@@ -663,7 +669,17 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			assert(launched != null);
 			LOG.info("Worker {} failed with status: {}, reason: {}, message: {}.",
 				id, status.getState(), status.getReason(), status.getMessage());
-			startNewWorker(launched.profile());
+
+			recordFailure();
+
+			if (shouldRejectRequests()) {
+				rejectAllPendingSlotRequests(new MaximumFailedTaskManagerExceedingException(
+					new RuntimeException(String.format("Maximum number of failed workers %d in interval %s"
+							+ "is detected in Resource Manager", maximumFailureTaskExecutorPerInternal,
+						failureInterval.toString()))));
+			} else {
+				startNewWorker(launched.profile());
+			}
 		}
 
 		closeTaskManagerConnection(id, new Exception(status.getMessage()));

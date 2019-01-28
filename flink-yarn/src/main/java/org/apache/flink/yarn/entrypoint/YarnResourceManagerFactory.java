@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn.entrypoint;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -33,8 +34,11 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.yarn.YarnResourceManager;
 import org.apache.flink.yarn.YarnWorkerNode;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import javax.annotation.Nullable;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * {@link ResourceManagerFactory} implementation which creates a {@link YarnResourceManager}.
@@ -60,6 +64,9 @@ public enum YarnResourceManagerFactory implements ResourceManagerFactory<YarnWor
 			highAvailabilityServices,
 			rpcService.getScheduledExecutor());
 
+		int maxFailurePerInternal = configuration.getInteger(YarnConfigOptions.MAX_FAILED_CONTAINERS_PER_INTERVAL);
+		long failureInterval = configuration.getInteger(YarnConfigOptions.CONTAINERS_FAILURE_RATE_INTERVAL);
+
 		return new YarnResourceManager(
 			rpcService,
 			ResourceManager.RESOURCE_MANAGER_NAME,
@@ -74,6 +81,8 @@ public enum YarnResourceManagerFactory implements ResourceManagerFactory<YarnWor
 			clusterInformation,
 			fatalErrorHandler,
 			webInterfaceUrl,
-			jobManagerMetricGroup);
+			jobManagerMetricGroup,
+			Time.of(failureInterval, TimeUnit.SECONDS),
+			maxFailurePerInternal);
 	}
 }
