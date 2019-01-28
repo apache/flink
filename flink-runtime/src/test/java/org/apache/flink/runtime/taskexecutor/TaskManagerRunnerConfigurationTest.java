@@ -18,101 +18,107 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import net.jcip.annotations.NotThreadSafe;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.TestLogger;
+
+import net.jcip.annotations.NotThreadSafe;
 import org.junit.Rule;
 import org.junit.Test;
-
 import org.junit.rules.TemporaryFolder;
+
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.URI;
+import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.*;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.isEmptyOrNullString;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeNoException;
 
 /**
  * Validates that the TaskManagerRunner startup properly obeys the configuration
  * values.
  *
- * NOTE: at least {@link #testDefaultFsParameterLoading()} should not be run in parallel to other
+ * <p>NOTE: at least {@link #testDefaultFsParameterLoading()} should not be run in parallel to other
  * tests in the same JVM as it modifies a static (private) member of the {@link FileSystem} class
  * and verifies its content.
  */
 @NotThreadSafe
-public class TaskManagerRunnerConfigurationTest {
+public class TaskManagerRunnerConfigurationTest extends TestLogger {
+
+	private static final int TEST_TIMEOUT_SECONDS = 10;
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@Test
-	public void testUsePreconfiguredRpcService() throws Exception {
-		final String TEST_HOST_NAME = "testhostname";
+	public void testTaskManagerRpcServiceShouldBindToConfiguredTaskManagerHostname() throws Exception {
+		final String taskmanagerHost = "testhostname";
+		final Configuration config = createFlinkConfigWithPredefinedTaskManagerHostname(taskmanagerHost);
+		final HighAvailabilityServices highAvailabilityServices = createHighAvailabilityServices(config);
 
-		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.HOST, TEST_HOST_NAME);
-		config.setString(JobManagerOptions.ADDRESS, "localhost");
-		config.setInteger(JobManagerOptions.PORT, 7891);
+		RpcService taskManagerRpcService = null;
+		try {
+			taskManagerRpcService = TaskManagerRunner.createRpcService(config, highAvailabilityServices);
 
-		HighAvailabilityServices highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
-			config,
-			Executors.directExecutor(),
-			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+			assertThat(taskManagerRpcService.getPort(), is(greaterThanOrEqualTo(0)));
+			assertThat(taskManagerRpcService.getAddress(), is(equalTo(taskmanagerHost)));
+		} finally {
+			maybeCloseRpcService(taskManagerRpcService);
+			highAvailabilityServices.closeAndCleanupAllData();
+		}
+	}
+
+	@Test
+	public void testTaskManagerRpcServiceShouldBindToAddressDeterminedByConnectingToResourceManager() throws Exception {
+		final ServerSocket testJobManagerSocket = openServerSocket();
+		final Configuration config = createFlinkConfigWithJobManagerPort(testJobManagerSocket.getLocalPort());
+		final HighAvailabilityServices highAvailabilityServices = createHighAvailabilityServices(config);
+
+		RpcService taskManagerRpcService = null;
+		try {
+			taskManagerRpcService = TaskManagerRunner.createRpcService(config, highAvailabilityServices);
+			assertThat(taskManagerRpcService.getAddress(), not(isEmptyOrNullString()));
+		} finally {
+			maybeCloseRpcService(taskManagerRpcService);
+			highAvailabilityServices.closeAndCleanupAllData();
+			IOUtils.closeQuietly(testJobManagerSocket);
+		}
+	}
+
+	@Test
+	public void testCreatingTaskManagerRpcServiceShouldFailIfRpcPortRangeIsInvalid() throws Exception {
+		final Configuration config = new Configuration(createFlinkConfigWithPredefinedTaskManagerHostname("example.org"));
+		config.setString(TaskManagerOptions.RPC_PORT, "-1");
+
+		final HighAvailabilityServices highAvailabilityServices = createHighAvailabilityServices(config);
 
 		try {
-			// auto port
-			RpcService rpcService = TaskManagerRunner.createRpcService(config, highAvailabilityServices);
-			assertTrue(rpcService.getPort() >= 0);
-			// pre-defined host name
-			assertEquals(TEST_HOST_NAME, rpcService.getAddress());
-
-			// pre-defined port
-			final int testPort = 22551;
-			config.setString(TaskManagerOptions.RPC_PORT, String.valueOf(testPort));
-			rpcService = TaskManagerRunner.createRpcService(config, highAvailabilityServices);
-			assertEquals(testPort, rpcService.getPort());
-
-			// port range
-			config.setString(TaskManagerOptions.RPC_PORT, "8000-8001");
-			rpcService = TaskManagerRunner.createRpcService(config, highAvailabilityServices);
-			assertTrue(rpcService.getPort() >= 8000);
-			assertTrue(rpcService.getPort() <= 8001);
-
-			// invalid port
-			try {
-				config.setString(TaskManagerOptions.RPC_PORT, "-1");
-				TaskManagerRunner.createRpcService(config, highAvailabilityServices);
-				fail("should fail with an exception");
-			}
-			catch (IllegalArgumentException e) {
-				// bam!
-			}
-
-			// invalid port
-			try {
-				config.setString(TaskManagerOptions.RPC_PORT, "100000");
-				TaskManagerRunner.createRpcService(config, highAvailabilityServices);
-				fail("should fail with an exception");
-			}
-			catch (IllegalArgumentException e) {
-				// bam!
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+			TaskManagerRunner.createRpcService(config, highAvailabilityServices);
+			fail("Should fail because -1 is not a valid port range");
+		} catch (final IllegalArgumentException e) {
+			assertThat(e.getMessage(),  containsString("Invalid port range definition: -1"));
 		} finally {
 			highAvailabilityServices.closeAndCleanupAllData();
 		}
@@ -142,37 +148,40 @@ public class TaskManagerRunnerConfigurationTest {
 		}
 	}
 
-	@Test
-	public void testCreateRpcService() throws Exception {
-		ServerSocket server;
-		String hostname = "localhost";
+	private static Configuration createFlinkConfigWithPredefinedTaskManagerHostname(
+			final String taskmanagerHost) {
+		final Configuration config = new Configuration();
+		config.setString(TaskManagerOptions.HOST, taskmanagerHost);
+		config.setString(JobManagerOptions.ADDRESS, "localhost");
+		return new UnmodifiableConfiguration(config);
+	}
 
-		try {
-			InetAddress localhostAddress = InetAddress.getByName(hostname);
-			server = new ServerSocket(0, 50, localhostAddress);
-		} catch (IOException e) {
-			// may happen in certain test setups, skip test.
-			System.err.println("Skipping 'testCreateRpcService' test.");
-			return;
-		}
-
-		// open a server port to allow the system to connect
+	private static Configuration createFlinkConfigWithJobManagerPort(final int port) {
 		Configuration config = new Configuration();
+		config.setString(JobManagerOptions.ADDRESS, "localhost");
+		config.setInteger(JobManagerOptions.PORT, port);
+		return new UnmodifiableConfiguration(config);
+	}
 
-		config.setString(JobManagerOptions.ADDRESS, hostname);
-		config.setInteger(JobManagerOptions.PORT, server.getLocalPort());
-
-		HighAvailabilityServices highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+	private HighAvailabilityServices createHighAvailabilityServices(final Configuration config) throws Exception {
+		return HighAvailabilityServicesUtils.createHighAvailabilityServices(
 			config,
 			Executors.directExecutor(),
 			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+	}
 
+	private static ServerSocket openServerSocket() {
 		try {
-			assertNotNull(TaskManagerRunner.createRpcService(config, highAvailabilityServices).getAddress());
+			return new ServerSocket(0);
+		} catch (IOException e) {
+			assumeNoException("Skip test because could not open a server socket", e);
+			throw new RuntimeException("satisfy compiler");
 		}
-		finally {
-			highAvailabilityServices.closeAndCleanupAllData();
-			IOUtils.closeQuietly(server);
+	}
+
+	private static void maybeCloseRpcService(@Nullable final RpcService rpcService) throws Exception {
+		if (rpcService != null) {
+			rpcService.stopService().get(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 		}
 	}
 }
