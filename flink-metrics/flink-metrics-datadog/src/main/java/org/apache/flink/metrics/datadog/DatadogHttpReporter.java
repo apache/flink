@@ -117,7 +117,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	@Override
 	public void report() {
 		DatadogHttpRequest request = new DatadogHttpRequest();
-
+		List<Gauge> notNumberGauge = new ArrayList<>();
 		for (Map.Entry<Gauge, DGauge> entry : gauges.entrySet()) {
 			DGauge g = entry.getValue();
 			try {
@@ -126,11 +126,14 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 				g.getMetricValue();
 				request.addGauge(g);
 			} catch (Exception e) {
-				// Remove that Gauge if it's not of Number type
-				gauges.remove(entry.getKey());
+				LOGGER.warn("the Gauge {} is not of Number type", g.getMetric());
+				notNumberGauge.add(entry.getKey());
 			}
 		}
-
+		// Remove that Gauge if it's not of Number type
+		if (!notNumberGauge.isEmpty()) {
+			notNumberGauge.stream().forEach(g -> gauges.remove(g));
+		}
 		for (DCounter c : counters.values()) {
 			request.addCounter(c);
 		}
