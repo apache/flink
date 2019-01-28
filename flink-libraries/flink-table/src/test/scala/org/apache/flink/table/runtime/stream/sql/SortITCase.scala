@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.runtime.stream.sql
 
+import org.apache.flink.api.common.CompilationOption
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
+import org.apache.flink.configuration.{ConfigOptions, CoreOptions}
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
@@ -32,10 +34,25 @@ import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit._
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
 import scala.collection.mutable
 
-class SortITCase extends StreamingWithStateTestBase {
+@RunWith(classOf[Parameterized])
+class SortITCase (compilationOption: CompilationOption) extends StreamingWithStateTestBase {
+
+  @Before
+  def before(): Unit = {
+    CompilationOption.inTest = true
+    CompilationOption.currentOption = compilationOption
+  }
+
+  @After
+  def after(): Unit = {
+    CompilationOption.inTest = false
+    CompilationOption.currentOption = CompilationOption.FAST
+  }
 
   @Test
   def testEventTimeOrderBy(): Unit = {
@@ -72,7 +89,7 @@ class SortITCase extends StreamingWithStateTestBase {
       Right(14000L),
       Left((15000L, (8L, 8, "Hello World"))),
       Right(17000L),
-      Left((20000L, (20L, 20, "Hello World"))), 
+      Left((20000L, (20L, 20, "Hello World"))),
       Right(19000L))
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -80,19 +97,20 @@ class SortITCase extends StreamingWithStateTestBase {
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
+    SortITCase.clear
 
     val t1 = env.addSource(new EventTimeSourceFunction[(Long, Int, String)](data))
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
-      
+
     tEnv.registerTable("T1", t1)
 
     val  sqlQuery = "SELECT b FROM T1 ORDER BY rowtime, b ASC "
-      
-      
+
+
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StringRowSelectorSink(0)).setParallelism(1)
     env.execute()
-    
+
     val expected = mutable.MutableList(
       "1", "15", "16",
       "1", "2", "2", "3",
@@ -101,7 +119,7 @@ class SortITCase extends StreamingWithStateTestBase {
       "5",
       "-1", "6", "6", "65", "67",
       "18", "7", "9",
-      "7", "17", "77", 
+      "7", "17", "77",
       "18",
       "8",
       "20")
@@ -150,4 +168,11 @@ object SortITCase {
   }
   
   var testResults: mutable.MutableList[String] = mutable.MutableList.empty[String]
+
+  def clear = testResults.clear()
+
+  @Parameterized.Parameters(name = "compilationOption = {0}")
+  def compilationConfig(): Array[CompilationOption] = {
+    Array(CompilationOption.FAST, CompilationOption.SLOW)
+  }
 }

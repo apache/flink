@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.functions.{CodeGenFunction, ProcessFunction}
 import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.util.Logging
@@ -39,14 +39,15 @@ class CRowProcessRunner(
   extends ProcessFunction[CRow, CRow]
   with ResultTypeQueryable[CRow]
   with Compiler[ProcessFunction[Row, Row]]
-  with Logging {
+  with Logging
+  with CodeGenFunction {
 
   private var function: ProcessFunction[Row, Row] = _
   private var cRowWrapper: CRowWrappingCollector = _
 
   override def open(parameters: Configuration): Unit = {
     LOG.debug(s"Compiling ProcessFunction: $name \n\n Code:\n$code")
-    val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
+    val clazz = compile(getRuntimeContext, name, code)
     LOG.debug("Instantiating ProcessFunction.")
     function = clazz.newInstance()
     FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
@@ -74,6 +75,10 @@ class CRowProcessRunner(
   override def close(): Unit = {
     FunctionUtils.closeFunction(function)
   }
+
+  override def getName: String = name
+
+  override def getCode: String = code
 }
 
 

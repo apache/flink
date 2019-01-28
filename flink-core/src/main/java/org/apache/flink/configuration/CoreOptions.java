@@ -105,6 +105,12 @@ public class CoreOptions {
 			" resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against" +
 			" the fully qualified class name. These patterns are appended to \"" + ALWAYS_PARENT_FIRST_LOADER_PATTERNS.key() + "\".");
 
+	public static final ConfigOption<String> CODEGEN_COMPILATION_OPTION = ConfigOptions
+		.key("codegen.compilation.option")
+		.defaultValue("fast")
+		.withDescription("A string indicating the option used for compiling generated code. 'fast' means compiling with Janino, " +
+			"whereas 'slow' means compiling with Java Compiler API (JCA).");
+
 	public static String[] getParentFirstLoaderPatterns(Configuration config) {
 		String base = config.getString(ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
 		String append = config.getString(ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);

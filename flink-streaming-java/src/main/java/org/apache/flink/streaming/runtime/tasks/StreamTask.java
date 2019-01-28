@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.CompilationOption;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -42,8 +43,10 @@ import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.functions.CodeGenFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -54,6 +57,7 @@ import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitio
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.util.JCACompiler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -64,6 +68,7 @@ import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +76,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 /**
  * Base class for all streaming tasks. A task is the unit of local processing that is deployed
@@ -413,12 +419,30 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	/**
+	 *  Compile all generated code in batch, to save time.
+	 */
+	private void compileInBatch() {
+		List<CodeGenFunction> codeGenFunctions = Arrays.stream(operatorChain.getAllOperators()).filter(operator -> operator instanceof AbstractUdfStreamOperator).
+			filter(operator -> ((AbstractUdfStreamOperator) operator).getUserFunction() instanceof CodeGenFunction).
+			map(operator -> (CodeGenFunction) ((AbstractUdfStreamOperator) operator).getUserFunction()).collect(Collectors.toList());
+
+		List<String> names = codeGenFunctions.stream().map(function -> function.getName()).collect(Collectors.toList());
+		List<String> sources = codeGenFunctions.stream().map(function -> function.getCode()).collect(Collectors.toList());
+
+		JCACompiler.getInstance().compileSourceInBatch(names, sources);
+	}
+
+	/**
 	 * Execute {@link StreamOperator#open()} of each operator in the chain of this
 	 * {@link StreamTask}. Opening happens from <b>tail to head</b> operator in the chain, contrary
 	 * to {@link StreamOperator#close()} which happens <b>head to tail</b>
 	 * (see {@link #closeAllOperators()}.
 	 */
 	private void openAllOperators() throws Exception {
+		if (this.getExecutionConfig().getCompileOption() == CompilationOption.SLOW) {
+			compileInBatch();
+		}
+
 		for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
 			if (operator != null) {
 				operator.open();
