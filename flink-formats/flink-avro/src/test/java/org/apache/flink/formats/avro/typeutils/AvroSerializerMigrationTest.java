@@ -90,6 +90,7 @@ public class AvroSerializerMigrationTest extends TypeSerializerSnapshotMigration
 	// ---------------------------------------------------------------------------------------------------------------
 	// The following batch of tests are making sure that AvroSerializer class is able to be Java-Deserialized.
 	// see [FLINK-11436] for more information.
+
 	// Once we drop support for versions that carried snapshots with Java-Deserialized serializers we can drop this
 	// batch of tests.
 	// ---------------------------------------------------------------------------------------------------------------
@@ -239,7 +240,9 @@ public class AvroSerializerMigrationTest extends TypeSerializerSnapshotMigration
 		return TypeSerializerSerializationUtil.tryReadSerializer(in, Thread.currentThread().getContextClassLoader());
 	}
 
-
+	/**
+	 * A simple pojo used in these tests.
+	 */
 	public static class SimplePojo {
 		private String foo;
 
@@ -253,5 +256,4 @@ public class AvroSerializerMigrationTest extends TypeSerializerSnapshotMigration
 			this.foo = foo;
 		}
 	}
-
 }
