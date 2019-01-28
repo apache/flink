@@ -86,6 +86,8 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 		this.targetFile = checkNotNull(recoverable.targetFile());
 		this.tempFile = checkNotNull(recoverable.tempFile());
 
+		waitUntilLeaseIsRevoked(tempFile);
+
 		// truncate back and append
 		try {
 			truncate(fs, tempFile, recoverable.offset());
@@ -93,7 +95,6 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 			throw new IOException("Missing data in tmp file: " + tempFile, e);
 		}
 
-		waitUntilLeaseIsRevoked(tempFile);
 		out = fs.append(tempFile);
 
 		// sanity check
