@@ -22,13 +22,17 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-libraries</artifactId>
+		<artifactId>flink-table</artifactId>
 		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-sql-client_${scala.binary.version}</artifactId>
 	<name>flink-sql-client</name>
+	<description>
+		This module contains the SQL Client for exploring and
+		submitting SQL programs to Flink.
+	</description>
 
 	<packaging>jar</packaging>
 
@@ -57,13 +61,19 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table_${scala.binary.version}</artifactId>
+			<artifactId>flink-cep_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
+		<!-- Table ecosystem -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-cep_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -140,9 +150,8 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>2.4.1</version>
 				<executions>
-					<!-- Exclude all flink-dist files and only include flink-table and flink-sql-client -->
+					<!-- Exclude all flink-dist files -->
 					<execution>
 						<id>shade-flink</id>
 						<phase>package</phase>
@@ -152,7 +161,9 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<includes combine.children="append">
-									<include>org.apache.flink:flink-table_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-table-common</include>
+									<include>org.apache.flink:flink-table-api-java-bridge_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-table-planner_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-cep_${scala.binary.version}</include>
 									<include>org.jline:*</include>
 								</includes>
