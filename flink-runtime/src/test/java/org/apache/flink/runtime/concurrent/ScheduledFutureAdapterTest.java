@@ -24,10 +24,10 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.concurrent.Delayed;
+import javax.annotation.Nonnull;
+
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Unit tests for {@link ScheduledFutureAdapter}.
@@ -40,7 +40,7 @@ public class ScheduledFutureAdapterTest extends TestLogger {
 	@Before
 	public void before() throws Exception {
 		this.innerDelegate = new TestFuture();
-		this.objectUnderTest = new ScheduledFutureAdapter<>(innerDelegate, 4200L, TimeUnit.MILLISECONDS);
+		this.objectUnderTest = new ScheduledFutureAdapter<>(innerDelegate, 4200000321L, TimeUnit.NANOSECONDS);
 	}
 
 	@Test
@@ -75,32 +75,41 @@ public class ScheduledFutureAdapterTest extends TestLogger {
 	}
 
 	@Test
-	public void testDelay() {
+	public void testCompareToEqualsHashCode() {
 
-		Assert.assertEquals(4200L, objectUnderTest.getDelay(TimeUnit.MILLISECONDS));
-		Assert.assertEquals(4L, objectUnderTest.getDelay(TimeUnit.SECONDS));
+		Assert.assertEquals(0, objectUnderTest.compareTo(objectUnderTest));
+		Assert.assertEquals(0, objectUnderTest.compareTo(objectUnderTest));
+		Assert.assertEquals(objectUnderTest, objectUnderTest);
 
-		final AtomicLong delayUnits = new AtomicLong();
-		Delayed delayed = new Delayed() {
-			@Override
-			public long getDelay(TimeUnit unit) {
-				return delayUnits.get();
-			}
+		ScheduledFutureAdapter<?> other = getDeepCopyWithAdjustedTime(0L , objectUnderTest.getTieBreakerUid());
 
-			@Override
-			public int compareTo(Delayed o) {
-				throw new UnsupportedOperationException();
-			}
-		};
+		Assert.assertEquals(0, objectUnderTest.compareTo(other));
+		Assert.assertEquals(0, other.compareTo(objectUnderTest));
+		Assert.assertEquals(objectUnderTest, other);
+		Assert.assertEquals(objectUnderTest.hashCode(), other.hashCode());
 
-		delayUnits.set(objectUnderTest.getDelay(TimeUnit.MILLISECONDS));
-		Assert.assertEquals(0, objectUnderTest.compareTo(delayed));
-		delayUnits.set(delayUnits.get() + 1);
-		Assert.assertEquals(-1, Integer.signum(objectUnderTest.compareTo(delayed)));
-		delayUnits.set(delayUnits.get() - 2);
-		Assert.assertEquals(1, Integer.signum(objectUnderTest.compareTo(delayed)));
+		other = getDeepCopyWithAdjustedTime(0L , objectUnderTest.getTieBreakerUid() + 1L);
+		Assert.assertEquals(-1, Integer.signum(objectUnderTest.compareTo(other)));
+		Assert.assertEquals(+1, Integer.signum(other.compareTo(objectUnderTest)));
+		Assert.assertNotEquals(objectUnderTest, other);
+
+		other = getDeepCopyWithAdjustedTime(+1L, objectUnderTest.getTieBreakerUid());
+		Assert.assertEquals(-1, Integer.signum(objectUnderTest.compareTo(other)));
+		Assert.assertEquals(+1, Integer.signum(other.compareTo(objectUnderTest)));
+		Assert.assertNotEquals(objectUnderTest, other);
+
+		other = getDeepCopyWithAdjustedTime(-1L, objectUnderTest.getTieBreakerUid());
+		Assert.assertEquals(+1, Integer.signum(objectUnderTest.compareTo(other)));
+		Assert.assertEquals(-1, Integer.signum(other.compareTo(objectUnderTest)));
+		Assert.assertNotEquals(objectUnderTest, other);
 	}
 
+	private ScheduledFutureAdapter<Integer> getDeepCopyWithAdjustedTime(long nanoAdjust, long uid) {
+		return new ScheduledFutureAdapter<>(
+			innerDelegate,
+			objectUnderTest.getScheduleTimeNanos() + nanoAdjust,
+			uid);
+	}
 
 	/**
 	 * Implementation of {@link Future} for the unit tests in this class.
@@ -142,7 +151,7 @@ public class ScheduledFutureAdapterTest extends TestLogger {
 		}
 
 		@Override
-		public Integer get(long timeout, TimeUnit unit) {
+		public Integer get(long timeout, @Nonnull TimeUnit unit) {
 			++getTimeoutInvocationCount;
 			return 4711;
 		}

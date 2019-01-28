@@ -18,14 +18,20 @@
 
 package org.apache.flink.runtime.concurrent;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 import javax.annotation.Nonnull;
 
+import java.util.Objects;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
+
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 /**
  * Adapter from {@link Future} to {@link ScheduledFuture}. This enriches the basic future with scheduling information.
@@ -33,35 +39,59 @@ import java.util.concurrent.TimeoutException;
  */
 public class ScheduledFutureAdapter<V> implements ScheduledFuture<V> {
 
+	/** The uid sequence generator. */
+	private static final AtomicLong SEQUENCE_GEN = new AtomicLong();
+
 	/** The encapsulated basic future to which execution is delegated. */
 	@Nonnull
 	private final Future<V> delegate;
 
-	/** The time unit for the delay. */
-	@Nonnull
-	private final TimeUnit timeUnit;
+	/** Tie-breaker for {@link #compareTo(Delayed)}. */
+	private final long tieBreakerUid;
 
-	/** The delay, to interpreted in the given time unit.*/
-	private final long delay;
+	/** The time when this is scheduled for execution in nanoseconds.*/
+	private final long scheduleTimeNanos;
 
 	public ScheduledFutureAdapter(
 		@Nonnull Future<V> delegate,
 		long delay,
 		@Nonnull TimeUnit timeUnit) {
+		this(
+			delegate,
+			System.nanoTime() + TimeUnit.NANOSECONDS.convert(delay, timeUnit),
+			SEQUENCE_GEN.incrementAndGet());
+	}
+
+	@VisibleForTesting
+	ScheduledFutureAdapter(
+		@Nonnull Future<V> delegate,
+		long scheduleTimeNanos,
+		long tieBreakerUid) {
 
 		this.delegate = delegate;
-		this.delay = delay;
-		this.timeUnit = timeUnit;
+		this.scheduleTimeNanos = scheduleTimeNanos;
+		this.tieBreakerUid = tieBreakerUid;
 	}
 
 	@Override
 	public long getDelay(@Nonnull TimeUnit unit) {
-		return unit.convert(delay, timeUnit);
+		return unit.convert(scheduleTimeNanos - System.nanoTime(), TimeUnit.NANOSECONDS);
 	}
 
 	@Override
 	public int compareTo(@Nonnull Delayed o) {
-		return Long.compare(delay, o.getDelay(timeUnit));
+
+		if (o == this) {
+			return 0;
+		}
+
+		// tie breaking for ScheduledFutureAdapter objects
+		if (o instanceof ScheduledFutureAdapter) {
+			int cmp = Long.compare(scheduleTimeNanos, ((ScheduledFutureAdapter) o).scheduleTimeNanos);
+			return cmp != 0 ? cmp : Long.compare(tieBreakerUid, ((ScheduledFutureAdapter) o).tieBreakerUid);
+		}
+
+		return Long.compare(getDelay(NANOSECONDS), o.getDelay(NANOSECONDS));
 	}
 
 	@Override
@@ -88,5 +118,35 @@ public class ScheduledFutureAdapter<V> implements ScheduledFuture<V> {
 	public V get(long timeout, @Nonnull TimeUnit unit)
 		throws InterruptedException, ExecutionException, TimeoutException {
 		return delegate.get(timeout, unit);
+	}
+
+	@VisibleForTesting
+	long getTieBreakerUid() {
+		return tieBreakerUid;
+	}
+
+	@VisibleForTesting
+	long getScheduleTimeNanos() {
+		return scheduleTimeNanos;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+
+		if (this == o) {
+			return true;
+		}
+
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+
+		ScheduledFutureAdapter<?> that = (ScheduledFutureAdapter<?>) o;
+		return tieBreakerUid == that.tieBreakerUid && scheduleTimeNanos == that.scheduleTimeNanos;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(tieBreakerUid, scheduleTimeNanos);
 	}
 }

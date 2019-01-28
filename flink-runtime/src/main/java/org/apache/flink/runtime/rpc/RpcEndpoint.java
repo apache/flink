@@ -329,12 +329,8 @@ public abstract class RpcEndpoint implements RpcGateway {
 			gateway.runAsync(runnable);
 		}
 
-		public <V> CompletableFuture<V> callAsync(Callable<V> callable, Time callTimeout) {
-			return gateway.callAsync(callable, callTimeout);
-		}
-
-		public void scheduleRunAsync(Runnable runnable, long delay) {
-			gateway.scheduleRunAsync(runnable, delay);
+		public void scheduleRunAsync(Runnable runnable, long delayMillis) {
+			gateway.scheduleRunAsync(runnable, delayMillis);
 		}
 
 		public void execute(@Nonnull Runnable command) {
@@ -343,15 +339,15 @@ public abstract class RpcEndpoint implements RpcGateway {
 
 		@Override
 		public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+			final long delayMillis = TimeUnit.MILLISECONDS.convert(delay, unit);
 			FutureTask<Void> ft = new FutureTask<>(command, null);
-			scheduleRunAsync(ft, TimeUnit.MILLISECONDS.convert(delay, unit));
-			return new ScheduledFutureAdapter<>(ft, delay, unit);
+			scheduleRunAsync(ft, delayMillis);
+			return new ScheduledFutureAdapter<>(ft, delayMillis, TimeUnit.MILLISECONDS);
 		}
 
 		@Override
 		public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
-			CompletableFuture<V> cf = callAsync(callable, Time.of(delay, unit));
-			return new ScheduledFutureAdapter<>(cf, delay, unit);
+			throw new UnsupportedOperationException("Not implemented because the method is currently not required.");
 		}
 
 		@Override
