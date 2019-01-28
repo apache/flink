@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.runtime.io.benchmark;
 
-import org.apache.flink.configuration.TaskManagerOptions;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -82,7 +80,7 @@ public class StreamNetworkThroughputBenchmarkTest {
 		expectedException.expect(IOException.class);
 		expectedException.expectMessage("Insufficient number of network buffers");
 
-		env.setUp(writers, channels, 100, false, writers * channels - 1, writers * channels * TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue());
+		env.setUp(writers, channels, 100, false, writers * channels - 1, writers * channels);
 	}
 
 	@Test
@@ -94,7 +92,7 @@ public class StreamNetworkThroughputBenchmarkTest {
 		expectedException.expect(IOException.class);
 		expectedException.expectMessage("Insufficient number of network buffers");
 
-		env.setUp(writers, channels, 100, false, writers * channels, writers * channels * TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() - 1);
+		env.setUp(writers, channels, 100, false, writers * channels, writers * channels - 1);
 	}
 
 	@Test
@@ -103,8 +101,7 @@ public class StreamNetworkThroughputBenchmarkTest {
 		int writers = 2;
 		int channels = 2;
 
-		env.setUp(writers, channels, 100, false, writers * channels, writers * channels *
-			TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue());
+		env.setUp(writers, channels, 100, false, writers * channels, writers * channels);
 		env.executeBenchmark(10_000);
 		env.tearDown();
 	}
