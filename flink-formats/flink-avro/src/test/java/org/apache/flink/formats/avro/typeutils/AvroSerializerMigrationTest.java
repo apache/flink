@@ -95,6 +95,38 @@ public class AvroSerializerMigrationTest extends TypeSerializerSnapshotMigration
 	// ---------------------------------------------------------------------------------------------------------------
 
 	@Test
+	public void javaDeserializeFromFlink_1_5_ReflectiveRecord() throws IOException {
+		final String avroSerializerBase64 = "AAAAAQAAAQis7QAFc3IANm9yZy5hcGFjaGUuZmxpbmsuZm9ybWF0cy5hdnJvLnR5cGV1dGlscy5BdnJv\n" +
+			"U2VyaWFsaXplcgAAAAAAAAABAgABTAAEdHlwZXQAEUxqYXZhL2xhbmcvQ2xhc3M7eHIANG9yZy5hcGFj\n" +
+			"aGUuZmxpbmsuYXBpLmNvbW1vbi50eXBldXRpbHMuVHlwZVNlcmlhbGl6ZXIAAAAAAAAAAQIAAHhwdnIA\n" +
+			"Tm9yZy5hcGFjaGUuZmxpbmsuZm9ybWF0cy5hdnJvLnR5cGV1dGlscy5BdnJvU2VyaWFsaXplck1pZ3Jh\n" +
+			"dGlvblRlc3QkU2ltcGxlUG9qbwAAAAAAAAAAAAAAeHA=";
+
+		TypeSerializer<?> serializer = javaDeserialize(avroSerializerBase64);
+		assertThat(serializer, instanceOf(AvroSerializer.class));
+
+		AvroSerializer<?> avroSerializer = (AvroSerializer<?>) javaDeserialize(avroSerializerBase64);
+		assertSame(avroSerializer.getType(), SimplePojo.class);
+		assertThat(avroSerializer.getAvroSchema(), notNullValue());
+	}
+
+	@Test
+	public void javaDeserializeFromFlink_1_5_SpecificRecord() throws IOException {
+		final String avroSerializerBase64 = "AAAAAQAAASOs7QAFc3IANm9yZy5hcGFjaGUuZmxpbmsuZm9ybWF0cy5hdnJvLnR5cGV1dGlscy5BdnJv\n" +
+			"U2VyaWFsaXplcgAAAAAAAAABAgABTAAEdHlwZXQAEUxqYXZhL2xhbmcvQ2xhc3M7eHIANG9yZy5hcGFj\n" +
+			"aGUuZmxpbmsuYXBpLmNvbW1vbi50eXBldXRpbHMuVHlwZVNlcmlhbGl6ZXIAAAAAAAAAAQIAAHhwdnIA\n" +
+			"L29yZy5hcGFjaGUuZmxpbmsuZm9ybWF0cy5hdnJvLmdlbmVyYXRlZC5BZGRyZXNz7Paj+KjgQ2oMAAB4\n" +
+			"cgArb3JnLmFwYWNoZS5hdnJvLnNwZWNpZmljLlNwZWNpZmljUmVjb3JkQmFzZQKi+azGtzQdDAAAeHA=";
+
+		TypeSerializer<?> serializer = javaDeserialize(avroSerializerBase64);
+		assertThat(serializer, instanceOf(AvroSerializer.class));
+
+		AvroSerializer<?> avroSerializer = (AvroSerializer<?>) javaDeserialize(avroSerializerBase64);
+		assertSame(avroSerializer.getType(), Address.class);
+		assertThat(avroSerializer.getAvroSchema(), is(Address.SCHEMA$));
+	}
+
+	@Test
 	public void javaDeserializeFromFlink_1_6() throws IOException {
 		final String avroSerializer = "AAAAAQAAAUis7QAFc3IANm9yZy5hcGFjaGUuZmxpbmsuZm9ybWF0cy5hdnJvLnR5cGV1dGlscy5BdnJv\n" +
 			"U2VyaWFsaXplcgAAAAAAAAABAgACTAAMc2NoZW1hU3RyaW5ndAASTGphdmEvbGFuZy9TdHJpbmc7TAAE\n" +
@@ -205,6 +237,21 @@ public class AvroSerializerMigrationTest extends TypeSerializerSnapshotMigration
 		byte[] bytes = Base64.getMimeDecoder().decode(base64);
 		DataInputDeserializer in = new DataInputDeserializer(bytes);
 		return TypeSerializerSerializationUtil.tryReadSerializer(in, Thread.currentThread().getContextClassLoader());
+	}
+
+
+	public static class SimplePojo {
+		private String foo;
+
+		@SuppressWarnings("unused")
+		public String getFoo() {
+			return foo;
+		}
+
+		@SuppressWarnings("unused")
+		public void setFoo(String foo) {
+			this.foo = foo;
+		}
 	}
 
 }

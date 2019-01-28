@@ -384,7 +384,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	}
 
-	// -------- backwards compatibility with 1.6 -----------
+	// -------- backwards compatibility with 1.5, 1.6 -----------
 
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		/*
@@ -404,10 +404,11 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		The names are sorted using String.compareTo.
 		-------------------------------------------------------------------------------------------------------------
 
+		pre 1.6		field order:   	[type]
 		pre 1.7 	field order:   	[schemaString, 		type]
 		post 1.7 	field order:	[previousSchema,	schema,		type]
 
-		We would use the first field to distinguish between the two different layouts.
+		We would use the first field to distinguish between the three different layouts.
 		To complicate things even further in pre 1.7, the field @schemaString could be
 		null or a string, but, in post 1.7, the field @previousSchema was never set to null, therefore
 		we can use the first field to determine the version.
@@ -418,12 +419,17 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		final Object firstField = in.readObject();
 
 		if (firstField == null) {
-			// first field can only be NULL in the old layout.
-			readOldLayout(null, in);
+			// first field can only be NULL in 1.6 (schemaString)
+			read16Layout(null, in);
 		}
 		else if (firstField instanceof String) {
-			// first field is a String only in the old layout
-			readOldLayout((String) firstField, in);
+			// first field is a String only in 1.6 (schemaString)
+			read16Layout((String) firstField, in);
+		}
+		else if (firstField instanceof Class<?>) {
+			// first field is a Class<?> only in 1.5 (type)
+			@SuppressWarnings("unchecked") Class<T> type = (Class<T>) firstField;
+			read15Layout(type);
 		}
 		else if (firstField instanceof SerializableAvroSchema) {
 			readCurrentLayout((SerializableAvroSchema) firstField, in);
@@ -435,8 +441,14 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 		}
 	}
 
+	private void read15Layout(Class<T> type) {
+		this.previousSchema = new SerializableAvroSchema();
+		this.schema = new SerializableAvroSchema();
+		this.type = type;
+	}
+
 	@SuppressWarnings("unchecked")
-	private void readOldLayout(@Nullable String schemaString, ObjectInputStream in)
+	private void read16Layout(@Nullable String schemaString, ObjectInputStream in)
 			throws IOException, ClassNotFoundException {
 
 		Schema schema = AvroFactory.parseSchemaString(schemaString);
