@@ -162,6 +162,14 @@ The configuration keys in this section are independent of the used resource mana
 
 {% include generated/rocks_db_configuration.html %}
 
+### RocksDB Customized Options
+Certain RocksDB configurable options provided by Flink.
+These options have no default values, meaning they are not configured by default from Flink's side
+and leave them for predefined options and options factory to keep backward compatibility.
+The final RocksDB's option would be chosen through the priority of `OptionsFactory` --> `RocksDBCustomizedOptions` --> `PredefinedOptions`.
+
+{% include generated/rocks_db_customized_configuration.html %}
+
 ### Queryable State
 
 {% include generated/queryable_state_configuration.html %}

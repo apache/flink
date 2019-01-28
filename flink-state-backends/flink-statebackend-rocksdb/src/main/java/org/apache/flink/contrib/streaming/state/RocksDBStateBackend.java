@@ -123,7 +123,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	private File[] localRocksDbDirectories;
 
 	/** The pre-configured option settings. */
-	private PredefinedOptions predefinedOptions = PredefinedOptions.DEFAULT;
+	@Nullable
+	private PredefinedOptions predefinedOptions = null;
+
+	/** The customized RocksDB options, default value: empty-map, means no customized options. */
+	private RocksDBCustomizedOptions customizedOptions;
 
 	/** The options factory to create the RocksDB options in the cluster. */
 	@Nullable
@@ -266,6 +270,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.priorityQueueStateType = PriorityQueueStateType.HEAP;
 		this.defaultMetricOptions = new RocksDBNativeMetricOptions();
 		this.enableTtlCompactionFilter = TernaryBoolean.UNDEFINED;
+		this.customizedOptions = new RocksDBCustomizedOptions();
 	}
 
 	/**
@@ -338,8 +343,15 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		// configure metric options
 		this.defaultMetricOptions = RocksDBNativeMetricOptions.fromConfig(config);
 
+		// configure RocksDB predefined options
+		this.predefinedOptions = original.predefinedOptions == null ?
+			PredefinedOptions.valueOf(config.getString(RocksDBOptions.PREDEFINED_OPTIONS)) : original.predefinedOptions;
+
+		// configure RocksDB customized options
+		RocksDBCustomizedOptions customizedOptionsFromConfig = RocksDBCustomizedOptions.fromConfig(config);
+		this.customizedOptions = customizedOptionsFromConfig.overrideBy(original.customizedOptions);
+
 		// copy remaining settings
-		this.predefinedOptions = original.predefinedOptions;
 		this.optionsFactory = original.optionsFactory;
 	}
 
@@ -663,9 +675,12 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	/**
 	 * Sets the predefined options for RocksDB.
 	 *
+	 * <p>If customized options is configured, then the options from the {@link RocksDBCustomizedOptions}
+	 * are applied on top of the predefined options.
+	 *
 	 * <p>If a user-defined options factory is set (via {@link #setOptions(OptionsFactory)}),
 	 * then the options from the factory are applied on top of the here specified
-	 * predefined options.
+	 * predefined options and customized options.
 	 *
 	 * @param options The options to set (must not be null).
 	 */
@@ -678,13 +693,47 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * The default options (if nothing was set via {@link #setPredefinedOptions(PredefinedOptions)})
 	 * are {@link PredefinedOptions#DEFAULT}.
 	 *
-	 * <p>If a user-defined  options factory is set (via {@link #setOptions(OptionsFactory)}),
-	 * then the options from the factory are applied on top of the predefined options.
+	 * <p>If customized options is configured, then the options from the {@link RocksDBCustomizedOptions}
+	 * are applied on top of the predefined options.
+	 *
+	 * <p>If a user-defined options factory is set (via {@link #setOptions(OptionsFactory)}),
+	 * then the options from the factory are applied on top of the predefined and customized options.
 	 *
 	 * @return The currently set predefined options for RocksDB.
 	 */
 	public PredefinedOptions getPredefinedOptions() {
+		if (predefinedOptions == null) {
+			predefinedOptions = PredefinedOptions.DEFAULT;
+		}
 		return predefinedOptions;
+	}
+
+	/**
+	 * Sets the customized options on top of predefined options.
+	 *
+	 * <p>If a user-defined options factory is set (via {@link #setOptions(OptionsFactory)}),
+	 * then the options from the factory are applied on top of the predefined and customized options.
+	 *
+	 * @param customizedOptions The customized options to set (must not be null).
+	 */
+	public void setCustomizedOptions(RocksDBCustomizedOptions customizedOptions) {
+		this.customizedOptions = checkNotNull(customizedOptions);
+	}
+
+	/**
+	 * Gets the currently user customized options for RocksDB.
+	 * The default customized options are empty, please set provided specific options for {@link RocksDBCustomizedOptions}.
+	 *
+	 * <p>The customized options here are applied on top of the pre-defined options profile
+	 * selected via {@link #setPredefinedOptions(PredefinedOptions)}.
+	 *
+	 * <p>If a user-defined  options factory is set (via {@link #setOptions(OptionsFactory)}),
+	 * then the options from the factory are applied on top of the predefined and customized options.
+	 *
+	 * @return The currently user customized options for RocksDB.
+	 */
+	public RocksDBCustomizedOptions getCustomizedOptions() {
+		return customizedOptions;
 	}
 
 	/**
@@ -693,10 +742,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * they must be specified through a factory.
 	 *
 	 * <p>The options created by the factory here are applied on top of the pre-defined
-	 * options profile selected via {@link #setPredefinedOptions(PredefinedOptions)}.
-	 * If the pre-defined options profile is the default
-	 * ({@link PredefinedOptions#DEFAULT}), then the factory fully controls the RocksDB
-	 * options.
+	 * options and customized options.
+	 *
+	 * <p>If the pre-defined options profile is the default
+	 * ({@link PredefinedOptions#DEFAULT}), and no customized options are specified,
+	 * then the factory fully controls the RocksDB options.
 	 *
 	 * @param optionsFactory The options factory that lazily creates the RocksDB options.
 	 */
@@ -718,9 +768,12 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	public DBOptions getDbOptions() {
 		// initial options from pre-defined profile
-		DBOptions opt = predefinedOptions.createDBOptions();
+		DBOptions opt = getPredefinedOptions().createDBOptions();
 
-		// add user-defined options, if specified
+		// add user-customized options, if specified
+		opt = customizedOptions.getDBOptions(opt);
+
+		// add user-defined options factory, if specified
 		if (optionsFactory != null) {
 			opt = optionsFactory.createDBOptions(opt);
 		}
@@ -736,7 +789,10 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	public ColumnFamilyOptions getColumnOptions() {
 		// initial options from pre-defined profile
-		ColumnFamilyOptions opt = predefinedOptions.createColumnOptions();
+		ColumnFamilyOptions opt = getPredefinedOptions().createColumnOptions();
+
+		// add user-customized options, if specified
+		opt = customizedOptions.getColumnOptions(opt);
 
 		// add user-defined options, if specified
 		if (optionsFactory != null) {
