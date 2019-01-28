@@ -18,18 +18,20 @@
 
 package org.apache.flink.addons.hbase;
 
-import org.apache.flink.addons.hbase.strategy.TableInputSplitStrategyImpl;
-import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.types.Row;
+import org.apache.flink.api.java.tuple.Tuple;
+
+import org.apache.hadoop.hbase.client.Result;
 
 /**
- * {@link InputFormat} subclass that wraps the access for HTables. Returns the result as {@link Row}.
+ * HBase scanned {@link Result} to {@link Tuple} mapper.
  */
-public class HBaseRowInputFormat extends HBaseRowInputFormatTemplate implements ResultTypeQueryable<Row> {
+public interface ResultToTupleMapper<T extends Tuple> {
 
-	public HBaseRowInputFormat(org.apache.hadoop.conf.Configuration conf, String tableName, HBaseTableSchema schema) {
-		super(conf, tableName, schema);
-		tableInputSplitStrategy = new TableInputSplitStrategyImpl();
-	}
+	/**
+	 * The output from HBase is always an instance of {@link Result}.
+	 * This method is to copy the data in the Result instance into the required {@link Tuple}
+	 * @param r The Result instance from HBase that needs to be converted
+	 * @return The appropriate instance of {@link Tuple} that contains the needed information.
+	 */
+	T mapResultToTuple(Result r);
 }

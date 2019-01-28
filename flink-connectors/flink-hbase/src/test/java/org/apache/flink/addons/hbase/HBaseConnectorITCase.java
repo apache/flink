@@ -36,6 +36,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
@@ -77,10 +78,14 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 	private static final String F3COL2 = "col2";
 	private static final String F3COL3 = "col3";
 
+	private static final String SNAPSHOT_NAME = "testTableSnapshot";
+	private static final String SNAPSHOT_RESTORE_PATH = "/restore_path";
+
 	@BeforeClass
 	public static void activateHBaseCluster() throws IOException {
 		registerHBaseMiniClusterInClasspath();
 		prepareTable();
+		prepareSnapshot();
 		LimitNetworkBuffersTestEnvironment.setAsContext();
 	}
 
@@ -121,6 +126,14 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 		table.close();
 	}
 
+	private static void prepareSnapshot() throws IOException {
+
+		// create snapshot
+		getAdmin().snapshot(Bytes.toBytes(SNAPSHOT_NAME), TableName.valueOf(TEST_TABLE));
+		assertEquals(1, getAdmin().listSnapshots().size());
+		TEST_UTIL.getDFSCluster().getFileSystem().mkdirs(new Path(SNAPSHOT_RESTORE_PATH));
+	}
+
 	private static Put putRow(int rowKey, int f1c1, String f2c1, long f2c2, double f3c1, boolean f3c2, String f3c3) {
 		Put put = new Put(Bytes.toBytes(rowKey));
 		// family 1
@@ -138,15 +151,24 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 		return put;
 	}
 
-	// ######## HBaseTableSource tests ############
+	// ######## HBaseTableSource & HBaseTableSnapshotSource tests ############
 
 	@Test
 	public void testTableSourceFullScan() throws Exception {
+		doTestTableSourceFullScan(new HBaseTableSource(getConf(), TEST_TABLE));
+	}
+
+	@Test
+	public void testTableSnapshotSourceFullScan() throws Exception {
+		doTestTableSourceFullScan(new HBaseTableSnapshotSource(getConf(), TEST_TABLE,
+			SNAPSHOT_NAME, SNAPSHOT_RESTORE_PATH));
+	}
+
+	private void doTestTableSourceFullScan(HBaseTableSource hbaseTable) throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(4);
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, new TableConfig());
-		HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE);
 		hbaseTable.addColumn(FAMILY1, F1COL1, Integer.class);
 		hbaseTable.addColumn(FAMILY2, F2COL1, String.class);
 		hbaseTable.addColumn(FAMILY2, F2COL2, Long.class);
@@ -170,24 +192,33 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 
 		String expected =
 			"10,Hello-1,100,1.01,false,Welt-1\n" +
-			"20,Hello-2,200,2.02,true,Welt-2\n" +
-			"30,Hello-3,300,3.03,false,Welt-3\n" +
-			"40,null,400,4.04,true,Welt-4\n" +
-			"50,Hello-5,500,5.05,false,Welt-5\n" +
-			"60,Hello-6,600,6.06,true,Welt-6\n" +
-			"70,Hello-7,700,7.07,false,Welt-7\n" +
-			"80,null,800,8.08,true,Welt-8\n";
+				"20,Hello-2,200,2.02,true,Welt-2\n" +
+				"30,Hello-3,300,3.03,false,Welt-3\n" +
+				"40,null,400,4.04,true,Welt-4\n" +
+				"50,Hello-5,500,5.05,false,Welt-5\n" +
+				"60,Hello-6,600,6.06,true,Welt-6\n" +
+				"70,Hello-7,700,7.07,false,Welt-7\n" +
+				"80,null,800,8.08,true,Welt-8\n";
 
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
 
 	@Test
 	public void testTableSourceProjection() throws Exception {
+		doTestTableSourceProjection(new HBaseTableSource(getConf(), TEST_TABLE));
+	}
+
+	@Test
+	public void testTableSnapshotSourceProjection() throws Exception {
+		doTestTableSourceProjection(new HBaseTableSnapshotSource(getConf(), TEST_TABLE,
+			SNAPSHOT_NAME, SNAPSHOT_RESTORE_PATH));
+	}
+
+	private void doTestTableSourceProjection(HBaseTableSource hbaseTable) throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(4);
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, new TableConfig());
-		HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE);
 		hbaseTable.addColumn(FAMILY1, F1COL1, Integer.class);
 		hbaseTable.addColumn(FAMILY2, F2COL1, String.class);
 		hbaseTable.addColumn(FAMILY2, F2COL2, Long.class);
@@ -209,24 +240,33 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 
 		String expected =
 			"10,1.01,false,Welt-1\n" +
-			"20,2.02,true,Welt-2\n" +
-			"30,3.03,false,Welt-3\n" +
-			"40,4.04,true,Welt-4\n" +
-			"50,5.05,false,Welt-5\n" +
-			"60,6.06,true,Welt-6\n" +
-			"70,7.07,false,Welt-7\n" +
-			"80,8.08,true,Welt-8\n";
+				"20,2.02,true,Welt-2\n" +
+				"30,3.03,false,Welt-3\n" +
+				"40,4.04,true,Welt-4\n" +
+				"50,5.05,false,Welt-5\n" +
+				"60,6.06,true,Welt-6\n" +
+				"70,7.07,false,Welt-7\n" +
+				"80,8.08,true,Welt-8\n";
 
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
 
 	@Test
 	public void testTableSourceFieldOrder() throws Exception {
+		doTestTableSourceFieldOrder(new HBaseTableSource(getConf(), TEST_TABLE));
+	}
+
+	@Test
+	public void testTableSnapshotSourceFieldOrder() throws Exception {
+		doTestTableSourceFieldOrder(new HBaseTableSnapshotSource(getConf(), TEST_TABLE,
+			SNAPSHOT_NAME, SNAPSHOT_RESTORE_PATH));
+	}
+
+	private void doTestTableSourceFieldOrder(HBaseTableSource hbaseTable) throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(4);
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, new TableConfig());
-		HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE);
 		// shuffle order of column registration
 		hbaseTable.addColumn(FAMILY2, F2COL1, String.class);
 		hbaseTable.addColumn(FAMILY3, F3COL1, Double.class);
@@ -244,25 +284,34 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 
 		String expected =
 			"Hello-1,100,1.01,false,Welt-1,10\n" +
-			"Hello-2,200,2.02,true,Welt-2,20\n" +
-			"Hello-3,300,3.03,false,Welt-3,30\n" +
-			"null,400,4.04,true,Welt-4,40\n" +
-			"Hello-5,500,5.05,false,Welt-5,50\n" +
-			"Hello-6,600,6.06,true,Welt-6,60\n" +
-			"Hello-7,700,7.07,false,Welt-7,70\n" +
-			"null,800,8.08,true,Welt-8,80\n";
+				"Hello-2,200,2.02,true,Welt-2,20\n" +
+				"Hello-3,300,3.03,false,Welt-3,30\n" +
+				"null,400,4.04,true,Welt-4,40\n" +
+				"Hello-5,500,5.05,false,Welt-5,50\n" +
+				"Hello-6,600,6.06,true,Welt-6,60\n" +
+				"Hello-7,700,7.07,false,Welt-7,70\n" +
+				"null,800,8.08,true,Welt-8,80\n";
 
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
 
 	@Test
 	public void testTableSourceReadAsByteArray() throws Exception {
+		doTestTableSourceReadAsByteArray(new HBaseTableSource(getConf(), TEST_TABLE));
+	}
+
+	@Test
+	public void testTableSnapshotSourceReadAsByteArray() throws Exception {
+		doTestTableSourceReadAsByteArray(new HBaseTableSnapshotSource(getConf(), TEST_TABLE,
+			SNAPSHOT_NAME, SNAPSHOT_RESTORE_PATH));
+	}
+
+	private void doTestTableSourceReadAsByteArray(HBaseTableSource hbaseTable) throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(4);
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, new TableConfig());
 		// fetch row2 from the table till the end
-		HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE);
 		hbaseTable.addColumn(FAMILY2, F2COL1, byte[].class);
 		hbaseTable.addColumn(FAMILY2, F2COL2, byte[].class);
 
@@ -281,13 +330,13 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 
 		String expected =
 			"Hello-1,100\n" +
-			"Hello-2,200\n" +
-			"Hello-3,300\n" +
-			"null,400\n" +
-			"Hello-5,500\n" +
-			"Hello-6,600\n" +
-			"Hello-7,700\n" +
-			"null,800\n";
+				"Hello-2,200\n" +
+				"Hello-3,300\n" +
+				"null,400\n" +
+				"Hello-5,500\n" +
+				"Hello-6,600\n" +
+				"Hello-7,700\n" +
+				"null,800\n";
 
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
@@ -317,17 +366,17 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 	class InputFormatForTestTable extends TableInputFormat<Tuple1<Integer>> {
 
 		@Override
-		protected Scan getScanner() {
+		public Scan getScanner() {
 			return new Scan();
 		}
 
 		@Override
-		protected String getTableName() {
+		public String getTableName() {
 			return TEST_TABLE;
 		}
 
 		@Override
-		protected Tuple1<Integer> mapResultToTuple(Result r) {
+		public Tuple1<Integer> mapResultToTuple(Result r) {
 			return new Tuple1<>(Bytes.toInt(r.getValue(Bytes.toBytes(FAMILY1), Bytes.toBytes(F1COL1))));
 		}
 	}
@@ -339,6 +388,64 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 
 		DataSet<Tuple1<Integer>> result = env
 			.createInput(new InputFormatForTestTable())
+			.reduce(new ReduceFunction<Tuple1<Integer>>(){
+
+				@Override
+				public Tuple1<Integer> reduce(Tuple1<Integer> v1, Tuple1<Integer> v2) throws Exception {
+					return Tuple1.of(v1.f0 + v2.f0);
+				}
+			});
+
+		List<Tuple1<Integer>> resultSet = result.collect();
+
+		assertEquals(1, resultSet.size());
+		assertEquals(360, (int) resultSet.get(0).f0);
+	}
+
+	// ######## TableSnapshotInputFormat tests ############
+
+	class SnapshotInputFormatForTestTable extends TableSnapshotInputFormat<Tuple1<Integer>> {
+
+		public SnapshotInputFormatForTestTable() {
+		}
+
+		public SnapshotInputFormatForTestTable(org.apache.hadoop.conf.Configuration conf) {
+			super(conf);
+		}
+
+		@Override
+		public Scan getScanner() {
+			return new Scan();
+		}
+
+		@Override
+		public String getTableName() {
+			return TEST_TABLE;
+		}
+
+		@Override
+		public Tuple1<Integer> mapResultToTuple(Result r) {
+			return new Tuple1<>(Bytes.toInt(r.getValue(Bytes.toBytes(FAMILY1), Bytes.toBytes(F1COL1))));
+		}
+
+		@Override
+		protected String getSnapshotName() {
+			return SNAPSHOT_NAME;
+		}
+
+		@Override
+		protected String getRestoreDirPath() {
+			return SNAPSHOT_RESTORE_PATH;
+		}
+	}
+
+	@Test
+	public void testTableSnapshotInputFormat() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(4);
+
+		DataSet<Tuple1<Integer>> result = env
+			.createInput(new SnapshotInputFormatForTestTable(getConf()))
 			.reduce(new ReduceFunction<Tuple1<Integer>>(){
 
 				@Override

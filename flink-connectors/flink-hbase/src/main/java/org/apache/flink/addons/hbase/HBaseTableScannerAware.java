@@ -18,18 +18,26 @@
 
 package org.apache.flink.addons.hbase;
 
-import org.apache.flink.addons.hbase.strategy.TableInputSplitStrategyImpl;
-import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.types.Row;
+import org.apache.hadoop.hbase.client.Scan;
 
 /**
- * {@link InputFormat} subclass that wraps the access for HTables. Returns the result as {@link Row}.
+ * Interface shared by {@link TableInputFormat} and {@link TableSnapshotInputFormat},
+ * subclass of the table input format should override methods defined in this interface.
  */
-public class HBaseRowInputFormat extends HBaseRowInputFormatTemplate implements ResultTypeQueryable<Row> {
+public interface HBaseTableScannerAware {
 
-	public HBaseRowInputFormat(org.apache.hadoop.conf.Configuration conf, String tableName, HBaseTableSchema schema) {
-		super(conf, tableName, schema);
-		tableInputSplitStrategy = new TableInputSplitStrategyImpl();
-	}
+	/**
+	 * Returns an instance of Scan that retrieves the required subset of records from the HBase table.
+	 *
+	 * @return The appropriate instance of Scan for this usecase.
+	 */
+	Scan getScanner();
+
+	/**
+	 * What table is to be read.
+	 * Per instance of a TableInputFormat derivative only a single tablename is possible.
+	 *
+	 * @return The name of the table
+	 */
+	String getTableName();
 }

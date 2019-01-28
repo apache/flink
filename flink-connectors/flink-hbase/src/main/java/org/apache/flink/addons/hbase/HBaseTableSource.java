@@ -58,10 +58,10 @@ import java.util.Map;
  */
 public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTableSource<Row> {
 
-	private Configuration conf;
-	private String tableName;
-	private HBaseTableSchema hBaseSchema;
-	private TableSchema tableSchema;
+	protected Configuration conf;
+	protected String tableName;
+	protected HBaseTableSchema hBaseSchema;
+	protected TableSchema tableSchema;
 
 	/**
 	 * The HBase configuration and the name of the table to read.
@@ -75,7 +75,7 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 		this.hBaseSchema = new HBaseTableSchema();
 	}
 
-	private HBaseTableSource(Configuration conf, String tableName, TableSchema tableSchema) {
+	protected HBaseTableSource(Configuration conf, String tableName, TableSchema tableSchema) {
 		this.conf = conf;
 		this.tableName = Preconditions.checkNotNull(tableName, "Table  name");
 		this.hBaseSchema = new HBaseTableSchema();
