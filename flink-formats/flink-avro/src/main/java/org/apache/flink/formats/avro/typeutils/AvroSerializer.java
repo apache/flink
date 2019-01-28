@@ -465,6 +465,6 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 		this.previousSchema = previousSchema;
 		this.schema = (SerializableAvroSchema) in.readObject();
-		this.type =  (Class<T>) in.readObject();
+		this.type = (Class<T>) in.readObject();
 	}
 }
