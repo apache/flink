@@ -103,7 +103,7 @@ public class YarnConfigOptions {
 	public static final ConfigOption<Integer> CONTAINERS_FAILURE_RATE_INTERVAL =
 		key("yarn.containers-failure-rate-interval")
 		.defaultValue(300)
-		.withDeprecatedKeys("The interval for measuring failure rate of containers");
+		.withDescription("The interval for measuring failure rate of containers");
 
 	/**
 	 * Set the number of retries for failed YARN ApplicationMasters/JobManagers in high
