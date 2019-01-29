@@ -386,7 +386,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 
 			assertEquals(1, producedPartitions.size());
 			ResultPartitionDeploymentDescriptor desc = producedPartitions.iterator().next();
-			assertEquals(mode.allowLazyDeployment(), desc.sendScheduleOrUpdateConsumersMessage());
+			assertEquals(mode.allowLazyDeployment(), tdd.sendScheduleOrUpdateConsumersMessage());
 		}
 	}
 

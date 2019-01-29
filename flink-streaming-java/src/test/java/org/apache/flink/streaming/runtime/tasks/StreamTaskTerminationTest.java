@@ -159,6 +159,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 			Collections.<InputGateDeploymentDescriptor>emptyList(),
 			0,
+			true,
 			new MemoryManager(32L * 1024L, 1),
 			new IOManagerAsync(),
 			networkEnv,

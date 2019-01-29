@@ -931,6 +931,7 @@ public class StreamTaskTest extends TestLogger {
 			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 			Collections.<InputGateDeploymentDescriptor>emptyList(),
 			0,
+			true,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			network,

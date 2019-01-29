@@ -794,7 +794,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 	}
 
-	/**
+	/**TaskDeploymentDescriptorTest.java
 	 * Creates a task deployment descriptor to deploy a subtask to the given target slot.
 	 * TODO: This should actually be in the EXECUTION
 	 */
@@ -820,8 +820,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				//TODO this case only exists for test, currently there has to be exactly one consumer in real jobs!
 				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(
 						partition,
-						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
-						lazyScheduling));
+						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM));
 			} else {
 				Preconditions.checkState(1 == consumers.size(),
 						"Only one consumer supported in the current implementation! Found: " + consumers.size());
@@ -829,7 +828,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				List<ExecutionEdge> consumer = consumers.get(0);
 				ExecutionJobVertex vertex = consumer.get(0).getTarget().getJobVertex();
 				int maxParallelism = vertex.getMaxParallelism();
-				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(partition, maxParallelism, lazyScheduling));
+				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(partition, maxParallelism));
 			}
 		}
 
@@ -892,7 +891,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			targetSlot.getPhysicalSlotNumber(),
 			taskRestore,
 			producedPartitions,
-			consumedPartitions);
+			consumedPartitions,
+			lazyScheduling);
 	}
 
 	// --------------------------------------------------------------------------------------------
