@@ -40,7 +40,7 @@ Please note that you don't have to use the `ParameterTool` described here. Other
 
 ### Getting your configuration values into the `ParameterTool`
 
-The `ParameterTool` provides a set of predefined static methods for reading the configuration. The tool is internally expecting a `Map<String, String>`, so its very easy to integrate it with your own configuration style.
+The `ParameterTool` provides a set of predefined static methods for reading the configuration. The tool is internally expecting a `Map<String, String>`, so it's very easy to integrate it with your own configuration style.
 
 
 #### From `.properties` files
