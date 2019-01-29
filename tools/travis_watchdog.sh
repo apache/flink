@@ -67,6 +67,7 @@ MVN_TEST_OPTIONS="-Dflink.tests.with-openssl"
 
 MVN_COMPILE="mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES install"
 MVN_TEST="mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify"
+MVN_E2E="mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE -Dcategories="org.apache.flink.tests.util.categories.PreCommit" flink-end-to-end-tests verify"
 
 MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
 MVN_EXIT="${ARTIFACTS_DIR}/watchdog.mvn.exit"
@@ -264,7 +265,7 @@ case $TEST in
     (misc)
         if [ $EXIT_CODE == 0 ]; then
             printf "\n\n==============================================================================\n"
-            printf "Running end-to-end tests\n"
+            printf "Running bash end-to-end tests\n"
             printf "==============================================================================\n"
 
             FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
@@ -272,8 +273,42 @@ case $TEST in
             EXIT_CODE=$?
         else
             printf "\n==============================================================================\n"
-            printf "Previous build failure detected, skipping end-to-end tests.\n"
+            printf "Previous build failure detected, skipping bash end-to-end tests.\n"
             printf "==============================================================================\n"
+        fi
+        if [ $EXIT_CODE == 0 ]; then
+            printf "\n\n==============================================================================\n"
+            printf "Running java end-to-end tests\n"
+            printf "==============================================================================\n"
+
+            # Start watching $MVN_OUT
+            watchdog &
+            echo "STARTED watchdog (${WD_PID})."
+
+            WD_PID=$!
+
+            echo "RUNNING '${MVN_E2E}'."
+
+            # Run $MVN_E2E and pipe output to $MVN_OUT for the watchdog. The PID is written to $MVN_PID to
+            # allow the watchdog to kill $MVN if it is not producing any output anymore. $MVN_EXIT contains
+            # the exit code. This is important for Travis' build life-cycle (success/failure).
+            ( $MVN_E2E & PID=$! ; echo $PID >&3 ; wait $PID ; echo $? >&4 ) 3>$MVN_PID 4>$MVN_EXIT | tee $MVN_OUT
+
+            EXIT_CODE=$(<$MVN_EXIT)
+
+            echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
+
+            # Make sure to kill the watchdog in any case after $MVN_TEST has completed
+            echo "Trying to KILL watchdog (${WD_PID})."
+            ( kill $WD_PID 2>&1 ) > /dev/null
+
+            rm $MVN_PID
+            rm $MVN_EXIT
+
+            EXIT_CODE=$?
+        else
+            printf "\n==============================================================================\n"
+            printf "Previous build failure detected, skipping java end-to-end tests.\n"
         fi
     ;;
 esac
