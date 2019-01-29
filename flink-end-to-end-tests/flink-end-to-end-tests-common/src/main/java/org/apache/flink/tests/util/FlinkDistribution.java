@@ -18,9 +18,11 @@
 
 package org.apache.flink.tests.util;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.tests.util.flink.JobSubmission;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExternalResource;
 
@@ -198,6 +200,54 @@ public final class FlinkDistribution implements ExternalResource {
 	public void stopFlinkCluster() throws IOException {
 		LOG.info("Stopping Flink cluster.");
 		AutoClosableProcess.runBlocking(bin.resolve("stop-cluster.sh").toAbsolutePath().toString());
+	}
+
+	public JobID submitJob(final JobSubmission jobSubmission) throws IOException {
+		final List<String> commands = new ArrayList<>(4);
+		commands.add(bin.resolve("flink").toString());
+		commands.add("run");
+		if (jobSubmission.isDetached()) {
+			commands.add("-d");
+		}
+		if (jobSubmission.getParallelism() > 0) {
+			commands.add("-p");
+			commands.add(String.valueOf(jobSubmission.getParallelism()));
+		}
+		commands.add(jobSubmission.getJar().toAbsolutePath().toString());
+		commands.addAll(jobSubmission.getArguments());
+
+		LOG.info("Running {}.", commands.stream().collect(Collectors.joining(" ")));
+
+		try (AutoClosableProcess flink = new AutoClosableProcess(new ProcessBuilder()
+			.command(commands)
+			.start())) {
+
+			final Pattern pattern = jobSubmission.isDetached()
+				? Pattern.compile("Job has been submitted with JobID (.*)")
+				: Pattern.compile("Job with JobID (.*) has finished.");
+
+			if (jobSubmission.isDetached()) {
+				try {
+					flink.getProcess().waitFor();
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				}
+			}
+
+			try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(flink.getProcess().getInputStream(), StandardCharsets.UTF_8))) {
+				final Optional<String> jobId = bufferedReader.lines()
+					.peek(LOG::info)
+					.map(pattern::matcher)
+					.filter(Matcher::matches)
+					.map(matcher -> matcher.group(1))
+					.findAny();
+				if (!jobId.isPresent()) {
+					throw new IOException("Could not determine Job ID.");
+				} else {
+					return JobID.fromHexString(jobId.get());
+				}
+			}
+		}
 	}
 
 	public void copyOptJarsToLib(String jarNamePrefix) throws FileNotFoundException, IOException {
