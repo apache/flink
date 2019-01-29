@@ -493,7 +493,11 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 	public void testClosePartitionDiscovererWhenKafkaFetcherFails() throws Exception {
 		final FlinkException failureCause = new FlinkException("Run Kafka fetcher failure.");
 
-		final DummyPartitionDiscoverer testPartitionDiscoverer = new DummyPartitionDiscoverer();
+		// in this scenario, the partition discoverer will be concurrently accessed;
+		// use the WakeupBeforeCloseTestingPartitionDiscoverer to verify that we always call
+		// wakeup() before closing the discoverer
+		final WakeupBeforeCloseTestingPartitionDiscoverer testPartitionDiscoverer = new WakeupBeforeCloseTestingPartitionDiscoverer();
+
 		final AbstractFetcher<String, ?> mock = (AbstractFetcher<String, ?>) mock(AbstractFetcher.class);
 		doThrow(failureCause).when(mock).runFetchLoop();
 
@@ -739,6 +743,17 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 		}
 	}
 
+	private static class WakeupBeforeCloseTestingPartitionDiscoverer extends DummyPartitionDiscoverer {
+		@Override
+		protected void closeConnections() {
+			if (!isWakedUp()) {
+				fail("Partition discoverer should have been waked up first before closing.");
+			}
+
+			super.closeConnections();
+		}
+	}
+
 	private static class DummyPartitionDiscoverer extends AbstractPartitionDiscoverer {
 
 		private final List<String> allTopics;
@@ -788,6 +803,10 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 
 		boolean isClosed() {
 			return closed;
+		}
+
+		public boolean isWakedUp() {
+			return wakedUp;
 		}
 	}
 
