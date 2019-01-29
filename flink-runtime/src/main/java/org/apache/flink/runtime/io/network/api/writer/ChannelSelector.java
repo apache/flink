@@ -37,8 +37,9 @@ public interface ChannelSelector<T extends IOReadableWritable> {
 	void setup(int numberOfChannels);
 
 	/**
-	 * Returns the logical channel index, to which the given record should be
-	 * written.
+	 * Returns the logical channel index, to which the given record should be written. It is
+	 * illegal to call this method for broadcast channel selectors and this method can remain
+	 * not implemented in that case (for example by throwing {@link UnsupportedOperationException}).
 	 *
 	 * @param record the record to determine the output channels for.
 	 * @return an integer number which indicates the index of the output

@@ -134,21 +134,10 @@ public class RecordWriter<T extends IOReadableWritable> {
 	 */
 	public void broadcastEmit(T record) throws IOException, InterruptedException {
 		checkErroneous();
-		emit(record, broadcastChannels);
-	}
-
-	/**
-	 * This is used to send LatencyMarks to a random target channel.
-	 */
-	public void randomEmit(T record) throws IOException, InterruptedException {
-		emit(record, rng.nextInt(numberOfChannels));
-	}
-
-	private void emit(T record, int[] targetChannels) throws IOException, InterruptedException {
 		serializer.serializeRecord(record);
 
 		boolean pruneAfterCopying = false;
-		for (int channel : targetChannels) {
+		for (int channel : broadcastChannels) {
 			if (copyFromSerializerToTargetChannel(channel)) {
 				pruneAfterCopying = true;
 			}
@@ -158,6 +147,13 @@ public class RecordWriter<T extends IOReadableWritable> {
 		if (pruneAfterCopying) {
 			serializer.prune();
 		}
+	}
+
+	/**
+	 * This is used to send LatencyMarks to a random target channel.
+	 */
+	public void randomEmit(T record) throws IOException, InterruptedException {
+		emit(record, rng.nextInt(numberOfChannels));
 	}
 
 	private void emit(T record, int targetChannel) throws IOException, InterruptedException {
@@ -324,6 +320,13 @@ public class RecordWriter<T extends IOReadableWritable> {
 		} else {
 			return new RecordWriter<>(writer, channelSelector, timeout, taskName);
 		}
+	}
+
+	public static RecordWriter createRecordWriter(
+			ResultPartitionWriter writer,
+			ChannelSelector channelSelector,
+			String taskName) {
+		return createRecordWriter(writer, channelSelector, -1, taskName);
 	}
 
 	// ------------------------------------------------------------------------
