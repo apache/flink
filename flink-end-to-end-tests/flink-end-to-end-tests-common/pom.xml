@@ -51,6 +51,12 @@ under the License.
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
+			<version>${project.version}</version>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
 			<!-- To ensure that flink-dist is built beforehand -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-dist_${scala.binary.version}</artifactId>
