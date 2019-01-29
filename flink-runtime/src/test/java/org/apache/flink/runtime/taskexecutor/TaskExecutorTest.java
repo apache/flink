@@ -768,7 +768,8 @@ public class TaskExecutorTest extends TestLogger {
 				0,
 				null,
 				Collections.emptyList(),
-				Collections.emptyList());
+				Collections.emptyList(),
+				true);
 
 		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
 		when(libraryCacheManager.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());
@@ -1170,7 +1171,8 @@ public class TaskExecutorTest extends TestLogger {
 				0,
 				null,
 				Collections.emptyList(),
-				Collections.emptyList());
+				Collections.emptyList(),
+				true);
 
 			// we have to add the job after the TaskExecutor, because otherwise the service has not
 			// been properly started. This will also offer the slots to the job master

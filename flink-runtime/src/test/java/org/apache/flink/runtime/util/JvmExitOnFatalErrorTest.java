@@ -204,6 +204,7 @@ public class JvmExitOnFatalErrorTest {
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
 						0,       // targetSlotNumber
+						true,
 						memoryManager,
 						ioManager,
 						networkEnvironment,

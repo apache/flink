@@ -1232,6 +1232,7 @@ class TaskManager(
         tdd.getProducedPartitions,
         tdd.getInputGates,
         tdd.getTargetSlotNumber,
+        tdd.sendScheduleOrUpdateConsumersMessage(),
         memoryManager,
         ioManager,
         network,

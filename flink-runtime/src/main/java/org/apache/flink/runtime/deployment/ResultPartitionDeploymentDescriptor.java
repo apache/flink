@@ -54,16 +54,12 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 	/** The maximum parallelism. */
 	private final int maxParallelism;
 
-	/** Flag whether the result partition should send scheduleOrUpdateConsumer messages. */
-	private final boolean sendScheduleOrUpdateConsumersMessage;
-
 	public ResultPartitionDeploymentDescriptor(
 			IntermediateDataSetID resultId,
 			IntermediateResultPartitionID partitionId,
 			ResultPartitionType partitionType,
 			int numberOfSubpartitions,
-			int maxParallelism,
-			boolean lazyScheduling) {
+			int maxParallelism) {
 
 		this.resultId = checkNotNull(resultId);
 		this.partitionId = checkNotNull(partitionId);
@@ -73,7 +69,6 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 		checkArgument(numberOfSubpartitions >= 1);
 		this.numberOfSubpartitions = numberOfSubpartitions;
 		this.maxParallelism = maxParallelism;
-		this.sendScheduleOrUpdateConsumersMessage = lazyScheduling;
 	}
 
 	public IntermediateDataSetID getResultId() {
@@ -96,10 +91,6 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 		return maxParallelism;
 	}
 
-	public boolean sendScheduleOrUpdateConsumersMessage() {
-		return sendScheduleOrUpdateConsumersMessage;
-	}
-
 	@Override
 	public String toString() {
 		return String.format("ResultPartitionDeploymentDescriptor [result id: %s, "
@@ -110,7 +101,7 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 	// ------------------------------------------------------------------------
 
 	public static ResultPartitionDeploymentDescriptor from(
-			IntermediateResultPartition partition, int maxParallelism, boolean lazyScheduling) {
+			IntermediateResultPartition partition, int maxParallelism) {
 
 		final IntermediateDataSetID resultId = partition.getIntermediateResult().getId();
 		final IntermediateResultPartitionID partitionId = partition.getPartitionId();
@@ -132,6 +123,6 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 		}
 
 		return new ResultPartitionDeploymentDescriptor(
-				resultId, partitionId, partitionType, numberOfSubpartitions, maxParallelism, lazyScheduling);
+				resultId, partitionId, partitionType, numberOfSubpartitions, maxParallelism);
 	}
 }

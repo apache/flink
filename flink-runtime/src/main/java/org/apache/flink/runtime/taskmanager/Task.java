@@ -279,6 +279,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
 		Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
 		int targetSlotNumber,
+		boolean sendScheduleOrUpdateConsumersMessage,
 		MemoryManager memManager,
 		IOManager ioManager,
 		NetworkEnvironment networkEnvironment,
@@ -371,7 +372,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				networkEnvironment.getResultPartitionManager(),
 				resultPartitionConsumableNotifier,
 				ioManager,
-				desc.sendScheduleOrUpdateConsumersMessage());
+				sendScheduleOrUpdateConsumersMessage);
 
 			++counter;
 		}

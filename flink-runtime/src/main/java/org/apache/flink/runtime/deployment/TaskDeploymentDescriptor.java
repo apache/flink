@@ -146,6 +146,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	@Nullable
 	private final JobManagerTaskRestore taskRestore;
 
+	/** Flag whether the task should send scheduleOrUpdateConsumer messages. */
+	private final boolean sendScheduleOrUpdateConsumersMessage;
+
 	public TaskDeploymentDescriptor(
 		JobID jobId,
 		MaybeOffloaded<JobInformation> serializedJobInformation,
@@ -157,7 +160,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		int targetSlotNumber,
 		@Nullable JobManagerTaskRestore taskRestore,
 		Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
-		Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
+		Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
+		boolean lazyScheduling) {
 
 		this.jobId = Preconditions.checkNotNull(jobId);
 
@@ -180,6 +184,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 		this.producedPartitions = Preconditions.checkNotNull(resultPartitionDeploymentDescriptors);
 		this.inputGates = Preconditions.checkNotNull(inputGateDeploymentDescriptors);
+
+		this.sendScheduleOrUpdateConsumersMessage = lazyScheduling;
 	}
 
 	/**
@@ -271,6 +277,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	public AllocationID getAllocationId() {
 		return allocationId;
+	}
+
+	public boolean sendScheduleOrUpdateConsumersMessage() {
+		return sendScheduleOrUpdateConsumersMessage;
 	}
 
 	/**

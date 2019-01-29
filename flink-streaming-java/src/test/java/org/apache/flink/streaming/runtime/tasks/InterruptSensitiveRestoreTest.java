@@ -271,6 +271,7 @@ public class InterruptSensitiveRestoreTest {
 			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 			Collections.<InputGateDeploymentDescriptor>emptyList(),
 			0,
+			true,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			networkEnvironment,

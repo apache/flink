@@ -130,7 +130,9 @@ public class TaskDeploymentDescriptorTest extends TestLogger {
 	}
 
 	@Nonnull
-	private TaskDeploymentDescriptor createTaskDeploymentDescriptor(TaskDeploymentDescriptor.MaybeOffloaded<JobInformation> jobInformation, TaskDeploymentDescriptor.MaybeOffloaded<TaskInformation> taskInformation) {
+	private TaskDeploymentDescriptor createTaskDeploymentDescriptor(
+			TaskDeploymentDescriptor.MaybeOffloaded<JobInformation> jobInformation,
+			TaskDeploymentDescriptor.MaybeOffloaded<TaskInformation> taskInformation) {
 		return new TaskDeploymentDescriptor(
 			jobID,
 			jobInformation,
@@ -142,6 +144,7 @@ public class TaskDeploymentDescriptorTest extends TestLogger {
 			targetSlotNumber,
 			taskRestore,
 			producedResults,
-			inputGates);
+			inputGates,
+			true);
 	}
 }
