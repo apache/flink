@@ -146,6 +146,16 @@ public final class FlinkDistribution implements ExternalResource {
 		afterTestSuccess();
 	}
 
+	public void startJobManager() throws IOException {
+		LOG.info("Starting Flink JobManager.");
+		AutoClosableProcess.runBlocking(bin.resolve("jobmanager.sh").toAbsolutePath().toString(), "start");
+	}
+
+	public void startTaskManager() throws IOException {
+		LOG.info("Starting Flink TaskManager.");
+		AutoClosableProcess.runBlocking(bin.resolve("taskmanager.sh").toAbsolutePath().toString(), "start");
+	}
+
 	public void startFlinkCluster() throws IOException {
 		LOG.info("Starting Flink cluster.");
 		AutoClosableProcess.runBlocking(bin.resolve("start-cluster.sh").toAbsolutePath().toString());
