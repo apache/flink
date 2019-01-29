@@ -68,6 +68,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.ArrayDeque;
@@ -472,13 +473,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 
 		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(failingPartitionDiscoverer);
 
-		try {
-			setupConsumer(consumer);
-			fail("Exception should be thrown in open method");
-		} catch (RuntimeException e) {
-			assertThat(ExceptionUtils.findThrowable(e, t -> t.equals(failureCause)).isPresent(), is(true));
-		}
-		consumer.close();
+		testConsumerLifeCycle(consumer, failureCause);
 		assertTrue("partitionDiscoverer should be closed when consumer is closed", failingPartitionDiscoverer.isClosed());
 	}
 
@@ -494,15 +489,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 			testPartitionDiscoverer,
 			100L);
 
-		setupConsumer(consumer);
-
-		try {
-			consumer.run(new TestSourceContext<>());
-			fail("Exception should be thrown in run method");
-		} catch (Exception e) {
-			assertThat(ExceptionUtils.findThrowable(e, throwable -> throwable.equals(failureCause)).isPresent(), is(true));
-		}
-		consumer.close();
+		testConsumerLifeCycle(consumer, failureCause);
 		assertTrue("partitionDiscoverer should be closed when consumer is closed", testPartitionDiscoverer.isClosed());
 	}
 
@@ -516,16 +503,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 
 		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(() -> mock, testPartitionDiscoverer, 100L);
 
-		setupConsumer(consumer);
-
-		try {
-			consumer.run(new TestSourceContext<>());
-			fail("Exception should be thrown in run method");
-		} catch (Exception e) {
-			assertThat(ExceptionUtils.findThrowable(e, throwable -> throwable.equals(failureCause)).isPresent(), is(true));
-		}
-		consumer.close();
-		consumer.joinDiscoveryLoopThread();
+		testConsumerLifeCycle(consumer, failureCause);
 		assertTrue("partitionDiscoverer should be closed when consumer is closed", testPartitionDiscoverer.isClosed());
 	}
 
@@ -535,19 +513,33 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 
 		final TestingFlinkKafkaConsumer<String> consumer = new TestingFlinkKafkaConsumer<>(testPartitionDiscoverer, 100L);
 
-		setupConsumer(consumer);
-
-		CompletableFuture<Void> runFuture = CompletableFuture.runAsync(ThrowingRunnable.unchecked(() -> consumer.run(new TestSourceContext<>())));
-
-		consumer.close();
-
-		consumer.joinDiscoveryLoopThread();
-		runFuture.get();
-
+		testConsumerLifeCycle(consumer, null);
 		assertTrue("partitionDiscoverer should be closed when consumer is closed", testPartitionDiscoverer.isClosed());
 	}
 
-	protected void setupConsumer(FlinkKafkaConsumerBase<String> consumer) throws Exception {
+	private void testConsumerLifeCycle(
+			FlinkKafkaConsumerBase<String> testKafkaConsumer,
+			@Nullable Exception expectedException) throws Exception {
+
+		if (expectedException == null) {
+			setupConsumer(testKafkaConsumer);
+			final CompletableFuture<Void> runFuture = CompletableFuture.runAsync(ThrowingRunnable.unchecked(() -> testKafkaConsumer.run(new TestSourceContext<>())));
+			testKafkaConsumer.close();
+			runFuture.get();
+		} else {
+			try {
+				setupConsumer(testKafkaConsumer);
+				testKafkaConsumer.run(new TestSourceContext<>());
+
+				fail("Exception should have been thrown from open / run method of FlinkKafkaConsumerBase.");
+			} catch (Exception e) {
+				assertThat(ExceptionUtils.findThrowable(e, throwable -> throwable.equals(expectedException)).isPresent(), is(true));
+			}
+			testKafkaConsumer.close();
+		}
+	}
+
+	private void setupConsumer(FlinkKafkaConsumerBase<String> consumer) throws Exception {
 		setupConsumer(
 			consumer,
 			false,
