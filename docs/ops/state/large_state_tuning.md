@@ -161,21 +161,17 @@ RocksDBStateBackend.setOptions(new MyOptions());
 public class MyOptions implements OptionsFactory {
 
     @Override
-    public DBOptions createDBOptions() {
-        return new DBOptions()
-            .setIncreaseParallelism(4)
-            .setUseFsync(false)
-            .setDisableDataSync(true);
+    public DBOptions createDBOptions(DBOptions currentOptions) {
+    	return currentOptions.setIncreaseParallelism(4)
+    		   .setUseFsync(false);
     }
-
+    		
     @Override
-    public ColumnFamilyOptions createColumnOptions() {
-
-        return new ColumnFamilyOptions()
-            .setTableFormatConfig(
-                new BlockBasedTableConfig()
-                    .setBlockCacheSize(256 * 1024 * 1024)  // 256 MB
-                    .setBlockSize(128 * 1024));            // 128 KB
+    public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+    	return currentOptions.setTableFormatConfig(
+    		new BlockBasedTableConfig()
+    			.setBlockCacheSize(256 * 1024 * 1024)  // 256 MB
+    			.setBlockSize(128 * 1024));            // 128 KB
     }
 }
 {% endhighlight %}
