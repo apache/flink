@@ -30,6 +30,9 @@ import java.io.Serializable;
 
 /** User state value with timestamps before and after update. */
 public class ValueWithTs<V> implements Serializable {
+
+	private static final long serialVersionUID = -8941625260587401383L;
+
 	private final V value;
 	private final long timestamp;
 
@@ -56,6 +59,8 @@ public class ValueWithTs<V> implements Serializable {
 
 	/** Serializer for Serializer. */
 	public static class Serializer extends CompositeSerializer<ValueWithTs<?>> {
+
+		private static final long serialVersionUID = -7300352863212438745L;
 
 		public Serializer(TypeSerializer<?> valueSerializer, TypeSerializer<Long> timestampSerializer) {
 			super(true, valueSerializer, timestampSerializer);
@@ -143,8 +148,8 @@ public class ValueWithTs<V> implements Serializable {
 		@Override
 		protected Serializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
 			TypeSerializer<?> valueSerializer = nestedSerializers[0];
-			TypeSerializer<Long> timeSerializer = (TypeSerializer<Long>) nestedSerializers[1];
-			return new Serializer(valueSerializer, timeSerializer);
+			TypeSerializer<Long> timestampSerializer = (TypeSerializer<Long>) nestedSerializers[1];
+			return new Serializer(valueSerializer, timestampSerializer);
 		}
 	}
 }
