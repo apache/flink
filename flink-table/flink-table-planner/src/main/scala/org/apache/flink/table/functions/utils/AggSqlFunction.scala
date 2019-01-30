@@ -28,6 +28,7 @@ import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction
+import org.apache.calcite.util.Optionality
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -63,6 +64,7 @@ class AggSqlFunction(
     null,
     false,
     requiresOver,
+    Optionality.FORBIDDEN,
     typeFactory
   ) {
 

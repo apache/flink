@@ -76,7 +76,7 @@ class FlinkPlannerImpl(
       createCatalogReader(true), // ignore cases for lenient completion
       typeFactory,
       config.getParserConfig.conformance())
-    val advisor = new SqlAdvisor(advisorValidator)
+    val advisor = new SqlAdvisor(advisorValidator, config.getParserConfig)
     val replaced = Array[String](null)
     val hints = advisor.getCompletionHints(sql, cursor, replaced)
       .map(item => item.toIdentifier.toString)

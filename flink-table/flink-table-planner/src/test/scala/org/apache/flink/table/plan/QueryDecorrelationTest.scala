@@ -127,7 +127,7 @@ class QueryDecorrelationTest extends TableTestBase {
             unaryNode(
               "DataSetCalc",
               batchTableNode(0),
-              term("select", "salary", "deptno"),
+              term("select", "deptno", "salary"),
               term("where", "IS NOT NULL(deptno)")
             ),
             term("groupBy", "deptno"),

@@ -229,7 +229,6 @@ public class LocalExecutorITCase extends TestLogger {
 		final SessionContext session = new SessionContext("test-session", new Environment());
 
 		final List<String> expectedTableHints = Arrays.asList(
-			"TABLE",
 			"TableNumber1",
 			"TableNumber2",
 			"TableSourceSink");
@@ -238,7 +237,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final List<String> expectedClause = Collections.singletonList("WHERE");
 		assertEquals(expectedClause, executor.completeStatement(session, "SELECT * FROM TableNumber2 WH", 29));
 
-		final List<String> expectedField = Arrays.asList("INTERVAL", "IntegerField1");
+		final List<String> expectedField = Arrays.asList("IntegerField1");
 		assertEquals(expectedField, executor.completeStatement(session, "SELECT * FROM TableNumber1 WHERE Inte", 37));
 	}
 
