@@ -122,6 +122,7 @@ under the License.
 		<metrics.version>3.1.5</metrics.version>
 		<prometheus.version>0.3.0</prometheus.version>
 		<avro.version>1.8.2</avro.version>
+		<protobuf.version>2.6.1</protobuf.version>
 		<junit.version>4.12</junit.version>
 		<mockito.version>2.21.0</mockito.version>
 		<powermock.version>2.0.0-RC.4</powermock.version>
@@ -322,6 +323,12 @@ under the License.
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro</artifactId>
 				<version>${avro.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.google.protobuf</groupId>
+				<artifactId>protobuf-java</artifactId>
+				<version>${protobuf.version}</version>
 			</dependency>
 
 			<!-- For dependency convergence -->
@@ -1327,6 +1334,7 @@ under the License.
 						<exclude>flink-end-to-end-tests/flink-state-evolution-test/savepoints/*</exclude>
 						<exclude>flink-formats/flink-avro/src/test/resources/testdata.avro</exclude>
 						<exclude>flink-formats/flink-avro/src/test/java/org/apache/flink/formats/avro/generated/*.java</exclude>
+						<exclude>flink-formats/flink-protobuf/src/test/java/org/apache/flink/formats/protobuf/generated/*.java</exclude>
 						<exclude>flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/generated/*.java</exclude>
 						<exclude>flink-formats/flink-parquet/src/test/resources/avro/**</exclude>
 						<exclude>flink-libraries/flink-python/src/test/python/org/apache/flink/python/api/data_csv</exclude>
@@ -1356,6 +1364,8 @@ under the License.
 						<exclude>tools/releasing/release/**</exclude>
 						<!-- manually installed version on travis -->
 						<exclude>apache-maven-3.2.5/**</exclude>
+						<!-- manually installed protobuf on travis -->
+						<exclude>protobuf-2.6.1/**</exclude>
 						<!-- PyCharm -->
 						<exclude>**/.idea/**</exclude>
 						<!-- Generated code via Avro -->

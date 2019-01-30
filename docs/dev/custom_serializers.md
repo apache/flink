@@ -26,9 +26,13 @@ under the License.
 If you use a custom type in your Flink program which cannot be serialized by the
 Flink type serializer, Flink falls back to using the generic Kryo
 serializer. You may register your own serializer or a serialization system like
-Google Protobuf or Apache Thrift with Kryo. To do that, simply register the type
+Apache Thrift with Kryo. To do that, simply register the type
 class and the serializer in the `ExecutionConfig` of your Flink program.
 
+**NOTE:** From Flink-1.8, we have built-in `ProtobufSerializer`, and no longer to
+use Kryo to serialize Google protobuf's messages. Previous solution to extend Kryo's
+serializer class with `chill-protobuf`'s serializer would not take effect, and previously
+serialized state within savepoint would be migrated to use new `ProtobufSerializer` automatically.
 
 {% highlight java %}
 final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -42,15 +46,12 @@ env.getConfig().registerTypeWithKryoSerializer(MyCustomType.class, mySerializer)
 {% endhighlight %}
 
 Note that your custom serializer has to extend Kryo's Serializer class. In the
-case of Google Protobuf or Apache Thrift, this has already been done for
+case of Apache Thrift, this has already been done for
 you:
 
 {% highlight java %}
 
 final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-// register the Google Protobuf serializer with Kryo
-env.getConfig().registerTypeWithKryoSerializer(MyCustomType.class, ProtobufSerializer.class);
 
 // register the serializer included with Apache Thrift as the standard serializer
 // TBaseSerializer states it should be initialized as a default Kryo serializer
@@ -84,24 +85,6 @@ for Apache Thrift:
 			<artifactId>httpclient</artifactId>
 		</exclusion>
 	</exclusions>
-</dependency>
-
-{% endhighlight %}
-
-For Google Protobuf you need the following Maven dependency:
-
-{% highlight xml %}
-
-<dependency>
-	<groupId>com.twitter</groupId>
-	<artifactId>chill-protobuf</artifactId>
-	<version>0.5.2</version>
-</dependency>
-<!-- We need protobuf for chill-protobuf -->
-<dependency>
-	<groupId>com.google.protobuf</groupId>
-	<artifactId>protobuf-java</artifactId>
-	<version>2.5.0</version>
 </dependency>
 
 {% endhighlight %}

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.java.typeutils.AvroUtils;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
@@ -134,6 +135,18 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 				executionConfig.getRegisteredKryoTypes(),
 				executionConfig.getRegisteredTypesWithKryoSerializerClasses(),
 				executionConfig.getRegisteredTypesWithKryoSerializers());
+	}
+
+	public KryoSerializer(
+		Class<T> type,
+		LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>> defaultSerializers,
+		LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> defaultSerializerClasses,
+		LinkedHashMap<String, KryoRegistration> kryoRegistrations) {
+
+		this.type = checkNotNull(type);
+		this.defaultSerializers = checkNotNull(defaultSerializers);
+		this.defaultSerializerClasses = checkNotNull(defaultSerializerClasses);
+		this.kryoRegistrations = checkNotNull(kryoRegistrations);
 	}
 
 	/**
@@ -505,11 +518,22 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		/** This empty nullary constructor is required for deserializing the configuration. */
 		public KryoSerializerConfigSnapshot() {}
 
+		public static final String PROTOBUF_SERIALIZER_CLASS = "org.apache.flink.formats.protobuf.typeutils.ProtobufSerializer";
+
 		public KryoSerializerConfigSnapshot(
 				Class<T> typeClass,
 				LinkedHashMap<String, KryoRegistration> kryoRegistrations) {
 
 			super(typeClass, kryoRegistrations);
+		}
+
+		@Override
+		public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
+			if (newSerializer.getClass().getName().equals(PROTOBUF_SERIALIZER_CLASS)) {
+				return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
+			} else {
+				return super.resolveSchemaCompatibility(newSerializer);
+			}
 		}
 
 		@Override
