@@ -21,7 +21,6 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
@@ -58,7 +57,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
-import org.junit.ClassRule;
 import org.junit.Test;
 import org.mockito.verification.Timeout;
 
@@ -72,7 +70,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -98,13 +95,6 @@ import static org.mockito.Mockito.when;
 public class ExecutionGraphSchedulingTest extends TestLogger {
 
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-
-	@ClassRule
-	public static final ComponentMainThreadTestExecutor.Resource EXECUTOR_RESOURCE =
-		new ComponentMainThreadTestExecutor.Resource();
-
-	private final ComponentMainThreadTestExecutor testMainThread =
-		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
 
 	@After
 	public void shutdown() {
@@ -544,74 +534,46 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		final SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
 
 		final ConcurrentMap<SlotRequestId, Integer> slotRequestIds = new ConcurrentHashMap<>(parallelism);
-		final CountDownLatch requestedSlotsLatch = new CountDownLatch(parallelism);
 
 		final TestingSlotProvider slotProvider = new TestingSlotProvider(
 			(SlotRequestId slotRequestId) -> {
 				slotRequestIds.put(slotRequestId, 1);
-				requestedSlotsLatch.countDown();
-				return new CompletableFuture<>();
+				// return 50/50 fulfilled and unfulfilled requests
+				return slotRequestIds.size() % 2 == 0 ?
+					CompletableFuture.completedFuture(
+						createSingleLogicalSlot(slotOwner, taskManagerGateway, slotRequestId)) :
+					new CompletableFuture<>();
 			});
-
 
 		final ExecutionGraph executionGraph = createExecutionGraph(jobGraph, slotProvider);
 
-		executionGraph.start(testMainThread.getMainThreadExecutor());
+		executionGraph.start(TestComponentMainThreadExecutor.forMainThread());
 		final Set<SlotRequestId> slotRequestIdsToReturn = ConcurrentHashMap.newKeySet(slotRequestIds.size());
-		final CountDownLatch countDownLatch = new CountDownLatch(slotRequestIds.size());
 
-		testMainThread.execute(() -> {
+		executionGraph.scheduleForExecution();
 
-				executionGraph.scheduleForExecution();
+		slotRequestIdsToReturn.addAll(slotRequestIds.keySet());
 
-				// wait until we have requested all slots
-				requestedSlotsLatch.await();
-
-				slotRequestIdsToReturn.addAll(slotRequestIds.keySet());
-
-				slotOwner.setReturnAllocatedSlotConsumer(logicalSlot -> {
-					slotRequestIdsToReturn.remove(logicalSlot.getSlotRequestId());
-					countDownLatch.countDown();
-				});
-				slotProvider.setSlotCanceller(slotRequestId -> {
-					slotRequestIdsToReturn.remove(slotRequestId);
-					countDownLatch.countDown();
-				});
-
-				final OneShotLatch slotRequestsBeingFulfilled = new OneShotLatch();
-
-				// start completing the slot requests asynchronously
-				executor.execute(
-					() -> {
-						slotRequestsBeingFulfilled.trigger();
-
-						for (SlotRequestId slotRequestId : slotRequestIds.keySet()) {
-							final SingleLogicalSlot singleLogicalSlot = createSingleLogicalSlot(slotOwner, taskManagerGateway, slotRequestId);
-							slotProvider.complete(slotRequestId, singleLogicalSlot);
-						}
-					});
-
-				// make sure that we complete cancellations of deployed tasks
-				taskManagerGateway.setCancelConsumer(
-					(ExecutionAttemptID executionAttemptId) -> {
-						final Execution execution = executionGraph.getRegisteredExecutions().get(executionAttemptId);
-
-						// if the execution was cancelled in state SCHEDULING, then it might already have been removed
-						if (execution != null) {
-							execution.cancelingComplete();
-						}
-					}
-				);
-
-				slotRequestsBeingFulfilled.await();
-
-				executionGraph.cancel();
-			});
-
-		testMainThread.execute(() -> {
-			countDownLatch.await();
-			assertThat(slotRequestIdsToReturn, is(empty()));
+		slotOwner.setReturnAllocatedSlotConsumer(logicalSlot -> {
+			slotRequestIdsToReturn.remove(logicalSlot.getSlotRequestId());
 		});
+
+		slotProvider.setSlotCanceller(slotRequestIdsToReturn::remove);
+
+		// make sure that we complete cancellations of deployed tasks
+		taskManagerGateway.setCancelConsumer(
+			(ExecutionAttemptID executionAttemptId) -> {
+				final Execution execution = executionGraph.getRegisteredExecutions().get(executionAttemptId);
+
+				// if the execution was cancelled in state SCHEDULING, then it might already have been removed
+				if (execution != null) {
+					execution.cancelingComplete();
+				}
+			}
+		);
+
+		executionGraph.cancel();
+		assertThat(slotRequestIdsToReturn, is(empty()));
 	}
 
 	// ------------------------------------------------------------------------

@@ -29,7 +29,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.UUID;
@@ -68,7 +67,6 @@ public class FencedRpcEndpointTest extends TestLogger {
 	 * FencedRpcGateway. Moreover it tests that you can only set the fencing token from
 	 * the main thread.
 	 */
-	@Ignore
 	@Test
 	public void testFencingTokenSetting() throws Exception {
 		final String value = "foobar";

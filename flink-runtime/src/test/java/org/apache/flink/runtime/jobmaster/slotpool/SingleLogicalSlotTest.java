@@ -112,11 +112,13 @@ public class SingleLogicalSlotTest extends TestLogger {
 	@Test
 	public void testReleaseOnlyHappensAfterReturningSlotCompleted() {
 
+		final CompletableFuture<Boolean> allocateSlotFuture = new CompletableFuture<>();
+
 		final SingleLogicalSlot singleLogicalSlot = createSingleLogicalSlot(new DummySlotOwner() {
 			@Override
 			public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
 				// we return a future that will never complete instead
-				return new CompletableFuture<>();
+				return allocateSlotFuture;
 			}
 		});
 
@@ -124,6 +126,10 @@ public class SingleLogicalSlotTest extends TestLogger {
 
 		// this must not be done, because the future that signals a successful return never completed.
 		assertThat(releaseFuture.isDone(), is(false));
+
+		// and completing the allocation should now also make the release complete.
+		allocateSlotFuture.complete(null);
+		assertThat(releaseFuture.isDone(), is(true));
 	}
 
 	/**

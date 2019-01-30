@@ -24,14 +24,12 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertTrue;
 
-@Ignore
 public class MainThreadValidationTest extends TestLogger {
 
 	@Test

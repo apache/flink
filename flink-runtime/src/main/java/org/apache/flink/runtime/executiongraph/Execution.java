@@ -429,15 +429,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				allPreviousExecutionGraphAllocationIds,
 				allocationTimeout);
 
-			final ComponentMainThreadExecutor mainThreadExecutor =
-				vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
-			FutureConsumerWithException<Execution, Exception> deployment = value -> deploy();
 			final CompletableFuture<Void> deploymentFuture;
-			if (allocationFuture.isDone()) {
+
+			if (allocationFuture.isDone() || queued) {
+				FutureConsumerWithException<Execution, Exception> deployment = value -> deploy();
 				deploymentFuture = allocationFuture.thenAccept(deployment);
-			} else if (queued) {
-				deploymentFuture = allocationFuture.thenAcceptAsync(
-					deployment, mainThreadExecutor);
 			} else {
 				deploymentFuture = FutureUtils.completedExceptionally(
 					new IllegalArgumentException("The slot allocation future has not been completed yet."));
@@ -525,9 +521,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
 
 			final CompletableFuture<LogicalSlot> logicalSlotFuture =
-				FutureUtils.thenComposeAsyncIfNotDone(
-					preferredLocationsFuture,
-					mainThreadExecutor,
+				preferredLocationsFuture.thenCompose(
 					(Collection<TaskManagerLocation> preferredLocations) ->
 						slotProvider.allocateSlot(
 							slotRequestId,

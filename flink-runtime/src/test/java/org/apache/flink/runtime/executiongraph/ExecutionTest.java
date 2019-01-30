@@ -489,25 +489,23 @@ public class ExecutionTest extends TestLogger {
 						slotRequestId);
 					slotProvider.complete(slotRequestId, singleLogicalSlot);
 				},
-				executorService).thenRunAsync(() -> {
-					try {
-						final CompletableFuture<Void> schedulingFuture = execution.scheduleForExecution(
-							slotProvider,
-							false,
-							LocationPreferenceConstraint.ANY,
-							Collections.emptySet());
+				executorService);
 
-						try {
-							schedulingFuture.get();
-							// cancel the execution in case we could schedule the execution
-							execution.cancel();
-						} catch (ExecutionException ignored) {
-						}
+			final CompletableFuture<Void> schedulingFuture = testMainThreadUtil.execute(
+				() -> execution.scheduleForExecution(
+					slotProvider,
+					false,
+					LocationPreferenceConstraint.ANY,
+					Collections.emptySet()));
 
-						assertThat(returnedSlotFuture.get(), is(equalTo(slotRequestIdFuture.get())));
-					} catch (Exception ex) {
-					}
-			}, testMainThreadUtil.getMainThreadExecutor());
+			try {
+				schedulingFuture.get();
+				// cancel the execution in case we could schedule the execution
+				testMainThreadUtil.execute(execution::cancel);
+			} catch (ExecutionException ignored) {
+			}
+
+			assertThat(returnedSlotFuture.get(), is(equalTo(slotRequestIdFuture.get())));
 		} finally {
 			executorService.shutdownNow();
 		}
