@@ -59,11 +59,11 @@
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- Table/SQL Distribution-->
+		<!-- Table/SQL Uber JAR -->
 		<file>
-			<source>../flink-table/flink-table-dist/target/flink-table-dist_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-table/flink-table-uber/target/flink-table_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-table-dist_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-table_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 

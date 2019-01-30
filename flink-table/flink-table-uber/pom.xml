@@ -27,8 +27,8 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-table-dist_${scala.binary.version}</artifactId>
-	<name>flink-table-dist</name>
+	<artifactId>flink-table-uber_${scala.binary.version}</artifactId>
+	<name>flink-table-uber</name>
 	<description>
 		This module contains the entire Table/SQL distribution for writing table programs
 		within the table ecosystem or between other Flink APIs. Users can either use the
@@ -84,6 +84,7 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<finalName>flink-table_${scala.binary.version}-${project.version}</finalName>
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.apache.flink:flink-table-common</include>

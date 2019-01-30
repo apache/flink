@@ -39,12 +39,12 @@ All Table API and SQL components are bundled in the `flink-table` Maven artifact
 The following dependencies are relevant for most projects:
 
 * `flink-table-common`: A common module for extending the table ecosystem by custom functions, formats, etc.
-* `flink-table-api-java-bridge`: The Table & SQL API with DataStream/DataSet API support using the Java programming language.
-* `flink-table-api-scala-bridge`: The Table & SQL API with DataStream/DataSet API support using the Scala programming language.
 * `flink-table-api-java`: The Table & SQL API for pure table programs using the Java programming language (in early development stage, not recommended!).
 * `flink-table-api-scala`: The Table & SQL API for pure table programs using the Scala programming language (in early development stage, not recommended!).
+* `flink-table-api-java-bridge`: The Table & SQL API with DataStream/DataSet API support using the Java programming language.
+* `flink-table-api-scala-bridge`: The Table & SQL API with DataStream/DataSet API support using the Scala programming language.
 * `flink-table-planner`: The table program planner and runtime.
-* `flink-table-dist`: Packages the modules above into a distribution for most Table & SQL API use cases.
+* `flink-table-uber`: Packages the modules above into a distribution for most Table & SQL API use cases. The uber JAR file `flink-table*.jar` is located in the `/opt` directory of a Flink release and can be moved to `/lib` if desired.
 
 ### Table Program Dependencies
 
