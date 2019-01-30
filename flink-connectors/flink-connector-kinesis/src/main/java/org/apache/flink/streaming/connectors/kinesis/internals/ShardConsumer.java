@@ -40,6 +40,7 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
@@ -380,7 +381,19 @@ public class ShardConsumer<T> implements Runnable {
 			} catch (ExpiredIteratorException eiEx) {
 				LOG.warn("Encountered an unexpected expired iterator {} for shard {};" +
 					" refreshing the iterator ...", shardItr, subscribedShard);
-				shardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
+				if (SentinelSequenceNumber.getAllSentinelSequenceNumbers().contains(lastSequenceNum)) {
+					// we cannot create a shard iterator because we still have an initial sentinel
+					// value as the current sequence number
+					LOG.warn(
+							"Cannot create a new ShardIterator because the most current sequence number for {} is still {}.",
+							subscribedShard,
+							lastSequenceNum);
+				} else {
+					shardItr = kinesis.getShardIterator(
+							subscribedShard,
+							ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(),
+							lastSequenceNum.getSequenceNumber());
+				}
 
 				// sleep for the fetch interval before the next getRecords attempt with the refreshed iterator
 				if (fetchIntervalMillis != 0) {

@@ -21,6 +21,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Special flag values for sequence numbers in shards to indicate special positions.
  * The value is initially set by {@link FlinkKinesisConsumer} when {@link KinesisDataFetcher}s are created.
@@ -53,5 +56,18 @@ public enum SentinelSequenceNumber {
 
 	public SequenceNumber get() {
 		return sentinel;
+	}
+
+	/**
+	 * Returns a {@link List} of {@link SequenceNumber SequenceNumbers} that are used as sentinel
+	 * values.
+	 */
+	public static List<SequenceNumber> getAllSentinelSequenceNumbers() {
+		List<SequenceNumber> result = new ArrayList<>(values().length);
+		for (SentinelSequenceNumber sentinel : values()) {
+			result.add(sentinel.sentinel);
+		}
+
+		return result;
 	}
 }
