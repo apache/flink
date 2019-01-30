@@ -116,6 +116,16 @@ object OptionSerializer {
       extends CompositeTypeSerializerConfigSnapshot[Option[A]] {
 
     override def getVersion: Int = OptionSerializerConfigSnapshot.VERSION
+
+    override def resolveSchemaCompatibility(
+        newSerializer: TypeSerializer[Option[A]]
+    ): TypeSerializerSchemaCompatibility[Option[A]] = {
+      CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+        newSerializer,
+        new ScalaOptionSerializerSnapshot[A](),
+        getSingleNestedSerializerAndConfig.f1
+      )
+    }
   }
 
   object OptionSerializerConfigSnapshot {
