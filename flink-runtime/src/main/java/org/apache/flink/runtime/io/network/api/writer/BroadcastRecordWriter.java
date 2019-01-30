@@ -20,33 +20,28 @@ package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.core.io.IOReadableWritable;
 
+import java.io.IOException;
+
 /**
- * This is the default implementation of the {@link ChannelSelector} interface. It represents a simple round-robin
- * strategy, i.e. regardless of the record every attached exactly one output channel is selected at a time.
-
- * @param <T>
- *        the type of record which is sent through the attached output gate
+ * A special record-oriented runtime result writer only for broadcast mode.
+ *
+ * <p>The BroadcastRecordWriter extends the {@link RecordWriter} and handles {@link #emit(IOReadableWritable)}
+ * operation via {@link #broadcastEmit(IOReadableWritable)} directly in a more efficient way.
+ *
+ * @param <T> the type of the record that can be emitted with this record writer
  */
-public class RoundRobinChannelSelector<T extends IOReadableWritable> implements ChannelSelector<T> {
+public class BroadcastRecordWriter<T extends IOReadableWritable> extends RecordWriter<T> {
 
-	/** Stores the index of the channel to send the next record to. */
-	private int nextChannelToSendTo = -1;
-
-	private int numberOfChannels;
-
-	@Override
-	public void setup(int numberOfChannels) {
-		this.numberOfChannels = numberOfChannels;
+	public BroadcastRecordWriter(
+			ResultPartitionWriter writer,
+			ChannelSelector<T> channelSelector,
+			long timeout,
+			String taskName) {
+		super(writer, channelSelector, timeout, taskName);
 	}
 
 	@Override
-	public int selectChannel(final T record) {
-		nextChannelToSendTo = (nextChannelToSendTo + 1) % numberOfChannels;
-		return nextChannelToSendTo;
-	}
-
-	@Override
-	public boolean isBroadcast() {
-		return false;
+	public void emit(T record) throws IOException, InterruptedException {
+		broadcastEmit(record);
 	}
 }
