@@ -45,6 +45,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 
+import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.isSentinelSequenceNumber;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -149,52 +150,72 @@ public class ShardConsumer<T> implements Runnable {
 
 		// before infinitely looping, we set the initial nextShardItr appropriately
 
-		if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM.get())) {
+		if (isSentinelSequenceNumber(lastSequenceNum)) {
+			nextShardItr = getShardIteratorForSentinel(lastSequenceNum);
+		} else {
+			// we will be starting from an actual sequence number (due to restore from failure).
+			// if the last sequence number refers to an aggregated record, we need to clean up any dangling sub-records
+			// from the last aggregated record; otherwise, we can simply start iterating from the record right after.
+
+			nextShardItr = getShardIteratorForRealSequenceNumber(lastSequenceNum);
+		}
+		return nextShardItr;
+	}
+
+	protected String getShardIteratorForSentinel(SequenceNumber sentinelSequenceNumber) throws InterruptedException {
+		String nextShardItr;
+
+		if (sentinelSequenceNumber.equals(SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM.get())) {
 			// if the shard is already closed, there will be no latest next record to get for this shard
 			if (subscribedShard.isClosed()) {
 				nextShardItr = null;
 			} else {
 				nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.LATEST.toString(), null);
 			}
-		} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get())) {
+		} else if (sentinelSequenceNumber.equals(SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get())) {
 			nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.TRIM_HORIZON.toString(), null);
-		} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get())) {
+		} else if (sentinelSequenceNumber.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get())) {
 			nextShardItr = null;
-		} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get())) {
+		} else if (sentinelSequenceNumber.equals(SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get())) {
 			nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AT_TIMESTAMP.toString(), initTimestamp);
 		} else {
-			// we will be starting from an actual sequence number (due to restore from failure).
-			// if the last sequence number refers to an aggregated record, we need to clean up any dangling sub-records
-			// from the last aggregated record; otherwise, we can simply start iterating from the record right after.
+			throw new RuntimeException("Unknown sentinel type: " + sentinelSequenceNumber);
+		}
 
-			if (lastSequenceNum.isAggregated()) {
-				String itrForLastAggregatedRecord =
-					kinesis.getShardIterator(subscribedShard, ShardIteratorType.AT_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
+		return nextShardItr;
+	}
 
-				// get only the last aggregated record
-				GetRecordsResult getRecordsResult = getRecords(itrForLastAggregatedRecord, 1);
+	protected String getShardIteratorForRealSequenceNumber(SequenceNumber sequenceNumber) throws Exception {
+		String nextShardItr;
 
-				List<UserRecord> fetchedRecords = deaggregateRecords(
+		if (sequenceNumber.isAggregated()) {
+			String itrForLastAggregatedRecord =
+					kinesis.getShardIterator(subscribedShard, ShardIteratorType.AT_SEQUENCE_NUMBER.toString(), sequenceNumber.getSequenceNumber());
+
+			// get only the last aggregated record
+			GetRecordsResult getRecordsResult = getRecords(itrForLastAggregatedRecord, 1);
+
+			List<UserRecord> fetchedRecords = deaggregateRecords(
 					getRecordsResult.getRecords(),
 					subscribedShard.getShard().getHashKeyRange().getStartingHashKey(),
 					subscribedShard.getShard().getHashKeyRange().getEndingHashKey());
 
-				long lastSubSequenceNum = lastSequenceNum.getSubSequenceNumber();
-				for (UserRecord record : fetchedRecords) {
-					// we have found a dangling sub-record if it has a larger subsequence number
-					// than our last sequence number; if so, collect the record and update state
-					if (record.getSubSequenceNumber() > lastSubSequenceNum) {
-						deserializeRecordForCollectionAndUpdateState(record);
-					}
+			long lastSubSequenceNum = sequenceNumber.getSubSequenceNumber();
+			for (UserRecord record : fetchedRecords) {
+				// we have found a dangling sub-record if it has a larger subsequence number
+				// than our last sequence number; if so, collect the record and update state
+				if (record.getSubSequenceNumber() > lastSubSequenceNum) {
+					deserializeRecordForCollectionAndUpdateState(record);
 				}
-
-				// set the nextShardItr so we can continue iterating in the next while loop
-				nextShardItr = getRecordsResult.getNextShardIterator();
-			} else {
-				// the last record was non-aggregated, so we can simply start from the next record
-				nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
 			}
+
+			// set the nextShardItr so we can continue iterating in the next while loop
+			nextShardItr = getRecordsResult.getNextShardIterator();
+		} else {
+			// the last record was non-aggregated, so we can simply start from the next record
+			nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), sequenceNumber.getSequenceNumber());
 		}
+
 		return nextShardItr;
 	}
 
@@ -381,13 +402,15 @@ public class ShardConsumer<T> implements Runnable {
 			} catch (ExpiredIteratorException eiEx) {
 				LOG.warn("Encountered an unexpected expired iterator {} for shard {};" +
 					" refreshing the iterator ...", shardItr, subscribedShard);
-				if (SentinelSequenceNumber.getAllSentinelSequenceNumbers().contains(lastSequenceNum)) {
+				if (isSentinelSequenceNumber(lastSequenceNum)) {
 					// we cannot create a shard iterator because we still have an initial sentinel
 					// value as the current sequence number
 					LOG.warn(
 							"Cannot create a new ShardIterator because the most current sequence number for {} is still {}.",
 							subscribedShard,
 							lastSequenceNum);
+
+					shardItr = getShardIteratorForSentinel(lastSequenceNum);
 				} else {
 					shardItr = kinesis.getShardIterator(
 							subscribedShard,
