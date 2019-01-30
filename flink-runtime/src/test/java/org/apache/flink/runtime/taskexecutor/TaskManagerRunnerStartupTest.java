@@ -63,7 +63,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	private RpcService rpcService = createRpcService();
 
 	/**
-	 * Tests that the TaskManager startup fails synchronously when the I/O
+	 * Tests that the TaskManagerRunner startup fails synchronously when the I/O
 	 * directories are not writable.
 	 */
 	@Test
@@ -107,8 +107,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the TaskManager startup fails synchronously when the I/O directories are
-	 * not writable.
+	 * Tests that the TaskManagerRunner startup fails synchronously when the memory configuration is wrong.
 	 */
 	@Test
 	public void testMemoryConfigWrong() {
@@ -163,7 +162,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the task manager start-up fails if the network stack cannot be initialized.
+	 * Tests that the TaskManagerRunner startup fails if the network stack cannot be initialized.
 	 */
 	@Test
 	public void testStartupWhenNetworkStackFailsToInitialize() throws Exception {
