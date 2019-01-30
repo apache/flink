@@ -71,8 +71,8 @@ class OverWindowTest extends TableTestBase {
           term("select", "a", "b", "c", "proctime", "COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1, " +
             "COUNT(DISTINCT a) AS w0$o2, COUNT(DISTINCT c) AS w0$o3, $SUM0(DISTINCT c) AS w0$o4")
         ),
-        term("select", "b", "w0$o0 AS cnt1, CASE(>(w0$o0, 0), CAST(w0$o1), null) AS sum1, " +
-          "w0$o2 AS cnt2, CASE(>(w0$o3, 0), CAST(w0$o4), null) AS sum2")
+        term("select", "b", "w0$o0 AS cnt1, CASE(>(w0$o0, 0), w0$o1, null) AS sum1, " +
+          "w0$o2 AS cnt2, CASE(>(w0$o3, 0), w0$o4, null) AS sum2")
       )
     streamUtil.verifySql(sql, expected)
   }
@@ -112,7 +112,7 @@ class OverWindowTest extends TableTestBase {
           term("select", "a", "c", "proctime",
             "COUNT(DISTINCT a) AS w0$o0, $SUM0(DISTINCT a) AS w0$o1")
         ),
-        term("select", "c", "w0$o0 AS cnt1, CASE(>(w0$o0, 0), CAST(w0$o1), null) AS sum1")
+        term("select", "c", "w0$o0 AS cnt1, CASE(>(w0$o0, 0), w0$o1, null) AS sum1")
       )
     streamUtil.verifySql(sql, expected)
   }
@@ -151,7 +151,7 @@ class OverWindowTest extends TableTestBase {
           term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
           term("select", "a", "c", "proctime", "COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1")
         ),
-        term("select", "c", "w0$o0 AS cnt1, CASE(>(w0$o0, 0), CAST(w0$o1), null) AS sum1")
+        term("select", "c", "w0$o0 AS cnt1, CASE(>(w0$o0, 0), w0$o1, null) AS sum1")
       )
     streamUtil.verifySql(sql, expected)
   }
@@ -312,7 +312,7 @@ class OverWindowTest extends TableTestBase {
           term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
           term("select", "a", "c", "proctime", "COUNT(a) AS w0$o0", "$SUM0(a) AS w0$o1")
         ),
-        term("select", "c", "w0$o0 AS cnt1", "CASE(>(w0$o0, 0)", "CAST(w0$o1), null) AS cnt2")
+        term("select", "c", "w0$o0 AS cnt1", "CASE(>(w0$o0, 0)", "w0$o1, null) AS cnt2")
       )
     streamUtil.verifySql(sql, expected)
   }
@@ -378,7 +378,7 @@ class OverWindowTest extends TableTestBase {
           term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
           term("select", "a", "c", "proctime", "COUNT(a) AS w0$o0", "$SUM0(a) AS w0$o1")
         ),
-        term("select", "c", "w0$o0 AS cnt1", "CASE(>(w0$o0, 0)", "CAST(w0$o1), null) AS cnt2")
+        term("select", "c", "w0$o0 AS cnt1", "CASE(>(w0$o0, 0)", "w0$o1, null) AS cnt2")
       )
     streamUtil.verifySql(sql, expected)
   }
@@ -553,7 +553,7 @@ class OverWindowTest extends TableTestBase {
           term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
           term("select", "a", "c", "rowtime", "COUNT(a) AS w0$o0", "$SUM0(a) AS w0$o1")
         ),
-        term("select", "c", "w0$o0 AS cnt1", "CASE(>(w0$o0, 0)", "CAST(w0$o1), null) AS cnt2")
+        term("select", "c", "w0$o0 AS cnt1", "CASE(>(w0$o0, 0)", "w0$o1, null) AS cnt2")
       )
     streamUtil.verifySql(sql, expected)
   }
@@ -593,7 +593,7 @@ class OverWindowTest extends TableTestBase {
           "c",
           "w0$o0 AS cnt1",
           "CASE(>(w0$o0, 0)",
-          "CAST(w0$o1), null) AS cnt2"
+          "w0$o1, null) AS cnt2"
         )
       )
     streamUtil.verifySql(sql, expected)
@@ -621,7 +621,7 @@ class OverWindowTest extends TableTestBase {
           term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
           term("select", "a", "c", "rowtime", "COUNT(a) AS w0$o0", "$SUM0(a) AS w0$o1")
         ),
-        term("select", "c", "w0$o0 AS cnt1", "CASE(>(w0$o0, 0)", "CAST(w0$o1), null) AS cnt2")
+        term("select", "c", "w0$o0 AS cnt1", "CASE(>(w0$o0, 0)", "w0$o1, null) AS cnt2")
       )
     streamUtil.verifySql(sql, expected)
   }
@@ -660,7 +660,7 @@ class OverWindowTest extends TableTestBase {
           "c",
           "w0$o0 AS cnt1",
           "CASE(>(w0$o0, 0)",
-          "CAST(w0$o1), null) AS cnt2"
+          "w0$o1, null) AS cnt2"
         )
       )
     streamUtil.verifySql(sql, expected)
@@ -699,7 +699,7 @@ class OverWindowTest extends TableTestBase {
           term("select", "a", "c", "proctime", "COUNT(c) AS w0$o0",
             "$SUM0(c) AS w0$o1")
         ),
-        term("select", "a", "CASE(>(w0$o0, 0)", "CAST(w0$o1), null) AS EXPR$1", "w1$o0 AS EXPR$2")
+        term("select", "a", "CASE(>(w0$o0, 0)", "w0$o1, null) AS EXPR$1", "w1$o0 AS EXPR$2")
       )
 
     streamUtil.verifySql(sql, expected)

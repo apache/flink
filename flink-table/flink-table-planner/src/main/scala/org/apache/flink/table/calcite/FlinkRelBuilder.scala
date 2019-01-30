@@ -52,6 +52,8 @@ class FlinkRelBuilder(
 
   def getCluster: RelOptCluster = relOptCluster
 
+  override def shouldMergeProject(): Boolean = false
+
   override def getTypeFactory: FlinkTypeFactory =
     super.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 

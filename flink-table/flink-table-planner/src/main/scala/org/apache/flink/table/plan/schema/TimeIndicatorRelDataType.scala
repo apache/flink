@@ -34,6 +34,10 @@ class TimeIndicatorRelDataType(
     originalType.getSqlTypeName,
     originalType.getPrecision) {
 
+  override def computeDigest(): Unit = {
+    this.digest = toString
+  }
+
   override def equals(other: Any): Boolean = other match {
     case that: TimeIndicatorRelDataType =>
       super.equals(that) &&

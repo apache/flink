@@ -808,7 +808,7 @@ abstract class StreamTableEnvironment(
   private[flink] def optimize(relNode: RelNode, updatesAsRetraction: Boolean): RelNode = {
     val convSubQueryPlan = optimizeConvertSubQueries(relNode)
     val expandedPlan = optimizeExpandPlan(convSubQueryPlan)
-    val decorPlan = RelDecorrelator.decorrelateQuery(expandedPlan)
+    val decorPlan = RelDecorrelator.decorrelateQuery(expandedPlan, getRelBuilder)
     val planWithMaterializedTimeAttributes =
       RelTimeIndicatorConverter.convert(decorPlan, getRelBuilder.getRexBuilder)
     val normalizedPlan = optimizeNormalizeLogicalPlan(planWithMaterializedTimeAttributes)

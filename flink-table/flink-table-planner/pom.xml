@@ -16,7 +16,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
 
@@ -56,6 +56,22 @@ under the License.
 				<groupId>org.codehaus.janino</groupId>
 				<artifactId>janino</artifactId>
 				<version>${janino.version}</version>
+			</dependency>
+			<!-- Common dependencies within calcite-core -->
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-annotations</artifactId>
+				<version>2.9.6</version>
+			</dependency>
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-core</artifactId>
+				<version>2.9.6</version>
+			</dependency>
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>2.9.6</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -114,24 +130,28 @@ under the License.
 			<groupId>org.apache.calcite</groupId>
 			<artifactId>calcite-core</artifactId>
 			<!-- When updating the Calcite version, make sure to update the dependency exclusions -->
-			<version>1.17.0</version>
+			<version>1.18.0</version>
 			<exclusions>
-				<!-- Dependencies that are not needed for how we use Calcite right now -->
+				<!--
+
+				Dependencies that are not needed for how we use Calcite right now.
+
+				"mvn dependency:tree" as of Calcite 1.18:
+
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.18.0:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.13.0:compile
+				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.18.0:compile
+				[INFO] |  +- org.apache.commons:commons-lang3:jar:3.3.2:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.9.6:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.9.6:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.9.6:compile
+				[INFO] |  +- com.google.guava:guava:jar:19.0:compile
+				[INFO] |  \- com.jayway.jsonpath:json-path:jar:2.4.0:compile
+
+				-->
 				<exclusion>
 					<groupId>org.apache.calcite.avatica</groupId>
 					<artifactId>avatica-metrics</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-annotations</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-databind</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.google.protobuf</groupId>
@@ -146,12 +166,24 @@ under the License.
 					<artifactId>httpcore</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>commons-dbcp</groupId>
-					<artifactId>commons-dbcp</artifactId>
+					<groupId>org.apache.commons</groupId>
+					<artifactId>commons-dbcp2</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.esri.geometry</groupId>
 					<artifactId>esri-geometry-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.dataformat</groupId>
+					<artifactId>jackson-dataformat-yaml</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.yahoo.datasketches</groupId>
+					<artifactId>sketches-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>net.hydromatic</groupId>
+					<artifactId>aggdesigner-algorithm</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -256,6 +288,7 @@ under the License.
 					<execution>
 						<id>shade-flink</id>
 						<configuration>
+							<shadeTestJar>false</shadeTestJar>
 							<filters>
 								<filter>
 									<artifact>*:*</artifact>
@@ -265,16 +298,11 @@ under the License.
 										<exclude>common.proto</exclude>
 										<exclude>requests.proto</exclude>
 										<exclude>responses.proto</exclude>
-										<exclude>mozilla/**</exclude>
 										<exclude>codegen/**</exclude>
-										<exclude>google/**</exclude>
 										<exclude>META-INF/*.SF</exclude>
 										<exclude>META-INF/*.DSA</exclude>
 										<exclude>META-INF/*.RSA</exclude>
 										<exclude>META-INF/services/java.sql.Driver</exclude>
-										<exclude>properties.dtd</exclude>
-										<exclude>PropertyList-1.0.dtd</exclude>
-										<exclude>digesterRules.xml</exclude>
 										<!-- not relocated for now, because it is needed by Calcite -->
 										<!--<exclude>org.codehaus.commons.compiler.properties</exclude>-->
 									</excludes>
@@ -287,7 +315,10 @@ under the License.
 
 									<!-- Calcite's dependencies -->
 									<include>com.google.guava:guava</include>
-									<include>net.hydromatic:*</include>
+									<include>com.jayway.jsonpath:json-path</include>
+									<include>com.fasterxml.jackson.core:jackson-core</include>
+									<include>com.fasterxml.jackson.core:jackson-databind</include>
+									<include>com.fasterxml.jackson.core:jackson-annotations</include>
 
 									<!-- flink-table-planner dependencies -->
 									<include>org.codehaus.janino:*</include>
@@ -307,11 +338,15 @@ under the License.
 									<shadedPattern>org.apache.flink.calcite.shaded.com.google</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>org.pentaho</pattern>
-									<shadedPattern>org.apache.flink.calcite.shaded.org.pentaho</shadedPattern>
+									<pattern>com.jayway</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.com.jayway</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.fasterxml</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.com.fasterxml</shadedPattern>
 								</relocation>
 
-								<!-- flink-table dependencies -->
+								<!-- flink-table-planner dependencies -->
 								<relocation>
 									<pattern>org.joda.time</pattern>
 									<shadedPattern>org.apache.flink.table.shaded.org.joda.time</shadedPattern>

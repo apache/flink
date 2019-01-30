@@ -53,12 +53,13 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "b", "c", "proctime")
+            // RexSimplify didn't simplify "CAST(1):BIGINT NOT NULL", see [CALCITE-2862]
+            term("select", "a", "b", "c", "proctime", "1 AS $4")
           ),
           term("partitionBy", "b"),
           term("orderBy", "proctime"),
           term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "b", "c", "proctime",
+          term("select", "a", "b", "c", "proctime", "$4",
                "SUM(a) AS w0$o0",
                "COUNT(a) AS w0$o1",
                "WeightedAvgWithRetract(c, a) AS w0$o2")
@@ -66,7 +67,7 @@ class OverWindowTest extends TableTestBase {
         term("select",
              s"Func1$$(w0$$o0) AS d",
              "EXP(CAST(w0$o1)) AS _c1",
-             "+(w0$o2, 1) AS _c2",
+             "+(w0$o2, $4) AS _c2",
              "||('AVG:', CAST(w0$o2)) AS _c3",
              "ARRAY(w0$o2, w0$o1) AS _c4")
       )

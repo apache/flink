@@ -278,27 +278,23 @@ class GroupWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "rowtime", "c",
-              "*(c, c) AS $f2", "*(c, c) AS $f3", "*(c, c) AS $f4", "*(c, c) AS $f5")
+            term("select", "rowtime", "c", "*(c, c) AS $f2")
           ),
           term("window", "TumblingGroupWindow('w$, 'rowtime, 900000.millis)"),
           term("select",
             "SUM($f2) AS $f0",
             "SUM(c) AS $f1",
             "COUNT(c) AS $f2",
-            "SUM($f3) AS $f3",
-            "SUM($f4) AS $f4",
-            "SUM($f5) AS $f5",
             "start('w$) AS w$start",
             "end('w$) AS w$end",
             "rowtime('w$) AS w$rowtime",
             "proctime('w$) AS w$proctime")
         ),
         term("select",
-          "CAST(/(-($f0, /(*($f1, $f1), $f2)), $f2)) AS EXPR$0",
-          "CAST(/(-($f3, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1)))) AS EXPR$1",
-          "CAST(POWER(/(-($f4, /(*($f1, $f1), $f2)), $f2), 0.5)) AS EXPR$2",
-          "CAST(POWER(/(-($f5, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))), 0.5)) " +
+          "/(-($f0, /(*($f1, $f1), $f2)), $f2) AS EXPR$0",
+          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))) AS EXPR$1",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5)) AS EXPR$2",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))), 0.5)) " +
             "AS EXPR$3",
           "w$start AS EXPR$4",
           "w$end AS EXPR$5")
