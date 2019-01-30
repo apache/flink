@@ -86,7 +86,7 @@ If you try to build Flink from the source code in China, you may find it quite t
     <url>https://maven.aliyun.com/repository/mapr-public</url>
   </mirror>
 
-<mirrors>
+</mirrors>
 {% endhighlight %}
 
 </details>
