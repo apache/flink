@@ -31,7 +31,7 @@ import org.junit.Test;
 
 import java.util.LinkedHashMap;
 
-import static org.apache.flink.formats.protobuf.utils.SerializerSchemaCompatibilityUtils.isCompatibleAsIs;
+import static org.apache.flink.formats.protobuf.utils.SerializerSchemaCompatibilityUtils.isCompatibleAfterMigration;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -77,6 +77,6 @@ public class ProtobufSerializerTest extends SerializerTestBase<UserProtobuf.User
 
 		ProtobufSerializer protobufSerializer = new ProtobufSerializer(UserProtobuf.User.class, new ExecutionConfig());
 
-		assertThat(serializerConfigSnapshot.resolveSchemaCompatibility(protobufSerializer), isCompatibleAsIs());
+		assertThat(serializerConfigSnapshot.resolveSchemaCompatibility(protobufSerializer), isCompatibleAfterMigration());
 	}
 }

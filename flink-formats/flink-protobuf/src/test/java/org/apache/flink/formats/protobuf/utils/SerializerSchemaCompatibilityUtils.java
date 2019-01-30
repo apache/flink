@@ -35,6 +35,11 @@ public class SerializerSchemaCompatibilityUtils {
 		return matcher(TypeSerializerSchemaCompatibility::isCompatibleAsIs, "compatible as is");
 	}
 
+	public static Matcher<TypeSerializerSchemaCompatibility> isCompatibleAfterMigration() {
+		return matcher(TypeSerializerSchemaCompatibility::isCompatibleAfterMigration,
+			"compatible after migration");
+	}
+
 	private static <T> Matcher<T> matcher(Function<T, Boolean> predicate, String message) {
 		return new TypeSafeDiagnosingMatcher<T>() {
 
