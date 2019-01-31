@@ -16,9 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors
+package org.apache.flink.table.descriptors;
+
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
   * Common class for all descriptors describing table sources and sinks.
   */
-abstract class TableDescriptor extends DescriptorBase
+@PublicEvolving
+public abstract class TableDescriptor extends DescriptorBase {
+
+}
