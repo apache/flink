@@ -61,7 +61,7 @@
 
 		<!-- Table/SQL Uber JAR -->
 		<file>
-			<source>../flink-table/flink-table-uber/target/flink-table_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-table/flink-table-uber/target/flink-table-uber_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-table_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
