@@ -143,7 +143,7 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 	}
 
 	@Test
-	public void testTmRegisterReelectionOfJobMaster() throws Exception {
+	public void testTaskManagerRegisterReelectionOfResourceManager() throws Exception {
 
 		assertTrue(miniCluster.requestTaskManagerInfo().get().size() == NUM_TMS);
 		highAvailabilityServices.revokeResourceManagerLeadership().get();
