@@ -426,6 +426,8 @@ e.g. by adding this to Flink's JVM options in `flink-conf.yaml` (see
 env.java.opts: -Dcom.amazonaws.services.s3.enableV4
 {% endhighlight %}
 
+Or If your S3 bucket is located in China regions (Beijing, Ningxia), which have difference endpoints(s3.cn-north-1.amazonaws.com.cn and s3.cn-wnorthwestest-1.amazonaws.com.cn), see[AWS Regions and Endpoints](https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region), you can resolve this by add `fs.s3a.endpoint` to `flink-conf.yaml`
+
 {% top %}
 
 ### NullPointerException at org.apache.hadoop.fs.LocalDirAllocator

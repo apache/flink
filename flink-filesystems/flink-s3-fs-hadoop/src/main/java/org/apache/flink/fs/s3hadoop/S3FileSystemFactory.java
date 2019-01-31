@@ -51,7 +51,8 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 
 	private static final String[][] MIRRORED_CONFIG_KEYS = {
 			{ "fs.s3a.access-key", "fs.s3a.access.key" },
-			{ "fs.s3a.secret-key", "fs.s3a.secret.key" }
+			{ "fs.s3a.secret-key", "fs.s3a.secret.key" },
+			{ "fs.s3a.endpoint", "fs.s3a.endpoint" }
 	};
 
 	public S3FileSystemFactory() {

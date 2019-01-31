@@ -49,7 +49,8 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 
 	private static final String[][] MIRRORED_CONFIG_KEYS = {
 			{ "presto.s3.access.key", "presto.s3.access-key" },
-			{ "presto.s3.secret.key", "presto.s3.secret-key" }
+			{ "presto.s3.secret.key", "presto.s3.secret-key" },
+			{ "presto.s3.endpoint", "presto.s3.endpoint" }
 	};
 
 	public S3FileSystemFactory() {
