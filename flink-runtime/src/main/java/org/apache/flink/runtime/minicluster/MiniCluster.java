@@ -37,6 +37,7 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.dispatcher.DefaultJobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
@@ -99,6 +100,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
@@ -304,11 +306,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					this.resourceManagerRpcService = resourceManagerRpcService;
 				}
 
-				// create the high-availability services
-				LOG.info("Starting high-availability services");
-				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
-					configuration,
-					commonRpcService.getExecutor());
+				haServices = createHighAvailabilityServices(configuration, commonRpcService.getExecutor());
 
 				blobServer = new BlobServer(configuration, haServices.createBlobStore());
 				blobServer.start();
@@ -400,7 +398,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					jobManagerMetricGroup,
 					metricRegistry.getMetricQueryServicePath(),
 					new MemoryArchivedExecutionGraphStore(),
-					Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
+					DefaultJobManagerRunnerFactory.INSTANCE,
 					new ShutDownFatalErrorHandler(),
 					historyServerArchivist);
 
@@ -430,6 +428,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 			LOG.info("Flink Mini Cluster started successfully");
 		}
+	}
+
+	protected HighAvailabilityServices createHighAvailabilityServices(Configuration configuration, Executor executor) throws Exception {
+		LOG.info("Starting high-availability services");
+		return HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+			configuration,
+			executor);
 	}
 
 	/**

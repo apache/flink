@@ -1199,7 +1199,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 
 		RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output =
-			new RecordWriter<>(bufferWriter, outputPartitioner, bufferTimeout, taskName);
+			RecordWriter.createRecordWriter(bufferWriter, outputPartitioner, bufferTimeout, taskName);
 		output.setMetricGroup(environment.getMetricGroup().getIOMetricGroup());
 		return output;
 	}
