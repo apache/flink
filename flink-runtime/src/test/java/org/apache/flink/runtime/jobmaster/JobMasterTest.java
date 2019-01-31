@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -82,6 +84,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
@@ -759,6 +762,82 @@ public class JobMasterTest extends TestLogger {
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
+	}
+
+	/**
+	 * Tests the updateGlobalAggregate functionality
+	 */
+	@Test
+	public void testJobMasterAggregatesValuesCorrectly() throws Exception {
+		final JobMaster jobMaster = createJobMaster(
+			configuration,
+			jobGraph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build(),
+			heartbeatServices);
+
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+		try {
+			// wait for the start to complete
+			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			CompletableFuture<Object> updateAggregateFuture;
+
+			AggregateFunction<Integer, Integer, Integer> aggregateFunction = createAggregateFunction();
+
+			ClosureCleaner.clean(aggregateFunction, true);
+			byte[] serializedAggregateFunction = InstantiationUtil.serializeObject(aggregateFunction);
+
+			updateAggregateFuture = jobMasterGateway.updateGlobalAggregate("agg1", 1, serializedAggregateFunction);
+			assertThat(updateAggregateFuture.get(), equalTo(1));
+
+			updateAggregateFuture = jobMasterGateway.updateGlobalAggregate("agg1", 2, serializedAggregateFunction);
+			assertThat(updateAggregateFuture.get(), equalTo(3));
+
+			updateAggregateFuture = jobMasterGateway.updateGlobalAggregate("agg1", 3, serializedAggregateFunction);
+			assertThat(updateAggregateFuture.get(), equalTo(6));
+
+			updateAggregateFuture = jobMasterGateway.updateGlobalAggregate("agg1", 4, serializedAggregateFunction);
+			assertThat(updateAggregateFuture.get(), equalTo(10));
+
+			updateAggregateFuture = jobMasterGateway.updateGlobalAggregate("agg2", 10, serializedAggregateFunction);
+			assertThat(updateAggregateFuture.get(), equalTo(10));
+
+			updateAggregateFuture = jobMasterGateway.updateGlobalAggregate("agg2", 23, serializedAggregateFunction);
+			assertThat(updateAggregateFuture.get(), equalTo(33));
+
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	private AggregateFunction<Integer, Integer, Integer> createAggregateFunction() {
+		return new AggregateFunction<Integer, Integer, Integer>() {
+
+			@Override
+			public Integer createAccumulator() {
+				return 0;
+			}
+
+			@Override
+			public Integer add(Integer value, Integer accumulator) {
+				Integer _acc = (Integer) accumulator;
+				Integer _value = (Integer) value;
+				return _acc + _value;
+			}
+
+			@Override
+			public Integer getResult(Integer accumulator) {
+				return accumulator;
+			}
+
+			@Override
+			public Integer merge(Integer a, Integer b) {
+				return add(a, b);
+			}
+		};
 	}
 
 	private JobGraph producerConsumerJobGraph() {

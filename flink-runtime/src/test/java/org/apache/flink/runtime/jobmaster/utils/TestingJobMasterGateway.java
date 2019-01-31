@@ -158,6 +158,9 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	@Nonnull
 	private final Function<Tuple4<JobID, JobVertexID, KeyGroupRange, String>, CompletableFuture<Acknowledge>> notifyKvStateUnregisteredFunction;
 
+	@Nonnull
+	TriFunction<String, Object, byte[], CompletableFuture<Object>> updateAggregateFunction;
+
 	public TestingJobMasterGateway(
 			@Nonnull String address,
 			@Nonnull String hostname,
@@ -187,7 +190,8 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 			@Nonnull Supplier<JobMasterId> fencingTokenSupplier,
 			@Nonnull BiFunction<JobID, String, CompletableFuture<KvStateLocation>> requestKvStateLocationFunction,
 			@Nonnull Function<Tuple6<JobID, JobVertexID, KeyGroupRange, String, KvStateID, InetSocketAddress>, CompletableFuture<Acknowledge>> notifyKvStateRegisteredFunction,
-			@Nonnull Function<Tuple4<JobID, JobVertexID, KeyGroupRange, String>, CompletableFuture<Acknowledge>> notifyKvStateUnregisteredFunction) {
+			@Nonnull Function<Tuple4<JobID, JobVertexID, KeyGroupRange, String>, CompletableFuture<Acknowledge>> notifyKvStateUnregisteredFunction,
+			@Nonnull TriFunction<String, Object, byte[], CompletableFuture<Object>> updateAggregateFunction) {
 		this.address = address;
 		this.hostname = hostname;
 		this.cancelFunction = cancelFunction;
@@ -217,6 +221,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 		this.requestKvStateLocationFunction = requestKvStateLocationFunction;
 		this.notifyKvStateRegisteredFunction = notifyKvStateRegisteredFunction;
 		this.notifyKvStateUnregisteredFunction = notifyKvStateUnregisteredFunction;
+		this.updateAggregateFunction = updateAggregateFunction;
 	}
 
 	@Override
@@ -367,5 +372,10 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	@Override
 	public String getHostname() {
 		return hostname;
+	}
+
+	@Override
+	public CompletableFuture<Object> updateGlobalAggregate(String aggregateName, Object aggregand, byte[] serializedAggregateFunction) {
+		return updateAggregateFunction.apply(aggregateName, aggregand, serializedAggregateFunction);
 	}
 }

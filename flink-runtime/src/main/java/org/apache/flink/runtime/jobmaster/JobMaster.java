@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
@@ -217,6 +218,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	@Nullable
 	private EstablishedResourceManagerConnection establishedResourceManagerConnection;
 
+	private Map<String, Object> accumulators;
+
 	// ------------------------------------------------------------------------
 
 	public JobMaster(
@@ -295,6 +298,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		this.resourceManagerConnection = null;
 		this.establishedResourceManagerConnection = null;
+
+		this.accumulators = new HashMap<>();
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -982,6 +987,26 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	@Override
 	public void notifyAllocationFailure(AllocationID allocationID, Exception cause) {
 		slotPoolGateway.failAllocation(allocationID, cause);
+	}
+
+	@Override
+	public CompletableFuture<Object> updateGlobalAggregate(String aggregateName, Object aggregand, byte[] serializedAggregateFunction) {
+
+		AggregateFunction aggregateFunction = null;
+		try {
+			aggregateFunction = InstantiationUtil.deserializeObject(serializedAggregateFunction, userCodeLoader);
+		} catch (Exception e) {
+			log.error("Error while attempting to deserialize user AggregateFunction.");
+			return FutureUtils.completedExceptionally(e);
+		}
+
+		Object accumulator = accumulators.get(aggregateName);
+		if(null == accumulator) {
+			accumulator = aggregateFunction.createAccumulator();
+		}
+		accumulator = aggregateFunction.add(aggregand, accumulator);
+		accumulators.put(aggregateName, accumulator);
+		return CompletableFuture.completedFuture(aggregateFunction.getResult(accumulator));
 	}
 
 	//----------------------------------------------------------------------------------------------

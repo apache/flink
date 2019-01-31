@@ -1231,6 +1231,7 @@ class TaskManager(
         taskManagerConnection,
         inputSplitProvider,
         checkpointResponder,
+        new ActorGatewayGlobalAggregateManager(),
         blobCache,
         libCache,
         fileCache,
