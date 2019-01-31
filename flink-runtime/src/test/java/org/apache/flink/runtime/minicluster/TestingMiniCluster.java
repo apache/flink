@@ -30,6 +30,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,22 +43,36 @@ import java.util.function.Supplier;
  */
 public class TestingMiniCluster extends MiniCluster {
 
-	@Nonnull
+	@Nullable
 	private final Supplier<HighAvailabilityServices> highAvailabilityServicesSupplier;
 
 	private final int numberDispatcherResourceManagerComponents;
 
 	public TestingMiniCluster(
 			TestingMiniClusterConfiguration miniClusterConfiguration,
-			@Nonnull Supplier<HighAvailabilityServices> highAvailabilityServicesSupplier) {
+			@Nullable Supplier<HighAvailabilityServices> highAvailabilityServicesSupplier) {
 		super(miniClusterConfiguration);
 		this.numberDispatcherResourceManagerComponents = miniClusterConfiguration.getNumberDispatcherResourceManagerComponents();
 		this.highAvailabilityServicesSupplier = highAvailabilityServicesSupplier;
 	}
 
+	public TestingMiniCluster(TestingMiniClusterConfiguration miniClusterConfiguration) {
+		this(miniClusterConfiguration, null);
+	}
+
+	@Nonnull
 	@Override
-	protected HighAvailabilityServices createHighAvailabilityServices(Configuration configuration, Executor executor) {
-		return highAvailabilityServicesSupplier.get();
+	public Collection<DispatcherResourceManagerComponent<?>> getDispatcherResourceManagerComponents() {
+		return super.getDispatcherResourceManagerComponents();
+	}
+
+	@Override
+	protected HighAvailabilityServices createHighAvailabilityServices(Configuration configuration, Executor executor) throws Exception {
+		if (highAvailabilityServicesSupplier != null) {
+			return highAvailabilityServicesSupplier.get();
+		} else {
+			return super.createHighAvailabilityServices(configuration, executor);
+		}
 	}
 
 	@Override

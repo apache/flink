@@ -726,6 +726,14 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		return taskExecutors;
 	}
 
+	@VisibleForTesting
+	@Nonnull
+	protected Collection<DispatcherResourceManagerComponent<?>> getDispatcherResourceManagerComponents() {
+		synchronized (lock) {
+			return Collections.unmodifiableCollection(dispatcherResourceManagerComponents);
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Internal methods
 	// ------------------------------------------------------------------------
