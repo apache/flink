@@ -30,19 +30,21 @@
      repeated bool type_array_boolean = 8;
      required Colors type_enum = 9;
      repeated MapFieldEntry type_map = 10;
-     oneof type_union {
-        bool bool_value = 11;
-        int64 long_value = 12;
-        double double_vaue = 13;
-     }
-     optional Address type_nested = 14;
-     required bytes type_bytes = 15;
+     required OneOfValue type_union = 11;
+     optional Address type_nested = 12;
+     required bytes type_bytes = 13;
   }
 
   enum Colors {
      RED = 0;
      GREEN = 1;
      BLUE = 2;
+  }
+
+  message OneOfValue {
+    optional bool bool_value = 1;
+    optional int64 long_value = 2;
+    optional double double_value = 3;
   }
 
   message Address {
