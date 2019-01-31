@@ -43,6 +43,7 @@ import java.util.concurrent.ExecutionException;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -68,8 +69,8 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 
 		miniCluster = new TestingMiniCluster(
 			new MiniClusterConfiguration.Builder()
+				.setNumTaskManagers(NUM_TMS)
 				.setNumSlotsPerTaskManager(SLOTS_PER_TM)
-				.setNumSlotsPerTaskManager(NUM_TMS)
 				.build(),
 			() -> highAvailabilityServices);
 
@@ -139,6 +140,16 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 		JobResult jobResult = jobResultFuture.get();
 
 		assertThat(jobResult.isSuccess(), is(true));
+	}
+
+	@Test
+	public void testTmRegisterReelectionOfJobMaster() throws Exception {
+
+		assertTrue(miniCluster.requestTaskManagerInfo().get().size() == NUM_TMS);
+		highAvailabilityServices.revokeResourceManagerLeadership().get();
+		highAvailabilityServices.grantResourceManagerLeadership().get();
+		Thread.sleep(500);
+		assertTrue(miniCluster.requestTaskManagerInfo().get().size() == NUM_TMS);
 	}
 
 	private JobGraph createJobGraph(int parallelism) {
