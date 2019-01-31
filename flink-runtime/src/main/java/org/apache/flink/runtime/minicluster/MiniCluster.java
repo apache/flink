@@ -57,6 +57,7 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
@@ -183,6 +184,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 	@GuardedBy("lock")
 	private RpcGatewayRetriever<DispatcherId, DispatcherGateway> dispatcherGatewayRetriever;
+
+	@GuardedBy("lock")
+	private RpcGatewayRetriever<ResourceManagerId, ResourceManagerGateway> resourceManagerGatewayRetriever;
 
 	/** Flag marking the mini cluster as started/running. */
 	private volatile boolean running;
@@ -352,7 +356,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					DispatcherId::fromUuid,
 					20,
 					Time.milliseconds(20L));
-				final RpcGatewayRetriever<ResourceManagerId, ResourceManagerGateway> resourceManagerGatewayRetriever = new RpcGatewayRetriever<>(
+				resourceManagerGatewayRetriever = new RpcGatewayRetriever<>(
 					jobManagerRpcService,
 					ResourceManagerGateway.class,
 					ResourceManagerId::fromUuid,
@@ -714,14 +718,16 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		return dispatcherGateway.requestJobResult(jobId, RpcUtils.INF_TIMEOUT);
 	}
 
-	public CompletableFuture<Collection<TaskManagerInfo>> requestTaskManagerInfo() {
-		checkState(running, "MiniCluster is not yet running.");
+	public CompletableFuture<ClusterOverview> requestClusterOverview() {
+		final DispatcherGateway dispatcherGateway;
 		try {
-			return resourceManagerRunner.getResourceManageGateway().requestTaskManagerInfo(rpcTimeout);
-		} catch (Exception e) {
+			dispatcherGateway = getDispatcherGateway();
+		} catch (LeaderRetrievalException | InterruptedException e) {
 			ExceptionUtils.checkInterrupted(e);
 			return FutureUtils.completedExceptionally(e);
 		}
+
+		return dispatcherGateway.requestClusterOverview(RpcUtils.INF_TIMEOUT);
 	}
 
 	private DispatcherGateway getDispatcherGateway() throws LeaderRetrievalException, InterruptedException {

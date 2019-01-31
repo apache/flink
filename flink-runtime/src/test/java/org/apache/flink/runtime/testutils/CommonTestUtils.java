@@ -38,7 +38,7 @@ import java.util.concurrent.TimeoutException;
  */
 public class CommonTestUtils {
 
-	private static final long RETRY_TIMEOUT = 100L;
+	private static final long RETRY_INTERVAL = 100L;
 
 	/**
 	 * Sleeps for a given set of milliseconds, uninterruptibly. If interrupt is called,
@@ -155,8 +155,12 @@ public class CommonTestUtils {
 	}
 
 	public static void waitUntilCondition(SupplierWithException<Boolean, Exception> condition, Deadline timeout) throws Exception {
+		waitUntilCondition(condition, timeout, RETRY_INTERVAL);
+	}
+
+	public static void waitUntilCondition(SupplierWithException<Boolean, Exception> condition, Deadline timeout, long retryIntervalMillis) throws Exception {
 		while (timeout.hasTimeLeft() && !condition.get()) {
-			Thread.sleep(Math.min(RETRY_TIMEOUT, timeout.timeLeft().toMillis()));
+			Thread.sleep(Math.min(RETRY_INTERVAL, timeout.timeLeft().toMillis()));
 		}
 
 		if (!timeout.hasTimeLeft()) {
