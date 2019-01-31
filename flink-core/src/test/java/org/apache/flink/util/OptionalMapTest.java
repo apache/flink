@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.typeutils.runtime.kryo;
+package org.apache.flink.util;
 
-import org.apache.flink.api.java.typeutils.runtime.kryo.OptionalMap.MergeResult;
+import org.apache.flink.util.OptionalMap.MergeResult;
 
 import org.junit.Test;
 
