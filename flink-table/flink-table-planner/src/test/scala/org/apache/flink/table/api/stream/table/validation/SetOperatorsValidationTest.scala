@@ -21,7 +21,7 @@ package org.apache.flink.table.api.stream.table.validation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableEnvironment, ValidationException}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
@@ -35,7 +35,7 @@ class SetOperatorsValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testUnionFieldsNameNotOverlap1(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     StreamITCase.testResults = mutable.MutableList()
     val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
@@ -53,7 +53,7 @@ class SetOperatorsValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testUnionFieldsNameNotOverlap2(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     StreamITCase.testResults = mutable.MutableList()
     val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
@@ -72,8 +72,8 @@ class SetOperatorsValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testUnionTablesFromDifferentEnv(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv1 = TableEnvironment.getTableEnvironment(env)
-    val tEnv2 = TableEnvironment.getTableEnvironment(env)
+    val tEnv1 = StreamTableEnvironment.create(env)
+    val tEnv2 = StreamTableEnvironment.create(env)
 
     val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv1, 'a, 'b, 'c)
     val ds2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv2, 'a, 'b, 'c)

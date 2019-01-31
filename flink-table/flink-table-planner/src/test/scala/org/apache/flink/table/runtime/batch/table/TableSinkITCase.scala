@@ -23,7 +23,7 @@ import java.io.File
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
-import org.apache.flink.table.api.{TableEnvironment, Types}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
@@ -46,7 +46,7 @@ class TableSinkITCase(
     val path = tmpFile.toURI.toString
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
     env.setParallelism(4)
 
     tEnv.registerTableSink(

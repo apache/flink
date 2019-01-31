@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
-import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment}
+import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.MultiArgCount
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
@@ -57,7 +57,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setParallelism(1)
     StreamITCase.clear
 
@@ -99,7 +99,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
   def testProcTimeBoundedNonPartitionedRowsOver(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     env.setParallelism(1)
     StreamITCase.clear
@@ -141,7 +141,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
   def testProcTimeUnboundedPartitionedRangeOver(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     // for sum aggregation ensure that every time the order of each element is consistent
@@ -172,7 +172,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
   def testProcTimeUnboundedPartitionedRowsOver(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
@@ -204,7 +204,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     // for sum aggregation ensure that every time the order of each element is consistent
@@ -234,7 +234,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
   def testProcTimeUnboundedNonPartitionedRowsOver(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
@@ -290,7 +290,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setStateBackend(getStateBackend)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val t1 = env
@@ -355,7 +355,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setStateBackend(getStateBackend)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val t1 = env
@@ -426,7 +426,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setStateBackend(getStateBackend)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val t1 = env
@@ -489,7 +489,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setStateBackend(getStateBackend)
     env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val t1 = env
@@ -523,7 +523,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeUnBoundedPartitionedRangeOver(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setStateBackend(getStateBackend)
     env.setParallelism(1)
@@ -592,7 +592,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeUnBoundedPartitionedRowsOver(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setStateBackend(getStateBackend)
     StreamITCase.testResults = mutable.MutableList()
@@ -662,7 +662,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeUnBoundedNonPartitionedRangeOver(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setStateBackend(getStateBackend)
     env.setParallelism(1)
@@ -724,7 +724,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeUnBoundedNonPartitionedRowsOver(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setStateBackend(getStateBackend)
     StreamITCase.clear
@@ -780,7 +780,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeUnBoundedPartitionedRowsOver2(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setStateBackend(getStateBackend)
     StreamITCase.clear
@@ -860,7 +860,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setParallelism(1)
     StreamITCase.clear
 
@@ -905,7 +905,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setParallelism(1)
     StreamITCase.clear
 
@@ -967,7 +967,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     // for sum aggregation ensure that every time the order of each element is consistent
@@ -1023,7 +1023,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStateBackend(getStateBackend)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setParallelism(1)
     StreamITCase.clear
 

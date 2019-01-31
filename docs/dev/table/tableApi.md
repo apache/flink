@@ -46,7 +46,7 @@ The Java Table API is enabled by importing `org.apache.flink.table.api.java.*`. 
 {% highlight java %}
 // environment configuration
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-BatchTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
+BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
 // register Orders table in table environment
 // ...
@@ -77,7 +77,7 @@ import org.apache.flink.table.api.scala._
 
 // environment configuration
 val env = ExecutionEnvironment.getExecutionEnvironment
-val tEnv = TableEnvironment.getTableEnvironment(env)
+val tEnv = BatchTableEnvironment.create(env)
 
 // register Orders table in table environment
 // ...

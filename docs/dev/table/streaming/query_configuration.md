@@ -30,7 +30,7 @@ Flink's Table API and SQL interface provide parameters to tune the accuracy and 
 <div data-lang="java" markdown="1">
 {% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // obtain query configuration from TableEnvironment
 StreamQueryConfig qConfig = tableEnv.queryConfig();
@@ -61,7 +61,7 @@ DataStream<Row> stream = tableEnv.toAppendStream(result, Row.class, qConfig);
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 // obtain query configuration from TableEnvironment
 val qConfig: StreamQueryConfig = tableEnv.queryConfig

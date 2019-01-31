@@ -22,7 +22,6 @@ import java.math.BigDecimal
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.runtime.utils.TableProgramsClusterTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
@@ -52,7 +51,7 @@ class GroupWindowITCase(
   @Test(expected = classOf[UnsupportedOperationException])
   def testAllEventTimeTumblingWindowOverCount(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val table = env
       .fromCollection(data)
@@ -69,7 +68,7 @@ class GroupWindowITCase(
   @Test
   def testEventTimeTumblingGroupWindowOverCount(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val table = env
       .fromCollection(data)
@@ -92,7 +91,7 @@ class GroupWindowITCase(
   @Test
   def testEventTimeTumblingGroupWindowOverTime(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val table = env
       .fromCollection(data)
@@ -119,7 +118,7 @@ class GroupWindowITCase(
   @Test
   def testAllEventTimeTumblingWindowOverTime(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val table = env
       .fromCollection(data)
@@ -142,7 +141,7 @@ class GroupWindowITCase(
   @Test
   def testEventTimeSessionGroupWindow(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val table = env
       .fromCollection(data)
@@ -166,7 +165,7 @@ class GroupWindowITCase(
   @Test
   def testAllEventTimeSessionGroupWindow(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
     val table = env
       .fromCollection(data)
       .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
@@ -187,7 +186,7 @@ class GroupWindowITCase(
   @Test
   def testMultiGroupWindow(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val table = env
       .fromCollection(data)
@@ -219,7 +218,7 @@ class GroupWindowITCase(
   @Test(expected = classOf[UnsupportedOperationException])
   def testAllEventTimeSlidingGroupWindowOverCount(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val table = env
       .fromCollection(data)
@@ -237,7 +236,7 @@ class GroupWindowITCase(
   def testAllEventTimeSlidingGroupWindowOverTime(): Unit = {
     // please keep this test in sync with the DataStream variant
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val table = env
       .fromCollection(data)
@@ -267,7 +266,7 @@ class GroupWindowITCase(
   def testEventTimeSlidingGroupWindowOverTimeOverlappingFullPane(): Unit = {
     // please keep this test in sync with the DataStream variant
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val table = env
       .fromCollection(data)
@@ -300,7 +299,7 @@ class GroupWindowITCase(
   def testEventTimeSlidingGroupWindowOverTimeOverlappingSplitPane(): Unit = {
     // please keep this test in sync with the DataStream variant
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val table = env
       .fromCollection(data)
@@ -329,7 +328,7 @@ class GroupWindowITCase(
   def testEventTimeSlidingGroupWindowOverTimeNonOverlappingFullPane(): Unit = {
     // please keep this test in sync with the DataStream variant
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val table = env
       .fromCollection(data)
@@ -353,7 +352,7 @@ class GroupWindowITCase(
   def testEventTimeSlidingGroupWindowOverTimeNonOverlappingSplitPane(): Unit = {
     // please keep this test in sync with the DataStream variant
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val table = env
       .fromCollection(data)

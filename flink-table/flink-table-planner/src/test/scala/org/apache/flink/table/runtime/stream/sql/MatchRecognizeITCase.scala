@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.stream.sql
 
 import java.sql.Timestamp
-import java.time.{ZoneId, ZonedDateTime}
 import java.util.TimeZone
 
 import org.apache.flink.api.common.time.Time
@@ -28,7 +27,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableConfig, TableEnvironment, Types}
+import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
@@ -45,7 +44,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
   def testSimplePattern(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val data = new mutable.MutableList[(Int, String)]
@@ -92,7 +91,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
   def testSimplePatternWithNulls(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val data = new mutable.MutableList[(Int, String, String)]
@@ -142,7 +141,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     env.setParallelism(1)
     val tableConfig = new TableConfig
     tableConfig.setMaxGeneratedCodeLength(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env, tableConfig)
+    val tEnv = StreamTableEnvironment.create(env, tableConfig)
     StreamITCase.clear
 
     val data = new mutable.MutableList[(Int, String, String, String)]
@@ -196,7 +195,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val data = Seq(
@@ -255,7 +254,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
@@ -317,7 +316,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
@@ -372,7 +371,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
   def testLogicalOffsets(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
@@ -422,7 +421,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
   def testLogicalOffsetsWithStarVariable(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val data = new mutable.MutableList[(Int, String, Long, Int)]
@@ -483,7 +482,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
   def testLogicalOffsetOutsideOfRangeInMeasures(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
@@ -535,7 +534,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
   def testAggregates(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     tEnv.getConfig.setMaxGeneratedCodeLength(1)
     StreamITCase.clear
 
@@ -597,7 +596,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
   def testAggregatesWithNullInputs(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     tEnv.getConfig.setMaxGeneratedCodeLength(1)
     StreamITCase.clear
 
@@ -653,7 +652,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
   def testAccessingCurrentTime(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val data = new mutable.MutableList[(Int, String)]
@@ -693,7 +692,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
   def testUserDefinedFunctions(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     tEnv.getConfig.setMaxGeneratedCodeLength(1)
     StreamITCase.clear
 

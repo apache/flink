@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
@@ -43,7 +42,7 @@ class SetOperatorsITCase(
   def testUnionAll(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT c FROM t1 UNION ALL (SELECT f FROM t2)"
 
@@ -63,7 +62,7 @@ class SetOperatorsITCase(
   def testUnion(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT c FROM t1 UNION (SELECT f FROM t2)"
 
@@ -83,7 +82,7 @@ class SetOperatorsITCase(
   def testUnionWithFilter(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT c FROM (" +
       "SELECT * FROM t1 UNION ALL (SELECT a, b, c FROM t2))" +
@@ -105,7 +104,7 @@ class SetOperatorsITCase(
   def testUnionWithAggregation(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT count(c) FROM (" +
       "SELECT * FROM t1 UNION ALL (SELECT a, b, c FROM t2))"
@@ -125,7 +124,7 @@ class SetOperatorsITCase(
   @Test
   def testValuesWithCast(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "VALUES (1, cast(1 as BIGINT) )," +
       "(2, cast(2 as BIGINT))," +
@@ -142,7 +141,7 @@ class SetOperatorsITCase(
   def testExcept(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT c FROM t1 EXCEPT (SELECT c FROM t2)"
 
@@ -163,7 +162,7 @@ class SetOperatorsITCase(
   // calcite sql parser doesn't support EXCEPT ALL
   def testExceptAll(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT c FROM t1 EXCEPT ALL SELECT c FROM t2"
 
@@ -188,7 +187,7 @@ class SetOperatorsITCase(
   def testExceptWithFilter(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT c FROM (" +
       "SELECT * FROM t1 EXCEPT (SELECT a, b, c FROM t2))" +
@@ -209,7 +208,7 @@ class SetOperatorsITCase(
   @Test
   def testIntersect(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT c FROM t1 INTERSECT SELECT c FROM t2"
 
@@ -236,7 +235,7 @@ class SetOperatorsITCase(
   // calcite sql parser doesn't support INTERSECT ALL
   def testIntersectAll(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT c FROM t1 INTERSECT ALL SELECT c FROM t2"
 
@@ -260,7 +259,7 @@ class SetOperatorsITCase(
   @Test
   def testIntersectWithFilter(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT c FROM ((SELECT * FROM t1) INTERSECT (SELECT * FROM t2)) WHERE a > 1"
 
@@ -280,7 +279,7 @@ class SetOperatorsITCase(
   @Test
   def testInWithFilter(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
@@ -297,7 +296,7 @@ class SetOperatorsITCase(
   @Test
   def testInWithProjection(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
