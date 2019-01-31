@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.typeutils.runtime.kryo;
+package org.apache.flink.util;
 
 import org.apache.flink.annotation.VisibleForTesting;
 
@@ -36,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * An OptionalMap is an order preserving map (like {@link LinkedHashMap}) where keys have a unique string name, but are
  * optionally present, and the values are optional.
  */
-final class OptionalMap<K, V> {
+public final class OptionalMap<K, V> {
 
 
 	// --------------------------------------------------------------------------------------------------------
@@ -55,7 +55,7 @@ final class OptionalMap<K, V> {
 	 * @param <V>           value type
 	 * @return an {@code OptionalMap} with optional named keys, and optional values.
 	 */
-	static <K, V> OptionalMap<K, V> optionalMapOf(LinkedHashMap<K, V> sourceMap, Function<K, String> keyNameGetter) {
+	public static <K, V> OptionalMap<K, V> optionalMapOf(LinkedHashMap<K, V> sourceMap, Function<K, String> keyNameGetter) {
 
 		LinkedHashMap<String, KeyValue<K, V>> underlyingMap = new LinkedHashMap<>(sourceMap.size());
 
@@ -70,7 +70,7 @@ final class OptionalMap<K, V> {
 	/**
 	 * Tries to merges the keys and the values of @right into @left.
 	 */
-	static <K, V> MergeResult<K, V> mergeRightIntoLeft(OptionalMap<K, V> left, OptionalMap<K, V> right) {
+	public static <K, V> MergeResult<K, V> mergeRightIntoLeft(OptionalMap<K, V> left, OptionalMap<K, V> right) {
 		OptionalMap<K, V> merged = new OptionalMap<>(left);
 		merged.putAll(right);
 
@@ -100,11 +100,11 @@ final class OptionalMap<K, V> {
 	// API
 	// --------------------------------------------------------------------------------------------------------
 
-	int size() {
+	public int size() {
 		return underlyingMap.size();
 	}
 
-	void put(String keyName, @Nullable K key, @Nullable V value) {
+	public void put(String keyName, @Nullable K key, @Nullable V value) {
 		checkNotNull(keyName);
 
 		underlyingMap.compute(keyName, (unused, kv) ->
@@ -121,7 +121,7 @@ final class OptionalMap<K, V> {
 	/**
 	 * returns the key names of any keys or values that are absent.
 	 */
-	Set<String> absentKeysOrValues() {
+	public Set<String> absentKeysOrValues() {
 		return underlyingMap.entrySet()
 			.stream()
 			.filter(OptionalMap::keyOrValueIsAbsent)
@@ -134,7 +134,7 @@ final class OptionalMap<K, V> {
 	 * a map with these key and values, striped from their Optional wrappers.
 	 * NOTE: please note that if any of the key or values are absent this method would throw an {@link IllegalStateException}.
 	 */
-	LinkedHashMap<K, V> unwrapOptionals() {
+	public LinkedHashMap<K, V> unwrapOptionals() {
 		final LinkedHashMap<K, V> unwrapped = new LinkedHashMap<>(underlyingMap.size());
 
 		for (Entry<String, KeyValue<K, V>> entry : underlyingMap.entrySet()) {
@@ -155,7 +155,7 @@ final class OptionalMap<K, V> {
 	/**
 	 * returns the key names added to this map.
 	 */
-	Set<String> keyNames() {
+	public Set<String> keyNames() {
 		return underlyingMap.keySet();
 	}
 
