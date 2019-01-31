@@ -25,7 +25,7 @@ import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.OptionalMap;
+import org.apache.flink.util.LinkedOptionalMap;
 
 import com.esotericsoftware.kryo.Serializer;
 import org.slf4j.Logger;
@@ -37,7 +37,7 @@ import java.util.LinkedHashMap;
 import java.util.Map.Entry;
 import java.util.function.Function;
 
-import static org.apache.flink.util.OptionalMap.optionalMapOf;
+import static org.apache.flink.util.LinkedOptionalMap.optionalMapOf;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 final class KryoSerializerSnapshotData<T> {
@@ -63,9 +63,9 @@ final class KryoSerializerSnapshotData<T> {
 
 	static <T> KryoSerializerSnapshotData<T> createFrom(DataInputView in, ClassLoader cl) throws IOException {
 		Class<T> typeClass = readTypeClass(in, cl);
-		OptionalMap<String, KryoRegistration> kryoRegistrations = readKryoRegistrations(in, cl);
-		OptionalMap<Class<?>, SerializableSerializer<?>> defaultSerializer = readDefaultKryoSerializers(in, cl);
-		OptionalMap<Class<?>, Class<? extends Serializer<?>>> defaultSerializerClasses =
+		LinkedOptionalMap<String, KryoRegistration> kryoRegistrations = readKryoRegistrations(in, cl);
+		LinkedOptionalMap<Class<?>, SerializableSerializer<?>> defaultSerializer = readDefaultKryoSerializers(in, cl);
+		LinkedOptionalMap<Class<?>, Class<? extends Serializer<?>>> defaultSerializerClasses =
 			readDefaultKryoSerializerClasses(in, cl);
 
 		return new KryoSerializerSnapshotData<>(
@@ -80,14 +80,15 @@ final class KryoSerializerSnapshotData<T> {
 	// --------------------------------------------------------------------------------------------
 
 	private final Class<T> typeClass;
-	private final OptionalMap<Class<?>, SerializableSerializer<?>> defaultKryoSerializers;
-	private final OptionalMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses;
-	private final OptionalMap<String, KryoRegistration> kryoRegistrations;
+	private final LinkedOptionalMap<Class<?>, SerializableSerializer<?>> defaultKryoSerializers;
+	private final LinkedOptionalMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses;
+	private final LinkedOptionalMap<String, KryoRegistration> kryoRegistrations;
 
-	private KryoSerializerSnapshotData(Class<T> typeClass,
-			OptionalMap<Class<?>, SerializableSerializer<?>> defaultKryoSerializers,
-			OptionalMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses,
-			OptionalMap<String, KryoRegistration> kryoRegistrations) {
+	private KryoSerializerSnapshotData(
+		Class<T> typeClass,
+		LinkedOptionalMap<Class<?>, SerializableSerializer<?>> defaultKryoSerializers,
+		LinkedOptionalMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses,
+		LinkedOptionalMap<String, KryoRegistration> kryoRegistrations) {
 
 		this.typeClass = typeClass;
 		this.defaultKryoSerializers = defaultKryoSerializers;
@@ -103,15 +104,15 @@ final class KryoSerializerSnapshotData<T> {
 		return typeClass;
 	}
 
-	OptionalMap<Class<?>, SerializableSerializer<?>> getDefaultKryoSerializers() {
+	LinkedOptionalMap<Class<?>, SerializableSerializer<?>> getDefaultKryoSerializers() {
 		return defaultKryoSerializers;
 	}
 
-	OptionalMap<Class<?>, Class<? extends Serializer<?>>> getDefaultKryoSerializerClasses() {
+	LinkedOptionalMap<Class<?>, Class<? extends Serializer<?>>> getDefaultKryoSerializerClasses() {
 		return defaultKryoSerializerClasses;
 	}
 
-	OptionalMap<String, KryoRegistration> getKryoRegistrations() {
+	LinkedOptionalMap<String, KryoRegistration> getKryoRegistrations() {
 		return kryoRegistrations;
 	}
 
@@ -132,7 +133,7 @@ final class KryoSerializerSnapshotData<T> {
 
 	private static void writeKryoRegistrations(
 		DataOutputView out,
-		OptionalMap<String, KryoRegistration> kryoRegistrations) throws IOException {
+		LinkedOptionalMap<String, KryoRegistration> kryoRegistrations) throws IOException {
 
 		out.writeInt(kryoRegistrations.size());
 		for (Entry<String, KryoRegistration> entry : kryoRegistrations.unwrapOptionals().entrySet()) {
@@ -143,7 +144,7 @@ final class KryoSerializerSnapshotData<T> {
 
 	private void writeDefaultKryoSerializers(
 		DataOutputView out,
-		OptionalMap<Class<?>,
+		LinkedOptionalMap<Class<?>,
 			SerializableSerializer<?>> defaultKryoSerializers) throws IOException {
 
 		out.writeInt(defaultKryoSerializers.size());
@@ -160,7 +161,7 @@ final class KryoSerializerSnapshotData<T> {
 
 	private static void writeDefaultKryoSerializerClasses(
 		DataOutputView out,
-		OptionalMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses)
+		LinkedOptionalMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses)
 		throws IOException {
 
 		out.writeInt(defaultKryoSerializerClasses.size());
@@ -181,11 +182,11 @@ final class KryoSerializerSnapshotData<T> {
 		return InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
 	}
 
-	private static OptionalMap<String, KryoRegistration> readKryoRegistrations(
+	private static LinkedOptionalMap<String, KryoRegistration> readKryoRegistrations(
 		DataInputView in,
 		ClassLoader userCodeClassLoader) throws IOException {
 
-		OptionalMap<String, KryoRegistration> registrations = new OptionalMap<>();
+		LinkedOptionalMap<String, KryoRegistration> registrations = new LinkedOptionalMap<>();
 		final int size = in.readInt();
 		for (int i = 0; i < size; i++) {
 			final String name = in.readUTF();
@@ -198,8 +199,8 @@ final class KryoSerializerSnapshotData<T> {
 		return registrations;
 	}
 
-	private static OptionalMap<Class<?>, SerializableSerializer<?>> readDefaultKryoSerializers(DataInputView in, ClassLoader cl) throws IOException {
-		OptionalMap<Class<?>, SerializableSerializer<?>> kryoSerializers = new OptionalMap<>();
+	private static LinkedOptionalMap<Class<?>, SerializableSerializer<?>> readDefaultKryoSerializers(DataInputView in, ClassLoader cl) throws IOException {
+		LinkedOptionalMap<Class<?>, SerializableSerializer<?>> kryoSerializers = new LinkedOptionalMap<>();
 		final int size = in.readInt();
 		for (int i = 0; i < size; i++) {
 			final String className = in.readUTF();
@@ -225,11 +226,11 @@ final class KryoSerializerSnapshotData<T> {
 	}
 
 	@SuppressWarnings("unchecked")
-	private static OptionalMap<Class<?>, Class<? extends Serializer<?>>> readDefaultKryoSerializerClasses(
+	private static LinkedOptionalMap<Class<?>, Class<? extends Serializer<?>>> readDefaultKryoSerializerClasses(
 		DataInputView in,
 		ClassLoader cl) throws IOException {
 
-		OptionalMap<Class<?>, Class<? extends Serializer<?>>> kryoSerializerClasses = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, Class<? extends Serializer<?>>> kryoSerializerClasses = new LinkedOptionalMap<>();
 		final int size = in.readInt();
 		for (int i = 0; i < size; i++) {
 			final String className = in.readUTF();

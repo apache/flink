@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.OptionalMap.MergeResult;
+import org.apache.flink.util.LinkedOptionalMap.MergeResult;
 
 import com.esotericsoftware.kryo.Serializer;
 import org.slf4j.Logger;
@@ -36,8 +36,8 @@ import java.util.LinkedHashMap;
 import java.util.function.Function;
 
 import static org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializerSnapshotData.createFrom;
-import static org.apache.flink.util.OptionalMap.mergeRightIntoLeft;
-import static org.apache.flink.util.OptionalMap.optionalMapOf;
+import static org.apache.flink.util.LinkedOptionalMap.mergeRightIntoLeft;
+import static org.apache.flink.util.LinkedOptionalMap.optionalMapOf;
 
 /**
  * {@link TypeSerializerSnapshot} for {@link KryoSerializer}.
