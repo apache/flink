@@ -115,6 +115,9 @@ public class YarnFlinkResourceManagerTest extends TestLogger {
 			int numInitialTaskManagers = 5;
 			final YarnResourceManagerCallbackHandler callbackHandler = new YarnResourceManagerCallbackHandler();
 			AMRMClientAsync<AMRMClient.ContainerRequest> resourceManagerClient = mock(AMRMClientAsync.class);
+			doReturn(Collections.singletonList(Collections.nCopies(numInitialTaskManagers, new AMRMClient.ContainerRequest(Resource.newInstance(1024 * 1024, 1), null, null, Priority.newInstance(0)))))
+				.when(resourceManagerClient).getMatchingRequests(any(Priority.class), anyString(), any(Resource.class));
+
 			NMClient nodeManagerClient = mock(NMClient.class);
 			UUID leaderSessionID = UUID.randomUUID();
 
@@ -180,9 +183,6 @@ public class YarnFlinkResourceManagerTest extends TestLogger {
 						resourceManagerClient,
 						nodeManagerClient
 					));
-
-				doReturn(Collections.singletonList(Collections.nCopies(numInitialTaskManagers, new AMRMClient.ContainerRequest(Resource.newInstance(1024 * 1024, 1), null, null, Priority.newInstance(0)))))
-					.when(resourceManagerClient).getMatchingRequests(any(Priority.class), anyString(), any(Resource.class));
 
 				leaderRetrievalService.notifyListener(leader1.path().toString(), leaderSessionID);
 
