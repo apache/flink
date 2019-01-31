@@ -109,12 +109,13 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 		Files.createDirectory(tmpPrometheusDir);
 
 		LOG.info("Downloading Prometheus.");
-		runBlocking(
-			Duration.ofMinutes(5),
-			CommandLineWrapper
-				.wget("https://github.com/prometheus/prometheus/releases/download/v" + PROMETHEUS_VERSION + '/' + prometheusArchive.getFileName())
-				.targetDir(tmpPrometheusDir)
-				.build());
+		AutoClosableProcess
+			.create(
+				CommandLineWrapper
+					.wget("https://github.com/prometheus/prometheus/releases/download/v" + PROMETHEUS_VERSION + '/' + prometheusArchive.getFileName())
+					.targetDir(tmpPrometheusDir)
+					.build())
+			.runBlocking(Duration.ofMinutes(5));
 
 		LOG.info("Unpacking Prometheus.");
 		runBlocking(
