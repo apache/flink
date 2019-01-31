@@ -2207,13 +2207,7 @@ object JobManager {
 
         // start the web frontend. we need to load this dynamically
         // because it is not in the same project/dependencies
-        val webServer = WebMonitorUtils.startWebRuntimeMonitor(
-          configuration,
-          highAvailabilityServices,
-          new AkkaJobManagerRetriever(jobManagerSystem, timeout, 10, Time.milliseconds(50L)),
-          new AkkaQueryServiceRetriever(jobManagerSystem, timeout),
-          timeout,
-          new ScheduledExecutorServiceAdapter(futureExecutor))
+        val webServer = null
 
         Option(webServer)
       }
