@@ -33,6 +33,7 @@ import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureSta
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.StackTraceSampleCoordinator;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
@@ -194,12 +195,17 @@ public class WebRuntimeMonitor implements WebMonitor {
 		} else {
 			sslFactory = null;
 		}
-		metricFetcher = new MetricFetcherImpl<>(
-			retriever,
-			queryServiceRetriever,
-			scheduledExecutor,
-			timeout,
-			MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
+
+		final long updateInterval =
+			config.getLong(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
+		metricFetcher = updateInterval == 0
+			? VoidMetricFetcher.INSTANCE
+			: new MetricFetcherImpl<>(
+				retriever,
+				queryServiceRetriever,
+				scheduledExecutor,
+				timeout,
+				updateInterval);
 
 		Router router = new Router();
 
