@@ -24,7 +24,6 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
@@ -39,7 +38,7 @@ class MatchHarnessTest extends HarnessTestBase {
   @Test
   def testAccessingProctime(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val data = new mutable.MutableList[(Int, String)]
     val t = env.fromCollection(data).toTable(tEnv, 'id, 'name, 'proctime.proctime)

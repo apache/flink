@@ -42,7 +42,7 @@ import _root_.java.lang.{Boolean => JBool}
   * @param execEnv The Java [[StreamExecutionEnvironment]] of the TableEnvironment.
   * @param config The configuration of the TableEnvironment.
   */
-class StreamTableEnvironment(
+class StreamTableEnvironment @Deprecated() (
     execEnv: StreamExecutionEnvironment,
     config: TableConfig)
   extends org.apache.flink.table.api.StreamTableEnvironment(execEnv, config) {
@@ -378,5 +378,32 @@ class StreamTableEnvironment(
       .asInstanceOf[TypeInformation[ACC]]
 
     registerAggregateFunctionInternal[T, ACC](name, f)
+  }
+}
+
+object StreamTableEnvironment {
+
+  /**
+    * Returns a [[StreamTableEnvironment]] for a Java [[StreamExecutionEnvironment]].
+    *
+    * @param executionEnvironment The Java StreamExecutionEnvironment.
+    */
+  def create(executionEnvironment: StreamExecutionEnvironment):
+  StreamTableEnvironment = {
+    new StreamTableEnvironment(executionEnvironment, new TableConfig())
+  }
+
+  /**
+    * Returns a [[StreamTableEnvironment]] for a Java [[StreamExecutionEnvironment]] and a given
+    * [[TableConfig]].
+    *
+    * @param executionEnvironment The Java StreamExecutionEnvironment.
+    * @param tableConfig The TableConfig for the new TableEnvironment.
+    */
+  def create(
+    executionEnvironment: StreamExecutionEnvironment,
+    tableConfig: TableConfig): StreamTableEnvironment = {
+
+    new StreamTableEnvironment(executionEnvironment, tableConfig)
   }
 }

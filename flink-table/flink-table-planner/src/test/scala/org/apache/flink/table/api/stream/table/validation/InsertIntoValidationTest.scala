@@ -21,7 +21,7 @@ package org.apache.flink.table.api.stream.table.validation
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableEnvironment, Types, ValidationException}
+import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.runtime.utils.StreamTestData
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.junit.Test
@@ -31,7 +31,7 @@ class InsertIntoValidationTest {
   @Test(expected = classOf[ValidationException])
   def testInconsistentLengthInsert(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("sourceTable", t)
@@ -50,7 +50,7 @@ class InsertIntoValidationTest {
   @Test(expected = classOf[ValidationException])
   def testUnmatchedTypesInsert(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("sourceTable", t)

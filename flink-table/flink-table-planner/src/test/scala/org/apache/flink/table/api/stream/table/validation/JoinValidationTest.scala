@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.stream.table.validation.JoinValidationTest.WithoutEqualsHashCode
-import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.runtime.utils.StreamTestData
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
@@ -36,7 +36,7 @@ class JoinValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testInvalidStateTypes(): Unit = {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-    val tenv = TableEnvironment.getTableEnvironment(env)
+    val tenv = StreamTableEnvironment.create(env)
     val ds = env.fromElements(new WithoutEqualsHashCode) // no equals/hashCode
     val t = tenv.fromDataStream(ds)
 
@@ -205,8 +205,8 @@ class JoinValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testJoinTablesFromDifferentEnvs(): Unit = {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv1 = TableEnvironment.getTableEnvironment(env)
-    val tEnv2 = TableEnvironment.getTableEnvironment(env)
+    val tEnv1 = StreamTableEnvironment.create(env)
+    val tEnv2 = StreamTableEnvironment.create(env)
     val ds1 = StreamTestData.get3TupleDataStream(env)
     val ds2 = StreamTestData.get5TupleDataStream(env)
     val in1 = tEnv1.fromDataStream(ds1, 'a, 'b, 'c)
@@ -219,8 +219,8 @@ class JoinValidationTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testJoinTablesFromDifferentEnvsJava() {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv1 = TableEnvironment.getTableEnvironment(env)
-    val tEnv2 = TableEnvironment.getTableEnvironment(env)
+    val tEnv1 = StreamTableEnvironment.create(env)
+    val tEnv2 = StreamTableEnvironment.create(env)
     val ds1 = StreamTestData.get3TupleDataStream(env)
     val ds2 = StreamTestData.get5TupleDataStream(env)
     val in1 = tEnv1.fromDataStream(ds1, 'a, 'b, 'c)

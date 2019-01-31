@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.table.utils.TableFunc0
@@ -50,7 +49,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
   @Test
   def testWordCount(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
@@ -74,7 +73,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
   @Test
   def testGroupByAndNonKeyedGroupBy(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
@@ -99,7 +98,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
   def testNonKeyedGroupByAndGroupBy(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
@@ -139,7 +138,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
       (7, 8L)
     )
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
     env.setParallelism(1)
@@ -166,7 +165,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
   @Test
   def testCorrelate(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 

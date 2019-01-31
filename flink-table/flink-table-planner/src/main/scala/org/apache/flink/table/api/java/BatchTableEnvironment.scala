@@ -40,7 +40,7 @@ import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
   * @param execEnv The Java batch [[ExecutionEnvironment]] of the TableEnvironment.
   * @param config The configuration of the TableEnvironment.
   */
-class BatchTableEnvironment(
+class BatchTableEnvironment @Deprecated() (
     execEnv: ExecutionEnvironment,
     config: TableConfig)
   extends org.apache.flink.table.api.BatchTableEnvironment(execEnv, config) {
@@ -245,5 +245,31 @@ class BatchTableEnvironment(
       .asInstanceOf[TypeInformation[ACC]]
 
     registerAggregateFunctionInternal[T, ACC](name, f)
+  }
+}
+
+object BatchTableEnvironment {
+
+  /**
+    * Returns a [[BatchTableEnvironment]] for a Java [[ExecutionEnvironment]].
+    *
+    * @param executionEnvironment The Java batch ExecutionEnvironment.
+    */
+  def create(executionEnvironment: ExecutionEnvironment): BatchTableEnvironment = {
+    new BatchTableEnvironment(executionEnvironment, new TableConfig())
+  }
+
+  /**
+    * Returns a [[BatchTableEnvironment]] for a Java [[ExecutionEnvironment]] and a given
+    * [[TableConfig]].
+    *
+    * @param executionEnvironment The Java batch ExecutionEnvironment.
+    * @param tableConfig The TableConfig for the new TableEnvironment.
+    */
+  def create(
+    executionEnvironment: ExecutionEnvironment,
+    tableConfig: TableConfig): BatchTableEnvironment = {
+
+    new BatchTableEnvironment(executionEnvironment, tableConfig)
   }
 }

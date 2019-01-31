@@ -40,7 +40,7 @@ import org.apache.flink.streaming.api.scala.asScalaStream
   * @param execEnv The Scala [[StreamExecutionEnvironment]] of the TableEnvironment.
   * @param config The configuration of the TableEnvironment.
   */
-class StreamTableEnvironment(
+class StreamTableEnvironment @deprecated("Don't construct directly, use create method", "1.8.0") (
     execEnv: StreamExecutionEnvironment,
     config: TableConfig)
   extends org.apache.flink.table.api.StreamTableEnvironment(
@@ -230,5 +230,30 @@ class StreamTableEnvironment(
       f: AggregateFunction[T, ACC])
   : Unit = {
     registerAggregateFunctionInternal[T, ACC](name, f)
+  }
+}
+
+object StreamTableEnvironment {
+
+  /**
+    * Returns a [[StreamTableEnvironment]] for a Scala stream [[StreamExecutionEnvironment]].
+    *
+    * @param executionEnvironment The Scala StreamExecutionEnvironment.
+    */
+  def create(executionEnvironment: StreamExecutionEnvironment): StreamTableEnvironment = {
+    new StreamTableEnvironment(executionEnvironment, new TableConfig())
+  }
+
+  /**
+    * Returns a [[StreamTableEnvironment]] for a Scala stream [[StreamExecutionEnvironment]].
+    *
+    * @param executionEnvironment The Scala StreamExecutionEnvironment.
+    * @param tableConfig The TableConfig for the new TableEnvironment.
+    */
+  def create(
+    executionEnvironment: StreamExecutionEnvironment,
+    tableConfig: TableConfig): StreamTableEnvironment = {
+
+    new StreamTableEnvironment(executionEnvironment, tableConfig)
   }
 }

@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableEnvironment, Types}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.expressions.Null
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
@@ -42,7 +42,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testProcessTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     StreamITCase.clear
     env.setParallelism(1)
@@ -85,7 +85,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testProcessTimeInnerJoinWithOtherConditions(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     StreamITCase.clear
     env.setParallelism(2)
@@ -134,7 +134,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     StreamITCase.clear
@@ -193,7 +193,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeInnerJoinWithEquiTimeAttrs(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     StreamITCase.clear
@@ -240,7 +240,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeInnerJoinWithOtherConditions(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     StreamITCase.clear
@@ -303,7 +303,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeInnerJoinWithOtherTimeCondition(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     StreamITCase.clear
@@ -358,7 +358,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeInnerJoinWithWindowAggregateOnFirstTime(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     StreamITCase.clear
@@ -413,7 +413,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeInnerJoinWithWindowAggregateOnSecondTime(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     StreamITCase.clear
@@ -467,7 +467,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testProcTimeLeftOuterJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     StreamITCase.clear
     env.setParallelism(1)
@@ -507,7 +507,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeLeftOuterJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     StreamITCase.clear
@@ -572,7 +572,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeLeftOuterJoinNegativeWindowSize(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     StreamITCase.clear
@@ -621,7 +621,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testProcTimeRightOuterJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     StreamITCase.clear
     env.setParallelism(1)
@@ -661,7 +661,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeRightOuterJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     StreamITCase.clear
@@ -722,7 +722,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeRightOuterJoinNegativeWindowSize(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     StreamITCase.clear
@@ -771,7 +771,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testProcTimeFullOuterJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     StreamITCase.clear
     env.setParallelism(1)
@@ -811,7 +811,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeFullOuterJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     StreamITCase.clear
@@ -875,7 +875,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testRowTimeFullOuterJoinNegativeWindowSize(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     StreamITCase.clear
@@ -927,7 +927,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testNonWindowInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     StreamITCase.clear
 
@@ -981,7 +981,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
     val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE b = e"
@@ -1003,7 +1003,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testInnerJoinWithFilter(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
@@ -1026,7 +1026,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testInnerJoinWithNonEquiJoinPredicate(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
@@ -1049,7 +1049,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testInnerJoinWithMultipleKeys(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
@@ -1074,7 +1074,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testInnerJoinWithAlias(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
@@ -1100,7 +1100,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testInnerJoinWithAggregation(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setParallelism(1)
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
@@ -1124,7 +1124,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testLeftJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
@@ -1150,7 +1150,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testRightJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
@@ -1176,7 +1176,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testLeftSingleRightJoinEqualPredicate(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
@@ -1202,7 +1202,7 @@ class JoinITCase extends StreamingWithStateTestBase {
   @Test
   def testFullOuterJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 

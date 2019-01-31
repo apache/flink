@@ -41,7 +41,7 @@ import _root_.scala.reflect.ClassTag
   * @param execEnv The Scala batch [[ExecutionEnvironment]] of the TableEnvironment.
   * @param config The configuration of the TableEnvironment.
   */
-class BatchTableEnvironment(
+class BatchTableEnvironment @deprecated("Don't construct directly, use create method", "1.8.0") (
     execEnv: ExecutionEnvironment,
     config: TableConfig)
   extends org.apache.flink.table.api.BatchTableEnvironment(execEnv.getJavaEnv, config) {
@@ -184,5 +184,31 @@ class BatchTableEnvironment(
       f: AggregateFunction[T, ACC])
   : Unit = {
     registerAggregateFunctionInternal[T, ACC](name, f)
+  }
+}
+
+object BatchTableEnvironment {
+
+  /**
+    * Returns a [[BatchTableEnvironment]] for a Scala [[ExecutionEnvironment]].
+    *
+    * @param executionEnvironment The Scala batch ExecutionEnvironment.
+    */
+  def create(executionEnvironment: ExecutionEnvironment): BatchTableEnvironment = {
+    new BatchTableEnvironment(executionEnvironment, new TableConfig())
+  }
+
+  /**
+    * Returns a [[BatchTableEnvironment]] for a Scala [[ExecutionEnvironment]] and a given
+    * [[TableConfig]].
+    *
+    * @param executionEnvironment The Scala batch ExecutionEnvironment.
+    * @param tableConfig The TableConfig for the new TableEnvironment.
+    */
+  def create(
+    executionEnvironment: ExecutionEnvironment,
+    tableConfig: TableConfig): BatchTableEnvironment = {
+
+    new BatchTableEnvironment(executionEnvironment, tableConfig)
   }
 }

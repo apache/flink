@@ -22,7 +22,7 @@ import java.lang.{Boolean => JBoolean}
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableEnvironment, Types, ValidationException}
+import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.expressions.utils.{Func18, Func20, RichFunc2}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, _}
 import org.apache.flink.table.utils._
@@ -36,7 +36,7 @@ import scala.collection.mutable
 class CorrelateITCase extends AbstractTestBase {
 
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-  val tEnv: StreamTableEnvironment = TableEnvironment.getTableEnvironment(env)
+  val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env)
 
   @Before
   def clear(): Unit = {

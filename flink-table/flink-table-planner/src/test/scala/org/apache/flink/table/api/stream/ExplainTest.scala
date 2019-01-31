@@ -20,7 +20,6 @@ package org.apache.flink.table.api.stream
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.test.util.AbstractTestBase
 import org.junit.Assert.assertEquals
@@ -33,7 +32,7 @@ class ExplainTest extends AbstractTestBase {
   @Test
   def testFilter(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val table = env.fromElements((1, "hello"))
       .toTable(tEnv, 'a, 'b)
@@ -50,7 +49,7 @@ class ExplainTest extends AbstractTestBase {
   @Test
   def testUnion(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
     val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)

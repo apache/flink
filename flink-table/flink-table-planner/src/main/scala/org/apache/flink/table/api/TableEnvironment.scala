@@ -1258,6 +1258,7 @@ object TableEnvironment {
     *
     * @param executionEnvironment The Java batch ExecutionEnvironment.
     */
+  @Deprecated
   def getTableEnvironment(executionEnvironment: JavaBatchExecEnv): JavaBatchTableEnv = {
     new JavaBatchTableEnv(executionEnvironment, new TableConfig())
   }
@@ -1268,6 +1269,7 @@ object TableEnvironment {
     * @param executionEnvironment The Java batch ExecutionEnvironment.
     * @param tableConfig The TableConfig for the new TableEnvironment.
     */
+  @Deprecated
   def getTableEnvironment(
     executionEnvironment: JavaBatchExecEnv,
     tableConfig: TableConfig): JavaBatchTableEnv = {
@@ -1280,6 +1282,7 @@ object TableEnvironment {
     *
     * @param executionEnvironment The Scala batch ExecutionEnvironment.
     */
+  @deprecated("This method will be removed. Use BatchTableEnvironment.create() instead.", "1.8.0")
   def getTableEnvironment(executionEnvironment: ScalaBatchExecEnv): ScalaBatchTableEnv = {
     new ScalaBatchTableEnv(executionEnvironment, new TableConfig())
   }
@@ -1291,6 +1294,7 @@ object TableEnvironment {
     * @param executionEnvironment The Scala batch ExecutionEnvironment.
     * @param tableConfig The TableConfig for the new TableEnvironment.
     */
+  @deprecated("This method will be removed. Use BatchTableEnvironment.create() instead.", "1.8.0")
   def getTableEnvironment(
     executionEnvironment: ScalaBatchExecEnv,
     tableConfig: TableConfig): ScalaBatchTableEnv = {
@@ -1303,6 +1307,7 @@ object TableEnvironment {
     *
     * @param executionEnvironment The Java StreamExecutionEnvironment.
     */
+  @Deprecated
   def getTableEnvironment(executionEnvironment: JavaStreamExecEnv): JavaStreamTableEnv = {
     new JavaStreamTableEnv(executionEnvironment, new TableConfig())
   }
@@ -1313,6 +1318,7 @@ object TableEnvironment {
     * @param executionEnvironment The Java StreamExecutionEnvironment.
     * @param tableConfig The TableConfig for the new TableEnvironment.
     */
+  @Deprecated
   def getTableEnvironment(
     executionEnvironment: JavaStreamExecEnv,
     tableConfig: TableConfig): JavaStreamTableEnv = {
@@ -1325,6 +1331,7 @@ object TableEnvironment {
     *
     * @param executionEnvironment The Scala StreamExecutionEnvironment.
     */
+  @deprecated("This method will be removed. Use StreamTableEnvironment.create() instead.", "1.8.0")
   def getTableEnvironment(executionEnvironment: ScalaStreamExecEnv): ScalaStreamTableEnv = {
     new ScalaStreamTableEnv(executionEnvironment, new TableConfig())
   }
@@ -1335,6 +1342,7 @@ object TableEnvironment {
     * @param executionEnvironment The Scala StreamExecutionEnvironment.
     * @param tableConfig The TableConfig for the new TableEnvironment.
     */
+  @deprecated("This method will be removed. Use StreamTableEnvironment.create() instead.", "1.8.0")
   def getTableEnvironment(
     executionEnvironment: ScalaStreamExecEnv,
     tableConfig: TableConfig): ScalaStreamTableEnv = {

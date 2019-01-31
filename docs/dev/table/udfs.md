@@ -63,7 +63,7 @@ public class HashCode extends ScalarFunction {
   }
 }
 
-BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env);
 
 // register the function
 tableEnv.registerFunction("hashCode", new HashCode(10));
@@ -85,7 +85,7 @@ class HashCode(factor: Int) extends ScalarFunction {
   }
 }
 
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = BatchTableEnvironment.create(env)
 
 // use the function in Scala Table API
 val hashCode = new HashCode(10)
@@ -164,7 +164,7 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
     }
 }
 
-BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env);
 Table myTable = ...         // table schema: [a: String]
 
 // Register the function.
@@ -194,7 +194,7 @@ class Split(separator: String) extends TableFunction[(String, Int)] {
   }
 }
 
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = BatchTableEnvironment.create(env)
 val myTable = ...         // table schema: [a: String]
 
 // Use the table function in the Scala Table API (Note: No registration required in Scala Table API).
@@ -703,7 +703,7 @@ public class HashCode extends ScalarFunction {
 }
 
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env);
 
 // set job parameter
 Configuration conf = new Configuration();
@@ -738,7 +738,7 @@ object hashCode extends ScalarFunction {
   }
 }
 
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = BatchTableEnvironment.create(env)
 
 // use the function in Scala Table API
 myTable.select('string, hashCode('string))
