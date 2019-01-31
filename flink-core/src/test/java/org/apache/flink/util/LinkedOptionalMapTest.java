@@ -18,7 +18,7 @@
 
 package org.apache.flink.util;
 
-import org.apache.flink.util.OptionalMap.MergeResult;
+import org.apache.flink.util.LinkedOptionalMap.MergeResult;
 
 import org.junit.Test;
 
@@ -34,13 +34,13 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Test {@link OptionalMap}.
+ * Test {@link LinkedOptionalMap}.
  */
-public class OptionalMapTest {
+public class LinkedOptionalMapTest {
 
 	@Test
 	public void usageExample() {
-		OptionalMap<Class<?>, String> map = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
 		map.put("java.lang.String", String.class, "a string class");
 		map.put("scala.Option", null, "a scala Option");
@@ -52,7 +52,7 @@ public class OptionalMapTest {
 
 	@Test
 	public void overridingKeyWithTheSameKeyName() {
-		OptionalMap<Class<?>, String> map = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
 		map.put("java.lang.String", null, "a string class");
 		map.put("java.lang.String", String.class, "a string class");
@@ -62,7 +62,7 @@ public class OptionalMapTest {
 
 	@Test
 	public void overridingKeysAndValuesWithTheSameKeyName() {
-		OptionalMap<Class<?>, String> map = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
 		map.put("java.lang.String", null, null);
 		map.put("java.lang.String", String.class, "a string class");
@@ -72,7 +72,7 @@ public class OptionalMapTest {
 
 	@Test
 	public void overridingAValueWithMissingKeyShouldBeConsideredAsAbsent() {
-		OptionalMap<Class<?>, String> map = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
 		map.put("java.lang.String", null, null);
 		map.put("java.lang.String", null, "a string class");
@@ -82,12 +82,11 @@ public class OptionalMapTest {
 
 	@Test
 	public void mergingMapsWithPresentEntriesLeavesNoAbsentKeyNames() {
-		OptionalMap<Class<?>, String> first = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> first = new LinkedOptionalMap<>();
 		first.put("b", null, null);
 		first.put("c", String.class, null);
 
-
-		OptionalMap<Class<?>, String> second = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> second = new LinkedOptionalMap<>();
 		second.put("a", String.class, "aaa");
 		second.put("b", String.class, "bbb");
 		second.put("c", Void.class, "ccc");
@@ -100,12 +99,11 @@ public class OptionalMapTest {
 
 	@Test
 	public void mergingMapsPreserversTheOrderOfTheOriginalMap() {
-		OptionalMap<Class<?>, String> first = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> first = new LinkedOptionalMap<>();
 		first.put("b", null, null);
 		first.put("c", String.class, null);
 
-
-		OptionalMap<Class<?>, String> second = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> second = new LinkedOptionalMap<>();
 		second.put("a", String.class, "aaa");
 		second.put("b", String.class, "bbb");
 		second.put("c", Void.class, "ccc");
@@ -118,9 +116,9 @@ public class OptionalMapTest {
 
 	@Test
 	public void mergingToEmpty() {
-		OptionalMap<Class<?>, String> first = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> first = new LinkedOptionalMap<>();
 
-		OptionalMap<Class<?>, String> second = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> second = new LinkedOptionalMap<>();
 		second.put("a", String.class, "aaa");
 		second.put("b", String.class, "bbb");
 		second.put("c", Void.class, "ccc");
@@ -133,7 +131,7 @@ public class OptionalMapTest {
 
 	@Test(expected = IllegalStateException.class)
 	public void unwrapOptionalsWithMissingValueThrows() {
-		OptionalMap<Class<?>, String> map = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
 		map.put("a", String.class, null);
 
@@ -142,7 +140,7 @@ public class OptionalMapTest {
 
 	@Test(expected = IllegalStateException.class)
 	public void unwrapOptionalsWithMissingKeyThrows() {
-		OptionalMap<Class<?>, String> map = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
 		map.put("a", null, "blabla");
 
@@ -151,11 +149,10 @@ public class OptionalMapTest {
 
 	@Test
 	public void unwrapOptionalsPreservesOrder() {
-		OptionalMap<Class<?>, String> map = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
 		map.put("a", String.class, "aaa");
 		map.put("b", Boolean.class, "bbb");
-
 
 		LinkedHashMap<Class<?>, String> m = map.unwrapOptionals();
 
@@ -165,51 +162,47 @@ public class OptionalMapTest {
 
 	@Test
 	public void testPrefix() {
-		OptionalMap<Class<?>, String> left = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> left = new LinkedOptionalMap<>();
 
 		left.put("a", String.class, "aaa");
 		left.put("b", String.class, "aaa");
 
-		OptionalMap<Class<?>, String> right = new OptionalMap<>(left);
+		LinkedOptionalMap<Class<?>, String> right = new LinkedOptionalMap<>(left);
 
 		right.put("c", Boolean.class, "bbb");
 
-
-		assertTrue(OptionalMap.isLeftPrefixOfRight(left, right));
+		assertTrue(LinkedOptionalMap.isLeftPrefixOfRight(left, right));
 	}
 
 	@Test
 	public void testNonPrefix() {
-		OptionalMap<Class<?>, String> left = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> left = new LinkedOptionalMap<>();
 
 		left.put("a", String.class, "aaa");
 		left.put("c", String.class, "aaa");
 
-		OptionalMap<Class<?>, String> right = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> right = new LinkedOptionalMap<>();
 
 		right.put("b", Boolean.class, "bbb");
 		right.put("c", Boolean.class, "bbb");
 
-
-		assertFalse(OptionalMap.isLeftPrefixOfRight(left, right));
+		assertFalse(LinkedOptionalMap.isLeftPrefixOfRight(left, right));
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
 	public void demoMergeResult() {
-		OptionalMap<Class<?>, String> left = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> left = new LinkedOptionalMap<>();
 		left.put("b", null, null);
 		left.put("c", String.class, null);
 
-
-		OptionalMap<Class<?>, String> right = new OptionalMap<>();
+		LinkedOptionalMap<Class<?>, String> right = new LinkedOptionalMap<>();
 		right.put("b", String.class, "bbb");
 		right.put("c", Void.class, "ccc");
 		right.put("a", Boolean.class, "aaa");
 		right.put("d", Long.class, "ddd");
 
-
-		MergeResult<Class<?>, String> result = OptionalMap.mergeRightIntoLeft(left, right);
+		MergeResult<Class<?>, String> result = LinkedOptionalMap.mergeRightIntoLeft(left, right);
 
 		assertThat(result.hasMissingKeys(), is(false));
 		assertThat(result.isOrderedSubset(), is(true));

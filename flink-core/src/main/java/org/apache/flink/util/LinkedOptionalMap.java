@@ -18,6 +18,7 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 
 import java.util.Iterator;
@@ -33,18 +34,18 @@ import javax.annotation.Nullable;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An OptionalMap is an order preserving map (like {@link LinkedHashMap}) where keys have a unique string name, but are
+ * A LinkedOptionalMap is an order preserving map (like {@link LinkedHashMap}) where keys have a unique string name, but are
  * optionally present, and the values are optional.
  */
-public final class OptionalMap<K, V> {
-
+@Internal
+public final class LinkedOptionalMap<K, V> {
 
 	// --------------------------------------------------------------------------------------------------------
 	// Factory
 	// --------------------------------------------------------------------------------------------------------
 
 	/**
-	 * Creates an {@code OptionalMap} from the provided map.
+	 * Creates an {@code LinkedOptionalMap} from the provided map.
 	 *
 	 * <p>This method is the equivalent of {@link Optional#of(Object)} but for maps. To support more than one {@code NULL}
 	 * key, an optional map requires a unique string name to be associated with each key (provided by keyNameGetter)
@@ -53,9 +54,9 @@ public final class OptionalMap<K, V> {
 	 * @param keyNameGetter function that assigns a unique name to the keys of the source map.
 	 * @param <K>           key type
 	 * @param <V>           value type
-	 * @return an {@code OptionalMap} with optional named keys, and optional values.
+	 * @return an {@code LinkedOptionalMap} with optional named keys, and optional values.
 	 */
-	public static <K, V> OptionalMap<K, V> optionalMapOf(LinkedHashMap<K, V> sourceMap, Function<K, String> keyNameGetter) {
+	public static <K, V> LinkedOptionalMap<K, V> optionalMapOf(LinkedHashMap<K, V> sourceMap, Function<K, String> keyNameGetter) {
 
 		LinkedHashMap<String, KeyValue<K, V>> underlyingMap = new LinkedHashMap<>(sourceMap.size());
 
@@ -64,14 +65,14 @@ public final class OptionalMap<K, V> {
 			underlyingMap.put(keyName, new KeyValue<>(k, v));
 		});
 
-		return new OptionalMap<>(underlyingMap);
+		return new LinkedOptionalMap<>(underlyingMap);
 	}
 
 	/**
 	 * Tries to merges the keys and the values of @right into @left.
 	 */
-	public static <K, V> MergeResult<K, V> mergeRightIntoLeft(OptionalMap<K, V> left, OptionalMap<K, V> right) {
-		OptionalMap<K, V> merged = new OptionalMap<>(left);
+	public static <K, V> MergeResult<K, V> mergeRightIntoLeft(LinkedOptionalMap<K, V> left, LinkedOptionalMap<K, V> right) {
+		LinkedOptionalMap<K, V> merged = new LinkedOptionalMap<>(left);
 		merged.putAll(right);
 
 		return new MergeResult<>(merged, isLeftPrefixOfRight(left, right));
@@ -83,16 +84,16 @@ public final class OptionalMap<K, V> {
 
 	private final LinkedHashMap<String, KeyValue<K, V>> underlyingMap;
 
-	OptionalMap() {
+	LinkedOptionalMap() {
 		this(new LinkedHashMap<>());
 	}
 
 	@SuppressWarnings("CopyConstructorMissesField")
-	OptionalMap(OptionalMap<K, V> optionalMap) {
-		this(new LinkedHashMap<>(optionalMap.underlyingMap));
+	LinkedOptionalMap(LinkedOptionalMap<K, V> linkedOptionalMap) {
+		this(new LinkedHashMap<>(linkedOptionalMap.underlyingMap));
 	}
 
-	private OptionalMap(LinkedHashMap<String, KeyValue<K, V>> underlyingMap) {
+	private LinkedOptionalMap(LinkedHashMap<String, KeyValue<K, V>> underlyingMap) {
 		this.underlyingMap = checkNotNull(underlyingMap);
 	}
 
@@ -111,7 +112,7 @@ public final class OptionalMap<K, V> {
 			(kv == null) ? new KeyValue<>(key, value) : kv.merge(key, value));
 	}
 
-	void putAll(OptionalMap<K, V> right) {
+	void putAll(LinkedOptionalMap<K, V> right) {
 		for (Entry<String, KeyValue<K, V>> entry : right.underlyingMap.entrySet()) {
 			KeyValue<K, V> kv = entry.getValue();
 			this.put(entry.getKey(), kv.key, kv.value);
@@ -124,7 +125,7 @@ public final class OptionalMap<K, V> {
 	public Set<String> absentKeysOrValues() {
 		return underlyingMap.entrySet()
 			.stream()
-			.filter(OptionalMap::keyOrValueIsAbsent)
+			.filter(LinkedOptionalMap::keyOrValueIsAbsent)
 			.map(Entry::getKey)
 			.collect(Collectors.toSet());
 	}
@@ -168,7 +169,7 @@ public final class OptionalMap<K, V> {
 		return kv.key == null || kv.value == null;
 	}
 
-	@VisibleForTesting static <K, V> boolean isLeftPrefixOfRight(OptionalMap<K, V> left, OptionalMap<K, V> right) {
+	@VisibleForTesting static <K, V> boolean isLeftPrefixOfRight(LinkedOptionalMap<K, V> left, LinkedOptionalMap<K, V> right) {
 		Iterator<String> rightKeys = right.keyNames().iterator();
 
 		for (String leftKey : left.keyNames()) {
@@ -215,11 +216,11 @@ public final class OptionalMap<K, V> {
 	// --------------------------------------------------------------------------------------------------------
 
 	static final class MergeResult<K, V> {
-		private final OptionalMap<K, V> merged;
+		private final LinkedOptionalMap<K, V> merged;
 		private final Set<String> missingKeys;
 		private final boolean isOrderedSubset;
 
-		MergeResult(OptionalMap<K, V> merged, boolean isOrderedSubset) {
+		MergeResult(LinkedOptionalMap<K, V> merged, boolean isOrderedSubset) {
 			this.merged = merged;
 			this.missingKeys = merged.absentKeysOrValues();
 			this.isOrderedSubset = isOrderedSubset;
