@@ -68,8 +68,8 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 
 		miniCluster = new TestingMiniCluster(
 			new MiniClusterConfiguration.Builder()
+				.setNumTaskManagers(NUM_TMS)
 				.setNumSlotsPerTaskManager(SLOTS_PER_TM)
-				.setNumSlotsPerTaskManager(NUM_TMS)
 				.build(),
 			() -> highAvailabilityServices);
 
@@ -139,6 +139,16 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 		JobResult jobResult = jobResultFuture.get();
 
 		assertThat(jobResult.isSuccess(), is(true));
+	}
+
+	@Test
+	public void testTaskManagerRegisterReelectionOfResourceManager() throws Exception {
+
+		assertThat(miniCluster.requestTaskManagerInfo().get().size(), is(NUM_TMS));
+		highAvailabilityServices.revokeResourceManagerLeadership().get();
+		highAvailabilityServices.grantResourceManagerLeadership().get();
+		Thread.sleep(500);
+		assertThat(miniCluster.requestTaskManagerInfo().get().size(), is(NUM_TMS));
 	}
 
 	private JobGraph createJobGraph(int parallelism) {

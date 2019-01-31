@@ -70,6 +70,7 @@ import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -711,6 +712,16 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 
 		return dispatcherGateway.requestJobResult(jobId, RpcUtils.INF_TIMEOUT);
+	}
+
+	public CompletableFuture<Collection<TaskManagerInfo>> requestTaskManagerInfo() {
+		checkState(running, "MiniCluster is not yet running.");
+		try {
+			return resourceManagerRunner.getResourceManageGateway().requestTaskManagerInfo(rpcTimeout);
+		} catch (Exception e) {
+			ExceptionUtils.checkInterrupted(e);
+			return FutureUtils.completedExceptionally(e);
+		}
 	}
 
 	private DispatcherGateway getDispatcherGateway() throws LeaderRetrievalException, InterruptedException {
