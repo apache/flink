@@ -198,9 +198,9 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		final long updateInterval =
 			config.getLong(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
-		metricFetcher = updateInterval == 0 ?
-			VoidMetricFetcher.INSTANCE :
-			new MetricFetcherImpl<>(
+		metricFetcher = updateInterval == 0
+			? VoidMetricFetcher.INSTANCE
+			: new MetricFetcherImpl<>(
 				retriever,
 				queryServiceRetriever,
 				scheduledExecutor,

@@ -364,9 +364,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					"DispatcherRestEndpoint");
 
 				final long updateInterval = configuration.getLong(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
-				final MetricFetcher metricFetcher = updateInterval == 0 ?
-					VoidMetricFetcher.INSTANCE :
-					MetricFetcherImpl.fromConfiguration(configuration,
+				final MetricFetcher metricFetcher = updateInterval == 0
+					? VoidMetricFetcher.INSTANCE
+					: MetricFetcherImpl.fromConfiguration(configuration,
 						new AkkaQueryServiceRetriever(
 							metricQueryServiceActorSystem,
 							Time.milliseconds(
