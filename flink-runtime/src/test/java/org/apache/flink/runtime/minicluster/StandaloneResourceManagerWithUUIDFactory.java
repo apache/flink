@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn.entrypoint;
+package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -29,51 +29,48 @@ import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
+import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.yarn.YarnResourceManager;
-import org.apache.flink.yarn.YarnWorkerNode;
 
 import javax.annotation.Nullable;
 
 /**
- * {@link ResourceManagerFactory} implementation which creates a {@link YarnResourceManager}.
+ * {@link ResourceManagerFactory} which starts the {@link ResourceManager} with an endpoint id which
+ * has a random UUID suffix.
  */
-public enum YarnResourceManagerFactory implements ResourceManagerFactory<YarnWorkerNode> {
+public enum StandaloneResourceManagerWithUUIDFactory implements ResourceManagerFactory<ResourceID> {
 	INSTANCE;
 
 	@Override
-	public ResourceManager<YarnWorkerNode> createResourceManager(
-			Configuration configuration,
-			ResourceID resourceId,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry,
-			FatalErrorHandler fatalErrorHandler,
-			ClusterInformation clusterInformation,
-			@Nullable String webInterfaceUrl,
-			JobManagerMetricGroup jobManagerMetricGroup) throws Exception {
-		final ResourceManagerRuntimeServicesConfiguration rmServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
-		final ResourceManagerRuntimeServices rmRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
-			rmServicesConfiguration,
+	public ResourceManager<ResourceID> createResourceManager(
+		Configuration configuration,
+		ResourceID resourceId,
+		RpcService rpcService,
+		HighAvailabilityServices highAvailabilityServices,
+		HeartbeatServices heartbeatServices,
+		MetricRegistry metricRegistry,
+		FatalErrorHandler fatalErrorHandler,
+		ClusterInformation clusterInformation,
+		@Nullable String webInterfaceUrl,
+		JobManagerMetricGroup jobManagerMetricGroup) throws Exception {
+		final ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
+		final ResourceManagerRuntimeServices resourceManagerRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
+			resourceManagerRuntimeServicesConfiguration,
 			highAvailabilityServices,
 			rpcService.getScheduledExecutor());
 
-		return new YarnResourceManager(
+		return new StandaloneResourceManager(
 			rpcService,
-			getEndpointId(),
+			generateEndpointIdWithUUID(),
 			resourceId,
-			configuration,
-			System.getenv(),
 			highAvailabilityServices,
 			heartbeatServices,
-			rmRuntimeServices.getSlotManager(),
+			resourceManagerRuntimeServices.getSlotManager(),
 			metricRegistry,
-			rmRuntimeServices.getJobLeaderIdService(),
+			resourceManagerRuntimeServices.getJobLeaderIdService(),
 			clusterInformation,
 			fatalErrorHandler,
-			webInterfaceUrl,
 			jobManagerMetricGroup);
 	}
 }

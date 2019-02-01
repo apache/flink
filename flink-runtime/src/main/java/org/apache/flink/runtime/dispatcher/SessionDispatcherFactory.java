@@ -52,7 +52,7 @@ public enum SessionDispatcherFactory implements DispatcherFactory<Dispatcher> {
 		// create the default dispatcher
 		return new StandaloneDispatcher(
 			rpcService,
-			Dispatcher.DISPATCHER_NAME,
+			getEndpointId(),
 			configuration,
 			highAvailabilityServices,
 			resourceManagerGatewayRetriever,

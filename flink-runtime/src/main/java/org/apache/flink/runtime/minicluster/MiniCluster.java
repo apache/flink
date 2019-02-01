@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.minicluster;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
@@ -354,7 +355,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 	}
 
-	private Collection<? extends DispatcherResourceManagerComponent<?>> createDispatcherResourceManagerComponents(
+	@VisibleForTesting
+	protected Collection<? extends DispatcherResourceManagerComponent<?>> createDispatcherResourceManagerComponents(
 			Configuration configuration,
 			RpcServiceFactory rpcServiceFactory,
 			HighAvailabilityServices haServices,
@@ -363,7 +365,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			MetricRegistry metricRegistry,
 			MetricQueryServiceRetriever metricQueryServiceRetriever,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
-		SessionDispatcherResourceManagerComponentFactory dispatcherResourceManagerComponentFactory = new SessionDispatcherResourceManagerComponentFactory(StandaloneResourceManagerFactory.INSTANCE);
+		SessionDispatcherResourceManagerComponentFactory dispatcherResourceManagerComponentFactory = createDispatcherResourceManagerComponentFactory();
 		return Collections.singleton(
 			dispatcherResourceManagerComponentFactory.create(
 				configuration,
@@ -377,6 +379,12 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				fatalErrorHandler));
 	}
 
+	@Nonnull
+	private SessionDispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory() {
+		return new SessionDispatcherResourceManagerComponentFactory(StandaloneResourceManagerFactory.INSTANCE);
+	}
+
+	@VisibleForTesting
 	protected HighAvailabilityServices createHighAvailabilityServices(Configuration configuration, Executor executor) throws Exception {
 		LOG.info("Starting high-availability services");
 		return HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(

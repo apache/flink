@@ -29,8 +29,8 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
+import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
@@ -75,7 +75,7 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 		highAvailabilityServices = new TestingEmbeddedHaServices(TestingUtils.defaultExecutor());
 
 		miniCluster = new TestingMiniCluster(
-			new MiniClusterConfiguration.Builder()
+			new TestingMiniClusterConfiguration.Builder()
 				.setNumTaskManagers(NUM_TMS)
 				.setNumSlotsPerTaskManager(SLOTS_PER_TM)
 				.build(),
