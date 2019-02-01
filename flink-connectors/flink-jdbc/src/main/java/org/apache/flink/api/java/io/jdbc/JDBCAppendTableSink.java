@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.BatchTableSink;
 import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.util.TableConnectorUtil;
+import org.apache.flink.table.utils.TableConnectorUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;

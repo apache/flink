@@ -33,7 +33,6 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, TableSinkBase}
 import org.apache.flink.table.sources._
-import org.apache.flink.table.util.TableConnectorUtil
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
