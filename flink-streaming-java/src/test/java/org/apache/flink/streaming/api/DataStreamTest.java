@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api;
 
+import org.apache.commons.collections.IteratorUtils;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -33,20 +34,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.datastream.BroadcastConnectedStream;
-import org.apache.flink.streaming.api.datastream.BroadcastStream;
-import org.apache.flink.streaming.api.datastream.ConnectedStreams;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.datastream.KeyedStream;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.datastream.SplitStream;
+import org.apache.flink.streaming.api.datastream.*;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
@@ -90,14 +84,11 @@ import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
-import java.util.List;
+import java.util.*;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 /**
  * Tests for {@link DataStream}.
@@ -301,6 +292,63 @@ public class DataStreamTest extends TestLogger {
 		assertTrue(plan.contains("testCoFlatMap"));
 		assertTrue(plan.contains("testWindowFold"));
 	}
+	@Test
+	public void testMultiSum() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<Tuple3<Long, Long, Integer>> src = env.fromCollection(Arrays.asList(
+			new Tuple3<>(1L, 2L, 2),
+			new Tuple3<>(1L, 3L, 3),
+			new Tuple3<>(1L, 4L, 4),
+			new Tuple3<>(2L, 2L, 2),
+			new Tuple3<>(2L, 3L, 3),
+			new Tuple3<>(2L, 4L, 4)
+		));
+		List<Tuple3<Long, Long, Integer>> expectResult = Arrays.asList(
+			new Tuple3<>(1L, 2L, 2),
+			new Tuple3<>(1L, 5L, 5),
+			new Tuple3<>(1L, 9L, 9),
+			new Tuple3<>(2L, 2L, 2),
+			new Tuple3<>(2L, 5L, 5),
+			new Tuple3<>(2L, 9L, 9));
+
+
+		try {
+			Iterator<Tuple3<Long, Long, Integer>> result = DataStreamUtils.collect(src.keyBy(0).sum(new int[] {1, 2}).setParallelism(1));
+			assertArrayEquals(expectResult.toArray(), IteratorUtils.toArray(result));
+		} catch (IOException e) {
+			assertTrue(false);
+		}
+	}
+
+	@Test
+	public void testMultiFieldSumWithPojo()  {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<CustomPOJO3> src = env.fromCollection(Arrays.asList(
+			new CustomPOJO3(1L, 2L, 2),
+			new CustomPOJO3(1L, 3L, 3),
+			new CustomPOJO3(1L, 4L, 4),
+			new CustomPOJO3(2L, 2L, 2),
+			new CustomPOJO3(2L, 3L, 3),
+			new CustomPOJO3(2L, 4L, 4)
+		));
+
+		List<CustomPOJO3> expectResult = Arrays.asList(
+			new CustomPOJO3(1L, 2L, 2),
+			new CustomPOJO3(1L, 5L, 5),
+			new CustomPOJO3(1L, 9L, 9),
+			new CustomPOJO3(2L, 2L, 2),
+			new CustomPOJO3(2L, 5L, 5),
+			new CustomPOJO3(2L, 9L, 9));
+
+		try {
+			Iterator<CustomPOJO3> result = DataStreamUtils.collect(src.keyBy("f0").sum(new String[] {"f1", "f2"}).setParallelism(1));
+			assertArrayEquals(expectResult.toArray(), IteratorUtils.toArray(result));
+		} catch (IOException e) {
+			assertTrue(false);
+		}
+
+	}
+
 
 	/**
 	 * Tests that {@link DataStream#keyBy} and {@link DataStream#partitionCustom(Partitioner, int)} result in
@@ -1513,6 +1561,70 @@ public class DataStreamTest extends TestLogger {
 		@Override
 		public Iterable<String> select(Integer value) {
 			return null;
+		}
+	}
+
+	public static class CustomPOJO3 {
+		private long f0;
+		private long f1;
+		private int f2;
+		public CustomPOJO3() {
+			this.f0 = 0L;
+			this.f1 = 0L;
+			this.f2 = 0;
+		}
+		public CustomPOJO3(long f0, long f1, int f2) {
+			this.f0 = f0;
+			this.f1 = f1;
+			this.f2 = f2;
+		}
+
+		public long getF0() {
+			return f0;
+		}
+
+		public void setF0(long f0) {
+			this.f0 = f0;
+		}
+
+		public long getF1() {
+			return f1;
+		}
+
+		public void setF1(long f1) {
+			this.f1 = f1;
+		}
+
+		public int getF2() {
+			return f2;
+		}
+
+		public void setF2(int f2) {
+			this.f2 = f2;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) { return true; }
+			if (o == null || getClass() != o.getClass()) { return false; }
+			CustomPOJO3 that = (CustomPOJO3) o;
+			return f0 == that.f0 &&
+				f1 == that.f1 &&
+				f2 == that.f2;
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(f0, f1, f2);
+		}
+
+		@Override
+		public String toString() {
+			return "CustomPOJO3{" +
+				"f0=" + f0 +
+				", f1=" + f1 +
+				", f2=" + f2 +
+				'}';
 		}
 	}
 }

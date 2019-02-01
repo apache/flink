@@ -29,6 +29,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
+import org.apache.flink.streaming.api.functions.aggregation.MultiFieldSumAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
 import org.apache.flink.streaming.util.MockContext;
@@ -119,6 +120,57 @@ public class AggregationFunctionTest {
 	}
 
 	@Test
+	public void groupMultiFieldSumIntegerTest() throws Exception {
+
+		// preparing expected outputs
+		List<Tuple3<Integer, Integer, Integer>> expectedGroupSumList = new ArrayList<>();
+
+		int groupedSum0 = 0;
+		int groupedSum1 = 0;
+		int groupedSum2 = 0;
+
+		for (int i = 0; i < 9; i++) {
+			int groupedSum;
+			switch (i % 3) {
+				case 0:
+					groupedSum = groupedSum0 += i;
+					break;
+				case 1:
+					groupedSum = groupedSum1 += i;
+					break;
+				default:
+					groupedSum = groupedSum2 += i;
+					break;
+			}
+
+			expectedGroupSumList.add(new Tuple3<>(i % 3, groupedSum, groupedSum));
+		}
+
+		// some necessary boiler plate
+		TypeInformation<Tuple3<Integer, Integer, Integer>> typeInfo = TypeExtractor.getForObject(new Tuple3<>(0, 0, 0));
+
+		ExecutionConfig config = new ExecutionConfig();
+
+		KeySelector<Tuple3<Integer, Integer, Integer>, Tuple> keySelector = KeySelectorUtil.getSelectorForKeys(
+			new Keys.ExpressionKeys<>(new int[] {0}, typeInfo),
+			typeInfo, config);
+		TypeInformation<Tuple> keyType = TypeExtractor.getKeySelectorTypes(keySelector, typeInfo);
+
+		// aggregations tested
+		ReduceFunction<Tuple3<Integer, Integer, Integer>> multiFieldSumFunction =
+			new MultiFieldSumAggregator<>(new int[] {1, 2}, typeInfo, config);
+
+		List<Tuple3<Integer, Integer, Integer>> groupedSumList = MockContext.createAndExecuteForKeyedStream(
+			new StreamGroupedReduce<>(multiFieldSumFunction, typeInfo.createSerializer(config)),
+			getInputTuple3List(),
+			keySelector, keyType);
+
+		assertEquals(expectedGroupSumList, groupedSumList);
+
+	}
+
+
+	@Test
 	public void pojoGroupSumIntegerTest() throws Exception {
 
 		// preparing expected outputs
@@ -184,6 +236,55 @@ public class AggregationFunctionTest {
 		assertEquals(expectedGroupSumList, groupedSumList);
 		assertEquals(expectedGroupMinList, groupedMinList);
 		assertEquals(expectedGroupMaxList, groupedMaxList);
+	}
+
+	@Test
+	public void pojoGroupMultiFieldSumIntegerTest() throws Exception {
+
+		// preparing expected outputs
+		List<MyPojo3> expectedGroupSumList = new ArrayList<>();
+		int groupedSum0 = 0;
+		int groupedSum1 = 0;
+		int groupedSum2 = 0;
+
+		for (int i = 0; i < 9; i++) {
+			int groupedSum;
+			switch (i % 3) {
+				case 0:
+					groupedSum = groupedSum0 += i;
+					break;
+				case 1:
+					groupedSum = groupedSum1 += i;
+					break;
+				default:
+					groupedSum = groupedSum2 += i;
+					break;
+			}
+
+			expectedGroupSumList.add(new MyPojo3(i % 3, groupedSum, groupedSum));
+
+		}
+
+		// some necessary boiler plate
+		TypeInformation<MyPojo3> typeInfo = TypeExtractor.getForObject(new MyPojo3(0, 0, 0));
+
+		ExecutionConfig config = new ExecutionConfig();
+
+		KeySelector<MyPojo3, Tuple> keySelector = KeySelectorUtil.getSelectorForKeys(
+			new Keys.ExpressionKeys<>(new String[] {"f0"}, typeInfo),
+			typeInfo, config);
+		TypeInformation<Tuple> keyType = TypeExtractor.getKeySelectorTypes(keySelector, typeInfo);
+
+		// aggregations tested
+		ReduceFunction<MyPojo3> multiFieldSumFunction =
+			new MultiFieldSumAggregator<>(new String[] {"f1", "f2"}, typeInfo, config);
+
+		List<MyPojo3> groupedSumList = MockContext.createAndExecuteForKeyedStream(
+			new StreamGroupedReduce<>(multiFieldSumFunction, typeInfo.createSerializer(config)),
+			getInputPojo3List(),
+			keySelector, keyType);
+
+		assertEquals(expectedGroupSumList, groupedSumList);
 	}
 
 	@Test
@@ -322,7 +423,6 @@ public class AggregationFunctionTest {
 	// *************************************************************************
 	//     UTILS
 	// *************************************************************************
-
 	private List<Tuple2<Integer, Integer>> getInputList() {
 		ArrayList<Tuple2<Integer, Integer>> inputList = new ArrayList<>();
 		for (int i = 0; i < 9; i++) {
@@ -330,11 +430,28 @@ public class AggregationFunctionTest {
 		}
 		return inputList;
 	}
+	private List<Tuple3<Integer, Integer, Integer>> getInputTuple3List() {
+		ArrayList<Tuple3<Integer, Integer, Integer>> inputList = new ArrayList<>();
+		for (int i = 0; i < 9; i++) {
+			inputList.add(Tuple3.of(i % 3, i, i));
+		}
+		return inputList;
+	}
+
+
 
 	private List<MyPojo> getInputPojoList() {
 		ArrayList<MyPojo> inputList = new ArrayList<>();
 		for (int i = 0; i < 9; i++) {
 			inputList.add(new MyPojo(i % 3, i));
+		}
+		return inputList;
+	}
+
+	private List<MyPojo3> getInputPojo3List() {
+		ArrayList<MyPojo3> inputList = new ArrayList<>();
+		for (int i = 0; i < 9; i++) {
+			inputList.add(new MyPojo3(i % 3, i, i));
 		}
 		return inputList;
 	}
@@ -396,6 +513,11 @@ public class AggregationFunctionTest {
 		public int f0;
 		public int f1;
 		public int f2;
+		public MyPojo3(int f0, int f1, int f2) {
+			this.f0 = f0;
+			this.f1 = f1;
+			this.f2 = f2;
+		}
 
 		// Field 0 is always initialized to 0
 		public MyPojo3(int f1, int f2) {

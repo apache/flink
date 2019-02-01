@@ -41,6 +41,7 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
+import org.apache.flink.streaming.api.functions.aggregation.MultiFieldSumAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.functions.query.QueryableAppendingStateOperator;
@@ -732,6 +733,22 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	/**
+	 * Applies an aggregation that gives a rolling sum of the data stream at the
+	 * given position grouped by the given key. An independent aggregate is kept
+	 * per key.
+	 *
+	 * @param positionToSums
+	 *            An Array of the field position in the data points to sum. This is applicable to
+	 *            Tuple types, basic and primitive array types, Scala case classes,
+	 *            and primitive types (which is considered as having one field).
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<T> sum(int[] positionToSums ) {
+		return aggregate(new MultiFieldSumAggregator<>(positionToSums, getType(), getExecutionConfig()));
+	}
+
+
+	/**
 	 * Applies an aggregation that gives the current sum of the data
 	 * stream at the given field by the given key. An independent
 	 * aggregate is kept per key.
@@ -747,6 +764,25 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 */
 	public SingleOutputStreamOperator<T> sum(String field) {
 		return aggregate(new SumAggregator<>(field, getType(), getExecutionConfig()));
+	}
+
+	/**
+	 * Applies an aggregation that gives the current sum of the data
+	 * stream at the given fields by the given key. An independent
+	 * aggregate is kept per key.
+	 *
+	 * @param fields
+	 * 			  An Array of the field name in the data points to sum.
+	 *            In case of a POJO, Scala case class, or Tuple type, the
+	 *            name of the (public) field on which to perform the aggregation.
+	 *            Additionally, a dot can be used to drill down into nested
+	 *            objects, as in {@code "field1.fieldxy" }.
+	 *            Furthermore "*" can be specified in case of a basic type
+	 *            (which is considered as having only one field).
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<T> sum(String[] fields) {
+		return aggregate(new MultiFieldSumAggregator<>(fields, getType(), getExecutionConfig()));
 	}
 
 	/**
