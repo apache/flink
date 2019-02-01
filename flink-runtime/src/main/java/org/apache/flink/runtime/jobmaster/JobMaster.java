@@ -1566,8 +1566,14 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		@Override
 		protected RetryingRegistration<ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess> generateRegistration() {
 			return new RetryingRegistration<ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess>(
-					log, getRpcService(), "ResourceManager", ResourceManagerGateway.class,
-					getTargetAddress(), getTargetLeaderId()) {
+				log,
+				getRpcService(),
+				"ResourceManager",
+				ResourceManagerGateway.class,
+				getTargetAddress(),
+				getTargetLeaderId(),
+				jobMasterConfiguration.getRetryingRegistrationConfiguration()) {
+
 				@Override
 				protected CompletableFuture<RegistrationResponse> invokeRegistration(
 						ResourceManagerGateway gateway, ResourceManagerId fencingToken, long timeoutMillis) {
