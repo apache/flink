@@ -148,10 +148,10 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 
 		while (files.hasNext()) {
 			LocatedFileStatus file = files.next();
-//			if (!file.getPath().getName().startsWith(PART_PREFIX)) {
+			if (!file.getPath().getName().startsWith(PART_PREFIX)) {
 				// ignore files that don't match with our expected part prefix
-//				continue;
-//			}
+				continue;
+			}
 
 			if (!file.getPath().toString().endsWith(".valid-length")) {
 				int validLength = (int) file.getLen();
