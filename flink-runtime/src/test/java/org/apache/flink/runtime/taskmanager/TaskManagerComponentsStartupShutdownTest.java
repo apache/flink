@@ -36,6 +36,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
+import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
@@ -125,7 +126,8 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
 				new String[0],
 				null,
-				null);
+				null,
+				RetryingRegistrationConfiguration.fromConfiguration(config));
 
 			final int networkBufNum = 32;
 			// note: the network buffer memory configured here is not actually used below but set
