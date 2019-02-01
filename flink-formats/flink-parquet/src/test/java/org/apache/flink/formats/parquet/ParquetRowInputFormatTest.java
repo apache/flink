@@ -154,6 +154,11 @@ public class ParquetRowInputFormatTest {
 	}
 
 	@Test
+	public void testProjection() throws Exception {
+
+	}
+
+	@Test
 	public void testSerialization() throws Exception {
 		temp.create();
 		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> simple = TestUtil.getSimpleRecordTestData();

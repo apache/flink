@@ -275,7 +275,7 @@ public class ParquetRecordReaderTest extends TestUtil {
 	}
 
 	@Test
-	public void testNestArrayGroup() throws IOException {
+	public void testNestedArrayGroup() throws IOException {
 		temp.create();
 		Schema nestedArraySchema = unWrapSchema(NESTED_SCHEMA.getField("nestedArray").schema());
 		Preconditions.checkState(nestedArraySchema.getType().equals(Schema.Type.ARRAY));

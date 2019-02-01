@@ -29,24 +29,17 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.generic.IndexedRecord;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.avro.AvroSchemaConverter;
-import org.apache.parquet.example.data.Group;
-import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.ParquetWriter;
-import org.apache.parquet.hadoop.example.GroupReadSupport;
-import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 import org.apache.parquet.schema.Types;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -54,14 +47,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.apache.avro.Schema.Type.NULL;
-import static org.junit.Assert.assertEquals;
 
 /**
  * Utilities for testing schema conversion and test parquet file creation.
@@ -72,15 +63,6 @@ public class TestUtil {
 	public static final Configuration TEST_CONFIGURATION = new Configuration();
 	public static final Schema NESTED_SCHEMA = getTestSchema("nested.avsc");
 	public static final Schema SIMPLE_SCHEMA = getTestSchema("simple.avsc");
-
-	protected static final Type[] SIMPLE_BACK_COMPTIBALE_TYPES = {
-		Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL).named("foo"),
-		Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.OPTIONAL)
-			.as(OriginalType.UTF8).named("bar"),
-		Types.optionalGroup()
-			.addField(Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.REPEATED).named("array"))
-			.named("arr")
-	};
 
 	protected static final Type[] SIMPLE_STANDARD_TYPES = {
 		Types.primitive(PrimitiveType.PrimitiveTypeName.INT64, Type.Repetition.OPTIONAL)
@@ -128,32 +110,6 @@ public class TestUtil {
 			.named("nestedArray")
 	};
 	private AvroSchemaConverter converter = new AvroSchemaConverter();
-
-	@Ignore
-	public void testSimpleSchemaConversion() {
-		MessageType simpleType = converter.convert(SIMPLE_SCHEMA);
-		assertEquals(SIMPLE_BACK_COMPTIBALE_TYPES.length, simpleType.getFieldCount());
-
-		for (int i = 0; i < simpleType.getFieldCount(); i++) {
-			assertEquals(SIMPLE_BACK_COMPTIBALE_TYPES[i], simpleType.getType(i));
-		}
-	}
-
-	/**
-	 * This test case is using the parquet native avro schema converter that convert
-	 * avro map value typed to required. But komodo write parquet files with map value
-	 * type as optional. Thus, the test case is meaningless. But keep it here for later
-	 * reference.
-	 */
-	@Ignore
-	public void testNestedSchemaConversion() {
-		MessageType nestedType = converter.convert(NESTED_SCHEMA);
-		assertEquals(NESTED_TYPES.length, nestedType.getFieldCount());
-
-		for (int i = 0; i < nestedType.getFieldCount(); i++) {
-			assertEquals(NESTED_TYPES[i], nestedType.getType(i));
-		}
-	}
 
 	public static Path createTempParquetFile(
 		TemporaryFolder temporaryFolder,
@@ -270,24 +226,5 @@ public class TestUtil {
 		t.f2 = nestedRow;
 
 		return t;
-	}
-
-	public static void main(String[] args) throws IOException {
-		TestUtil testUtil = new TestUtil();
-		temp.create();
-
-		GenericData.Record record = new GenericRecordBuilder(SIMPLE_SCHEMA)
-			.set("bar", "test")
-			.set("foo", 32L).build();
-
-		Path path = testUtil.createTempParquetFile(temp, SIMPLE_SCHEMA, Collections.singletonList(record));
-		ParquetReader<Group> reader = ParquetReader.builder(
-			new GroupReadSupport(), new org.apache.hadoop.fs.Path(path.toUri())).withConf(new Configuration()).build();
-
-		Group group = reader.read();
-		while (group != null) {
-			System.out.println(group.toString());
-			group = reader.read();
-		}
 	}
 }
