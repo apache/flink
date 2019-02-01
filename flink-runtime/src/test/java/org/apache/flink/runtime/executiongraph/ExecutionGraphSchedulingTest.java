@@ -41,7 +41,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-import org.apache.flink.runtime.jobmanager.slots.DummySlotOwner;
+import org.apache.flink.runtime.jobmanager.slots.DummySlotProviderAndOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.TestingSlotOwner;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -489,7 +489,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(parallelism);
 
-		final SimpleSlot slot = createSlot(new SimpleAckingTaskManagerGateway(), jobGraph.getJobID(), new DummySlotOwner());
+		final SimpleSlot slot = createSlot(new SimpleAckingTaskManagerGateway(), jobGraph.getJobID(), new DummySlotProviderAndOwner());
 		slotProvider.addSlot(jobVertex.getID(), 0, CompletableFuture.completedFuture(slot));
 
 		final CompletableFuture<LogicalSlot> slotFuture = new CompletableFuture<>();

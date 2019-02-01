@@ -22,7 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-import org.apache.flink.runtime.jobmanager.slots.DummySlotOwner;
+import org.apache.flink.runtime.jobmanager.slots.DummySlotProviderAndOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
@@ -68,7 +68,7 @@ public class SingleLogicalSlotTest extends TestLogger {
 	}
 
 	private SingleLogicalSlot createSingleLogicalSlot() {
-		return createSingleLogicalSlot(new DummySlotOwner());
+		return createSingleLogicalSlot(new DummySlotProviderAndOwner());
 	}
 
 	private SingleLogicalSlot createSingleLogicalSlot(SlotOwner slotOwner) {

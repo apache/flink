@@ -24,7 +24,6 @@ import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
-import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
@@ -83,11 +82,8 @@ public class SlotSharingManager {
 
 	private final SlotSharingGroupId slotSharingGroupId;
 
-	/** Actions to release allocated slots after a complete multi task slot hierarchy has been released. */
-	private final AllocatedSlotActions allocatedSlotActions;
-
 	/** Owner of the slots to which to return them when they are released from the outside. */
-	private final SlotOwner slotOwner;
+	private final SlotPool.SlotProviderAndOwner slotProviderAndOwner;
 
 	private final Map<SlotRequestId, TaskSlot> allTaskSlots;
 
@@ -99,11 +95,9 @@ public class SlotSharingManager {
 
 	SlotSharingManager(
 			SlotSharingGroupId slotSharingGroupId,
-			AllocatedSlotActions allocatedSlotActions,
-			SlotOwner slotOwner) {
+			SlotPool.SlotProviderAndOwner slotProviderAndOwner) {
 		this.slotSharingGroupId = Preconditions.checkNotNull(slotSharingGroupId);
-		this.allocatedSlotActions = Preconditions.checkNotNull(allocatedSlotActions);
-		this.slotOwner = Preconditions.checkNotNull(slotOwner);
+		this.slotProviderAndOwner = Preconditions.checkNotNull(slotProviderAndOwner);
 
 		allTaskSlots = new HashMap<>(16);
 		unresolvedRootSlots = new HashMap<>(16);
@@ -483,7 +477,7 @@ public class SlotSharingManager {
 				}
 
 				// release the underlying allocated slot
-				allocatedSlotActions.releaseSlot(allocatedSlotRequestId, null, cause);
+				slotProviderAndOwner.cancelSlotRequest(allocatedSlotRequestId, null, cause);
 			}
 		}
 
@@ -555,7 +549,7 @@ public class SlotSharingManager {
 							slotContext,
 							slotSharingGroupId,
 							locality,
-							slotOwner);
+							slotProviderAndOwner);
 					});
 		}
 

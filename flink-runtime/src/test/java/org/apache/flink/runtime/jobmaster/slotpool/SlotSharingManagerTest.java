@@ -25,7 +25,7 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-import org.apache.flink.runtime.jobmanager.slots.DummySlotOwner;
+import org.apache.flink.runtime.jobmanager.slots.DummySlotProviderAndOwner;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -55,16 +55,13 @@ public class SlotSharingManagerTest extends TestLogger {
 
 	private static final SlotSharingGroupId SLOT_SHARING_GROUP_ID = new SlotSharingGroupId();
 
-	private static final DummySlotOwner SLOT_OWNER = new DummySlotOwner();
+	private static final DummySlotProviderAndOwner SLOT_PROVIDER_OWNER = new DummySlotProviderAndOwner();
 
 	@Test
 	public void testRootSlotCreation() {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
 		final SlotSharingManager slotSharingManager = new SlotSharingManager(
 			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+			SLOT_PROVIDER_OWNER);
 
 		SlotRequestId slotRequestId = new SlotRequestId();
 		SlotRequestId allocatedSlotRequestId = new SlotRequestId();
@@ -81,15 +78,13 @@ public class SlotSharingManagerTest extends TestLogger {
 	@Test
 	public void testRootSlotRelease() throws ExecutionException, InterruptedException {
 		final CompletableFuture<SlotRequestId> slotReleasedFuture = new CompletableFuture<>();
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
 
-		allocatedSlotActions.setReleaseSlotConsumer(
+		SLOT_PROVIDER_OWNER.setReleaseSlotConsumer(
 			tuple3 -> slotReleasedFuture.complete(tuple3.f0));
 
 		final SlotSharingManager slotSharingManager = new SlotSharingManager(
 			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+			SLOT_PROVIDER_OWNER);
 
 		SlotRequestId slotRequestId = new SlotRequestId();
 		SlotRequestId allocatedSlotRequestId = new SlotRequestId();
@@ -116,12 +111,9 @@ public class SlotSharingManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testNestedSlotCreation() {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
 		final SlotSharingManager slotSharingManager = new SlotSharingManager(
 			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+			SLOT_PROVIDER_OWNER);
 
 		SlotSharingManager.MultiTaskSlot rootSlot = slotSharingManager.createRootSlot(
 			new SlotRequestId(),
@@ -156,16 +148,13 @@ public class SlotSharingManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testNestedSlotRelease() throws Exception {
-		TestingAllocatedSlotActions testingAllocatedSlotActions = new TestingAllocatedSlotActions();
-
 		final CompletableFuture<SlotRequestId> releasedSlotFuture = new CompletableFuture<>();
-		testingAllocatedSlotActions.setReleaseSlotConsumer(
+		SLOT_PROVIDER_OWNER.setReleaseSlotConsumer(
 			tuple3 -> releasedSlotFuture.complete(tuple3.f0));
 
 		final SlotSharingManager slotSharingManager = new SlotSharingManager(
 			SLOT_SHARING_GROUP_ID,
-			testingAllocatedSlotActions,
-			SLOT_OWNER);
+			SLOT_PROVIDER_OWNER);
 
 		SlotRequestId rootSlotRequestId = new SlotRequestId();
 		SlotRequestId allocatedSlotRequestId = new SlotRequestId();
@@ -216,12 +205,9 @@ public class SlotSharingManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testInnerSlotRelease() {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
 		final SlotSharingManager slotSharingManager = new SlotSharingManager(
 			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+			SLOT_PROVIDER_OWNER);
 
 		SlotSharingManager.MultiTaskSlot rootSlot = slotSharingManager.createRootSlot(
 			new SlotRequestId(),
@@ -259,12 +245,9 @@ public class SlotSharingManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testSlotContextFutureCompletion() throws Exception {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
 		final SlotSharingManager slotSharingManager = new SlotSharingManager(
 			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+			SLOT_PROVIDER_OWNER);
 
 		final SlotContext slotContext = new SimpleSlotContext(
 			new AllocationID(),
@@ -328,12 +311,9 @@ public class SlotSharingManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testSlotContextFutureFailure() {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
 		SlotSharingManager slotSharingManager = new SlotSharingManager(
 			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+			SLOT_PROVIDER_OWNER);
 
 		CompletableFuture<SlotContext> slotContextFuture = new CompletableFuture<>();
 
@@ -363,12 +343,9 @@ public class SlotSharingManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testRootSlotTransition() {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
 		SlotSharingManager slotSharingManager = new SlotSharingManager(
 			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+			SLOT_PROVIDER_OWNER);
 
 		CompletableFuture<SlotContext> slotContextFuture = new CompletableFuture<>();
 		SlotSharingManager.MultiTaskSlot rootSlot = slotSharingManager.createRootSlot(
@@ -396,12 +373,9 @@ public class SlotSharingManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testGetResolvedSlot() {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
 		SlotSharingManager slotSharingManager = new SlotSharingManager(
 			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+			SLOT_PROVIDER_OWNER);
 
 		SlotSharingManager.MultiTaskSlot rootSlot = slotSharingManager.createRootSlot(
 			new SlotRequestId(),
@@ -442,12 +416,9 @@ public class SlotSharingManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testGetResolvedSlotWithLocationPreferences() {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
 		SlotSharingManager slotSharingManager = new SlotSharingManager(
 			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+			SLOT_PROVIDER_OWNER);
 
 		SlotSharingManager.MultiTaskSlot rootSlot1 = slotSharingManager.createRootSlot(
 			new SlotRequestId(),
@@ -499,12 +470,9 @@ public class SlotSharingManagerTest extends TestLogger {
 
 	@Test
 	public void testGetUnresolvedSlot() {
-		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
-
 		SlotSharingManager slotSharingManager = new SlotSharingManager(
 			SLOT_SHARING_GROUP_ID,
-			allocatedSlotActions,
-			SLOT_OWNER);
+			SLOT_PROVIDER_OWNER);
 
 		SlotSharingManager.MultiTaskSlot rootSlot1 = slotSharingManager.createRootSlot(
 			new SlotRequestId(),

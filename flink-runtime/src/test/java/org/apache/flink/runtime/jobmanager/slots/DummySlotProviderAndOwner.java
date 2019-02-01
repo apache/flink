@@ -16,23 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmaster.slotpool;
+package org.apache.flink.runtime.jobmanager.slots;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.messages.Acknowledge;
 
 import javax.annotation.Nullable;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /**
- * Simple {@link AllocatedSlotActions} implementations for testing purposes.
+ * SlotOwner implementation used for testing purposes only.
  */
-public class TestingAllocatedSlotActions implements AllocatedSlotActions {
-
+public class DummySlotProviderAndOwner implements SlotPool.SlotProviderAndOwner {
 	private volatile Consumer<Tuple3<SlotRequestId, SlotSharingGroupId, Throwable>> releaseSlotConsumer;
 
 	public void setReleaseSlotConsumer(@Nullable Consumer<Tuple3<SlotRequestId, SlotSharingGroupId, Throwable>> releaseSlotConsumer) {
@@ -40,7 +43,17 @@ public class TestingAllocatedSlotActions implements AllocatedSlotActions {
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> releaseSlot(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, @Nullable Throwable cause) {
+	public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
+		return CompletableFuture.completedFuture(false);
+	}
+
+	@Override
+	public CompletableFuture<LogicalSlot> allocateSlot(SlotRequestId slotRequestId, ScheduledUnit task, boolean allowQueued, SlotProfile slotProfile, Time timeout) {
+		return null;
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
 		Consumer<Tuple3<SlotRequestId, SlotSharingGroupId, Throwable>> currentReleaseSlotConsumer = this.releaseSlotConsumer;
 
 		if (currentReleaseSlotConsumer != null) {

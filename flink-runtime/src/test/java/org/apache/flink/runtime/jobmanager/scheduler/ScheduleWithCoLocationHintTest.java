@@ -104,6 +104,7 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		assertEquals(c6.getLocation(), s9.getTaskManagerLocation());
 
 		// check the scheduler's bookkeeping
+		tryAssertNumberOfAvailableSlotsEqual(0);
 		assertEquals(0, testingSlotProvider.getNumberOfAvailableSlots());
 
 		// the first assignments are unconstrained, co.-scheduling is constrained
@@ -120,6 +121,7 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		s10.releaseSlot();
 		s11.releaseSlot();
 		s12.releaseSlot();
+		tryAssertNumberOfAvailableSlotsMore(1);
 		assertTrue(testingSlotProvider.getNumberOfAvailableSlots() >= 1);
 
 		LogicalSlot single = testingSlotProvider.allocateSlot(
@@ -137,6 +139,7 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		s11.releaseSlot();
 		s12.releaseSlot();
 
+		tryAssertNumberOfAvailableSlotsEqual(5);
 		assertEquals(5, testingSlotProvider.getNumberOfAvailableSlots());
 
 		assertEquals(6, testingSlotProvider.getNumberOfLocalizedAssignments());
@@ -171,6 +174,7 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		s1.releaseSlot();
 		s2.releaseSlot();
 		sSolo.releaseSlot();
+		tryAssertNumberOfAvailableSlotsMore(1);
 
 		LogicalSlot sNew = testingSlotProvider.allocateSlot(
 				new ScheduledUnit(getTestVertex(jid3, 0, 1, sharingGroup), sharingGroup.getSlotSharingGroupId(), c1), false, SlotProfile.noRequirements(), TestingUtils.infiniteTime()).get();
@@ -337,6 +341,7 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		s4.releaseSlot();
 		s5.releaseSlot();
 		s6.releaseSlot();
+		tryAssertNumberOfAvailableSlotsEqual(2);
 		assertEquals(2, testingSlotProvider.getNumberOfAvailableSlots());
 	}
 
@@ -364,6 +369,7 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		s1.releaseSlot();
 		s2.releaseSlot();
 
+		tryAssertNumberOfAvailableSlotsEqual(2);
 		assertEquals(2, testingSlotProvider.getNumberOfAvailableSlots());
 		assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
 
@@ -379,6 +385,7 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		s3.releaseSlot();
 		s4.releaseSlot();
 
+		tryAssertNumberOfAvailableSlotsEqual(2);
 		assertEquals(2, testingSlotProvider.getNumberOfAvailableSlots());
 
 		assertEquals(4, testingSlotProvider.getNumberOfLocalizedAssignments());
@@ -411,6 +418,7 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		s1.releaseSlot();
 		s2.releaseSlot();
 
+		tryAssertNumberOfAvailableSlotsEqual(2);
 		assertEquals(2, testingSlotProvider.getNumberOfAvailableSlots());
 		assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
 
@@ -434,6 +442,7 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		sa.releaseSlot();
 		sb.releaseSlot();
 
+		tryAssertNumberOfAvailableSlotsEqual(2);
 		assertEquals(2, testingSlotProvider.getNumberOfAvailableSlots());
 
 		assertEquals(2, testingSlotProvider.getNumberOfLocalizedAssignments());
@@ -486,6 +495,7 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		s2.releaseSlot();
 		s3.releaseSlot();
 		s4.releaseSlot();
+		tryAssertNumberOfAvailableSlotsEqual(2);
 		assertEquals(2, testingSlotProvider.getNumberOfAvailableSlots());
 
 		assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
@@ -528,6 +538,7 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 		s3.releaseSlot();
 		s4.releaseSlot();
 
+		tryAssertNumberOfAvailableSlotsEqual(2);
 		assertEquals(2, testingSlotProvider.getNumberOfAvailableSlots());
 
 		assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
@@ -537,5 +548,28 @@ public class ScheduleWithCoLocationHintTest extends SchedulerTestBase {
 
 	private static SlotProfile slotProfileForLocation(TaskManagerLocation location) {
 		return new SlotProfile(ResourceProfile.UNKNOWN, Collections.singletonList(location), Collections.emptyList());
+	}
+
+	// SlotPoolGateway asynchronously handle, thus, use try assert.
+	private void tryAssertNumberOfAvailableSlotsEqual(int expected) {
+		final long deadline = System.currentTimeMillis() + 10_000L; // 10 secs
+		while (testingSlotProvider.getNumberOfAvailableSlots() != expected && System.currentTimeMillis() < deadline) {
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	private void tryAssertNumberOfAvailableSlotsMore(int expected) {
+		final long deadline = System.currentTimeMillis() + 10_000L; // 10 secs
+		while (testingSlotProvider.getNumberOfAvailableSlots() < expected && System.currentTimeMillis() < deadline) {
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 }

@@ -384,7 +384,6 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			task.getSlotSharingGroupId(),
 			id -> new SlotSharingManager(
 				id,
-				this,
 				providerAndOwner));
 
 		final SlotSharingManager.MultiTaskSlotLocality multiTaskSlotLocality;
@@ -1600,11 +1599,15 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 	// ------------------------------------------------------------------------
 
+	public interface SlotProviderAndOwner extends SlotOwner, SlotProvider {
+
+	}
+
 	/**
 	 * An implementation of the {@link SlotOwner} and {@link SlotProvider} interfaces
 	 * that delegates methods as RPC calls to the SlotPool's RPC gateway.
 	 */
-	public static class ProviderAndOwner implements SlotOwner, SlotProvider {
+	public static class ProviderAndOwner implements SlotProviderAndOwner {
 
 		private final SlotPoolGateway gateway;
 		private final boolean requiresPreviousAllocationsForScheduling;
