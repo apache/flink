@@ -122,6 +122,36 @@ class RocksDBSerializedCompositeKeyBuilder<K> {
 
 	/**
 	 * Returns a serialized composite key, from the key and key-group provided in a previous call to
+	 * {@link #setKeyAndKeyGroup(Object, int)} and the given namespace, followed by the given user-suffix.
+	 *
+	 * @param namespace           the namespace to concatenate for the serialized composite key bytes.
+	 * @param namespaceSerializer the serializer to obtain the serialized form of the namespace.
+	 * @param <N>                 the type of the namespace.
+	 * @param userSuffix		  the user-suffix to concatenate for the serialized composite key.
+	 * @param off		 		  the start offset of user-suffix.
+	 * @param len				  the len of user-suffix.
+	 * @return the bytes for the serialized composite key of key-group, key, namespace.
+	 */
+	@Nonnull
+	public <N> byte[] buildCompositeKeyNamespaceUserSuffix(
+		@Nonnull N namespace,
+		@Nonnull TypeSerializer<N> namespaceSerializer,
+		@Nonnull byte[] userSuffix,
+		@Nonnull int off,
+		@Nonnull int len) {
+		try {
+			serializeNamespace(namespace, namespaceSerializer);
+			keyOutView.write(userSuffix, off, len);
+			final byte[] result = keyOutView.getCopyOfBuffer();
+			resetToKey();
+			return result;
+		} catch (IOException shouldNeverHappen) {
+			throw new FlinkRuntimeException(shouldNeverHappen);
+		}
+	}
+
+	/**
+	 * Returns a serialized composite key, from the key and key-group provided in a previous call to
 	 * {@link #setKeyAndKeyGroup(Object, int)} and the given namespace, folloed by the given user-key.
 	 *
 	 * @param namespace           the namespace to concatenate for the serialized composite key bytes.

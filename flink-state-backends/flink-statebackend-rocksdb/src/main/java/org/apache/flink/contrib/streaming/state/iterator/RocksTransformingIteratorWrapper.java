@@ -67,8 +67,13 @@ public class RocksTransformingIteratorWrapper extends RocksIteratorWrapper {
 	}
 
 	private void filterOrTransform(@Nonnull Runnable advance) {
-		while (isValid() && (current = stateSnapshotTransformer.filterOrTransform(super.value())) == null) {
+		if (isValid() && stateSnapshotTransformer.keepRaw(super.key(), super.value())) {
+			current = super.value();
 			advance.run();
+		} else {
+			while (isValid() && (current = stateSnapshotTransformer.filterOrTransform(super.value())) == null) {
+				advance.run();
+			}
 		}
 	}
 

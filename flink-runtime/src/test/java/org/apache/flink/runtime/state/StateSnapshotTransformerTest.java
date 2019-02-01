@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.state.LargeListStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -28,6 +29,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
+import org.apache.flink.runtime.state.internal.InternalLargeListState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
@@ -64,6 +66,38 @@ class StateSnapshotTransformerTest {
 			new TestValueState(),
 			new TestListState(),
 			new TestMapState()
+		);
+
+		for (TestState state : testStates) {
+			for (int i = 0; i < 100; i++) {
+				backend.setCurrentKey(i);
+				state.setToRandomValue();
+			}
+
+			CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
+
+			RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot1 =
+				backend.snapshot(1L, 0L, streamFactory, checkpointOptions);
+
+			RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot2 =
+				backend.snapshot(2L, 0L, streamFactory, checkpointOptions);
+
+			Thread runner1 = new Thread(snapshot1, "snapshot1");
+			runner1.start();
+			Thread runner2 = new Thread(snapshot2, "snapshot2");
+			runner2.start();
+
+			runner1.join();
+			runner2.join();
+
+			snapshot1.get();
+			snapshot2.get();
+		}
+	}
+
+	void testLargeListStateNonConcurrentSnapshotTransformerAccess() throws Exception {
+		List<TestState> testStates = Arrays.asList(
+			new TestLargeListState()
 		);
 
 		for (TestState state : testStates) {
@@ -131,6 +165,26 @@ class StateSnapshotTransformerTest {
 			this.state = backend.createInternalState(
 				VoidNamespaceSerializer.INSTANCE,
 				new ListStateDescriptor<>("TestListState", new SingleThreadAccessCheckingTypeSerializer()),
+				snapshotTransformFactory);
+			state.setCurrentNamespace(VoidNamespace.INSTANCE);
+		}
+
+		@Override
+		void setToRandomValue() throws Exception {
+			int length = rnd.nextInt(10);
+			for (int i = 0; i < length; i++) {
+				state.add(getRandomString());
+			}
+		}
+	}
+
+	private class TestLargeListState extends TestState {
+		private final InternalLargeListState<Integer, VoidNamespace, String> state;
+
+		private TestLargeListState() throws Exception {
+			this.state = backend.createInternalState(
+				VoidNamespaceSerializer.INSTANCE,
+				new LargeListStateDescriptor<>("TestLargeListState", new SingleThreadAccessCheckingTypeSerializer()),
 				snapshotTransformFactory);
 			state.setCurrentNamespace(VoidNamespace.INSTANCE);
 		}

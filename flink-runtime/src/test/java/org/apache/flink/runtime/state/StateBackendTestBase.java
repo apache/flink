@@ -26,6 +26,7 @@ import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.LargeListStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -67,6 +68,7 @@ import org.apache.flink.runtime.state.heap.NestedMapsStateTable;
 import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.internal.InternalLargeListState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
@@ -3971,6 +3973,530 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		} finally {
 			backend.dispose();
 			executorService.shutdown();
+		}
+	}
+
+	@SuppressWarnings("unchecked,rawtypes")
+	public void testLargeListState() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		LargeListStateDescriptor<String> kvId = new LargeListStateDescriptor<>("id", String.class);
+
+		TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
+		TypeSerializer<VoidNamespace> namespaceSerializer = VoidNamespaceSerializer.INSTANCE;
+
+		ListState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+		@SuppressWarnings("unchecked")
+		InternalKvState<Integer, VoidNamespace, String> kvState = (InternalKvState<Integer, VoidNamespace, String>) state;
+
+		// this is only available after the backend initialized the serializer
+		TypeSerializer<String> valueSerializer = kvId.getElementSerializer();
+
+		Joiner joiner = Joiner.on(",");
+
+		// some modifications to the state
+		backend.setCurrentKey(1);
+		assertNull(state.get());
+		assertNull(getSerializedList(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
+		state.add("1");
+
+		backend.setCurrentKey(2);
+		assertNull(state.get());
+		assertNull(getSerializedList(kvState, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
+		state.update(Arrays.asList("2"));
+
+		backend.setCurrentKey(1);
+		assertEquals("1", joiner.join(state.get()));
+		assertEquals("1", joiner.join(getSerializedList(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
+
+		// draw a snapshot
+		KeyedStateHandle snapshot1 = runSnapshot(
+			backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			sharedStateRegistry);
+
+		// make some more modifications
+		backend.setCurrentKey(1);
+		state.add("u1");
+
+		backend.setCurrentKey(2);
+		state.add("u2");
+
+		backend.setCurrentKey(3);
+		state.add("u3");
+
+		// draw another snapshot
+		KeyedStateHandle snapshot2 = runSnapshot(
+			backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			sharedStateRegistry);
+
+		// validate the original state
+		backend.setCurrentKey(1);
+		assertEquals("1,u1", joiner.join(state.get()));
+		assertEquals("1,u1", joiner.join(getSerializedList(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
+
+		backend.setCurrentKey(2);
+		assertEquals("2,u2", joiner.join(state.get()));
+		assertEquals("2,u2", joiner.join(getSerializedList(kvState, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
+
+		backend.setCurrentKey(3);
+		assertEquals("u3", joiner.join(state.get()));
+		assertEquals("u3", joiner.join(getSerializedList(kvState, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
+
+		backend.dispose();
+		// restore the first snapshot and validate it
+		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1);
+		snapshot1.discardState();
+
+		ListState<String> restored1 = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+		@SuppressWarnings("unchecked")
+		InternalKvState<Integer, VoidNamespace, String> restoredKvState1 = (InternalKvState<Integer, VoidNamespace, String>) restored1;
+
+		backend.setCurrentKey(1);
+		assertEquals("1", joiner.join(restored1.get()));
+		assertEquals("1", joiner.join(getSerializedList(restoredKvState1, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
+
+		backend.setCurrentKey(2);
+		assertEquals("2", joiner.join(restored1.get()));
+		assertEquals("2", joiner.join(getSerializedList(restoredKvState1, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
+
+		backend.dispose();
+		// restore the second snapshot and validate it
+		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
+		snapshot2.discardState();
+
+		ListState<String> restored2 = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+		@SuppressWarnings("unchecked")
+		InternalKvState<Integer, VoidNamespace, String> restoredKvState2 = (InternalKvState<Integer, VoidNamespace, String>) restored2;
+
+		backend.setCurrentKey(1);
+		assertEquals("1,u1", joiner.join(restored2.get()));
+		assertEquals("1,u1", joiner.join(getSerializedList(restoredKvState2, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
+
+		backend.setCurrentKey(2);
+		assertEquals("2,u2", joiner.join(restored2.get()));
+		assertEquals("2,u2", joiner.join(getSerializedList(restoredKvState2, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
+
+		backend.setCurrentKey(3);
+		assertEquals("u3", joiner.join(restored2.get()));
+		assertEquals("u3", joiner.join(getSerializedList(restoredKvState2, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
+
+		backend.dispose();
+	}
+
+	/**
+	 * This test verifies that all ListState implementations are consistent in not allowing
+	 * adding {@code null}.
+	 */
+	public void testLargeListStateAddNull() throws Exception {
+		AbstractKeyedStateBackend<String> keyedBackend = createKeyedBackend(StringSerializer.INSTANCE);
+
+		final LargeListStateDescriptor<Long> stateDescr = new LargeListStateDescriptor<>("my-state", Long.class);
+
+		try {
+			ListState<Long> state =
+				keyedBackend.getPartitionedState(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
+					stateDescr);
+
+			keyedBackend.setCurrentKey("abc");
+			assertNull(state.get());
+
+			expectedException.expect(NullPointerException.class);
+			state.add(null);
+		} finally {
+			keyedBackend.close();
+			keyedBackend.dispose();
+		}
+	}
+
+	/**
+	 * This test verifies that all ListState implementations are consistent in not allowing
+	 * {@link ListState#addAll(List)} to be called with {@code null} entries in the list of entries
+	 * to add.
+	 */
+	public void testLargeListStateAddAllNullEntries() throws Exception {
+		AbstractKeyedStateBackend<String> keyedBackend = createKeyedBackend(StringSerializer.INSTANCE);
+
+		final LargeListStateDescriptor<Long> stateDescr = new LargeListStateDescriptor<>("my-state", Long.class);
+
+		try {
+			ListState<Long> state =
+				keyedBackend.getPartitionedState(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
+					stateDescr);
+
+			keyedBackend.setCurrentKey("abc");
+			assertNull(state.get());
+
+			expectedException.expect(NullPointerException.class);
+
+			List<Long> adding = new ArrayList<>();
+			adding.add(3L);
+			adding.add(null);
+			adding.add(5L);
+			state.addAll(adding);
+		} finally {
+			keyedBackend.close();
+			keyedBackend.dispose();
+		}
+	}
+
+	/**
+	 * This test verifies that all ListState implementations are consistent in not allowing
+	 * {@link ListState#addAll(List)} to be called with {@code null}.
+	 */
+	public void testLargeListStateAddAllNull() throws Exception {
+		AbstractKeyedStateBackend<String> keyedBackend = createKeyedBackend(StringSerializer.INSTANCE);
+
+		final LargeListStateDescriptor<Long> stateDescr = new LargeListStateDescriptor<>("my-state", Long.class);
+
+		try {
+			ListState<Long> state =
+				keyedBackend.getPartitionedState(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
+					stateDescr);
+
+			keyedBackend.setCurrentKey("abc");
+			assertNull(state.get());
+
+			expectedException.expect(NullPointerException.class);
+			state.addAll(null);
+		} finally {
+			keyedBackend.close();
+			keyedBackend.dispose();
+		}
+	}
+
+	/**
+	 * This test verifies that all ListState implementations are consistent in not allowing
+	 * {@link ListState#addAll(List)} to be called with {@code null} entries in the list of entries
+	 * to add.
+	 */
+	public void testLargeListStateUpdateNullEntries() throws Exception {
+		AbstractKeyedStateBackend<String> keyedBackend = createKeyedBackend(StringSerializer.INSTANCE);
+
+		final LargeListStateDescriptor<Long> stateDescr = new LargeListStateDescriptor<>("my-state", Long.class);
+
+		try {
+			ListState<Long> state =
+				keyedBackend.getPartitionedState(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
+					stateDescr);
+
+			keyedBackend.setCurrentKey("abc");
+			assertNull(state.get());
+
+			expectedException.expect(NullPointerException.class);
+
+			List<Long> adding = new ArrayList<>();
+			adding.add(3L);
+			adding.add(null);
+			adding.add(5L);
+			state.update(adding);
+		} finally {
+			keyedBackend.close();
+			keyedBackend.dispose();
+		}
+	}
+
+	/**
+	 * This test verifies that all ListState implementations are consistent in not allowing
+	 * {@link ListState#addAll(List)} to be called with {@code null}.
+	 */
+	public void testLargeListStateUpdateNull() throws Exception {
+		AbstractKeyedStateBackend<String> keyedBackend = createKeyedBackend(StringSerializer.INSTANCE);
+
+		final LargeListStateDescriptor<Long> stateDescr = new LargeListStateDescriptor<>("my-state", Long.class);
+
+		try {
+			ListState<Long> state =
+				keyedBackend.getPartitionedState(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
+					stateDescr);
+
+			keyedBackend.setCurrentKey("abc");
+			assertNull(state.get());
+
+			expectedException.expect(NullPointerException.class);
+			state.update(null);
+		} finally {
+			keyedBackend.close();
+			keyedBackend.dispose();
+		}
+	}
+
+	public void testLargeListStateAPIs() throws Exception {
+
+		AbstractKeyedStateBackend<String> keyedBackend = createKeyedBackend(StringSerializer.INSTANCE);
+
+		final LargeListStateDescriptor<Long> stateDescr = new LargeListStateDescriptor<>("my-state", Long.class);
+
+		try {
+			ListState<Long> state =
+				keyedBackend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescr);
+
+			keyedBackend.setCurrentKey("def");
+			assertNull(state.get());
+			state.add(17L);
+			state.add(11L);
+			assertThat(state.get(), containsInAnyOrder(17L, 11L));
+			// update(emptyList) should remain the value null
+			state.update(Collections.emptyList());
+			assertNull(state.get());
+			state.update(Arrays.asList(10L, 16L));
+			assertThat(state.get(), containsInAnyOrder(16L, 10L));
+			assertThat(state.get(), containsInAnyOrder(16L, 10L));
+
+			keyedBackend.setCurrentKey("abc");
+			assertNull(state.get());
+
+			keyedBackend.setCurrentKey("g");
+			assertNull(state.get());
+			assertNull(state.get());
+			state.addAll(Collections.emptyList());
+			assertNull(state.get());
+			state.addAll(Arrays.asList(3L, 4L));
+			assertThat(state.get(), containsInAnyOrder(3L, 4L));
+			assertThat(state.get(), containsInAnyOrder(3L, 4L));
+			state.addAll(new ArrayList<>());
+			assertThat(state.get(), containsInAnyOrder(3L, 4L));
+			state.addAll(Arrays.asList(5L, 6L));
+			assertThat(state.get(), containsInAnyOrder(3L, 4L, 5L, 6L));
+			state.addAll(new ArrayList<>());
+			assertThat(state.get(), containsInAnyOrder(3L, 4L, 5L, 6L));
+
+			assertThat(state.get(), containsInAnyOrder(3L, 4L, 5L, 6L));
+			state.update(Arrays.asList(1L, 2L));
+			assertThat(state.get(), containsInAnyOrder(1L, 2L));
+
+			keyedBackend.setCurrentKey("def");
+			assertThat(state.get(), containsInAnyOrder(10L, 16L));
+			state.clear();
+			assertNull(state.get());
+
+			keyedBackend.setCurrentKey("g");
+			state.add(3L);
+			state.add(2L);
+			state.add(1L);
+
+			keyedBackend.setCurrentKey("def");
+			assertNull(state.get());
+
+			keyedBackend.setCurrentKey("g");
+			assertThat(state.get(), containsInAnyOrder(1L, 2L, 3L, 2L, 1L));
+			state.update(Arrays.asList(5L, 6L));
+			assertThat(state.get(), containsInAnyOrder(5L, 6L));
+			state.clear();
+
+			// make sure all lists / maps are cleared
+			assertThat("State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
+		} finally {
+			keyedBackend.close();
+			keyedBackend.dispose();
+		}
+	}
+
+	public void testLargeListStateMerging() throws Exception {
+
+		AbstractKeyedStateBackend<String> keyedBackend = createKeyedBackend(StringSerializer.INSTANCE);
+
+		final LargeListStateDescriptor<Long> stateDescr = new LargeListStateDescriptor<>("my-state", Long.class);
+
+		final Integer namespace1 = 1;
+		final Integer namespace2 = 2;
+		final Integer namespace3 = 3;
+
+		try {
+			InternalLargeListState<String, Integer, Long> state =
+				(InternalLargeListState<String, Integer, Long>) keyedBackend.getPartitionedState(0, IntSerializer.INSTANCE, stateDescr);
+
+			// populate the different namespaces
+			//  - abc spreads the values over three namespaces
+			//  - def spreads the values over two namespaces (one empty)
+			//  - ghi is empty
+			//  - jkl has all elements already in the target namespace
+			//  - mno has all elements already in one source namespace
+
+			keyedBackend.setCurrentKey("abc");
+			state.setCurrentNamespace(namespace1);
+			state.add(33L);
+			state.add(55L);
+
+			state.setCurrentNamespace(namespace2);
+			state.add(22L);
+			state.add(11L);
+
+			state.setCurrentNamespace(namespace3);
+			state.add(44L);
+
+			keyedBackend.setCurrentKey("def");
+			state.setCurrentNamespace(namespace1);
+			state.add(11L);
+			state.add(44L);
+
+			state.setCurrentNamespace(namespace3);
+			state.add(22L);
+			state.add(55L);
+			state.add(33L);
+
+			keyedBackend.setCurrentKey("jkl");
+			state.setCurrentNamespace(namespace1);
+			state.add(11L);
+			state.add(22L);
+			state.add(33L);
+			state.add(44L);
+			state.add(55L);
+
+			keyedBackend.setCurrentKey("mno");
+			state.setCurrentNamespace(namespace3);
+			state.add(11L);
+			state.add(22L);
+			state.add(33L);
+			state.add(44L);
+			state.add(55L);
+
+			keyedBackend.setCurrentKey("abc");
+			state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
+			state.setCurrentNamespace(namespace1);
+			assertThat(state.get(), containsInAnyOrder(11L, 22L, 33L, 44L, 55L));
+
+			keyedBackend.setCurrentKey("def");
+			state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
+			state.setCurrentNamespace(namespace1);
+			assertThat(state.get(), containsInAnyOrder(11L, 22L, 33L, 44L, 55L));
+
+			keyedBackend.setCurrentKey("ghi");
+			state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
+			state.setCurrentNamespace(namespace1);
+			assertNull(state.get());
+
+			keyedBackend.setCurrentKey("jkl");
+			state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
+			state.setCurrentNamespace(namespace1);
+			assertThat(state.get(), containsInAnyOrder(11L, 22L, 33L, 44L, 55L));
+
+			keyedBackend.setCurrentKey("mno");
+			state.mergeNamespaces(namespace1, asList(namespace2, namespace3));
+			state.setCurrentNamespace(namespace1);
+			assertThat(state.get(), containsInAnyOrder(11L, 22L, 33L, 44L, 55L));
+
+			// make sure all lists / maps are cleared
+
+			keyedBackend.setCurrentKey("abc");
+			state.setCurrentNamespace(namespace1);
+			state.clear();
+
+			keyedBackend.setCurrentKey("def");
+			state.setCurrentNamespace(namespace1);
+			state.clear();
+
+			keyedBackend.setCurrentKey("ghi");
+			state.setCurrentNamespace(namespace1);
+			state.clear();
+
+			keyedBackend.setCurrentKey("jkl");
+			state.setCurrentNamespace(namespace1);
+			state.clear();
+
+			keyedBackend.setCurrentKey("mno");
+			state.setCurrentNamespace(namespace1);
+			state.clear();
+
+			assertThat("State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
+		} finally {
+			keyedBackend.close();
+			keyedBackend.dispose();
+		}
+	}
+
+	/**
+	 * Verify that an empty {@code ListState} yields {@code null}.
+	 */
+	public void testLargeLargeListStateDefaultValue() throws Exception {
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		LargeListStateDescriptor<String> kvId = new LargeListStateDescriptor<>("id", String.class);
+
+		ListState<String> state = backend.getPartitionedState(
+			VoidNamespace.INSTANCE,
+			VoidNamespaceSerializer.INSTANCE, kvId);
+
+		backend.setCurrentKey(1);
+		assertNull(state.get());
+
+		state.update(Arrays.asList("Ciao", "Bello"));
+		assertThat(state.get(), containsInAnyOrder("Ciao", "Bello"));
+
+		state.clear();
+		assertNull(state.get());
+
+		backend.dispose();
+	}
+
+	@SuppressWarnings("unchecked")
+	public void testLargeListStateRestoreWithWrongSerializers() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		try {
+			LargeListStateDescriptor<String> kvId = new LargeListStateDescriptor<>("id", String.class);
+			ListState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+			backend.setCurrentKey(1);
+			state.add("1");
+			backend.setCurrentKey(2);
+			state.add("2");
+
+			// draw a snapshot
+			KeyedStateHandle snapshot1 = runSnapshot(
+				backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry);
+
+			backend.dispose();
+			// restore the first snapshot and validate it
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1);
+			snapshot1.discardState();
+
+			@SuppressWarnings("unchecked")
+			TypeSerializer<String> fakeStringSerializer =
+				(TypeSerializer<String>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
+
+			try {
+				kvId = new LargeListStateDescriptor<>("id", fakeStringSerializer);
+
+				state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+				state.get();
+
+				fail("should recognize wrong serializers");
+			} catch (StateMigrationException ignored) {
+				// expected
+			}
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	public void testLargeListStateNonConcurrentSnapshotTransformerAccess() throws Exception {
+		BlockerCheckpointStreamFactory streamFactory = new BlockerCheckpointStreamFactory(1024 * 1024);
+		AbstractKeyedStateBackend<Integer> backend = null;
+		try {
+			backend = createKeyedBackend(IntSerializer.INSTANCE);
+			new StateSnapshotTransformerTest(backend, streamFactory)
+				.testLargeListStateNonConcurrentSnapshotTransformerAccess();
+		} finally {
+			if (backend != null) {
+				IOUtils.closeQuietly(backend);
+				backend.dispose();
+			}
 		}
 	}
 

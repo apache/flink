@@ -236,6 +236,30 @@ public final class KvStateSerializer {
 	}
 
 	/**
+	 * Serializes the iterable values with the given serializer.
+	 *
+	 * @param values      Value of type T to serialize
+	 * @param serializer Serializer for T
+	 * @param <T>        Type of the value
+	 * @return Serialized values
+	 * @throws IOException On failure during serialization
+	 */
+	public static <T> byte[] serializeIterator(Iterable<T> values, TypeSerializer<T> serializer) throws IOException {
+		if (values != null) {
+			// Serialize
+			DataOutputSerializer dos = new DataOutputSerializer(32);
+			for (T value : values) {
+				serializer.serialize(value, dos);
+				// Align with org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer.deserializeList
+				dos.write(',');
+			}
+			return dos.getCopyOfBuffer();
+		} else {
+			return null;
+		}
+	}
+
+	/**
 	 * Deserializes all kv pairs with the given serializer.
 	 *
 	 * @param serializedValue Serialized value of type Map&lt;UK, UV&gt;

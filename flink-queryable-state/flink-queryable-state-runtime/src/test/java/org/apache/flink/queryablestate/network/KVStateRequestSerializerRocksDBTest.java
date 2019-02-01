@@ -19,6 +19,7 @@
 package org.apache.flink.queryablestate.network;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.LargeListStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -33,6 +34,7 @@ import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
+import org.apache.flink.runtime.state.internal.InternalLargeListState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -97,6 +99,49 @@ public final class KVStateRequestSerializerRocksDBTest {
 
 		KvStateRequestSerializerTest.testListSerialization(key, listState);
 		longHeapKeyedStateBackend.dispose();
+	}
+
+	/**
+	 * Tests large list serialization and deserialization match.
+	 *
+	 * @see KvStateRequestSerializerTest#testLargeListSerialization(long, InternalLargeListState)
+	 */
+	@Test
+	public void testLargeListSerialization() throws Exception {
+		final long key = 0L;
+
+		// objects for RocksDB state list serialisation
+		DBOptions dbOptions = PredefinedOptions.DEFAULT.createDBOptions();
+		dbOptions.setCreateIfMissing(true);
+		ColumnFamilyOptions columnFamilyOptions = PredefinedOptions.DEFAULT.createColumnOptions();
+		final RocksDBKeyedStateBackend<Long> longRocksDBKeyedStateBackend =
+			new RocksDBKeyedStateBackend<>(
+				"no-op",
+				ClassLoader.getSystemClassLoader(),
+				temporaryFolder.getRoot(),
+				dbOptions,
+				columnFamilyOptions,
+				mock(TaskKvStateRegistry.class),
+				LongSerializer.INSTANCE,
+				1,
+				new KeyGroupRange(0, 0),
+				new ExecutionConfig(),
+				false,
+				1,
+				TestLocalRecoveryConfig.disabled(),
+				RocksDBStateBackend.PriorityQueueStateType.HEAP,
+				TtlTimeProvider.DEFAULT,
+				new RocksDBNativeMetricOptions(),
+				new UnregisteredMetricsGroup()
+			);
+		longRocksDBKeyedStateBackend.restore(null);
+		longRocksDBKeyedStateBackend.setCurrentKey(key);
+
+		final InternalLargeListState<Long, VoidNamespace, Long> listState = longRocksDBKeyedStateBackend.createInternalState(VoidNamespaceSerializer.INSTANCE,
+			new LargeListStateDescriptor<>("test", LongSerializer.INSTANCE));
+
+		KvStateRequestSerializerTest.testLargeListSerialization(key, listState);
+		longRocksDBKeyedStateBackend.dispose();
 	}
 
 	/**

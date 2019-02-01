@@ -163,6 +163,15 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
 		return sharedKeyNamespaceSerializer.buildCompositeKeyNamespace(currentNamespace, namespaceSerializer);
 	}
 
+	byte[] serializeCurrentKeyWithGroupAndNamespacePlusUserSuffix(byte[] userSuffix, int off, int len) {
+		return sharedKeyNamespaceSerializer.buildCompositeKeyNamespaceUserSuffix(
+			currentNamespace,
+			namespaceSerializer,
+			userSuffix,
+			off,
+			len);
+	}
+
 	byte[] serializeValue(V value) throws IOException {
 		return serializeValue(value, valueSerializer);
 	}

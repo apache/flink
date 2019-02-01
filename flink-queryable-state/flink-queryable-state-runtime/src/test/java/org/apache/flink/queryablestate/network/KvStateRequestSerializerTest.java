@@ -34,9 +34,12 @@ import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.internal.InternalLargeListState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,6 +50,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -252,6 +256,63 @@ public class KvStateRequestSerializerTest {
 
 		List<Long> actualValues = KvStateSerializer.deserializeList(serializedValues, valueSerializer);
 		assertEquals(expectedValues, actualValues);
+
+		// Single value
+		long expectedValue = ThreadLocalRandom.current().nextLong();
+		byte[] serializedValue = KvStateSerializer.serializeValue(expectedValue, valueSerializer);
+		List<Long> actualValue = KvStateSerializer.deserializeList(serializedValue, valueSerializer);
+		assertEquals(1, actualValue.size());
+		assertEquals(expectedValue, actualValue.get(0).longValue());
+	}
+
+	/**
+	 * Verifies that the serialization of a list using the given list state
+	 * matches the deserialization with {@link KvStateSerializer#deserializeList}.
+	 *
+	 * @param key
+	 * 		key of the list state
+	 * @param listState
+	 * 		list state using the {@link VoidNamespace}, must also be a {@link InternalKvState} instance
+	 *
+	 * @throws Exception
+	 */
+	public static void testLargeListSerialization(
+		final long key,
+		final InternalLargeListState<Long, VoidNamespace, Long> listState) throws Exception {
+
+		TypeSerializer<Long> valueSerializer = LongSerializer.INSTANCE;
+		listState.setCurrentNamespace(VoidNamespace.INSTANCE);
+
+		// List
+		final int numElements = 10;
+
+		final List<Long> expectedValues = new ArrayList<>();
+		for (int i = 0; i < numElements; i++) {
+			final long value = ThreadLocalRandom.current().nextLong();
+			expectedValues.add(value);
+			listState.add(value);
+		}
+
+		final byte[] serializedKey =
+			KvStateSerializer.serializeKeyAndNamespace(
+				key, LongSerializer.INSTANCE,
+				VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE);
+
+		final byte[] serializedValues = listState.getSerializedValue(
+			serializedKey,
+			listState.getKeySerializer(),
+			listState.getNamespaceSerializer(),
+			listState.getValueSerializer());
+
+		List<Long> actualValues = KvStateSerializer.deserializeList(serializedValues, valueSerializer);
+		List<Long> getValues = new ArrayList<>();
+		List<Long> reverseValues = new ArrayList<>();
+		Iterators.addAll(getValues, listState.get().iterator());
+		Iterators.addAll(reverseValues, listState.get(false).iterator());
+		Collections.reverse(reverseValues);
+		assertEquals(expectedValues, actualValues);
+		assertEquals(expectedValues, getValues);
+		assertEquals(expectedValues, reverseValues);
 
 		// Single value
 		long expectedValue = ThreadLocalRandom.current().nextLong();

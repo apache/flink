@@ -47,6 +47,16 @@ public interface StateSnapshotTransformer<T> {
 	@Nullable
 	T filterOrTransform(@Nullable T value);
 
+	/**
+	 * Should we keep this saved value as raw.
+	 * @param key non-serialized form of key
+	 * @param value non-serialized form of value
+	 * @return keep or not
+	 */
+	default boolean keepRaw(@Nullable T key, @Nullable T value) {
+		return false;
+	}
+
 	/** Collection state specific transformer which says how to transform entries of the collection. */
 	interface CollectionStateSnapshotTransformer<T> extends StateSnapshotTransformer<T> {
 		enum TransformStrategy {

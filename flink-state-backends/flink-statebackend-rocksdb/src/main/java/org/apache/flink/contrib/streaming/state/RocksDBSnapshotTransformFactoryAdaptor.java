@@ -18,11 +18,13 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.api.common.state.LargeListStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 
@@ -48,6 +50,10 @@ abstract class RocksDBSnapshotTransformFactoryAdaptor<SV, SEV> implements StateS
 		if (stateDesc instanceof ListStateDescriptor) {
 			TypeSerializer<SEV> elementSerializer = ((ListSerializer<SEV>) stateSerializer).getElementSerializer();
 			return new RocksDBListStateSnapshotTransformFactory<>(snapshotTransformFactory, elementSerializer);
+		} else if (stateDesc instanceof LargeListStateDescriptor) {
+			TypeSerializer<SEV> elementSerializer = ((ListSerializer<SEV>)
+				((MapSerializer) stateSerializer).getValueSerializer()).getElementSerializer();
+			return new RocksDBLargeListStateSnapshotTransformFactory<>(snapshotTransformFactory, elementSerializer);
 		} else if (stateDesc instanceof MapStateDescriptor) {
 			return new RocksDBMapStateSnapshotTransformFactory<>(snapshotTransformFactory);
 		} else {
@@ -100,6 +106,27 @@ abstract class RocksDBSnapshotTransformFactoryAdaptor<SV, SEV> implements StateS
 		public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
 			return snapshotTransformFactory.createForDeserializedState()
 				.map(est -> new RocksDBListState.StateSnapshotTransformerWrapper<>(est, elementSerializer.duplicate()));
+		}
+	}
+
+	private static class RocksDBLargeListStateSnapshotTransformFactory<SV, SEV>
+		extends RocksDBSnapshotTransformFactoryAdaptor<SV, SEV> {
+
+		private final TypeSerializer<SEV> elementSerializer;
+
+		@SuppressWarnings("unchecked")
+		private RocksDBLargeListStateSnapshotTransformFactory(
+			StateSnapshotTransformFactory<SEV> snapshotTransformFactory,
+			TypeSerializer<SEV> elementSerializer) {
+
+			super(snapshotTransformFactory);
+			this.elementSerializer = elementSerializer;
+		}
+
+		@Override
+		public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
+			return snapshotTransformFactory.createForDeserializedState()
+				.map(est -> new RocksDBLargeListState.StateSnapshotTransformerWrapper<>(est, elementSerializer.duplicate()));
 		}
 	}
 }

@@ -506,6 +506,22 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		}
 	}
 
+	@Test
+	@Override
+	public void testLargeListState() throws Exception {
+		super.testLargeListState();
+		super.testLargeLargeListStateDefaultValue();
+		super.testLargeListStateAddAllNull();
+		super.testLargeListStateAddAllNullEntries();
+		super.testLargeListStateAddNull();
+		super.testLargeListStateAPIs();
+		super.testLargeListStateMerging();
+		super.testLargeListStateRestoreWithWrongSerializers();
+		super.testLargeListStateUpdateNull();
+		super.testLargeListStateUpdateNullEntries();
+		super.testLargeListStateNonConcurrentSnapshotTransformerAccess();
+	}
+
 	private void checkRemove(IncrementalKeyedStateHandle remove, SharedStateRegistry registry) throws Exception {
 		for (StateHandleID id : remove.getSharedState().keySet()) {
 			verify(registry, times(0)).unregisterReference(
