@@ -18,12 +18,9 @@
 
 package org.apache.flink.table.api;
 
-import org.apache.flink.annotation.PublicEvolving;
-
 /**
  * The {@link BatchQueryConfig} holds parameters to configure the behavior of batch queries.
  */
-@PublicEvolving
-public class BatchQueryConfig extends QueryConfig {
+public class BatchQueryConfig implements QueryConfig {
 
 }

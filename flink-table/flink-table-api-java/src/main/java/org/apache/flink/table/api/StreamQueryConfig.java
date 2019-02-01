@@ -18,17 +18,15 @@
 
 package org.apache.flink.table.api;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.time.Time;
 
 /**
  * The {@link StreamQueryConfig} holds parameters to configure the behavior of streaming queries.
  *
- * <p>An empty {@link StreamQueryConfig} can be generated using the [[StreamTableEnvironment.queryConfig]]
+ * <p>An empty {@link StreamQueryConfig} can be generated using the {@link StreamTableEnvironment.queryConfig}
  * method.
  */
-@PublicEvolving
-public class StreamQueryConfig extends QueryConfig {
+public class StreamQueryConfig implements QueryConfig {
 
 	/**
 	 * The minimum time until state which was not updated will be retained.
@@ -75,10 +73,18 @@ public class StreamQueryConfig extends QueryConfig {
 		return this;
 	}
 
+	/**
+	 * The minimum time until state which was not updated will be retained.
+	 * State might be cleared and removed if it was not updated for the defined period of time.
+	 */
 	public long getMinIdleStateRetentionTime() {
 		return minIdleStateRetentionTime;
 	}
 
+	/**
+	 * The maximum time until state which was not updated will be retained.
+	 * State will be cleared and removed if it was not updated for the defined period of time.
+	 */
 	public long getMaxIdleStateRetentionTime() {
 		return maxIdleStateRetentionTime;
 	}

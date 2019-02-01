@@ -26,6 +26,6 @@ import java.io.Serializable;
  * The {@link QueryConfig} holds parameters to configure the behavior of queries.
  */
 @PublicEvolving
-public class QueryConfig implements Serializable {
+public interface QueryConfig extends Serializable {
 
 }
