@@ -113,7 +113,7 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 		final List<String> properties = new ArrayList<>();
 
 		// streaming properties
-		properties.add(UPDATE_MODE());
+		properties.add(UPDATE_MODE);
 
 		// Elasticsearch
 		properties.add(CONNECTOR_HOSTS + ".#." + CONNECTOR_HOSTS_HOSTNAME);
@@ -150,7 +150,7 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
 		return createElasticsearchUpsertTableSink(
-			descriptorProperties.isValue(UPDATE_MODE(), UPDATE_MODE_VALUE_APPEND()),
+			descriptorProperties.isValue(UPDATE_MODE, UPDATE_MODE_VALUE_APPEND),
 			descriptorProperties.getTableSchema(SCHEMA()),
 			getHosts(descriptorProperties),
 			descriptorProperties.getString(CONNECTOR_INDEX),

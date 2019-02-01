@@ -49,7 +49,7 @@ class FlinkStatistic(tableStats: Option[TableStats]) extends Statistic {
     * @return The stats of the specified column.
     */
   def getColumnStats(columnName: String): ColumnStats = tableStats match {
-    case Some(tStats) => tStats.colStats.get(columnName)
+    case Some(tStats) => tStats.getColStats.get(columnName)
     case None => null
   }
 
@@ -59,7 +59,7 @@ class FlinkStatistic(tableStats: Option[TableStats]) extends Statistic {
     * @return The number of rows of the table.
     */
   override def getRowCount: Double = tableStats match {
-    case Some(tStats) => tStats.rowCount.toDouble
+    case Some(tStats) => tStats.getRowCount.toDouble
     case None => null
   }
 
