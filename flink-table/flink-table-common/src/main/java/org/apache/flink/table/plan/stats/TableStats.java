@@ -16,15 +16,43 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.stats
+package org.apache.flink.table.plan.stats;
 
-import java.lang.Long
-import java.util.{Map, HashMap}
+import org.apache.flink.annotation.PublicEvolving;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
-  * Table statistics
-  *
-  * @param rowCount cardinality of table
-  * @param colStats statistics of table columns
-  */
-case class TableStats(rowCount: Long, colStats: Map[String, ColumnStats] = new HashMap())
+ * Table statistics.
+ */
+@PublicEvolving
+public final class TableStats {
+
+	/**
+	 * cardinality of table.
+	 */
+	private final long rowCount;
+
+	/**
+	 * colStats statistics of table columns.
+	 */
+	private final Map<String, ColumnStats> colStats;
+
+	public TableStats(long rowCount) {
+		this(rowCount, new HashMap<>());
+	}
+
+	public TableStats(long rowCount, Map<String, ColumnStats> colStats) {
+		this.rowCount = rowCount;
+		this.colStats = colStats;
+	}
+
+	public long getRowCount() {
+		return rowCount;
+	}
+
+	public Map<String, ColumnStats> getColumnStats() {
+		return colStats;
+	}
+}

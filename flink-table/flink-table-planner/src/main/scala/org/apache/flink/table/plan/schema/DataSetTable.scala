@@ -25,5 +25,5 @@ class DataSetTable[T](
     val dataSet: DataSet[T],
     override val fieldIndexes: Array[Int],
     override val fieldNames: Array[String],
-    override val statistic: FlinkStatistic = FlinkStatistic.of(TableStats(1000L)))
+    override val statistic: FlinkStatistic = FlinkStatistic.of(new TableStats(1000L)))
   extends InlineTable[T](dataSet.getType, fieldIndexes, fieldNames, statistic)
