@@ -52,6 +52,8 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
@@ -84,6 +86,7 @@ import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -229,6 +232,78 @@ public class TaskExecutorTest extends TestLogger {
 
 	@Rule
 	public TestName name = new TestName();
+
+	@Test
+	public void testTaskManagerServicesShutdown() throws Exception {
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService);
+
+		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
+
+		final long heartbeatInterval = 1000L;
+		final long heartbeatTimeout = 1000L;
+
+		final HeartbeatServices heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
+
+		final IOManager ioManager = new IOManagerAsync(new String[]{ tmp.newFolder().getAbsolutePath() });
+
+		final TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
+			false,
+			ioManager.getSpillingDirectories(),
+			Executors.directExecutor());
+
+		final int networkBufNum = 32;
+		final int bufferSize = 32 * 1024;
+		final NetworkEnvironmentConfiguration netConf = new NetworkEnvironmentConfiguration(
+			0.1f,
+			networkBufNum * bufferSize,
+			networkBufNum * bufferSize,
+			bufferSize,
+			IOManager.IOMode.SYNC,
+			0,
+			0,
+			2,
+			8,
+			null);
+		final NetworkEnvironment networkEnvironment = new NetworkEnvironment(
+			32,
+			netConf.networkBufferSize(),
+			netConf.partitionRequestInitialBackoff(),
+			netConf.partitionRequestMaxBackoff(),
+			netConf.networkBuffersPerChannel(),
+			netConf.floatingNetworkBuffersPerGate(),
+			true);
+		networkEnvironment.start();
+
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskManagerLocation(taskManagerLocation)
+			.setIoManager(ioManager)
+			.setNetworkEnvironment(networkEnvironment)
+			.setTaskSlotTable(taskSlotTable)
+			.setJobLeaderService(jobLeaderService)
+			.setTaskStateManager(localStateStoresManager)
+			.build();
+
+		final TaskExecutor taskManager = new TaskExecutor(
+			rpc,
+			taskManagerConfiguration,
+			haServices,
+			taskManagerServices,
+			heartbeatServices,
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			null,
+			dummyBlobCacheService,
+			testingFatalErrorHandler);
+
+		try {
+			taskManager.start();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
+		}
+
+		assertThat(taskManagerServices.getMemoryManager().isShutdown(), is(true));
+		assertThat(taskManagerServices.getNetworkEnvironment().isShutdown(), is(true));
+		assertThat(taskManagerServices.getIOManager().isProperlyShutDown(), is(true));
+	}
 
 	@Test
 	public void testHeartbeatTimeoutWithJobManager() throws Exception {
