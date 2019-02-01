@@ -20,12 +20,13 @@ package org.apache.flink.mesos.runtime.clusterframework;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.mesos.configuration.MesosOptions;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
+import org.apache.flink.runtime.failurerate.TimestampBasedFailureRater;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -84,8 +85,7 @@ public class MesosResourceManagerFactory implements ResourceManagerFactory<Regis
 			highAvailabilityServices,
 			rpcService.getScheduledExecutor());
 
-		int maxFailurePerInternal = configuration.getInteger(MesosOptions.MAX_FAILED_WORKERS_PER_INTERVAL);
-		long failureInterval = configuration.getInteger(MesosOptions.WORKERS_FAILURE_RATE_INTERVAL);
+		int failureRate = configuration.getInteger(ResourceManagerOptions.MAXIMUM_WORKERS_FAILURE_RATE);
 
 		return new MesosResourceManager(
 			rpcService,
@@ -105,7 +105,7 @@ public class MesosResourceManagerFactory implements ResourceManagerFactory<Regis
 			taskManagerContainerSpec,
 			webInterfaceUrl,
 			jobManagerMetricGroup,
-			Time.of(failureInterval, TimeUnit.SECONDS),
-			maxFailurePerInternal);
+			new TimestampBasedFailureRater(failureRate, Time.of(1, TimeUnit.MINUTES))
+		);
 	}
 }

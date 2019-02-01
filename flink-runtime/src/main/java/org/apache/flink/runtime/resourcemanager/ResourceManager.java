@@ -32,6 +32,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
+import org.apache.flink.runtime.failurerate.FailureRater;
+import org.apache.flink.runtime.failurerate.TimestampBasedFailureRater;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -71,7 +73,6 @@ import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nullable;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -148,13 +149,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	/** All registered listeners for status updates of the ResourceManager. */
 	private ConcurrentMap<String, InfoMessageListenerRpcGateway> infoMessageListeners;
 
-	protected final Time failureInterval;
-
-	protected final int maximumFailureTaskExecutorPerInternal;
-
-	private boolean checkFailureRate;
-
-	private final ArrayDeque<Long> taskExecutorFailureTimestamps;
+	protected final FailureRater failureRater;
 
 
 	/**
@@ -189,8 +184,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			clusterInformation,
 			fatalErrorHandler,
 			jobManagerMetricGroup,
-			Time.of(300, TimeUnit.SECONDS),
-			-1
+			new TimestampBasedFailureRater(-1, Time.of(1, TimeUnit.MINUTES))
 		);
 	}
 
@@ -206,8 +200,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler,
 			JobManagerMetricGroup jobManagerMetricGroup,
-			Time failureInterval,
-			int maxFailurePerInterval) {
+			FailureRater failureRater) {
 
 		super(rpcService, resourceManagerEndpointId);
 
@@ -236,16 +229,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		this.jmResourceIdRegistrations = new HashMap<>(4);
 		this.taskExecutors = new HashMap<>(8);
 		this.infoMessageListeners = new ConcurrentHashMap<>(8);
-		this.failureInterval = failureInterval;
-		this.maximumFailureTaskExecutorPerInternal = maxFailurePerInterval;
-
-		if (maximumFailureTaskExecutorPerInternal > 0) {
-			this.taskExecutorFailureTimestamps = new ArrayDeque<>(maximumFailureTaskExecutorPerInternal);
-			this.checkFailureRate = true;
-		} else {
-			this.taskExecutorFailureTimestamps = new ArrayDeque<>(0);
-			this.checkFailureRate = false;
-		}
+		this.failureRater = failureRater;
 	}
 
 
@@ -474,11 +458,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 					slotRequest.getJobId(),
 					slotRequest.getAllocationId());
 
-				if (shouldRejectRequests()) {
+				if (failureRater.exceedMaximumFailureRate()) {
 					return FutureUtils.completedExceptionally(new MaximumFailedTaskManagerExceedingException(
 						new RuntimeException(String.format("Maximum number of failed container %d in interval %s "
-							+ "is detected in Resource Manager.", taskExecutorFailureTimestamps.size(),
-							failureInterval.toString()))));
+							+ "is detected in Resource Manager.", failureRater.getCurrentFailureRate(),
+							failureRater.getFailureInterval().toString()))));
 				}
 
 				try {
@@ -686,42 +670,27 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		}
 	}
 
+	/**
+	 * Record failures in ResourceManagers. If maximum failure rate is met, then reject all pending reject.
+	 * @return whether should acquire new container/worker after the failure
+	 */
+	@VisibleForTesting
+	protected boolean recordFailure() {
+		failureRater.recordFailure();
+		if (failureRater.exceedMaximumFailureRate()) {
+			rejectAllPendingSlotRequests(new MaximumFailedTaskManagerExceedingException(
+				new RuntimeException(String.format("Maximum number of failed workers %d in interval %s"
+						+ "is detected in Resource Manager", failureRater.getMaximumFailureRate(),
+					failureRater.getFailureInterval().toString()))));
+
+			return false;
+		}
+
+		return true;
+	}
+
 	protected void rejectAllPendingSlotRequests(Exception e) {
 		slotManager.rejectAllPendingSlotRequests(e);
-	}
-
-	protected synchronized void recordFailure() {
-		if (!checkFailureRate) {
-			return;
-		}
-		if (isFailureTimestampFull()) {
-			taskExecutorFailureTimestamps.remove();
-		}
-		taskExecutorFailureTimestamps.add(System.currentTimeMillis());
-	}
-
-	protected boolean shouldRejectRequests() {
-		if (!checkFailureRate) {
-			return false;
-		}
-
-		Long currentTimeStamp = System.currentTimeMillis();
-		while (currentTimeStamp - taskExecutorFailureTimestamps.peek() > failureInterval.toMilliseconds()) {
-			taskExecutorFailureTimestamps.remove();
-		}
-
-		if (!isFailureTimestampFull()) {
-			return false;
-		} else {
-			Long earliestFailure = taskExecutorFailureTimestamps.peek();
-			Long latestFailure = taskExecutorFailureTimestamps.getLast();
-
-			return latestFailure - earliestFailure < failureInterval.toMilliseconds();
-		}
-	}
-
-	private boolean isFailureTimestampFull() {
-		return taskExecutorFailureTimestamps.size() >= maximumFailureTaskExecutorPerInternal;
 	}
 
 	// ------------------------------------------------------------------------

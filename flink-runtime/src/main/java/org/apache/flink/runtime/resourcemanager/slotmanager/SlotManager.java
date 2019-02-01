@@ -178,6 +178,7 @@ public class SlotManager implements AutoCloseable {
 		return pendingSlots.size();
 	}
 
+	@VisibleForTesting
 	public int getNumberPendingSlotRequest() {
 		return pendingSlotRequests.size();
 	}
