@@ -178,12 +178,13 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 		failJobMasterCreationWith = new AtomicReference<>();
 
+		TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		dispatcher = new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + UUID.randomUUID(),
 			configuration,
 			highAvailabilityServices,
-			new TestingResourceManagerGateway(),
+			() -> CompletableFuture.completedFuture(resourceManagerGateway),
 			blobServer,
 			new HeartbeatServices(1000L, 1000L),
 			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),

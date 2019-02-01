@@ -185,7 +185,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				configuration,
 				rpcService,
 				highAvailabilityServices,
-				resourceManager.getSelfGateway(ResourceManagerGateway.class),
+				resourceManagerGatewayRetriever,
 				blobServer,
 				heartbeatServices,
 				jobManagerMetricGroup,
