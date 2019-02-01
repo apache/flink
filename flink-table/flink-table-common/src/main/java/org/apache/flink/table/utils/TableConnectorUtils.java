@@ -16,20 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.util
+package org.apache.flink.table.utils;
+
+import org.apache.flink.annotation.Internal;
 
 /**
-  * Utils for table sources and sinks.
-  */
-object TableConnectorUtil {
+ * Utilities for table sources and sinks.
+ */
+@Internal
+public final class TableConnectorUtils {
 
-  /** Returns the table connector name used for log and web UI */
-  def generateRuntimeName(clazz: Class[_], fields: Array[String]): String = {
-    val className = clazz.getSimpleName
-    if (null == fields) {
-      s"$className(*)"
-    } else {
-      s"$className(${fields.mkString(", ")})"
-    }
-  }
+	private TableConnectorUtils() {
+		// do not instantiate
+	}
+
+	/**
+	 * Returns the table connector name used for logging and web UI.
+	 */
+	public static String generateRuntimeName(Class<?> clazz, String[] fields) {
+		String className = clazz.getSimpleName();
+		if (null == fields) {
+			return className + "(*)";
+		} else {
+			return className + "(" + String.join(", ", fields) + ")";
+		}
+	}
 }
