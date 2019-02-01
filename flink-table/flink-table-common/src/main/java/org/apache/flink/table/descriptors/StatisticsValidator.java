@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * Validator for {@link FormatDescriptor}.
+ * Validator for {@link Statistics}.
  */
 @Internal
 public class StatisticsValidator implements DescriptorValidator {
