@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.api;
 
-import org.apache.commons.collections.IteratorUtils;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -40,7 +39,16 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.datastream.*;
+import org.apache.flink.streaming.api.datastream.BroadcastConnectedStream;
+import org.apache.flink.streaming.api.datastream.BroadcastStream;
+import org.apache.flink.streaming.api.datastream.ConnectedStreams;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.DataStreamUtils;
+import org.apache.flink.streaming.api.datastream.KeyedStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
@@ -76,6 +84,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.commons.collections.IteratorUtils;
 import org.hamcrest.core.StringStartsWith;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -86,9 +95,18 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 
 /**
  * Tests for {@link DataStream}.
@@ -292,8 +310,9 @@ public class DataStreamTest extends TestLogger {
 		assertTrue(plan.contains("testCoFlatMap"));
 		assertTrue(plan.contains("testWindowFold"));
 	}
+
 	@Test
-	public void testMultiSum() {
+	public void testMultiFieldSum() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Tuple3<Long, Long, Integer>> src = env.fromCollection(Arrays.asList(
 			new Tuple3<>(1L, 2L, 2),
@@ -310,7 +329,6 @@ public class DataStreamTest extends TestLogger {
 			new Tuple3<>(2L, 2L, 2),
 			new Tuple3<>(2L, 5L, 5),
 			new Tuple3<>(2L, 9L, 9));
-
 
 		try {
 			Iterator<Tuple3<Long, Long, Integer>> result = DataStreamUtils.collect(src.keyBy(0).sum(new int[] {1, 2}).setParallelism(1));
@@ -1564,6 +1582,10 @@ public class DataStreamTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Custom pojo class for test.
+	 *
+	 */
 	public static class CustomPOJO3 {
 		private long f0;
 		private long f1;
@@ -1573,6 +1595,7 @@ public class DataStreamTest extends TestLogger {
 			this.f1 = 0L;
 			this.f2 = 0;
 		}
+
 		public CustomPOJO3(long f0, long f1, int f2) {
 			this.f0 = f0;
 			this.f1 = f1;
@@ -1605,8 +1628,12 @@ public class DataStreamTest extends TestLogger {
 
 		@Override
 		public boolean equals(Object o) {
-			if (this == o) { return true; }
-			if (o == null || getClass() != o.getClass()) { return false; }
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
 			CustomPOJO3 that = (CustomPOJO3) o;
 			return f0 == that.f0 &&
 				f1 == that.f1 &&

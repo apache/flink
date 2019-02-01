@@ -743,7 +743,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            and primitive types (which is considered as having one field).
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T> sum(int[] positionToSums ) {
+	public SingleOutputStreamOperator<T> sum(int[] positionToSums) {
 		return aggregate(new MultiFieldSumAggregator<>(positionToSums, getType(), getExecutionConfig()));
 	}
 

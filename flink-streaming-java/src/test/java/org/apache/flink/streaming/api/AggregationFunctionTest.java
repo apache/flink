@@ -169,7 +169,6 @@ public class AggregationFunctionTest {
 
 	}
 
-
 	@Test
 	public void pojoGroupSumIntegerTest() throws Exception {
 
@@ -430,6 +429,7 @@ public class AggregationFunctionTest {
 		}
 		return inputList;
 	}
+
 	private List<Tuple3<Integer, Integer, Integer>> getInputTuple3List() {
 		ArrayList<Tuple3<Integer, Integer, Integer>> inputList = new ArrayList<>();
 		for (int i = 0; i < 9; i++) {
@@ -437,8 +437,6 @@ public class AggregationFunctionTest {
 		}
 		return inputList;
 	}
-
-
 
 	private List<MyPojo> getInputPojoList() {
 		ArrayList<MyPojo> inputList = new ArrayList<>();
