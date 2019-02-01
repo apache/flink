@@ -1040,7 +1040,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		//   - on notification of the leader, the connection will be established and
 		//     the slot pool will start requesting slots
 		resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
-		executionGraph.start(getMainThreadExecutor());
 	}
 
 	private void setNewFencingToken(JobMasterId newJobMasterId) {
@@ -1111,6 +1110,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		if (executionGraph.getState() == JobStatus.CREATED) {
 			executionGraphAssignedFuture = CompletableFuture.completedFuture(null);
+			executionGraph.start(getMainThreadExecutor());
 		} else {
 			suspendAndClearExecutionGraphFields(new FlinkException("ExecutionGraph is being reset in order to be rescheduled."));
 			final JobManagerJobMetricGroup newJobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
@@ -1118,6 +1118,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 			executionGraphAssignedFuture = executionGraph.getTerminationFuture().handle(
 				(JobStatus ignored, Throwable throwable) -> {
+					newExecutionGraph.start(getMainThreadExecutor());
 					assignExecutionGraph(newExecutionGraph, newJobManagerJobMetricGroup);
 					return null;
 				});
