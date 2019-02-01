@@ -44,6 +44,7 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.exceptions.MaximumFailedTaskManagerExceedingException;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -1651,6 +1652,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 							slotRequestId,
 							task.getSlotSharingGroupId(),
 							failure);
+					}
+
+					if (failure instanceof MaximumFailedTaskManagerExceedingException) {
+						throw (MaximumFailedTaskManagerExceedingException) failure;
 					}
 			});
 

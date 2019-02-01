@@ -178,6 +178,7 @@ public class SlotManager implements AutoCloseable {
 		return pendingSlots.size();
 	}
 
+	@VisibleForTesting
 	public int getNumberPendingSlotRequest() {
 		return pendingSlotRequests.size();
 	}
@@ -311,6 +312,13 @@ public class SlotManager implements AutoCloseable {
 	public void rejectAllPendingSlotRequests(Exception cause) {
 		for (PendingSlotRequest pendingSlotRequest : pendingSlotRequests.values()) {
 			rejectPendingSlotRequest(pendingSlotRequest, cause);
+
+			// notify each job master about this exception
+			resourceActions.notifyAllocationFailure(
+				pendingSlotRequest.getJobId(),
+				pendingSlotRequest.getAllocationId(),
+				cause
+			);
 		}
 
 		pendingSlotRequests.clear();

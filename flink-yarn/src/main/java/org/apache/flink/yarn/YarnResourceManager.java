@@ -19,7 +19,6 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
@@ -31,13 +30,13 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
+import org.apache.flink.runtime.failurerate.FailureRater;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.resourcemanager.exceptions.MaximumFailedTaskManagerExceedingException;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -135,22 +134,21 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	private final Resource resource;
 
 	public YarnResourceManager(
-			RpcService rpcService,
-			String resourceManagerEndpointId,
-			ResourceID resourceId,
-			Configuration flinkConfig,
-			Map<String, String> env,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			SlotManager slotManager,
-			MetricRegistry metricRegistry,
-			JobLeaderIdService jobLeaderIdService,
-			ClusterInformation clusterInformation,
-			FatalErrorHandler fatalErrorHandler,
-			@Nullable String webInterfaceUrl,
-			JobManagerMetricGroup jobManagerMetricGroup,
-			Time failureInterval,
-			int maxFailurePerInterval) {
+		RpcService rpcService,
+		String resourceManagerEndpointId,
+		ResourceID resourceId,
+		Configuration flinkConfig,
+		Map<String, String> env,
+		HighAvailabilityServices highAvailabilityServices,
+		HeartbeatServices heartbeatServices,
+		SlotManager slotManager,
+		MetricRegistry metricRegistry,
+		JobLeaderIdService jobLeaderIdService,
+		ClusterInformation clusterInformation,
+		FatalErrorHandler fatalErrorHandler,
+		@Nullable String webInterfaceUrl,
+		JobManagerMetricGroup jobManagerMetricGroup,
+		FailureRater failureRater) {
 		super(
 			rpcService,
 			resourceManagerEndpointId,
@@ -163,8 +161,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			clusterInformation,
 			fatalErrorHandler,
 			jobManagerMetricGroup,
-			failureInterval,
-			maxFailurePerInterval);
+			failureRater);
 		this.flinkConfig  = flinkConfig;
 		this.yarnConfig = new YarnConfiguration();
 		this.env = env;
@@ -409,13 +406,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 						workerNodeMap.remove(resourceId);
 						resourceManagerClient.releaseAssignedContainer(container.getId());
 						log.error("Could not start TaskManager in container {}.", container.getId(), t);
-						recordFailure();
-						if (shouldRejectRequests()) {
-							rejectAllPendingSlotRequests(new MaximumFailedTaskManagerExceedingException(
-								String.format("Maximum number of failed container %d in interval %s"
-										+ "is detected in Resource Manager", maximumFailureTaskExecutorPerInternal,
-									failureInterval.toString()), t));
-						} else {
+						if (recordFailure()) {
 							// and ask for a new one
 							requestYarnContainerIfRequired();
 						}

@@ -28,11 +28,6 @@
             <td>The maximum number of failed workers before the cluster fails. May be set to -1 to disable this feature. This option is ignored unless Flink is in <a href="#legacy">legacy mode</a>.</td>
         </tr>
         <tr>
-            <td><h5>mesos.maximum-failed-workers-per-interval</h5></td>
-            <td style="word-wrap: break-word;">-1</td>
-            <td>Maximum number of workers the system is going to reallocate in case of a failure in an interval.</td>
-        </tr>
-        <tr>
             <td><h5>mesos.resourcemanager.artifactserver.port</h5></td>
             <td style="word-wrap: break-word;">0</td>
             <td>The config parameter defining the Mesos artifact server port to use. Setting the port to 0 will let the OS choose an available port.</td>
@@ -71,11 +66,6 @@
             <td><h5>mesos.resourcemanager.tasks.port-assignments</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Comma-separated list of configuration keys which represent a configurable port. All port keys will dynamically get a port assigned through Mesos.</td>
-        </tr>
-        <tr>
-            <td><h5>mesos.workers-failure-rate-interval</h5></td>
-            <td style="word-wrap: break-word;">300</td>
-            <td></td>
         </tr>
     </tbody>
 </table>
