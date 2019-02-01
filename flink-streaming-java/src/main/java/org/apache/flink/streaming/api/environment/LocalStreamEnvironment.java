@@ -118,7 +118,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 		try {
 			miniCluster.start();
-			configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
+			configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().get().getPort());
 
 			return miniCluster.executeJobBlocking(jobGraph);
 		}

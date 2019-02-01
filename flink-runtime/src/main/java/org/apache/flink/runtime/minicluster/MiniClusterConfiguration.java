@@ -87,12 +87,6 @@ public class MiniClusterConfiguration {
 				configuration.getString(TaskManagerOptions.HOST, "localhost");
 	}
 
-	public String getResourceManagerBindAddress() {
-		return commonBindAddress != null ?
-			commonBindAddress :
-			configuration.getString(JobManagerOptions.ADDRESS, "localhost"); // TODO: Introduce proper configuration constant for the resource manager hostname
-	}
-
 	public Time getRpcTimeout() {
 		FiniteDuration duration = AkkaUtils.getTimeout(configuration);
 		return Time.of(duration.length(), duration.unit());

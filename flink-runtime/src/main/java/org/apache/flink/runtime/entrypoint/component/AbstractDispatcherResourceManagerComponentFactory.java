@@ -160,9 +160,11 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 			log.debug("Starting Dispatcher REST endpoint.");
 			webMonitorEndpoint.start();
 
+			final String hostname = getHostname(rpcService);
+
 			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
 				metricRegistry,
-				rpcService.getAddress(),
+				hostname,
 				ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
 
 			resourceManager = resourceManagerFactory.createResourceManager(
@@ -173,7 +175,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				heartbeatServices,
 				metricRegistry,
 				fatalErrorHandler,
-				new ClusterInformation(rpcService.getAddress(), blobServer.getPort()),
+				new ClusterInformation(hostname, blobServer.getPort()),
 				webMonitorEndpoint.getRestBaseUrl(),
 				jobManagerMetricGroup);
 
@@ -256,6 +258,11 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 
 			throw new FlinkException("Could not create the DispatcherResourceManagerComponent.", exception);
 		}
+	}
+
+	protected String getHostname(RpcService rpcService) {
+		final String rpcServiceAddress = rpcService.getAddress();
+		return rpcServiceAddress == "" ? "localhost" : rpcServiceAddress;
 	}
 
 	protected abstract DispatcherResourceManagerComponent<T> createDispatcherResourceManagerComponent(
