@@ -71,6 +71,11 @@ The most frequent issues where users need to interact with Flink's data type han
   the data types due to Java's generic type erasure. See [Creating a TypeInformation or TypeSerializer](#creating-a-typeinformation-or-typeserializer)
   for details.
 
+* **Serializer for `Protobuf` generated message:** From Flink-1.8, we have built-in `ProtobufSerializer`, and no longer to use Kryo
+ to serialize Google protobuf's messages. Due to the incompatibility of `protobuf-java` package across different versions, Flink would not
+ directly include any specific `protobuf-java` classes in its classpath. And users must ensure to add the wanted `protobuf-java` in the classpath,
+ otherwise it might be covered by cluster environment, e.g. the version of `protobuf-java` used in Hadoop is `2.5.0`.
+
 
 ## Flink's TypeInformation class
 

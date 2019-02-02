@@ -122,7 +122,6 @@ under the License.
 		<metrics.version>3.1.5</metrics.version>
 		<prometheus.version>0.3.0</prometheus.version>
 		<avro.version>1.8.2</avro.version>
-		<!-- Use the same protobuf-java version as Hadoop -->
 		<protobuf.version>2.5.0</protobuf.version>
 		<junit.version>4.12</junit.version>
 		<mockito.version>2.21.0</mockito.version>
@@ -324,12 +323,6 @@ under the License.
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro</artifactId>
 				<version>${avro.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>com.google.protobuf</groupId>
-				<artifactId>protobuf-java</artifactId>
-				<version>${protobuf.version}</version>
 			</dependency>
 
 			<!-- For dependency convergence -->
@@ -1365,8 +1358,6 @@ under the License.
 						<exclude>tools/releasing/release/**</exclude>
 						<!-- manually installed version on travis -->
 						<exclude>apache-maven-3.2.5/**</exclude>
-						<!-- manually installed protobuf on travis -->
-						<exclude>protobuf-2.5.0/**</exclude>
 						<!-- PyCharm -->
 						<exclude>**/.idea/**</exclude>
 						<!-- Generated code via Avro -->

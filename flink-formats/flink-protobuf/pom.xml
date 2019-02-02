@@ -39,13 +39,14 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
-			<!--<scope>provided</scope>-->
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>com.google.protobuf</groupId>
 			<artifactId>protobuf-java</artifactId>
-			<!-- managed version -->
+			<version>${protobuf.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
@@ -90,6 +91,9 @@ under the License.
 
 	<build>
 		<plugins>
+			<!-- This plugin is used to generate protobuf's message, we recommend to use protoc 2.5.0 which locates
+			in the path defended in 'protocExecutable' option. As protobuf is not necessary to build Flink,
+			this plugin would not be executed by default. -->
 			<plugin>
 				<groupId>org.xolstice.maven.plugins</groupId>
 				<artifactId>protobuf-maven-plugin</artifactId>
@@ -99,14 +103,6 @@ under the License.
 					<outputDirectory>${project.basedir}/src/test/java/</outputDirectory>
 					<clearOutputDirectory>false</clearOutputDirectory>
 				</configuration>
-				<executions>
-					<execution>
-						<goals>
-							<goal>compile</goal>
-							<goal>test-compile</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 		</plugins>
 	</build>

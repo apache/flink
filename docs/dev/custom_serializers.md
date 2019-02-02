@@ -29,9 +29,9 @@ serializer. You may register your own serializer or a serialization system like
 Apache Thrift with Kryo. To do that, simply register the type
 class and the serializer in the `ExecutionConfig` of your Flink program.
 
-**NOTE:** From Flink-1.8, we have built-in `ProtobufSerializer`, and no longer to
-use Kryo to serialize Google protobuf's messages. Previous solution to extend Kryo's
-serializer class with `chill-protobuf`'s serializer would not take effect, and previously
+**NOTE:** Before Flink-1.8, we use Kryo to (de)serialize Google protobuf's message and register them
+with `chill-protobuf`'s serializer. From Flink-1.8, we have built-in `ProtobufSerializer`, which means
+previous configuration and solution would not actually take effect. Meanwhile, previously
 serialized state within savepoint would be migrated to use new `ProtobufSerializer` automatically.
 
 {% highlight java %}

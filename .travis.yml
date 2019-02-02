@@ -64,11 +64,6 @@ before_install:
    - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
    - chmod +x docker-compose
    - sudo mv docker-compose /usr/local/bin
-# Install protobuf 2.6.1
-   - wget https://github.com/protocolbuffers/protobuf/releases/download/v2.5.0/protobuf-2.5.0.tar.gz
-   - tar -xzvf protobuf-2.5.0.tar.gz
-   - pushd protobuf-2.5.0 && ./configure --prefix=/usr/local && make && sudo make install && popd
-   - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 
 # When modifying the matrix you also have to modify travis_controller.sh#getCurrentStage
 jdk: "oraclejdk8"
