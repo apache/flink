@@ -128,7 +128,6 @@ under the License.
 		<powermock.version>2.0.0-RC.4</powermock.version>
 		<hamcrest.version>1.3</hamcrest.version>
 		<japicmp.skip>false</japicmp.skip>
-		<codebase>new</codebase>
 		<!--
 			Keeping the MiniKDC version fixed instead of taking hadoop version dependency
 			to support testing Kafka, ZK etc., modules that does not have Hadoop dependency
@@ -1389,7 +1388,6 @@ under the License.
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 						<log4j.configuration>${log4j.configuration}</log4j.configuration>
-						<codebase>${codebase}</codebase>
 					</systemPropertyVariables>
 					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseG1GC</argLine>
 				</configuration>
