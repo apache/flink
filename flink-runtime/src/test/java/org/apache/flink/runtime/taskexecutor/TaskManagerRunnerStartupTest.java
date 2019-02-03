@@ -27,6 +27,7 @@ import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -34,7 +35,9 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.FileUtils;
+import org.junit.After;
 import org.junit.Assume;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -62,6 +65,20 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 
 	private RpcService rpcService = createRpcService();
 
+	private TestingHighAvailabilityServices highAvailabilityServices;
+
+	@Before
+	public void setupTest() {
+		highAvailabilityServices = new TestingHighAvailabilityServices();
+	}
+
+	@After
+	public void tearDownTest() throws Exception {
+		highAvailabilityServices.closeAndCleanupAllData();
+		highAvailabilityServices = null;
+	}
+
+
 	/**
 	 * Tests that the TaskManagerRunner startup fails synchronously when the I/O
 	 * directories are not writable.
@@ -77,24 +94,16 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 			cfg.setString(CoreOptions.TMP_DIRS, nonWritable.getAbsolutePath());
 
 			try {
-				TaskManagerRunner.startTaskManager(
-					cfg,
-					ResourceID.generate(),
-					rpcService,
-					mock(HighAvailabilityServices.class),
-					mock(HeartbeatServices.class),
-					NoOpMetricRegistry.INSTANCE,
-					mock(BlobCacheService.class),
-					false,
-					mock(FatalErrorHandler.class));
 
-				fail("Should fail synchronously with an exception");
+				startTaskManager(
+					cfg,
+					rpcService,
+					highAvailabilityServices);
+
+				fail("Should fail synchronously with an IOException");
 			} catch (IOException e) {
 				// splendid!
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		} finally {
 			// noinspection ResultOfMethodCallIgnored
 			nonWritable.setWritable(true, false);
@@ -110,54 +119,39 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	 * Tests that the TaskManagerRunner startup fails synchronously when the memory configuration is wrong.
 	 */
 	@Test
-	public void testMemoryConfigWrong() {
+	public void testMemoryConfigWrong() throws Exception {
+		Configuration cfg = new Configuration();
+		cfg.setBoolean(TaskManagerOptions.MANAGED_MEMORY_PRE_ALLOCATE, true);
+
+		// something invalid
+		cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "-42m");
 		try {
-			Configuration cfg = new Configuration();
-			cfg.setBoolean(TaskManagerOptions.MANAGED_MEMORY_PRE_ALLOCATE, true);
 
-			// something invalid
-			cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "-42m");
-			try {
-				TaskManagerRunner.startTaskManager(
-					cfg,
-					ResourceID.generate(),
-					rpcService,
-					mock(HighAvailabilityServices.class),
-					mock(HeartbeatServices.class),
-					NoOpMetricRegistry.INSTANCE,
-					mock(BlobCacheService.class),
-					false,
-					mock(FatalErrorHandler.class));
+			startTaskManager(
+				cfg,
+				rpcService,
+				highAvailabilityServices);
 
-				fail("Should fail synchronously with an exception");
-			} catch (IllegalConfigurationException e) {
-				// splendid!
-			}
+			fail("Should fail synchronously with an exception");
+		} catch (IllegalConfigurationException e) {
+			// splendid!
+		}
 
-			// something ridiculously high
-			final long memSize = (((long) Integer.MAX_VALUE - 1) *
-				MemorySize.parse(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()).getBytes()) >> 20;
-			cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, memSize + "m");
-			try {
-				TaskManagerRunner.startTaskManager(
-					cfg,
-					ResourceID.generate(),
-					rpcService,
-					mock(HighAvailabilityServices.class),
-					mock(HeartbeatServices.class),
-					NoOpMetricRegistry.INSTANCE,
-					mock(BlobCacheService.class),
-					false,
-					mock(FatalErrorHandler.class));
+		// something ridiculously high
+		final long memSize = (((long) Integer.MAX_VALUE - 1) *
+			MemorySize.parse(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()).getBytes()) >> 20;
+		cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, memSize + "m");
+		try {
 
-				fail("Should fail synchronously with an exception");
-			} catch (Exception e) {
-				// splendid!
-				assertTrue(e.getCause() instanceof OutOfMemoryError);
-			}
-		} catch(Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+			startTaskManager(
+				cfg,
+				rpcService,
+				highAvailabilityServices);
+
+			fail("Should fail synchronously with an exception");
+		} catch (Exception e) {
+			// splendid!
+			assertTrue(e.getCause() instanceof OutOfMemoryError);
 		}
 	}
 
@@ -166,22 +160,16 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	 */
 	@Test
 	public void testStartupWhenNetworkStackFailsToInitialize() throws Exception {
-		final ServerSocket blocker = blockServerSocket();
+		final ServerSocket blocker = createBlockingServerSocket();
 
 		try {
 			final Configuration cfg = new Configuration();
 			cfg.setInteger(TaskManagerOptions.DATA_PORT, blocker.getLocalPort());
 
-			TaskManagerRunner.startTaskManager(
+			startTaskManager(
 				cfg,
-				ResourceID.generate(),
 				rpcService,
-				mock(HighAvailabilityServices.class),
-				mock(HeartbeatServices.class),
-				NoOpMetricRegistry.INSTANCE,
-				mock(BlobCacheService.class),
-				false,
-				mock(FatalErrorHandler.class));
+				highAvailabilityServices);
 
 			fail("Should throw IOException when the network stack cannot be initialized.");
 		} catch (IOException e) {
@@ -199,7 +187,25 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 		return rpcService;
 	}
 
-	private static ServerSocket blockServerSocket() {
+	private static void startTaskManager(
+		Configuration configuration,
+		RpcService rpcService,
+		HighAvailabilityServices highAvailabilityServices
+	) throws Exception {
+
+		TaskManagerRunner.startTaskManager(
+			configuration,
+			ResourceID.generate(),
+			rpcService,
+			highAvailabilityServices,
+			mock(HeartbeatServices.class),
+			NoOpMetricRegistry.INSTANCE,
+			mock(BlobCacheService.class),
+			false,
+			mock(FatalErrorHandler.class));
+	}
+
+	private static ServerSocket createBlockingServerSocket() {
 		try {
 			return new ServerSocket(0, 50, InetAddress.getByName(LOCAL_HOST));
 		} catch (IOException e) {
