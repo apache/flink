@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
@@ -212,6 +213,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		// the default network buffers size (10% of heap max =~ 150MB) seems to much for this test case
 		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(80L << 20)); // 80 MB
 		config.setString(AkkaOptions.FRAMESIZE, String.valueOf(MAX_MEM_STATE_SIZE) + "b");
+
+		config.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 600_000L);
 
 		if (zkServer != null) {
 			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
