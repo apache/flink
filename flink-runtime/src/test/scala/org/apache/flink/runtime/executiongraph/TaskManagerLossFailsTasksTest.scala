@@ -73,7 +73,7 @@ class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
           new NoRestartStrategy(),
           scheduler)
 
-        eg.start(TestComponentMainThreadExecutor.forMainThread)
+        eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread)
 
         eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources)
 

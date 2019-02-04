@@ -38,7 +38,7 @@ public class ScheduledFutureAdapterTest extends TestLogger {
 	private TestFuture innerDelegate;
 
 	@Before
-	public void before() throws Exception {
+	public void before() {
 		this.innerDelegate = new TestFuture();
 		this.objectUnderTest = new ScheduledFutureAdapter<>(innerDelegate, 4200000321L, TimeUnit.NANOSECONDS);
 	}
@@ -77,7 +77,6 @@ public class ScheduledFutureAdapterTest extends TestLogger {
 	@Test
 	public void testCompareToEqualsHashCode() {
 
-		Assert.assertEquals(0, objectUnderTest.compareTo(objectUnderTest));
 		Assert.assertEquals(0, objectUnderTest.compareTo(objectUnderTest));
 		Assert.assertEquals(objectUnderTest, objectUnderTest);
 

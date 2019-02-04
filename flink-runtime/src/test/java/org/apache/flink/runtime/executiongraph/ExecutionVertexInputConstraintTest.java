@@ -51,7 +51,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class ExecutionVertexInputConstraintTest extends TestLogger {
 
-	private TestComponentMainThreadExecutor mainThreadExecutor = TestComponentMainThreadExecutor.forMainThread();
+	private TestingComponentMainThreadExecutorServiceAdapter mainThreadExecutor = TestingComponentMainThreadExecutorServiceAdapter.forMainThread();
 
 	@Test
 	public void testInputConsumable() throws Exception {

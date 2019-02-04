@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
@@ -110,7 +109,7 @@ public class TestRestartStrategy implements RestartStrategy {
 			for (int i = 0; i < completableFutures.length; ++i) {
 				completableFutures[i] = triggerNextAction();
 			}
-			return FutureUtils.ConjunctFuture.allOf(completableFutures);
+			return CompletableFuture.allOf(completableFutures);
 		}
 	}
 

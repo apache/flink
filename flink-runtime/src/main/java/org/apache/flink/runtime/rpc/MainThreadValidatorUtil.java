@@ -65,10 +65,7 @@ public final class MainThreadValidatorUtil {
 			String violationMsg = "Violation of main thread constraint detected: expected <"
 				+ expected + "> but running in <" + actual + ">.";
 
-			log.warn(violationMsg,
-				expected,
-				actual,
-				new Exception(violationMsg));
+			log.warn(violationMsg, new Exception(violationMsg));
 
 			return false;
 		}

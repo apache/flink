@@ -35,7 +35,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -91,14 +90,8 @@ public class RestartIndividualStrategy extends FailoverStrategy {
 		//       so we could actually avoid the future. We use it anyways because it is cheap and
 		//       it helps to support better testing
 		final CompletableFuture<ExecutionState> terminationFuture = taskExecution.getTerminalStateFuture();
-
-		Consumer<ExecutionState> restartProcedure = (ExecutionState executionState) -> {
-			performExecutionVertexRestart(
-				taskExecution.getVertex(),
-				taskExecution.getGlobalModVersion());
-		};
-
-		terminationFuture.thenAccept(restartProcedure);
+		terminationFuture.thenRun(
+			() -> performExecutionVertexRestart(taskExecution.getVertex(), taskExecution.getGlobalModVersion()));
 	}
 
 	protected void performExecutionVertexRestart(

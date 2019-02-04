@@ -254,7 +254,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	@Test
 	public void testSuspendWhileRestarting() throws Exception {
 		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(10));
-		eg.start(TestComponentMainThreadExecutor.forMainThread());
+		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 		eg.scheduleForExecution();
 
 		assertEquals(JobStatus.RUNNING, eg.getState());
@@ -345,7 +345,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 			slotProvider,
 			new FixedDelayRestartStrategy(0, 0),
 			vertex);
-		simpleTestGraph.start(TestComponentMainThreadExecutor.forMainThread());
+		simpleTestGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 		return simpleTestGraph;
 	}
 }

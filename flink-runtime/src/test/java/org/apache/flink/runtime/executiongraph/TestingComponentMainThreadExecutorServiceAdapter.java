@@ -30,9 +30,9 @@ import java.util.concurrent.ScheduledExecutorService;
 /**
  * An implementation of {@link org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor} for tests.
  */
-public class TestComponentMainThreadExecutor extends ComponentMainThreadExecutorServiceAdapter {
+public class TestingComponentMainThreadExecutorServiceAdapter extends ComponentMainThreadExecutorServiceAdapter {
 
-	public TestComponentMainThreadExecutor(
+	public TestingComponentMainThreadExecutorServiceAdapter(
 		@Nonnull ScheduledExecutorService scheduledExecutorService,
 		@Nonnull Thread mainThread) {
 
@@ -41,9 +41,9 @@ public class TestComponentMainThreadExecutor extends ComponentMainThreadExecutor
 		});
 	}
 
-	public static TestComponentMainThreadExecutor forMainThread() {
+	public static TestingComponentMainThreadExecutorServiceAdapter forMainThread() {
 		final Thread main = Thread.currentThread();
-		return new TestComponentMainThreadExecutor(new DirectScheduledExecutorService() {
+		return new TestingComponentMainThreadExecutorServiceAdapter(new DirectScheduledExecutorService() {
 			@Override
 			public void execute(Runnable command) {
 				assert MainThreadValidatorUtil.isRunningInExpectedThread(main);
@@ -56,13 +56,9 @@ public class TestComponentMainThreadExecutor extends ComponentMainThreadExecutor
 	 * Creates a test executor that delegates to the given {@link ScheduledExecutorService}. The given executor must
 	 * execute all submissions with the same thread.
 	 */
-	public static TestComponentMainThreadExecutor forSingleThreadExecutor(
+	public static TestingComponentMainThreadExecutorServiceAdapter forSingleThreadExecutor(
 		@Nonnull ScheduledExecutorService singleThreadExecutor) {
-		try {
-			Thread thread = CompletableFuture.supplyAsync(Thread::currentThread, singleThreadExecutor).get();
-			return new TestComponentMainThreadExecutor(singleThreadExecutor, thread);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+		Thread thread = CompletableFuture.supplyAsync(Thread::currentThread, singleThreadExecutor).join();
+		return new TestingComponentMainThreadExecutorServiceAdapter(singleThreadExecutor, thread);
 	}
 }

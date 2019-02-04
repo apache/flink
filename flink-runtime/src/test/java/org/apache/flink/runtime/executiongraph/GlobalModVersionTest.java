@@ -171,7 +171,7 @@ public class GlobalModVersionTest extends TestLogger {
 			new CustomStrategy(failoverStrategy),
 			slotProvider);
 
-		graph.start(TestComponentMainThreadExecutor.forMainThread());
+		graph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		JobVertex jv = new JobVertex("test vertex");
 		jv.setInvokableClass(NoOpInvokable.class);

@@ -85,7 +85,7 @@ import static org.mockito.Mockito.when;
  */
 public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
 
-	private final TestComponentMainThreadExecutor mainThreadExecutor = TestComponentMainThreadExecutor.forMainThread();
+	private final TestingComponentMainThreadExecutorServiceAdapter mainThreadExecutor = TestingComponentMainThreadExecutorServiceAdapter.forMainThread();
 
 	/**
 	 * Tests that a cancellation concurrent to a local failover leads to a properly
@@ -217,7 +217,7 @@ public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
 		// now report that cancelling is complete for the other vertex
 		vertex2.getCurrentExecutionAttempt().cancelingComplete();
 
-		waitUntilJobStatus(graph, JobStatus.FAILED, 1000L);
+		assertEquals(JobStatus.FAILED, graph.getState());
 		assertTrue(vertex1.getCurrentExecutionAttempt().getState().isTerminal());
 		assertTrue(vertex2.getCurrentExecutionAttempt().getState().isTerminal());
 

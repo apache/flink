@@ -57,7 +57,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
-import org.apache.flink.util.concurrent.FutureConsumerWithException;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 
@@ -432,8 +432,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			final CompletableFuture<Void> deploymentFuture;
 
 			if (allocationFuture.isDone() || queued) {
-				FutureConsumerWithException<Execution, Exception> deployment = value -> deploy();
-				deploymentFuture = allocationFuture.thenAccept(deployment);
+				deploymentFuture = allocationFuture.thenRun(ThrowingRunnable.unchecked(this::deploy));
 			} else {
 				deploymentFuture = FutureUtils.completedExceptionally(
 					new IllegalArgumentException("The slot allocation future has not been completed yet."));
@@ -675,7 +674,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			CompletableFuture<Acknowledge> stopResultFuture = FutureUtils.retry(
 				() -> taskManagerGateway.stopTask(attemptId, rpcTimeout),
 				NUM_STOP_CALL_TRIES,
-				executor);
+				vertex.getExecutionGraph().getJobMasterMainThreadExecutor());
 
 			stopResultFuture.exceptionally(
 				failure -> {

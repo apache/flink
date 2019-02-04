@@ -48,10 +48,10 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 	private static final int NUM_TASKS = 31;
 
 	@ClassRule
-	public static final ComponentMainThreadTestExecutor.Resource EXECUTOR_RESOURCE =
-		new ComponentMainThreadTestExecutor.Resource();
+	public static final TestingComponentMainThreadExecutor.Resource EXECUTOR_RESOURCE =
+		new TestingComponentMainThreadExecutor.Resource();
 
-	private final ComponentMainThreadTestExecutor testMainThreadUtil =
+	private final TestingComponentMainThreadExecutor testMainThreadUtil =
 		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
 
 	@Test

@@ -171,7 +171,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 				blobWriter,
 				AkkaUtils.getDefaultTimeout());
 
-			eg.start(TestComponentMainThreadExecutor.forMainThread());
+			eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 			checkJobOffloaded(eg);
 
@@ -456,7 +456,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			blobWriter,
 			AkkaUtils.getDefaultTimeout());
 
-		eg.start(TestComponentMainThreadExecutor.forMainThread());
+		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		checkJobOffloaded(eg);
 
@@ -539,7 +539,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout());
 		checkJobOffloaded(eg);
 
-		eg.start(TestComponentMainThreadExecutor.forMainThread());
+		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 		
 		eg.setQueuedSchedulingAllowed(false);
 
@@ -619,7 +619,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			sourceVertex,
 			sinkVertex);
 
-		executionGraph.start(TestComponentMainThreadExecutor.forMainThread());
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 		executionGraph.setScheduleMode(ScheduleMode.EAGER);
 		executionGraph.scheduleForExecution();
 

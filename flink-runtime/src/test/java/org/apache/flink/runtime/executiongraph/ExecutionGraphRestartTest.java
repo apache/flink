@@ -72,11 +72,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway;
@@ -102,7 +99,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
 
-	private TestComponentMainThreadExecutor mainThreadExecutor = TestComponentMainThreadExecutor.forMainThread();
+	private TestingComponentMainThreadExecutorServiceAdapter mainThreadExecutor = TestingComponentMainThreadExecutorServiceAdapter.forMainThread();
 
 	@After
 	public void shutdown() {
@@ -351,12 +348,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		failedExecution.failSync(new Exception("Test Exception"));
 		failedExecution.cancelingComplete();
 
-		FiniteDuration timeout = new FiniteDuration(2, TimeUnit.MINUTES);
-
 		assertEquals(JobStatus.RUNNING, eg.getState());
-
-		// Wait for all resources to be assigned after async restart
-		waitForAllResourcesToBeAssignedAfterAsyncRestart(eg, timeout.fromNow());
 
 		// At this point all resources have been assigned
 		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
@@ -526,7 +518,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	}
 
 	@Test
-	public void testConcurrentLocalFailAndRestart() throws Exception {
+	public void testLocalFailAndRestart() throws Exception {
 		final int parallelism = 10;
 		SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
 
@@ -540,15 +532,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		eg.start(mainThreadExecutor);
 
-		WaitForTasks waitForTasks = new WaitForTasks(parallelism);
-		WaitForTasks waitForTasksCancelled = new WaitForTasks(parallelism);
-		taskManagerGateway.setSubmitConsumer(waitForTasks);
-		taskManagerGateway.setCancelConsumer(waitForTasksCancelled);
-
 		eg.setScheduleMode(ScheduleMode.EAGER);
 		eg.scheduleForExecution();
-
-		waitForTasks.getFuture().get(1000, TimeUnit.MILLISECONDS);
 
 		switchToRunning(eg);
 
@@ -562,11 +547,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		Assert.assertEquals(JobStatus.FAILING, eg.getState());
 
-		WaitForTasks waitForTasksAfterRestart = new WaitForTasks(parallelism);
-		taskManagerGateway.setSubmitConsumer(waitForTasksAfterRestart);
-
-		waitForTasksCancelled.getFuture().get(1000L, TimeUnit.MILLISECONDS);
-
 		completeCancellingForAllVertices(eg);
 
 		// Now trigger the restart
@@ -574,8 +554,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		triggeredRestartStrategy.triggerAll().join();
 
 		Assert.assertEquals(JobStatus.RUNNING, eg.getState());
-
-		waitForTasksAfterRestart.getFuture().get(1000, TimeUnit.MILLISECONDS);
 
 		switchToRunning(eg);
 		finishAllVertices(eg);
@@ -585,7 +563,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	}
 
 	@Test
-	public void testConcurrentGlobalFailAndRestarts() throws Exception {
+	public void testGlobalFailAndRestarts() throws Exception {
 		final int parallelism = 10;
 		final JobID jid = new JobID();
 		final JobVertex vertex = createNoOpVertex(parallelism);
@@ -596,22 +574,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		final ExecutionGraph eg = createSimpleTestGraph(jid, slots, restartStrategy, vertex);
 		eg.start(mainThreadExecutor);
 
-		WaitForTasks waitForTasks = new WaitForTasks(parallelism);
-		taskManagerGateway.setSubmitConsumer(waitForTasks);
-
 		eg.setScheduleMode(ScheduleMode.EAGER);
 		eg.scheduleForExecution();
-
-		waitForTasks.getFuture().get(1000, TimeUnit.MILLISECONDS);
 
 		switchToRunning(eg);
 
 		// fail into 'RESTARTING'
 		eg.failGlobal(new Exception("intended test failure 1"));
 		assertEquals(JobStatus.FAILING, eg.getState());
-
-		WaitForTasks waitForTasksRestart = new WaitForTasks(parallelism);
-		taskManagerGateway.setSubmitConsumer(waitForTasksRestart);
 
 		completeCancellingForAllVertices(eg);
 
@@ -620,12 +590,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		eg.failGlobal(new Exception("intended test failure 2"));
 		assertEquals(JobStatus.RESTARTING, eg.getState());
 
-		// trigger both restart strategies to kick in concurrently
 		restartStrategy.triggerAll().join();
 
 		assertEquals(JobStatus.RUNNING, eg.getState());
 
-		waitForTasksRestart.getFuture().get(1000, TimeUnit.MILLISECONDS);
 		switchToRunning(eg);
 		finishAllVertices(eg);
 
@@ -671,13 +639,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		eg.start(mainThreadExecutor);
 
-		WaitForTasks waitForTasks = new WaitForTasks(parallelism * 2);
-		taskManagerGateway.setSubmitConsumer(waitForTasks);
-
 		eg.setScheduleMode(ScheduleMode.EAGER);
 		eg.scheduleForExecution();
-
-		waitForTasks.getFuture().get(1000, TimeUnit.MILLISECONDS);
 
 		switchToRunning(eg);
 
@@ -687,14 +650,11 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		assertEquals(JobStatus.FAILING, eg.getState());
 
-		WaitForTasks waitForTasksAfterRestart = new WaitForTasks(parallelism * 2);
-		taskManagerGateway.setSubmitConsumer(waitForTasksAfterRestart);
 		completeCancellingForAllVertices(eg);
 
 		assertEquals(JobStatus.RUNNING, eg.getState());
 
 		// clean termination
-		waitForTasksAfterRestart.getFuture().get(1000, TimeUnit.MILLISECONDS);
 		switchToRunning(eg);
 		finishAllVertices(eg);
 
@@ -750,11 +710,11 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the {@link ExecutionGraph} can handle concurrent failures while
+	 * Tests that the {@link ExecutionGraph} can handle failures while
 	 * being in the RESTARTING state.
 	 */
 	@Test
-	public void testConcurrentFailureWhileRestarting() throws Exception {
+	public void testFailureWhileRestarting() throws Exception {
 
 		final TestRestartStrategy restartStrategy = TestRestartStrategy.manuallyTriggered();
 		final ExecutionGraph executionGraph = createSimpleExecutionGraph(restartStrategy, new TestingSlotProvider(ignored -> new CompletableFuture<>()));
@@ -849,10 +809,9 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			slotProvider);
 	}
 
-	private void restartAfterFailure(ExecutionGraph eg, FiniteDuration timeout, boolean haltAfterRestart) throws TimeoutException {
+	private void restartAfterFailure(ExecutionGraph eg, FiniteDuration timeout, boolean haltAfterRestart) {
 		eg.start(mainThreadExecutor);
 		eg.getAllExecutionVertices().iterator().next().fail(new Exception("Test Exception"));
-
 
 		assertEquals(JobStatus.FAILING, eg.getState());
 
@@ -862,65 +821,13 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		assertEquals(JobStatus.RUNNING, eg.getState());
 
-		Deadline deadline = timeout.fromNow();
-
-		// Wait for deploying after async restart
-		waitUntilAllExecutionsReachDeploying(eg, deadline);
 		if (haltAfterRestart) {
-			if (deadline.hasTimeLeft()) {
-				haltExecution(eg);
-			} else {
-				fail("Failed to wait until all execution attempts left the state DEPLOYING.");
-			}
+			haltExecution(eg);
 		}
-	}
-
-	private static void waitUntilAllExecutionsReachDeploying(ExecutionGraph eg, Deadline deadline) throws TimeoutException {
-		ExecutionGraphTestUtils.waitForAllExecutionsPredicate(
-			eg,
-			ExecutionGraphTestUtils.isInExecutionState(ExecutionState.DEPLOYING),
-			deadline.timeLeft().toMillis());
-	}
-
-	private static void waitForAllResourcesToBeAssignedAfterAsyncRestart(ExecutionGraph eg, Deadline deadline) throws TimeoutException {
-		ExecutionGraphTestUtils.waitForAllExecutionsPredicate(
-			eg,
-			ExecutionGraphTestUtils.hasResourceAssigned,
-			deadline.timeLeft().toMillis());
 	}
 
 	private static void haltExecution(ExecutionGraph eg) {
 		finishAllVertices(eg);
 		assertEquals(JobStatus.FINISHED, eg.getState());
-	}
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * A consumer which counts the number of tasks for which it has been called and completes a future
-	 * upon reaching the number of tasks to wait for.
-	 */
-	public static class WaitForTasks implements Consumer<ExecutionAttemptID> {
-
-		private final int tasksToWaitFor;
-		private final CompletableFuture<Boolean> allTasksReceived;
-		private final AtomicInteger counter;
-
-		WaitForTasks(int tasksToWaitFor) {
-			this.tasksToWaitFor = tasksToWaitFor;
-			this.allTasksReceived = new CompletableFuture<>();
-			this.counter = new AtomicInteger();
-		}
-
-		public CompletableFuture<Boolean> getFuture() {
-			return allTasksReceived;
-		}
-
-		@Override
-		public void accept(ExecutionAttemptID executionAttemptID) {
-			if (counter.incrementAndGet() >= tasksToWaitFor) {
-				allTasksReceived.complete(true);
-			}
-		}
 	}
 }

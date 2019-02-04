@@ -584,7 +584,7 @@ public class ExecutionGraphTestUtils {
 			new NoRestartStrategy(),
 			new TestingSlotProvider(ignored -> new CompletableFuture<>()));
 
-		graph.start(TestComponentMainThreadExecutor.forMainThread());
+		graph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		return spy(new ExecutionJobVertex(graph, ajv, 1, AkkaUtils.getDefaultTimeout()));
 	}

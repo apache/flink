@@ -87,8 +87,9 @@ public class ScheduledFutureAdapter<V> implements ScheduledFuture<V> {
 
 		// tie breaking for ScheduledFutureAdapter objects
 		if (o instanceof ScheduledFutureAdapter) {
-			int cmp = Long.compare(scheduleTimeNanos, ((ScheduledFutureAdapter) o).scheduleTimeNanos);
-			return cmp != 0 ? cmp : Long.compare(tieBreakerUid, ((ScheduledFutureAdapter) o).tieBreakerUid);
+			ScheduledFutureAdapter<?> typedOther = (ScheduledFutureAdapter<?>) o;
+			int cmp = Long.compare(scheduleTimeNanos, typedOther.scheduleTimeNanos);
+			return cmp != 0 ? cmp : Long.compare(tieBreakerUid, typedOther.tieBreakerUid);
 		}
 
 		return Long.compare(getDelay(NANOSECONDS), o.getDelay(NANOSECONDS));

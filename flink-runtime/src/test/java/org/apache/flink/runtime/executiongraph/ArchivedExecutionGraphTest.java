@@ -110,7 +110,7 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 			new NoRestartStrategy(),
 			mock(SlotProvider.class));
 
-		runtimeGraph.start(TestComponentMainThreadExecutor.forMainThread());
+		runtimeGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		runtimeGraph.attachJobGraph(vertices);
 

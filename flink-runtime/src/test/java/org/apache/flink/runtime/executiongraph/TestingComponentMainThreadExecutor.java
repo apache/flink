@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -34,13 +35,14 @@ import java.util.concurrent.TimeUnit;
 /**
  * Util to run test calls with a provided main thread executor.
  */
-public class ComponentMainThreadTestExecutor {
+public class TestingComponentMainThreadExecutor {
 
 	/** The main thread executor to which execution is delegated. */
 	@Nonnull
-	private final TestComponentMainThreadExecutor mainThreadExecutor;
+	private final TestingComponentMainThreadExecutorServiceAdapter mainThreadExecutor;
 
-	public ComponentMainThreadTestExecutor(@Nonnull TestComponentMainThreadExecutor mainThreadExecutor) {
+	public TestingComponentMainThreadExecutor(
+		@Nonnull TestingComponentMainThreadExecutorServiceAdapter mainThreadExecutor) {
 		this.mainThreadExecutor = mainThreadExecutor;
 	}
 
@@ -66,7 +68,7 @@ public class ComponentMainThreadTestExecutor {
 	}
 
 	@Nonnull
-	public TestComponentMainThreadExecutor getMainThreadExecutor() {
+	public TestingComponentMainThreadExecutorServiceAdapter getMainThreadExecutor() {
 		return mainThreadExecutor;
 	}
 
@@ -75,29 +77,23 @@ public class ComponentMainThreadTestExecutor {
 	 */
 	public static class Resource extends ExternalResource {
 
-		private ComponentMainThreadTestExecutor componentMainThreadTestExecutor;
+		private TestingComponentMainThreadExecutor componentMainThreadTestExecutor;
 		private ScheduledExecutorService innerExecutorService;
 
 		@Override
-		protected void before() throws Throwable {
+		protected void before() {
 			this.innerExecutorService = Executors.newSingleThreadScheduledExecutor();
 			this.componentMainThreadTestExecutor =
-				new ComponentMainThreadTestExecutor(
-					TestComponentMainThreadExecutor.forSingleThreadExecutor(innerExecutorService));
+				new TestingComponentMainThreadExecutor(
+					TestingComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(innerExecutorService));
 		}
 
 		@Override
 		protected void after() {
-			this.innerExecutorService.shutdown();
-			this.innerExecutorService.shutdownNow();
-			try {
-				this.innerExecutorService.awaitTermination(5000, TimeUnit.MILLISECONDS);
-			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			}
+			ExecutorUtils.gracefulShutdown(5000, TimeUnit.MILLISECONDS, innerExecutorService);
 		}
 
-		public ComponentMainThreadTestExecutor getComponentMainThreadTestExecutor() {
+		public TestingComponentMainThreadExecutor getComponentMainThreadTestExecutor() {
 			return componentMainThreadTestExecutor;
 		}
 	}

@@ -72,10 +72,10 @@ import static org.junit.Assert.assertTrue;
 public class ExecutionTest extends TestLogger {
 
 	@ClassRule
-	public static final ComponentMainThreadTestExecutor.Resource EXECUTOR_RESOURCE =
-		new ComponentMainThreadTestExecutor.Resource();
+	public static final TestingComponentMainThreadExecutor.Resource EXECUTOR_RESOURCE =
+		new TestingComponentMainThreadExecutor.Resource();
 
-	private final ComponentMainThreadTestExecutor testMainThreadUtil =
+	private final TestingComponentMainThreadExecutor testMainThreadUtil =
 		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
 
 	/**
@@ -97,7 +97,7 @@ public class ExecutionTest extends TestLogger {
 			new NoRestartStrategy(),
 			jobVertex);
 
-		executionGraph.start(TestComponentMainThreadExecutor.forMainThread());
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
@@ -159,7 +159,7 @@ public class ExecutionTest extends TestLogger {
 			new NoRestartStrategy(),
 			jobVertex);
 
-		executionGraph.start(TestComponentMainThreadExecutor.forMainThread());
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
@@ -261,7 +261,7 @@ public class ExecutionTest extends TestLogger {
 			new NoRestartStrategy(),
 			jobVertex);
 
-		executionGraph.start(TestComponentMainThreadExecutor.forMainThread());
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		final ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
@@ -371,7 +371,7 @@ public class ExecutionTest extends TestLogger {
 			new NoRestartStrategy(),
 			jobVertex);
 
-		executionGraph.start(TestComponentMainThreadExecutor.forMainThread());
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
