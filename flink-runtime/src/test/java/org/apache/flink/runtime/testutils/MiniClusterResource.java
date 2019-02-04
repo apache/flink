@@ -125,6 +125,10 @@ public class MiniClusterResource extends ExternalResource {
 			configuration.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, DEFAULT_MANAGED_MEMORY_SIZE);
 		}
 
+		if (!configuration.contains(JobManagerOptions.SLOT_REQUEST_TIMEOUT)) {
+			configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 10L * 60L * 1000L);
+		}
+
 		// set rest and rpc port to 0 to avoid clashes with concurrent MiniClusters
 		configuration.setInteger(JobManagerOptions.PORT, 0);
 		configuration.setInteger(RestOptions.PORT, 0);
