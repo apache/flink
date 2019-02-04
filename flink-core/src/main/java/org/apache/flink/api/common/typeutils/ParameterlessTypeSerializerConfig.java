@@ -27,9 +27,13 @@ import java.io.IOException;
 
 /**
  * A base class for {@link TypeSerializerConfigSnapshot}s that do not have any parameters.
+ *
+ * @deprecated this snapshot class is no longer used by any serializers, and is maintained only
+ *             for backward compatibility reasons. It is fully replaced by {@link SimpleTypeSerializerSnapshot}.
  */
 @Internal
-public final class ParameterlessTypeSerializerConfig extends TypeSerializerConfigSnapshot {
+@Deprecated
+public final class ParameterlessTypeSerializerConfig<T> extends TypeSerializerConfigSnapshot<T> {
 
 	private static final int VERSION = 1;
 

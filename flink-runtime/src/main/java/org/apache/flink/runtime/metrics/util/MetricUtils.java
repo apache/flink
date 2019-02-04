@@ -19,8 +19,11 @@
 package org.apache.flink.runtime.metrics.util;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -29,6 +32,7 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 
+import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,6 +60,7 @@ import static org.apache.flink.runtime.metrics.util.SystemResourcesMetricsInitia
 public class MetricUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricUtils.class);
 	private static final String METRIC_GROUP_STATUS_NAME = "Status";
+	private static final String METRICS_ACTOR_SYSTEM_NAME = "flink-metrics";
 
 	private MetricUtils() {
 	}
@@ -113,6 +118,18 @@ public class MetricUtils {
 		instantiateMemoryMetrics(jvm.addGroup("Memory"));
 		instantiateThreadMetrics(jvm.addGroup("Threads"));
 		instantiateCPUMetrics(jvm.addGroup("CPU"));
+	}
+
+	public static ActorSystem startMetricsActorSystem(Configuration configuration, String hostname, Logger logger) throws Exception {
+		final String portRange = configuration.getString(MetricOptions.QUERY_SERVICE_PORT);
+		final int threadPriority = configuration.getInteger(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY);
+		return BootstrapTools.startActorSystem(
+			configuration,
+			METRICS_ACTOR_SYSTEM_NAME,
+			hostname,
+			portRange,
+			logger,
+			new BootstrapTools.FixedThreadPoolExecutorConfiguration(1, 1, threadPriority));
 	}
 
 	private static void instantiateNetworkMetrics(

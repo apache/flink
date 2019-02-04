@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics.dump;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -25,10 +26,10 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
+import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
@@ -37,6 +38,10 @@ import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.testkit.TestActorRef;
 import org.junit.Test;
+
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -47,81 +52,119 @@ import static org.junit.Assert.assertTrue;
 public class MetricQueryServiceTest extends TestLogger {
 	@Test
 	public void testCreateDump() throws Exception {
-
 		ActorSystem s = AkkaUtils.createLocalActorSystem(new Configuration());
-		ActorRef serviceActor = MetricQueryService.startMetricQueryService(s, null);
-		TestActorRef testActorRef = TestActorRef.create(s, Props.create(TestActor.class));
-		TestActor testActor = (TestActor) testActorRef.underlyingActor();
+		try {
+			ActorRef serviceActor = MetricQueryService.startMetricQueryService(s, null, Long.MAX_VALUE);
+			TestActorRef testActorRef = TestActorRef.create(s, Props.create(TestActor.class));
+			TestActor testActor = (TestActor) testActorRef.underlyingActor();
 
-		final Counter c = new SimpleCounter();
-		final Gauge<String> g = new Gauge<String>() {
-			@Override
-			public String getValue() {
-				return "Hello";
-			}
-		};
-		final Histogram h = new TestHistogram();
-		final Meter m = new Meter() {
+			final Counter c = new SimpleCounter();
+			final Gauge<String> g = () -> "Hello";
+			final Histogram h = new TestHistogram();
+			final Meter m = new TestMeter();
 
-			@Override
-			public void markEvent() {
-			}
+			final TaskManagerMetricGroup tm = UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup();
 
-			@Override
-			public void markEvent(long n) {
-			}
+			MetricQueryService.notifyOfAddedMetric(serviceActor, c, "counter", tm);
+			MetricQueryService.notifyOfAddedMetric(serviceActor, g, "gauge", tm);
+			MetricQueryService.notifyOfAddedMetric(serviceActor, h, "histogram", tm);
+			MetricQueryService.notifyOfAddedMetric(serviceActor, m, "meter", tm);
+			serviceActor.tell(MetricQueryService.getCreateDump(), testActorRef);
 
-			@Override
-			public double getRate() {
-				return 5;
-			}
+			testActor.waitForResult();
 
-			@Override
-			public long getCount() {
-				return 10;
-			}
-		};
+			MetricDumpSerialization.MetricSerializationResult dump = testActor.getSerializationResult();
 
-		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
-		final TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
+			assertTrue(dump.serializedCounters.length > 0);
+			assertTrue(dump.serializedGauges.length > 0);
+			assertTrue(dump.serializedHistograms.length > 0);
+			assertTrue(dump.serializedMeters.length > 0);
 
-		MetricQueryService.notifyOfAddedMetric(serviceActor, c, "counter", tm);
-		MetricQueryService.notifyOfAddedMetric(serviceActor, g, "gauge", tm);
-		MetricQueryService.notifyOfAddedMetric(serviceActor, h, "histogram", tm);
-		MetricQueryService.notifyOfAddedMetric(serviceActor, m, "meter", tm);
-		serviceActor.tell(MetricQueryService.getCreateDump(), testActorRef);
-		synchronized (testActor.lock) {
-			if (testActor.message == null) {
-				testActor.lock.wait();
-			}
+			MetricQueryService.notifyOfRemovedMetric(serviceActor, c);
+			MetricQueryService.notifyOfRemovedMetric(serviceActor, g);
+			MetricQueryService.notifyOfRemovedMetric(serviceActor, h);
+			MetricQueryService.notifyOfRemovedMetric(serviceActor, m);
+
+			serviceActor.tell(MetricQueryService.getCreateDump(), testActorRef);
+
+			testActor.waitForResult();
+
+			MetricDumpSerialization.MetricSerializationResult emptyDump = testActor.getSerializationResult();
+
+			assertEquals(0, emptyDump.serializedCounters.length);
+			assertEquals(0, emptyDump.serializedGauges.length);
+			assertEquals(0, emptyDump.serializedHistograms.length);
+			assertEquals(0, emptyDump.serializedMeters.length);
+		} finally {
+			s.terminate();
 		}
+	}
 
-		MetricDumpSerialization.MetricSerializationResult dump = (MetricDumpSerialization.MetricSerializationResult) testActor.message;
-		testActor.message = null;
-		assertTrue(dump.serializedMetrics.length > 0);
+	@Test
+	public void testHandleOversizedMetricMessage() throws Exception {
+		ActorSystem s = AkkaUtils.createLocalActorSystem(new Configuration());
+		try {
+			final long sizeLimit = 200L;
+			ActorRef serviceActor = MetricQueryService.startMetricQueryService(s, null, sizeLimit);
+			TestActorRef testActorRef = TestActorRef.create(s, Props.create(TestActor.class));
+			TestActor testActor = (TestActor) testActorRef.underlyingActor();
 
-		MetricQueryService.notifyOfRemovedMetric(serviceActor, c);
-		MetricQueryService.notifyOfRemovedMetric(serviceActor, g);
-		MetricQueryService.notifyOfRemovedMetric(serviceActor, h);
-		MetricQueryService.notifyOfRemovedMetric(serviceActor, m);
+			final TaskManagerMetricGroup tm = UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup();
 
-		serviceActor.tell(MetricQueryService.getCreateDump(), testActorRef);
-		synchronized (testActor.lock) {
-			if (testActor.message == null) {
-				testActor.lock.wait();
+			final String gaugeValue = "Hello";
+			final long requiredGaugesToExceedLimit = sizeLimit / gaugeValue.length() + 1;
+			List<Tuple2<String, Gauge<String>>> gauges = LongStream.range(0, requiredGaugesToExceedLimit)
+				.mapToObj(x -> Tuple2.of("gauge" + x, (Gauge<String>) () -> "Hello" + x))
+				.collect(Collectors.toList());
+			gauges.forEach(gauge -> MetricQueryService.notifyOfAddedMetric(serviceActor, gauge.f1, gauge.f0, tm));
+
+			MetricQueryService.notifyOfAddedMetric(serviceActor, new SimpleCounter(), "counter", tm);
+			MetricQueryService.notifyOfAddedMetric(serviceActor, new TestHistogram(), "histogram", tm);
+			MetricQueryService.notifyOfAddedMetric(serviceActor, new TestMeter(), "meter", tm);
+
+			serviceActor.tell(MetricQueryService.getCreateDump(), testActorRef);
+			testActor.waitForResult();
+
+			MetricDumpSerialization.MetricSerializationResult dump = testActor.getSerializationResult();
+
+			assertTrue(dump.serializedCounters.length > 0);
+			assertEquals(1, dump.numCounters);
+			assertTrue(dump.serializedMeters.length > 0);
+			assertEquals(1, dump.numMeters);
+
+			// gauges exceeded the size limit and will be excluded
+			assertEquals(0, dump.serializedGauges.length);
+			assertEquals(0, dump.numGauges);
+
+			assertTrue(dump.serializedHistograms.length > 0);
+			assertEquals(1, dump.numHistograms);
+
+			// unregister all but one gauge to ensure gauges are reported again if the remaining fit
+			for (int x = 1; x < gauges.size(); x++) {
+				MetricQueryService.notifyOfRemovedMetric(serviceActor, gauges.get(x).f1);
 			}
+
+			serviceActor.tell(MetricQueryService.getCreateDump(), testActorRef);
+			testActor.waitForResult();
+
+			MetricDumpSerialization.MetricSerializationResult recoveredDump = testActor.getSerializationResult();
+
+			assertTrue(recoveredDump.serializedCounters.length > 0);
+			assertEquals(1, recoveredDump.numCounters);
+			assertTrue(recoveredDump.serializedMeters.length > 0);
+			assertEquals(1, recoveredDump.numMeters);
+			assertTrue(recoveredDump.serializedGauges.length > 0);
+			assertEquals(1, recoveredDump.numGauges);
+			assertTrue(recoveredDump.serializedHistograms.length > 0);
+			assertEquals(1, recoveredDump.numHistograms);
+		} finally {
+			s.terminate();
 		}
-
-		MetricDumpSerialization.MetricSerializationResult emptyDump = (MetricDumpSerialization.MetricSerializationResult) testActor.message;
-		testActor.message = null;
-		assertEquals(0, emptyDump.serializedMetrics.length);
-
-		s.terminate();
 	}
 
 	private static class TestActor extends UntypedActor {
-		public Object message;
-		public Object lock = new Object();
+		private Object message;
+		private final Object lock = new Object();
 
 		@Override
 		public void onReceive(Object message) throws Exception {
@@ -129,6 +172,20 @@ public class MetricQueryServiceTest extends TestLogger {
 				this.message = message;
 				lock.notifyAll();
 			}
+		}
+
+		void waitForResult() throws InterruptedException {
+			synchronized (lock) {
+				if (message == null) {
+					lock.wait();
+				}
+			}
+		}
+
+		MetricDumpSerialization.MetricSerializationResult getSerializationResult() {
+			final MetricDumpSerialization.MetricSerializationResult result = (MetricDumpSerialization.MetricSerializationResult) message;
+			message = null;
+			return result;
 		}
 	}
 }

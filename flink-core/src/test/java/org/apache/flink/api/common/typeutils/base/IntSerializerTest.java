@@ -18,38 +18,36 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
+
+import java.util.Random;
+
 /**
  * A test for the {@link IntSerializer}.
  */
 public class IntSerializerTest extends SerializerTestBase<Integer> {
-	
+
 	@Override
 	protected TypeSerializer<Integer> createSerializer() {
 		return new IntSerializer();
 	}
-	
+
 	@Override
 	protected int getLength() {
 		return 4;
 	}
-	
+
 	@Override
 	protected Class<Integer> getTypeClass() {
 		return Integer.class;
 	}
-	
+
 	@Override
 	protected Integer[] getTestData() {
 		Random rnd = new Random(874597969123412341L);
 		int rndInt = rnd.nextInt();
-		
-		return new Integer[] {Integer.valueOf(0), Integer.valueOf(1), Integer.valueOf(-1),
-							Integer.valueOf(Integer.MAX_VALUE), Integer.valueOf(Integer.MIN_VALUE),
-							Integer.valueOf(rndInt), Integer.valueOf(-rndInt)};
+
+		return new Integer[] {0, 1, -1, Integer.MAX_VALUE, Integer.MIN_VALUE, rndInt, -rndInt};
 	}
-}	
+}

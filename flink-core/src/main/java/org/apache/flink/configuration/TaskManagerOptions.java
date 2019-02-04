@@ -316,7 +316,7 @@ public class TaskManagerOptions {
 			key("taskmanager.network.request-backoff.initial")
 			.defaultValue(100)
 			.withDeprecatedKeys("taskmanager.net.request-backoff.initial")
-			.withDescription("Minimum backoff for partition requests of input channels.");
+			.withDescription("Minimum backoff in milliseconds for partition requests of input channels.");
 
 	/**
 	 * Maximum backoff for partition requests of input channels.
@@ -325,7 +325,7 @@ public class TaskManagerOptions {
 			key("taskmanager.network.request-backoff.max")
 			.defaultValue(10000)
 			.withDeprecatedKeys("taskmanager.net.request-backoff.max")
-			.withDescription("Maximum backoff for partition requests of input channels.");
+			.withDescription("Maximum backoff in milliseconds for partition requests of input channels.");
 
 	/**
 	 * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue
@@ -375,13 +375,15 @@ public class TaskManagerOptions {
 				" leads to a fatal TaskManager error. A value of 0 deactivates" +
 				" the watch dog.");
 	/**
-	 * This configures how long we wait for the timers to finish all pending timer threads
-	 * when the stream task is cancelled .
+	 * This configures how long we wait for the timers in milliseconds to finish all pending timer threads
+	 * when the stream task is cancelled.
 	 */
 	public static final ConfigOption<Long> TASK_CANCELLATION_TIMEOUT_TIMERS = ConfigOptions
 			.key("task.cancellation.timers.timeout")
 			.defaultValue(7500L)
-			.withDeprecatedKeys("timerservice.exceptional.shutdown.timeout");
+			.withDeprecatedKeys("timerservice.exceptional.shutdown.timeout")
+			.withDescription("Time we wait for the timers in milliseconds to finish all pending timer threads" +
+				" when the stream task is cancelled.");
 
 	/**
 	 * The maximum number of bytes that a checkpoint alignment may buffer.

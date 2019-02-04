@@ -601,7 +601,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param windowResultType The process window function result type.
 	 * @return The data stream that is the result of applying the fold function to the window.
 	 *
-	 * @deprecated use {@link #aggregate(AggregateFunction, WindowFunction, TypeInformation, TypeInformation, TypeInformation)} instead
+	 * @deprecated use {@link #aggregate(AggregateFunction, WindowFunction, TypeInformation, TypeInformation)} instead
 	 */
 	@Deprecated
 	@Internal
@@ -728,7 +728,7 @@ public class WindowedStream<T, K, W extends Window> {
 		}
 
 		return aggregate(function, new PassThroughWindowFunction<K, W, R>(),
-				accumulatorType, resultType, resultType);
+			accumulatorType, resultType);
 	}
 
 	/**
@@ -765,7 +765,7 @@ public class WindowedStream<T, K, W extends Window> {
 
 		TypeInformation<R> resultType = getWindowFunctionReturnType(windowFunction, aggResultType);
 
-		return aggregate(aggFunction, windowFunction, accumulatorType, aggResultType, resultType);
+		return aggregate(aggFunction, windowFunction, accumulatorType, resultType);
 	}
 
 	/**
@@ -793,13 +793,11 @@ public class WindowedStream<T, K, W extends Window> {
 			AggregateFunction<T, ACC, V> aggregateFunction,
 			WindowFunction<V, R, K, W> windowFunction,
 			TypeInformation<ACC> accumulatorType,
-			TypeInformation<V> aggregateResultType,
 			TypeInformation<R> resultType) {
 
 		checkNotNull(aggregateFunction, "aggregateFunction");
 		checkNotNull(windowFunction, "windowFunction");
 		checkNotNull(accumulatorType, "accumulatorType");
-		checkNotNull(aggregateResultType, "aggregateResultType");
 		checkNotNull(resultType, "resultType");
 
 		if (aggregateFunction instanceof RichFunction) {
@@ -1011,7 +1009,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>Not that this function requires that all data in the windows is buffered until the window
+	 * <p>Note that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.
@@ -1045,7 +1043,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>Not that this function requires that all data in the windows is buffered until the window
+	 * <p>Note that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.
@@ -1063,7 +1061,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>Not that this function requires that all data in the windows is buffered until the window
+	 * <p>Note that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.

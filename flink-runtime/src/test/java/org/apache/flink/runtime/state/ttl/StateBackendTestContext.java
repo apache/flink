@@ -76,9 +76,8 @@ public abstract class StateBackendTestContext {
 			keyedStateBackend = stateBackend.createKeyedStateBackend(
 				env, new JobID(), "test", StringSerializer.INSTANCE, 10,
 				new KeyGroupRange(0, 9), env.getTaskKvStateRegistry(), timeProvider);
-			keyedStateBackend.setCurrentKey("defaultKey");
 		} catch (Exception e) {
-			throw new RuntimeException("unexpected");
+			throw new RuntimeException("unexpected", e);
 		}
 	}
 
@@ -91,13 +90,18 @@ public abstract class StateBackendTestContext {
 
 	@Nonnull
 	KeyedStateHandle takeSnapshot() throws Exception {
+		return triggerSnapshot().get().getJobManagerOwnedSnapshot();
+	}
+
+	@Nonnull
+	RunnableFuture<SnapshotResult<KeyedStateHandle>> triggerSnapshot() throws Exception {
 		RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotRunnableFuture =
 			keyedStateBackend.snapshot(682375462392L, 10L,
 				checkpointStorageLocation, CheckpointOptions.forCheckpointWithDefaultLocation());
 		if (!snapshotRunnableFuture.isDone()) {
 			snapshotRunnableFuture.run();
 		}
-		return snapshotRunnableFuture.get().getJobManagerOwnedSnapshot();
+		return snapshotRunnableFuture;
 	}
 
 	void restoreSnapshot(@Nullable KeyedStateHandle snapshot) throws Exception {

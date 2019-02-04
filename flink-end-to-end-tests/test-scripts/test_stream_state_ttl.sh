@@ -20,7 +20,7 @@
 source "$(dirname "$0")"/common.sh
 
 STATE_BACKEND_TYPE="${1:-file}"
-STATE_BACKEND_FILE_ASYNC="${2:-false}"
+STATE_BACKEND_FILE_ASYNC="${2:-true}"
 TTL="${3:-1000}"
 PRECISION="${4:-5}"
 PARALLELISM="${5-3}"
@@ -44,6 +44,8 @@ function test_cleanup {
 }
 trap test_cleanup INT
 trap test_cleanup EXIT
+
+set_conf "metrics.fetcher.update-interval" "2000"
 
 start_cluster
 start_taskmanagers $PARALLELISM

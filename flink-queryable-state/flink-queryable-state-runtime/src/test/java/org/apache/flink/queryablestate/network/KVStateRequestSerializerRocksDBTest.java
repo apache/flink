@@ -25,7 +25,9 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.contrib.streaming.state.PredefinedOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
+import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -80,9 +82,12 @@ public final class KVStateRequestSerializerRocksDBTest {
 				new KeyGroupRange(0, 0),
 				new ExecutionConfig(),
 				false,
+				1,
 				TestLocalRecoveryConfig.disabled(),
 				RocksDBStateBackend.PriorityQueueStateType.HEAP,
-				TtlTimeProvider.DEFAULT
+				TtlTimeProvider.DEFAULT,
+				new RocksDBNativeMetricOptions(),
+				new UnregisteredMetricsGroup()
 			);
 		longHeapKeyedStateBackend.restore(null);
 		longHeapKeyedStateBackend.setCurrentKey(key);
@@ -122,9 +127,13 @@ public final class KVStateRequestSerializerRocksDBTest {
 				new KeyGroupRange(0, 0),
 				new ExecutionConfig(),
 				false,
+				1,
 				TestLocalRecoveryConfig.disabled(),
 				RocksDBStateBackend.PriorityQueueStateType.HEAP,
-				TtlTimeProvider.DEFAULT);
+				TtlTimeProvider.DEFAULT,
+				new RocksDBNativeMetricOptions(),
+				new UnregisteredMetricsGroup()
+			);
 		longHeapKeyedStateBackend.restore(null);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 

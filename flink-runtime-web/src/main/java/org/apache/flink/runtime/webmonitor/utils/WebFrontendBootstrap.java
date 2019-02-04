@@ -20,7 +20,7 @@ package org.apache.flink.runtime.webmonitor.utils;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.runtime.net.SSLEngineFactory;
+import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.rest.handler.router.RouterHandler;
 import org.apache.flink.runtime.webmonitor.HttpRequestHandler;
@@ -35,13 +35,11 @@ import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
-import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
-import javax.net.ssl.SSLEngine;
 
 import java.io.File;
 import java.net.InetAddress;
@@ -64,7 +62,7 @@ public class WebFrontendBootstrap {
 			Router router,
 			Logger log,
 			File directory,
-			@Nullable SSLEngineFactory serverSSLFactory,
+			@Nullable SSLHandlerFactory serverSSLFactory,
 			String configuredAddress,
 			int configuredPort,
 			final Configuration config) throws InterruptedException, UnknownHostException {
@@ -81,8 +79,7 @@ public class WebFrontendBootstrap {
 
 				// SSL should be the first handler in the pipeline
 				if (serverSSLFactory != null) {
-					SSLEngine sslEngine = serverSSLFactory.createSSLEngine();
-					ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
+					ch.pipeline().addLast("ssl", serverSSLFactory.createNettySSLHandler());
 				}
 
 				ch.pipeline()

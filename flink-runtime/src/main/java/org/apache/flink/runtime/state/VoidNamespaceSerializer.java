@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -88,5 +90,23 @@ public final class VoidNamespaceSerializer extends TypeSerializerSingleton<VoidN
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof VoidNamespaceSerializer;
+	}
+
+	// -----------------------------------------------------------------------------------
+
+	@Override
+	public TypeSerializerSnapshot<VoidNamespace> snapshotConfiguration() {
+		return new VoidNamespaceSerializerSnapshot();
+	}
+
+	/**
+	 * Serializer configuration snapshot for compatibility and format evolution.
+	 */
+	@SuppressWarnings("WeakerAccess")
+	public static final class VoidNamespaceSerializerSnapshot extends SimpleTypeSerializerSnapshot<VoidNamespace> {
+
+		public VoidNamespaceSerializerSnapshot() {
+			super(() -> INSTANCE);
+		}
 	}
 }

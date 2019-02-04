@@ -323,6 +323,11 @@ public class KvStateRegistryTest extends TestLogger {
 		}
 
 		@Override
+		public StateIncrementalVisitor<Integer, VoidNamespace, String> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
 		public void clear() {
 			// noop
 		}
@@ -401,12 +406,12 @@ public class KvStateRegistryTest extends TestLogger {
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		public TypeSerializerConfigSnapshot<String> snapshotConfiguration() {
 			return null;
 		}
 
 		@Override
-		public CompatibilityResult<String> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public CompatibilityResult<String> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 			return null;
 		}
 	}

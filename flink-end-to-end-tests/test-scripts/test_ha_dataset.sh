@@ -22,6 +22,19 @@ source "$(dirname "$0")"/common_ha.sh
 
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-dataset-allround-test/target/DataSetAllroundTestProgram.jar
 
+function ha_cleanup() {
+  # don't call ourselves again for another signal interruption
+  trap "exit -1" INT
+  # don't call ourselves again for normal exit
+  trap "" EXIT
+
+  # kill the cluster and zookeeper
+  stop_watchdogs
+}
+
+trap ha_cleanup INT
+trap ha_cleanup EXIT
+
 function run_ha_test() {
     local PARALLELISM=$1
 
@@ -47,12 +60,12 @@ function run_ha_test() {
     wait_job_running ${JOB_ID}
 
     # start the watchdog that keeps the number of JMs stable
-    start_ha_jm_watchdog 1 "8081"
+    start_ha_jm_watchdog 1 "StandaloneSessionClusterEntrypoint" start_jm_cmd "8081"
 
     for (( c=0; c<${JM_KILLS}; c++ )); do
         # kill the JM and wait for watchdog to
         # create a new one which will take over
-        kill_jm
+        kill_single 'StandaloneSessionClusterEntrypoint'
         wait_job_running ${JOB_ID}
     done
 
@@ -60,12 +73,6 @@ function run_ha_test() {
 
     # do not verify checkpoints in the logs
     verify_logs ${JM_KILLS} false
-
-    # kill the cluster and zookeeper
-    stop_cluster_and_watchdog
 }
-
-trap stop_cluster_and_watchdog INT
-trap stop_cluster_and_watchdog EXIT
 
 run_ha_test 4

@@ -22,8 +22,10 @@ import java.io.File;
 
 /**
  * Query parameter specifying the arguments for the program.
+ * @deprecated please, use {@link JarRequestBody#FIELD_NAME_PROGRAM_ARGUMENTS_LIST}
  * @see org.apache.flink.client.program.PackagedProgram#PackagedProgram(File, String, String...)
  */
+@Deprecated
 public class ProgramArgsQueryParameter extends StringQueryParameter {
 
 	public ProgramArgsQueryParameter() {
@@ -32,6 +34,8 @@ public class ProgramArgsQueryParameter extends StringQueryParameter {
 
 	@Override
 	public String getDescription() {
-		return "String value that specifies the arguments for the program or plan.";
+		return String.format("Deprecated, please use '%s' instead. " +
+			"String value that specifies the arguments for the program or plan",
+			ProgramArgQueryParameter.PROGRAM_ARG_PARAMETER_NAME);
 	}
 }

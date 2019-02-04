@@ -131,12 +131,12 @@ public class IntListSerializer extends TypeSerializer<IntList> {
 	}
 
 	@Override
-	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+	public TypeSerializerConfigSnapshot<IntList> snapshotConfiguration() {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public CompatibilityResult<IntList> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<IntList> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		throw new UnsupportedOperationException();
 	}
 }

@@ -483,7 +483,7 @@ public class ElasticsearchSinkBaseTest {
 				@Override
 				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
 					// intercept the request and add it to our mock bulk request
-					nextBulkRequest.add(invocationOnMock.getArgumentAt(0, IndexRequest.class));
+					nextBulkRequest.add((IndexRequest) invocationOnMock.getArgument(0));
 
 					return null;
 				}

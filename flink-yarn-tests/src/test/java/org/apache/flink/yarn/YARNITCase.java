@@ -28,7 +28,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.yarn.util.YarnTestUtils;
 
 import org.apache.hadoop.fs.Path;
@@ -53,7 +52,7 @@ public class YARNITCase extends YarnTestBase {
 
 	@BeforeClass
 	public static void setup() {
-		YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-ha");
+		YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-per-job");
 		startYARNWithConfig(YARN_CONFIGURATION);
 	}
 
@@ -72,6 +71,7 @@ public class YARNITCase extends YarnTestBase {
 
 			yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 			yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+			yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkShadedHadoopDir.listFiles()));
 
 			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
 				.setMasterMemoryMB(768)
@@ -122,16 +122,5 @@ public class YARNITCase extends YarnTestBase {
 				}
 			}
 		}
-	}
-
-	private static class NoDataSource implements ParallelSourceFunction<Integer> {
-
-		private static final long serialVersionUID = 1642561062000662861L;
-
-		@Override
-		public void run(SourceContext<Integer> ctx) {}
-
-		@Override
-		public void cancel() {}
 	}
 }

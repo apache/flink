@@ -192,7 +192,7 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 		private List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
 
 		@Nonnull
-		private List<Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase>> metaDataCopy;
+		private List<MetaData> metaData;
 
 		@Nonnull
 		private final String logPathString;
@@ -209,7 +209,7 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 			this.dbLease = dbLease;
 			this.snapshot = snapshot;
 			this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
-			this.metaDataCopy = metaDataCopy;
+			this.metaData = fillMetaData(metaDataCopy);
 			this.logPathString = logPathString;
 		}
 
@@ -219,10 +219,10 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 			final CheckpointStreamWithResultProvider checkpointStreamWithResultProvider =
 				checkpointStreamSupplier.get();
 
-			registerCloseableForCancellation(checkpointStreamWithResultProvider);
+			snapshotCloseableRegistry.registerCloseable(checkpointStreamWithResultProvider);
 			writeSnapshotToOutputStream(checkpointStreamWithResultProvider, keyGroupRangeOffsets);
 
-			if (unregisterCloseableFromCancellation(checkpointStreamWithResultProvider)) {
+			if (snapshotCloseableRegistry.unregisterCloseable(checkpointStreamWithResultProvider)) {
 				return CheckpointStreamWithResultProvider.toKeyedStateHandleSnapshotResult(
 					checkpointStreamWithResultProvider.closeAndFinalizeCheckpointStreamResult(),
 					keyGroupRangeOffsets);
@@ -248,7 +248,7 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 			@Nonnull KeyGroupRangeOffsets keyGroupRangeOffsets) throws IOException, InterruptedException {
 
 			final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators =
-				new ArrayList<>(metaDataCopy.size());
+				new ArrayList<>(metaData.size());
 			final DataOutputView outputView =
 				new DataOutputViewStreamWrapper(checkpointStreamWithResultProvider.getCheckpointOutputStream());
 			final ReadOptions readOptions = new ReadOptions();
@@ -273,10 +273,10 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 
 			int kvStateId = 0;
 
-			for (Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> tuple2 : metaDataCopy) {
+			for (MetaData metaDataEntry : metaData) {
 
-				RocksIteratorWrapper rocksIteratorWrapper =
-					getRocksIterator(db, tuple2.f0, tuple2.f1, readOptions);
+				RocksIteratorWrapper rocksIteratorWrapper = getRocksIterator(
+					db, metaDataEntry.columnFamilyHandle, metaDataEntry.stateSnapshotTransformer, readOptions);
 
 				kvStateIterators.add(Tuple2.of(rocksIteratorWrapper, kvStateId));
 				++kvStateId;
@@ -402,20 +402,45 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 		}
 	}
 
+	private static List<MetaData> fillMetaData(
+		List<Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase>> metaDataCopy) {
+		List<MetaData> metaData = new ArrayList<>(metaDataCopy.size());
+		for (Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> metaInfo : metaDataCopy) {
+			StateSnapshotTransformer<byte[]> stateSnapshotTransformer = null;
+			if (metaInfo.f1 instanceof RegisteredKeyValueStateBackendMetaInfo) {
+				stateSnapshotTransformer = ((RegisteredKeyValueStateBackendMetaInfo<?, ?>) metaInfo.f1).
+					getStateSnapshotTransformFactory().createForSerializedState().orElse(null);
+			}
+			metaData.add(new MetaData(metaInfo.f0, metaInfo.f1, stateSnapshotTransformer));
+		}
+		return metaData;
+	}
+
 	@SuppressWarnings("unchecked")
 	private static RocksIteratorWrapper getRocksIterator(
 		RocksDB db,
 		ColumnFamilyHandle columnFamilyHandle,
-		RegisteredStateMetaInfoBase metaInfo,
+		StateSnapshotTransformer<byte[]> stateSnapshotTransformer,
 		ReadOptions readOptions) {
-		StateSnapshotTransformer<byte[]> stateSnapshotTransformer = null;
-		if (metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo) {
-			stateSnapshotTransformer = (StateSnapshotTransformer<byte[]>)
-				((RegisteredKeyValueStateBackendMetaInfo<?, ?>) metaInfo).getSnapshotTransformer();
-		}
 		RocksIterator rocksIterator = db.newIterator(columnFamilyHandle, readOptions);
 		return stateSnapshotTransformer == null ?
 			new RocksIteratorWrapper(rocksIterator) :
 			new RocksTransformingIteratorWrapper(rocksIterator, stateSnapshotTransformer);
+	}
+
+	private static class MetaData {
+		final ColumnFamilyHandle columnFamilyHandle;
+		final RegisteredStateMetaInfoBase registeredStateMetaInfoBase;
+		final StateSnapshotTransformer<byte[]> stateSnapshotTransformer;
+
+		private MetaData(
+			ColumnFamilyHandle columnFamilyHandle,
+			RegisteredStateMetaInfoBase registeredStateMetaInfoBase,
+			StateSnapshotTransformer<byte[]> stateSnapshotTransformer) {
+
+			this.columnFamilyHandle = columnFamilyHandle;
+			this.registeredStateMetaInfoBase = registeredStateMetaInfoBase;
+			this.stateSnapshotTransformer = stateSnapshotTransformer;
+		}
 	}
 }

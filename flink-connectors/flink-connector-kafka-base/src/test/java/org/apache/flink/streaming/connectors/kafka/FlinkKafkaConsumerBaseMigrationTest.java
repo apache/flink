@@ -36,9 +36,8 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
-import org.apache.flink.streaming.util.migration.MigrationTestUtil;
-import org.apache.flink.streaming.util.migration.MigrationVersion;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
+import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Assert;
@@ -79,6 +78,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 	/**
 	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
 	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
+	 * TODO Note: You should generate the savepoint based on the release branch instead of the master.
 	 */
 	private final MigrationVersion flinkGenerateSavepointVersion = null;
 
@@ -98,7 +98,8 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 			MigrationVersion.v1_3,
 			MigrationVersion.v1_4,
 			MigrationVersion.v1_5,
-			MigrationVersion.v1_6);
+			MigrationVersion.v1_6,
+			MigrationVersion.v1_7);
 	}
 
 	public FlinkKafkaConsumerBaseMigrationTest(MigrationVersion testMigrateVersion) {
@@ -205,11 +206,9 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		testHarness.setup();
 
 		// restore state from binary snapshot file
-		MigrationTestUtil.restoreFromSnapshot(
-			testHarness,
+		testHarness.initializeState(
 			OperatorSnapshotUtil.getResourceFilename(
-				"kafka-consumer-migration-test-flink" + testMigrateVersion + "-empty-state-snapshot"),
-			testMigrateVersion);
+				"kafka-consumer-migration-test-flink" + testMigrateVersion + "-empty-state-snapshot"));
 
 		testHarness.open();
 
@@ -246,11 +245,9 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		testHarness.setup();
 
 		// restore state from binary snapshot file
-		MigrationTestUtil.restoreFromSnapshot(
-			testHarness,
+		testHarness.initializeState(
 			OperatorSnapshotUtil.getResourceFilename(
-				"kafka-consumer-migration-test-flink" + testMigrateVersion + "-empty-state-snapshot"),
-			testMigrateVersion);
+				"kafka-consumer-migration-test-flink" + testMigrateVersion + "-empty-state-snapshot"));
 
 		testHarness.open();
 
@@ -300,11 +297,9 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		testHarness.setup();
 
 		// restore state from binary snapshot file
-		MigrationTestUtil.restoreFromSnapshot(
-			testHarness,
+		testHarness.initializeState(
 			OperatorSnapshotUtil.getResourceFilename(
-				"kafka-consumer-migration-test-flink" + testMigrateVersion + "-snapshot"),
-			testMigrateVersion);
+				"kafka-consumer-migration-test-flink" + testMigrateVersion + "-snapshot"));
 
 		testHarness.open();
 
@@ -347,11 +342,9 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
 		// restore state from binary snapshot file; should fail since discovery is enabled
 		try {
-			MigrationTestUtil.restoreFromSnapshot(
-				testHarness,
+			testHarness.initializeState(
 				OperatorSnapshotUtil.getResourceFilename(
-					"kafka-consumer-migration-test-flink" + testMigrateVersion + "-snapshot"),
-				testMigrateVersion);
+					"kafka-consumer-migration-test-flink" + testMigrateVersion + "-snapshot"));
 
 			fail("Restore from savepoints from version before Flink 1.3.x should have failed if discovery is enabled.");
 		} catch (Exception e) {

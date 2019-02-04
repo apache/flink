@@ -52,18 +52,18 @@ class EitherTypeInfo[A, B, T <: Either[A, B]](
 
   @PublicEvolving
   def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
-    val leftSerializer = if (leftTypeInfo != null) {
+    val leftSerializer: TypeSerializer[A] = if (leftTypeInfo != null) {
       leftTypeInfo.createSerializer(executionConfig)
     } else {
-      new NothingSerializer
+      (new NothingSerializer).asInstanceOf[TypeSerializer[A]]
     }
 
-    val rightSerializer = if (rightTypeInfo != null) {
+    val rightSerializer: TypeSerializer[B] = if (rightTypeInfo != null) {
       rightTypeInfo.createSerializer(executionConfig)
     } else {
-      new NothingSerializer
+      (new NothingSerializer).asInstanceOf[TypeSerializer[B]]
     }
-    new EitherSerializer(leftSerializer, rightSerializer)
+    new EitherSerializer[A, B](leftSerializer, rightSerializer).asInstanceOf[TypeSerializer[T]]
   }
 
   override def equals(obj: Any): Boolean = {

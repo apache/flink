@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.Archiveable;
+import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
@@ -41,6 +42,7 @@ import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
+import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
@@ -58,6 +60,7 @@ import org.apache.flink.util.concurrent.FutureConsumerWithException;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -65,6 +68,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -385,7 +389,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return scheduleForExecution(
 			resourceProvider,
 			allowQueued,
-			LocationPreferenceConstraint.ANY);
+			LocationPreferenceConstraint.ANY,
+			Collections.emptySet());
 	}
 
 	/**
@@ -397,18 +402,22 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param queued Flag to indicate whether the scheduler may queue this task if it cannot
 	 *               immediately deploy it.
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
+	 *                                                 Can be empty if the allocation ids are not required for scheduling.
 	 * @return Future which is completed once the Execution has been deployed
 	 */
 	public CompletableFuture<Void> scheduleForExecution(
 			SlotProvider slotProvider,
 			boolean queued,
-			LocationPreferenceConstraint locationPreferenceConstraint) {
+			LocationPreferenceConstraint locationPreferenceConstraint,
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 		final Time allocationTimeout = vertex.getExecutionGraph().getAllocationTimeout();
 		try {
 			final CompletableFuture<Execution> allocationFuture = allocateAndAssignSlotForExecution(
 				slotProvider,
 				queued,
 				locationPreferenceConstraint,
+				allPreviousExecutionGraphAllocationIds,
 				allocationTimeout);
 
 			// IMPORTANT: We have to use the synchronous handle operation (direct executor) here so
@@ -420,7 +429,18 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			deploymentFuture.whenComplete(
 				(Void ignored, Throwable failure) -> {
 					if (failure != null) {
-						markFailed(ExceptionUtils.stripCompletionException(failure));
+						final Throwable stripCompletionException = ExceptionUtils.stripCompletionException(failure);
+						final Throwable schedulingFailureCause;
+
+						if (stripCompletionException instanceof TimeoutException) {
+							schedulingFailureCause = new NoResourceAvailableException(
+								"Could not allocate enough slots within timeout of " + allocationTimeout + " to run the job. " +
+									"Please make sure that the cluster has enough resources.");
+						} else {
+							schedulingFailureCause = stripCompletionException;
+						}
+
+						markFailed(schedulingFailureCause);
 					}
 				});
 
@@ -441,6 +461,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param slotProvider to obtain a new slot from
 	 * @param queued if the allocation can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
+	 *                                                 Can be empty if the allocation ids are not required for scheduling.
 	 * @param allocationTimeout rpcTimeout for allocating a new slot
 	 * @return Future which is completed with this execution once the slot has been assigned
 	 * 			or with an exception if an error occurred.
@@ -450,6 +472,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			SlotProvider slotProvider,
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds,
 			Time allocationTimeout) throws IllegalExecutionStateException {
 
 		checkNotNull(slotProvider);
@@ -495,7 +518,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 							new SlotProfile(
 								ResourceProfile.UNKNOWN,
 								preferredLocations,
-								previousAllocationIDs),
+								previousAllocationIDs,
+								allPreviousExecutionGraphAllocationIds),
 							allocationTimeout));
 
 			// register call back to cancel slot request in case that the execution gets canceled
@@ -574,7 +598,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			if (LOG.isInfoEnabled()) {
 				LOG.info(String.format("Deploying %s (attempt #%d) to %s", vertex.getTaskNameWithSubtaskIndex(),
-						attemptNumber, getAssignedResourceLocation().getHostname()));
+						attemptNumber, getAssignedResourceLocation()));
 			}
 
 			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(
@@ -695,6 +719,26 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 	}
 
+	private void scheduleConsumer(ExecutionVertex consumerVertex) {
+		CompletableFuture.supplyAsync(
+			() -> {
+				try {
+					final ExecutionGraph executionGraph = consumerVertex.getExecutionGraph();
+					consumerVertex.scheduleForExecution(
+							executionGraph.getSlotProvider(),
+							executionGraph.isQueuedSchedulingAllowed(),
+							LocationPreferenceConstraint.ANY, // there must be at least one known location
+							Collections.emptySet());
+				} catch (Throwable t) {
+					consumerVertex.fail(new IllegalStateException("Could not schedule consumer " +
+							"vertex " + consumerVertex, t));
+				}
+
+				return null;
+			},
+			executor);
+	}
+
 	void scheduleOrUpdateConsumers(List<List<ExecutionEdge>> allConsumers) {
 		final int numConsumers = allConsumers.size();
 
@@ -732,22 +776,16 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				// TODO The current approach may send many update messages even though the consuming
 				// task has already been deployed with all necessary information. We have to check
 				// whether this is a problem and fix it, if it is.
-				CompletableFuture.supplyAsync(
-					() -> {
-						try {
-							final ExecutionGraph executionGraph = consumerVertex.getExecutionGraph();
-							consumerVertex.scheduleForExecution(
-								executionGraph.getSlotProvider(),
-								executionGraph.isQueuedSchedulingAllowed(),
-								LocationPreferenceConstraint.ANY); // there must be at least one known location
-						} catch (Throwable t) {
-							consumerVertex.fail(new IllegalStateException("Could not schedule consumer " +
-									"vertex " + consumerVertex, t));
-						}
 
-						return null;
-					},
-					executor);
+				// Schedule the consumer vertex if its inputs constraint is satisfied, otherwise skip the scheduling.
+				// A shortcut of input constraint check is added for InputDependencyConstraint.ANY since
+				// at least one of the consumer vertex's inputs is consumable here. This is to avoid the
+				// O(N) complexity introduced by input constraint check for InputDependencyConstraint.ANY,
+				// as we do not want the default scheduling performance to be affected.
+				if (consumerVertex.getInputDependencyConstraint() == InputDependencyConstraint.ANY ||
+						consumerVertex.checkInputDependencyConstraints()) {
+					scheduleConsumer(consumerVertex);
+				}
 
 				// double check to resolve race conditions
 				if (consumerVertex.getExecutionState() == RUNNING) {

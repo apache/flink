@@ -145,12 +145,12 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 	}
 
 	@Override
-	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+	public TypeSerializerConfigSnapshot<Record> snapshotConfiguration() {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public CompatibilityResult<Record> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<Record> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		throw new UnsupportedOperationException();
 	}
 }

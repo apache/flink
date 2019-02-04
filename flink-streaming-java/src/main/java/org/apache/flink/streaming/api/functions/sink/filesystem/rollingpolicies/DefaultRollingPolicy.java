@@ -78,8 +78,8 @@ public final class DefaultRollingPolicy<IN, BucketID> implements RollingPolicy<I
 
 	@Override
 	public boolean shouldRollOnProcessingTime(final PartFileInfo<BucketID> partFileState, final long currentTime) {
-		return currentTime - partFileState.getCreationTime() > rolloverInterval ||
-				currentTime - partFileState.getLastUpdateTime() > inactivityInterval;
+		return currentTime - partFileState.getCreationTime() >= rolloverInterval ||
+				currentTime - partFileState.getLastUpdateTime() >= inactivityInterval;
 	}
 
 	/**

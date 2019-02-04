@@ -24,7 +24,6 @@ import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
 import org.apache.flink.mesos.scheduler.ConnectionMonitor;
 import org.apache.flink.mesos.scheduler.LaunchCoordinator;
-import org.apache.flink.mesos.scheduler.LaunchableTask;
 import org.apache.flink.mesos.scheduler.ReconciliationCoordinator;
 import org.apache.flink.mesos.scheduler.TaskMonitor;
 import org.apache.flink.mesos.scheduler.TaskSchedulerBuilder;
@@ -51,6 +50,7 @@ import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
@@ -79,6 +79,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -124,6 +125,8 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	@Nullable
 	private final String webUiUrl;
 
+	private final Collection<ResourceProfile> slotsPerWorker;
+
 	/** Mesos scheduler driver. */
 	private SchedulerDriver schedulerDriver;
 
@@ -163,7 +166,8 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			MesosConfiguration mesosConfig,
 			MesosTaskManagerParameters taskManagerParameters,
 			ContainerSpecification taskManagerContainerSpec,
-			@Nullable String webUiUrl) {
+			@Nullable String webUiUrl,
+			JobManagerMetricGroup jobManagerMetricGroup) {
 		super(
 			rpcService,
 			resourceManagerEndpointId,
@@ -174,7 +178,8 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			metricRegistry,
 			jobLeaderIdService,
 			clusterInformation,
-			fatalErrorHandler);
+			fatalErrorHandler,
+			jobManagerMetricGroup);
 
 		this.mesosServices = Preconditions.checkNotNull(mesosServices);
 		this.actorSystem = Preconditions.checkNotNull(mesosServices.getLocalActorSystem());
@@ -191,6 +196,9 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		this.workersInNew = new HashMap<>(8);
 		this.workersInLaunch = new HashMap<>(8);
 		this.workersBeingReturned = new HashMap<>(8);
+
+		final ContaineredTaskManagerParameters containeredTaskManagerParameters = taskManagerParameters.containeredParameters();
+		this.slotsPerWorker = createSlotsPerWorker(containeredTaskManagerParameters.numSlots());
 	}
 
 	protected ActorRef createSelfActor() {
@@ -352,7 +360,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 				switch(worker.state()) {
 					case Launched:
 						workersInLaunch.put(extractResourceID(worker.taskID()), worker);
-						final LaunchableMesosWorker launchable = createLaunchableMesosWorker(worker.taskID(), worker.profile());
+						final LaunchableMesosWorker launchable = createLaunchableMesosWorker(worker.taskID());
 						toAssign.add(new Tuple2<>(launchable.taskRequest(), worker.hostname().get()));
 						break;
 					case Released:
@@ -426,7 +434,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	}
 
 	@Override
-	public void startNewWorker(ResourceProfile resourceProfile) {
+	public Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile) {
 		LOG.info("Starting a new worker.");
 		try {
 			// generate new workers into persistent state and launch associated actors
@@ -434,7 +442,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			workerStore.putWorker(worker);
 			workersInNew.put(extractResourceID(worker.taskID()), worker);
 
-			LaunchableMesosWorker launchable = createLaunchableMesosWorker(worker.taskID(), resourceProfile);
+			LaunchableMesosWorker launchable = createLaunchableMesosWorker(worker.taskID());
 
 			LOG.info("Scheduling Mesos task {} with ({} MB, {} cpus).",
 				launchable.taskID().getValue(), launchable.taskRequest().getMemory(), launchable.taskRequest().getCPUs());
@@ -443,9 +451,12 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			taskMonitor.tell(new TaskMonitor.TaskGoalStateUpdated(extractGoalState(worker)), selfActor);
 
 			// tell the launch coordinator to launch the new tasks
-			launchCoordinator.tell(new LaunchCoordinator.Launch(Collections.singletonList((LaunchableTask) launchable)), selfActor);
+			launchCoordinator.tell(new LaunchCoordinator.Launch(Collections.singletonList(launchable)), selfActor);
+
+			return slotsPerWorker;
 		} catch (Exception ex) {
 			onFatalError(new ResourceManagerException("Unable to request new workers.", ex));
+			return Collections.emptyList();
 		}
 	}
 
@@ -675,7 +686,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			return CompletableFuture.completedFuture(true);
 		}
 
-		return FutureUtils.<Boolean>toJava(Patterns.gracefulStop(actorRef, timeout))
+		return FutureUtils.toJava(Patterns.gracefulStop(actorRef, timeout))
 			.exceptionally(
 				(Throwable throwable) -> {
 					// The actor did not stop gracefully in time, try to directly stop it
@@ -691,36 +702,13 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	/**
 	 * Creates a launchable task for Fenzo to process.
 	 */
-	private LaunchableMesosWorker createLaunchableMesosWorker(Protos.TaskID taskID, ResourceProfile resourceProfile) {
-
-		// create the specific TM parameters from the resource profile and some defaults
-		MesosTaskManagerParameters params = new MesosTaskManagerParameters(
-			resourceProfile.getCpuCores() < 1.0 ? taskManagerParameters.cpus() : resourceProfile.getCpuCores(),
-			taskManagerParameters.gpus(),
-			taskManagerParameters.containerType(),
-			taskManagerParameters.containerImageName(),
-			new ContaineredTaskManagerParameters(
-				ResourceProfile.UNKNOWN.equals(resourceProfile) ? taskManagerParameters.containeredParameters().taskManagerTotalMemoryMB() : resourceProfile.getMemoryInMB(),
-				ResourceProfile.UNKNOWN.equals(resourceProfile) ? taskManagerParameters.containeredParameters().taskManagerHeapSizeMB() : resourceProfile.getHeapMemoryInMB(),
-				ResourceProfile.UNKNOWN.equals(resourceProfile) ? taskManagerParameters.containeredParameters().taskManagerDirectMemoryLimitMB() : resourceProfile.getDirectMemoryInMB(),
-				1,
-				new HashMap<>(taskManagerParameters.containeredParameters().taskManagerEnv())),
-			taskManagerParameters.containerVolumes(),
-			taskManagerParameters.dockerParameters(),
-			taskManagerParameters.dockerForcePullImage(),
-			taskManagerParameters.constraints(),
-			taskManagerParameters.command(),
-			taskManagerParameters.bootstrapCommand(),
-			taskManagerParameters.getTaskManagerHostname(),
-			taskManagerParameters.uris()
-		);
-
-		LOG.debug("LaunchableMesosWorker parameters: {}", params);
+	private LaunchableMesosWorker createLaunchableMesosWorker(Protos.TaskID taskID) {
+		LOG.debug("LaunchableMesosWorker parameters: {}", taskManagerParameters);
 
 		LaunchableMesosWorker launchable =
 			new LaunchableMesosWorker(
 				artifactServer,
-				params,
+				taskManagerParameters,
 				taskManagerContainerSpec,
 				taskID,
 				mesosConfig);

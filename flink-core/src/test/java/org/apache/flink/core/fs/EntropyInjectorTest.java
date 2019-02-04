@@ -26,9 +26,11 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link EntropyInjector}.
@@ -120,6 +122,42 @@ public class EntropyInjectorTest {
 
 		assertEquals(new Path(Path.fromLocalFile(folder), "test-entropy/file"), out.path());
 		assertTrue(new File (new File(folder, "test-entropy"), "file").exists());
+	}
+
+	@Test
+	public void testWithSafetyNet() throws Exception {
+		final String entropyKey = "__ekey__";
+		final String entropyValue = "abc";
+
+		final File folder = TMP_FOLDER.newFolder();
+
+		final Path path = new Path(Path.fromLocalFile(folder), entropyKey + "/path/");
+		final Path pathWithEntropy = new Path(Path.fromLocalFile(folder), entropyValue + "/path/");
+
+		TestEntropyInjectingFs efs = new TestEntropyInjectingFs(entropyKey, entropyValue);
+
+		FSDataOutputStream out;
+
+		FileSystemSafetyNet.initializeSafetyNetForThread();
+		FileSystem fs = FileSystemSafetyNet.wrapWithSafetyNetWhenActivated(efs);
+		try  {
+			OutputStreamAndPath streamAndPath = EntropyInjector.createEntropyAware(
+					fs, path, WriteMode.NO_OVERWRITE);
+
+			out = streamAndPath.stream();
+
+			assertEquals(pathWithEntropy, streamAndPath.path());
+		}
+		finally {
+			FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
+		}
+
+		// check that the safety net closed the stream
+		try {
+			out.write(42);
+			out.flush();
+			fail("stream should be already close and hence fail with an exception");
+		} catch (IOException ignored) {}
 	}
 
 	// ------------------------------------------------------------------------

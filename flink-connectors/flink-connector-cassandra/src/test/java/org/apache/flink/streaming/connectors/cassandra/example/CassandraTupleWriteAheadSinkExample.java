@@ -37,7 +37,7 @@ import java.util.UUID;
  * This is an example showing the to use the Cassandra Sink (with write-ahead log) in the Streaming API.
  *
  * <p>The example assumes that a table exists in a local cassandra database, according to the following queries:
- * CREATE KEYSPACE IF NOT EXISTS example WITH replication = {'class': 'SimpleStrategy', 'replication_factor': ‘1’};
+ * CREATE KEYSPACE IF NOT EXISTS example WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'};
  * CREATE TABLE example.values (id text, count int, PRIMARY KEY(id));
  *
  * <p>Important things to note are that checkpointing is enabled, a StateBackend is set and the enableWriteAheadLog() call

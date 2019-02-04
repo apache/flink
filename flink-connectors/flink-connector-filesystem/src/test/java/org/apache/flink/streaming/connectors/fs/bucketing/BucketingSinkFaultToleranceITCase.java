@@ -179,7 +179,7 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 						int messageId = Integer.parseInt(matcher.group(1));
 						readNumbers.add(messageId);
 					} else {
-						Assert.fail("Read line does not match expected pattern.");
+						Assert.fail("Read line does not match expected pattern. Line: " + line);
 					}
 					line = br.readLine();
 				}

@@ -13,9 +13,19 @@
             <td>The comma separated list of standard SSL algorithms to be supported. Read more <a href="http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites">here</a></td>
         </tr>
         <tr>
+            <td><h5>security.ssl.internal.close-notify-flush-timeout</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>The timeout (in ms) for flushing the `close_notify` that was triggered by closing a channel. If the `close_notify` was not flushed in the given timeout the channel will be closed forcibly. (-1 = use system default)</td>
+        </tr>
+        <tr>
             <td><h5>security.ssl.internal.enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Turns on SSL for internal network communication. Optionally, specific components may override this through their own settings (rpc, data transport, REST, etc).</td>
+        </tr>
+        <tr>
+            <td><h5>security.ssl.internal.handshake-timeout</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>The timeout (in ms) during SSL handshake. (-1 = use system default)</td>
         </tr>
         <tr>
             <td><h5>security.ssl.internal.key-password</h5></td>
@@ -31,6 +41,16 @@
             <td><h5>security.ssl.internal.keystore-password</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>The secret to decrypt the keystore file for Flink's for Flink's internal endpoints (rpc, data transport, blob server).</td>
+        </tr>
+        <tr>
+            <td><h5>security.ssl.internal.session-cache-size</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>The size of the cache used for storing SSL session objects. According to https://github.com/netty/netty/issues/832, you should always set this to an appropriate number to not run into a bug with stalling IO threads during garbage collection. (-1 = use system default).</td>
+        </tr>
+        <tr>
+            <td><h5>security.ssl.internal.session-timeout</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>The timeout (in ms) for the cached SSL session objects. (-1 = use system default)</td>
         </tr>
         <tr>
             <td><h5>security.ssl.internal.truststore</h5></td>
@@ -61,6 +81,11 @@
             <td><h5>security.ssl.protocol</h5></td>
             <td style="word-wrap: break-word;">"TLSv1.2"</td>
             <td>The SSL protocol version to be supported for the ssl transport. Note that it doesn’t support comma separated list.</td>
+        </tr>
+        <tr>
+            <td><h5>security.ssl.rest.authentication-enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Turns on mutual SSL authentication for external communication via the REST endpoints.</td>
         </tr>
         <tr>
             <td><h5>security.ssl.rest.enabled</h5></td>

@@ -43,14 +43,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import scala.concurrent.Await;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import scala.concurrent.Await;
-
+/**
+ * Tests for the {@link AkkaRpcActor}.
+ */
 public class AkkaRpcActorTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
@@ -60,7 +63,6 @@ public class AkkaRpcActorTest extends TestLogger {
 	private static Time timeout = Time.milliseconds(10000L);
 
 	private static AkkaRpcService akkaRpcService;
-
 
 	@BeforeClass
 	public static void setup() {
@@ -150,7 +152,7 @@ public class AkkaRpcActorTest extends TestLogger {
 	 * @throws ExecutionException
 	 * @throws InterruptedException
 	 */
-	@Test(timeout=5000)
+	@Test(timeout = 5000)
 	public void testRpcEndpointTerminationFuture() throws Exception {
 		final DummyRpcEndpoint rpcEndpoint = new DummyRpcEndpoint(akkaRpcService);
 		rpcEndpoint.start();
@@ -248,7 +250,8 @@ public class AkkaRpcActorTest extends TestLogger {
 	@Test
 	public void testActorTerminationWhenServiceShutdown() throws Exception {
 		final ActorSystem rpcActorSystem = AkkaUtils.createDefaultActorSystem();
-		final RpcService rpcService = new AkkaRpcService(rpcActorSystem, timeout);
+		final RpcService rpcService = new AkkaRpcService(
+			rpcActorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
 
 		try {
 			SimpleRpcEndpoint rpcEndpoint = new SimpleRpcEndpoint(rpcService, SimpleRpcEndpoint.class.getSimpleName());
@@ -301,21 +304,9 @@ public class AkkaRpcActorTest extends TestLogger {
 		CompletableFuture<Integer> foobar();
 	}
 
-	private static class TestRpcEndpoint extends RpcEndpoint {
-
-		protected TestRpcEndpoint(RpcService rpcService) {
-			super(rpcService);
-		}
-
-		@Override
-		public CompletableFuture<Void> postStop() {
-			return CompletableFuture.completedFuture(null);
-		}
-	}
-
 	static class DummyRpcEndpoint extends TestRpcEndpoint implements DummyRpcGateway {
 
-		private volatile int _foobar = 42;
+		private volatile int foobar = 42;
 
 		protected DummyRpcEndpoint(RpcService rpcService) {
 			super(rpcService);
@@ -323,11 +314,11 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		@Override
 		public CompletableFuture<Integer> foobar() {
-			return CompletableFuture.completedFuture(_foobar);
+			return CompletableFuture.completedFuture(foobar);
 		}
 
 		public void setFoobar(int value) {
-			_foobar = value;
+			foobar = value;
 		}
 	}
 
@@ -429,4 +420,5 @@ public class AkkaRpcActorTest extends TestLogger {
 			return postStopFuture;
 		}
 	}
+
 }

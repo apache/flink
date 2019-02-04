@@ -80,13 +80,10 @@ public class ZooKeeperUtilityFactory {
 			String zkStateHandleStorePath,
 			RetrievableStateStorageHelper<T> stateStorageHelper) throws Exception {
 
-		facade.newNamespaceAwareEnsurePath(zkStateHandleStorePath).ensure(facade.getZookeeperClient());
-		CuratorFramework stateHandleStoreFacade = facade.usingNamespace(
-			ZooKeeperUtils.generateZookeeperPath(
-				facade.getNamespace(),
-				zkStateHandleStorePath));
-
-		return new ZooKeeperStateHandleStore<>(stateHandleStoreFacade, stateStorageHelper);
+		return ZooKeeperUtils.createZooKeeperStateHandleStore(
+			facade,
+			zkStateHandleStorePath,
+			stateStorageHelper);
 	}
 
 	/**

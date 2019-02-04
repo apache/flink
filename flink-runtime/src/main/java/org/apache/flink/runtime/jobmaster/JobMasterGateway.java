@@ -32,7 +32,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -173,11 +172,6 @@ public interface JobMasterGateway extends
 	void disconnectResourceManager(
 		final ResourceManagerId resourceManagerId,
 		final Exception cause);
-
-	/**
-	 * Request the classloading props of this job.
-	 */
-	CompletableFuture<ClassloadingProps> requestClassloadingProps();
 
 	/**
 	 * Offers the given slots to the job manager. The response contains the set of accepted slots.

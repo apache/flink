@@ -28,7 +28,6 @@ import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
@@ -40,6 +39,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 
 import scala.concurrent.ExecutionContext;
 
@@ -52,7 +53,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 
 @SuppressWarnings("serial")
 public class ExecutionVertexCancelTest extends TestLogger {
@@ -453,8 +453,11 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			// scheduling after being canceled should be tolerated (no exception) because
 			// it can occur as the result of races
 			{
-				Scheduler scheduler = mock(Scheduler.class);
-				vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL);
+				vertex.scheduleForExecution(
+					new TestingSlotProvider(ignore -> new CompletableFuture<>()),
+					false,
+					LocationPreferenceConstraint.ALL,
+					Collections.emptySet());
 
 				assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 			}
@@ -492,8 +495,11 @@ public class ExecutionVertexCancelTest extends TestLogger {
 						AkkaUtils.getDefaultTimeout());
 				setVertexState(vertex, ExecutionState.CANCELING);
 
-				Scheduler scheduler = mock(Scheduler.class);
-				vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL);
+				vertex.scheduleForExecution(
+					new TestingSlotProvider(ignore -> new CompletableFuture<>()),
+					false,
+					LocationPreferenceConstraint.ALL,
+					Collections.emptySet());
 			}
 			catch (Exception e) {
 				fail("should not throw an exception");

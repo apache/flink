@@ -20,22 +20,18 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.rest.RestClusterClient;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -54,42 +50,9 @@ public class BigUserProgramJobSubmitITCase extends TestLogger {
 	//  The mini cluster that is shared across tests
 	// ------------------------------------------------------------------------
 
-	private static final MiniCluster CLUSTER;
-	private static final RestClusterClient<StandaloneClusterId> CLIENT;
-
-	static {
-		try {
-			MiniClusterConfiguration clusterConfiguration = new MiniClusterConfiguration.Builder()
-				.setNumTaskManagers(1)
-				.setNumSlotsPerTaskManager(1)
-				.build();
-			CLUSTER = new MiniCluster(clusterConfiguration);
-			CLUSTER.start();
-
-			URI restAddress = CLUSTER.getRestAddress();
-
-			final Configuration clientConfig = new Configuration();
-			clientConfig.setString(JobManagerOptions.ADDRESS, restAddress.getHost());
-			clientConfig.setInteger(RestOptions.PORT, restAddress.getPort());
-
-			CLIENT = new RestClusterClient<>(
-				clientConfig,
-				StandaloneClusterId.getInstance());
-
-		} catch (Exception e) {
-			throw new AssertionError("Could not setup cluster.", e);
-		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Cluster setup & teardown
-	// ------------------------------------------------------------------------
-
-	@AfterClass
-	public static void teardown() throws Exception {
-		CLIENT.shutdown();
-		CLUSTER.close();
-	}
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResourceConfiguration.Builder().build());
 
 	private final Random rnd = new Random();
 
@@ -122,17 +85,26 @@ public class BigUserProgramJobSubmitITCase extends TestLogger {
 		}).addSink(resultSink);
 
 		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
-		CLIENT.setDetached(false);
-		CLIENT.submitJob(jobGraph, BigUserProgramJobSubmitITCase.class.getClassLoader());
 
-		List<String> expected = Arrays.asList("x 1 0", "x 3 0", "x 5 0");
+		final RestClusterClient<StandaloneClusterId> restClusterClient = new RestClusterClient<>(
+			MINI_CLUSTER_RESOURCE.getClientConfiguration(),
+			StandaloneClusterId.getInstance());
 
-		List<String> result = CollectingSink.result;
+		try {
+			restClusterClient.setDetached(false);
+			restClusterClient.submitJob(jobGraph, BigUserProgramJobSubmitITCase.class.getClassLoader());
 
-		Collections.sort(expected);
-		Collections.sort(result);
+			List<String> expected = Arrays.asList("x 1 0", "x 3 0", "x 5 0");
 
-		assertEquals(expected, result);
+			List<String> result = CollectingSink.result;
+
+			Collections.sort(expected);
+			Collections.sort(result);
+
+			assertEquals(expected, result);
+		} finally {
+			restClusterClient.shutdown();
+		}
 	}
 
 	private static class CollectingSink implements SinkFunction<String> {

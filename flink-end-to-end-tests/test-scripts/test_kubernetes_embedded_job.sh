@@ -22,6 +22,8 @@ source "$(dirname "$0")"/common.sh
 DOCKER_MODULE_DIR=${END_TO_END_DIR}/../flink-container/docker
 KUBERNETES_MODULE_DIR=${END_TO_END_DIR}/../flink-container/kubernetes
 CONTAINER_SCRIPTS=${END_TO_END_DIR}/test-scripts/container-scripts
+MINIKUBE_START_RETRIES=3
+MINIKUBE_START_BACKOFF=5
 
 export FLINK_JOB=org.apache.flink.examples.java.wordcount.WordCount
 export FLINK_IMAGE_NAME=test_kubernetes_embedded_job
@@ -37,9 +39,28 @@ function cleanup {
     rm -rf ${OUTPUT_VOLUME}
 }
 
+function check_kubernetes_status {
+    local status=`minikube status`
+    echo ${status} | grep -q "minikube: Running cluster: Running kubectl: Correctly Configured"
+    return $?
+}
+
+function start_kubernetes_if_not_running {
+    if ! check_kubernetes_status; then
+        minikube start
+    fi
+
+    return $(check_kubernetes_status)
+}
+
 trap cleanup EXIT
 
 mkdir -p $OUTPUT_VOLUME
+
+if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} start_kubernetes_if_not_running; then
+    echo "Minikube not running. Could not start minikube. Aborting..."
+    exit 1
+fi
 
 eval $(minikube docker-env)
 cd "$DOCKER_MODULE_DIR"

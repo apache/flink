@@ -132,7 +132,7 @@ Incremental checkpoints can dramatically reduce the checkpointing time in compar
 recovery time. The core idea is that incremental checkpoints only record all changes to the previous completed checkpoint, instead of
 producing a full, self-contained backup of the state backend. Like this, incremental checkpoints build upon previous checkpoints. Flink leverages
 RocksDB's internal backup mechanism in a way that is self-consolidating over time. As a result, the incremental checkpoint history in Flink
-does not grow indefinitely, and old checkpoints are eventually subsumed and pruned automatically. `
+does not grow indefinitely, and old checkpoints are eventually subsumed and pruned automatically.
 
 While we strongly encourage the use of incremental checkpoints for large state, please note that this is a new feature and currently not enabled 
 by default. To enable this feature, users can instantiate a `RocksDBStateBackend` with the corresponding boolean flag in the constructor set to `true`, e.g.:
@@ -161,21 +161,17 @@ RocksDBStateBackend.setOptions(new MyOptions());
 public class MyOptions implements OptionsFactory {
 
     @Override
-    public DBOptions createDBOptions() {
-        return new DBOptions()
-            .setIncreaseParallelism(4)
-            .setUseFsync(false)
-            .setDisableDataSync(true);
+    public DBOptions createDBOptions(DBOptions currentOptions) {
+    	return currentOptions.setIncreaseParallelism(4)
+    		   .setUseFsync(false);
     }
-
+    		
     @Override
-    public ColumnFamilyOptions createColumnOptions() {
-
-        return new ColumnFamilyOptions()
-            .setTableFormatConfig(
-                new BlockBasedTableConfig()
-                    .setBlockCacheSize(256 * 1024 * 1024)  // 256 MB
-                    .setBlockSize(128 * 1024));            // 128 KB
+    public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+    	return currentOptions.setTableFormatConfig(
+    		new BlockBasedTableConfig()
+    			.setBlockCacheSize(256 * 1024 * 1024)  // 256 MB
+    			.setBlockSize(128 * 1024));            // 128 KB
     }
 }
 {% endhighlight %}
@@ -183,7 +179,7 @@ public class MyOptions implements OptionsFactory {
 **Predefined Options**
 
 Flink provides some predefined collections of option for RocksDB for different settings, which can be set for example via
-`RocksDBStateBacked.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)`.
+`RocksDBStateBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)`.
 
 We expect to accumulate more such profiles over time. Feel free to contribute such predefined option profiles when you
 found a set of options that work well and seem representative for certain workloads.
@@ -324,7 +320,9 @@ and occupy local disk space. In the future, we might also offer an implementatio
 and occupy local disk space. For *incremental snapshots*, the local state is based on RocksDB's native checkpointing mechanism. This mechanism is also used as the first step
 to create the primary copy, which means that in this case no additional cost is introduced for creating the secondary copy. We simply keep the native checkpoint directory around
 instead of deleting it after uploading to the distributed store. This local copy can share active files with the working directory of RocksDB (via hard links), so for active
-files also no additional disk space is consumed for task-local recovery with incremental snapshots.
+files also no additional disk space is consumed for task-local recovery with incremental snapshots. Using hard links also means that the RocksDB directories must be on
+the same physical device as all the configure local recovery directories that can be used to store local state, or else establishing hard links can fail (see FLINK-10954).
+Currently, this also prevents using local recovery when RocksDB directories are configured to be located on more than one physical device.
 
 ### Allocation-preserving scheduling
 

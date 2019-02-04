@@ -58,9 +58,27 @@ under the License.
 			<outputDirectory>conf</outputDirectory>
 			<fileMode>0644</fileMode>
 		</file>
+
+		<file>
+			<source>../LICENSE</source>
+			<outputDirectory/>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
+			<source>../NOTICE-binary</source>
+			<outputDirectory/>
+			<destName>NOTICE</destName>
+			<fileMode>0644</fileMode>
+		</file>
 	</files>
 
 	<fileSets>
+		<fileSet>
+			<directory>../licenses-binary</directory>
+			<outputDirectory>licenses</outputDirectory>
+			<fileMode>0644</fileMode>
+		</fileSet>
 		<!-- copy start scripts -->
 		<fileSet>
 			<directory>src/main/flink-bin/bin</directory>
@@ -77,14 +95,14 @@ under the License.
 
 		<!-- copy SQL client -->
 		<fileSet>
-			<directory>../flink-libraries/flink-sql-client/bin/</directory>
+			<directory>../flink-table/flink-sql-client/bin/</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
 
 		<!-- copy SQL client configuration files -->
 		<fileSet>
-			<directory>../flink-libraries/flink-sql-client/conf/</directory>
+			<directory>../flink-table/flink-sql-client/conf/</directory>
 			<outputDirectory>conf</outputDirectory>
 			<fileMode>0644</fileMode>
 		</fileSet>
@@ -130,17 +148,6 @@ under the License.
 			</includes>
 		</fileSet>
 
-		<!-- copy LICENSE/NOTICE files -->
-		<fileSet>
-			<directory>../</directory>
-			<outputDirectory/>
-			<fileMode>0644</fileMode>
-			<includes>
-				<include>LICENSE*</include>
-				<include>NOTICE*</include>
-			</includes>
-		</fileSet>
-
 		<!-- copy JavaDocs -->
 		<fileSet>
 			<!-- <directory>../target/apidocs</directory -->
@@ -183,6 +190,30 @@ under the License.
 			</includes>
 			<excludes>
 				<exclude>flink-examples-streaming*.jar</exclude>
+				<exclude>original-*.jar</exclude>
+			</excludes>
+		</fileSet>
+
+		<!-- copy jar files of the streaming examples -->
+		<fileSet>
+			<directory>../flink-examples/flink-examples-build-helper/flink-examples-streaming-twitter/target</directory>
+			<outputDirectory>examples/streaming</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>original-*.jar</exclude>
+			</excludes>
+		</fileSet>
+		<fileSet>
+			<directory>../flink-examples/flink-examples-build-helper/flink-examples-streaming-state-machine/target</directory>
+			<outputDirectory>examples/streaming</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
 				<exclude>original-*.jar</exclude>
 			</excludes>
 		</fileSet>

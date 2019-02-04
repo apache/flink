@@ -34,8 +34,10 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -198,7 +200,10 @@ public class FutureUtils {
 						if (throwable instanceof CancellationException) {
 							resultFuture.completeExceptionally(new RetryException("Operation future was cancelled.", throwable));
 						} else {
-							if (retries > 0 && retryPredicate.test(throwable)) {
+							throwable = ExceptionUtils.stripExecutionException(throwable);
+							if (!retryPredicate.test(throwable)) {
+								resultFuture.completeExceptionally(throwable);
+							} else if (retries > 0) {
 								final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
 									(Runnable) () -> retryOperationWithDelay(resultFuture, operation, retries - 1, retryDelay, retryPredicate, scheduledExecutor),
 									retryDelay.toMilliseconds(),
@@ -207,12 +212,10 @@ public class FutureUtils {
 								resultFuture.whenComplete(
 									(innerT, innerThrowable) -> scheduledFuture.cancel(false));
 							} else {
-								final String errorMsg = retries == 0 ?
-									"Number of retries has been exhausted." :
-									"Exception is not retryable.";
-								resultFuture.completeExceptionally(new RetryException(
-									"Could not complete the operation. " + errorMsg,
-									throwable));
+								RetryException retryException = new RetryException(
+									"Could not complete the operation. Number of retries has been exhausted.",
+									throwable);
+								resultFuture.completeExceptionally(retryException);
 							}
 						}
 					} else {
@@ -238,7 +241,7 @@ public class FutureUtils {
 	 * @return Future which retries the given operation a given amount of times and delays the retry
 	 *   in case the predicate isn't matched
 	 */
-	public static <T> CompletableFuture<T> retrySuccesfulWithDelay(
+	public static <T> CompletableFuture<T> retrySuccessfulWithDelay(
 		final Supplier<CompletableFuture<T>> operation,
 		final Time retryDelay,
 		final Deadline deadline,
@@ -347,6 +350,27 @@ public class FutureUtils {
 	// ------------------------------------------------------------------------
 	//  Future actions
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Run the given {@code RunnableFuture} if it is not done, and then retrieves its result.
+	 * @param future to run if not done and get
+	 * @param <T> type of the result
+	 * @return the result after running the future
+	 * @throws ExecutionException if a problem occurred
+	 * @throws InterruptedException if the current thread has been interrupted
+	 */
+	public static <T> T runIfNotDoneAndGet(RunnableFuture<T> future) throws ExecutionException, InterruptedException {
+
+		if (null == future) {
+			return null;
+		}
+
+		if (!future.isDone()) {
+			future.run();
+		}
+
+		return future.get();
+	}
 
 	/**
 	 * Run the given action after the completion of the given future. The given future can be
@@ -758,14 +782,15 @@ public class FutureUtils {
 	 *
 	 * @param scalaFuture to convert to a Java 8 CompletableFuture
 	 * @param <T> type of the future value
+	 * @param <U> type of the original future
 	 * @return Java 8 CompletableFuture
 	 */
-	public static <T> CompletableFuture<T> toJava(Future<T> scalaFuture) {
+	public static <T, U extends T> CompletableFuture<T> toJava(Future<U> scalaFuture) {
 		final CompletableFuture<T> result = new CompletableFuture<>();
 
-		scalaFuture.onComplete(new OnComplete<T>() {
+		scalaFuture.onComplete(new OnComplete<U>() {
 			@Override
-			public void onComplete(Throwable failure, T success) {
+			public void onComplete(Throwable failure, U success) {
 				if (failure != null) {
 					result.completeExceptionally(failure);
 				} else {

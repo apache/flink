@@ -48,15 +48,14 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 public class RescalePartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private final int[] returnArray = new int[] {-1};
+	private int nextChannelToSendTo = -1;
 
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record, int numberOfOutputChannels) {
-		int newChannel = ++this.returnArray[0];
-		if (newChannel >= numberOfOutputChannels) {
-			this.returnArray[0] = 0;
+	public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
+		if (++nextChannelToSendTo >= numberOfChannels) {
+			nextChannelToSendTo = 0;
 		}
-		return this.returnArray;
+		return nextChannelToSendTo;
 	}
 
 	public StreamPartitioner<T> copy() {

@@ -45,6 +45,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
@@ -69,7 +70,7 @@ public class HandlerUtils {
 	 * @param headers additional header values
 	 * @param <P> type of the response
 	 */
-	public static <P extends ResponseBody> void sendResponse(
+	public static <P extends ResponseBody> CompletableFuture<Void> sendResponse(
 			ChannelHandlerContext channelHandlerContext,
 			HttpRequest httpRequest,
 			P response,
@@ -80,15 +81,14 @@ public class HandlerUtils {
 			mapper.writeValue(sw, response);
 		} catch (IOException ioe) {
 			LOG.error("Internal server error. Could not map response to JSON.", ioe);
-			sendErrorResponse(
+			return sendErrorResponse(
 				channelHandlerContext,
 				httpRequest,
 				new ErrorResponseBody("Internal server error. Could not map response to JSON."),
 				HttpResponseStatus.INTERNAL_SERVER_ERROR,
 				headers);
-			return;
 		}
-		sendResponse(
+		return sendResponse(
 			channelHandlerContext,
 			httpRequest,
 			sw.toString(),
@@ -105,14 +105,14 @@ public class HandlerUtils {
 	 * @param statusCode of the message to send
 	 * @param headers additional header values
 	 */
-	public static void sendErrorResponse(
+	public static CompletableFuture<Void> sendErrorResponse(
 			ChannelHandlerContext channelHandlerContext,
 			HttpRequest httpRequest,
 			ErrorResponseBody errorMessage,
 			HttpResponseStatus statusCode,
 			Map<String, String> headers) {
 
-		sendErrorResponse(
+		return sendErrorResponse(
 			channelHandlerContext,
 			HttpHeaders.isKeepAlive(httpRequest),
 			errorMessage,
@@ -129,7 +129,7 @@ public class HandlerUtils {
 	 * @param statusCode of the message to send
 	 * @param headers additional header values
 	 */
-	public static void sendErrorResponse(
+	public static CompletableFuture<Void> sendErrorResponse(
 			ChannelHandlerContext channelHandlerContext,
 			boolean keepAlive,
 			ErrorResponseBody errorMessage,
@@ -142,14 +142,14 @@ public class HandlerUtils {
 		} catch (IOException e) {
 			// this should never happen
 			LOG.error("Internal server error. Could not map error response to JSON.", e);
-			sendResponse(
+			return sendResponse(
 				channelHandlerContext,
 				keepAlive,
 				"Internal server error. Could not map error response to JSON.",
 				HttpResponseStatus.INTERNAL_SERVER_ERROR,
 				headers);
 		}
-		sendResponse(
+		return sendResponse(
 			channelHandlerContext,
 			keepAlive,
 			sw.toString(),
@@ -166,14 +166,14 @@ public class HandlerUtils {
 	 * @param statusCode of the message to send
 	 * @param headers additional header values
 	 */
-	public static void sendResponse(
+	public static CompletableFuture<Void> sendResponse(
 			@Nonnull ChannelHandlerContext channelHandlerContext,
 			@Nonnull HttpRequest httpRequest,
 			@Nonnull String message,
 			@Nonnull HttpResponseStatus statusCode,
 			@Nonnull Map<String, String> headers) {
 
-		sendResponse(
+		return sendResponse(
 			channelHandlerContext,
 			HttpHeaders.isKeepAlive(httpRequest),
 			message,
@@ -190,7 +190,7 @@ public class HandlerUtils {
 	 * @param statusCode of the message to send
 	 * @param headers additional header values
 	 */
-	public static void sendResponse(
+	public static CompletableFuture<Void> sendResponse(
 			@Nonnull ChannelHandlerContext channelHandlerContext,
 			boolean keepAlive,
 			@Nonnull String message,
@@ -223,5 +223,19 @@ public class HandlerUtils {
 		if (!keepAlive) {
 			lastContentFuture.addListener(ChannelFutureListener.CLOSE);
 		}
+
+		return toCompletableFuture(lastContentFuture);
+	}
+
+	private static CompletableFuture<Void> toCompletableFuture(final ChannelFuture channelFuture) {
+		final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+		channelFuture.addListener(future -> {
+			if (future.isSuccess()) {
+				completableFuture.complete(null);
+			} else {
+				completableFuture.completeExceptionally(future.cause());
+			}
+		});
+		return completableFuture;
 	}
 }

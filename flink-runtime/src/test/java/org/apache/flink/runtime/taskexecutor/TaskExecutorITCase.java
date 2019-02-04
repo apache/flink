@@ -77,12 +77,12 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 public class TaskExecutorITCase extends TestLogger {
 
@@ -149,7 +149,8 @@ public class TaskExecutorITCase extends TestLogger {
 			metricRegistry,
 			jobLeaderIdService,
 			new ClusterInformation("localhost", 1234),
-			testingFatalErrorHandler);
+			testingFatalErrorHandler,
+			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
 			.setTaskManagerLocation(taskManagerLocation)
@@ -164,6 +165,7 @@ public class TaskExecutorITCase extends TestLogger {
 			taskManagerServices,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			null,
 			new BlobCacheService(
 				configuration,
 				new VoidBlobStore(),

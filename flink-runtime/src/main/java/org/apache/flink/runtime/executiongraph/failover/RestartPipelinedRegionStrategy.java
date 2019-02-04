@@ -206,7 +206,7 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 
 		// now that we have all regions, create the failover region objects 
 		LOG.info("Creating {} individual failover regions for job {} ({})",
-				executionGraph.getJobName(), executionGraph.getJobID());
+				distinctRegions.size(), executionGraph.getJobName(), executionGraph.getJobID());
 
 		for (List<ExecutionVertex> region : distinctRegions.keySet()) {
 			final FailoverRegion failoverRegion = new FailoverRegion(executionGraph, executor, region);

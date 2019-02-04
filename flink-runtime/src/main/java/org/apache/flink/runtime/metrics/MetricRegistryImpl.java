@@ -77,6 +77,8 @@ public class MetricRegistryImpl implements MetricRegistry {
 
 	private final CompletableFuture<Void> terminationFuture;
 
+	private final long maximumFramesize;
+
 	@Nullable
 	private ActorRef queryService;
 
@@ -91,6 +93,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 	 * Creates a new MetricRegistry and starts the configured reporter.
 	 */
 	public MetricRegistryImpl(MetricRegistryConfiguration config) {
+		this.maximumFramesize = config.getQueryServiceMessageSizeLimit();
 		this.scopeFormats = config.getScopeFormats();
 		this.globalDelimiter = config.getDelimiter();
 		this.delimiters = new ArrayList<>(10);
@@ -184,7 +187,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 			Preconditions.checkState(!isShutdown(), "The metric registry has already been shut down.");
 
 			try {
-				queryService = MetricQueryService.startMetricQueryService(actorSystem, resourceID);
+				queryService = MetricQueryService.startMetricQueryService(actorSystem, resourceID, maximumFramesize);
 				metricQueryServicePath = AkkaUtils.getAkkaURL(actorSystem, queryService);
 			} catch (Exception e) {
 				LOG.warn("Could not start MetricDumpActor. No metrics will be submitted to the WebInterface.", e);

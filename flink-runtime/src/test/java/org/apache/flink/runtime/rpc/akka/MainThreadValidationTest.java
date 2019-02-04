@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
 
 import org.apache.flink.runtime.rpc.RpcEndpoint;
@@ -46,7 +45,7 @@ public class MainThreadValidationTest extends TestLogger {
 		// actual test
 		AkkaRpcService akkaRpcService = new AkkaRpcService(
 				AkkaUtils.createDefaultActorSystem(),
-				Time.milliseconds(10000));
+				AkkaRpcServiceConfiguration.defaultConfiguration());
 
 		try {
 			TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService);

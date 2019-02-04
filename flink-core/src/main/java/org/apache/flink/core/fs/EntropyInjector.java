@@ -23,6 +23,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -50,15 +52,14 @@ public class EntropyInjector {
 			Path path,
 			WriteMode writeMode) throws IOException {
 
-		if (!(fs instanceof EntropyInjectingFileSystem)) {
-			return new OutputStreamAndPath(fs.create(path, writeMode), path);
-		}
+		// check and possibly inject entropy into the path
+		final EntropyInjectingFileSystem efs = getEntropyFs(fs);
+		final Path processedPath = efs == null ? path : resolveEntropy(path, efs, true);
 
-		final EntropyInjectingFileSystem efs = (EntropyInjectingFileSystem) fs;
-		final Path pathWithEntropy = resolveEntropy(path, efs, true);
-
-		final FSDataOutputStream out = fs.create(pathWithEntropy, writeMode);
-		return new OutputStreamAndPath(out, pathWithEntropy);
+		// create the stream on the original file system to let the safety net
+		// take its effect
+		final FSDataOutputStream out = fs.create(processedPath, writeMode);
+		return new OutputStreamAndPath(out, processedPath);
 	}
 
 	/**
@@ -70,21 +71,42 @@ public class EntropyInjector {
 	 * @return The path without the marker string.
 	 */
 	public static Path removeEntropyMarkerIfPresent(FileSystem fs, Path path) {
-		if (fs instanceof EntropyInjectingFileSystem) {
+		final EntropyInjectingFileSystem efs = getEntropyFs(fs);
+		if (efs == null) {
+			return path;
+		}
+		else  {
 			try {
-				return resolveEntropy(path, (EntropyInjectingFileSystem) fs, false);
+				return resolveEntropy(path, efs, false);
 			}
 			catch (IOException e) {
-				// this should never happen, because the path was valid before. rethrow to silence the compiler
+				// this should never happen, because the path was valid before and we only remove characters.
+				// rethrow to silence the compiler
 				throw new FlinkRuntimeException(e.getMessage(), e);
 			}
-		}
-		else {
-			return path;
 		}
 	}
 
 	// ------------------------------------------------------------------------
+
+	@Nullable
+	private static EntropyInjectingFileSystem getEntropyFs(FileSystem fs) {
+		if (fs instanceof EntropyInjectingFileSystem) {
+			return (EntropyInjectingFileSystem) fs;
+		}
+		else if (fs instanceof SafetyNetWrapperFileSystem) {
+			FileSystem delegate = ((SafetyNetWrapperFileSystem) fs).getWrappedDelegate();
+			if (delegate instanceof EntropyInjectingFileSystem) {
+				return (EntropyInjectingFileSystem) delegate;
+			}
+			else {
+				return null;
+			}
+		}
+		else {
+			return null;
+		}
+	}
 
 	@VisibleForTesting
 	static Path resolveEntropy(Path path, EntropyInjectingFileSystem efs, boolean injectEntropy) throws IOException {

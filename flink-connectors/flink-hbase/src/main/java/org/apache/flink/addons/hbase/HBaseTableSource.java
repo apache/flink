@@ -25,7 +25,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sources.BatchTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
-import org.apache.flink.table.util.TableConnectorUtil;
+import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -51,7 +51,7 @@ import java.util.Map;
  * hSrc.addColumn("fam2", "col1", String.class);
  *
  * tableEnv.registerTableSource("hTable", hSrc);
- * Table res = tableEnv.sql("SELECT t.fam2.col1, SUM(t.fam1.col2) FROM hTable AS t GROUP BY t.fam2.col1");
+ * Table res = tableEnv.sqlQuery("SELECT t.fam2.col1, SUM(t.fam1.col2) FROM hTable AS t GROUP BY t.fam2.col1");
  * }
  * </pre>
  *
@@ -155,6 +155,6 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 
 	@Override
 	public String explainSource() {
-		return TableConnectorUtil.generateRuntimeName(this.getClass(), getFieldNames());
+		return TableConnectorUtils.generateRuntimeName(this.getClass(), getFieldNames());
 	}
 }

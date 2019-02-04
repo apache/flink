@@ -25,6 +25,8 @@ import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
@@ -36,6 +38,7 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.dispatcher.DefaultJobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
@@ -64,12 +67,17 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRunner;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
+import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -95,6 +103,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -131,6 +141,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 	@GuardedBy("lock")
 	private RpcService resourceManagerRpcService;
+
+	@GuardedBy("lock")
+	private ActorSystem metricQueryServiceActorSystem;
 
 	@GuardedBy("lock")
 	private HighAvailabilityServices haServices;
@@ -195,6 +208,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 	}
 
+	public ClusterInformation getClusterInformation() {
+		synchronized (lock) {
+			checkState(running, "MiniCluster is not yet running.");
+			return new ClusterInformation("localhost", blobServer.getPort());
+		}
+	}
+
 	public HighAvailabilityServices getHighAvailabilityServices() {
 		synchronized (lock) {
 			checkState(running, "MiniCluster is not yet running.");
@@ -236,6 +256,10 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 				LOG.info("Starting Metrics Registry");
 				metricRegistry = createMetricRegistry(configuration);
+				this.jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
+					metricRegistry,
+					"localhost",
+					ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
 
 				final RpcService jobManagerRpcService;
 				final RpcService resourceManagerRpcService;
@@ -244,12 +268,16 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				// bring up all the RPC services
 				LOG.info("Starting RPC Service(s)");
 
+				AkkaRpcServiceConfiguration akkaRpcServiceConfig = AkkaRpcServiceConfiguration.fromConfiguration(configuration);
 				// we always need the 'commonRpcService' for auxiliary calls
-				commonRpcService = createRpcService(configuration, rpcTimeout, false, null);
+				commonRpcService = createRpcService(akkaRpcServiceConfig, false, null);
 
 				// TODO: Temporary hack until the metric query service is ported to the RpcEndpoint
-				final ActorSystem actorSystem = ((AkkaRpcService) commonRpcService).getActorSystem();
-				metricRegistry.startQueryService(actorSystem, null);
+				metricQueryServiceActorSystem = MetricUtils.startMetricsActorSystem(
+					configuration,
+					commonRpcService.getAddress(),
+					LOG);
+				metricRegistry.startQueryService(metricQueryServiceActorSystem, null);
 
 				if (useSingleRpcService) {
 					for (int i = 0; i < numTaskManagers; i++) {
@@ -269,12 +297,11 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					final String taskManagerBindAddress = miniClusterConfiguration.getTaskManagerBindAddress();
 					final String resourceManagerBindAddress = miniClusterConfiguration.getResourceManagerBindAddress();
 
-					jobManagerRpcService = createRpcService(configuration, rpcTimeout, true, jobManagerBindAddress);
-					resourceManagerRpcService = createRpcService(configuration, rpcTimeout, true, resourceManagerBindAddress);
+					jobManagerRpcService = createRpcService(akkaRpcServiceConfig, true, jobManagerBindAddress);
+					resourceManagerRpcService = createRpcService(akkaRpcServiceConfig, true, resourceManagerBindAddress);
 
 					for (int i = 0; i < numTaskManagers; i++) {
-						taskManagerRpcServices[i] = createRpcService(
-								configuration, rpcTimeout, true, taskManagerBindAddress);
+						taskManagerRpcServices[i] = createRpcService(akkaRpcServiceConfig, true, taskManagerBindAddress);
 					}
 
 					this.jobManagerRpcService = jobManagerRpcService;
@@ -282,11 +309,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					this.resourceManagerRpcService = resourceManagerRpcService;
 				}
 
-				// create the high-availability services
-				LOG.info("Starting high-availability services");
-				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
-					configuration,
-					commonRpcService.getExecutor());
+				haServices = createHighAvailabilityServices(configuration, commonRpcService.getExecutor());
 
 				blobServer = new BlobServer(configuration, haServices.createBlobStore());
 				blobServer.start();
@@ -301,7 +324,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					heartbeatServices,
 					metricRegistry,
 					resourceManagerRpcService,
-					new ClusterInformation("localhost", blobServer.getPort()));
+					new ClusterInformation("localhost", blobServer.getPort()),
+					jobManagerMetricGroup);
 
 				blobCacheService = new BlobCacheService(
 					configuration, haServices.createBlobStore(), new InetSocketAddress(InetAddress.getLocalHost(), blobServer.getPort())
@@ -334,6 +358,21 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					20,
 					Time.milliseconds(20L));
 
+				final ExecutorService executor = WebMonitorEndpoint.createExecutorService(
+					configuration.getInteger(RestOptions.SERVER_NUM_THREADS, 1),
+					configuration.getInteger(RestOptions.SERVER_THREAD_PRIORITY),
+					"DispatcherRestEndpoint");
+
+				final long updateInterval = configuration.getLong(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
+				final MetricFetcher metricFetcher = updateInterval == 0
+					? VoidMetricFetcher.INSTANCE
+					: MetricFetcherImpl.fromConfiguration(configuration,
+						new AkkaQueryServiceRetriever(
+							metricQueryServiceActorSystem,
+							Time.milliseconds(
+							configuration.getLong(WebOptions.TIMEOUT))),
+						dispatcherGatewayRetriever, executor);
+
 				this.dispatcherRestEndpoint = new DispatcherRestEndpoint(
 					RestServerEndpointConfiguration.fromConfiguration(configuration),
 					dispatcherGatewayRetriever,
@@ -341,26 +380,19 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					RestHandlerConfiguration.fromConfiguration(configuration),
 					resourceManagerGatewayRetriever,
 					blobServer.getTransientBlobService(),
-					commonRpcService.getExecutor(),
-					new AkkaQueryServiceRetriever(
-						actorSystem,
-						Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT))),
+					executor,
+					metricFetcher,
 					haServices.getWebMonitorLeaderElectionService(),
 					new ShutDownFatalErrorHandler());
 
-				dispatcherRestEndpoint.start();
+				this.dispatcherRestEndpoint.start();
 
-				restAddressURI = new URI(dispatcherRestEndpoint.getRestBaseUrl());
+				restAddressURI = new URI(this.dispatcherRestEndpoint.getRestBaseUrl());
 
 				// bring up the dispatcher that launches JobManagers when jobs submitted
 				LOG.info("Starting job dispatcher(s) for JobManger");
 
-				this.jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
-					metricRegistry,
-					"localhost",
-					ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
-
-				final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, dispatcherRestEndpoint);
+				final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, this.dispatcherRestEndpoint);
 
 				dispatcher = new StandaloneDispatcher(
 					jobManagerRpcService,
@@ -373,9 +405,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					jobManagerMetricGroup,
 					metricRegistry.getMetricQueryServicePath(),
 					new MemoryArchivedExecutionGraphStore(),
-					Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
+					DefaultJobManagerRunnerFactory.INSTANCE,
 					new ShutDownFatalErrorHandler(),
-					dispatcherRestEndpoint.getRestBaseUrl(),
 					historyServerArchivist);
 
 				dispatcher.start();
@@ -404,6 +435,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 			LOG.info("Flink Mini Cluster started successfully");
 		}
+	}
+
+	protected HighAvailabilityServices createHighAvailabilityServices(Configuration configuration, Executor executor) throws Exception {
+		LOG.info("Starting high-availability services");
+		return HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+			configuration,
+			executor);
 	}
 
 	/**
@@ -443,24 +481,12 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 					final FutureUtils.ConjunctFuture<Void> componentsTerminationFuture = FutureUtils.completeAll(componentTerminationFutures);
 
-					final CompletableFuture<Void> metricRegistryTerminationFuture = FutureUtils.runAfterwards(
+					final CompletableFuture<Void> metricSystemTerminationFuture = FutureUtils.composeAfterwards(
 						componentsTerminationFuture,
-						() -> {
-							synchronized (lock) {
-								if (jobManagerMetricGroup != null) {
-									jobManagerMetricGroup.close();
-									jobManagerMetricGroup = null;
-								}
-								// metrics shutdown
-								if (metricRegistry != null) {
-									metricRegistry.shutdown();
-									metricRegistry = null;
-								}
-							}
-						});
+						this::closeMetricSystem);
 
 					// shut down the RpcServices
-					final CompletableFuture<Void> rpcServicesTerminationFuture = metricRegistryTerminationFuture
+					final CompletableFuture<Void> rpcServicesTerminationFuture = metricSystemTerminationFuture
 						.thenCompose((Void ignored) -> terminateRpcServices());
 
 					final CompletableFuture<Void> remainingServicesTerminationFuture = FutureUtils.runAfterwards(
@@ -481,6 +507,29 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			}
 
 			return terminationFuture;
+		}
+	}
+
+	private CompletableFuture<Void> closeMetricSystem() {
+		synchronized (lock) {
+			if (jobManagerMetricGroup != null) {
+				jobManagerMetricGroup.close();
+				jobManagerMetricGroup = null;
+			}
+
+			final ArrayList<CompletableFuture<Void>> terminationFutures = new ArrayList<>(2);
+
+			// metrics shutdown
+			if (metricRegistry != null) {
+				terminationFutures.add(metricRegistry.shutdown());
+				metricRegistry = null;
+			}
+
+			if (metricQueryServiceActorSystem != null) {
+				terminationFutures.add(AkkaUtils.terminateActorSystem(metricQueryServiceActorSystem));
+			}
+
+			return FutureUtils.completeAll(terminationFutures);
 		}
 	}
 
@@ -623,8 +672,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 		try {
 			return jobResult.toJobExecutionResult(Thread.currentThread().getContextClassLoader());
-		} catch (JobResult.WrappedJobException e) {
-			throw new JobExecutionException(job.getJobID(), e.getCause());
 		} catch (IOException | ClassNotFoundException e) {
 			throw new JobExecutionException(job.getJobID(), e);
 		}
@@ -708,9 +755,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	/**
 	 * Factory method to instantiate the RPC service.
 	 *
-	 * @param configuration
-	 *            The configuration of the mini cluster
-	 * @param askTimeout
+	 * @param akkaRpcServiceConfig
 	 *            The default RPC timeout for asynchronous "ask" requests.
 	 * @param remoteEnabled
 	 *            True, if the RPC service should be reachable from other (remote) RPC services.
@@ -720,24 +765,23 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	 * @return The instantiated RPC service
 	 */
 	protected RpcService createRpcService(
-			Configuration configuration,
-			Time askTimeout,
+			AkkaRpcServiceConfiguration akkaRpcServiceConfig,
 			boolean remoteEnabled,
 			String bindAddress) {
 
 		final Config akkaConfig;
 
 		if (remoteEnabled) {
-			akkaConfig = AkkaUtils.getAkkaConfig(configuration, bindAddress, 0);
+			akkaConfig = AkkaUtils.getAkkaConfig(akkaRpcServiceConfig.getConfiguration(), bindAddress, 0);
 		} else {
-			akkaConfig = AkkaUtils.getAkkaConfig(configuration);
+			akkaConfig = AkkaUtils.getAkkaConfig(akkaRpcServiceConfig.getConfiguration());
 		}
 
 		final Config effectiveAkkaConfig = AkkaUtils.testDispatcherConfig().withFallback(akkaConfig);
 
 		final ActorSystem actorSystem = AkkaUtils.createActorSystem(effectiveAkkaConfig);
 
-		return new AkkaRpcService(actorSystem, askTimeout);
+		return new AkkaRpcService(actorSystem, akkaRpcServiceConfig);
 	}
 
 	protected ResourceManagerRunner startResourceManager(
@@ -746,7 +790,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
 			RpcService resourceManagerRpcService,
-			ClusterInformation clusterInformation) throws Exception {
+			ClusterInformation clusterInformation,
+			JobManagerMetricGroup jobManagerMetricGroup) throws Exception {
 
 		final ResourceManagerRunner resourceManagerRunner = new ResourceManagerRunner(
 			ResourceID.generate(),
@@ -756,7 +801,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			haServices,
 			heartbeatServices,
 			metricRegistry,
-			clusterInformation);
+			clusterInformation,
+			jobManagerMetricGroup);
 
 			resourceManagerRunner.start();
 

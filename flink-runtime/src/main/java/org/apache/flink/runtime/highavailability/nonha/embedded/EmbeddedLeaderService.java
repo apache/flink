@@ -18,10 +18,13 @@
 
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,9 +33,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -152,7 +158,7 @@ public class EmbeddedLeaderService {
 	/**
 	 * Callback from leader contenders when they start their service.
 	 */
-	void addContender(EmbeddedLeaderElectionService service, LeaderContender contender) {
+	private void addContender(EmbeddedLeaderElectionService service, LeaderContender contender) {
 		synchronized (lock) {
 			checkState(!shutdown, "leader election service is shut down");
 			checkState(!service.running, "leader election service is already started");
@@ -176,7 +182,7 @@ public class EmbeddedLeaderService {
 	/**
 	 * Callback from leader contenders when they stop their service.
 	 */
-	void removeContender(EmbeddedLeaderElectionService service) {
+	private void removeContender(EmbeddedLeaderElectionService service) {
 		synchronized (lock) {
 			// if the service was not even started, simply do nothing
 			if (!service.running || shutdown) {
@@ -215,7 +221,7 @@ public class EmbeddedLeaderService {
 	/**
 	 * Callback from leader contenders when they confirm a leader grant.
 	 */
-	void confirmLeader(final EmbeddedLeaderElectionService service, final UUID leaderSessionId) {
+	private void confirmLeader(final EmbeddedLeaderElectionService service, final UUID leaderSessionId) {
 		synchronized (lock) {
 			// if the service was shut down in the meantime, ignore this confirmation
 			if (!service.running || shutdown) {
@@ -234,13 +240,11 @@ public class EmbeddedLeaderService {
 					currentLeaderProposed = null;
 
 					// notify all listeners
-					for (EmbeddedLeaderRetrievalService listener : listeners) {
-						notificationExecutor.execute(
-								new NotifyOfLeaderCall(address, leaderSessionId, listener.listener, LOG));
-					}
+					notifyAllListeners(address, leaderSessionId);
 				}
 				else {
 					LOG.debug("Received confirmation of leadership for a stale leadership grant. Ignoring.");
+					service.isLeader = false;
 				}
 			}
 			catch (Throwable t) {
@@ -249,8 +253,18 @@ public class EmbeddedLeaderService {
 		}
 	}
 
+	private CompletableFuture<Void> notifyAllListeners(String address, UUID leaderSessionId) {
+		final List<CompletableFuture<Void>> notifyListenerFutures = new ArrayList<>(listeners.size());
+
+		for (EmbeddedLeaderRetrievalService listener : listeners) {
+			notifyListenerFutures.add(notifyListener(address, leaderSessionId, listener.listener));
+		}
+
+		return FutureUtils.waitForAll(notifyListenerFutures);
+	}
+
 	@GuardedBy("lock")
-	private void updateLeader() {
+	private CompletableFuture<Void> updateLeader() {
 		// this must be called under the lock
 		assert Thread.holdsLock(lock);
 
@@ -258,10 +272,7 @@ public class EmbeddedLeaderService {
 			// we need a new leader
 			if (allLeaderContenders.isEmpty()) {
 				// no new leader available, tell everyone that there is no leader currently
-				for (EmbeddedLeaderRetrievalService listener : listeners) {
-					notificationExecutor.execute(
-							new NotifyOfLeaderCall(null, null, listener.listener, LOG));
-				}
+				return notifyAllListeners(null, null);
 			}
 			else {
 				// propose a leader and ask it
@@ -274,13 +285,18 @@ public class EmbeddedLeaderService {
 				LOG.info("Proposing leadership to contender {} @ {}",
 						leaderService.contender, leaderService.contender.getAddress());
 
-				notificationExecutor.execute(
-						new GrantLeadershipCall(leaderService, leaderSessionId, LOG));
+				return execute(new GrantLeadershipCall(leaderService, leaderSessionId, LOG));
 			}
+		} else {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 
-	void addListener(EmbeddedLeaderRetrievalService service, LeaderRetrievalListener listener) {
+	private CompletableFuture<Void> notifyListener(@Nullable String address, @Nullable UUID leaderSessionId, LeaderRetrievalListener listener) {
+		return CompletableFuture.runAsync(new NotifyOfLeaderCall(address, leaderSessionId, listener, LOG), notificationExecutor);
+	}
+
+	private void addListener(EmbeddedLeaderRetrievalService service, LeaderRetrievalListener listener) {
 		synchronized (lock) {
 			checkState(!shutdown, "leader election service is shut down");
 			checkState(!service.running, "leader retrieval service is already started");
@@ -295,8 +311,7 @@ public class EmbeddedLeaderService {
 
 				// if we already have a leader, immediately notify this new listener
 				if (currentLeaderConfirmed != null) {
-					notificationExecutor.execute(
-							new NotifyOfLeaderCall(currentLeaderAddress, currentLeaderSessionId, listener, LOG));
+					notifyListener(currentLeaderAddress, currentLeaderSessionId, listener);
 				}
 			}
 			catch (Throwable t) {
@@ -305,7 +320,7 @@ public class EmbeddedLeaderService {
 		}
 	}
 
-	void removeListener(EmbeddedLeaderRetrievalService service) {
+	private void removeListener(EmbeddedLeaderRetrievalService service) {
 		synchronized (lock) {
 			// if the service was not even started, simply do nothing
 			if (!service.running || shutdown) {
@@ -325,6 +340,58 @@ public class EmbeddedLeaderService {
 				fatalError(t);
 			}
 		}
+	}
+
+	@VisibleForTesting
+	CompletableFuture<Void> grantLeadership() {
+		synchronized (lock) {
+			if (shutdown) {
+				return getShutDownFuture();
+			}
+
+			return updateLeader();
+		}
+	}
+
+	private CompletableFuture<Void> getShutDownFuture() {
+		return FutureUtils.completedExceptionally(new FlinkException("EmbeddedLeaderService has been shut down."));
+	}
+
+	@VisibleForTesting
+	CompletableFuture<Void> revokeLeadership() {
+		synchronized (lock) {
+			if (shutdown) {
+				return getShutDownFuture();
+			}
+
+			if (currentLeaderProposed != null || currentLeaderConfirmed != null) {
+				final EmbeddedLeaderElectionService leaderService;
+
+				if (currentLeaderConfirmed != null) {
+					leaderService = currentLeaderConfirmed;
+				} else {
+					leaderService = currentLeaderProposed;
+				}
+
+				LOG.info("Revoking leadership of {}.", leaderService.contender);
+				CompletableFuture<Void> revokeLeadershipCallFuture = execute(new RevokeLeadershipCall(leaderService));
+
+				CompletableFuture<Void> notifyAllListenersFuture = notifyAllListeners(null, null);
+
+				currentLeaderProposed = null;
+				currentLeaderConfirmed = null;
+				currentLeaderAddress = null;
+				currentLeaderSessionId = null;
+
+				return CompletableFuture.allOf(revokeLeadershipCallFuture, notifyAllListenersFuture);
+			} else {
+				return CompletableFuture.completedFuture(null);
+			}
+		}
+	}
+
+	private CompletableFuture<Void> execute(Runnable runnable) {
+		return CompletableFuture.runAsync(runnable, notificationExecutor);
 	}
 
 	// ------------------------------------------------------------------------
@@ -468,6 +535,23 @@ public class EmbeddedLeaderService {
 				contender.handleError(t instanceof Exception ? (Exception) t : new Exception(t));
 				leaderElectionService.isLeader = false;
 			}
+		}
+	}
+
+	private static class RevokeLeadershipCall implements Runnable {
+
+		@Nonnull
+		private final EmbeddedLeaderElectionService leaderElectionService;
+
+		RevokeLeadershipCall(@Nonnull EmbeddedLeaderElectionService leaderElectionService) {
+			this.leaderElectionService = leaderElectionService;
+		}
+
+		@Override
+		public void run() {
+			leaderElectionService.isLeader = false;
+
+			leaderElectionService.contender.revokeLeadership();
 		}
 	}
 }

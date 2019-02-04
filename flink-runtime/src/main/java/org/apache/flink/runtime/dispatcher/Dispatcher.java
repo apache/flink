@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.client.JobSubmissionException;
@@ -44,7 +45,6 @@ import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.RescalingBehaviour;
 import org.apache.flink.runtime.jobmaster.factories.DefaultJobManagerJobMetricGroupFactory;
-import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -53,6 +53,7 @@ import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
@@ -126,9 +127,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	@Nullable
 	private final String metricQueryServicePath;
 
-	@Nullable
-	protected final String restAddress;
-
 	private final Map<JobID, CompletableFuture<Void>> jobManagerTerminationFutures;
 
 	private CompletableFuture<Void> recoveryOperation = CompletableFuture.completedFuture(null);
@@ -147,7 +145,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			JobManagerRunnerFactory jobManagerRunnerFactory,
 			FatalErrorHandler fatalErrorHandler,
-			@Nullable String restAddress,
 			HistoryServerArchivist historyServerArchivist) throws Exception {
 		super(rpcService, endpointId);
 
@@ -170,8 +167,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		jobManagerRunnerFutures = new HashMap<>(16);
 
 		leaderElectionService = highAvailabilityServices.getDispatcherLeaderElectionService();
-
-		this.restAddress = restAddress;
 
 		this.historyServerArchivist = Preconditions.checkNotNull(historyServerArchivist);
 
@@ -230,6 +225,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 		submittedJobGraphStore.start(this);
 		leaderElectionService.start(this);
+
+		registerDispatcherMetrics(jobManagerMetricGroup);
 	}
 
 	//------------------------------------------------------
@@ -238,6 +235,14 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, Time timeout) {
+		return internalSubmitJob(jobGraph).whenCompleteAsync((acknowledge, throwable) -> {
+			if (throwable != null) {
+				cleanUpJobData(jobGraph.getJobID(), true);
+			}
+		}, getRpcService().getExecutor());
+	}
+
+	private CompletableFuture<Acknowledge> internalSubmitJob(JobGraph jobGraph) {
 		final JobID jobId = jobGraph.getJobID();
 
 		log.info("Submitting job {} ({}).", jobId, jobGraph.getName());
@@ -267,7 +272,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	private CompletableFuture<Void> persistAndRunJob(JobGraph jobGraph) throws Exception {
-		submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph, null));
+		submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph));
 
 		final CompletableFuture<Void> runJobFuture = runJob(jobGraph);
 
@@ -302,13 +307,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		final CompletableFuture<JobManagerRunner> jobManagerRunnerFuture = CompletableFuture.supplyAsync(
 			CheckedSupplier.unchecked(() ->
 				jobManagerRunnerFactory.createJobManagerRunner(
-					ResourceID.generate(),
 					jobGraph,
 					configuration,
 					rpcService,
 					highAvailabilityServices,
 					heartbeatServices,
-					blobServer,
 					jobManagerSharedServices,
 					new DefaultJobManagerJobMetricGroupFactory(jobManagerMetricGroup),
 					fatalErrorHandler)),
@@ -391,15 +394,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		return jobMasterGatewayFuture.thenCompose(
 			(JobMasterGateway jobMasterGateway) ->
 				jobMasterGateway.rescaleJob(newParallelism, rescalingBehaviour, timeout));
-	}
-
-	@Override
-	public CompletableFuture<String> requestRestAddress(Time timeout) {
-		if (restAddress != null) {
-			return CompletableFuture.completedFuture(restAddress);
-		} else {
-			return FutureUtils.completedExceptionally(new DispatcherException("The Dispatcher has not been started with a REST endpoint."));
-		}
 	}
 
 	@Override
@@ -838,7 +832,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				confirmationFuture.whenComplete(
 					(Void ignored, Throwable throwable) -> {
 						if (throwable != null) {
-							onFatalError(ExceptionUtils.stripCompletionException(throwable));
+							onFatalError(
+								new DispatcherException(
+									String.format("Failed to take leadership with session id %s.", newLeaderSessionID),
+									(ExceptionUtils.stripCompletionException(throwable))));
 						}
 					});
 
@@ -907,6 +904,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	private void clearDispatcherState() {
 		terminateJobManagerRunners();
+	}
+
+	private void registerDispatcherMetrics(MetricGroup jobManagerMetricGroup) {
+		jobManagerMetricGroup.gauge(MetricNames.NUM_RUNNING_JOBS,
+			() -> (long) jobManagerRunnerFutures.size());
 	}
 
 	/**
@@ -1004,59 +1006,5 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				onFatalError(new DispatcherException(String.format("Could not remove job %s.", jobId), e));
 			}
 		});
-	}
-
-	//------------------------------------------------------
-	// Factories
-	//------------------------------------------------------
-
-	/**
-	 * Factory for a {@link JobManagerRunner}.
-	 */
-	@FunctionalInterface
-	public interface JobManagerRunnerFactory {
-		JobManagerRunner createJobManagerRunner(
-			ResourceID resourceId,
-			JobGraph jobGraph,
-			Configuration configuration,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			BlobServer blobServer,
-			JobManagerSharedServices jobManagerServices,
-			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-			FatalErrorHandler fatalErrorHandler) throws Exception;
-	}
-
-	/**
-	 * Singleton default factory for {@link JobManagerRunner}.
-	 */
-	public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory {
-		INSTANCE;
-
-		@Override
-		public JobManagerRunner createJobManagerRunner(
-				ResourceID resourceId,
-				JobGraph jobGraph,
-				Configuration configuration,
-				RpcService rpcService,
-				HighAvailabilityServices highAvailabilityServices,
-				HeartbeatServices heartbeatServices,
-				BlobServer blobServer,
-				JobManagerSharedServices jobManagerServices,
-				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-				FatalErrorHandler fatalErrorHandler) throws Exception {
-			return new JobManagerRunner(
-				resourceId,
-				jobGraph,
-				configuration,
-				rpcService,
-				highAvailabilityServices,
-				heartbeatServices,
-				blobServer,
-				jobManagerServices,
-				jobManagerJobMetricGroupFactory,
-				fatalErrorHandler);
-		}
 	}
 }

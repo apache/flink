@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -87,17 +86,13 @@ public class AkkaRpcService implements RpcService {
 
 	static final int VERSION = 1;
 
-	static final String MAXIMUM_FRAME_SIZE_PATH = "akka.remote.netty.tcp.maximum-frame-size";
-
 	private final Object lock = new Object();
 
 	private final ActorSystem actorSystem;
-	private final Time timeout;
+	private final AkkaRpcServiceConfiguration configuration;
 
 	@GuardedBy("lock")
 	private final Map<ActorRef, RpcEndpoint> actors = new HashMap<>(4);
-
-	private final long maximumFramesize;
 
 	private final String address;
 	private final int port;
@@ -108,16 +103,9 @@ public class AkkaRpcService implements RpcService {
 
 	private volatile boolean stopped;
 
-	public AkkaRpcService(final ActorSystem actorSystem, final Time timeout) {
+	public AkkaRpcService(final ActorSystem actorSystem, final AkkaRpcServiceConfiguration configuration) {
 		this.actorSystem = checkNotNull(actorSystem, "actor system");
-		this.timeout = checkNotNull(timeout, "timeout");
-
-		if (actorSystem.settings().config().hasPath(MAXIMUM_FRAME_SIZE_PATH)) {
-			maximumFramesize = actorSystem.settings().config().getBytes(MAXIMUM_FRAME_SIZE_PATH);
-		} else {
-			// only local communication
-			maximumFramesize = Long.MAX_VALUE;
-		}
+		this.configuration = checkNotNull(configuration, "akka rpc service configuration");
 
 		Address actorSystemAddress = AkkaUtils.getAddress(actorSystem);
 
@@ -174,8 +162,8 @@ public class AkkaRpcService implements RpcService {
 					addressHostname.f0,
 					addressHostname.f1,
 					actorRef,
-					timeout,
-					maximumFramesize,
+					configuration.getTimeout(),
+					configuration.getMaximumFramesize(),
 					null);
 			});
 	}
@@ -193,8 +181,8 @@ public class AkkaRpcService implements RpcService {
 					addressHostname.f0,
 					addressHostname.f1,
 					actorRef,
-					timeout,
-					maximumFramesize,
+					configuration.getTimeout(),
+					configuration.getMaximumFramesize(),
 					null,
 					() -> fencingToken);
 			});
@@ -208,9 +196,19 @@ public class AkkaRpcService implements RpcService {
 		final Props akkaRpcActorProps;
 
 		if (rpcEndpoint instanceof FencedRpcEndpoint) {
-			akkaRpcActorProps = Props.create(FencedAkkaRpcActor.class, rpcEndpoint, terminationFuture, getVersion());
+			akkaRpcActorProps = Props.create(
+				FencedAkkaRpcActor.class,
+				rpcEndpoint,
+				terminationFuture,
+				getVersion(),
+				configuration.getMaximumFramesize());
 		} else {
-			akkaRpcActorProps = Props.create(AkkaRpcActor.class, rpcEndpoint, terminationFuture, getVersion());
+			akkaRpcActorProps = Props.create(
+				AkkaRpcActor.class,
+				rpcEndpoint,
+				terminationFuture,
+				getVersion(),
+				configuration.getMaximumFramesize());
 		}
 
 		ActorRef actorRef;
@@ -245,8 +243,8 @@ public class AkkaRpcService implements RpcService {
 				akkaAddress,
 				hostname,
 				actorRef,
-				timeout,
-				maximumFramesize,
+				configuration.getTimeout(),
+				configuration.getMaximumFramesize(),
 				terminationFuture,
 				((FencedRpcEndpoint<?>) rpcEndpoint)::getFencingToken);
 
@@ -256,8 +254,8 @@ public class AkkaRpcService implements RpcService {
 				akkaAddress,
 				hostname,
 				actorRef,
-				timeout,
-				maximumFramesize,
+				configuration.getTimeout(),
+				configuration.getMaximumFramesize(),
 				terminationFuture);
 		}
 
@@ -283,8 +281,8 @@ public class AkkaRpcService implements RpcService {
 				rpcServer.getAddress(),
 				rpcServer.getHostname(),
 				((AkkaBasedEndpoint) rpcServer).getActorRef(),
-				timeout,
-				maximumFramesize,
+				configuration.getTimeout(),
+				configuration.getMaximumFramesize(),
 				null,
 				() -> fencingToken);
 
@@ -421,7 +419,7 @@ public class AkkaRpcService implements RpcService {
 		final ActorSelection actorSel = actorSystem.actorSelection(address);
 
 		final Future<ActorIdentity> identify = Patterns
-			.ask(actorSel, new Identify(42), timeout.toMilliseconds())
+			.ask(actorSel, new Identify(42), configuration.getTimeout().toMilliseconds())
 			.<ActorIdentity>mapTo(ClassTag$.MODULE$.<ActorIdentity>apply(ActorIdentity.class));
 
 		final CompletableFuture<ActorIdentity> identifyFuture = FutureUtils.toJava(identify);
@@ -438,7 +436,7 @@ public class AkkaRpcService implements RpcService {
 		final CompletableFuture<HandshakeSuccessMessage> handshakeFuture = actorRefFuture.thenCompose(
 			(ActorRef actorRef) -> FutureUtils.toJava(
 				Patterns
-					.ask(actorRef, new RemoteHandshakeMessage(clazz, getVersion()), timeout.toMilliseconds())
+					.ask(actorRef, new RemoteHandshakeMessage(clazz, getVersion()), configuration.getTimeout().toMilliseconds())
 					.<HandshakeSuccessMessage>mapTo(ClassTag$.MODULE$.<HandshakeSuccessMessage>apply(HandshakeSuccessMessage.class))));
 
 		return actorRefFuture.thenCombineAsync(

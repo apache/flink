@@ -68,7 +68,6 @@ class TestingDispatcher extends Dispatcher {
 			archivedExecutionGraphStore,
 			jobManagerRunnerFactory,
 			fatalErrorHandler,
-			null,
 			VoidHistoryServerArchivist.INSTANCE);
 	}
 
@@ -87,5 +86,11 @@ class TestingDispatcher extends Dispatcher {
 		return callAsyncWithoutFencing(
 			this::getRecoveryOperation,
 			timeout).thenCompose(Function.identity());
+	}
+
+	CompletableFuture<Integer> getNumberJobs(Time timeout) {
+		return callAsyncWithoutFencing(
+			() -> listJobs(timeout).get().size(),
+			timeout);
 	}
 }
