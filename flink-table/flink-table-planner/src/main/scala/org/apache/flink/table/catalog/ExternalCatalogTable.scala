@@ -149,7 +149,15 @@ object ExternalCatalogTable {
     *
     * @param connectorDescriptor Connector descriptor describing the external system
     * @return External catalog builder
+    *
+    * @deprecated This method might be removed in 1.9 and may be added back after some major rework.
+    *             Use `new ExternalCatalogTableBuilder()` instead.
     */
+  @Deprecated
+  @deprecated(
+    "This method might be removed in 1.9 and may be added back after some major rework. " +
+    "Use `new ExternalCatalogTableBuilder()` instead.",
+    "1.8")
   def builder(connectorDescriptor: ConnectorDescriptor): ExternalCatalogTableBuilder = {
     new ExternalCatalogTableBuilder(connectorDescriptor)
   }
