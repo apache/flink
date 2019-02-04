@@ -21,6 +21,9 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link SentinelSequenceNumber}.
+ */
 public class SentinelSequenceNumberTest {
 
 	@Test
