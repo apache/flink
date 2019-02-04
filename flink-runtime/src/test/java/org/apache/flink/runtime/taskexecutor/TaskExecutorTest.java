@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
@@ -68,6 +69,7 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -87,7 +89,6 @@ import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
-import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -235,54 +236,48 @@ public class TaskExecutorTest extends TestLogger {
 	public TestName name = new TestName();
 
 	@Test
-	public void testTaskManagerServicesShutdown() throws Exception {
+	public void testShouldShutDownTaskManagerServicesInPostStop() throws Exception {
 		final TaskSlotTable taskSlotTable = new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService);
 
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 
-		final long heartbeatInterval = 1000L;
-		final long heartbeatTimeout = 1000L;
-
-		final HeartbeatServices heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
-
-		final IOManager ioManager = new IOManagerAsync(new String[]{ tmp.newFolder().getAbsolutePath() });
+		final IOManager ioManager = new IOManagerAsync(tmp.newFolder().getAbsolutePath());
 
 		final TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
 			false,
 			ioManager.getSpillingDirectories(),
 			Executors.directExecutor());
 
-		final int networkBufNum = 32;
-		final int bufferSize = 32 * 1024;
-		final NetworkEnvironmentConfiguration netConf = new NetworkEnvironmentConfiguration(
-			0.1f,
-			networkBufNum * bufferSize,
-			networkBufNum * bufferSize,
-			bufferSize,
-			IOManager.IOMode.SYNC,
+		final MemoryManager memoryManager = new MemoryManager(
+			4096,
+			1,
+			4096,
+			MemoryType.HEAP,
+			false);
+
+		final NetworkEnvironment networkEnvironment = new NetworkEnvironment(
+			1,
+			1,
 			0,
 			0,
 			2,
 			8,
-			null);
-		final NetworkEnvironment networkEnvironment = new NetworkEnvironment(
-			32,
-			netConf.networkBufferSize(),
-			netConf.partitionRequestInitialBackoff(),
-			netConf.partitionRequestMaxBackoff(),
-			netConf.networkBuffersPerChannel(),
-			netConf.floatingNetworkBuffersPerGate(),
 			true);
 		networkEnvironment.start();
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
 			.setTaskManagerLocation(taskManagerLocation)
+			.setMemoryManager(memoryManager)
 			.setIoManager(ioManager)
 			.setNetworkEnvironment(networkEnvironment)
 			.setTaskSlotTable(taskSlotTable)
 			.setJobLeaderService(jobLeaderService)
 			.setTaskStateManager(localStateStoresManager)
 			.build();
+
+		final long heartbeatInterval = 1000L;
+		final long heartbeatTimeout = 1000L;
+		final HeartbeatServices heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
 
 		final TaskExecutor taskManager = new TaskExecutor(
 			rpc,
@@ -301,9 +296,9 @@ public class TaskExecutorTest extends TestLogger {
 			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
 
-		assertThat(taskManagerServices.getMemoryManager().isShutdown(), is(true));
-		assertThat(taskManagerServices.getNetworkEnvironment().isShutdown(), is(true));
-		assertThat(taskManagerServices.getIOManager().isProperlyShutDown(), is(true));
+		assertThat(memoryManager.isShutdown(), is(true));
+		assertThat(networkEnvironment.isShutdown(), is(true));
+		assertThat(ioManager.isProperlyShutDown(), is(true));
 	}
 
 	@Test
