@@ -642,7 +642,7 @@ tableEnv.registerFunction("split", split);
 // join
 Table orders = tableEnv.scan("Orders");
 Table result = orders
-    .join(new Table(tableEnv, "split(c)").as("s", "t", "v"))
+    .joinLateral("split(c).as(s, t, v)")
     .select("a, b, s, t, v");
 {% endhighlight %}
       </td>
@@ -663,7 +663,7 @@ tableEnv.registerFunction("split", split);
 // join
 Table orders = tableEnv.scan("Orders");
 Table result = orders
-    .leftOuterJoin(new Table(tableEnv, "split(c)").as("s", "t", "v"))
+    .leftOuterJoinLateral("split(c).as(s, t, v)")
     .select("a, b, s, t, v");
 {% endhighlight %}
       </td>
@@ -788,7 +788,7 @@ val split: TableFunction[_] = new MySplitUDTF()
 
 // join
 val result: Table = table
-    .join(split('c) as ('s, 't, 'v))
+    .joinLateral(split('c) as ('s, 't, 'v))
     .select('a, 'b, 's, 't, 'v)
 {% endhighlight %}
         </td>
@@ -806,7 +806,7 @@ val split: TableFunction[_] = new MySplitUDTF()
 
 // join
 val result: Table = table
-    .leftOuterJoin(split('c) as ('s, 't, 'v))
+    .leftOuterJoinLateral(split('c) as ('s, 't, 'v))
     .select('a, 'b, 's, 't, 'v)
 {% endhighlight %}
       </td>

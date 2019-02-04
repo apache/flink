@@ -324,12 +324,30 @@ case class TableFunctionCall(
     * Assigns an alias for this table function's returned fields that the following operator
     * can refer to.
     *
-    * @param aliasList alias for this table function's returned fields
+    * @param fields alias for this table function's returned fields
     * @return this table function call
     */
-  private[flink] def as(aliasList: Option[Seq[String]]): TableFunctionCall = {
-    this.aliases = aliasList
+  def as(fields: Symbol*): TableFunctionCall = {
+    this.aliases = Some(fields.map(_.name))
     this
+  }
+
+  /**
+    * Assigns an alias for this table function's returned fields that the following operator
+    * can refer to.
+    *
+    * @param fields alias for this table function's returned fields
+    * @return this table function call
+    */
+  def as(fields: String): TableFunctionCall = {
+    if (fields.isEmpty) {
+      this
+    } else {
+      val fieldExprs = ExpressionParser
+        .parseExpressionList(fields)
+        .map(f => Symbol(f.asInstanceOf[UnresolvedFieldReference].name))
+      as(fieldExprs: _*)
+    }
   }
 
   /**

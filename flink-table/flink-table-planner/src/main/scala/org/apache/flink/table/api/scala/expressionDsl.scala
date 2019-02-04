@@ -28,7 +28,7 @@ import org.apache.flink.table.api.Table
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions.TimePointUnit.TimePointUnit
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{AggregateFunction, DistinctAggregateFunction, ScalarFunction}
+import org.apache.flink.table.functions.{AggregateFunction, DistinctAggregateFunction, ScalarFunction, TableFunction}
 
 import scala.language.implicitConversions
 
@@ -1039,6 +1039,24 @@ trait ImplicitExpressionConversions {
     def apply(params: Expression*): Expression = {
       ScalarFunctionCall(s, params)
     }
+  }
+
+  implicit class TableFunctionCallExpression[T: TypeInformation](val t: TableFunction[T]) {
+    def apply(params: Expression*): TableFunctionCall = {
+      val resultType = if (t.getResultType == null) {
+        implicitly[TypeInformation[T]]
+      } else {
+        t.getResultType
+      }
+      TableFunctionCall(t.getClass.getCanonicalName, t, params, resultType)
+    }
+  }
+
+  implicit def tableFunctionCall2Table(tfc: TableFunctionCall): Table = {
+    new Table(
+      tableEnv = null, // Table environment will be set later.
+      tfc.toLogicalTableFunctionCall(null) // Child will be set later.
+    )
   }
 
   implicit def symbol2FieldExpression(sym: Symbol): Expression = UnresolvedFieldReference(sym.name)

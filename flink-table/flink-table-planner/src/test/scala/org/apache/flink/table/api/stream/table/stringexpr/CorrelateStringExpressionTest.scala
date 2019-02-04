@@ -88,4 +88,67 @@ class CorrelateStringExpressionTest extends TableTestBase {
       new Table(util.javaTableEnv, "func1(substring(c, 2)) as (s)")).select("a, c, s")
     verifyTableEquals(scalaTable, javaTable)
   }
+
+  @Test
+  def testCorrelateJoinsWithJoinLateral(): Unit = {
+
+    val util = streamTestUtil()
+    val sTab = util.addTable[(Int, Long, String)]('a, 'b, 'c)
+    val typeInfo = new RowTypeInfo(Seq(Types.INT, Types.LONG, Types.STRING): _*)
+    val jTab = util.addJavaTable[Row](typeInfo,"MyTab","a, b, c")
+
+    // test cross join
+    val func1 = new TableFunc1
+    util.javaTableEnv.registerFunction("func1", func1)
+    var scalaTable = sTab.joinLateral(func1('c) as 's).select('c, 's)
+    var javaTable = jTab.joinLateral("func1(c).as(s)").select("c, s")
+    verifyTableEquals(scalaTable, javaTable)
+
+    // test left outer join
+    scalaTable = sTab.leftOuterJoinLateral(func1('c) as 's).select('c, 's)
+    javaTable = jTab.leftOuterJoinLateral("as(func1(c), s)").select("c, s")
+    verifyTableEquals(scalaTable, javaTable)
+
+    // test overloading
+    scalaTable = sTab.joinLateral(func1('c, "$") as 's).select('c, 's)
+    javaTable = jTab.joinLateral("func1(c, '$') as (s)").select("c, s")
+    verifyTableEquals(scalaTable, javaTable)
+
+    // test custom result type
+    val func2 = new TableFunc2
+    util.javaTableEnv.registerFunction("func2", func2)
+    scalaTable = sTab.joinLateral(func2('c) as ('name, 'len)).select('c, 'name, 'len)
+    javaTable = jTab.joinLateral(
+      "func2(c).as(name, len)").select("c, name, len")
+    verifyTableEquals(scalaTable, javaTable)
+
+    // test hierarchy generic type
+    val hierarchy = new HierarchyTableFunction
+    util.javaTableEnv.registerFunction("hierarchy", hierarchy)
+    scalaTable = sTab.joinLateral(
+      hierarchy('c) as ('name, 'adult, 'len)).select('c, 'name, 'len, 'adult)
+    javaTable = jTab.joinLateral("AS(hierarchy(c), name, adult, len)")
+      .select("c, name, len, adult")
+    verifyTableEquals(scalaTable, javaTable)
+
+    // test pojo type
+    val pojo = new PojoTableFunc
+    util.javaTableEnv.registerFunction("pojo", pojo)
+    scalaTable = sTab.joinLateral(pojo('c)).select('c, 'name, 'age)
+    javaTable = jTab.joinLateral("pojo(c)").select("c, name, age")
+    verifyTableEquals(scalaTable, javaTable)
+
+    // test with filter
+    scalaTable = sTab.joinLateral(
+      func2('c) as ('name, 'len)).select('c, 'name, 'len).filter('len > 2)
+    javaTable = jTab.joinLateral("func2(c) as (name, len)")
+      .select("c, name, len").filter("len > 2")
+    verifyTableEquals(scalaTable, javaTable)
+
+    // test with scalar function
+    scalaTable = sTab.joinLateral(func1('c.substring(2)) as 's).select('a, 'c, 's)
+    javaTable = jTab.joinLateral(
+      "func1(substring(c, 2)) as (s)").select("a, c, s")
+    verifyTableEquals(scalaTable, javaTable)
+  }
 }

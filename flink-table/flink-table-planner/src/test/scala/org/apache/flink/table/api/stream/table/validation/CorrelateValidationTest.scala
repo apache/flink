@@ -145,8 +145,7 @@ class CorrelateValidationTest extends TableTestBase {
     //============ throw exception when table function is not registered =========
     // Java Table API call
     expectExceptionThrown(
-      t.join(new Table(util.tableEnv, "nonexist(a)")
-      ), "Undefined function: NONEXIST")
+      t.joinLateral("nonexist(a)"), "Undefined function: NONEXIST")
     // SQL API call
     expectExceptionThrown(
       util.tableEnv.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(nonexist(a))"),
@@ -158,7 +157,7 @@ class CorrelateValidationTest extends TableTestBase {
 
     // Java Table API call
     expectExceptionThrown(
-      t.join(new Table(util.tableEnv, "func0(a)")),
+      t.joinLateral("func0(a)"),
       "only accept String that define table function",
       classOf[TableException])
     // SQL API call
@@ -172,7 +171,7 @@ class CorrelateValidationTest extends TableTestBase {
     // Java Table API call
     util.addFunction("func2", new TableFunc2)
     expectExceptionThrown(
-      t.join(new Table(util.tableEnv, "func2(c, c)")),
+      t.joinLateral("func2(c, c)"),
       "Given parameters of function 'FUNC2' do not match any signature")
     // SQL API call
     expectExceptionThrown(

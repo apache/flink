@@ -77,9 +77,13 @@ class Table(
     *
     * @param tableEnv The TableEnvironment in which the call is created.
     * @param udtfCall A String expression of the TableFunction call.
+    *
+    * @deprecated This method will be removed in 1.9 and use joinLateral instead.
     */
+  @Deprecated
   def this(tableEnv: TableEnvironment, udtfCall: String) {
-    this(tableEnv, UserDefinedFunctionUtils.createLogicalFunctionCall(tableEnv, udtfCall))
+    this(tableEnv, UserDefinedFunctionUtils
+      .createLogicalFunctionCall(tableEnv, ExpressionParser.parseExpression(udtfCall)))
   }
 
   private lazy val tableSchema: TableSchema = new TableSchema(
@@ -612,6 +616,216 @@ class Table(
         Join(this.logicalPlan, udtfCall, joinType, joinPredicate, correlated = true)
           .validate(tableEnv))
     }
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.calcite.schema.TableFunction]].
+    * This join is similar to a SQL inner join with ON TRUE predicate, but it works with a
+    * table function. Each row of the table is joined with all rows produced by the table function.
+    *
+    * Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction<String> {
+    *     public void eval(String str) {
+    *       str.split("#").forEach(this::collect);
+    *     }
+    *   }
+    *
+    *   TableFunction<String> split = new MySplitUDTF();
+    *   tableEnv.registerFunction("split", split);
+    *   table.joinLateral("split(c) as (s)").select("a, b, c, s");
+    * }}}
+    */
+  def joinLateral(udtf: String): Table = {
+    val udtfExpr = ExpressionParser.parseExpression(udtf)
+    joinLateral(udtfExpr, None, JoinType.INNER)
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.calcite.schema.TableFunction]].
+    * This join is similar to a SQL inner join with ON TRUE predicate, but it works with a
+    * table function. Each row of the table is joined with all rows produced by the table function.
+    *
+    * Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction<String> {
+    *     public void eval(String str) {
+    *       str.split("#").forEach(this::collect);
+    *     }
+    *   }
+    *
+    *   TableFunction<String> split = new MySplitUDTF();
+    *   tableEnv.registerFunction("split", split);
+    *   table.joinLateral("split(c) as (s)", "a = s").select("a, b, c, s");
+    * }}}
+    */
+  def joinLateral(udtf: String, joinPredicate: String): Table = {
+    val udtfExpr = ExpressionParser.parseExpression(udtf)
+    val joinPredicateExpr = ExpressionParser.parseExpression(joinPredicate)
+    joinLateral(udtfExpr, Some(joinPredicateExpr), JoinType.INNER)
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.calcite.schema.TableFunction]].
+    * This join is similar to a SQL inner join with ON TRUE predicate, but it works with a
+    * table function. Each row of the table is joined with all rows produced by the table function.
+    *
+    * Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.joinLateral(split('c) as ('s)).select('a, 'b, 'c, 's)
+    * }}}
+    */
+  def joinLateral(udtfExpr: Expression): Table = {
+    joinLateral(udtfExpr, None, JoinType.INNER)
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.calcite.schema.TableFunction]].
+    * This join is similar to a SQL inner join with ON TRUE predicate, but it works with a
+    * table function. Each row of the table is joined with all rows produced by the table function.
+    *
+    * Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.joinLateral(split('c) as ('s), 'a === 's).select('a, 'b, 'c, 's)
+    * }}}
+    */
+  def joinLateral(udtfExpr: Expression, joinPredicate: Expression): Table = {
+    joinLateral(udtfExpr, Some(joinPredicate), JoinType.INNER)
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.calcite.schema.TableFunction]].
+    * This join is similar to a SQL left outer join with ON TRUE predicate, but it works with a
+    * table function. Each row of the table is joined with all rows produced by the table
+    * function. If the table function does not produce any row, the outer row is padded with nulls.
+    *
+    * Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction<String> {
+    *     public void eval(String str) {
+    *       str.split("#").forEach(this::collect);
+    *     }
+    *   }
+    *
+    *   TableFunction<String> split = new MySplitUDTF();
+    *   tableEnv.registerFunction("split", split);
+    *   table.leftOuterJoinLateral("split(c) as (s)").select("a, b, c, s");
+    * }}}
+    */
+  def leftOuterJoinLateral(udtf: String): Table = {
+    val udtfExpr = ExpressionParser.parseExpression(udtf)
+    joinLateral(udtfExpr, None, JoinType.LEFT_OUTER)
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.calcite.schema.TableFunction]].
+    * This join is similar to a SQL left outer join with ON TRUE predicate, but it works with a
+    * table function. Each row of the table is joined with all rows produced by the table
+    * function. If the table function does not produce any row, the outer row is padded with nulls.
+    *
+    * Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction<String> {
+    *     public void eval(String str) {
+    *       str.split("#").forEach(this::collect);
+    *     }
+    *   }
+    *
+    *   TableFunction<String> split = new MySplitUDTF();
+    *   tableEnv.registerFunction("split", split);
+    *   table.leftOuterJoinLateral("split(c) as (s)", "a = s").select("a, b, c, s");
+    * }}}
+    */
+  def leftOuterJoinLateral(udtf: String, joinPredicate: String): Table = {
+    val udtfExpr = ExpressionParser.parseExpression(udtf)
+    val joinPredicateExpr = ExpressionParser.parseExpression(joinPredicate)
+    joinLateral(udtfExpr, Some(joinPredicateExpr), JoinType.LEFT_OUTER)
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.calcite.schema.TableFunction]].
+    * This join is similar to a SQL left outer join with ON TRUE predicate, but it works with a
+    * table function. Each row of the table is joined with all rows produced by the table
+    * function. If the table function does not produce any row, the outer row is padded with nulls.
+    *
+    * Scala Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.leftOuterJoinLateral(split('c) as ('s)).select('a, 'b, 'c, 's)
+    * }}}
+    */
+  def leftOuterJoinLateral(udtf: Expression): Table = {
+    joinLateral(udtf, None, JoinType.LEFT_OUTER)
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.calcite.schema.TableFunction]].
+    * This join is similar to a SQL left outer join with ON TRUE predicate, but it works with a
+    * table function. Each row of the table is joined with all rows produced by the table
+    * function. If the table function does not produce any row, the outer row is padded with nulls.
+    *
+    * Scala Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.leftOuterJoinLateral(split('c) as ('s), 'a === 's).select('a, 'b, 'c, 's)
+    * }}}
+    */
+  def leftOuterJoinLateral(udtf: Expression, joinPredicate: Expression): Table = {
+    joinLateral(udtf, Some(joinPredicate), JoinType.LEFT_OUTER)
+  }
+
+  private def joinLateral(
+      udtfExpr: Expression,
+      joinPredicate: Option[Expression],
+      joinType: JoinType): Table = {
+
+    // check join type
+    if (joinType != JoinType.INNER && joinType != JoinType.LEFT_OUTER) {
+      throw new ValidationException(
+        "TableFunctions are currently only supported for joinLateral and leftOuterJoinLateral.")
+    }
+
+    val udtf = UserDefinedFunctionUtils.createLogicalFunctionCall(tableEnv, udtfExpr)
+
+    val udtfCall = LogicalTableFunctionCall(
+      udtf.functionName,
+      udtf.tableFunction,
+      udtf.parameters,
+      udtf.resultType,
+      udtf.fieldNames,
+      this.logicalPlan
+    ).validate(tableEnv)
+
+    new Table(
+      tableEnv,
+      Join(this.logicalPlan, udtfCall, joinType, joinPredicate, correlated = true)
+        .validate(tableEnv))
   }
 
   /**

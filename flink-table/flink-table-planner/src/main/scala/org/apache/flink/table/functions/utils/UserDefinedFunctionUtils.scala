@@ -767,15 +767,15 @@ object UserDefinedFunctionUtils {
       (candidate.getComponentType == expected.getComponentType))
 
   /**
-    * Creates a [[LogicalTableFunctionCall]] by parsing a String expression.
+    * Creates a [[LogicalTableFunctionCall]] by an expression.
     *
     * @param tableEnv The table environment to lookup the function.
-    * @param udtf a String expression of a TableFunctionCall, such as "split(c)"
+    * @param udtfExpr an expression of a TableFunctionCall, such as "split(c)"
     * @return A LogicalTableFunctionCall.
     */
   def createLogicalFunctionCall(
       tableEnv: TableEnvironment,
-      udtf: String): LogicalTableFunctionCall = {
+      udtfExpr: Expression): LogicalTableFunctionCall = {
 
     var alias: Option[Seq[String]] = None
 
@@ -794,8 +794,8 @@ object UserDefinedFunctionUtils {
             "define table function followed by some Alias.")
     }
 
-    val functionCall: LogicalTableFunctionCall = unwrap(ExpressionParser.parseExpression(udtf))
-      .as(alias).toLogicalTableFunctionCall(child = null)
+    val functionCall: LogicalTableFunctionCall = unwrap(udtfExpr)
+      .as(alias.getOrElse(Seq()).mkString(", ")).toLogicalTableFunctionCall(child = null)
     functionCall
   }
 
