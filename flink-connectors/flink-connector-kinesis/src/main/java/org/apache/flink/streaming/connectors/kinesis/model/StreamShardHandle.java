@@ -94,4 +94,17 @@ public class StreamShardHandle {
 	public int hashCode() {
 		return cachedHash;
 	}
+
+	/**
+	 * Utility function to compare two shard ids.
+	 *
+	 * @param firstShardId first shard id to compare
+	 * @param secondShardId second shard id to compare
+	 * @return a value less than 0 if the first shard id is smaller than the second shard id,
+	 *         or a value larger than 0 the first shard is larger then the second shard id,
+	 *         or 0 if they are equal
+	 */
+	public static int compareShardIds(String firstShardId, String secondShardId) {
+		return firstShardId.compareTo(secondShardId);
+	}
 }
