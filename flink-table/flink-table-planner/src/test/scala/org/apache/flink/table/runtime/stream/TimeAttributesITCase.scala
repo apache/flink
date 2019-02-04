@@ -228,13 +228,13 @@ class TimeAttributesITCase extends AbstractTestBase {
     val func = new TableFunc
 
     // we test if this can be executed with any exceptions
-    table.join(func('proctime, 'proctime, 'string) as 's).toAppendStream[Row]
+    table.joinLateral(func('proctime, 'proctime, 'string) as 's).toAppendStream[Row]
 
     // we test if this can be executed with any exceptions
-    table.join(func('rowtime, 'rowtime, 'string) as 's).toAppendStream[Row]
+    table.joinLateral(func('rowtime, 'rowtime, 'string) as 's).toAppendStream[Row]
 
     // we can only test rowtime, not proctime
-    val t = table.join(func('rowtime, 'proctime, 'string) as 's).select('rowtime, 's)
+    val t = table.joinLateral(func('rowtime, 'proctime, 'string) as 's).select('rowtime, 's)
 
     val results = t.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
@@ -266,7 +266,7 @@ class TimeAttributesITCase extends AbstractTestBase {
     val func = new TableFunc
 
     val t = table
-      .join(func('rowtime, 'proctime, 'string) as 's)
+      .joinLateral(func('rowtime, 'proctime, 'string) as 's)
       .window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w)
       .select('w.rowtime, 's.count)

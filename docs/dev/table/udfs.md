@@ -141,7 +141,7 @@ Similar to a user-defined scalar function, a user-defined table function takes z
 
 In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a table function is determined by its evaluation methods. An evaluation method must be declared `public` and named `eval`. The `TableFunction` can be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation methods determine all valid parameters of the table function. Evaluation methods can also support variable arguments, such as `eval(String... strs)`. The type of the returned table is determined by the generic type of `TableFunction`. Evaluation methods emit output rows using the protected `collect(T)` method.
 
-In the Table API, a table function is used with `.join(Table)` or `.leftOuterJoin(Table)`. The `join` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoin` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
+In the Table API, a table function is used with `.joinLateral` or `.leftOuterJoinLateral`. The `joinLateral` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoinLateral` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
 
 The following example shows how to define table-valued function, register it in the TableEnvironment, and call it in a query. Note that you can configure your table function via a constructor before it is registered: 
 
@@ -171,9 +171,9 @@ Table myTable = ...         // table schema: [a: String]
 tableEnv.registerFunction("split", new Split("#"));
 
 // Use the table function in the Java Table API. "as" specifies the field names of the table.
-myTable.join(new Table(tableEnv, "split(a) as (word, length)"))
+myTable.joinLateral("split(a) as (word, length)")
     .select("a, word, length");
-myTable.leftOuterJoin(new Table(tableEnv, "split(a) as (word, length)"))
+myTable.leftOuterJoinLateral("split(a) as (word, length)")
     .select("a, word, length");
 
 // Use the table function in SQL with LATERAL and TABLE keywords.
@@ -200,8 +200,8 @@ val myTable = ...         // table schema: [a: String]
 // Use the table function in the Scala Table API (Note: No registration required in Scala Table API).
 val split = new Split("#")
 // "as" specifies the field names of the generated table.
-myTable.join(split('a) as ('word, 'length)).select('a, 'word, 'length)
-myTable.leftOuterJoin(split('a) as ('word, 'length)).select('a, 'word, 'length)
+myTable.joinLateral(split('a) as ('word, 'length)).select('a, 'word, 'length)
+myTable.leftOuterJoinLateral(split('a) as ('word, 'length)).select('a, 'word, 'length)
 
 // Register the table function to use it in SQL queries.
 tableEnv.registerFunction("split", new Split("#"))

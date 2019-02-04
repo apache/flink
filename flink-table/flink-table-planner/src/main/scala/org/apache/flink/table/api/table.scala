@@ -69,17 +69,27 @@ class Table(
   //   A TableFunctionCall is tolerated as root node because the Table holds the initial call.
   if (containsUnboundedUDTFCall(logicalPlan) &&
     !logicalPlan.isInstanceOf[LogicalTableFunctionCall]) {
-    throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
+    throw new ValidationException(
+      "Table functions can only be used in table.joinLateral() and table.leftOuterJoinLateral().")
   }
 
   /**
     * Creates a [[Table]] for a TableFunction call from a String expression.
     *
     * @param tableEnv The TableEnvironment in which the call is created.
-    * @param udtfCall A String expression of the TableFunction call.
+    * @param tableFunctionCall A string expression of a table function call.
+    *
+    * @deprecated This constructor will be removed. Use table.joinLateral() or
+    *             table.leftOuterJoinLateral() instead.
     */
-  def this(tableEnv: TableEnvironment, udtfCall: String) {
-    this(tableEnv, UserDefinedFunctionUtils.createLogicalFunctionCall(tableEnv, udtfCall))
+  @Deprecated
+  @deprecated(
+    "This constructor will be removed. Use table.joinLateral() or " +
+      "table.leftOuterJoinLateral() instead.",
+    "1.8")
+  def this(tableEnv: TableEnvironment, tableFunctionCall: String) {
+    this(tableEnv, UserDefinedFunctionUtils
+      .createLogicalFunctionCall(tableEnv, ExpressionParser.parseExpression(tableFunctionCall)))
   }
 
   private lazy val tableSchema: TableSchema = new TableSchema(
@@ -430,34 +440,16 @@ class Table(
   }
 
   /**
-    * Joins this [[Table]] with an user-defined [[org.apache.calcite.schema.TableFunction]].
-    * This join is similar to a SQL left outer join with ON TRUE predicate, but it works with a
-    * table function. Each row of the outer table is joined with all rows produced by the table
-    * function. If the table function does not produce any row, the outer row is padded with nulls.
+    * Joins two [[Table]]s. Similar to an SQL left outer join. The fields of the two joined
+    * operations must not overlap, use [[as]] to rename fields if necessary.
     *
-    * Scala Example:
+    * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
+    * have null check enabled (default).
+    *
+    * Example:
+    *
     * {{{
-    *   class MySplitUDTF extends TableFunction[String] {
-    *     def eval(str: String): Unit = {
-    *       str.split("#").foreach(collect)
-    *     }
-    *   }
-    *
-    *   val split = new MySplitUDTF()
-    *   table.leftOuterJoin(split('c) as ('s)).select('a,'b,'c,'s)
-    * }}}
-    *
-    * Java Example:
-    * {{{
-    *   class MySplitUDTF extends TableFunction<String> {
-    *     public void eval(String str) {
-    *       str.split("#").forEach(this::collect);
-    *     }
-    *   }
-    *
-    *   TableFunction<String> split = new MySplitUDTF();
-    *   tableEnv.registerFunction("split", split);
-    *   table.leftOuterJoin(new Table(tableEnv, "split(c)").as("s"))).select("a, b, c, s");
+    *   left.leftOuterJoin(right).select('a, 'b, 'd)
     * }}}
     */
   def leftOuterJoin(right: Table): Table = {
@@ -469,12 +461,12 @@ class Table(
     * operations must not overlap, use [[as]] to rename fields if necessary.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have nullCheck enabled.
+    * have null check enabled (default).
     *
     * Example:
     *
     * {{{
-    *   left.leftOuterJoin(right, "a = b").select('a, 'b, 'd)
+    *   left.leftOuterJoin(right, "a = b").select("a, b, d")
     * }}}
     */
   def leftOuterJoin(right: Table, joinPredicate: String): Table = {
@@ -486,7 +478,7 @@ class Table(
     * operations must not overlap, use [[as]] to rename fields if necessary.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have nullCheck enabled.
+    * have null check enabled (default).
     *
     * Example:
     *
@@ -503,7 +495,7 @@ class Table(
     * operations must not overlap, use [[as]] to rename fields if necessary.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have nullCheck enabled.
+    * have null check enabled (default).
     *
     * Example:
     *
@@ -520,7 +512,7 @@ class Table(
     * operations must not overlap, use [[as]] to rename fields if necessary.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have nullCheck enabled.
+    * have null check enabled (default).
     *
     * Example:
     *
@@ -537,7 +529,7 @@ class Table(
     * operations must not overlap, use [[as]] to rename fields if necessary.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have nullCheck enabled.
+    * have null check enabled (default).
     *
     * Example:
     *
@@ -554,7 +546,7 @@ class Table(
     * operations must not overlap, use [[as]] to rename fields if necessary.
     *
     * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
-    * have nullCheck enabled.
+    * have null check enabled (default).
     *
     * Example:
     *
@@ -612,6 +604,221 @@ class Table(
         Join(this.logicalPlan, udtfCall, joinType, joinPredicate, correlated = true)
           .validate(tableEnv))
     }
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
+    * This join is similar to a SQL inner join with ON TRUE predicate but works with a
+    * table function. Each row of the table is joined with all rows produced by the table function.
+    *
+    * Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction<String> {
+    *     public void eval(String str) {
+    *       str.split("#").forEach(this::collect);
+    *     }
+    *   }
+    *
+    *   TableFunction<String> split = new MySplitUDTF();
+    *   tableEnv.registerFunction("split", split);
+    *   table.joinLateral("split(c) as (s)").select("a, b, c, s");
+    * }}}
+    */
+  def joinLateral(tableFunctionCall: String): Table = {
+    val callExpr = ExpressionParser.parseExpression(tableFunctionCall)
+    joinLateral(callExpr, None, JoinType.INNER)
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
+    * This join is similar to a SQL inner join with ON TRUE predicate but works with a
+    * table function. Each row of the table is joined with all rows produced by the table function.
+    *
+    * Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction<String> {
+    *     public void eval(String str) {
+    *       str.split("#").forEach(this::collect);
+    *     }
+    *   }
+    *
+    *   TableFunction<String> split = new MySplitUDTF();
+    *   tableEnv.registerFunction("split", split);
+    *   table.joinLateral("split(c) as (s)", "a = s").select("a, b, c, s");
+    * }}}
+    */
+  def joinLateral(tableFunctionCall: String, joinPredicate: String): Table = {
+    val callExpr = ExpressionParser.parseExpression(tableFunctionCall)
+    val joinPredicateExpr = ExpressionParser.parseExpression(joinPredicate)
+    joinLateral(callExpr, Some(joinPredicateExpr), JoinType.INNER)
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
+    * This join is similar to a SQL inner join with ON TRUE predicate but works with a
+    * table function. Each row of the table is joined with all rows produced by the table function.
+    *
+    * Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.joinLateral(split('c) as ('s)).select('a, 'b, 'c, 's)
+    * }}}
+    */
+  def joinLateral(tableFunctionCall: Expression): Table = {
+    joinLateral(tableFunctionCall, None, JoinType.INNER)
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
+    * This join is similar to a SQL inner join with ON TRUE predicate but works with a
+    * table function. Each row of the table is joined with all rows produced by the table function.
+    *
+    * Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.joinLateral(split('c) as ('s), 'a === 's).select('a, 'b, 'c, 's)
+    * }}}
+    */
+  def joinLateral(tableFunctionCall: Expression, joinPredicate: Expression): Table = {
+    joinLateral(tableFunctionCall, Some(joinPredicate), JoinType.INNER)
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
+    * This join is similar to a SQL left outer join with ON TRUE predicate but works with a
+    * table function. Each row of the table is joined with all rows produced by the table
+    * function. If the table function does not produce any row, the outer row is padded with nulls.
+    *
+    * Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction<String> {
+    *     public void eval(String str) {
+    *       str.split("#").forEach(this::collect);
+    *     }
+    *   }
+    *
+    *   TableFunction<String> split = new MySplitUDTF();
+    *   tableEnv.registerFunction("split", split);
+    *   table.leftOuterJoinLateral("split(c) as (s)").select("a, b, c, s");
+    * }}}
+    */
+  def leftOuterJoinLateral(tableFunctionCall: String): Table = {
+    val callExpr = ExpressionParser.parseExpression(tableFunctionCall)
+    joinLateral(callExpr, None, JoinType.LEFT_OUTER)
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
+    * This join is similar to a SQL left outer join with ON TRUE predicate but works with a
+    * table function. Each row of the table is joined with all rows produced by the table
+    * function. If the table function does not produce any row, the outer row is padded with nulls.
+    *
+    * Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction<String> {
+    *     public void eval(String str) {
+    *       str.split("#").forEach(this::collect);
+    *     }
+    *   }
+    *
+    *   TableFunction<String> split = new MySplitUDTF();
+    *   tableEnv.registerFunction("split", split);
+    *   table.leftOuterJoinLateral("split(c) as (s)", "a = s").select("a, b, c, s");
+    * }}}
+    */
+  def leftOuterJoinLateral(tableFunctionCall: String, joinPredicate: String): Table = {
+    val callExpr = ExpressionParser.parseExpression(tableFunctionCall)
+    val joinPredicateExpr = ExpressionParser.parseExpression(joinPredicate)
+    joinLateral(callExpr, Some(joinPredicateExpr), JoinType.LEFT_OUTER)
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
+    * This join is similar to a SQL left outer join with ON TRUE predicate but works with a
+    * table function. Each row of the table is joined with all rows produced by the table
+    * function. If the table function does not produce any row, the outer row is padded with nulls.
+    *
+    * Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.leftOuterJoinLateral(split('c) as ('s)).select('a, 'b, 'c, 's)
+    * }}}
+    */
+  def leftOuterJoinLateral(tableFunctionCall: Expression): Table = {
+    joinLateral(tableFunctionCall, None, JoinType.LEFT_OUTER)
+  }
+
+  /**
+    * Joins this [[Table]] with an user-defined [[org.apache.flink.table.functions.TableFunction]].
+    * This join is similar to a SQL left outer join with ON TRUE predicate but works with a
+    * table function. Each row of the table is joined with all rows produced by the table
+    * function. If the table function does not produce any row, the outer row is padded with nulls.
+    *
+    * Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.leftOuterJoinLateral(split('c) as ('s), 'a === 's).select('a, 'b, 'c, 's)
+    * }}}
+    */
+  def leftOuterJoinLateral(tableFunctionCall: Expression, joinPredicate: Expression): Table = {
+    joinLateral(tableFunctionCall, Some(joinPredicate), JoinType.LEFT_OUTER)
+  }
+
+  private def joinLateral(
+      callExpr: Expression,
+      joinPredicate: Option[Expression],
+      joinType: JoinType): Table = {
+
+    // check join type
+    if (joinType != JoinType.INNER && joinType != JoinType.LEFT_OUTER) {
+      throw new ValidationException(
+        "Table functions are currently only supported for inner and left outer lateral joins.")
+    }
+
+    val logicalCall = UserDefinedFunctionUtils.createLogicalFunctionCall(tableEnv, callExpr)
+
+    val validatedLogicalCall = LogicalTableFunctionCall(
+      logicalCall.functionName,
+      logicalCall.tableFunction,
+      logicalCall.parameters,
+      logicalCall.resultType,
+      logicalCall.fieldNames,
+      this.logicalPlan
+    ).validate(tableEnv)
+
+    new Table(
+      tableEnv,
+      Join(
+        this.logicalPlan,
+        validatedLogicalCall,
+        joinType,
+        joinPredicate,
+        correlated = true
+      ).validate(tableEnv))
   }
 
   /**
@@ -913,7 +1120,8 @@ class Table(
   def insertInto(tableName: String): Unit = {
     this.logicalPlan match {
       case _: LogicalTableFunctionCall =>
-        throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
+        throw new ValidationException("Table functions can only be used in table.joinLateral() " +
+          "and table.leftOuterJoinLateral().")
       case _ =>
         tableEnv.insertInto(this, tableName, this.tableEnv.queryConfig)
     }
@@ -934,7 +1142,8 @@ class Table(
   def insertInto(tableName: String, conf: QueryConfig): Unit = {
     this.logicalPlan match {
       case _: LogicalTableFunctionCall =>
-        throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
+        throw new ValidationException(
+          "Table functions can only be used for joinLateral() and leftOuterJoinLateral().")
       case _ =>
         tableEnv.insertInto(this, tableName, conf)
     }

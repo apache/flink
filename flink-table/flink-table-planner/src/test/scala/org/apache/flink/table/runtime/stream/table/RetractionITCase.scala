@@ -176,7 +176,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
     val resultTable = table
       .groupBy('word)
       .select('word as 'word, 'num.sum as 'cnt)
-      .leftOuterJoin(func0('word))
+      .leftOuterJoinLateral(func0('word))
       .groupBy('cnt)
       .select('cnt, 'word.count as 'frequency)
 

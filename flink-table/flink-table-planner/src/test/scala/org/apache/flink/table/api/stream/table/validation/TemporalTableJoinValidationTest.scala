@@ -70,7 +70,7 @@ class TemporalTableJoinValidationTest extends TableTestBase {
     val rates = ratesHistoryWithoutTimeAttribute.createTemporalTableFunction('rowtime, 'currency)
 
     val result = orders
-      .join(rates('o_rowtime), "currency = o_currency")
+      .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
       .select("o_amount * rate").as("rate")
 
     util.explain(result)
@@ -85,7 +85,7 @@ class TemporalTableJoinValidationTest extends TableTestBase {
     val rates = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
 
     val result = ordersWithoutTimeAttribute
-      .join(rates('o_rowtime), "currency = o_currency")
+      .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
       .select("o_amount * rate").as("rate")
 
     util.explain(result)
@@ -101,7 +101,7 @@ class TemporalTableJoinValidationTest extends TableTestBase {
     val rates = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
 
     val result = ordersProctime
-      .join(rates('o_rowtime), "currency = o_currency")
+      .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
       .select("o_amount * rate").as("rate")
 
     util.explain(result)

@@ -327,8 +327,23 @@ case class TableFunctionCall(
     * @param aliasList alias for this table function's returned fields
     * @return this table function call
     */
-  private[flink] def as(aliasList: Option[Seq[String]]): TableFunctionCall = {
-    this.aliases = aliasList
+  private[flink] def setAliases(aliasList: Seq[String]): TableFunctionCall = {
+    this.aliases = Some(aliasList)
+    this
+  }
+
+  /**
+    * Specifies the field names for a join with a table function.
+    *
+    * @param name name for one field
+    * @param extraNames additional names if the expression expands to multiple fields
+    * @return field with an alias
+    */
+  def as(name: Symbol, extraNames: Symbol*): TableFunctionCall = {
+    // NOTE: this method is only a temporary solution until we
+    // remove the deprecated table constructor. Otherwise Scala would be confused
+    // about Table.as() and Expression.as(). In the future, we can rely on Expression.as() only.
+    this.aliases = Some(name.name +: extraNames.map(_.name))
     this
   }
 
