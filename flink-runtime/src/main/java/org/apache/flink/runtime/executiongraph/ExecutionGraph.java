@@ -1007,8 +1007,33 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					if (strippedThrowable instanceof TimeoutException) {
 						int numTotal = allAllocationsFuture.getNumFuturesTotal();
 						int numComplete = allAllocationsFuture.getNumFuturesCompleted();
+
 						String message = "Could not allocate all requires slots within timeout of " +
-							timeout + ". Slots required: " + numTotal + ", slots allocated: " + numComplete;
+							timeout + ". Slots required: " + numTotal + ", slots allocated: " + numComplete +
+								", previous allocation IDs: " + allPreviousAllocationIds;
+
+						StringBuilder executionMessageBuilder = new StringBuilder();
+
+						for (int i = 0; i < allAllocationFutures.size(); i++) {
+							CompletableFuture<Execution> executionFuture = allAllocationFutures.get(i);
+
+							try {
+								Execution execution = executionFuture.getNow(null);
+								if (execution != null) {
+									executionMessageBuilder.append("completed: " + execution);
+								} else {
+									executionMessageBuilder.append("incomplete: " + executionFuture);
+								}
+							} catch (CompletionException completionException) {
+								executionMessageBuilder.append("completed exceptionally: " + completionException + "/" + executionFuture);
+							}
+
+							if (i < allAllocationFutures.size() - 1 ) {
+								executionMessageBuilder.append(", ");
+							}
+						}
+
+						message += ", execution status: " + executionMessageBuilder.toString();
 
 						resultThrowable = new NoResourceAvailableException(message);
 					} else {
