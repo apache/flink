@@ -112,7 +112,8 @@ class CorrelateTest extends TableTestBase {
     val function = util.addFunction("func2", new TableFunc2)
     val scalarFunc = new Func13("pre")
 
-    val result = table.joinLateral(function(scalarFunc('c)) as ('name, 'len)).select('c, 'name, 'len)
+    val result = table.joinLateral(
+      function(scalarFunc('c)) as ('name, 'len)).select('c, 'name, 'len)
 
     val expected = unaryNode(
       "DataStreamCalc",
