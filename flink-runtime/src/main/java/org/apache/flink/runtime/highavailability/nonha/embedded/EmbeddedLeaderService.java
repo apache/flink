@@ -244,7 +244,6 @@ public class EmbeddedLeaderService {
 				}
 				else {
 					LOG.debug("Received confirmation of leadership for a stale leadership grant. Ignoring.");
-					service.isLeader = false;
 				}
 			}
 			catch (Throwable t) {
