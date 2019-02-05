@@ -56,73 +56,73 @@ class CorrelateValidationTest extends TableTestBase {
     // table function call select
     expectExceptionThrown(
       func1('c).select("f0"),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "TableFunction can only be used in joinLateral and leftOuterJoinLateral."
     )
 
     // table function call select
     expectExceptionThrown(
       func1('c).select('f0),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "TableFunction can only be used in joinLateral and leftOuterJoinLateral."
     )
 
     // table function call insertInto
     expectExceptionThrown(
       func1('c).insertInto("testSink"),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "TableFunction can only be used in joinLateral and leftOuterJoinLateral."
     )
 
     // table function call distinct
     expectExceptionThrown(
       func1('c).distinct(),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "TableFunction can only be used in joinLateral and leftOuterJoinLateral."
     )
 
     // table function call filter
     expectExceptionThrown(
       func1('c).filter('f0 === "?"),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "TableFunction can only be used in joinLateral and leftOuterJoinLateral."
     )
 
     // table function call filter
     expectExceptionThrown(
       func1('c).filter("f0 = '?'"),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "TableFunction can only be used in joinLateral and leftOuterJoinLateral."
     )
 
     // table function call limit
     expectExceptionThrown(
       func1('c).orderBy('f0).offset(3),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "TableFunction can only be used in joinLateral and leftOuterJoinLateral."
     )
 
     // table function call limit
     expectExceptionThrown(
       func1('c).orderBy('f0).fetch(3),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "TableFunction can only be used in joinLateral and leftOuterJoinLateral."
     )
 
     // table function call orderBy
     expectExceptionThrown(
       func1('c).orderBy("f0"),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "TableFunction can only be used in joinLateral and leftOuterJoinLateral."
     )
 
     // table function call orderBy
     expectExceptionThrown(
       func1('c).orderBy('f0),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "TableFunction can only be used in joinLateral and leftOuterJoinLateral."
     )
 
     // table function call where
     expectExceptionThrown(
       func1('c).where("f0 = '?'"),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "TableFunction can only be used in joinLateral and leftOuterJoinLateral."
     )
 
     // table function call where
     expectExceptionThrown(
       func1('c).where('f0 === "?"),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "TableFunction can only be used in joinLateral and leftOuterJoinLateral."
     )
 
   }
