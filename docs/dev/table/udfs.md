@@ -143,7 +143,7 @@ In order to define a table function one has to extend the base class `TableFunct
 
 In the Table API, a table function is used with `.joinLateral` or `.leftOuterJoinLateral`. The `joinLateral` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoinLateral` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
 
-The following example shows how to define table-valued function, register it in the TableEnjvironment, and call it in a query. Note that you can configure your table function via a constructor before it is registered:
+The following example shows how to define table-valued function, register it in the TableEnvironment, and call it in a query. Note that you can configure your table function via a constructor before it is registered: 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

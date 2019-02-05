@@ -1041,7 +1041,6 @@ trait ImplicitExpressionConversions {
     }
   }
 
-  @Deprecated
   implicit class TableFunctionCallExpression[T: TypeInformation](val t: TableFunction[T]) {
     def apply(params: Expression*): TableFunctionCall = {
       val resultType = if (t.getResultType == null) {
