@@ -24,8 +24,8 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -59,7 +59,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -83,7 +82,7 @@ public class SchedulerTestBase extends TestLogger {
 
 		final JobMasterId jobMasterId = JobMasterId.generate();
 		final String jobManagerAddress = "localhost";
-		ScheduledExecutor executor = new ScheduledExecutorServiceAdapter(Executors.newSingleThreadScheduledExecutor());
+		ComponentMainThreadExecutor executor = supplyMainThreadExecutorForSetup();
 		slotPool.start(jobMasterId, jobManagerAddress, executor);
 		testingScheduler.start(executor);
 	}
@@ -94,6 +93,10 @@ public class SchedulerTestBase extends TestLogger {
 			testingSlotProvider.shutdown();
 			testingSlotProvider = null;
 		}
+	}
+
+	protected ComponentMainThreadExecutor supplyMainThreadExecutorForSetup() {
+		return TestingComponentMainThreadExecutorServiceAdapter.forMainThread();
 	}
 
 	protected interface TestingSlotProvider extends SlotProvider {

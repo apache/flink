@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -53,6 +54,11 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 
 	private final TestingComponentMainThreadExecutor testMainThreadUtil =
 		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
+
+	@Override
+	protected ComponentMainThreadExecutor supplyMainThreadExecutorForSetup() {
+		return testMainThreadUtil.getMainThreadExecutor();
+	}
 
 	@Test
 	public void testConstraintsAfterRestart() throws Exception {

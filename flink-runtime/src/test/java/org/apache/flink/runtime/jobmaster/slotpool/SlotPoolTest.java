@@ -24,9 +24,9 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.DummyScheduledUnit;
@@ -66,8 +66,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
@@ -96,7 +94,8 @@ public class SlotPoolTest extends TestLogger {
 
 	private TestingResourceManagerGateway resourceManagerGateway;
 
-	private ScheduledExecutor mainThreadExecutor = new ScheduledExecutorServiceAdapter(Executors.newSingleThreadScheduledExecutor());
+	private ComponentMainThreadExecutor mainThreadExecutor =
+		TestingComponentMainThreadExecutorServiceAdapter.forMainThread();
 
 	@Before
 	public void setUp() throws Exception {
@@ -808,7 +807,7 @@ public class SlotPoolTest extends TestLogger {
 	private static SlotPoolGateway setupSlotPool(
 		SlotPool slotPool,
 		ResourceManagerGateway resourceManagerGateway,
-		ScheduledExecutor mainThreadExecutable) throws Exception {
+		ComponentMainThreadExecutor mainThreadExecutable) throws Exception {
 		final String jobManagerAddress = "foobar";
 
 		slotPool.start(JobMasterId.generate(), jobManagerAddress, mainThreadExecutable);
@@ -818,7 +817,9 @@ public class SlotPoolTest extends TestLogger {
 		return slotPool;
 	}
 
-	private static Scheduler setupScheduler(SlotPoolGateway slotPoolGateway, Executor mainThreadExecutable) {
+	private static Scheduler setupScheduler(
+		SlotPoolGateway slotPoolGateway,
+		ComponentMainThreadExecutor mainThreadExecutable) {
 		Scheduler scheduler = new Scheduler(new HashMap<>(16), LocationPreferenceSlotSelection.INSTANCE, slotPoolGateway);
 		scheduler.start(mainThreadExecutable);
 		return scheduler;

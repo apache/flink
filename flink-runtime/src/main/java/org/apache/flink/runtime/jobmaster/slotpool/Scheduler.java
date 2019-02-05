@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
@@ -49,7 +50,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executor;
 
 /**
  * Scheduler that assigns tasks to slots. This class is currently work in progress, comments will be updated as we
@@ -70,7 +70,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 
 	/** Executor for running tasks in the job master's main thread. */
 	@Nonnull
-	private Executor componentMainThreadExecutor;
+	private ComponentMainThreadExecutor componentMainThreadExecutor;
 
 	/** Managers for the different slot sharing groups. */
 	@Nonnull
@@ -84,12 +84,12 @@ public class Scheduler implements SlotProvider, SlotOwner {
 		this.slotSelectionStrategy = slotSelectionStrategy;
 		this.slotSharingManagersMap = slotSharingManagersMap;
 		this.slotPoolGateway = slotPoolGateway;
-		this.componentMainThreadExecutor = (runnable) -> {
-			throw new IllegalStateException("Main thread executor not initialized.");
-		};
+		this.componentMainThreadExecutor = new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
+			"Scheduler is not initialized with proper main thread executor. " +
+				"Call to Scheduler.start(...) required.");
 	}
 
-	public void start(@Nonnull Executor mainThreadExecutor) {
+	public void start(@Nonnull ComponentMainThreadExecutor mainThreadExecutor) {
 		this.componentMainThreadExecutor = mainThreadExecutor;
 	}
 

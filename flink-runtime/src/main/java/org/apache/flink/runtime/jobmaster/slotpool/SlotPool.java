@@ -28,8 +28,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -126,7 +126,7 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 
 	private String jobManagerAddress;
 
-	private ScheduledExecutor jmMainThreadScheduledExecutor;
+	private ComponentMainThreadExecutor jmMainThreadScheduledExecutor;
 
 	// ------------------------------------------------------------------------
 
@@ -176,7 +176,7 @@ public class SlotPool implements SlotPoolGateway, AllocatedSlotActions, AutoClos
 	public void start(
 		@Nonnull JobMasterId jobMasterId,
 		@Nonnull String newJobManagerAddress,
-		@Nonnull ScheduledExecutor jmMainThreadScheduledExecutor) throws Exception {
+		@Nonnull ComponentMainThreadExecutor jmMainThreadScheduledExecutor) throws Exception {
 
 		this.jobMasterId = jobMasterId;
 		this.jobManagerAddress = newJobManagerAddress;
