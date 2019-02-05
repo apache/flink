@@ -69,7 +69,8 @@ class Table(
   //   A TableFunctionCall is tolerated as root node because the Table holds the initial call.
   if (containsUnboundedUDTFCall(logicalPlan) &&
     !logicalPlan.isInstanceOf[LogicalTableFunctionCall]) {
-    throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
+    throw new ValidationException(
+      "TableFunction can only be used in joinLateral and leftOuterJoinLateral.")
   }
 
   /**
@@ -77,8 +78,8 @@ class Table(
     *
     * @param tableEnv The TableEnvironment in which the call is created.
     * @param udtfCall A String expression of the TableFunction call.
-    *
-    * @deprecated This method will be removed in 1.9 and use joinLateral instead.
+    * @deprecated This method will be removed in 1.9 and use joinLateral and leftOuterJoinLateral
+    *            instead.
     */
   @Deprecated
   def this(tableEnv: TableEnvironment, udtfCall: String) {
@@ -434,34 +435,16 @@ class Table(
   }
 
   /**
-    * Joins this [[Table]] with an user-defined [[org.apache.calcite.schema.TableFunction]].
-    * This join is similar to a SQL left outer join with ON TRUE predicate, but it works with a
-    * table function. Each row of the outer table is joined with all rows produced by the table
-    * function. If the table function does not produce any row, the outer row is padded with nulls.
+    * Joins two [[Table]]s. Similar to an SQL left outer join. The fields of the two joined
+    * operations must not overlap, use [[as]] to rename fields if necessary.
     *
-    * Scala Example:
+    * Note: Both tables must be bound to the same [[TableEnvironment]] and its [[TableConfig]] must
+    * have nullCheck enabled.
+    *
+    * Example:
+    *
     * {{{
-    *   class MySplitUDTF extends TableFunction[String] {
-    *     def eval(str: String): Unit = {
-    *       str.split("#").foreach(collect)
-    *     }
-    *   }
-    *
-    *   val split = new MySplitUDTF()
-    *   table.leftOuterJoin(split('c) as ('s)).select('a,'b,'c,'s)
-    * }}}
-    *
-    * Java Example:
-    * {{{
-    *   class MySplitUDTF extends TableFunction<String> {
-    *     public void eval(String str) {
-    *       str.split("#").forEach(this::collect);
-    *     }
-    *   }
-    *
-    *   TableFunction<String> split = new MySplitUDTF();
-    *   tableEnv.registerFunction("split", split);
-    *   table.leftOuterJoin(new Table(tableEnv, "split(c)").as("s"))).select("a, b, c, s");
+    *   left.leftOuterJoin(right).select('a, 'b, 'd)
     * }}}
     */
   def leftOuterJoin(right: Table): Table = {
@@ -1127,7 +1110,8 @@ class Table(
   def insertInto(tableName: String): Unit = {
     this.logicalPlan match {
       case _: LogicalTableFunctionCall =>
-        throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
+        throw new ValidationException(
+          "TableFunction can only be used in joinLateral and leftOuterJoinLateral.")
       case _ =>
         tableEnv.insertInto(this, tableName, this.tableEnv.queryConfig)
     }
@@ -1148,7 +1132,8 @@ class Table(
   def insertInto(tableName: String, conf: QueryConfig): Unit = {
     this.logicalPlan match {
       case _: LogicalTableFunctionCall =>
-        throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
+        throw new ValidationException(
+          "TableFunction can only be used in joinLateral and leftOuterJoinLateral.")
       case _ =>
         tableEnv.insertInto(this, tableName, conf)
     }

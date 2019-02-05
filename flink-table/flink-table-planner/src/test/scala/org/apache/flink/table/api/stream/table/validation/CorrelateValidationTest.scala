@@ -40,7 +40,7 @@ class CorrelateValidationTest extends TableTestBase {
     expectExceptionThrown(
       util.javaTableEnv.registerFunction("func3", ObjectTableFunction), "Scala object")
 
-    expectExceptionThrown(t.join(ObjectTableFunction('a, 1)), "Scala object")
+    expectExceptionThrown(t.joinLateral(ObjectTableFunction('a, 1)), "Scala object")
   }
 
   @Test
@@ -139,7 +139,7 @@ class CorrelateValidationTest extends TableTestBase {
     expectExceptionThrown(
       util.tableEnv.registerFunction("udtf", ObjectTableFunction), "Scala object")
     // Scala Table API directly call
-    expectExceptionThrown(t.join(ObjectTableFunction('a, 1)), "Scala object")
+    expectExceptionThrown(t.joinLateral(ObjectTableFunction('a, 1)), "Scala object")
 
 
     //============ throw exception when table function is not registered =========

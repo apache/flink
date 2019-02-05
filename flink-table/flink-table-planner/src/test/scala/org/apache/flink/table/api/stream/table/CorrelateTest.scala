@@ -38,7 +38,7 @@ class CorrelateTest extends TableTestBase {
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc1)
 
-    val result1 = table.join(function('c) as 's).select('c, 's)
+    val result1 = table.joinLateral(function('c) as 's).select('c, 's)
 
     val expected1 = unaryNode(
       "DataStreamCalc",
@@ -59,7 +59,7 @@ class CorrelateTest extends TableTestBase {
 
     // test overloading
 
-    val result2 = table.join(function('c, "$") as 's).select('c, 's)
+    val result2 = table.joinLateral(function('c, "$") as 's).select('c, 's)
 
     val expected2 = unaryNode(
       "DataStreamCalc",
@@ -85,7 +85,7 @@ class CorrelateTest extends TableTestBase {
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc1)
 
-    val result = table.leftOuterJoin(function('c) as 's, true).select('c, 's)
+    val result = table.leftOuterJoinLateral(function('c) as 's, true).select('c, 's)
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -112,7 +112,7 @@ class CorrelateTest extends TableTestBase {
     val function = util.addFunction("func2", new TableFunc2)
     val scalarFunc = new Func13("pre")
 
-    val result = table.join(function(scalarFunc('c)) as ('name, 'len)).select('c, 'name, 'len)
+    val result = table.joinLateral(function(scalarFunc('c)) as ('name, 'len)).select('c, 'name, 'len)
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -140,7 +140,7 @@ class CorrelateTest extends TableTestBase {
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("hierarchy", new HierarchyTableFunction)
 
-    val result = table.join(function('c) as ('name, 'adult, 'len))
+    val result = table.joinLateral(function('c) as ('name, 'adult, 'len))
 
     val expected = unaryNode(
       "DataStreamCorrelate",
@@ -163,7 +163,7 @@ class CorrelateTest extends TableTestBase {
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("pojo", new PojoTableFunc)
 
-    val result = table.join(function('c))
+    val result = table.joinLateral(function('c))
 
     val expected = unaryNode(
       "DataStreamCorrelate",
@@ -187,7 +187,7 @@ class CorrelateTest extends TableTestBase {
     val function = util.addFunction("func2", new TableFunc2)
 
     val result = table
-      .join(function('c) as ('name, 'len))
+      .joinLateral(function('c) as ('name, 'len))
       .select('c, 'name, 'len)
       .filter('len > 2)
 
@@ -217,7 +217,7 @@ class CorrelateTest extends TableTestBase {
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc1)
 
-    val result = table.join(function('c.substring(2)) as 's)
+    val result = table.joinLateral(function('c.substring(2)) as 's)
 
     val expected = unaryNode(
         "DataStreamCorrelate",
@@ -241,7 +241,7 @@ class CorrelateTest extends TableTestBase {
     val function = util.addFunction("func1", new TableFunc0)
 
     val result = sourceTable.select('a, 'b, 'c)
-      .join(function('c) as('d, 'e))
+      .joinLateral(function('c) as('d, 'e))
       .select('c, 'd, 'e)
       .where('e > 10)
       .where('e > 20)
@@ -287,7 +287,7 @@ class CorrelateTest extends TableTestBase {
     val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc0)
     val result = sourceTable.select('a, 'b, 'c)
-      .join(function('c) as('d, 'e))
+      .joinLateral(function('c) as('d, 'e))
       .select('c, 'd, 'e)
       .where('e > 10)
       .where('e > 20)
