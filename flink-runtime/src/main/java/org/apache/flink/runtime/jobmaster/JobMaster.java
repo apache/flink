@@ -1020,7 +1020,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		startJobMasterServices();
 
-		log.info("Starting execution of job {} ({})", jobGraph.getName(), jobGraph.getJobID());
+		log.info("Starting execution of job {} ({}) under job master id {}.", jobGraph.getName(), jobGraph.getJobID(), newJobMasterId);
 
 		resetAndScheduleExecutionGraph();
 
