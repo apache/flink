@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.time.Time;
 
 /**
  * The {@link StreamQueryConfig} holds parameters to configure the behavior of streaming queries.
  */
+@PublicEvolving
 public class StreamQueryConfig implements QueryConfig {
 
 	/**
