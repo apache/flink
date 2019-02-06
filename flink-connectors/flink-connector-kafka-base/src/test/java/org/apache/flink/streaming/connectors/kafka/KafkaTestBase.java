@@ -88,11 +88,11 @@ public abstract class KafkaTestBase extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	@BeforeClass
-	public static void prepare() throws ClassNotFoundException {
+	public static void prepare() throws Exception {
 		prepare(true);
 	}
 
-	public static void prepare(boolean hideKafkaBehindProxy) throws ClassNotFoundException {
+	public static void prepare(boolean hideKafkaBehindProxy) throws Exception {
 		LOG.info("-------------------------------------------------------------------------");
 		LOG.info("    Starting KafkaTestBase ");
 		LOG.info("-------------------------------------------------------------------------");
@@ -126,7 +126,7 @@ public abstract class KafkaTestBase extends TestLogger {
 		return flinkConfig;
 	}
 
-	protected static void startClusters(boolean secureMode, boolean hideKafkaBehindProxy) throws ClassNotFoundException {
+	protected static void startClusters(boolean secureMode, boolean hideKafkaBehindProxy) throws Exception {
 
 		// dynamically load the implementation for the test
 		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
