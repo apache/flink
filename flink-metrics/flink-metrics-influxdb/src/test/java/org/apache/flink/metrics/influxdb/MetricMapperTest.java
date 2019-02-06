@@ -21,8 +21,10 @@ package org.apache.flink.metrics.influxdb;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
-import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.util.TestHistogram;
+import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.util.TestLogger;
 
 import org.influxdb.dto.Point;
@@ -33,10 +35,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.ignoreStubs;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
 
 /**
  * Test for {@link MetricMapper} checking that metrics are converted to InfluxDB client objects as expected.
@@ -68,63 +66,41 @@ public class MetricMapperTest extends TestLogger {
 
 	@Test
 	public void testMapCounter() {
-		Counter counter = mock(Counter.class);
-		when(counter.getCount()).thenReturn(42L);
+		Counter counter = new SimpleCounter();
+		counter.inc(42L);
 
 		verifyPoint(
 			MetricMapper.map(info, timestamp, counter),
 			"count=42");
-
-		verifyNoMoreInteractions(ignoreStubs(counter));
 	}
 
 	@Test
 	public void testMapHistogram() {
-		HistogramStatistics statistics = mock(HistogramStatistics.class);
-		when(statistics.size()).thenReturn(42);
-		when(statistics.getMax()).thenReturn(-5L);
-		when(statistics.getMin()).thenReturn(50L);
-		when(statistics.getMean()).thenReturn(1.2);
-		when(statistics.getStdDev()).thenReturn(0.7);
-		when(statistics.getQuantile(.5)).thenReturn(1.0);
-		when(statistics.getQuantile(.75)).thenReturn(2.0);
-		when(statistics.getQuantile(.95)).thenReturn(3.0);
-		when(statistics.getQuantile(.98)).thenReturn(4.0);
-		when(statistics.getQuantile(.99)).thenReturn(5.0);
-		when(statistics.getQuantile(.999)).thenReturn(6.0);
-
-		Histogram histogram = mock(Histogram.class);
-		when(histogram.getStatistics()).thenReturn(statistics);
+		Histogram histogram = new TestHistogram();
 
 		verifyPoint(
 			MetricMapper.map(info, timestamp, histogram),
-			"count=42",
-			"max=-5",
-			"mean=1.2",
-			"min=50",
-			"p50=1.0",
-			"p75=2.0",
-			"p95=3.0",
-			"p98=4.0",
-			"p99=5.0",
-			"p999=6.0",
-			"stddev=0.7");
-
-		verifyNoMoreInteractions(ignoreStubs(histogram, statistics));
+			"count=3",
+			"max=6",
+			"mean=4.0",
+			"min=7",
+			"p50=0.5",
+			"p75=0.75",
+			"p95=0.95",
+			"p98=0.98",
+			"p99=0.99",
+			"p999=0.999",
+			"stddev=5.0");
 	}
 
 	@Test
 	public void testMapMeter() {
-		Meter meter = mock(Meter.class);
-		when(meter.getCount()).thenReturn(42L);
-		when(meter.getRate()).thenReturn(2.5);
+		Meter meter = new TestMeter();
 
 		verifyPoint(
 			MetricMapper.map(info, timestamp, meter),
-			"count=42",
-			"rate=2.5");
-
-		verifyNoMoreInteractions(ignoreStubs(meter));
+			"count=100",
+			"rate=5.0");
 	}
 
 	private void verifyPoint(Point point, String... expectedFields) {

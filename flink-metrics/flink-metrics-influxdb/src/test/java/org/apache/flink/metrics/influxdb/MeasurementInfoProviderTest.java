@@ -32,10 +32,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyChar;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
 
 /**
  * Test for {@link MeasurementInfoProvider}.
@@ -51,9 +49,13 @@ public class MeasurementInfoProviderTest extends TestLogger {
 		variables.put("<B>", "b");
 		variables.put("<C>", "c");
 		String metricName = "ClassesLoaded";
-		FrontMetricGroup metricGroup = mock(FrontMetricGroup.class);
-		when(metricGroup.getAllVariables()).thenReturn(variables);
-		when(metricGroup.getLogicalScope(any(), anyChar())).thenReturn(logicalScope);
+		FrontMetricGroup metricGroup = mock(
+			FrontMetricGroup.class,
+			(invocation) -> {
+				throw new UnsupportedOperationException("unexpected method call");
+			});
+		doReturn(variables).when(metricGroup).getAllVariables();
+		doReturn(logicalScope).when(metricGroup).getLogicalScope(any(), anyChar());
 
 		MeasurementInfo info = provider.getMetricInfo(metricName, metricGroup);
 		assertNotNull(info);
@@ -64,9 +66,5 @@ public class MeasurementInfoProviderTest extends TestLogger {
 		assertThat(info.getTags(), hasEntry("B", "b"));
 		assertThat(info.getTags(), hasEntry("C", "c"));
 		assertEquals(3, info.getTags().size());
-
-		verify(metricGroup).getAllVariables();
-		verify(metricGroup).getLogicalScope(any(), anyChar());
-		verifyNoMoreInteractions(metricGroup);
 	}
 }
