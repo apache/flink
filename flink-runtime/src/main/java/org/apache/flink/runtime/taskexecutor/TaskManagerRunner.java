@@ -87,7 +87,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 	private static final int STARTUP_FAILURE_RETURN_CODE = 1;
 
-	private static final int RUNTIME_FAILURE_RETURN_CODE = 2;
+	public static final int RUNTIME_FAILURE_RETURN_CODE = 2;
 
 	private final Object lock = new Object();
 
@@ -263,7 +263,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		}
 	}
 
-	protected void terminateJVM() {
+	private void terminateJVM() {
 		System.exit(RUNTIME_FAILURE_RETURN_CODE);
 	}
 
