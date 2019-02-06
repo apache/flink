@@ -224,7 +224,40 @@ private[flink] trait TypeInformationGen[C <: Context] {
     val elementClazz = c.Expr[Class[T]](Literal(Constant(desc.elem.tpe)))
     val elementTypeInfo = mkTypeInfo(desc.elem)(c.WeakTypeTag(desc.elem.tpe))
 
-    val cbf = q"implicitly[CanBuildFrom[${desc.tpe}, ${desc.elem.tpe}, ${desc.tpe}]]"
+    // We substitute both type parameters in the Traversable as well as in the element type.
+    //
+    // This is probably best understood using some examples.
+    //
+    // No replacement:
+    // CanBuildFrom[Seq[Any], Any, Seq[Any]]
+    //   -> CanBuildFrom[Seq[Any], Any, Seq[Any]]
+    //
+    // No replacement:
+    // CanBuildFrom[Seq[(Int, String)], (Int, String), Seq[(Int, String)]]
+    //   -> CanBuildFrom[Seq[(Int, String)], (Int, String), Seq[(Int, String)]]
+    //
+    // Replacing type parameters of the element type, i.e. the Tuple type:
+    // CanBuildFrom[Seq[(T, U)], (T, U), Seq[(T, U)]]
+    //   -> CanBuildFrom[Seq[(Object, Object)], (Object, Object), Seq[(Object, Object)]]
+    //
+    // Replacing the element type itself because it is a type parameter:
+    // CanBuildFrom[Seq[T], T, Seq[T]]
+    //   -> CanBuildFrom[Seq[Object], Object, Seq[Object]]
+
+    def replaceGenericTypeParameter(innerTpe: c.Type): c.Type = {
+      if (innerTpe.typeSymbol.isParameter) {
+        innerTpe.erasure
+      } else {
+        innerTpe
+      }
+    }
+    val traversableTpe = desc.tpe.map(replaceGenericTypeParameter)
+    val elemTpe = desc.elem.tpe.map(replaceGenericTypeParameter)
+
+    val cbf = q"scala.collection.generic.CanBuildFrom[$traversableTpe, $elemTpe, $traversableTpe]"
+    val cbfString = s"implicitly[$cbf]"
+
+    val cbfStringLiteral = c.Expr[Class[T]](Literal(Constant(cbfString)))
 
     val result = q"""
       import scala.collection.generic.CanBuildFrom
@@ -235,10 +268,23 @@ private[flink] trait TypeInformationGen[C <: Context] {
       val elementTpe = $elementTypeInfo
       new TraversableTypeInfo($collectionClass, elementTpe) {
         def createSerializer(executionConfig: ExecutionConfig) = {
+
+          // -------------------------------------------------------------------------------------
+          // NOTE:
+          // the following anonymous class is needed here, and should not be removed
+          // (although appears to be unused) since it is required for backwards compatibility
+          // with Flink versions pre 1.8, that were using Java deserialization.
+          // -------------------------------------------------------------------------------------
+          val unused = new TraversableSerializer[${desc.tpe}, ${desc.elem.tpe}](
+              elementTpe.createSerializer(executionConfig),
+              $cbfStringLiteral) {
+
+                  override def legacyCbfCode = $cbfStringLiteral
+              }
+
           new TraversableSerializer[${desc.tpe}, ${desc.elem.tpe}](
-              elementTpe.createSerializer(executionConfig)) {
-            def getCbf = implicitly[CanBuildFrom[${desc.tpe}, ${desc.elem.tpe}, ${desc.tpe}]]
-          }
+                                  elementTpe.createSerializer(executionConfig),
+                                  $cbfStringLiteral)
         }
       }
     """

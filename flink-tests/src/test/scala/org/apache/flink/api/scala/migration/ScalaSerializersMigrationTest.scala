@@ -93,9 +93,15 @@ class ScalaSerializersMigrationTest {
       "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$16",
       traversableInfo.getClass.getName
     )
-    Assert.assertEquals(
+    assertPreviouslyGeneratedClassExists(
       "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$16$$anon$12",
-      traversableInfo.createSerializer(new ExecutionConfig).getClass.getName
+      classOf[TraversableSerializer[_, _]]
+    )
+    Assert.assertEquals(
+      classOf[TraversableSerializer[List[CustomCaseClass], CustomCaseClass]],
+      traversableInfo
+        .createSerializer(new ExecutionConfig)
+        .getClass
     )
     Assert.assertEquals(
       "org.apache.flink.api.scala.migration.ScalaSerializersMigrationTest$$anon$11",
