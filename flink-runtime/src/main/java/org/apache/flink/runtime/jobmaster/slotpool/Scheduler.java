@@ -32,7 +32,6 @@ import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -104,53 +103,50 @@ public class Scheduler implements SlotProvider, SlotOwner {
 		Time allocationTimeout) {
 		log.debug("Received slot request [{}] for task: {}", slotRequestId, scheduledUnit.getTaskToExecute());
 
+		componentMainThreadExecutor.assertRunningInMainThread();
+
 		final CompletableFuture<LogicalSlot> allocationResultFuture = new CompletableFuture<>();
-		componentMainThreadExecutor.execute(() -> {
 
-			CompletableFuture<LogicalSlot> allocationFuture = scheduledUnit.getSlotSharingGroupId() == null ?
-				allocateSingleSlot(slotRequestId, slotProfile, allowQueuedScheduling, allocationTimeout) :
-				allocateSharedSlot(slotRequestId, scheduledUnit, slotProfile, allowQueuedScheduling, allocationTimeout);
+		CompletableFuture<LogicalSlot> allocationFuture = scheduledUnit.getSlotSharingGroupId() == null ?
+			allocateSingleSlot(slotRequestId, slotProfile, allowQueuedScheduling, allocationTimeout) :
+			allocateSharedSlot(slotRequestId, scheduledUnit, slotProfile, allowQueuedScheduling, allocationTimeout);
 
-			allocationFuture.whenComplete((LogicalSlot slot, Throwable failure) -> {
-				if (failure != null) {
-					cancelSlotRequest(
-						slotRequestId,
-						scheduledUnit.getSlotSharingGroupId(),
-						failure);
-					allocationResultFuture.completeExceptionally(failure);
-				} else {
-					allocationResultFuture.complete(slot);
-				}
-			});
+		allocationFuture.whenComplete((LogicalSlot slot, Throwable failure) -> {
+			if (failure != null) {
+				cancelSlotRequest(
+					slotRequestId,
+					scheduledUnit.getSlotSharingGroupId(),
+					failure);
+				allocationResultFuture.completeExceptionally(failure);
+			} else {
+				allocationResultFuture.complete(slot);
+			}
 		});
 
 		return allocationResultFuture;
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> cancelSlotRequest(
+	public void cancelSlotRequest(
 		SlotRequestId slotRequestId,
 		@Nullable SlotSharingGroupId slotSharingGroupId,
 		Throwable cause) {
 
-		return CompletableFuture.supplyAsync(() -> {
-			if (slotSharingGroupId != null) {
-				releaseSharedSlot(slotRequestId, slotSharingGroupId, cause);
-			} else {
-				slotPoolGateway.releaseSlot(slotRequestId, cause);
-			}
-			return Acknowledge.get();
-		}, componentMainThreadExecutor);
+		componentMainThreadExecutor.assertRunningInMainThread();
+
+		if (slotSharingGroupId != null) {
+			releaseSharedSlot(slotRequestId, slotSharingGroupId, cause);
+		} else {
+			slotPoolGateway.releaseSlot(slotRequestId, cause);
+		}
 	}
 
 	@Override
-	public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
-
+	public void returnAllocatedSlot(LogicalSlot logicalSlot) {
 		SlotRequestId slotRequestId = logicalSlot.getSlotRequestId();
 		SlotSharingGroupId slotSharingGroupId = logicalSlot.getSlotSharingGroupId();
 		FlinkException cause = new FlinkException("Slot is being returned to the SlotPool.");
-
-		return cancelSlotRequest(slotRequestId, slotSharingGroupId, cause).thenApply((ack) -> true);
+		cancelSlotRequest(slotRequestId, slotSharingGroupId, cause);
 	}
 
 	//---------------------------
@@ -176,8 +172,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 			// we allocate by requesting a new slot
 			return slotPoolGateway
 				.requestNewAllocatedSlot(slotRequestId, slotProfile.getResourceProfile(), allocationTimeout)
-				.thenApply((AllocatedSlotContext allocatedSlot) ->
-				{
+				.thenApply((AllocatedSlotContext allocatedSlot) -> {
 					try {
 						return completeAllocationByAssigningPayload(slotRequestId, new SlotAndLocality(allocatedSlot, Locality.UNKNOWN));
 					} catch (FlinkException e) {
@@ -470,7 +465,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 					slotAllocationFuture,
 					allocatedSlotRequestId);
 
-				slotAllocationFuture.whenCompleteAsync(
+				slotAllocationFuture.whenComplete(
 					(AllocatedSlotContext allocatedSlot, Throwable throwable) -> {
 						final SlotSharingManager.TaskSlot taskSlot = slotSharingManager.getTaskSlot(multiTaskSlotRequestId);
 
@@ -489,7 +484,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 								allocatedSlotRequestId,
 								new FlinkException("Could not find task slot with " + multiTaskSlotRequestId + '.'));
 						}
-					}, componentMainThreadExecutor);
+					});
 			}
 
 			return SlotSharingManager.MultiTaskSlotLocality.of(multiTaskSlot, Locality.UNKNOWN);

@@ -66,7 +66,7 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 		final long timeout = 5000L;
 
 		//setting up
-		testingSlotProvider.addTaskManager(NUM_TASKS);
+		testMainThreadUtil.execute(() -> testingSlotProvider.addTaskManager(NUM_TASKS));
 
 		JobVertex groupVertex = ExecutionGraphTestUtils.createNoOpVertex(NUM_TASKS);
 		JobVertex groupVertex2 = ExecutionGraphTestUtils.createNoOpVertex(NUM_TASKS);
@@ -148,6 +148,5 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 			assertThat(constr1.isAssigned(), is(true));
 			assertThat(constr1.getLocation(), equalTo(constr2.getLocation()));
 		}
-
 	}
 }

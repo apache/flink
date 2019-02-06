@@ -72,7 +72,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 
 		LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 		final SlotPoolGateway slotPoolGateway = slotPoolResource.getSlotPoolGateway();
-		slotPoolResource.executeInMainThreadAndJoin(() -> slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID())).get();
+		slotPoolResource.executeInMainThreadAndJoin(() -> slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()));
 
 		SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
 		final SlotProvider slotProvider = slotPoolResource.getSlotProvider();
@@ -89,7 +89,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 
 		final AllocationID allocationId = allocationIdFuture.get();
 
-		CompletableFuture<Boolean> booleanCompletableFuture =
+		boolean booleanCompletableFuture =
 			slotPoolResource.executeInMainThreadAndJoin(() -> slotPoolGateway.offerSlot(
 				taskManagerLocation,
 				new SimpleAckingTaskManagerGateway(),
@@ -98,7 +98,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 					0,
 					ResourceProfile.UNKNOWN)));
 
-		assertTrue(booleanCompletableFuture.get());
+		assertTrue(booleanCompletableFuture);
 
 		final LogicalSlot logicalSlot = logicalSlotFuture.get();
 
@@ -153,7 +153,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 
 		final SlotPoolGateway slotPoolGateway = slotPoolResource.getSlotPoolGateway();
-		slotPoolResource.executeInMainThreadAndJoin(() -> slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID())).get();
+		slotPoolResource.executeInMainThreadAndJoin(() -> slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()));
 
 		final SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
 		final JobVertexID jobVertexId1 = new JobVertexID();
@@ -207,7 +207,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 		final AllocationID allocationId2 = allocationIds.take();
 
 		// this should fulfill the first two slot futures
-		CompletableFuture<Boolean> offerFuture = slotPoolResource.executeInMainThreadAndJoin(() -> slotPoolGateway.offerSlot(
+		boolean offerFuture = slotPoolResource.executeInMainThreadAndJoin(() -> slotPoolGateway.offerSlot(
 			taskManagerLocation,
 			new SimpleAckingTaskManagerGateway(),
 			new SlotOffer(
@@ -215,7 +215,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 				0,
 				ResourceProfile.UNKNOWN)));
 
-		assertTrue(offerFuture.get());
+		assertTrue(offerFuture);
 
 		LogicalSlot logicalSlot1 = logicalSlotFuture1.get();
 		LogicalSlot logicalSlot2 = logicalSlotFuture2.get();
@@ -259,7 +259,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 		final JobVertexID jobVertexId4 = new JobVertexID();
 
 		final SlotPoolGateway slotPoolGateway = slotPoolResource.getSlotPoolGateway();
-		slotPoolResource.executeInMainThreadAndJoin(() -> slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID())).get();
+		slotPoolResource.executeInMainThreadAndJoin(() -> slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()));
 
 		final SlotProvider slotProvider = slotPoolResource.getSlotProvider();
 		CompletableFuture<LogicalSlot> logicalSlotFuture1 = slotProvider.allocateSlot(
@@ -307,7 +307,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 		final AllocationID allocationId1 = allocationIds.take();
 		final AllocationID allocationId2 = allocationIds.take();
 
-		CompletableFuture<Boolean> offerFuture1 =
+		boolean offerFuture1 =
 			slotPoolResource.executeInMainThreadAndJoin(() -> slotPoolGateway.offerSlot(
 				taskManagerLocation,
 				new SimpleAckingTaskManagerGateway(),
@@ -316,7 +316,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 					0,
 					ResourceProfile.UNKNOWN)));
 
-		CompletableFuture<Boolean> offerFuture2 = slotPoolResource.executeInMainThreadAndJoin(
+		boolean offerFuture2 = slotPoolResource.executeInMainThreadAndJoin(
 			() -> slotPoolGateway.offerSlot(
 				taskManagerLocation,
 				new SimpleAckingTaskManagerGateway(),
@@ -325,8 +325,8 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 					0,
 					ResourceProfile.UNKNOWN)));
 
-		assertTrue(offerFuture1.get());
-		assertTrue(offerFuture2.get());
+		assertTrue(offerFuture1);
+		assertTrue(offerFuture2);
 
 		LogicalSlot logicalSlot1 = logicalSlotFuture1.get();
 		LogicalSlot logicalSlot2 = logicalSlotFuture2.get();

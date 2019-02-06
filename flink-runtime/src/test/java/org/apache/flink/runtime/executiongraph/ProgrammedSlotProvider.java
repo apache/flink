@@ -26,7 +26,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.messages.Acknowledge;
 
 import javax.annotation.Nullable;
 
@@ -136,11 +135,10 @@ class ProgrammedSlotProvider implements SlotProvider {
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> cancelSlotRequest(
+	public void cancelSlotRequest(
 			SlotRequestId slotRequestId,
 			@Nullable SlotSharingGroupId slotSharingGroupId,
 			Throwable cause) {
 		canceledSlotRequests.add(slotRequestId);
-		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 }

@@ -33,7 +33,6 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import java.util.function.Function;
 
 /**
  * Implementation of the {@link LogicalSlot} which is used by the {@link SlotPool}.
@@ -176,14 +175,11 @@ public class SingleLogicalSlot implements LogicalSlot, AllocatedSlotContext.Payl
 
 	private void returnSlotToOwner(CompletableFuture<?> terminalStateFuture) {
 		terminalStateFuture
-			.handle((Object ignored, Throwable throwable) -> {
+			.whenComplete((Object ignored, Throwable throwable) -> {
 				if (state == State.RELEASING) {
-					return slotOwner.returnAllocatedSlot(this);
-				} else {
-					return CompletableFuture.completedFuture(true);
+					slotOwner.returnAllocatedSlot(this);
 				}
 			})
-			.thenCompose(Function.identity())
 			.whenComplete(
 				(Object ignored, Throwable throwable) -> {
 					markReleased();

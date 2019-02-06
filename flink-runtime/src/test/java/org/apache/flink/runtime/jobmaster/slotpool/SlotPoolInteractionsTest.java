@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.scheduler.DummyScheduledUnit;
@@ -56,7 +55,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.jobmaster.slotpool.AvailableSlotsTest.DEFAULT_TESTING_PROFILE;
 import static org.junit.Assert.assertEquals;
@@ -74,8 +72,8 @@ public class SlotPoolInteractionsTest extends TestLogger {
 	public static final TestingComponentMainThreadExecutor.Resource EXECUTOR_RESOURCE =
 		new TestingComponentMainThreadExecutor.Resource(10L);
 
-	private final ComponentMainThreadExecutor testMainThreadExecutor =
-		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor().getMainThreadExecutor();
+	private final TestingComponentMainThreadExecutor testMainThreadExecutor =
+		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
 
 	// ------------------------------------------------------------------------
 	//  tests
@@ -92,16 +90,16 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			TestingUtils.infiniteTime()
 		)) {
 
-			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor);
+			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
 			Scheduler scheduler = new Scheduler(new HashMap<>(), LocationPreferenceSlotSelection.INSTANCE, pool);
-			scheduler.start(testMainThreadExecutor);
+			scheduler.start(testMainThreadExecutor.getMainThreadExecutor());
 
-			CompletableFuture<LogicalSlot> future = scheduler.allocateSlot(
+			CompletableFuture<LogicalSlot> future = testMainThreadExecutor.execute(() -> scheduler.allocateSlot(
 				new SlotRequestId(),
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
 				true,
-				fastTimeout);
+				fastTimeout));
 
 			try {
 				future.get();
@@ -124,17 +122,17 @@ public class SlotPoolInteractionsTest extends TestLogger {
 
 			final CompletableFuture<SlotRequestId> timeoutFuture = new CompletableFuture<>();
 			pool.setTimeoutPendingSlotRequestConsumer(timeoutFuture::complete);
-			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor);
+			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
 			Scheduler scheduler = new Scheduler(new HashMap<>(), LocationPreferenceSlotSelection.INSTANCE, pool);
-			scheduler.start(testMainThreadExecutor);
+			scheduler.start(testMainThreadExecutor.getMainThreadExecutor());
 
 			SlotRequestId requestId = new SlotRequestId();
-			CompletableFuture<LogicalSlot> future = scheduler.allocateSlot(
+			CompletableFuture<LogicalSlot> future = testMainThreadExecutor.execute(() -> scheduler.allocateSlot(
 				requestId,
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
 				true,
-				fastTimeout);
+				fastTimeout));
 
 			try {
 				future.get();
@@ -163,7 +161,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime())) {
 
-			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor);
+			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
 
 			final CompletableFuture<SlotRequestId> slotRequestTimeoutFuture = new CompletableFuture<>();
 			pool.setTimeoutPendingSlotRequestConsumer(slotRequestTimeoutFuture::complete);
@@ -172,15 +170,15 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			pool.connectToResourceManager(resourceManagerGateway);
 
 			Scheduler scheduler = new Scheduler(new HashMap<>(), LocationPreferenceSlotSelection.INSTANCE, pool);
-			scheduler.start(testMainThreadExecutor);
+			scheduler.start(testMainThreadExecutor.getMainThreadExecutor());
 
 			SlotRequestId requestId = new SlotRequestId();
-			CompletableFuture<LogicalSlot> future = scheduler.allocateSlot(
+			CompletableFuture<LogicalSlot> future = testMainThreadExecutor.execute(() -> scheduler.allocateSlot(
 				requestId,
 				new DummyScheduledUnit(),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
 				true,
-				fastTimeout);
+				fastTimeout));
 
 			try {
 				future.get();
@@ -209,10 +207,10 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime())) {
 
-			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor);
+			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
 
 			Scheduler scheduler = new Scheduler(new HashMap<>(), LocationPreferenceSlotSelection.INSTANCE, pool);
-			scheduler.start(testMainThreadExecutor);
+			scheduler.start(testMainThreadExecutor.getMainThreadExecutor());
 
 			final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
 
@@ -226,12 +224,12 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			pool.connectToResourceManager(resourceManagerGateway);
 
 			SlotRequestId requestId = new SlotRequestId();
-			CompletableFuture<LogicalSlot> future = scheduler.allocateSlot(
+			CompletableFuture<LogicalSlot> future = testMainThreadExecutor.execute(() -> scheduler.allocateSlot(
 				requestId,
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
 				SlotProfile.noLocality(DEFAULT_TESTING_PROFILE),
 				true,
-				fastTimeout);
+				fastTimeout));
 
 			try {
 				future.get();
@@ -253,9 +251,9 @@ public class SlotPoolInteractionsTest extends TestLogger {
 			final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 			final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
 
-			pool.registerTaskManager(taskManagerLocation.getResourceID()).get();
+			testMainThreadExecutor.execute(() ->pool.registerTaskManager(taskManagerLocation.getResourceID()));
 
-			assertTrue(pool.offerSlot(taskManagerLocation, taskManagerGateway, slotOffer).get());
+			assertTrue(testMainThreadExecutor.execute(() -> pool.offerSlot(taskManagerLocation, taskManagerGateway, slotOffer)));
 
 			assertTrue(pool.containsAvailableSlot(allocationId));
 		}
@@ -279,19 +277,19 @@ public class SlotPoolInteractionsTest extends TestLogger {
 
 			pool.setReleaseSlotConsumer(releaseSlotFuture::complete);
 
-			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor);
+			pool.start(JobMasterId.generate(), "foobar", testMainThreadExecutor.getMainThreadExecutor());
 			ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 			pool.connectToResourceManager(resourceManagerGateway);
 
 			Scheduler scheduler = new Scheduler(new HashMap<>(), LocationPreferenceSlotSelection.INSTANCE, pool);
-			scheduler.start(testMainThreadExecutor);
+			scheduler.start(testMainThreadExecutor.getMainThreadExecutor());
 
 			// test the pending request is clear when timed out
-			CompletableFuture<LogicalSlot> future = scheduler.allocateSlot(
+			CompletableFuture<LogicalSlot> future = testMainThreadExecutor.execute(() -> scheduler.allocateSlot(
 				new DummyScheduledUnit(),
 				true,
 				SlotProfile.noRequirements(),
-				fastTimeout);
+				fastTimeout));
 			try {
 				future.get();
 				fail("We expected a TimeoutException.");
@@ -377,9 +375,5 @@ public class SlotPoolInteractionsTest extends TestLogger {
 		int getNumberOfWaitingForResourceRequests() {
 			return getWaitingForResourceManager().size();
 		}
-	}
-
-	private <V> V executeInMainThreadAndJoin(Supplier<V> supplier) throws Exception {
-		return CompletableFuture.supplyAsync(supplier, testMainThreadExecutor).get();
 	}
 }

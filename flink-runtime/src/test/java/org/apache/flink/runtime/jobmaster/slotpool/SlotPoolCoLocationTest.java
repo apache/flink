@@ -77,7 +77,7 @@ public class SlotPoolCoLocationTest extends TestLogger {
 		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 
 		final SlotPoolGateway slotPoolGateway = slotPoolResource.getSlotPoolGateway();
-		slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()).get();
+		slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID());
 
 		CoLocationGroup group = new CoLocationGroup();
 		CoLocationConstraint coLocationConstraint1 = group.getLocationConstraint(0);
@@ -128,7 +128,7 @@ public class SlotPoolCoLocationTest extends TestLogger {
 		final AllocationID allocationId1 = allocationIds.take();
 		final AllocationID allocationId2 = allocationIds.take();
 
-		CompletableFuture<Boolean> slotOfferFuture1 = slotPoolGateway.offerSlot(
+		boolean slotOfferFuture1 = slotPoolGateway.offerSlot(
 			taskManagerLocation,
 			new SimpleAckingTaskManagerGateway(),
 			new SlotOffer(
@@ -136,7 +136,7 @@ public class SlotPoolCoLocationTest extends TestLogger {
 				0,
 				ResourceProfile.UNKNOWN));
 
-		CompletableFuture<Boolean> slotOfferFuture2 = slotPoolGateway.offerSlot(
+		boolean slotOfferFuture2 = slotPoolGateway.offerSlot(
 			taskManagerLocation,
 			new SimpleAckingTaskManagerGateway(),
 			new SlotOffer(
@@ -144,8 +144,8 @@ public class SlotPoolCoLocationTest extends TestLogger {
 				0,
 				ResourceProfile.UNKNOWN));
 
-		assertTrue(slotOfferFuture1.get());
-		assertTrue(slotOfferFuture2.get());
+		assertTrue(slotOfferFuture1);
+		assertTrue(slotOfferFuture2);
 
 		LogicalSlot logicalSlot11 = logicalSlotFuture11.get();
 		LogicalSlot logicalSlot12 = logicalSlotFuture12.get();
