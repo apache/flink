@@ -155,7 +155,7 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 	TypeSerializerSchemaCompatibility<T> internalResolveSchemaCompatibility(
 			TypeSerializer<T> newSerializer,
 			TypeSerializerSnapshot<?>[] snapshots) {
-		if (newSerializer.getClass() != correspondingSerializerClass) {
+		if (!correspondingSerializerClass.isInstance(newSerializer)) {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 
