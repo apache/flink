@@ -38,7 +38,7 @@ import static org.junit.Assert.fail;
 public class Kafka08ITCase extends KafkaConsumerTestBase {
 
 	@BeforeClass
-	public static void prepare() throws ClassNotFoundException {
+	public static void prepare() throws Exception {
 		// Somehow KafkaConsumer 0.8 doesn't handle broker failures if they are behind a proxy
 		prepare(false);
 	}

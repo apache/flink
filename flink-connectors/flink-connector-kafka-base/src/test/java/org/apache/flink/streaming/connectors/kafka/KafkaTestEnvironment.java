@@ -99,7 +99,7 @@ public abstract class KafkaTestEnvironment {
 		return new Config();
 	}
 
-	public abstract void prepare(Config config);
+	public abstract void prepare(Config config) throws Exception;
 
 	public void shutdown() throws Exception {
 		for (NetworkFailuresProxy proxy : networkFailuresProxies) {
