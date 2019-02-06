@@ -171,7 +171,7 @@ public class SingleLogicalSlot implements LogicalSlot, AllocatedSlotContext.Payl
 
 	private void signalPayloadRelease(Throwable cause) {
 		tryAssignPayload(TERMINATED_PAYLOAD);
-		payload.failAsync(cause); //TODO this goes from the pool against the execution, has to by sync'ed back into the jm main thread
+		payload.failSync(cause);
 	}
 
 	private void returnSlotToOwner(CompletableFuture<?> terminalStateFuture) {
@@ -184,7 +184,7 @@ public class SingleLogicalSlot implements LogicalSlot, AllocatedSlotContext.Payl
 				}
 			})
 			.thenCompose(Function.identity())
-			.whenComplete( //TODO this could be inside the job master main thread, should be inside slot pool main thread
+			.whenComplete(
 				(Object ignored, Throwable throwable) -> {
 					markReleased();
 

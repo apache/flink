@@ -37,10 +37,6 @@ public interface LogicalSlot {
 	Payload TERMINATED_PAYLOAD = new Payload() {
 
 		private final CompletableFuture<?> completedTerminationFuture = CompletableFuture.completedFuture(null);
-		@Override
-		public void failAsync(Throwable cause) {
-			// ignore
-		}
 
 		@Override
 		public void failSync(Throwable cause) {
@@ -151,14 +147,6 @@ public interface LogicalSlot {
 	 * Payload for a logical slot.
 	 */
 	interface Payload {
-
-		/**
-		 * Fail the payload with the given cause.
-		 * TODO this method can be removed again once the slot pool runs in the JM main thread as well.
-		 *
-		 * @param cause of the failure
-		 */
-		void failAsync(Throwable cause);
 
 		/**
 		 * Fail the payload with the given cause.

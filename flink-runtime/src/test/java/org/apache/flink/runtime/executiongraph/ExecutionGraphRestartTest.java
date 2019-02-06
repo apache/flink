@@ -645,7 +645,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		switchToRunning(eg);
 
 		// fail into 'RESTARTING'
-		eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt().failAsync(
+		eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt().failSync(
 			new Exception("intended test failure"));
 
 		assertEquals(JobStatus.FAILING, eg.getState());

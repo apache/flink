@@ -31,12 +31,6 @@ public class TestingPayload implements LogicalSlot.Payload {
 		this.terminationFuture = new CompletableFuture<>();
 	}
 
-
-	@Override
-	public void failAsync(Throwable cause) {
-		failSync(cause);
-	}
-
 	@Override
 	public void failSync(Throwable cause) {
 		terminationFuture.complete(null);
