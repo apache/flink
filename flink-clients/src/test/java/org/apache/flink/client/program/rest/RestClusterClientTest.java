@@ -752,6 +752,35 @@ public class RestClusterClientTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testJobSubmissionFailureThrowsProgramInvocationException() throws Exception {
+		try (final TestRestServerEndpoint restServerEndpoint = createRestServerEndpoint(new SubmissionFailingHandler())) {
+			RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
+
+			try {
+				restClusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
+			} catch (final ProgramInvocationException expected) {
+				// expected
+			} finally {
+				restClusterClient.shutdown();
+			}
+		}
+	}
+
+	private final class SubmissionFailingHandler extends TestHandler<JobSubmitRequestBody, JobSubmitResponseBody, EmptyMessageParameters> {
+
+		private SubmissionFailingHandler() {
+			super(JobSubmitHeaders.getInstance());
+		}
+
+		@Override
+		protected CompletableFuture<JobSubmitResponseBody> handleRequest(
+				@Nonnull HandlerRequest<JobSubmitRequestBody, EmptyMessageParameters> request,
+				@Nonnull DispatcherGateway gateway) throws RestHandlerException {
+			throw new RestHandlerException("expected", HttpResponseStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
 	/**
 	 * Tests that the send operation is not being retried when receiving a NOT_FOUND return code.
 	 */
