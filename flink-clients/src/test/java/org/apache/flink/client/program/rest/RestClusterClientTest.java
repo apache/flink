@@ -414,6 +414,15 @@ public class RestClusterClientTest extends TestLogger {
 
 	@Test
 	public void testTriggerSavepoint() throws Exception {
+		testTriggerSavepoint(false);
+	}
+
+	@Test
+	public void testTriggerCancelWithSavepoint() throws Exception {
+		testTriggerSavepoint(true);
+	}
+
+	private void testTriggerSavepoint(boolean cancelJob) throws Exception {
 		final String targetSavepointDirectory = "/tmp";
 		final String savepointLocationDefaultDir = "/other/savepoint-0d2fb9-8d5e0106041a";
 		final String savepointLocationRequestedDir = targetSavepointDirectory + "/savepoint-0d2fb9-8d5e0106041a";
@@ -421,7 +430,7 @@ public class RestClusterClientTest extends TestLogger {
 		final TestSavepointHandlers testSavepointHandlers = new TestSavepointHandlers();
 		final TestSavepointHandlers.TestSavepointTriggerHandler triggerHandler =
 			testSavepointHandlers.new TestSavepointTriggerHandler(
-				null, targetSavepointDirectory, null, null);
+				cancelJob, null, targetSavepointDirectory, null, null);
 		final TestSavepointHandlers.TestSavepointHandler savepointHandler =
 			testSavepointHandlers.new TestSavepointHandler(
 				new SavepointInfo(
@@ -446,22 +455,19 @@ public class RestClusterClientTest extends TestLogger {
 			RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort());
 
 			try {
-				JobID id = new JobID();
 				{
-					CompletableFuture<String> savepointPathFuture = restClusterClient.triggerSavepoint(id, null);
-					String savepointPath = savepointPathFuture.get();
+					String savepointPath = triggerSavepoint(cancelJob, null, restClusterClient);
 					assertEquals(savepointLocationDefaultDir, savepointPath);
 				}
 
 				{
-					CompletableFuture<String> savepointPathFuture = restClusterClient.triggerSavepoint(id, targetSavepointDirectory);
-					String savepointPath = savepointPathFuture.get();
+					String savepointPath = triggerSavepoint(cancelJob, targetSavepointDirectory, restClusterClient);
 					assertEquals(savepointLocationRequestedDir, savepointPath);
 				}
 
 				{
 					try {
-						restClusterClient.triggerSavepoint(id, null).get();
+						triggerSavepoint(cancelJob, null, restClusterClient);
 						fail("Expected exception not thrown.");
 					} catch (ExecutionException e) {
 						final Throwable cause = e.getCause();
@@ -473,7 +479,7 @@ public class RestClusterClientTest extends TestLogger {
 				}
 
 				try {
-					restClusterClient.triggerSavepoint(new JobID(), null).get();
+					triggerSavepoint(cancelJob, null, restClusterClient);
 					fail("Expected exception not thrown.");
 				} catch (final ExecutionException e) {
 					assertTrue(
@@ -486,16 +492,24 @@ public class RestClusterClientTest extends TestLogger {
 		}
 	}
 
+	private static String triggerSavepoint(final boolean cancelJob, final String targetSavepointDirectory, final RestClusterClient<?> restClusterClient) throws Exception {
+		return cancelJob
+			? restClusterClient.cancelWithSavepoint(new JobID(), targetSavepointDirectory)
+			: restClusterClient.triggerSavepoint(new JobID(), targetSavepointDirectory).get();
+	}
+
 	private class TestSavepointHandlers {
 
 		private final TriggerId testTriggerId = new TriggerId();
 
 		private class TestSavepointTriggerHandler extends TestHandler<SavepointTriggerRequestBody, TriggerResponse, SavepointTriggerMessageParameters> {
 
+			private final boolean expectedJobCancellationFlag;
 			private final Iterator<String> expectedTargetDirectories;
 
-			TestSavepointTriggerHandler(final String... expectedTargetDirectories) {
+			TestSavepointTriggerHandler(boolean expectedJobCancellationFlag, final String... expectedTargetDirectories) {
 				super(SavepointTriggerHeaders.getInstance());
+				this.expectedJobCancellationFlag = expectedJobCancellationFlag;
 				this.expectedTargetDirectories = Arrays.asList(expectedTargetDirectories).iterator();
 			}
 
@@ -503,6 +517,7 @@ public class RestClusterClientTest extends TestLogger {
 			protected CompletableFuture<TriggerResponse> handleRequest(
 					@Nonnull HandlerRequest<SavepointTriggerRequestBody, SavepointTriggerMessageParameters> request,
 					@Nonnull DispatcherGateway gateway) throws RestHandlerException {
+				assertEquals(expectedJobCancellationFlag, request.getRequestBody().isCancelJob());
 				final String targetDirectory = request.getRequestBody().getTargetDirectory();
 				if (Objects.equals(expectedTargetDirectories.next(), targetDirectory)) {
 					return CompletableFuture.completedFuture(
