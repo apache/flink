@@ -151,7 +151,7 @@ public class StreamGraphGenerator {
 		if (transform.getMaxParallelism() <= 0) {
 
 			// if the max parallelism hasn't been set, then first use the job wide max parallelism
-			// from theExecutionConfig.
+			// from the ExecutionConfig.
 			int globalMaxParallelismFromConfig = env.getConfig().getMaxParallelism();
 			if (globalMaxParallelismFromConfig > 0) {
 				transform.setMaxParallelism(globalMaxParallelismFromConfig);

@@ -80,7 +80,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
  *         countPerKey = context.getKeyedStateStore().getReducingState(
  *                 new ReducingStateDescriptor<>("perKeyCount", new AddFunction<>(), Long.class));
  *
- *         // get the state data structure for the per-key state
+ *         // get the state data structure for the per-partition state
  *         countPerPartition = context.getOperatorStateStore().getOperatorState(
  *                 new ListStateDescriptor<>("perPartitionCount", Long.class));
  *
