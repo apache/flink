@@ -29,7 +29,6 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
@@ -202,7 +201,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 			NoOpMetricRegistry.INSTANCE,
 			mock(BlobCacheService.class),
 			false,
-			mock(FatalErrorHandler.class));
+			error -> {});
 	}
 
 	private static ServerSocket createBlockingServerSocket() {
