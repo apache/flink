@@ -54,7 +54,7 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 
 		assertThat(jobGraph.getName(), is(equalTo(TestJob.class.getCanonicalName() + "-suffix")));
 		assertThat(jobGraph.getMaximumParallelism(), is(parallelism));
-		assertEquals(jobGraph.getJobID(), ClassPathJobGraphRetriever.FIXED_JOB_ID);
+		assertEquals(jobGraph.getJobID(), StandaloneJobClusterConfigurationParserFactory.DEFAULT_JOB_ID);
 	}
 
 	@Test
@@ -70,6 +70,6 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(configuration);
 
 		assertThat(jobGraph.getSavepointRestoreSettings(), is(equalTo(savepointRestoreSettings)));
-		assertEquals(jobGraph.getJobID(), ClassPathJobGraphRetriever.FIXED_JOB_ID);
+		assertEquals(jobGraph.getJobID(), StandaloneJobClusterConfigurationParserFactory.DEFAULT_JOB_ID);
 	}
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.container.entrypoint;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -46,8 +45,6 @@ public class ClassPathJobGraphRetriever implements JobGraphRetriever {
 	@Nonnull
 	private final String[] programArguments;
 
-	public static final JobID FIXED_JOB_ID = new JobID(0, 0);
-
 	public ClassPathJobGraphRetriever(
 			@Nonnull String jobClassName,
 			@Nonnull SavepointRestoreSettings savepointRestoreSettings,
@@ -66,7 +63,7 @@ public class ClassPathJobGraphRetriever implements JobGraphRetriever {
 				packagedProgram,
 				configuration,
 				defaultParallelism,
-				FIXED_JOB_ID);
+				StandaloneJobClusterConfigurationParserFactory.DEFAULT_JOB_ID);
 			jobGraph.setAllowQueuedScheduling(true);
 			jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 
