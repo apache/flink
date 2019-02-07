@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators;
+package org.apache.flink.test.state.operator.restore;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
@@ -26,6 +26,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
@@ -49,6 +50,14 @@ import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
+import org.apache.flink.streaming.api.operators.KeyContext;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
+import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -60,15 +69,20 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Collection;
 
 /**
  * Tests for {@link StreamOperator} snapshot restoration.
  */
+@RunWith(Parameterized.class)
 public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 
 	private static final int ONLY_JM_RECOVERY = 0;
@@ -79,6 +93,18 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 	private static final int MAX_PARALLELISM = 10;
 
 	protected static TemporaryFolder temporaryFolder;
+
+	@Parameterized.Parameter
+	public StateBackendEnum stateBackendEnum;
+
+	enum StateBackendEnum {
+		FILE, ROCKSDB_FULLY_ASYNC, ROCKSDB_INCREMENTAL
+	}
+
+	@Parameterized.Parameters(name = "statebackend type ={0}")
+	public static Collection<StateBackendEnum> parameter() {
+		return Arrays.asList(StateBackendEnum.values());
+	}
 
 	@BeforeClass
 	public static void beforeClass() throws IOException {
@@ -133,7 +159,21 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 
 		//-------------------------------------------------------------------------- snapshot
 
-		StateBackend stateBackend = createStateBackend();
+		StateBackend stateBackend;
+		FsStateBackend fsstateBackend = createStateBackendInternal();
+		switch (stateBackendEnum) {
+			case FILE:
+				stateBackend = fsstateBackend;
+				break;
+			case ROCKSDB_FULLY_ASYNC:
+				stateBackend = new RocksDBStateBackend(fsstateBackend, false);
+				break;
+			case ROCKSDB_INCREMENTAL:
+				stateBackend = new RocksDBStateBackend(fsstateBackend, true);
+				break;
+			default:
+				throw new IllegalStateException(String.format("Do not support statebackend type %s", stateBackendEnum));
+		}
 
 		TestOneInputStreamOperator op = new TestOneInputStreamOperator(false);
 
@@ -233,11 +273,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 		testHarness.close();
 	}
 
-	protected StateBackend createStateBackend() throws IOException {
-		return createStateBackendInternal();
-	}
-
-	protected final FsStateBackend createStateBackendInternal() throws IOException {
+	private FsStateBackend createStateBackendInternal() throws IOException {
 		File checkpointDir = temporaryFolder.newFolder();
 		return new FsStateBackend(checkpointDir.toURI());
 	}
@@ -248,7 +284,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 
 		private static final long serialVersionUID = -8942866418598856475L;
 
-		public TestOneInputStreamOperator(boolean verifyRestore) {
+		TestOneInputStreamOperator(boolean verifyRestore) {
 			this.verifyRestore = verifyRestore;
 		}
 
@@ -272,7 +308,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 		}
 
 		@Override
-		public void processWatermark(Watermark mark) throws Exception {
+		public void processWatermark(Watermark mark) {
 
 		}
 
