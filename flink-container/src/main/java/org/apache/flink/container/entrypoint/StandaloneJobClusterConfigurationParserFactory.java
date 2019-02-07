@@ -42,6 +42,8 @@ import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.REST
  */
 public class StandaloneJobClusterConfigurationParserFactory implements ParserResultFactory<StandaloneJobClusterConfiguration> {
 
+	static final JobID DEFAULT_JOB_ID = new JobID(0, 0);
+
 	private static final Option JOB_CLASS_NAME_OPTION = Option.builder("j")
 		.longOpt("job-classname")
 		.required(true)
@@ -50,12 +52,21 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 		.desc("Class name of the job to run.")
 		.build();
 
+	private static final Option JOB_ID_OPTION = Option.builder("jid")
+		.longOpt("job-id")
+		.required(false)
+		.hasArg(true)
+		.argName("job id")
+		.desc("Job ID of the job to run.")
+		.build();
+
 	@Override
 	public Options getOptions() {
 		final Options options = new Options();
 		options.addOption(CONFIG_DIR_OPTION);
 		options.addOption(REST_PORT_OPTION);
 		options.addOption(JOB_CLASS_NAME_OPTION);
+		options.addOption(JOB_ID_OPTION);
 		options.addOption(DYNAMIC_PROPERTY_OPTION);
 		options.addOption(CliFrontendParser.SAVEPOINT_PATH_OPTION);
 		options.addOption(CliFrontendParser.SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
@@ -72,6 +83,7 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 		final String hostname = commandLine.getOptionValue(HOST_OPTION.getOpt());
 		final String jobClassName = commandLine.getOptionValue(JOB_CLASS_NAME_OPTION.getOpt());
 		final SavepointRestoreSettings savepointRestoreSettings = CliFrontendParser.createSavepointRestoreSettings(commandLine);
+		final JobID jobId = getJobId(commandLine);
 
 		return new StandaloneJobClusterConfiguration(
 			configDir,
@@ -81,6 +93,14 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 			restPort,
 			jobClassName,
 			savepointRestoreSettings,
-			new JobID());
+			jobId);
+	}
+
+	private static JobID getJobId(CommandLine commandLine) {
+		String jobId = commandLine.getOptionValue(JOB_ID_OPTION.getOpt());
+		if (jobId == null) {
+			return DEFAULT_JOB_ID;
+		}
+		return JobID.fromHexString(jobId);
 	}
 }
