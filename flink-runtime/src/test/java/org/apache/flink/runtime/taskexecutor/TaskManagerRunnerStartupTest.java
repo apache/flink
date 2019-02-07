@@ -59,9 +59,9 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	private static final String LOCAL_HOST = "localhost";
 
 	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+	public final TemporaryFolder tempFolder = new TemporaryFolder();
 
-	private RpcService rpcService = createRpcService();
+	private final RpcService rpcService = createRpcService();
 
 	private TestingHighAvailabilityServices highAvailabilityServices;
 
