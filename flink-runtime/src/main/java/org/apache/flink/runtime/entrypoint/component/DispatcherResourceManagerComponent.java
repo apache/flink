@@ -142,7 +142,7 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> implements
 			final CompletableFuture<Void> closeWebMonitorAndDeregisterAppFuture =
 				FutureUtils.composeAfterwards(webMonitorEndpoint.closeAsync(), () -> deregisterApplication(applicationStatus, diagnostics));
 
-			return FutureUtils.composeAfterwards(closeWebMonitorAndDeregisterAppFuture, this::closeAsyncInteral);
+			return FutureUtils.composeAfterwards(closeWebMonitorAndDeregisterAppFuture, this::closeAsyncInternal);
 		} else {
 			return terminationFuture;
 		}
@@ -156,7 +156,7 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> implements
 		return selfGateway.deregisterApplication(applicationStatus, diagnostics).thenApply(ack -> null);
 	}
 
-	private CompletableFuture<Void> closeAsyncInteral() {
+	private CompletableFuture<Void> closeAsyncInternal() {
 		Exception exception = null;
 
 		final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(3);
