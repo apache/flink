@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka.messages;
+package org.apache.flink.runtime.rpc.akka;
 
 /**
- * Controls the processing behaviour of the {@link org.apache.flink.runtime.rpc.akka.AkkaRpcActor}
+ * Control messages for the {@link AkkaRpcActor}.
  */
-public enum Processing  {
-	START, // Unstashes all stashed messages and starts processing incoming messages
-	STOP // Stop processing messages and stashes all incoming messages
+public enum ControlMessages {
+	START, // Start processing incoming messages
+	STOP, // Stop processing messages and drop all newly incoming messages
+	TERMINATE, // Terminate the AkkaRpcActor
 }

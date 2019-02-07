@@ -217,7 +217,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	}
 
 	@Override
-	public CompletableFuture<Void> postStop() {
+	public CompletableFuture<Void> onStop() {
 		log.info("Stopping SlotPool.");
 		// cancel all pending allocations
 		Set<AllocationID> allocationIds = pendingRequests.keySetB();

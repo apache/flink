@@ -226,7 +226,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	@Override
-	public CompletableFuture<Void> postStop() {
+	public CompletableFuture<Void> onStop() {
 		Exception exception = null;
 
 		taskManagerHeartbeatManager.stop();

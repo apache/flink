@@ -367,11 +367,6 @@ public class AsyncCallsTest extends TestLogger {
 				concurrentAccess.set(true);
 			}
 		}
-
-		@Override
-		public CompletableFuture<Void> postStop() {
-			return CompletableFuture.completedFuture(null);
-		}
 	}
 
 	public interface FencedTestGateway extends FencedRpcGateway<UUID>, TestGateway {
@@ -450,11 +445,6 @@ public class AsyncCallsTest extends TestLogger {
 			setFencingToken(fencingToken);
 
 			return CompletableFuture.completedFuture(Acknowledge.get());
-		}
-
-		@Override
-		public CompletableFuture<Void> postStop() {
-			return CompletableFuture.completedFuture(null);
 		}
 
 		@Override
