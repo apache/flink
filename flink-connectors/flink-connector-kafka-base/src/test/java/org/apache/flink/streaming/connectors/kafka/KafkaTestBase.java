@@ -274,6 +274,15 @@ public abstract class KafkaTestBase extends TestLogger {
 			}
 		}
 
-		fail(String.format("Expected number of elements: <%s>, but was: <%s>", expectedElements.size(), actualElements.size()));
+		fail(String.format("Expected %s, but was: %s", formatElements(expectedElements), formatElements(actualElements)));
+	}
+
+	private String formatElements(List<Integer> elements) {
+		if (elements.size() > 50) {
+			return String.format("number of elements: <%s>", elements.size());
+		}
+		else {
+			return String.format("elements: <%s>", elements);
+		}
 	}
 }
