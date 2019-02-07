@@ -108,10 +108,6 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> implements
 				});
 	}
 
-	public CompletableFuture<Void> getTerminationFuture() {
-		return terminationFuture;
-	}
-
 	public final CompletableFuture<ApplicationStatus> getShutDownFuture() {
 		return shutDownFuture;
 	}
