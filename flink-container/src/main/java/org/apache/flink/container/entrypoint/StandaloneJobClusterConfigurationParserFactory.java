@@ -18,6 +18,7 @@
 
 package org.apache.flink.container.entrypoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.runtime.entrypoint.parser.ParserResultFactory;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -79,6 +80,7 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 			hostname,
 			restPort,
 			jobClassName,
-			savepointRestoreSettings);
+			savepointRestoreSettings,
+			new JobID());
 	}
 }
