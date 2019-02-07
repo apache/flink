@@ -91,11 +91,6 @@ public class MainThreadValidationTest extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<Void> postStop() {
-			return CompletableFuture.completedFuture(null);
-		}
-
-		@Override
 		public void someConcurrencyCriticalFunction() {
 			validateRunsInMainThread();
 		}

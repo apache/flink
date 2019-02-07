@@ -16,21 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.akka;
+package org.apache.flink.runtime.rpc.akka.exceptions;
 
-import org.apache.flink.runtime.rpc.RpcEndpoint;
-import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.FlinkRuntimeException;
 
-import java.util.concurrent.CompletableFuture;
+/**
+ * Exception which indicates an invalid state.
+ */
+public class AkkaRpcInvalidStateException extends FlinkRuntimeException {
+	private static final long serialVersionUID = 7771345513700817242L;
 
-class TestRpcEndpoint extends RpcEndpoint {
-
-	protected TestRpcEndpoint(RpcService rpcService) {
-		super(rpcService);
+	public AkkaRpcInvalidStateException(String message) {
+		super(message);
 	}
 
-	@Override
-	public CompletableFuture<Void> postStop() {
-		return CompletableFuture.completedFuture(null);
+	public AkkaRpcInvalidStateException(Throwable cause) {
+		super(cause);
+	}
+
+	public AkkaRpcInvalidStateException(String message, Throwable cause) {
+		super(message, cause);
 	}
 }

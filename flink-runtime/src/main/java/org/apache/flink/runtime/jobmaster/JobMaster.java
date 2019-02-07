@@ -347,7 +347,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	 * Suspend the job and shutdown all other services including rpc.
 	 */
 	@Override
-	public CompletableFuture<Void> postStop() {
+	public CompletableFuture<Void> onStop() {
 		log.info("Stopping the JobMaster for job {}({}).", jobGraph.getName(), jobGraph.getJobID());
 
 		// disconnect from all registered TaskExecutors

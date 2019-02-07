@@ -147,7 +147,9 @@ public abstract class RpcEndpoint implements RpcGateway {
 	 * @return Future which is completed once all post stop actions are completed. If an error
 	 * occurs this future is completed exceptionally
 	 */
-	public abstract CompletableFuture<Void> postStop();
+	public CompletableFuture<Void> onStop() {
+		return CompletableFuture.completedFuture(null);
+	}
 
 	/**
 	 * Triggers the shut down of the rpc endpoint. The shut down is executed asynchronously.
@@ -157,6 +159,11 @@ public abstract class RpcEndpoint implements RpcGateway {
 	 */
 	public final void shutDown() {
 		rpcService.stopServer(rpcServer);
+	}
+
+	public final CompletableFuture<Void> terminate() {
+		rpcService.stopServer(rpcServer);
+		return getTerminationFuture();
 	}
 
 	// ------------------------------------------------------------------------

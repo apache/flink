@@ -300,11 +300,6 @@ public class FencedRpcEndpointTest extends TestLogger {
 			this(rpcService, value, null);
 		}
 
-		@Override
-		public CompletableFuture<Void> postStop() {
-			return CompletableFuture.completedFuture(null);
-		}
-
 		protected FencedTestingEndpoint(RpcService rpcService, String value, UUID initialFencingToken) {
 			super(rpcService);
 
