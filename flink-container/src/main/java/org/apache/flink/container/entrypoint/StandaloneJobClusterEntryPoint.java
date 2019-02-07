@@ -18,6 +18,7 @@
 
 package org.apache.flink.container.entrypoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
@@ -45,18 +46,23 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 	private final String jobClassName;
 
 	@Nonnull
+	private final JobID jobId;
+
+	@Nonnull
 	private final SavepointRestoreSettings savepointRestoreSettings;
 
 	@Nonnull
 	private final String[] programArguments;
 
-	StandaloneJobClusterEntryPoint(
+	private StandaloneJobClusterEntryPoint(
 			Configuration configuration,
 			@Nonnull String jobClassName,
+			@Nonnull JobID jobId,
 			@Nonnull SavepointRestoreSettings savepointRestoreSettings,
 			@Nonnull String[] programArguments) {
 		super(configuration);
 		this.jobClassName = requireNonNull(jobClassName, "jobClassName");
+		this.jobId = requireNonNull(jobId, "jobId");
 		this.savepointRestoreSettings = requireNonNull(savepointRestoreSettings, "savepointRestoreSettings");
 		this.programArguments = requireNonNull(programArguments, "programArguments");
 	}
@@ -65,7 +71,7 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 	protected DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration) {
 		return new JobDispatcherResourceManagerComponentFactory(
 			StandaloneResourceManagerFactory.INSTANCE,
-			new ClassPathJobGraphRetriever(jobClassName, savepointRestoreSettings, programArguments));
+			new ClassPathJobGraphRetriever(jobClassName, jobId, savepointRestoreSettings, programArguments));
 	}
 
 	public static void main(String[] args) {
@@ -92,6 +98,7 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 		StandaloneJobClusterEntryPoint entrypoint = new StandaloneJobClusterEntryPoint(
 			configuration,
 			clusterConfiguration.getJobClassName(),
+			clusterConfiguration.getJobId(),
 			clusterConfiguration.getSavepointRestoreSettings(),
 			clusterConfiguration.getArgs());
 
