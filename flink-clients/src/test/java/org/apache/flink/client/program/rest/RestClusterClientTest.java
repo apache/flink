@@ -39,6 +39,7 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.rest.FileUpload;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
@@ -213,11 +214,12 @@ public class RestClusterClientTest extends TestLogger {
 				final int targetPort,
 				final M messageHeaders,
 				final U messageParameters,
-				final R request) throws IOException {
+				final R request,
+				final Collection<FileUpload> files) throws IOException {
 				if (failHttpRequest.test(messageHeaders, messageParameters, request)) {
 					return FutureUtils.completedExceptionally(new IOException("expected"));
 				} else {
-					return super.sendRequest(targetAddress, targetPort, messageHeaders, messageParameters, request);
+					return super.sendRequest(targetAddress, targetPort, messageHeaders, messageParameters, request, files);
 				}
 			}
 		};
