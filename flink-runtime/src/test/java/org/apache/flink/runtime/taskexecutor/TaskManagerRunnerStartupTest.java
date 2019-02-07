@@ -48,7 +48,6 @@ import java.net.ServerSocket;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeNoException;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -159,7 +158,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 	 */
 	@Test
 	public void testStartupWhenNetworkStackFailsToInitialize() throws Exception {
-		final ServerSocket blocker = createBlockingServerSocket();
+		final ServerSocket blocker = new ServerSocket(0, 50, InetAddress.getByName(LOCAL_HOST));
 
 		try {
 			final Configuration cfg = new Configuration();
@@ -202,14 +201,5 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 			mock(BlobCacheService.class),
 			false,
 			error -> {});
-	}
-
-	private static ServerSocket createBlockingServerSocket() {
-		try {
-			return new ServerSocket(0, 50, InetAddress.getByName(LOCAL_HOST));
-		} catch (IOException e) {
-			assumeNoException("Skip test because could not open a server socket", e);
-			throw new RuntimeException("satisfy compiler");
-		}
 	}
 }
