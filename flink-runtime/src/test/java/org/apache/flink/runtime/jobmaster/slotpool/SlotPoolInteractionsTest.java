@@ -62,7 +62,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the SlotPool interactions.
+ * Tests for the SlotPoolImpl interactions.
  */
 public class SlotPoolInteractionsTest extends TestLogger {
 
@@ -83,7 +83,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 	public void testSlotAllocationNoResourceManager() throws Exception {
 		final JobID jid = new JobID();
 
-		try (SlotPool pool = new SlotPool(
+		try (SlotPool pool = new SlotPoolImpl(
 			jid,
 			SystemClock.getInstance(),
 			TestingUtils.infiniteTime(),
@@ -195,7 +195,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that extra slots are kept by the {@link SlotPool}.
+	 * Tests that extra slots are kept by the {@link SlotPoolImpl}.
 	 */
 	@Test
 	public void testExtraSlotsAreKept() throws Exception {
@@ -297,7 +297,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
 				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
 			}
 
-			// wait for the cancel call on the SlotPool
+			// wait for the cancel call on the SlotPoolImpl
 			releaseSlotFuture.get();
 
 			assertEquals(0L, pool.getNumberOfPendingRequests());
@@ -305,9 +305,9 @@ public class SlotPoolInteractionsTest extends TestLogger {
 	}
 
 	/**
-	 * Testing SlotPool which exposes internal state via some testing methods.
+	 * Testing SlotPoolImpl which exposes internal state via some testing methods.
 	 */
-	private static final class TestingSlotPool extends SlotPool {
+	private static final class TestingSlotPool extends SlotPoolImpl {
 
 		private volatile Consumer<SlotRequestId> releaseSlotConsumer;
 

@@ -26,8 +26,8 @@ import javax.annotation.Nonnull;
 public interface SchedulerFactory {
 
 	/**
-	 * Creates a new scheduler instance that uses the given {@link SlotPoolGateway} to allocate slots.
+	 * Creates a new scheduler instance that uses the given {@link SlotPool} to allocate slots.
 	 */
 	@Nonnull
-	Scheduler createScheduler(@Nonnull SlotPoolGateway slotPoolGateway);
+	Scheduler createScheduler(@Nonnull SlotPool slotPoolGateway);
 }

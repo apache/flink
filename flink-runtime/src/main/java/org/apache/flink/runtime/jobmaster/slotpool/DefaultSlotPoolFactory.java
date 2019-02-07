@@ -54,7 +54,7 @@ public class DefaultSlotPoolFactory implements SlotPoolFactory {
 	@Override
 	@Nonnull
 	public SlotPool createSlotPool(@Nonnull JobID jobId) {
-		return new SlotPool(
+		return new SlotPoolImpl(
 			jobId,
 			clock,
 			rpcTimeout,

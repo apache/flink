@@ -33,7 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /**
- * {@link ExternalResource} which provides a {@link SlotPool}.
+ * {@link ExternalResource} which provides a {@link SlotPoolImpl}.
  */
 public class SlotPoolResource extends ExternalResource {
 
@@ -65,7 +65,7 @@ public class SlotPoolResource extends ExternalResource {
 		return testingResourceManagerGateway;
 	}
 
-	public SlotPoolGateway getSlotPoolGateway() {
+	public SlotPool getSlotPoolGateway() {
 		checkInitialized();
 		return slotPool;
 	}
@@ -82,7 +82,7 @@ public class SlotPoolResource extends ExternalResource {
 
 		testingResourceManagerGateway = new TestingResourceManagerGateway();
 
-		slotPool = new SlotPool(new JobID());
+		slotPool = new SlotPoolImpl(new JobID());
 		scheduler = new Scheduler(new HashMap<>(), schedulingStrategy, slotPool);
 		slotPool.start(JobMasterId.generate(), "foobar", mainThreadExecutor);
 		scheduler.start(mainThreadExecutor);

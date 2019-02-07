@@ -51,7 +51,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Test cases for {@link CoLocationConstraint} with the {@link SlotPool}.
+ * Test cases for {@link CoLocationConstraint} with the {@link SlotPoolImpl}.
  */
 public class SlotPoolCoLocationTest extends TestLogger {
 
@@ -76,7 +76,7 @@ public class SlotPoolCoLocationTest extends TestLogger {
 
 		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 
-		final SlotPoolGateway slotPoolGateway = slotPoolResource.getSlotPoolGateway();
+		final SlotPool slotPoolGateway = slotPoolResource.getSlotPoolGateway();
 		slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID());
 
 		CoLocationGroup group = new CoLocationGroup();

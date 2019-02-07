@@ -43,7 +43,7 @@ public class AvailableSlotsTest extends TestLogger {
 
 	@Test
 	public void testAddAndRemove() throws Exception {
-		SlotPool.AvailableSlots availableSlots = new SlotPool.AvailableSlots();
+		SlotPoolImpl.AvailableSlots availableSlots = new SlotPoolImpl.AvailableSlots();
 
 		final ResourceID resource1 = new ResourceID("resource1");
 		final ResourceID resource2 = new ResourceID("resource2");
@@ -84,7 +84,7 @@ public class AvailableSlotsTest extends TestLogger {
 
 	@Test
 	public void testPollFreeSlot() {
-		SlotPool.AvailableSlots availableSlots = new SlotPool.AvailableSlots();
+		SlotPoolImpl.AvailableSlots availableSlots = new SlotPoolImpl.AvailableSlots();
 
 		final ResourceID resource1 = new ResourceID("resource1");
 		final AllocatedSlot slot1 = createAllocatedSlot(resource1);

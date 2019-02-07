@@ -52,7 +52,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Test cases for slot sharing with the {@link SlotPool}.
+ * Test cases for slot sharing with the {@link SlotPoolImpl}.
  */
 public class SlotPoolSlotSharingTest extends TestLogger {
 
@@ -71,7 +71,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 			(SlotRequest slotRequest) -> allocationIdFuture.complete(slotRequest.getAllocationId()));
 
 		LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-		final SlotPoolGateway slotPoolGateway = slotPoolResource.getSlotPoolGateway();
+		final SlotPool slotPoolGateway = slotPoolResource.getSlotPoolGateway();
 		slotPoolResource.executeInMainThreadAndJoin(() -> slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()));
 
 		SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
@@ -128,7 +128,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 		final AllocationID allocationId = allocationIdFuture.get();
 
 		// this should fail the returned logical slot future
-		final SlotPoolGateway slotPoolGateway = slotPoolResource.getSlotPoolGateway();
+		final SlotPool slotPoolGateway = slotPoolResource.getSlotPoolGateway();
 		slotPoolResource.executeInMainThreadAndJoin(
 			() -> slotPoolGateway.failAllocation(allocationId, new FlinkException("Testing Exception")));
 
@@ -152,7 +152,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 
 		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 
-		final SlotPoolGateway slotPoolGateway = slotPoolResource.getSlotPoolGateway();
+		final SlotPool slotPoolGateway = slotPoolResource.getSlotPoolGateway();
 		slotPoolResource.executeInMainThreadAndJoin(() -> slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()));
 
 		final SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
@@ -258,7 +258,7 @@ public class SlotPoolSlotSharingTest extends TestLogger {
 		final JobVertexID jobVertexId3 = new JobVertexID();
 		final JobVertexID jobVertexId4 = new JobVertexID();
 
-		final SlotPoolGateway slotPoolGateway = slotPoolResource.getSlotPoolGateway();
+		final SlotPool slotPoolGateway = slotPoolResource.getSlotPoolGateway();
 		slotPoolResource.executeInMainThreadAndJoin(() -> slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()));
 
 		final SlotProvider slotProvider = slotPoolResource.getSlotProvider();

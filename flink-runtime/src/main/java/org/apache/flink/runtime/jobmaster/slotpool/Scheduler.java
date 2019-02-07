@@ -65,7 +65,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 
 	/** The slot pool from which slots are allocated. */
 	@Nonnull
-	private final SlotPoolGateway slotPoolGateway;
+	private final SlotPool slotPool;
 
 	/** Executor for running tasks in the job master's main thread. */
 	@Nonnull
@@ -78,11 +78,11 @@ public class Scheduler implements SlotProvider, SlotOwner {
 	public Scheduler(
 		@Nonnull Map<SlotSharingGroupId, SlotSharingManager> slotSharingManagersMap,
 		@Nonnull SlotSelectionStrategy slotSelectionStrategy,
-		@Nonnull SlotPoolGateway slotPoolGateway) {
+		@Nonnull SlotPool slotPool) {
 
 		this.slotSelectionStrategy = slotSelectionStrategy;
 		this.slotSharingManagersMap = slotSharingManagersMap;
-		this.slotPoolGateway = slotPoolGateway;
+		this.slotPool = slotPool;
 		this.componentMainThreadExecutor = new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
 			"Scheduler is not initialized with proper main thread executor. " +
 				"Call to Scheduler.start(...) required.");
@@ -137,7 +137,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 		if (slotSharingGroupId != null) {
 			releaseSharedSlot(slotRequestId, slotSharingGroupId, cause);
 		} else {
-			slotPoolGateway.releaseSlot(slotRequestId, cause);
+			slotPool.releaseSlot(slotRequestId, cause);
 		}
 	}
 
@@ -170,7 +170,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 			}
 		} else if (allowQueuedScheduling) {
 			// we allocate by requesting a new slot
-			return slotPoolGateway
+			return slotPool
 				.requestNewAllocatedSlot(slotRequestId, slotProfile.getResourceProfile(), allocationTimeout)
 				.thenApply((AllocatedSlotContext allocatedSlot) -> {
 					try {
@@ -205,7 +205,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 		} else {
 			final FlinkException flinkException =
 				new FlinkException("Could not assign payload to allocated slot " + allocatedSlot.getAllocationId() + '.');
-			slotPoolGateway.releaseSlot(slotRequestId, flinkException);
+			slotPool.releaseSlot(slotRequestId, flinkException);
 			throw flinkException;
 		}
 	}
@@ -214,7 +214,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull SlotProfile slotProfile) {
 
-		Collection<SlotInfo> slotInfoList = slotPoolGateway.getAvailableSlotsInformation();
+		Collection<SlotInfo> slotInfoList = slotPool.getAvailableSlotsInformation();
 
 		Optional<SlotSelectionStrategy.SlotInfoAndLocality> selectedAvailableSlot =
 			slotSelectionStrategy.selectBestSlotForProfile(slotInfoList, slotProfile);
@@ -225,7 +225,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 			SlotInfo selectedSlotInfo = slotInfoAndLocality.getSlotInfo();
 
 			Optional<AllocatedSlotContext> allocatedSlot =
-				slotPoolGateway.allocateAvailableSlot(slotRequestId, selectedSlotInfo.getAllocationId());
+				slotPool.allocateAvailableSlot(slotRequestId, selectedSlotInfo.getAllocationId());
 
 			if (allocatedSlot.isPresent()) {
 				return Optional.of(new SlotAndLocality(allocatedSlot.get(), slotInfoAndLocality.getLocality()));
@@ -249,7 +249,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 			scheduledUnit.getSlotSharingGroupId(),
 			id -> new SlotSharingManager(
 				id,
-				slotPoolGateway,
+				slotPool,
 				this));
 
 		SlotSharingManager.MultiTaskSlotLocality multiTaskSlotLocality;
@@ -442,7 +442,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 		if (multiTaskSlotLocality != null) {
 			// prefer slot sharing group slots over unused slots
 			if (optionalPoolSlotAndLocality.isPresent()) {
-				slotPoolGateway.releaseSlot(
+				slotPool.releaseSlot(
 					allocatedSlotRequestId,
 					new FlinkException("Locality constraint is not better fulfilled by allocated slot."));
 			}
@@ -455,7 +455,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 
 			if (multiTaskSlot == null) {
 				// it seems as if we have to request a new slot from the resource manager, this is always the last resort!!!
-				final CompletableFuture<AllocatedSlotContext> slotAllocationFuture = slotPoolGateway.requestNewAllocatedSlot(
+				final CompletableFuture<AllocatedSlotContext> slotAllocationFuture = slotPool.requestNewAllocatedSlot(
 					allocatedSlotRequestId,
 					slotProfile.getResourceProfile(),
 					allocationTimeout);
@@ -480,7 +480,7 @@ public class Scheduler implements SlotProvider, SlotOwner {
 								}
 							}
 						} else {
-							slotPoolGateway.releaseSlot(
+							slotPool.releaseSlot(
 								allocatedSlotRequestId,
 								new FlinkException("Could not find task slot with " + multiTaskSlotRequestId + '.'));
 						}

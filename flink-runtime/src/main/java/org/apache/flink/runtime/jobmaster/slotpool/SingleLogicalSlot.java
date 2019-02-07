@@ -35,7 +35,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
- * Implementation of the {@link LogicalSlot} which is used by the {@link SlotPool}.
+ * Implementation of the {@link LogicalSlot} which is used by the {@link SlotPoolImpl}.
  */
 public class SingleLogicalSlot implements LogicalSlot, AllocatedSlotContext.Payload {
 
