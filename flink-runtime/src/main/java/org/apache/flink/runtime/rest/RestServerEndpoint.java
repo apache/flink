@@ -80,7 +80,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 	private final String restAddress;
 	private final String restBindAddress;
-	private final String restBindPort;
+	private final String restBindPortRange;
 	@Nullable
 	private final SSLHandlerFactory sslHandlerFactory;
 	private final int maxContentLength;
@@ -102,7 +102,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 		this.restAddress = configuration.getRestAddress();
 		this.restBindAddress = configuration.getRestBindAddress();
-		this.restBindPort = configuration.getRestBindPort();
+		this.restBindPortRange = configuration.getRestBindPortRange();
 		this.sslHandlerFactory = configuration.getSslHandlerFactory();
 
 		this.uploadDir = configuration.getUploadDir();
@@ -190,11 +190,11 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 			// parse port range definition and create port iterator
 			Iterator<Integer> portsIterator;
 			try {
-				portsIterator = NetUtils.getPortRangeFromString(restBindPort);
+				portsIterator = NetUtils.getPortRangeFromString(restBindPortRange);
 			} catch (IllegalConfigurationException e) {
 				throw e;
 			} catch (Exception e) {
-				throw new IllegalArgumentException("Invalid port range definition: " + restBindPort);
+				throw new IllegalArgumentException("Invalid port range definition: " + restBindPortRange);
 			}
 
 			int chosenPort = 0;
@@ -219,8 +219,8 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 			if (serverChannel == null) {
 				// if we come here, we have exhausted the port range
-				throw new BindException("Could not start task manager on any port in port range "
-					+ restBindPort);
+				throw new BindException("Could not start rest server endpoint on any port in port range "
+					+ restBindPortRange);
 			}
 
 			log.debug("Binding rest endpoint to {}:{}.", restBindAddress, chosenPort);

@@ -28,6 +28,8 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 @Internal
 public class RestOptions {
 
+	private static final String REST_PORT_KEY = "rest.port";
+
 	/**
 	 * The address that the server binds itself to.
 	 */
@@ -43,7 +45,7 @@ public class RestOptions {
 	public static final ConfigOption<String> BIND_PORT =
 		key("rest.bind-port")
 			.defaultValue("8081")
-			.withDeprecatedKeys("rest.port", WebOptions.PORT.key(), ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)
+			.withDeprecatedKeys(REST_PORT_KEY, WebOptions.PORT.key(), ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)
 			.withDescription("The port that the server binds itself. Accepts a list of ports (“50100,50101”), ranges" +
 				" (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid" +
 				" collisions when multiple Rest servers are running on the same machine.");
@@ -62,9 +64,9 @@ public class RestOptions {
 	 * The port that the client connects to.
 	 */
 	public static final ConfigOption<Integer> PORT =
-		key("rest.port")
+		key(REST_PORT_KEY)
 			.defaultValue(8081)
-			.withDeprecatedKeys("web.port")
+			.withDeprecatedKeys(WebOptions.PORT.key())
 			.withDescription("The port that the client connects to.");
 
 	/**

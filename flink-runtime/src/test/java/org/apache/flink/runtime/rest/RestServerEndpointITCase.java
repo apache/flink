@@ -47,6 +47,7 @@ import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
@@ -73,6 +74,7 @@ import org.junit.runners.Parameterized;
 import javax.annotation.Nonnull;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLSocketFactory;
 
 import java.io.File;
@@ -559,6 +561,117 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		request.get(timeout.getSize(), timeout.getUnit());
 		closeRestServerEndpointFuture.get(timeout.getSize(), timeout.getUnit());
+	}
+
+	@Test
+	public void testDefaultRestServerBindPort() throws Exception {
+		final Configuration baseConfig = new Configuration();
+		baseConfig.setString(RestOptions.ADDRESS, "localhost");
+
+		Configuration serverConfig = new Configuration(baseConfig);
+
+		RestServerEndpointConfiguration restServerConfig = RestServerEndpointConfiguration.fromConfiguration(serverConfig);
+
+		RestfulGateway restfulGateway = TestingRestfulGateway.newBuilder()
+			.setAddress("http://localhost:1234")
+			.build();
+		RestServerEndpointITCase.TestVersionHandler testVersionHandler = new RestServerEndpointITCase.TestVersionHandler(
+			() -> CompletableFuture.completedFuture(restfulGateway),
+			RpcUtils.INF_TIMEOUT);
+
+		try (RestServerEndpoint serverEndpoint = new RestServerEndpointITCase.TestRestServerEndpoint(
+			restServerConfig,
+			Arrays.asList(Tuple2.of(testVersionHandler.getMessageHeaders(), testVersionHandler)));) {
+			serverEndpoint.start();
+
+			assertEquals("http://localhost:" + 8081, serverEndpoint.getRestBaseUrl());
+		} catch (ExecutionException exception) {
+			// that is what we want
+			assertTrue(ExceptionUtils.findThrowable(exception, SSLHandshakeException.class).isPresent());
+		}
+	}
+
+	@Test
+	public void testRestServerBindPort() throws Exception {
+		RestClient restClient = null;
+
+		final Configuration config = new Configuration();
+		config.setString(RestOptions.ADDRESS, "localhost");
+		config.setString(RestOptions.BIND_PORT, "52345,52346");
+
+		RestServerEndpointITCase.TestHandler testHandler;
+
+		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
+		RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
+
+		final String restAddress = "http://localhost:1234";
+		RestfulGateway mockRestfulGateway = TestingRestfulGateway.newBuilder()
+			.setAddress("http://localhost:1234")
+			.build();
+
+		final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
+			CompletableFuture.completedFuture(mockRestfulGateway);
+
+		testHandler = new RestServerEndpointITCase.TestHandler(
+			CompletableFuture.completedFuture(restAddress),
+			mockGatewayRetriever,
+			RpcUtils.INF_TIMEOUT);
+
+		RestServerEndpointITCase.TestVersionHandler testVersionHandler = new RestServerEndpointITCase.TestVersionHandler(
+			mockGatewayRetriever,
+			RpcUtils.INF_TIMEOUT);
+
+		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = Arrays.asList(
+			Tuple2.of(new RestServerEndpointITCase.TestHeaders(), testHandler),
+			Tuple2.of(testVersionHandler.getMessageHeaders(), testVersionHandler));
+
+		try (RestServerEndpoint serverEndpoint1 = new RestServerEndpointITCase.TestRestServerEndpoint(serverConfig, handlers);
+			RestServerEndpoint serverEndpoint2 = new RestServerEndpointITCase.TestRestServerEndpoint(serverConfig, handlers)) {
+
+			restClient = new RestServerEndpointITCase.TestRestClient(clientConfig);
+
+			serverEndpoint1.start();
+			serverEndpoint2.start();
+
+			CompletableFuture<EmptyResponseBody> responseFromServer1 = restClient.sendRequest(
+				config.getString(RestOptions.ADDRESS),
+				52345,		//connect to the first port
+				RestServerEndpointITCase.TestVersionHeaders.INSTANCE,
+				EmptyMessageParameters.getInstance(),
+				EmptyRequestBody.getInstance(),
+				Collections.emptyList()
+			);
+			CompletableFuture<EmptyResponseBody> responseFromServer2 = restClient.sendRequest(
+				config.getString(RestOptions.ADDRESS),
+				52346,		//connect to the second port
+				RestServerEndpointITCase.TestVersionHeaders.INSTANCE,
+				EmptyMessageParameters.getInstance(),
+				EmptyRequestBody.getInstance(),
+				Collections.emptyList()
+			);
+
+			responseFromServer1.get(5, TimeUnit.SECONDS);
+			responseFromServer2.get(5, TimeUnit.SECONDS);
+
+			//test connect port failed
+			CompletableFuture<EmptyResponseBody> failedResponse = restClient.sendRequest(
+				config.getString(RestOptions.ADDRESS),
+				52347,		//connect to an error port
+				RestServerEndpointITCase.TestVersionHeaders.INSTANCE,
+				EmptyMessageParameters.getInstance(),
+				EmptyRequestBody.getInstance(),
+				Collections.emptyList()
+			);
+			failedResponse.get(5, TimeUnit.SECONDS);
+			fail("Expected an connection refused exception.");
+		} catch (Exception e) {
+			assertTrue(e.getMessage().contains("Connection refused")
+				&& e.getMessage().contains("52347"));
+		} finally {
+			if (restClient != null) {
+				restClient.shutdown(timeout);
+			}
+		}
 	}
 
 	private HttpURLConnection openHttpConnectionForUpload(final String boundary) throws IOException {

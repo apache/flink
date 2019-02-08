@@ -48,7 +48,7 @@ public final class RestServerEndpointConfiguration {
 	@Nullable
 	private final String restBindAddress;
 
-	private final String restBindPort;
+	private final String restBindPortRange;
 
 	@Nullable
 	private final SSLHandlerFactory sslHandlerFactory;
@@ -62,7 +62,7 @@ public final class RestServerEndpointConfiguration {
 	private RestServerEndpointConfiguration(
 			final String restAddress,
 			@Nullable String restBindAddress,
-			String restBindPort,
+			String restBindPortRange,
 			@Nullable SSLHandlerFactory sslHandlerFactory,
 			final Path uploadDir,
 			final int maxContentLength,
@@ -72,7 +72,7 @@ public final class RestServerEndpointConfiguration {
 
 		this.restAddress = requireNonNull(restAddress);
 		this.restBindAddress = restBindAddress;
-		this.restBindPort = requireNonNull(restBindPort);
+		this.restBindPortRange = requireNonNull(restBindPortRange);
 		this.sslHandlerFactory = sslHandlerFactory;
 		this.uploadDir = requireNonNull(uploadDir);
 		this.maxContentLength = maxContentLength;
@@ -100,8 +100,8 @@ public final class RestServerEndpointConfiguration {
 	 *
 	 * @return port range that the REST server endpoint should listen on
 	 */
-	public String getRestBindPort() {
-		return restBindPort;
+	public String getRestBindPortRange() {
+		return restBindPortRange;
 	}
 
 	/**
