@@ -65,6 +65,50 @@ under the License.
 			<groupId>com.google.cloud</groupId>
 			<artifactId>google-cloud-storage</artifactId>
 			<version>${fs.gcs.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.cloud.bigdataoss</groupId>
+			<artifactId>gcs-connector</artifactId>
+			<version>hadoop2-1.9.12</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- for the behavior test suite -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
+		<!-- for the settings that make unshaded tests run -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-fs-hadoop-shaded</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-hadoop-fs</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
 		</dependency>
 
 		<!--&lt;!&ndash; Hadoop's GCS support classes (bundled) &ndash;&gt;-->
@@ -129,6 +173,10 @@ under the License.
 								<relocation>
 									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
 									<shadedPattern>org.apache.flink.fs.s3.common.hadoop</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.google</pattern>
+									<shadedPattern>org.apache.flink.fs.s3base.shaded.com.google</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>
