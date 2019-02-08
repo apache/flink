@@ -209,6 +209,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 	}
 
+	TaskExecutor[] getTaskManagers() {
+		synchronized (lock) {
+			checkState(running, "MiniCluster is not yet running.");
+			return taskManagers;
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  life cycle
 	// ------------------------------------------------------------------------
