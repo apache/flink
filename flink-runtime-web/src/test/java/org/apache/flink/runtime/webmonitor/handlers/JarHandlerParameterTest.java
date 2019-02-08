@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -49,6 +50,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
@@ -56,6 +58,9 @@ import java.util.stream.Collectors;
 
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.fail;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Base test class for jar request handlers. */
 public abstract class JarHandlerParameterTest
@@ -184,6 +189,25 @@ public abstract class JarHandlerParameterTest
 		}
 	}
 
+	@Test
+	public void testProvideJobId() throws Exception {
+		JobID jobId = new JobID();
+
+		HandlerRequest<REQB, M> request = createRequest(
+			getJarRequestBodyWithJobId(jobId),
+			getUnresolvedJarMessageParameters(),
+			getUnresolvedJarMessageParameters(),
+			jarWithManifest
+		);
+
+		handleRequest(request);
+
+		Optional<JobGraph> jobGraph = getLastSubmittedJobGraphAndReset();
+
+		assertThat(jobGraph.isPresent(), is(true));
+		assertThat(jobGraph.get().getJobID(), is(equalTo(jobId)));
+	}
+
 	private void testConfigurationViaJsonRequest(ProgramArgsParType programArgsParType) throws Exception {
 		handleRequest(createRequest(
 			getJarRequestBody(programArgsParType),
@@ -270,6 +294,8 @@ public abstract class JarHandlerParameterTest
 
 	abstract REQB getJarRequestBody(ProgramArgsParType programArgsParType);
 
+	abstract REQB getJarRequestBodyWithJobId(JobID jobId);
+
 	abstract void handleRequest(HandlerRequest<REQB, M> request) throws Exception;
 
 	JobGraph validateDefaultGraph() {
@@ -284,6 +310,10 @@ public abstract class JarHandlerParameterTest
 		Assert.assertArrayEquals(PROG_ARGS, ParameterProgram.actualArguments);
 		Assert.assertEquals(PARALLELISM, getExecutionConfig(jobGraph).getParallelism());
 		return jobGraph;
+	}
+
+	private static Optional<JobGraph> getLastSubmittedJobGraphAndReset() {
+		return Optional.ofNullable(LAST_SUBMITTED_JOB_GRAPH_REFERENCE.getAndSet(null));
 	}
 
 	private static ExecutionConfig getExecutionConfig(JobGraph jobGraph) {

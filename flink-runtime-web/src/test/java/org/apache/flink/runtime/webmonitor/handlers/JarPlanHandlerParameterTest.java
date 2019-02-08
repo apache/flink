@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -105,6 +106,11 @@ public class JarPlanHandlerParameterTest extends JarHandlerParameterTest<JarPlan
 			getProgramArgsList(programArgsParType),
 			PARALLELISM,
 			null);
+	}
+
+	@Override
+	JarPlanRequestBody getJarRequestBodyWithJobId(JobID jobId) {
+		return new JarPlanRequestBody(null, null, null, null, jobId);
 	}
 
 	@Override
