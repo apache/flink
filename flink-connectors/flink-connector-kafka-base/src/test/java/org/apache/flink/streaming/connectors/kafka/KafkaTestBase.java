@@ -126,30 +126,40 @@ public abstract class KafkaTestBase extends TestLogger {
 		return flinkConfig;
 	}
 
+	protected static void startClusters() throws Exception {
+		startClusters(KafkaTestEnvironment.createConfig().setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS));
+	}
+
 	protected static void startClusters(boolean secureMode, boolean hideKafkaBehindProxy) throws Exception {
-
-		// dynamically load the implementation for the test
-		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
-		kafkaServer = (KafkaTestEnvironment) InstantiationUtil.instantiate(clazz);
-
-		LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
-
-		kafkaServer.prepare(kafkaServer.createConfig()
+		startClusters(KafkaTestEnvironment.createConfig()
 			.setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS)
 			.setSecureMode(secureMode)
 			.setHideKafkaBehindProxy(hideKafkaBehindProxy));
+	}
+
+	protected static void startClusters(KafkaTestEnvironment.Config environmentConfig) throws Exception {
+		kafkaServer = constructKafkaTestEnvionment();
+
+		LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
+
+		kafkaServer.prepare(environmentConfig);
 
 		standardProps = kafkaServer.getStandardProperties();
 
 		brokerConnectionStrings = kafkaServer.getBrokerConnectionString();
 
-		if (secureMode) {
+		if (environmentConfig.isSecureMode()) {
 			if (!kafkaServer.isSecureRunSupported()) {
 				throw new IllegalStateException(
 					"Attempting to test in secure mode but secure mode not supported by the KafkaTestEnvironment.");
 			}
 			secureProps = kafkaServer.getSecureProperties();
 		}
+	}
+
+	protected static KafkaTestEnvironment constructKafkaTestEnvionment() throws Exception {
+		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
+		return (KafkaTestEnvironment) InstantiationUtil.instantiate(clazz);
 	}
 
 	protected static void shutdownClusters() throws Exception {
