@@ -995,11 +995,6 @@ public class NFA<T> {
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			return true;
-		}
-
-		@Override
 		public int hashCode() {
 			return 37 * sharedBufferSerializer.hashCode() + eventSerializer.hashCode();
 		}

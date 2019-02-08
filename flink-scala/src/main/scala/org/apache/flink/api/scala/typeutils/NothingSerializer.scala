@@ -65,13 +65,9 @@ class NothingSerializer extends TypeSerializer[Any] {
 
   override def equals(obj: Any): Boolean = {
     obj match {
-      case nothingSerializer: NothingSerializer => nothingSerializer.canEqual(this)
+      case nothingSerializer: NothingSerializer => true
       case _ => false
     }
-  }
-
-  override def canEqual(obj: scala.Any): Boolean = {
-    obj.isInstanceOf[NothingSerializer]
   }
 
   override def hashCode(): Int = {

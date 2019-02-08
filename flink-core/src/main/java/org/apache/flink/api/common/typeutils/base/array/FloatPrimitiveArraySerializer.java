@@ -105,11 +105,6 @@ public final class FloatPrimitiveArraySerializer extends TypeSerializerSingleton
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof FloatPrimitiveArraySerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<float[]> snapshotConfiguration() {
 		return new FloatPrimitiveArraySerializerSnapshot();
 	}

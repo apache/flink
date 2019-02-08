@@ -81,11 +81,6 @@ public final class ByteValueArraySerializer extends TypeSerializerSingleton<Byte
 		ByteValueArray.copyInternal(source, target);
 	}
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof ByteValueArraySerializer;
-	}
-
 	// ------------------------------------------------------------------------
 
 	@Override

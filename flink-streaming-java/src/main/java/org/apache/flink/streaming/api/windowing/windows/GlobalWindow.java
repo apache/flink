@@ -118,11 +118,6 @@ public class GlobalWindow extends Window {
 			target.writeByte(0);
 		}
 
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof Serializer;
-		}
-
 		// ------------------------------------------------------------------------
 
 		@Override

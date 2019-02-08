@@ -80,11 +80,6 @@ public final class LongValueArraySerializer extends TypeSerializerSingleton<Long
 		LongValueArray.copyInternal(source, target);
 	}
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof LongValueArraySerializer;
-	}
-
 	// -----------------------------------------------------------------------------------
 
 	@Override

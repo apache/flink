@@ -160,17 +160,13 @@ class TraversableSerializer[T <: TraversableOnce[E], E](
   override def equals(obj: Any): Boolean = {
     obj match {
       case other: TraversableSerializer[_, _] =>
-        other.canEqual(this) && elementSerializer.equals(other.elementSerializer)
+        elementSerializer.equals(other.elementSerializer)
       case _ => false
     }
   }
 
   override def hashCode(): Int = {
     elementSerializer.hashCode()
-  }
-
-  override def canEqual(obj: Any): Boolean = {
-    obj.isInstanceOf[TraversableSerializer[_, _]]
   }
 
   override def snapshotConfiguration(): TraversableSerializerSnapshot[T, E] = {

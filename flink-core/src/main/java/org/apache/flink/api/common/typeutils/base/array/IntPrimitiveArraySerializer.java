@@ -105,11 +105,6 @@ public class IntPrimitiveArraySerializer extends TypeSerializerSingleton<int[]>{
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof IntPrimitiveArraySerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<int[]> snapshotConfiguration() {
 		return new IntPrimitiveArraySerializerSnapshot();
 	}

@@ -229,7 +229,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (canEqual(obj)) {
+		if (obj instanceof RowSerializer) {
 			RowSerializer other = (RowSerializer) obj;
 			if (this.fieldSerializers.length == other.fieldSerializers.length) {
 				for (int i = 0; i < this.fieldSerializers.length; i++) {
@@ -242,11 +242,6 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		}
 
 		return false;
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof RowSerializer;
 	}
 
 	@Override

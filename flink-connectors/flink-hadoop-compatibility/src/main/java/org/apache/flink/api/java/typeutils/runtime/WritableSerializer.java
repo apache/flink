@@ -146,15 +146,10 @@ public final class WritableSerializer<T extends Writable> extends TypeSerializer
 		if (obj instanceof WritableSerializer) {
 			WritableSerializer<?> other = (WritableSerializer<?>) obj;
 
-			return other.canEqual(this) && typeClass == other.typeClass;
+			return typeClass == other.typeClass;
 		} else {
 			return false;
 		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof WritableSerializer;
 	}
 
 	// --------------------------------------------------------------------------------------------

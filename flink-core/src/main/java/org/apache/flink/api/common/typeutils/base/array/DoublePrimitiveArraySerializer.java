@@ -105,11 +105,6 @@ public final class DoublePrimitiveArraySerializer extends TypeSerializerSingleto
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof DoublePrimitiveArraySerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<double[]> snapshotConfiguration() {
 		return new DoublePrimitiveArraySerializerSnapshot();
 	}

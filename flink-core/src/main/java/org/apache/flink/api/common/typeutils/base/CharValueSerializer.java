@@ -82,11 +82,6 @@ public class CharValueSerializer extends TypeSerializerSingleton<CharValue> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof CharValueSerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<CharValue> snapshotConfiguration() {
 		return new CharValueSerializerSnapshot();
 	}

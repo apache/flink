@@ -254,15 +254,10 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 		if (obj instanceof StreamElementSerializer) {
 			StreamElementSerializer<?> other = (StreamElementSerializer<?>) obj;
 
-			return other.canEqual(this) && typeSerializer.equals(other.typeSerializer);
+			return typeSerializer.equals(other.typeSerializer);
 		} else {
 			return false;
 		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof StreamElementSerializer;
 	}
 
 	@Override
