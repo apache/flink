@@ -103,7 +103,8 @@ public class JarPlanHandlerParameterTest extends JarHandlerParameterTest<JarPlan
 			ParameterProgram.class.getCanonicalName(),
 			getProgramArgsString(programArgsParType),
 			getProgramArgsList(programArgsParType),
-			PARALLELISM);
+			PARALLELISM,
+			null);
 	}
 
 	@Override

@@ -122,7 +122,8 @@ public class JarRunHandlerParameterTest extends JarHandlerParameterTest<JarRunRe
 			getProgramArgsList(programArgsParType),
 			PARALLELISM,
 			ALLOW_NON_RESTORED_STATE_QUERY,
-			RESTORE_PATH
+			RESTORE_PATH,
+			null
 		);
 	}
 
