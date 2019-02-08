@@ -182,58 +182,46 @@ public class ClientTest extends TestLogger {
 	 * the program is submitted through a client.
 	 */
 	@Test
-	public void tryLocalExecution() {
-		try {
-			PackagedProgram packagedProgramMock = mock(PackagedProgram.class);
-			when(packagedProgramMock.isUsingInteractiveMode()).thenReturn(true);
-			doAnswer(new Answer<Void>() {
-				@Override
-				public Void answer(InvocationOnMock invocation) throws Throwable {
-					ExecutionEnvironment.createLocalEnvironment();
-					return null;
-				}
-			}).when(packagedProgramMock).invokeInteractiveModeForExecution();
+	public void tryLocalExecution() throws ProgramInvocationException, ProgramMissingJobException {
+		PackagedProgram packagedProgramMock = mock(PackagedProgram.class);
+		when(packagedProgramMock.isUsingInteractiveMode()).thenReturn(true);
+		doAnswer(new Answer<Void>() {
+			@Override
+			public Void answer(InvocationOnMock invocation) throws Throwable {
+				ExecutionEnvironment.createLocalEnvironment();
+				return null;
+			}
+		}).when(packagedProgramMock).invokeInteractiveModeForExecution();
 
-			try {
-				final ClusterClient<?> client = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
-				client.setDetached(true);
-				client.run(packagedProgramMock, 1);
-				fail("Creating the local execution environment should not be possible");
-			}
-			catch (InvalidProgramException e) {
-				// that is what we want
-			}
+		try {
+			final ClusterClient<?> client = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
+			client.setDetached(true);
+			client.run(packagedProgramMock, 1);
+			fail("Creating the local execution environment should not be possible");
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+		catch (InvalidProgramException e) {
+			// that is what we want
 		}
 	}
 
 	@Test
-	public void testGetExecutionPlan() {
-		try {
-			PackagedProgram prg = new PackagedProgram(TestOptimizerPlan.class, "/dev/random", "/tmp");
-			assertNotNull(prg.getPreviewPlan());
+	public void testGetExecutionPlan() throws ProgramInvocationException {
+		PackagedProgram prg = new PackagedProgram(TestOptimizerPlan.class, "/dev/random", "/tmp");
+		assertNotNull(prg.getPreviewPlan());
 
-			Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
-			OptimizedPlan op = (OptimizedPlan) ClusterClient.getOptimizedPlan(optimizer, prg, 1);
-			assertNotNull(op);
+		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
+		OptimizedPlan op = (OptimizedPlan) ClusterClient.getOptimizedPlan(optimizer, prg, 1);
+		assertNotNull(op);
 
-			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
-			assertNotNull(dumper.getOptimizerPlanAsJSON(op));
+		PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
+		assertNotNull(dumper.getOptimizerPlanAsJSON(op));
 
-			// test HTML escaping
-			PlanJSONDumpGenerator dumper2 = new PlanJSONDumpGenerator();
-			dumper2.setEncodeForHTML(true);
-			String htmlEscaped = dumper2.getOptimizerPlanAsJSON(op);
+		// test HTML escaping
+		PlanJSONDumpGenerator dumper2 = new PlanJSONDumpGenerator();
+		dumper2.setEncodeForHTML(true);
+		String htmlEscaped = dumper2.getOptimizerPlanAsJSON(op);
 
-			assertEquals(-1, htmlEscaped.indexOf('\\'));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		assertEquals(-1, htmlEscaped.indexOf('\\'));
 	}
 
 	// --------------------------------------------------------------------------------------------
