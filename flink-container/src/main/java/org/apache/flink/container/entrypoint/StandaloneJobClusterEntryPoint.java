@@ -21,7 +21,6 @@ package org.apache.flink.container.entrypoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
-import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.JobDispatcherResourceManagerComponentFactory;
@@ -85,7 +84,7 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 
 		try {
 			clusterConfiguration = commandLineParser.parse(args);
-		} catch (FlinkParseException e) {
+		} catch (Exception e) {
 			LOG.error("Could not parse command line arguments {}.", args, e);
 			commandLineParser.printHelp(StandaloneJobClusterEntryPoint.class.getSimpleName());
 			System.exit(1);
