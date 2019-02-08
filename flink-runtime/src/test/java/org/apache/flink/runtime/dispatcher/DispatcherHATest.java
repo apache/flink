@@ -60,6 +60,7 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Queue;
@@ -78,7 +79,6 @@ import static org.junit.Assert.assertThat;
  * Tests the HA behaviour of the {@link Dispatcher}.
  */
 public class DispatcherHATest extends TestLogger {
-
 	private static final DispatcherId NULL_FENCING_TOKEN = DispatcherId.fromUuid(new UUID(0L, 0L));
 
 	private static final Time timeout = Time.seconds(10L);
@@ -297,14 +297,14 @@ public class DispatcherHATest extends TestLogger {
 	private HATestingDispatcher createDispatcher(HighAvailabilityServices haServices) throws Exception {
 		return createDispatcher(
 			haServices,
-			null,
+			new ArrayDeque<>(1),
 			createTestingJobManagerRunnerFactory());
 	}
 
 	@Nonnull
 	private HATestingDispatcher createDispatcher(
 		HighAvailabilityServices highAvailabilityServices,
-		@Nullable Queue<DispatcherId> fencingTokens,
+		@Nonnull Queue<DispatcherId> fencingTokens,
 		JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
 		final Configuration configuration = new Configuration();
 
@@ -326,7 +326,7 @@ public class DispatcherHATest extends TestLogger {
 	}
 
 	@Nonnull
-	public static JobGraph createNonEmptyJobGraph() {
+	static JobGraph createNonEmptyJobGraph() {
 		final JobVertex noOpVertex = new JobVertex("NoOp vertex");
 		noOpVertex.setInvokableClass(NoOpInvokable.class);
 		final JobGraph jobGraph = new JobGraph(noOpVertex);
@@ -396,8 +396,6 @@ public class DispatcherHATest extends TestLogger {
 		@Nonnull
 		private final OneShotLatch proceedGetJobIdsLatch;
 
-		private boolean isStarted = false;
-
 		private BlockingSubmittedJobGraphStore(@Nonnull SubmittedJobGraph submittedJobGraph, @Nonnull OneShotLatch enterGetJobIdsLatch, @Nonnull OneShotLatch proceedGetJobIdsLatch) {
 			this.submittedJobGraph = submittedJobGraph;
 			this.enterGetJobIdsLatch = enterGetJobIdsLatch;
@@ -405,35 +403,33 @@ public class DispatcherHATest extends TestLogger {
 		}
 
 		@Override
-		public void start(SubmittedJobGraphListener jobGraphListener) throws Exception {
-			isStarted = true;
+		public void start(SubmittedJobGraphListener jobGraphListener) {
 		}
 
 		@Override
-		public void stop() throws Exception {
-			isStarted = false;
+		public void stop() {
 		}
 
 		@Nullable
 		@Override
-		public SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception {
+		public SubmittedJobGraph recoverJobGraph(JobID jobId) {
 			Preconditions.checkArgument(jobId.equals(submittedJobGraph.getJobId()));
 
 			return submittedJobGraph;
 		}
 
 		@Override
-		public void putJobGraph(SubmittedJobGraph jobGraph) throws Exception {
+		public void putJobGraph(SubmittedJobGraph jobGraph) {
 			throw new UnsupportedOperationException("Should not be called.");
 		}
 
 		@Override
-		public void removeJobGraph(JobID jobId) throws Exception {
+		public void removeJobGraph(JobID jobId) {
 			throw new UnsupportedOperationException("Should not be called.");
 		}
 
 		@Override
-		public void releaseJobGraph(JobID jobId) throws Exception {}
+		public void releaseJobGraph(JobID jobId) {}
 
 		@Override
 		public Collection<JobID> getJobIds() throws Exception {
@@ -453,12 +449,12 @@ public class DispatcherHATest extends TestLogger {
 		}
 
 		@Override
-		public void start(SubmittedJobGraphListener jobGraphListener) throws Exception {
+		public void start(SubmittedJobGraphListener jobGraphListener) {
 
 		}
 
 		@Override
-		public void stop() throws Exception {
+		public void stop() {
 
 		}
 
@@ -469,22 +465,22 @@ public class DispatcherHATest extends TestLogger {
 		}
 
 		@Override
-		public void putJobGraph(SubmittedJobGraph jobGraph) throws Exception {
+		public void putJobGraph(SubmittedJobGraph jobGraph) {
 
 		}
 
 		@Override
-		public void removeJobGraph(JobID jobId) throws Exception {
+		public void removeJobGraph(JobID jobId) {
 
 		}
 
 		@Override
-		public void releaseJobGraph(JobID jobId) throws Exception {
+		public void releaseJobGraph(JobID jobId) {
 
 		}
 
 		@Override
-		public Collection<JobID> getJobIds() throws Exception {
+		public Collection<JobID> getJobIds() {
 			return Collections.singleton(jobId);
 		}
 	}
