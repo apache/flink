@@ -22,17 +22,18 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.metrics.reporter.AbstractReporter;
 import org.apache.flink.runtime.metrics.util.TestReporter;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Optional;
 
 /**
- * Tests for the {@link MetricRegistryConfigurationTest}.
+ * Tests for the {@link MetricRegistryConfiguration}.
  */
-public class MetricRegistryConfigurationTest {
+public class MetricRegistryConfigurationTest extends TestLogger {
 
 	/**
 	 * TestReporter1 class only for type differentiation.
@@ -46,97 +47,92 @@ public class MetricRegistryConfigurationTest {
 	private static class TestReporter2 extends TestReporter {
 	}
 
-
 	/**
-	 * Verifies that a reporter is properly parse with all his arguments forwarded.
+	 * Verifies that a reporter can be configured with all it's arguments being forwarded.
 	 */
 	@Test
 	public void testReporterArgumentForwarding() {
-		Configuration config = new Configuration();
+		final Configuration config = new Configuration();
 
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg1", "hello");
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg2", "world");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter.arg1", "value1");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter.arg2", "value2");
 
-		MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
+		final MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
 
 		Assert.assertEquals(1, metricRegistryConfiguration.getReporterConfigurations().size());
 
-		Tuple2<String, Configuration> stringConfigurationTuple = metricRegistryConfiguration.getReporterConfigurations().get(0);
-		Assert.assertEquals("test", stringConfigurationTuple.f0);
-		Assert.assertEquals("hello", stringConfigurationTuple.f1.getString("arg1", ""));
-		Assert.assertEquals("world", stringConfigurationTuple.f1.getString("arg2", ""));
-		Assert.assertEquals(TestReporter1.class.getName(), stringConfigurationTuple.f1.getString("class", AbstractReporter.class.getName()));
+		final Tuple2<String, Configuration> stringConfigurationTuple = metricRegistryConfiguration.getReporterConfigurations().get(0);
+		Assert.assertEquals("reporter", stringConfigurationTuple.f0);
+		Assert.assertEquals("value1", stringConfigurationTuple.f1.getString("arg1", null));
+		Assert.assertEquals("value2", stringConfigurationTuple.f1.getString("arg2", null));
+		Assert.assertEquals(TestReporter1.class.getName(), stringConfigurationTuple.f1.getString("class", null));
 	}
 
 	/**
-	 * Verifies that two reporters can be parse simultaneously with arguments forwarded.
+	 * Verifies that multiple reporters can be configured with all their arguments being forwarded.
 	 */
 	@Test
 	public void testSeveralReportersWithArgumentForwarding() {
-		Configuration config = new Configuration();
+		final Configuration config = new Configuration();
 
-		/* test1 -> TestReporter1  with arg1 and arg2 */
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1.arg1", "hello");
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1.arg2", "world");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg1", "value1");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg2", "value2");
 
-		/* test2 -> TestReporter1  with arg1 and arg3 */
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter2.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2.arg1", "hallo");
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2.arg3", "welt");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter2.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg1", "value1");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg3", "value3");
 
-
-		MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
+		final MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
 
 		Assert.assertEquals(2, metricRegistryConfiguration.getReporterConfigurations().size());
 
-		/* test1 check */
-		Optional<Tuple2<String, Configuration>> test1Config = metricRegistryConfiguration.getReporterConfigurations().stream()
-			.filter(c -> c.f0.equals("test1"))
+		final Optional<Tuple2<String, Configuration>> reporter1Config = metricRegistryConfiguration.getReporterConfigurations().stream()
+			.filter(c -> "reporter1".equals(c.f0))
 			.findFirst();
-		Assert.assertTrue(test1Config.isPresent());
-		Assert.assertEquals("test1", test1Config.get().f0);
-		Assert.assertEquals("hello", test1Config.get().f1.getString("arg1", ""));
-		Assert.assertEquals("world", test1Config.get().f1.getString("arg2", ""));
-		Assert.assertEquals(TestReporter1.class.getName(), test1Config.get().f1.getString("class", AbstractReporter.class.getName()));
+		Assert.assertTrue(reporter1Config.isPresent());
+		Assert.assertEquals("reporter1", reporter1Config.get().f0);
+		Assert.assertEquals("value1", reporter1Config.get().f1.getString("arg1", ""));
+		Assert.assertEquals("value2", reporter1Config.get().f1.getString("arg2", ""));
+		Assert.assertEquals(TestReporter1.class.getName(), reporter1Config.get().f1.getString("class", null));
 
-		/* test2 check */
-		Optional<Tuple2<String, Configuration>> test2Config = metricRegistryConfiguration.getReporterConfigurations().stream()
-			.filter(c -> c.f0.equals("test2"))
+		final Optional<Tuple2<String, Configuration>> reporter2Config = metricRegistryConfiguration.getReporterConfigurations().stream()
+			.filter(c -> "reporter2".equals(c.f0))
 			.findFirst();
-		Assert.assertTrue(test1Config.isPresent());
-		Assert.assertEquals("test2", test2Config.get().f0);
-		Assert.assertEquals("hallo", test2Config.get().f1.getString("arg1", ""));
-		Assert.assertEquals("welt", test2Config.get().f1.getString("arg3", ""));
-		Assert.assertEquals(TestReporter2.class.getName(), test2Config.get().f1.getString("class", AbstractReporter.class.getName()));
+		Assert.assertTrue(reporter1Config.isPresent());
+		Assert.assertEquals("reporter2", reporter2Config.get().f0);
+		Assert.assertEquals("value1", reporter2Config.get().f1.getString("arg1", null));
+		Assert.assertEquals("value3", reporter2Config.get().f1.getString("arg3", null));
+		Assert.assertEquals(TestReporter2.class.getName(), reporter2Config.get().f1.getString("class", null));
 	}
 
 	/**
-	 * Verifies that we can activate only one reporter among two declares in configuration.
+	 * Verifies that {@link MetricOptions#REPORTERS_LIST} is correctly used to filter configured reporters.
 	 */
 	@Test
 	public void testActivateOneReporterAmongTwoDeclared() {
-		Configuration config = new Configuration();
+		final Configuration config = new Configuration();
 
-		/* test1 -> TestReporter1  with arg1 and arg2 */
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1.arg1", "hello");
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1.arg2", "world");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg1", "value1");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg2", "value2");
 
-		/* test2 -> TestReporter1  with arg1 and arg3 */
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter2.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2.arg1", "hallo");
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2.arg3", "welt");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter2.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg1", "value1");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg3", "value3");
 
-		/* select reporter 2 */
-		config.setString(MetricOptions.REPORTERS_LIST, "test2");
+		config.setString(MetricOptions.REPORTERS_LIST, "reporter2");
 
-		MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
+		final MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
 
 		Assert.assertEquals(1, metricRegistryConfiguration.getReporterConfigurations().size());
 
-		Tuple2<String, Configuration> stringConfigurationTuple = metricRegistryConfiguration.getReporterConfigurations().get(0);
-		Assert.assertEquals("test2", stringConfigurationTuple.f0);
+		final Tuple2<String, Configuration> stringConfigurationTuple = metricRegistryConfiguration.getReporterConfigurations().get(0);
+		Assert.assertEquals("reporter2", stringConfigurationTuple.f0);
+		Assert.assertEquals("reporter2", stringConfigurationTuple.f0);
+		Assert.assertEquals("value1", stringConfigurationTuple.f1.getString("arg1", null));
+		Assert.assertEquals("value3", stringConfigurationTuple.f1.getString("arg3", null));
+		Assert.assertEquals(TestReporter2.class.getName(), stringConfigurationTuple.f1.getString("class", null));
 	}
 }
