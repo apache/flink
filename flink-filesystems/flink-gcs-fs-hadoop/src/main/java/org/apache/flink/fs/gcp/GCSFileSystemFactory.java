@@ -18,97 +18,34 @@
 
 package org.apache.flink.fs.gcp;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
+
 import java.io.IOException;
 import java.net.URI;
-import java.util.Collections;
-import java.util.Set;
 
 /**
  * Simple factory for the GCS file system.
  */
 public class GCSFileSystemFactory implements FileSystemFactory {
+	//TODO: create private fields for configuration
+
 	@Override
 	public String getScheme() {
-		return "gcs";
+		return "gs";
 	}
 
 	@Override
 	public void configure(Configuration config) {
-
+		//TODO: parse configuration
 	}
 
 	@Override
 	public FileSystem create(URI fsUri) throws IOException {
-		return null;
+		//TODO: inject configuration
+		return new GCSFileSystem(new GoogleHadoopFileSystem());
 	}
-
-	//	private static final Logger LOG = LoggerFactory.getLogger(GCSFileSystemFactory.class);
-//
-//	private static final Set<String> PACKAGE_PREFIXES_TO_SHADE = Collections.singleton("com.amazonaws.");
-//
-//	private static final Set<String> CONFIG_KEYS_TO_SHADE = Collections.singleton("fs.s3a.aws.credentials.provider");
-//
-//	private static final String FLINK_SHADING_PREFIX = "org.apache.flink.fs.s3hadoop.shaded.";
-//
-//	private static final String[] FLINK_CONFIG_PREFIXES = { "s3.", "s3a.", "fs.s3a." };
-//
-//	private static final String[][] MIRRORED_CONFIG_KEYS = {
-//			{ "fs.s3a.access-key", "fs.s3a.access.key" },
-//			{ "fs.s3a.secret-key", "fs.s3a.secret.key" }
-//	};
-//
-//	public GCSFileSystemFactory() {
-//		super("Hadoop s3a file system", createHadoopConfigLoader());
-//	}
-//
-//	@Override
-//	public String getScheme() {
-//		return "s3";
-//	}
-//
-//	@VisibleForTesting
-//	static HadoopConfigLoader createHadoopConfigLoader() {
-//		return new HadoopConfigLoader(FLINK_CONFIG_PREFIXES, MIRRORED_CONFIG_KEYS,
-//			"fs.s3a.", PACKAGE_PREFIXES_TO_SHADE, CONFIG_KEYS_TO_SHADE, FLINK_SHADING_PREFIX);
-//	}
-//
-//	@Override
-//	protected FileSystem createHadoopFileSystem() {
-//		return new S3AFileSystem();
-//	}
-//
-//	@Override
-//	protected URI getInitURI(URI fsUri, org.apache.hadoop.conf.Configuration hadoopConfig) {
-//		final String scheme = fsUri.getScheme();
-//		final String authority = fsUri.getAuthority();
-//
-//		if (scheme == null && authority == null) {
-//			fsUri = FileSystem.getDefaultUri(hadoopConfig);
-//		}
-//		else if (scheme != null && authority == null) {
-//			URI defaultUri = FileSystem.getDefaultUri(hadoopConfig);
-//			if (scheme.equals(defaultUri.getScheme()) && defaultUri.getAuthority() != null) {
-//				fsUri = defaultUri;
-//			}
-//		}
-//
-//		LOG.debug("Using scheme {} for s3a file system backing the S3 File System", fsUri);
-//
-//		return fsUri;
-//	}
-//
-//	@Nullable
-//	@Override
-//	protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
-//		final S3AFileSystem s3Afs = (S3AFileSystem) fs;
-//		return new HadoopS3AccessHelper(s3Afs, s3Afs.getConf());
-//	}
 }
