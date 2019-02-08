@@ -99,12 +99,12 @@ public class ClientTest extends TestLogger {
 	 */
 	@Test
 	public void testDetachedMode() throws Exception{
-		final ClusterClient<?> out = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
-		out.setDetached(true);
+		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
+		clusterClient.setDetached(true);
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestExecuteTwice.class);
-			out.run(prg, 1);
+			clusterClient.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -114,7 +114,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestEager.class);
-			out.run(prg, 1);
+			clusterClient.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -124,7 +124,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetRuntime.class);
-			out.run(prg, 1);
+			clusterClient.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -134,7 +134,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetJobID.class);
-			out.run(prg, 1);
+			clusterClient.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -144,7 +144,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetAccumulator.class);
-			out.run(prg, 1);
+			clusterClient.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -154,7 +154,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetAllAccumulator.class);
-			out.run(prg, 1);
+			clusterClient.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -168,9 +168,9 @@ public class ClientTest extends TestLogger {
 	 */
 	@Test
 	public void shouldSubmitToJobClient() throws Exception {
-		final ClusterClient<?> out = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
-		out.setDetached(true);
-		JobSubmissionResult result = out.run(program.getPlanWithJars(), 1);
+		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
+		clusterClient.setDetached(true);
+		JobSubmissionResult result = clusterClient.run(program.getPlanWithJars(), 1);
 
 		assertNotNull(result);
 
