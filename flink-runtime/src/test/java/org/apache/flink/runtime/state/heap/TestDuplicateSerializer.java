@@ -104,11 +104,6 @@ public class TestDuplicateSerializer extends TypeSerializer<Integer> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof TestDuplicateSerializer;
-	}
-
-	@Override
 	public int hashCode() {
 		return getClass().hashCode();
 	}

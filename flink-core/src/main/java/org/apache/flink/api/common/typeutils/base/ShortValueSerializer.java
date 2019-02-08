@@ -82,11 +82,6 @@ public final class ShortValueSerializer extends TypeSerializerSingleton<ShortVal
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof ShortValueSerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<ShortValue> snapshotConfiguration() {
 		return new ShortValueSerializerSnapshot();
 	}

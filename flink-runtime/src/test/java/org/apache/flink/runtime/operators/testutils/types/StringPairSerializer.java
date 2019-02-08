@@ -88,17 +88,6 @@ public class StringPairSerializer extends TypeSerializer<StringPair> {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof StringPairSerializer) {
-			StringPairSerializer other = (StringPairSerializer) obj;
-
-			return other.canEqual(this);
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
 		return obj instanceof StringPairSerializer;
 	}
 

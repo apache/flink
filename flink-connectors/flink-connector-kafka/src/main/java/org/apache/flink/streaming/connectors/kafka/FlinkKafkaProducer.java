@@ -1234,11 +1234,6 @@ public class FlinkKafkaProducer<IN>
 			target.writeShort(source.readShort());
 		}
 
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof FlinkKafkaProducer.TransactionStateSerializer;
-		}
-
 		// -----------------------------------------------------------------------------------
 
 		@Override
@@ -1332,11 +1327,6 @@ public class FlinkKafkaProducer<IN>
 			for (int i = 0; i < numIds; i++) {
 				target.writeUTF(source.readUTF());
 			}
-		}
-
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof FlinkKafkaProducer.ContextStateSerializer;
 		}
 
 		// -----------------------------------------------------------------------------------

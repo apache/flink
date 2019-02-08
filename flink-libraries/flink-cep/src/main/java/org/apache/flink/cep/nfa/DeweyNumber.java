@@ -262,11 +262,6 @@ public class DeweyNumber implements Serializable {
 			return obj == this || obj.getClass().equals(getClass());
 		}
 
-		@Override
-		public boolean canEqual(Object obj) {
-			return true;
-		}
-
 		// -----------------------------------------------------------------------------------
 
 		@Override

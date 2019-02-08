@@ -123,17 +123,10 @@ public final class CopyableValueSerializer<T extends CopyableValue<T>> extends T
 			@SuppressWarnings("unchecked")
 			CopyableValueSerializer<T> copyableValueSerializer = (CopyableValueSerializer<T>) obj;
 
-			return copyableValueSerializer.canEqual(this) &&
-				valueClass == copyableValueSerializer.valueClass;
-		}
-		else {
+			return valueClass == copyableValueSerializer.valueClass;
+		} else {
 			return false;
 		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof CopyableValueSerializer;
 	}
 
 	// --------------------------------------------------------------------------------------------

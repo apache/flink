@@ -84,11 +84,6 @@ public final class BooleanValueSerializer extends TypeSerializerSingleton<Boolea
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof BooleanValueSerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<BooleanValue> snapshotConfiguration() {
 		return new BooleanValueSerializerSnapshot();
 	}

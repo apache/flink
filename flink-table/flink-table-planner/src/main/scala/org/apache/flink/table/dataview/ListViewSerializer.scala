@@ -69,11 +69,9 @@ class ListViewSerializer[T](val listSerializer: TypeSerializer[java.util.List[T]
   override def copy(source: DataInputView, target: DataOutputView): Unit =
     listSerializer.copy(source, target)
 
-  override def canEqual(obj: scala.Any): Boolean = obj != null && obj.getClass == getClass
-
   override def hashCode(): Int = listSerializer.hashCode()
 
-  override def equals(obj: Any): Boolean = canEqual(this) &&
+  override def equals(obj: Any): Boolean =
     listSerializer.equals(obj.asInstanceOf[ListViewSerializer[_]].listSerializer)
 
   override def snapshotConfiguration(): ListViewSerializerSnapshot[T] =

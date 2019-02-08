@@ -87,13 +87,9 @@ class TrySerializer[A](
   override def equals(obj: Any): Boolean = {
     obj match {
       case other: TrySerializer[_] =>
-        other.canEqual(this) && elemSerializer.equals(other.elemSerializer)
+        elemSerializer.equals(other.elemSerializer)
       case _ => false
     }
-  }
-
-  override def canEqual(obj: Any): Boolean = {
-    obj.isInstanceOf[TrySerializer[_]]
   }
 
   override def hashCode(): Int = {

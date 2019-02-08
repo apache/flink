@@ -70,11 +70,9 @@ class MapViewSerializer[K, V](val mapSerializer: TypeSerializer[java.util.Map[K,
   override def copy(source: DataInputView, target: DataOutputView): Unit =
     mapSerializer.copy(source, target)
 
-  override def canEqual(obj: Any): Boolean = obj != null && obj.getClass == getClass
-
   override def hashCode(): Int = mapSerializer.hashCode()
 
-  override def equals(obj: Any): Boolean = canEqual(this) &&
+  override def equals(obj: Any): Boolean =
     mapSerializer.equals(obj.asInstanceOf[MapViewSerializer[_, _]].mapSerializer)
 
   override def snapshotConfiguration(): MapViewSerializerSnapshot[K, V] =

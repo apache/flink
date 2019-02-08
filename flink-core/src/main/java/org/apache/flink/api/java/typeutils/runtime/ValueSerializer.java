@@ -160,15 +160,10 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 		if (obj instanceof ValueSerializer) {
 			ValueSerializer<?> other = (ValueSerializer<?>) obj;
 
-			return other.canEqual(this) && type == other.type;
+			return type == other.type;
 		} else {
 			return false;
 		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof ValueSerializer;
 	}
 
 	// --------------------------------------------------------------------------------------------

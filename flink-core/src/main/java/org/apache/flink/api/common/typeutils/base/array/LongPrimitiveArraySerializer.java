@@ -105,11 +105,6 @@ public final class LongPrimitiveArraySerializer extends TypeSerializerSingleton<
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof LongPrimitiveArraySerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<long[]> snapshotConfiguration() {
 		return new LongPrimitiveArraySerializerSnapshot();
 	}

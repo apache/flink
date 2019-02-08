@@ -186,11 +186,6 @@ public class TimeWindow extends Window {
 			target.writeLong(source.readLong());
 		}
 
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof Serializer;
-		}
-
 		// ------------------------------------------------------------------------
 
 		@Override

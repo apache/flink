@@ -911,11 +911,6 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof CustomVoidNamespaceSerializer;
-		}
-
-		@Override
 		public boolean equals(Object obj) {
 			return obj instanceof CustomVoidNamespaceSerializer;
 		}

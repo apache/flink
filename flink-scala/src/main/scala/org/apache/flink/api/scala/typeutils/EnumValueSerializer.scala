@@ -62,17 +62,13 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
   override def equals(obj: Any): Boolean = {
     obj match {
       case enumValueSerializer: EnumValueSerializer[_] =>
-        enumValueSerializer.canEqual(this) && enum == enumValueSerializer.enum
+        enum == enumValueSerializer.enum
       case _ => false
     }
   }
 
   override def hashCode(): Int = {
     enum.hashCode()
-  }
-
-  override def canEqual(obj: scala.Any): Boolean = {
-    obj.isInstanceOf[EnumValueSerializer[_]]
   }
 
   // --------------------------------------------------------------------------------------------

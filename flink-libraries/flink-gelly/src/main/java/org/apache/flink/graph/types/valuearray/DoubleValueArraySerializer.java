@@ -81,11 +81,6 @@ public final class DoubleValueArraySerializer extends TypeSerializerSingleton<Do
 		DoubleValueArray.copyInternal(source, target);
 	}
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof DoubleValueArraySerializer;
-	}
-
 	// -----------------------------------------------------------------------------------
 
 	@Override

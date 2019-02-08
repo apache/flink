@@ -461,11 +461,6 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			return obj.getClass().equals(BufferEntrySerializer.class);
-		}
-
-		@Override
 		public TypeSerializerSnapshot<BufferEntry<T>> snapshotConfiguration() {
 			return new BufferEntrySerializerSnapshot<>(this);
 		}

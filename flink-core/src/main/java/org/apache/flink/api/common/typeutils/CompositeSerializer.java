@@ -190,18 +190,9 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 	@SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
 	@Override
 	public boolean equals(Object obj) {
-		if (canEqual(obj)) {
-			CompositeSerializer<?> other = (CompositeSerializer<?>) obj;
-			return precomputed.immutable == other.precomputed.immutable
-				&& Arrays.equals(fieldSerializers, other.fieldSerializers);
-		}
-		return false;
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		// as this is an abstract class, we allow equality only between instances of the same class
-		return obj != null && getClass().equals(obj.getClass());
+		CompositeSerializer<?> other = (CompositeSerializer<?>) obj;
+		return precomputed.immutable == other.precomputed.immutable
+			&& Arrays.equals(fieldSerializers, other.fieldSerializers);
 	}
 
 	@Override

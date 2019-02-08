@@ -330,15 +330,6 @@ public class OperatorStateBackendTest {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (obj instanceof VerifyingIntSerializer) {
-				return ((VerifyingIntSerializer)obj).canEqual(this);
-			} else {
-				return false;
-			}
-		}
-
-		@Override
-		public boolean canEqual(Object obj) {
 			return obj instanceof VerifyingIntSerializer;
 		}
 
