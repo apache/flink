@@ -1,0 +1,205 @@
+flink-oos-fs-hadoop
+Copyright 2014-2018 The Apache Software Foundation
+
+This project includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.aliyun.oss:aliyun-sdk-oss:3.1.0
+- com.aliyun:aliyun-java-sdk-core:3.4.0
+- com.aliyun:aliyun-java-sdk-ecs:4.2.0
+- com.aliyun:aliyun-java-sdk-ram:3.0.0
+- com.aliyun:aliyun-java-sdk-sts:3.0.0
+- com.fasterxml.jackson.core:jackson-annotations:2.7.0
+- com.fasterxml.jackson.core:jackson-core:2.7.8
+- com.fasterxml.jackson.core:jackson-databind:2.7.8
+- com.fasterxml.woodstox:woodstox-core:5.0.3
+- com.github.stephenc.jcip:jcip-annotations:1.0-1
+- com.google.code.gson:gson:2.2.4
+- com.google.guava:guava:11.0.2
+- com.nimbusds:nimbus-jose-jwt:4.41.1
+- commons-beanutils:commons-beanutils:1.9.3
+- commons-cli:commons-cli:1.3.1
+- commons-codec:commons-codec:1.10
+- commons-collections:commons-collections:3.2.2
+- commons-io:commons-io:2.4
+- commons-lang:commons-lang:2.6
+- commons-logging:commons-logging:1.1.3
+- commons-net:commons-net:3.6
+- net.bytebuddy:byte-buddy-agent:1.8.15
+- net.bytebuddy:byte-buddy:1.8.15
+- net.minidev:accessors-smart:1.2
+- net.minidev:json-smart:2.3
+- org.apache.avro:avro:1.8.2
+- org.apache.commons:commons-compress:1.18
+- org.apache.commons:commons-configuration2:2.1.1
+- org.apache.commons:commons-lang3:3.3.2
+- org.apache.commons:commons-math3:3.5
+- org.apache.curator:curator-client:2.12.0
+- org.apache.curator:curator-framework:2.12.0
+- org.apache.curator:curator-recipes:2.12.0
+- org.apache.hadoop:hadoop-aliyun:3.1.0
+- org.apache.hadoop:hadoop-annotations:3.1.0
+- org.apache.hadoop:hadoop-auth:3.1.0
+- org.apache.hadoop:hadoop-common:3.1.0
+- org.apache.htrace:htrace-core4:4.1.0-incubating
+- org.apache.httpcomponents:httpclient:4.5.3
+- org.apache.httpcomponents:httpcore:4.4.6
+- org.apache.kerby:kerb-admin:1.0.1
+- org.apache.kerby:kerb-client:1.0.1
+- org.apache.kerby:kerb-common:1.0.1
+- org.apache.kerby:kerb-core:1.0.1
+- org.apache.kerby:kerb-crypto:1.0.1
+- org.apache.kerby:kerb-identity:1.0.1
+- org.apache.kerby:kerb-server:1.0.1
+- org.apache.kerby:kerb-simplekdc:1.0.1
+- org.apache.kerby:kerb-util:1.0.1
+- org.apache.kerby:kerby-asn1:1.0.1
+- org.apache.kerby:kerby-config:1.0.1
+- org.apache.kerby:kerby-pkix:1.0.1
+- org.apache.kerby:kerby-util:1.0.1
+- org.apache.kerby:kerby-xdr:1.0.1
+- org.apache.kerby:token-provider:1.0.1
+- org.apache.zookeeper:zookeeper:3.4.10
+- org.codehaus.jackson:jackson-core-asl:1.8.3
+- org.codehaus.jackson:jackson-jaxrs:1.8.3
+- org.codehaus.jackson:jackson-mapper-asl:1.8.3
+- org.codehaus.jackson:jackson-xc:1.8.3
+- org.codehaus.jettison:jettison:1.1
+- org.eclipse.jetty:jetty-http:9.3.19.v20170502
+- org.eclipse.jetty:jetty-io:9.3.19.v20170502
+- org.eclipse.jetty:jetty-security:9.3.19.v20170502
+- org.eclipse.jetty:jetty-server:9.3.19.v20170502
+- org.eclipse.jetty:jetty-servlet:9.3.19.v20170502
+- org.eclipse.jetty:jetty-util:9.3.19.v20170502
+- org.eclipse.jetty:jetty-webapp:9.3.19.v20170502
+- org.eclipse.jetty:jetty-xml:9.3.19.v20170502
+- org.javassist:javassist:3.19.0-GA
+- org.xerial.snappy:snappy-java:1.1.4
+
+This project bundles the following dependencies under the BSD license.
+See bundled license files for details.
+
+- com.google.protobuf:protobuf-java:2.5.0
+- com.jcraft:jsch:0.1.54
+- com.thoughtworks.paranamer:paranamer:2.7
+- org.codehaus.woodstox:stax2-api:3.1.4
+- org.ow2.asm:asm:5.0.4
+
+This project bundles the following dependencies under the Common Development and Distribution License (CDDL) 1.0.
+See bundled license files for details.
+
+- javax.activation:activation:1.1
+- javax.ws.rs:jsr311-api:1.1.1
+- javax.xml.stream:stax-api:1.0-2
+- stax:stax-api:1.0.1
+
+This project bundles the following dependencies under the Common Development and Distribution License (CDDL) 1.1.
+See bundled license files for details.
+
+- com.sun.jersey:jersey-core:1.19
+- com.sun.jersey:jersey-json:1.9
+- com.sun.jersey:jersey-server:1.19
+- com.sun.jersey:jersey-servlet:1.19
+- com.sun.xml.bind:jaxb-impl:2.2.3-1
+- javax.servlet.jsp:jsp-api:2.1
+- javax.servlet:javax.servlet-api:3.1.0
+- javax.xml.bind:jaxb-api:2.2.2
+
+This project bundles the following dependencies under the MIT/X11 license.
+See bundled license files for details.
+
+- org.slf4j:slf4j-log4j12:1.7.15
+
+This project bundles the following dependencies under the Go License (https://golang.org/LICENSE).
+See bundled license files for details.
+
+- com.google.re2j:re2j:1.1
+
+ Copyright (C) 2000-2004 Jason Hunter & Brett McLaughlin.
+ All rights reserved.
+
+This project bundles the following dependencies under the following license.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+
+ 1. Redistributions of source code must retain the above copyright
+    notice, this list of conditions, and the following disclaimer.
+
+ 2. Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions, and the disclaimer that follows
+    these conditions in the documentation and/or other materials
+    provided with the distribution.
+
+ 3. The name "JDOM" must not be used to endorse or promote products
+    derived from this software without prior written permission.  For
+    written permission, please contact <request_AT_jdom_DOT_org>.
+
+ 4. Products derived from this software may not be called "JDOM", nor
+    may "JDOM" appear in their name, without prior written permission
+    from the JDOM Project Management <request_AT_jdom_DOT_org>.
+
+ In addition, we request (but do not require) that you include in the
+ end-user documentation provided with the redistribution and/or in the
+ software itself an acknowledgement equivalent to the following:
+     "This product includes software developed by the
+      JDOM Project (http://www.jdom.org/)."
+ Alternatively, the acknowledgment may be graphical using the logos
+ available at http://www.jdom.org/images/logos.
+
+ THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+ WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED.  IN NO EVENT SHALL THE JDOM AUTHORS OR THE PROJECT
+ CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ SUCH DAMAGE.
+
+ This software consists of voluntary contributions made by many
+ individuals on behalf of the JDOM Project and was originally
+ created by Jason Hunter <jhunter_AT_jdom_DOT_org> and
+ Brett McLaughlin <brett_AT_jdom_DOT_org>.  For more information
+ on the JDOM Project, please see <http://www.jdom.org/>.
+
+- org.jdom:jdom:1.1
+
+This project bundles the following dependencies under the following license.
+
+Copyright (c) 2002 JSON.org
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+The Software shall be used for Good, not Evil.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+- org.json:json:20170516
+
+This project bundles org.tukaani:xz:1.5.
+This Java implementation of XZ has been put into the public domain, thus you can do
+whatever you want with it. All the files in the package have been written by Lasse Collin,
+but some files are heavily based on public domain code written by Igor Pavlov.
+
+
