@@ -19,10 +19,8 @@
 package org.apache.flink.formats.parquet;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
@@ -40,9 +38,8 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -63,15 +60,9 @@ public class ParquetPojoInputFormatTest {
 		MessageType messageType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
 		Path path = TestUtil.createTempParquetFile(temp, TestUtil.SIMPLE_SCHEMA, Collections.singletonList(simple.f1));
 
-		List<PojoField> fieldList = new ArrayList<>();
-		fieldList.add(new PojoField(PojoSimpleRecord.class.getField("foo"), BasicTypeInfo.LONG_TYPE_INFO));
-		fieldList.add(new PojoField(PojoSimpleRecord.class.getField("bar"), BasicTypeInfo.STRING_TYPE_INFO));
-		fieldList.add(new PojoField(PojoSimpleRecord.class.getField("arr"),
-			BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO));
-
 		ParquetPojoInputFormat<PojoSimpleRecord> pojoInputFormat =
-			new ParquetPojoInputFormat<PojoSimpleRecord>(path, messageType, new PojoTypeInfo<PojoSimpleRecord>(
-				PojoSimpleRecord.class, fieldList));
+			new ParquetPojoInputFormat<PojoSimpleRecord>(path, messageType,
+				(PojoTypeInfo<PojoSimpleRecord>) Types.POJO(PojoSimpleRecord.class));
 
 		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
 		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
@@ -88,4 +79,31 @@ public class ParquetPojoInputFormatTest {
 		assertArrayEquals((Long[]) simple.f2.getField(2), simpleRecord.getArr());
 	}
 
+	@Test
+	public void testProjectedReadPojoFromSimpleRecord() throws IOException, NoSuchFieldError {
+		temp.create();
+		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> simple = TestUtil.getSimpleRecordTestData();
+		MessageType messageType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
+		Path path = TestUtil.createTempParquetFile(temp, TestUtil.SIMPLE_SCHEMA, Collections.singletonList(simple.f1));
+
+		ParquetPojoInputFormat<PojoSimpleRecord> pojoInputFormat =
+			new ParquetPojoInputFormat<PojoSimpleRecord>(path, messageType,
+				(PojoTypeInfo<PojoSimpleRecord>) Types.POJO(PojoSimpleRecord.class));
+
+		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
+		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
+			.when(mockContext).getMetricGroup();
+		pojoInputFormat.setRuntimeContext(mockContext);
+
+		FileInputSplit[] splits = pojoInputFormat.createInputSplits(1);
+		assertEquals(1, splits.length);
+
+		pojoInputFormat.selectFields(Arrays.asList("foo").toArray(new String[0]));
+		pojoInputFormat.open(splits[0]);
+
+		PojoSimpleRecord simpleRecord = pojoInputFormat.nextRecord(null);
+		assertEquals(simple.f2.getField(0), simpleRecord.getFoo());
+		assertEquals("", simpleRecord.getBar());
+		assertArrayEquals(new Long[0], simpleRecord.getArr());
+	}
 }

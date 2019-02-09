@@ -35,6 +35,7 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -71,10 +72,12 @@ public class ParquetMapInputFormatTest {
 
 		Map map = mapInputFormat.nextRecord(null);
 		assertNotNull(map);
+		assertEquals(5, map.size());
 		assertArrayEquals((Long[]) map.get("arr"), (Long[]) nested.f2.getField(3));
 		assertArrayEquals((String[]) map.get("strArray"), (String[]) nested.f2.getField(4));
 
 		Map<String, String> mapItem = (Map<String, String>) ((Map) map.get("nestedMap")).get("mapItem");
+		assertEquals(2, mapItem.size());
 		assertEquals("map", mapItem.get("type"));
 		assertEquals("hashMap", mapItem.get("value"));
 
@@ -83,5 +86,33 @@ public class ParquetMapInputFormatTest {
 		assertEquals(1, nestedArray.size());
 		assertEquals("color", nestedArray.get(0).get("type"));
 		assertEquals("yellow", nestedArray.get(0).get("value"));
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	public void testProjectedReadMapFromNestedRecord() throws IOException {
+		temp.create();
+		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
+		Path path = TestUtil.createTempParquetFile(temp, TestUtil.NESTED_SCHEMA, Collections.singletonList(nested.f1));
+		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
+		ParquetMapInputFormat mapInputFormat = new ParquetMapInputFormat(path, nestedType);
+		mapInputFormat.selectFields(Arrays.asList("nestedMap").toArray(new String[0]));
+
+		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
+		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
+			.when(mockContext).getMetricGroup();
+		mapInputFormat.setRuntimeContext(mockContext);
+		FileInputSplit[] splits = mapInputFormat.createInputSplits(1);
+		assertEquals(1, splits.length);
+		mapInputFormat.open(splits[0]);
+
+		Map map = mapInputFormat.nextRecord(null);
+		assertNotNull(map);
+		assertEquals(1, map.size());
+
+		Map<String, String> mapItem = (Map<String, String>) ((Map) map.get("nestedMap")).get("mapItem");
+		assertEquals(2, mapItem.size());
+		assertEquals("map", mapItem.get("type"));
+		assertEquals("hashMap", mapItem.get("value"));
 	}
 }

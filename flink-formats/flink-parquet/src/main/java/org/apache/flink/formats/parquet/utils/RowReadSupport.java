@@ -49,6 +49,6 @@ public class RowReadSupport extends ReadSupport<Row> {
 	public RecordMaterializer<Row> prepareForRead(
 		Configuration configuration, Map<String, String> keyValueMetaData,
 		MessageType fileSchema, ReadContext readContext) {
-		return new RowMaterializer(fileSchema, returnTypeInfo);
+		return new RowMaterializer(readContext.getRequestedSchema(), returnTypeInfo);
 	}
 }

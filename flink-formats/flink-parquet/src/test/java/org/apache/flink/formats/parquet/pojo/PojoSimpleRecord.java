@@ -22,11 +22,9 @@ package org.apache.flink.formats.parquet.pojo;
  * Simple POJO class for testing ParquetPojoInputFormat.
  */
 public class PojoSimpleRecord {
-	public Long foo;
-	public String bar;
-	public Long[] arr;
-
-	public PojoSimpleRecord() { }
+	public Long foo = null;
+	public String bar = null;
+	public Long[] arr = null;
 
 	public Long getFoo() {
 		return foo;

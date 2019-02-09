@@ -154,7 +154,28 @@ public class ParquetRowInputFormatTest {
 	}
 
 	@Test
-	public void testProjection() throws Exception {
+	public void testProjectedRowFromNesterRecord() throws Exception {
+		temp.create();
+		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
+		Path path = TestUtil.createTempParquetFile(temp, TestUtil.NESTED_SCHEMA, Collections.singletonList(nested.f1));
+		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
+
+		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(path, nestedType);
+		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
+		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
+			.when(mockContext).getMetricGroup();
+		rowInputFormat.setRuntimeContext(mockContext);
+		rowInputFormat.selectFields(Arrays.asList("bar", "nestedMap").toArray(new String[0]));
+
+		FileInputSplit[] splits = rowInputFormat.createInputSplits(1);
+		assertEquals(1, splits.length);
+		rowInputFormat.open(splits[0]);
+
+		Row row = rowInputFormat.nextRecord(null);
+		assertNotNull(row);
+		assertEquals(2, row.getArity());
+		assertEquals(nested.f2.getField(2), row.getField(0));
+		assertEquals(nested.f2.getField(5), row.getField(1));
 
 	}
 
