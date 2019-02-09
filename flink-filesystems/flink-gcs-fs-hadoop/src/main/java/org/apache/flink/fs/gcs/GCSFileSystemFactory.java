@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.fs.gcp;
+package org.apache.flink.fs.gcs;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;

@@ -111,18 +111,6 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 
-		<!--&lt;!&ndash; Hadoop's GCS support classes (bundled) &ndash;&gt;-->
-		<!--<dependency>-->
-			<!--<groupId>org.apache.hadoop</groupId>-->
-			<!--<artifactId>hadoop-aws</artifactId>-->
-			<!--<version>${fs.hadoopshaded.version}</version>-->
-			<!--<exclusions>-->
-				<!--<exclusion>-->
-					<!--<groupId>com.amazonaws</groupId>-->
-					<!--<artifactId>aws-java-sdk-bundle</artifactId>-->
-				<!--</exclusion>-->
-			<!--</exclusions>-->
-		<!--</dependency>-->
 	</dependencies>
 
 	<build>
@@ -158,16 +146,16 @@ under the License.
 							</artifactSet>
 							<relocations>
 								<!-- shade dependencies internally used by Hadoop and never exposed downstream -->
-								<relocation>
-									<pattern>org.apache.commons</pattern>
-									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.commons</shadedPattern>
-								</relocation>
+								<!--<relocation>-->
+									<!--<pattern>org.apache.commons</pattern>-->
+									<!--<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.commons</shadedPattern>-->
+								<!--</relocation>-->
 
-								<!-- shade dependencies internally used by GCP and never exposed downstream -->
-								<relocation>
-									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.fs.s3base.shaded.com.google</shadedPattern>
-								</relocation>
+								<!--&lt;!&ndash; shade dependencies internally used by GCP and never exposed downstream &ndash;&gt;-->
+								<!--<relocation>-->
+									<!--<pattern>com.google</pattern>-->
+									<!--<shadedPattern>org.apache.flink.fs.s3base.shaded.com.google</shadedPattern>-->
+								<!--</relocation>-->
 
 								<!-- shade Flink's Hadoop FS adapter classes  -->
 								<relocation>
@@ -176,7 +164,7 @@ under the License.
 								</relocation>
 								<relocation>
 									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.fs.s3base.shaded.com.google</shadedPattern>
+									<shadedPattern>org.apache.flink.fs.gcs.shaded.com.google</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>
