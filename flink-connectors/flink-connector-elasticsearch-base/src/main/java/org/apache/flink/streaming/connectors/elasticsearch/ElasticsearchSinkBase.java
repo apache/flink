@@ -166,7 +166,8 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 	/** Provided to the user via the {@link ElasticsearchSinkFunction} to add {@link ActionRequest ActionRequests}. */
 	private transient RequestIndexer requestIndexer;
 
-	private transient ElasticsearchFailureHandlerIndexer failureRequestIndexer;
+	/** Provided to the {@link ActionRequestFailureHandler} to allow users to re-index failed requests. */
+	private transient BufferingNoOpRequestIndexer failureRequestIndexer;
 
 	// ------------------------------------------------------------------------
 	//  Internals for the Flink Elasticsearch Sink
@@ -298,15 +299,15 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 		client = callBridge.createClient(userConfig);
 		bulkProcessor = buildBulkProcessor(new BulkProcessorListener());
 		requestIndexer = callBridge.createBulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
-		failureRequestIndexer = callBridge.createFailureHandlerIndexer(flushOnCheckpoint, numPendingRequests);
+		failureRequestIndexer = new BufferingNoOpRequestIndexer();
 	}
 
 	@Override
 	public void invoke(T value) throws Exception {
 		// if bulk processor callbacks have previously reported an error, we rethrow the error and fail the sink
 		checkErrorAndRethrow();
-		reindexFailedRequest();
 
+		failureRequestIndexer.processBufferedRequests(requestIndexer);
 		elasticsearchSinkFunction.process(value, getRuntimeContext(), requestIndexer);
 	}
 
@@ -320,10 +321,10 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 		checkErrorAndRethrow();
 
 		if (flushOnCheckpoint) {
-			do {
+			while (numPendingRequests.get() != 0) {
 				bulkProcessor.flush();
 				checkErrorAndRethrow();
-			} while (numPendingRequests.get() != 0);
+			}
 		}
 	}
 
@@ -381,15 +382,6 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 		Throwable cause = failureThrowable.get();
 		if (cause != null) {
 			throw new RuntimeException("An error occurred in ElasticsearchSink.", cause);
-		}
-	}
-
-	private void reindexFailedRequest() {
-		if (failureRequestIndexer.numberOfActions() > 0) {
-			BulkRequest failedRequest = failureRequestIndexer.getBulkRequest();
-			for (ActionRequest request: failedRequest.requests()) {
-				requestIndexer.add(request);
-			}
 		}
 	}
 
