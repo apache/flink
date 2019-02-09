@@ -304,10 +304,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 
 	@Override
 	public void invoke(T value) throws Exception {
-		// if bulk processor callbacks have previously reported an error, we rethrow the error and fail the sink
-		checkErrorAndRethrow();
-
-		failureRequestIndexer.processBufferedRequests(requestIndexer);
+		checkAsyncErrorsAndRequests();
 		elasticsearchSinkFunction.process(value, getRuntimeContext(), requestIndexer);
 	}
 
@@ -318,12 +315,12 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 
 	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		checkErrorAndRethrow();
+		checkAsyncErrorsAndRequests();
 
 		if (flushOnCheckpoint) {
 			while (numPendingRequests.get() != 0) {
 				bulkProcessor.flush();
-				checkErrorAndRethrow();
+				checkAsyncErrorsAndRequests();
 			}
 		}
 	}
@@ -383,6 +380,11 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 		if (cause != null) {
 			throw new RuntimeException("An error occurred in ElasticsearchSink.", cause);
 		}
+	}
+
+	private void checkAsyncErrorsAndRequests() {
+		checkErrorAndRethrow();
+		failureRequestIndexer.processBufferedRequests(requestIndexer);
 	}
 
 	private class BulkProcessorListener implements BulkProcessor.Listener {
