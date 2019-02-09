@@ -1,8 +1,8 @@
-package org.apache.flink.fs.gcp;
+package org.apache.flink.fs.gcs;
 
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.RecoverableWriter;
-import org.apache.flink.fs.gcp.writer.GCSRecoverableWriter;
+import org.apache.flink.fs.gcs.writer.GCSRecoverableWriter;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 
 import java.io.IOException;

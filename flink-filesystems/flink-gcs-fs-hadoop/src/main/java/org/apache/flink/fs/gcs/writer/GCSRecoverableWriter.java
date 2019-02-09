@@ -1,4 +1,4 @@
-package org.apache.flink.fs.gcp.writer;
+package org.apache.flink.fs.gcs.writer;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
