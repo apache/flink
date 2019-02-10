@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.state.{FoldingStateDescriptor, ReducingStateDescriptor, ValueStateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.streaming.api.datastream.{QueryableStateStream, DataStream => JavaStream, KeyedStream => KeyedJavaStream, WindowedStream => WindowedJavaStream}
+import org.apache.flink.streaming.api.datastream.{QueryableStateStream, DataStream => JavaStream, KeyedStream => KeyedJavaStream, SlicedStream => SlicedJavaStream, WindowedStream => WindowedJavaStream}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction
@@ -284,6 +284,39 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   @PublicEvolving
   def window[W <: Window](assigner: WindowAssigner[_ >: T, W]): WindowedStream[T, K, W] = {
     new WindowedStream(new WindowedJavaStream[T, K, W](javaStream, assigner))
+  }
+
+  /**
+    * Slices this [[KeyedStream]] into tumbling time window slices.
+    *
+    * @param size tumbling time window slices.
+    * @return the slice stream.
+    */
+  def timeSlice(size: Time): SlicedStream[T, K, TimeWindow] = {
+    new SlicedStream(javaStream.timeSlice(size))
+  }
+
+  /**
+    * Slices this [[KeyedStream]] into tumbling time window slices with particular offset.
+    *
+    * @param size tumbling time window slices.
+    * @param offset starting offset of the tumbling time window, relative.
+    * @return the slice stream.
+    */
+  def timeSlice(size: Time, offset: Time): SlicedStream[T, K, TimeWindow] = {
+    new SlicedStream(javaStream.timeSlice(size, offset))
+  }
+
+  /**
+    * Slices this data stream into a [[SlicedStream]], which groups each individual element
+    * to zero or one unique window based on it's key and time characteristic.
+    *
+    * @param assigner The `SliceAssigner` that assigns elements to slices.
+    * @return The slice data stream.
+    */
+  @PublicEvolving
+  def slice[W <: Window](assigner: SliceAssigner[_ >: T, W]): SlicedStream[T, K, W] = {
+    new SlicedStream(new SlicedJavaStream[T, K, W](javaStream, assigner))
   }
 
   // ------------------------------------------------------------------------

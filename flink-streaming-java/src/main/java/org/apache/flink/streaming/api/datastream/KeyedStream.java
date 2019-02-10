@@ -56,9 +56,11 @@ import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.streaming.api.windowing.assigners.SliceAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeSlices;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
@@ -671,6 +673,60 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	public <W extends Window> WindowedStream<T, KEY, W> window(WindowAssigner<? super T, W> assigner) {
 		return new WindowedStream<>(this, assigner);
 	}
+
+	// ------------------------------------------------------------------------
+	//  Slicing / Non-overlapping Windowing
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Slices this {@code KeyedStream} to a {@code SlicedStream} using non-overlapping tumble windows.
+	 *
+	 * @param size The size of the window.
+	 */
+	public SlicedStream<T, KEY, TimeWindow> timeSlice(Time size) {
+		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
+			return slice(TumblingProcessingTimeSlices.of(size));
+		} else {
+			return slice(TumblingProcessingTimeSlices.of(size));
+		}
+	}
+
+	/**
+	 * Slices this {@code KeyedStream} to a {@code SlicedStream} with a specific
+	 * offset from the aligned window boundary.
+	 *
+	 * @param size The size of the window.
+	 * @param offset The starting offset of the window, must be strictly less than size.
+	 */
+	public SlicedStream<T, KEY, TimeWindow> timeSlice(Time size, Time offset) {
+		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
+			return slice(TumblingProcessingTimeSlices.of(size, offset));
+		} else {
+			return slice(TumblingProcessingTimeSlices.of(size, offset));
+		}
+	}
+
+	/**
+	 * Similar to windowing, slicing evaluates windows over a key grouped stream.
+	 * Elements are put into windows by a {@link SliceAssigner} that groups elements based on
+	 * key and non-overlapping window.
+	 *
+	 * <p>Unlike windowing, process function applied on a window stream with slice assigner
+	 * transform into a non-overlapping windowed results. Further processing can be done over
+	 * the resulting stream to achieve more complex but efficient windowing operation.
+	 *
+	 * <p>A {@link org.apache.flink.streaming.api.windowing.triggers.Trigger} can be defined to
+	 * specify when slices are evaluated. However, {@code SliceAssigners} have a default
+	 * {@code Trigger} that is used if a {@code Trigger} is not specified.
+	 *
+	 * @param assigner The {@code SliceAssigner} that assigns elements to windows.
+	 * @return The windows data stream that can support further slicing grouping.
+	 */
+	@PublicEvolving
+	public <W extends Window> SlicedStream<T, KEY, W> slice(SliceAssigner<? super T, W> assigner) {
+		return new SlicedStream<>(this, assigner);
+	}
+
 
 	// ------------------------------------------------------------------------
 	//  Non-Windowed aggregation operations

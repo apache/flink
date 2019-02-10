@@ -102,25 +102,25 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class WindowedStream<T, K, W extends Window> {
 
 	/** The keyed data stream that is windowed by this stream. */
-	private final KeyedStream<T, K> input;
+	protected final KeyedStream<T, K> input;
 
 	/** The window assigner. */
-	private final WindowAssigner<? super T, W> windowAssigner;
+	protected final WindowAssigner<? super T, W> windowAssigner;
 
 	/** The trigger that is used for window evaluation/emission. */
-	private Trigger<? super T, ? super W> trigger;
+	protected Trigger<? super T, ? super W> trigger;
 
 	/** The evictor that is used for evicting elements before window evaluation. */
-	private Evictor<? super T, ? super W> evictor;
+	protected Evictor<? super T, ? super W> evictor;
 
 	/** The user-specified allowed lateness. */
-	private long allowedLateness = 0L;
+	protected long allowedLateness = 0L;
 
 	/**
 	 * Side output {@code OutputTag} for late data. If no tag is set late data will simply be
 	 * dropped.
  	 */
-	private OutputTag<T> lateDataOutputTag;
+	protected OutputTag<T> lateDataOutputTag;
 
 	@PublicEvolving
 	public WindowedStream(KeyedStream<T, K> input,
@@ -1303,7 +1303,7 @@ public class WindowedStream<T, K, W extends Window> {
 		return input.transform(opName, resultType, operator);
 	}
 
-	private static String generateFunctionName(Function function) {
+	protected static String generateFunctionName(Function function) {
 		Class<? extends Function> functionClass = function.getClass();
 		if (functionClass.isAnonymousClass()) {
 			// getSimpleName returns an empty String for anonymous classes
