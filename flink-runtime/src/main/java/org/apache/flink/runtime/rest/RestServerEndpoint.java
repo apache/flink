@@ -185,9 +185,6 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 				.channel(NioServerSocketChannel.class)
 				.childHandler(initializer);
 
-			ChannelFuture channel;
-
-			// parse port range definition and create port iterator
 			Iterator<Integer> portsIterator;
 			try {
 				portsIterator = NetUtils.getPortRangeFromString(restBindPortRange);
@@ -201,6 +198,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 			while (portsIterator.hasNext()) {
 				try {
 					chosenPort = portsIterator.next();
+					final ChannelFuture channel;
 					if (restBindAddress == null) {
 						channel = bootstrap.bind(chosenPort);
 					} else {
@@ -208,19 +206,16 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 					}
 					serverChannel = channel.syncUninterruptibly().channel();
 					break;
-				} catch (Exception e) {
-					// we can continue the loop to try follow-up ports if this contains a netty channel exception
-					if (!(e instanceof org.jboss.netty.channel.ChannelException ||
-						e instanceof java.net.BindException)) {
+				} catch (final Exception e) {
+					// continue if the exception is due to the port being in use, fail early otherwise
+					if (!(e instanceof org.jboss.netty.channel.ChannelException || e instanceof java.net.BindException)) {
 						throw e;
-					} // else fall through the loop and try the next port
+					}
 				}
 			}
 
 			if (serverChannel == null) {
-				// if we come here, we have exhausted the port range
-				throw new BindException("Could not start rest server endpoint on any port in port range "
-					+ restBindPortRange);
+				throw new BindException("Could not start rest endpoint on any port in port range " + restBindPortRange);
 			}
 
 			log.debug("Binding rest endpoint to {}:{}.", restBindAddress, chosenPort);

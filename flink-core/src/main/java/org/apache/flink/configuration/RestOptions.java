@@ -45,7 +45,8 @@ public class RestOptions {
 	public static final ConfigOption<String> BIND_PORT =
 		key("rest.bind-port")
 			.defaultValue("8081")
-			.withDeprecatedKeys(REST_PORT_KEY, WebOptions.PORT.key(), ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)
+			.withFallbackKeys(REST_PORT_KEY)
+			.withDeprecatedKeys(WebOptions.PORT.key(), ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)
 			.withDescription("The port that the server binds itself. Accepts a list of ports (“50100,50101”), ranges" +
 				" (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid" +
 				" collisions when multiple Rest servers are running on the same machine.");
