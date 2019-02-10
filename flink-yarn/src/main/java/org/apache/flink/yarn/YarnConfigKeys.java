@@ -36,7 +36,8 @@ public class YarnConfigKeys {
 	public static final String FLINK_JAR_PATH = "_FLINK_JAR_PATH"; // the Flink jar resource location (in HDFS).
 	public static final String FLINK_YARN_FILES = "_FLINK_YARN_FILES"; // the root directory for all yarn application files
 
-	public static final String KEYTAB_PATH = "_KEYTAB_PATH";
+	public static final String REMOTE_KEYTAB_PATH = "_REMOTE_KEYTAB_PATH";
+	public static final String LOCAL_KEYTAB_PATH = "_LOCAL_KEYTAB_PATH";
 	public static final String KEYTAB_PRINCIPAL = "_KEYTAB_PRINCIPAL";
 	public static final String ENV_HADOOP_USER_NAME = "HADOOP_USER_NAME";
 	public static final String ENV_ZOOKEEPER_NAMESPACE = "_ZOOKEEPER_NAMESPACE";

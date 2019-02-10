@@ -29,7 +29,6 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.yarn.Utils;
 import org.apache.flink.yarn.YarnConfigKeys;
 
 import org.apache.hadoop.security.UserGroupInformation;
@@ -49,7 +48,7 @@ public class YarnEntrypointUtils {
 	public static Configuration loadConfiguration(String workingDirectory, Map<String, String> env) {
 		Configuration configuration = GlobalConfiguration.loadConfiguration(workingDirectory);
 
-		final String remoteKeytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
+		final String keytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
 
 		final String zooKeeperNamespace = env.get(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE);
 
@@ -90,16 +89,22 @@ public class YarnEntrypointUtils {
 
 		final String keytabPath;
 
-		if (env.get(YarnConfigKeys.KEYTAB_PATH) == null) {
+		if (env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH) == null) { // keytab not exist
 			keytabPath = null;
 		} else {
-			File f = new File(workingDirectory, Utils.KEYTAB_FILE_NAME);
-			keytabPath = f.getAbsolutePath();
+			File f;
+			f = new File(env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH));
+			if (f.exists()) { // keytab file exist in host environment.
+				keytabPath = f.getAbsolutePath();
+			} else {
+				f = new File(workingDirectory, env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH));
+				keytabPath = f.getAbsolutePath();
+			}
 		}
 
-		if (keytabPath != null && remoteKeytabPrincipal != null) {
+		if (keytabPath != null && keytabPrincipal != null) {
 			configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
-			configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
+			configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, keytabPrincipal);
 		}
 
 		final String localDirs = env.get(ApplicationConstants.Environment.LOCAL_DIRS.key());
