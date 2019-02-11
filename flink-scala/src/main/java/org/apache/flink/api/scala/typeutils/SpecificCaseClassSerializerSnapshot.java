@@ -24,9 +24,13 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.util.Objects;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * {@link TypeSerializerSnapshot} for {@link SpecificCaseClassSerializer}.
@@ -49,13 +53,13 @@ public final class SpecificCaseClassSerializerSnapshot<T extends scala.Product>
 	/**
 	 * Used for delegating schema compatibility checks from serializers that were previously using
 	 * {@code TupleSerializerConfigSnapshot}.
-	 * Type is the {@code outerSnapshot} information, that is required to preform
+	 * Type is the {@code outerSnapshot} information, that is required to perform
 	 * {@link #internalResolveSchemaCompatibility(TypeSerializer, TypeSerializerSnapshot[])}.
 	 */
 	@Internal
 	SpecificCaseClassSerializerSnapshot(Class<T> type) {
 		super(correspondingSerializerClass());
-		this.type = type;
+		this.type = checkNotNull(type, "type can not be NULL");
 	}
 
 	/**
@@ -63,7 +67,7 @@ public final class SpecificCaseClassSerializerSnapshot<T extends scala.Product>
 	 */
 	public SpecificCaseClassSerializerSnapshot(SpecificCaseClassSerializer<T> serializerInstance) {
 		super(serializerInstance);
-		this.type = serializerInstance.getTupleClass();
+		this.type = checkNotNull(serializerInstance.getTupleClass(), "tuple class can not be NULL");
 	}
 
 	@Override
@@ -83,20 +87,13 @@ public final class SpecificCaseClassSerializerSnapshot<T extends scala.Product>
 
 	@Override
 	protected void writeOuterSnapshot(DataOutputView out) throws IOException {
+		checkState(type != null, "type can not be NULL");
 		out.writeUTF(type.getName());
 	}
 
 	@Override
 	protected void readOuterSnapshot(int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		final String className = in.readUTF();
-		try {
-			@SuppressWarnings("unchecked")
-			Class<T> typeClass = (Class<T>) Class.forName(className, false, userCodeClassLoader);
-			this.type = typeClass;
-		}
-		catch (ClassNotFoundException e) {
-			throw new IllegalStateException("Can not find the case class '" + type + "'", e);
-		}
+		this.type = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
 	}
 
 	@Override

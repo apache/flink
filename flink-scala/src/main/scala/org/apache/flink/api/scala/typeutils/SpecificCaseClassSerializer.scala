@@ -30,6 +30,13 @@ import org.apache.flink.api.scala.typeutils.SpecificCaseClassSerializer.lookupCo
 import scala.collection.JavaConverters._
 import scala.reflect.runtime.universe
 
+/**
+  * This is a non macro-generated, concert case class serializer.
+  *
+  * <p>We need this serializer to replace the previously macro generated,
+  * anonymous [[CaseClassSerializer]].
+  */
+@SerialVersionUID(1L)
 class SpecificCaseClassSerializer[T <: Product](
   clazz: Class[T],
   scalaFieldSerializers: Array[TypeSerializer[_]]

@@ -24,11 +24,15 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.scala.package$;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.util.Objects;
 
 import scala.Tuple2;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * {@link TypeSerializerSnapshot} for {@link SpecificCaseClassSerializer}.
@@ -47,12 +51,12 @@ public final class Tuple2CaseClassSerializerSnapshot<T1, T2>
 
 	public Tuple2CaseClassSerializerSnapshot(Class<Tuple2<T1, T2>> tupleClass) {
 		super(correspondingSerializerClass());
-		this.type = tupleClass;
+		this.type = checkNotNull(tupleClass, "tuple class can not be NULL");
 	}
 
 	public Tuple2CaseClassSerializerSnapshot(SpecificCaseClassSerializer<Tuple2<T1, T2>> serializerInstance) {
 		super(serializerInstance);
-		this.type = serializerInstance.getTupleClass();
+		this.type = checkNotNull(serializerInstance.getTupleClass(), "tuple class can not be NULL");
 	}
 
 	@Override
@@ -66,26 +70,22 @@ public final class Tuple2CaseClassSerializerSnapshot<T1, T2>
 	}
 
 	@Override
-	protected SpecificCaseClassSerializer<Tuple2<T1, T2>> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+	protected SpecificCaseClassSerializer<Tuple2<T1, T2>> createOuterSerializerWithNestedSerializers(
+			TypeSerializer<?>[] nestedSerializers) {
+
+		checkState(type != null, "tuple class can not be NULL");
 		return package$.MODULE$.tuple2Serializer(type, nestedSerializers);
 	}
 
 	@Override
 	protected void writeOuterSnapshot(DataOutputView out) throws IOException {
+		checkState(type != null, "tuple class can not be NULL");
 		out.writeUTF(type.getName());
 	}
 
 	@Override
 	protected void readOuterSnapshot(int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		final String className = in.readUTF();
-		try {
-			@SuppressWarnings("unchecked")
-			Class<Tuple2<T1, T2>> typeClass = (Class<Tuple2<T1, T2>>) Class.forName(className, false, userCodeClassLoader);
-			this.type = typeClass;
-		}
-		catch (ClassNotFoundException e) {
-			throw new IllegalStateException("Can not find the case class '" + type + "'", e);
-		}
+		this.type = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
 	}
 
 	@Override
