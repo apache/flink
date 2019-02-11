@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
@@ -52,6 +53,8 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
@@ -66,10 +69,12 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
@@ -158,6 +163,9 @@ public class TaskExecutorTest extends TestLogger {
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
 
+	@Rule
+	public final TestName testName = new TestName();
+
 	private static final Time timeout = Time.milliseconds(10000L);
 
 	private TestingRpcService rpc;
@@ -227,14 +235,77 @@ public class TaskExecutorTest extends TestLogger {
 		testingFatalErrorHandler.rethrowError();
 	}
 
-	@Rule
-	public TestName name = new TestName();
+	@Test
+	public void testShouldShutDownTaskManagerServicesInPostStop() throws Exception {
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService);
+
+		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
+
+		final IOManager ioManager = new IOManagerAsync(tmp.newFolder().getAbsolutePath());
+
+		final TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
+			false,
+			ioManager.getSpillingDirectories(),
+			Executors.directExecutor());
+
+		final MemoryManager memoryManager = new MemoryManager(
+			4096,
+			1,
+			4096,
+			MemoryType.HEAP,
+			false);
+
+		final NetworkEnvironment networkEnvironment = new NetworkEnvironment(
+			1,
+			1,
+			0,
+			0,
+			2,
+			8,
+			true);
+		networkEnvironment.start();
+
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskManagerLocation(taskManagerLocation)
+			.setMemoryManager(memoryManager)
+			.setIoManager(ioManager)
+			.setNetworkEnvironment(networkEnvironment)
+			.setTaskSlotTable(taskSlotTable)
+			.setJobLeaderService(jobLeaderService)
+			.setTaskStateManager(localStateStoresManager)
+			.build();
+
+		final long heartbeatInterval = 1000L;
+		final long heartbeatTimeout = 1000L;
+		final HeartbeatServices heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
+
+		final TaskExecutor taskManager = new TaskExecutor(
+			rpc,
+			taskManagerConfiguration,
+			haServices,
+			taskManagerServices,
+			heartbeatServices,
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			null,
+			dummyBlobCacheService,
+			testingFatalErrorHandler);
+
+		try {
+			taskManager.start();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
+		}
+
+		assertThat(memoryManager.isShutdown(), is(true));
+		assertThat(networkEnvironment.isShutdown(), is(true));
+		assertThat(ioManager.isProperlyShutDown(), is(true));
+	}
 
 	@Test
 	public void testHeartbeatTimeoutWithJobManager() throws Exception {
 		final TaskSlotTable taskSlotTable = new TaskSlotTable(Arrays.asList(ResourceProfile.UNKNOWN), timerService);
 
-		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
+		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 
 		final long heartbeatInterval = 1L;
 		final long heartbeatTimeout = 3L;
@@ -671,7 +742,7 @@ public class TaskExecutorTest extends TestLogger {
 
 		JobInformation jobInformation = new JobInformation(
 				jobId,
-				name.getMethodName(),
+				testName.getMethodName(),
 				new SerializedValue<>(new ExecutionConfig()),
 				new Configuration(),
 				Collections.emptyList(),
@@ -794,7 +865,7 @@ public class TaskExecutorTest extends TestLogger {
 	public void testJobLeaderDetection() throws Exception {
 		final TaskSlotTable taskSlotTable = new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService);
 		final JobManagerTable jobManagerTable = new JobManagerTable();
-		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
+		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 
 		final String resourceManagerAddress = "rm";
 		final ResourceManagerId resourceManagerLeaderId = ResourceManagerId.generate();
@@ -896,7 +967,7 @@ public class TaskExecutorTest extends TestLogger {
 	public void testSlotAcceptance() throws Exception {
 		final TaskSlotTable taskSlotTable = new TaskSlotTable(Arrays.asList(mock(ResourceProfile.class), mock(ResourceProfile.class)), timerService);
 		final JobManagerTable jobManagerTable = new JobManagerTable();
-		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
+		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 
 		final String resourceManagerAddress = "rm";
 		final UUID resourceManagerLeaderId = UUID.randomUUID();
@@ -1002,7 +1073,7 @@ public class TaskExecutorTest extends TestLogger {
 	public void testSubmitTaskBeforeAcceptSlot() throws Exception {
 		final TaskSlotTable taskSlotTable = new TaskSlotTable(Arrays.asList(mock(ResourceProfile.class), mock(ResourceProfile.class)), timerService);
 		final JobManagerTable jobManagerTable = new JobManagerTable();
-		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
+		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 
 		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		resourceManagerLeaderRetriever.notifyListener(resourceManagerGateway.getAddress(), resourceManagerGateway.getFencingToken().toUUID());
@@ -1075,7 +1146,7 @@ public class TaskExecutorTest extends TestLogger {
 
 			JobInformation jobInformation = new JobInformation(
 				jobId,
-				name.getMethodName(),
+				testName.getMethodName(),
 				new SerializedValue<>(new ExecutionConfig()),
 				new Configuration(),
 				Collections.emptyList(),
@@ -1693,6 +1764,74 @@ public class TaskExecutorTest extends TestLogger {
 
 			assertThat(offeredSlotFuture.get(), is(allocationId));
 			assertTrue(taskSlotTable.isSlotFree(1));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
+	/**
+	 * Tests that the TaskExecutor disconnects from the JobMaster if a new leader
+	 * is detected.
+	 */
+	@Test
+	public void testDisconnectFromJobMasterWhenNewLeader() throws Exception {
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskSlotTable(new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService))
+			.build();
+		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices);
+
+		final CompletableFuture<Integer> offeredSlotsFuture = new CompletableFuture<>();
+		final CompletableFuture<ResourceID> disconnectFuture = new CompletableFuture<>();
+		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
+			.setOfferSlotsFunction((resourceID, slotOffers) -> {
+				offeredSlotsFuture.complete(slotOffers.size());
+				return CompletableFuture.completedFuture(slotOffers);
+			})
+			.setDisconnectTaskManagerFunction(
+				resourceID -> {
+					disconnectFuture.complete(resourceID);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				}
+			)
+			.build();
+		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+
+		final CompletableFuture<Void> initialSlotReportFuture = new CompletableFuture<>();
+		resourceManagerGateway.setSendSlotReportFunction(resourceIDInstanceIDSlotReportTuple3 -> {
+			initialSlotReportFuture.complete(null);
+			return CompletableFuture.completedFuture(Acknowledge.get());
+
+		});
+
+		rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
+		rpc.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+
+		try {
+			taskExecutor.start();
+
+			TaskExecutorGateway taskExecutorGateway = taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+
+			resourceManagerLeaderRetriever.notifyListener(resourceManagerGateway.getAddress(), resourceManagerGateway.getFencingToken().toUUID());
+
+			initialSlotReportFuture.get();
+
+			ResourceID resourceID = taskManagerServices.getTaskManagerLocation().getResourceID();
+			taskExecutorGateway.requestSlot(
+				new SlotID(resourceID, 0),
+				jobId,
+				new AllocationID(),
+				"foobar",
+				resourceManagerGateway.getFencingToken(),
+				timeout).get();
+
+			jobManagerLeaderRetriever.notifyListener(jobMasterGateway.getAddress(), UUID.randomUUID());
+
+			assertThat(offeredSlotsFuture.get(), is(1));
+
+			// notify loss of leadership
+			jobManagerLeaderRetriever.notifyListener(null, null);
+
+			assertThat(disconnectFuture.get(), is(resourceID));
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
 		}

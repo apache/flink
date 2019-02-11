@@ -26,6 +26,7 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nonnull;
@@ -40,7 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Component which starts a {@link Dispatcher}, {@link ResourceManager} and {@link WebMonitorEndpoint}
  * in the same process.
  */
-public class DispatcherResourceManagerComponent<T extends Dispatcher> {
+public class DispatcherResourceManagerComponent<T extends Dispatcher> implements AutoCloseableAsync {
 
 	@Nonnull
 	private final T dispatcher;
@@ -105,10 +106,6 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> {
 						shutDownFuture.complete(ApplicationStatus.SUCCEEDED);
 					}
 				});
-	}
-
-	public CompletableFuture<Void> getTerminationFuture() {
-		return terminationFuture;
 	}
 
 	public final CompletableFuture<ApplicationStatus> getShutDownFuture() {
@@ -197,5 +194,10 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> {
 		});
 
 		return terminationFuture;
+	}
+
+	@Override
+	public CompletableFuture<Void> closeAsync() {
+		return deregisterApplicationAndClose(ApplicationStatus.CANCELED, "DispatcherResourceManagerComponent has been closed.");
 	}
 }

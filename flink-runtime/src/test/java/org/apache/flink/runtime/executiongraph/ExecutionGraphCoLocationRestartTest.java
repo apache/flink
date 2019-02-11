@@ -19,10 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
@@ -31,6 +28,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.util.FlinkException;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.function.Predicate;
@@ -49,8 +47,16 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 
 	private static final int NUM_TASKS = 31;
 
+	@ClassRule
+	public static final TestingComponentMainThreadExecutor.Resource EXECUTOR_RESOURCE =
+		new TestingComponentMainThreadExecutor.Resource();
+
+	private final TestingComponentMainThreadExecutor testMainThreadUtil =
+		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
+
 	@Test
 	public void testConstraintsAfterRestart() throws Exception {
+
 		final long timeout = 5000L;
 
 		//setting up
@@ -68,32 +74,44 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(
 			new JobID(),
 			testingSlotProvider,
-			new OneTimeDirectRestartStrategy(),
+			new TestRestartStrategy(
+				1,
+				false),
 			groupVertex,
 			groupVertex2);
 
-
 		// enable the queued scheduling for the slot pool
 		eg.setQueuedSchedulingAllowed(true);
+		eg.start(testMainThreadUtil.getMainThreadExecutor());
 
+		testMainThreadUtil.execute(() -> {
 
-		assertEquals(JobStatus.CREATED, eg.getState());
+			assertEquals(JobStatus.CREATED, eg.getState());
 
-		eg.scheduleForExecution();
+			eg.scheduleForExecution();
+		});
 
 		Predicate<Execution> isDeploying = ExecutionGraphTestUtils.isInExecutionState(ExecutionState.DEPLOYING);
-
 		ExecutionGraphTestUtils.waitForAllExecutionsPredicate(
 			eg,
 			isDeploying,
 			timeout);
 
-		assertEquals(JobStatus.RUNNING, eg.getState());
+		testMainThreadUtil.execute(() -> {
 
-		//sanity checks
-		validateConstraints(eg);
+			assertEquals(JobStatus.RUNNING, eg.getState());
 
-		ExecutionGraphTestUtils.failExecutionGraph(eg, new FlinkException("Test exception"));
+			//sanity checks
+			validateConstraints(eg);
+
+			eg.getAllExecutionVertices().iterator().next().fail(new FlinkException("Test exception"));
+
+			assertEquals(JobStatus.FAILING, eg.getState());
+
+			for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
+				vertex.getCurrentExecutionAttempt().cancelingComplete();
+			}
+		});
 
 		// wait until we have restarted
 		ExecutionGraphTestUtils.waitUntilJobStatus(eg, JobStatus.RUNNING, timeout);
@@ -103,12 +121,15 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 			isDeploying,
 			timeout);
 
-		//checking execution vertex properties
-		validateConstraints(eg);
+		testMainThreadUtil.execute(() -> {
 
-		ExecutionGraphTestUtils.finishAllVertices(eg);
+			//checking execution vertex properties
+			validateConstraints(eg);
 
-		assertThat(eg.getState(), is(FINISHED));
+			ExecutionGraphTestUtils.finishAllVertices(eg);
+
+			assertThat(eg.getState(), is(FINISHED));
+		});
 	}
 
 	private void validateConstraints(ExecutionGraph eg) {
@@ -122,20 +143,5 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 			assertThat(constr1.getLocation(), equalTo(constr2.getLocation()));
 		}
 
-	}
-
-	private static final class OneTimeDirectRestartStrategy implements RestartStrategy {
-		private boolean hasRestarted = false;
-
-		@Override
-		public boolean canRestart() {
-			return !hasRestarted;
-		}
-
-		@Override
-		public void restart(RestartCallback restarter, ScheduledExecutor executor) {
-			hasRestarted = true;
-			restarter.triggerFullRecovery();
-		}
 	}
 }

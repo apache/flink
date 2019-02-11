@@ -143,7 +143,7 @@ public class LocalExecutor extends PlanExecutor {
 		final MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration);
 		miniCluster.start();
 
-		configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
+		configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().get().getPort());
 
 		return miniCluster;
 	}

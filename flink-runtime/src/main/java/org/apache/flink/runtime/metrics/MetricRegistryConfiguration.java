@@ -130,6 +130,7 @@ public class MetricRegistryConfiguration {
 
 		String includedReportersString = configuration.getString(MetricOptions.REPORTERS_LIST, "");
 		Set<String> includedReporters = reporterListPattern.splitAsStream(includedReportersString)
+			.filter(r -> !r.isEmpty()) // splitting an empty string results in an empty string on jdk9+
 			.collect(Collectors.toSet());
 
 		// use a TreeSet to make the reporter order deterministic, which is useful for testing

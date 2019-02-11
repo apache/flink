@@ -243,20 +243,20 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 				timestamp);
 		}
 
+		final Map<KafkaTopicPartition, Long> result = new HashMap<>(partitions.size());
+
 		// use a short-lived consumer to fetch the offsets;
 		// this is ok because this is a one-time operation that happens only on startup
-		KafkaConsumer<?, ?> consumer = new KafkaConsumer(properties);
-
-		Map<KafkaTopicPartition, Long> result = new HashMap<>(partitions.size());
-		for (Map.Entry<TopicPartition, OffsetAndTimestamp> partitionToOffset :
+		try (KafkaConsumer<?, ?> consumer = new KafkaConsumer(properties)) {
+			for (Map.Entry<TopicPartition, OffsetAndTimestamp> partitionToOffset :
 				consumer.offsetsForTimes(partitionOffsetsRequest).entrySet()) {
 
-			result.put(
-				new KafkaTopicPartition(partitionToOffset.getKey().topic(), partitionToOffset.getKey().partition()),
-				(partitionToOffset.getValue() == null) ? null : partitionToOffset.getValue().offset());
+				result.put(
+					new KafkaTopicPartition(partitionToOffset.getKey().topic(), partitionToOffset.getKey().partition()),
+					(partitionToOffset.getValue() == null) ? null : partitionToOffset.getValue().offset());
+			}
 		}
 
-		consumer.close();
 		return result;
 	}
 }

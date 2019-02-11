@@ -58,16 +58,11 @@ import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
-
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -79,12 +74,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.BiConsumer;
 
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Base class for {@code AbstractStreamOperator} test harnesses.
@@ -103,7 +95,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 	protected final TestProcessingTimeService processingTimeService;
 
-	protected final StreamTask<?, ?> mockTask;
+	protected final MockStreamTask mockTask;
 
 	protected final TestTaskStateManager taskStateManager;
 
@@ -194,59 +186,25 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		this.taskStateManager = (TestTaskStateManager) env.getTaskStateManager();
 		this.internalEnvironment = environmentIsInternal ? Optional.of(environment) : Optional.empty();
 
-		mockTask = mock(StreamTask.class);
 		processingTimeService = new TestProcessingTimeService();
 		processingTimeService.setCurrentTime(0);
 
 		this.streamTaskStateInitializer = createStreamTaskStateManager(environment, stateBackend, processingTimeService);
 
-		StreamStatusMaintainer mockStreamStatusMaintainer = new StreamStatusMaintainer() {
-			StreamStatus currentStreamStatus = StreamStatus.ACTIVE;
-
-			@Override
-			public void toggleStreamStatus(StreamStatus streamStatus) {
-				if (!currentStreamStatus.equals(streamStatus)) {
-					currentStreamStatus = streamStatus;
-				}
-			}
-
-			@Override
-			public StreamStatus getStreamStatus() {
-				return currentStreamStatus;
-			}
+		BiConsumer<String, Throwable> handleAsyncException = (message, t) -> {
+			wasFailedExternally = true;
 		};
 
-		when(mockTask.getName()).thenReturn("Mock Task");
-		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
-		when(mockTask.getConfiguration()).thenReturn(config);
-		when(mockTask.getTaskConfiguration()).thenReturn(underlyingConfig);
-		when(mockTask.getEnvironment()).thenReturn(environment);
-		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
-		when(mockTask.createStreamTaskStateInitializer()).thenReturn(streamTaskStateInitializer);
-
-		ClassLoader cl = env.getUserClassLoader();
-		when(mockTask.getUserCodeClassLoader()).thenReturn(cl);
-
-		when(mockTask.getCancelables()).thenReturn(this.closableRegistry);
-		when(mockTask.getStreamStatusMaintainer()).thenReturn(mockStreamStatusMaintainer);
-
-		doAnswer(new Answer<Void>() {
-			@Override
-			public Void answer(InvocationOnMock invocation) throws Throwable {
-				wasFailedExternally = true;
-				return null;
-			}
-		}).when(mockTask).handleAsyncException(any(String.class), any(Throwable.class));
-
-		when(mockTask.getCheckpointStorage()).thenAnswer((invocationOnMock) -> this.checkpointStorage);
-
-		doAnswer(new Answer<ProcessingTimeService>() {
-			@Override
-			public ProcessingTimeService answer(InvocationOnMock invocation) throws Throwable {
-				return processingTimeService;
-			}
-		}).when(mockTask).getProcessingTimeService();
-
+		mockTask = new MockStreamTaskBuilder(env)
+			.setCheckpointLock(checkpointLock)
+			.setConfig(config)
+			.setExecutionConfig(executionConfig)
+			.setStreamTaskStateInitializer(streamTaskStateInitializer)
+			.setClosableRegistry(closableRegistry)
+			.setCheckpointStorage(checkpointStorage)
+			.setProcessingTimeService(processingTimeService)
+			.setHandleAsyncException(handleAsyncException)
+			.build();
 	}
 
 	protected StreamTaskStateInitializer createStreamTaskStateManager(
@@ -319,9 +277,9 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	 */
 	public void setup(TypeSerializer<OUT> outputSerializer) {
 		if (!setupCalled) {
-			this.streamTaskStateInitializer =
+			streamTaskStateInitializer =
 				createStreamTaskStateManager(environment, stateBackend, processingTimeService);
-			when(mockTask.createStreamTaskStateInitializer()).thenReturn(streamTaskStateInitializer);
+			mockTask.setStreamTaskStateInitializer(streamTaskStateInitializer);
 			operator.setup(mockTask, config, new MockOutput(outputSerializer));
 			setupCalled = true;
 		}
@@ -636,4 +594,5 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			// ignore
 		}
 	}
+
 }

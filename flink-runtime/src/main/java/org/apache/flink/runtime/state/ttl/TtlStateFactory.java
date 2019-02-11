@@ -28,7 +28,9 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompositeSerializer;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -126,7 +128,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 	@SuppressWarnings("unchecked")
 	private IS createValueState() throws Exception {
 		ValueStateDescriptor<TtlValue<SV>> ttlDescriptor = new ValueStateDescriptor<>(
-			stateDesc.getName(), new TtlSerializer<>(stateDesc.getSerializer()));
+			stateDesc.getName(), new TtlSerializer<>(LongSerializer.INSTANCE, stateDesc.getSerializer()));
 		return (IS) new TtlValueState<>(createTtlStateContext(ttlDescriptor));
 	}
 
@@ -134,7 +136,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 	private <T> IS createListState() throws Exception {
 		ListStateDescriptor<T> listStateDesc = (ListStateDescriptor<T>) stateDesc;
 		ListStateDescriptor<TtlValue<T>> ttlDescriptor = new ListStateDescriptor<>(
-			stateDesc.getName(), new TtlSerializer<>(listStateDesc.getElementSerializer()));
+			stateDesc.getName(), new TtlSerializer<>(LongSerializer.INSTANCE, listStateDesc.getElementSerializer()));
 		return (IS) new TtlListState<>(createTtlStateContext(ttlDescriptor));
 	}
 
@@ -144,7 +146,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 		MapStateDescriptor<UK, TtlValue<UV>> ttlDescriptor = new MapStateDescriptor<>(
 			stateDesc.getName(),
 			mapStateDesc.getKeySerializer(),
-			new TtlSerializer<>(mapStateDesc.getValueSerializer()));
+			new TtlSerializer<>(LongSerializer.INSTANCE, mapStateDesc.getValueSerializer()));
 		return (IS) new TtlMapState<>(createTtlStateContext(ttlDescriptor));
 	}
 
@@ -154,7 +156,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 		ReducingStateDescriptor<TtlValue<SV>> ttlDescriptor = new ReducingStateDescriptor<>(
 			stateDesc.getName(),
 			new TtlReduceFunction<>(reducingStateDesc.getReduceFunction(), ttlConfig, timeProvider),
-			new TtlSerializer<>(stateDesc.getSerializer()));
+			new TtlSerializer<>(LongSerializer.INSTANCE, stateDesc.getSerializer()));
 		return (IS) new TtlReducingState<>(createTtlStateContext(ttlDescriptor));
 	}
 
@@ -165,7 +167,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 		TtlAggregateFunction<IN, SV, OUT> ttlAggregateFunction = new TtlAggregateFunction<>(
 			aggregatingStateDescriptor.getAggregateFunction(), ttlConfig, timeProvider);
 		AggregatingStateDescriptor<IN, TtlValue<SV>, OUT> ttlDescriptor = new AggregatingStateDescriptor<>(
-			stateDesc.getName(), ttlAggregateFunction, new TtlSerializer<>(stateDesc.getSerializer()));
+			stateDesc.getName(), ttlAggregateFunction, new TtlSerializer<>(LongSerializer.INSTANCE, stateDesc.getSerializer()));
 		return (IS) new TtlAggregatingState<>(createTtlStateContext(ttlDescriptor), ttlAggregateFunction);
 	}
 
@@ -178,7 +180,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 			stateDesc.getName(),
 			ttlInitAcc,
 			new TtlFoldFunction<>(foldingStateDescriptor.getFoldFunction(), ttlConfig, timeProvider, initAcc),
-			new TtlSerializer<>(stateDesc.getSerializer()));
+			new TtlSerializer<>(LongSerializer.INSTANCE, stateDesc.getSerializer()));
 		return (IS) new TtlFoldingState<>(createTtlStateContext(ttlDescriptor));
 	}
 
@@ -237,8 +239,8 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 		private static final long serialVersionUID = 131020282727167064L;
 
 		@SuppressWarnings("WeakerAccess")
-		public TtlSerializer(TypeSerializer<T> userValueSerializer) {
-			super(true, LongSerializer.INSTANCE, userValueSerializer);
+		public TtlSerializer(TypeSerializer<Long> timestampSerializer, TypeSerializer<T> userValueSerializer) {
+			super(true, timestampSerializer, userValueSerializer);
 		}
 
 		@SuppressWarnings("WeakerAccess")
@@ -271,6 +273,62 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 			Preconditions.checkNotNull(originalSerializers);
 			Preconditions.checkArgument(originalSerializers.length == 2);
 			return new TtlSerializer<>(precomputed, originalSerializers);
+		}
+
+		@SuppressWarnings("unchecked")
+		TypeSerializer<Long> getTimestampSerializer() {
+			return (TypeSerializer<Long>) (TypeSerializer<?>) fieldSerializers[0];
+		}
+
+		@SuppressWarnings("unchecked")
+		TypeSerializer<T> getValueSerializer() {
+			return (TypeSerializer<T>) fieldSerializers[1];
+		}
+
+		@Override
+		public TypeSerializerSnapshot<TtlValue<T>> snapshotConfiguration() {
+			return new TtlSerializerSnapshot<>(this);
+		}
+	}
+
+	/**
+	 * A {@link TypeSerializerSnapshot} for TtlSerializer.
+	 */
+	public static final class TtlSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<TtlValue<T>, TtlSerializer<T>> {
+
+		private static final int VERSION = 2;
+
+		@SuppressWarnings({"WeakerAccess", "unused"})
+		public TtlSerializerSnapshot() {
+			super(correspondingSerializerClass());
+		}
+
+		TtlSerializerSnapshot(TtlSerializer<T> serializerInstance) {
+			super(serializerInstance);
+		}
+
+		@Override
+		protected int getCurrentOuterSnapshotVersion() {
+			return VERSION;
+		}
+
+		@Override
+		protected TypeSerializer<?>[] getNestedSerializers(TtlSerializer<T> outerSerializer) {
+			return new TypeSerializer[]{ outerSerializer.getTimestampSerializer(), outerSerializer.getValueSerializer()};
+		}
+
+		@Override
+		@SuppressWarnings("unchecked")
+		protected TtlSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+			TypeSerializer<Long> timestampSerializer = (TypeSerializer<Long>) nestedSerializers[0];
+			TypeSerializer<T> valueSerializer = (TypeSerializer<T>) nestedSerializers[1];
+
+			return new TtlSerializer<>(timestampSerializer, valueSerializer);
+		}
+
+		@SuppressWarnings("unchecked")
+		private static <T> Class<TtlSerializer<T>> correspondingSerializerClass() {
+			return (Class<TtlSerializer<T>>) (Class<?>) TtlSerializer.class;
 		}
 	}
 }

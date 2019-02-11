@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
-import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -51,6 +51,8 @@ import static org.junit.Assert.assertTrue;
  */
 public class ExecutionVertexInputConstraintTest extends TestLogger {
 
+	private TestingComponentMainThreadExecutorServiceAdapter mainThreadExecutor = TestingComponentMainThreadExecutorServiceAdapter.forMainThread();
+
 	@Test
 	public void testInputConsumable() throws Exception {
 		List<JobVertex> vertices = createOrderedVertices();
@@ -60,6 +62,8 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 		ExecutionVertex ev22 = eg.getJobVertex(vertices.get(1).getID()).getTaskVertices()[1];
 		ExecutionVertex ev31 = eg.getJobVertex(vertices.get(2).getID()).getTaskVertices()[0];
 		ExecutionVertex ev32 = eg.getJobVertex(vertices.get(2).getID()).getTaskVertices()[1];
+
+		eg.start(mainThreadExecutor);
 
 		eg.scheduleForExecution();
 
@@ -85,6 +89,7 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 
 		// Inputs not consumable after failover
 		ev11.fail(new Exception());
+
 		waitUntilJobRestarted(eg);
 		assertFalse(ev31.isInputConsumable(0));
 		assertFalse(ev31.isInputConsumable(1));
@@ -99,7 +104,9 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 		ExecutionVertex ev22 = eg.getJobVertex(vertices.get(1).getID()).getTaskVertices()[1];
 		ExecutionVertex ev31 = eg.getJobVertex(vertices.get(2).getID()).getTaskVertices()[0];
 
+		eg.start(mainThreadExecutor);
 		eg.scheduleForExecution();
+
 
 		// Inputs constraint not satisfied on init
 		assertFalse(ev31.checkInputDependencyConstraints());
@@ -112,7 +119,11 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 
 		// Inputs constraint not satisfied after failover
 		ev11.fail(new Exception());
+
+
 		waitUntilJobRestarted(eg);
+
+
 		assertFalse(ev31.checkInputDependencyConstraints());
 
 		// Input2 consumable satisfies the constraint
@@ -121,6 +132,7 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 		ev21.getCurrentExecutionAttempt().markFinished();
 		ev22.getCurrentExecutionAttempt().markFinished();
 		assertTrue(ev31.checkInputDependencyConstraints());
+
 	}
 
 	@Test
@@ -132,7 +144,9 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 		ExecutionVertex ev22 = eg.getJobVertex(vertices.get(1).getID()).getTaskVertices()[1];
 		ExecutionVertex ev31 = eg.getJobVertex(vertices.get(2).getID()).getTaskVertices()[0];
 
+		eg.start(mainThreadExecutor);
 		eg.scheduleForExecution();
+
 
 		// Inputs constraint not satisfied on init
 		assertFalse(ev31.checkInputDependencyConstraints());
@@ -150,7 +164,10 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 
 		// Inputs constraint not satisfied after failover
 		ev11.fail(new Exception());
+
+
 		waitUntilJobRestarted(eg);
+
 		assertFalse(ev31.checkInputDependencyConstraints());
 	}
 
@@ -188,7 +205,7 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			AkkaUtils.getDefaultTimeout(),
-			new FixedDelayRestartStrategy(1, 0),
+			TestRestartStrategy.directExecuting(),
 			new RestartAllStrategy.Factory(),
 			slotProvider);
 		eg.attachJobGraph(orderedVertices);
@@ -209,6 +226,7 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 				ev.getCurrentExecutionAttempt().cancelingComplete();
 			}
 		}
+
 		waitUntilJobStatus(eg, JobStatus.RUNNING, 2000L);
 	}
 }

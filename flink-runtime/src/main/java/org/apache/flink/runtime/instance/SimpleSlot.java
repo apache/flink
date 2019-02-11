@@ -224,7 +224,7 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 
 			if (payload != null) {
 				// trigger the failure of the slot payload
-				payload.fail(cause != null ? cause : new FlinkException("TaskManager was lost/killed: " + getTaskManagerLocation()));
+				payload.failSync(cause != null ? cause : new FlinkException("TaskManager was lost/killed: " + getTaskManagerLocation()));
 
 				// wait for the termination of the payload before releasing the slot
 				terminationFuture = payload.getTerminalStateFuture();

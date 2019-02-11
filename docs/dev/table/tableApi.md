@@ -46,7 +46,7 @@ The Java Table API is enabled by importing `org.apache.flink.table.api.java.*`. 
 {% highlight java %}
 // environment configuration
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-BatchTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
+BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
 // register Orders table in table environment
 // ...
@@ -77,7 +77,7 @@ import org.apache.flink.table.api.scala._
 
 // environment configuration
 val env = ExecutionEnvironment.getExecutionEnvironment
-val tEnv = TableEnvironment.getTableEnvironment(env)
+val tEnv = BatchTableEnvironment.create(env)
 
 // register Orders table in table environment
 // ...
@@ -642,7 +642,7 @@ tableEnv.registerFunction("split", split);
 // join
 Table orders = tableEnv.scan("Orders");
 Table result = orders
-    .join(new Table(tableEnv, "split(c)").as("s", "t", "v"))
+    .joinLateral("split(c).as(s, t, v)")
     .select("a, b, s, t, v");
 {% endhighlight %}
       </td>
@@ -663,7 +663,7 @@ tableEnv.registerFunction("split", split);
 // join
 Table orders = tableEnv.scan("Orders");
 Table result = orders
-    .leftOuterJoin(new Table(tableEnv, "split(c)").as("s", "t", "v"))
+    .leftOuterJoinLateral("split(c).as(s, t, v)")
     .select("a, b, s, t, v");
 {% endhighlight %}
       </td>
@@ -691,7 +691,7 @@ tableEnv.registerFunction("rates", rates);
 // join with "Orders" based on the time attribute and key
 Table orders = tableEnv.scan("Orders");
 Table result = orders
-    .join(new Table(tEnv, "rates(o_proctime)"), "o_currency = r_currency")
+    .joinLateral("rates(o_proctime)", "o_currency = r_currency")
 {% endhighlight %}
         <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">temporal tables concept description</a>.</p>
       </td>
@@ -788,7 +788,7 @@ val split: TableFunction[_] = new MySplitUDTF()
 
 // join
 val result: Table = table
-    .join(split('c) as ('s, 't, 'v))
+    .joinLateral(split('c) as ('s, 't, 'v))
     .select('a, 'b, 's, 't, 'v)
 {% endhighlight %}
         </td>
@@ -806,7 +806,7 @@ val split: TableFunction[_] = new MySplitUDTF()
 
 // join
 val result: Table = table
-    .leftOuterJoin(split('c) as ('s, 't, 'v))
+    .leftOuterJoinLateral(split('c) as ('s, 't, 'v))
     .select('a, 'b, 's, 't, 'v)
 {% endhighlight %}
       </td>

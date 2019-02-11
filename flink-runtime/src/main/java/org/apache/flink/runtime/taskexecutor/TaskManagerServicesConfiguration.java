@@ -32,6 +32,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.NetUtils;
@@ -40,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
@@ -87,6 +89,8 @@ public class TaskManagerServicesConfiguration {
 
 	private final boolean localRecoveryEnabled;
 
+	private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
+
 	private Optional<Time> systemResourceMetricsProbingInterval;
 
 	public TaskManagerServicesConfiguration(
@@ -102,6 +106,7 @@ public class TaskManagerServicesConfiguration {
 			boolean preAllocateMemory,
 			float memoryFraction,
 			long timerServiceShutdownTimeout,
+			RetryingRegistrationConfiguration retryingRegistrationConfiguration,
 			Optional<Time> systemResourceMetricsProbingInterval) {
 
 		this.taskManagerAddress = checkNotNull(taskManagerAddress);
@@ -120,6 +125,7 @@ public class TaskManagerServicesConfiguration {
 		checkArgument(timerServiceShutdownTimeout >= 0L, "The timer " +
 			"service shutdown timeout must be greater or equal to 0.");
 		this.timerServiceShutdownTimeout = timerServiceShutdownTimeout;
+		this.retryingRegistrationConfiguration = checkNotNull(retryingRegistrationConfiguration);
 
 		this.systemResourceMetricsProbingInterval = checkNotNull(systemResourceMetricsProbingInterval);
 	}
@@ -190,6 +196,10 @@ public class TaskManagerServicesConfiguration {
 
 	public Optional<Time> getSystemResourceMetricsProbingInterval() {
 		return systemResourceMetricsProbingInterval;
+	}
+
+	public RetryingRegistrationConfiguration getRetryingRegistrationConfiguration() {
+		return retryingRegistrationConfiguration;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -277,6 +287,8 @@ public class TaskManagerServicesConfiguration {
 
 		long timerServiceShutdownTimeout = AkkaUtils.getTimeout(configuration).toMillis();
 
+		final RetryingRegistrationConfiguration retryingRegistrationConfiguration = RetryingRegistrationConfiguration.fromConfiguration(configuration);
+
 		return new TaskManagerServicesConfiguration(
 			remoteAddress,
 			tmpDirs,
@@ -290,6 +302,7 @@ public class TaskManagerServicesConfiguration {
 			preAllocateMemory,
 			memoryFraction,
 			timerServiceShutdownTimeout,
+			retryingRegistrationConfiguration,
 			ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
 	}
 

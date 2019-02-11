@@ -40,6 +40,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.DeserializationUtils;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
+import org.apache.flink.runtime.operators.shipping.OutputEmitter;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
 import org.apache.flink.testutils.serialization.types.Util;
@@ -210,7 +212,7 @@ public class RecordWriterTest {
 		TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, bufferSize);
 
 		ResultPartitionWriter partitionWriter = new CollectingPartitionWriter(queues, bufferProvider);
-		RecordWriter<ByteArrayIO> writer = new RecordWriter<>(partitionWriter, new RoundRobinChannelSelector<>());
+		RecordWriter<ByteArrayIO> writer = new RecordWriter<>(partitionWriter);
 		CheckpointBarrier barrier = new CheckpointBarrier(Integer.MAX_VALUE + 919192L, Integer.MAX_VALUE + 18828228L, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		// No records emitted yet, broadcast should not request a buffer
@@ -247,7 +249,7 @@ public class RecordWriterTest {
 		TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, bufferSize);
 
 		ResultPartitionWriter partitionWriter = new CollectingPartitionWriter(queues, bufferProvider);
-		RecordWriter<ByteArrayIO> writer = new RecordWriter<>(partitionWriter, new RoundRobinChannelSelector<>());
+		RecordWriter<ByteArrayIO> writer = new RecordWriter<>(partitionWriter);
 		CheckpointBarrier barrier = new CheckpointBarrier(Integer.MAX_VALUE + 1292L, Integer.MAX_VALUE + 199L, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		// Emit records on some channels first (requesting buffers), then
@@ -426,9 +428,8 @@ public class RecordWriterTest {
 
 		final TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, bufferSize);
 		final ResultPartitionWriter partitionWriter = new CollectingPartitionWriter(queues, bufferProvider);
-		final ChannelSelector selector = new Broadcast<>();
-		final RecordWriter<SerializationTestType> writer = isBroadcastEmit ?
-			new RecordWriter<>(partitionWriter) : new RecordWriter<>(partitionWriter, selector);
+		final ChannelSelector selector = new OutputEmitter(ShipStrategyType.BROADCAST, 0);
+		final RecordWriter<SerializationTestType> writer = RecordWriter.createRecordWriter(partitionWriter, selector, 0, "test");
 		final RecordDeserializer<SerializationTestType> deserializer = new SpillingAdaptiveSpanningRecordDeserializer<>(
 			new String[]{ tempFolder.getRoot().getAbsolutePath() });
 
@@ -590,34 +591,6 @@ public class RecordWriterTest {
 		@Override
 		public void read(DataInputView in) throws IOException {
 			in.readFully(bytes);
-		}
-	}
-
-	/**
-	 * Broadcast channel selector that selects all the output channels.
-	 */
-	private static class Broadcast<T extends IOReadableWritable> implements ChannelSelector<T> {
-
-		private int[] returnChannel;
-
-		private int numberOfChannels;
-
-		@Override
-		public void setup(int numberOfChannels) {
-			this.numberOfChannels = numberOfChannels;
-		}
-
-		@Override
-		public int[] selectChannels(final T record) {
-			if (returnChannel != null && returnChannel.length == numberOfChannels) {
-				return returnChannel;
-			} else {
-				this.returnChannel = new int[numberOfChannels];
-				for (int i = 0; i < numberOfChannels; i++) {
-					returnChannel[i] = i;
-				}
-				return returnChannel;
-			}
 		}
 	}
 

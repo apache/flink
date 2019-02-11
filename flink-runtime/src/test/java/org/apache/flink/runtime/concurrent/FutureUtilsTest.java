@@ -26,6 +26,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -34,13 +35,16 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 import static org.hamcrest.CoreMatchers.containsString;
@@ -570,5 +574,80 @@ public class FutureUtilsTest extends TestLogger {
 			TestingUtils.defaultExecutor());
 
 		assertThat(future.get(), is(Acknowledge.get()));
+	}
+
+	@Test
+	public void testHandleAsyncIfNotDone() {
+		testFutureContinuation((CompletableFuture<?> future, Executor executor) ->
+			FutureUtils.handleAsyncIfNotDone(
+				future,
+				executor,
+				(o, t) -> null));
+	}
+
+	@Test
+	public void testApplyAsyncIfNotDone() {
+		testFutureContinuation((CompletableFuture<?> future, Executor executor) ->
+			FutureUtils.thenApplyAsyncIfNotDone(
+				future,
+				executor,
+				o -> null));
+	}
+
+	@Test
+	public void testComposeAsyncIfNotDone() {
+		testFutureContinuation((CompletableFuture<?> future, Executor executor) ->
+			FutureUtils.thenComposeAsyncIfNotDone(
+				future,
+				executor,
+				o -> null));
+	}
+
+	@Test
+	public void testWhenCompleteAsyncIfNotDone() {
+		testFutureContinuation((CompletableFuture<?> future, Executor executor) ->
+			FutureUtils.whenCompleteAsyncIfNotDone(
+			future,
+			executor,
+			(o, throwable) -> {
+			}));
+	}
+
+	@Test
+	public void testThenAcceptAsyncIfNotDone() {
+		testFutureContinuation((CompletableFuture<?> future, Executor executor) ->
+			FutureUtils.thenAcceptAsyncIfNotDone(
+				future,
+				executor,
+				o -> {
+				}));
+	}
+
+	private void testFutureContinuation(BiFunction<CompletableFuture<?>, Executor, CompletableFuture<?>> testFunctionGenerator) {
+
+		CompletableFuture<?> startFuture = new CompletableFuture<>();
+		final AtomicBoolean runWithExecutor = new AtomicBoolean(false);
+
+		Executor executor = r -> {
+			r.run();
+			runWithExecutor.set(true);
+		};
+
+		// branch for a start future that has not completed
+		CompletableFuture<?> continuationFuture = testFunctionGenerator.apply(startFuture, executor);
+		Assert.assertFalse(continuationFuture.isDone());
+
+		startFuture.complete(null);
+
+		Assert.assertTrue(runWithExecutor.get());
+		Assert.assertTrue(continuationFuture.isDone());
+
+		// branch for a start future that was completed
+		runWithExecutor.set(false);
+
+		continuationFuture = testFunctionGenerator.apply(startFuture, executor);
+
+		Assert.assertFalse(runWithExecutor.get());
+		Assert.assertTrue(continuationFuture.isDone());
 	}
 }

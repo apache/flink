@@ -44,7 +44,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
-import org.apache.flink.table.api.StreamTableEnvironment;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 
 import com.datastax.driver.core.Cluster;
@@ -454,7 +454,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	public void testCassandraTableSink() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(4);
-		StreamTableEnvironment tEnv = StreamTableEnvironment.getTableEnvironment(env);
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 		DataStreamSource<Row> source = env.fromCollection(rowCollection);
 

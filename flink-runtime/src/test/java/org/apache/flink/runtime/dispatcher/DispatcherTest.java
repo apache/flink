@@ -41,6 +41,7 @@ import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
+import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
@@ -209,12 +210,13 @@ public class DispatcherTest extends TestLogger {
 
 	@Nonnull
 	private TestingDispatcher createDispatcher(HeartbeatServices heartbeatServices, TestingHighAvailabilityServices haServices, JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
+		TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		return new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
 			configuration,
 			haServices,
-			new TestingResourceManagerGateway(),
+			() -> CompletableFuture.completedFuture(resourceManagerGateway),
 			blobServer,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
@@ -682,6 +684,44 @@ public class DispatcherTest extends TestLogger {
 		dispatcher.getTerminationFuture().get();
 
 		assertThat(submittedJobGraphStore.contains(jobGraph.getJobID()), Matchers.is(true));
+	}
+
+	/**
+	 * Tests that a submitted job is suspended if the Dispatcher loses leadership.
+	 */
+	@Test
+	public void testJobSuspensionWhenDispatcherLosesLeadership() throws Exception {
+		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch));
+
+		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+		dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+
+		final CompletableFuture<JobResult> jobResultFuture = dispatcherGateway.requestJobResult(jobGraph.getJobID(), TIMEOUT);
+
+		assertThat(jobResultFuture.isDone(), is(false));
+
+		dispatcherLeaderElectionService.notLeader();
+
+		try {
+			jobResultFuture.get();
+			fail("Expected the job result to throw an exception.");
+		} catch (ExecutionException ee) {
+			assertThat(ExceptionUtils.findThrowable(ee, JobNotFinishedException.class).isPresent(), is(true));
+		}
+	}
+
+	@Test
+	public void testShutDownClusterShouldTerminateDispatcher() throws Exception {
+		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, DefaultJobManagerRunnerFactory.INSTANCE);
+		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+		dispatcherGateway.shutDownCluster().get();
+
+		dispatcher.getTerminationFuture().get();
 	}
 
 	private final class BlockingJobManagerRunnerFactory extends TestingJobManagerRunnerFactory {

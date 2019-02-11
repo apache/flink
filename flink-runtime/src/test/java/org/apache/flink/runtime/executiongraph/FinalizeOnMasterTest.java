@@ -78,6 +78,7 @@ public class FinalizeOnMasterTest extends TestLogger {
 		vertex.setParallelism(1);
 
 		final ExecutionGraph eg = createSimpleTestGraph(jid, vertex);
+		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 		eg.scheduleForExecution();
 		assertEquals(JobStatus.RUNNING, eg.getState());
 
@@ -85,7 +86,7 @@ public class FinalizeOnMasterTest extends TestLogger {
 
 		// fail the execution
 		final Execution exec = eg.getJobVertex(vertex.getID()).getTaskVertices()[0].getCurrentExecutionAttempt();
-		exec.fail(new Exception("test"));
+		exec.failAsync(new Exception("test"));
 
 		assertEquals(JobStatus.FAILED, eg.waitUntilTerminal());
 

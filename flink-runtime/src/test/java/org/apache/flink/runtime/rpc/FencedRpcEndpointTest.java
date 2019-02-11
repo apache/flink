@@ -39,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -80,13 +81,15 @@ public class FencedRpcEndpointTest extends TestLogger {
 
 			final UUID newFencingToken = UUID.randomUUID();
 
+			boolean failed = false;
 			try {
 				fencedTestingEndpoint.setFencingToken(newFencingToken);
-				fail("Fencing token can only be set from within the main thread.");
+				failed = true;
 			} catch (AssertionError ignored) {
 				// expected to fail
 			}
 
+			assertFalse("Setting fencing token from outside the main thread did not fail as expected.", failed);
 			assertNull(fencedTestingEndpoint.getFencingToken());
 
 			CompletableFuture<Acknowledge> setFencingFuture = fencedTestingEndpoint.setFencingTokenInMainThread(newFencingToken, timeout);

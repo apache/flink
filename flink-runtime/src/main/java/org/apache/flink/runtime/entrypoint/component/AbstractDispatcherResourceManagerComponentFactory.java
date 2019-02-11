@@ -21,6 +21,7 @@ package org.apache.flink.runtime.entrypoint.component;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -43,7 +44,9 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.RestEndpointFactory;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -135,26 +138,33 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				configuration.getInteger(RestOptions.SERVER_THREAD_PRIORITY),
 				"DispatcherRestEndpoint");
 
+			final long updateInterval = configuration.getLong(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
+			final MetricFetcher metricFetcher = updateInterval == 0
+				? VoidMetricFetcher.INSTANCE
+				: MetricFetcherImpl.fromConfiguration(
+					configuration,
+					metricQueryServiceRetriever,
+					dispatcherGatewayRetriever,
+					executor);
+
 			webMonitorEndpoint = restEndpointFactory.createRestEndpoint(
 				configuration,
 				dispatcherGatewayRetriever,
 				resourceManagerGatewayRetriever,
 				blobServer,
 				executor,
-				MetricFetcherImpl.fromConfiguration(
-					configuration,
-					metricQueryServiceRetriever,
-					dispatcherGatewayRetriever,
-					executor),
+				metricFetcher,
 				highAvailabilityServices.getWebMonitorLeaderElectionService(),
 				fatalErrorHandler);
 
 			log.debug("Starting Dispatcher REST endpoint.");
 			webMonitorEndpoint.start();
 
+			final String hostname = getHostname(rpcService);
+
 			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
 				metricRegistry,
-				rpcService.getAddress(),
+				hostname,
 				ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
 
 			resourceManager = resourceManagerFactory.createResourceManager(
@@ -165,7 +175,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				heartbeatServices,
 				metricRegistry,
 				fatalErrorHandler,
-				new ClusterInformation(rpcService.getAddress(), blobServer.getPort()),
+				new ClusterInformation(hostname, blobServer.getPort()),
 				webMonitorEndpoint.getRestBaseUrl(),
 				jobManagerMetricGroup);
 
@@ -175,7 +185,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				configuration,
 				rpcService,
 				highAvailabilityServices,
-				resourceManager.getSelfGateway(ResourceManagerGateway.class),
+				resourceManagerGatewayRetriever,
 				blobServer,
 				heartbeatServices,
 				jobManagerMetricGroup,
@@ -248,6 +258,11 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 
 			throw new FlinkException("Could not create the DispatcherResourceManagerComponent.", exception);
 		}
+	}
+
+	protected String getHostname(RpcService rpcService) {
+		final String rpcServiceAddress = rpcService.getAddress();
+		return rpcServiceAddress == "" ? "localhost" : rpcServiceAddress;
 	}
 
 	protected abstract DispatcherResourceManagerComponent<T> createDispatcherResourceManagerComponent(

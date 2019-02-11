@@ -41,6 +41,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -70,6 +71,13 @@ import static org.junit.Assert.assertTrue;
  */
 public class ExecutionTest extends TestLogger {
 
+	@ClassRule
+	public static final TestingComponentMainThreadExecutor.Resource EXECUTOR_RESOURCE =
+		new TestingComponentMainThreadExecutor.Resource();
+
+	private final TestingComponentMainThreadExecutor testMainThreadUtil =
+		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
+
 	/**
 	 * Tests that slots are released if we cannot assign the allocated resource to the
 	 * Execution.
@@ -88,6 +96,8 @@ public class ExecutionTest extends TestLogger {
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
+
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
@@ -148,6 +158,8 @@ public class ExecutionTest extends TestLogger {
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
+
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
@@ -248,6 +260,8 @@ public class ExecutionTest extends TestLogger {
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
+
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		final ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
@@ -357,6 +371,8 @@ public class ExecutionTest extends TestLogger {
 			new NoRestartStrategy(),
 			jobVertex);
 
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+
 		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
 		ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];
@@ -368,21 +384,13 @@ public class ExecutionTest extends TestLogger {
 		CompletableFuture<LogicalSlot> returnedSlotFuture = slotOwner.getReturnedSlotFuture();
 		CompletableFuture<?> terminationFuture = executionVertex.cancel();
 
-		// run canceling in a separate thread to allow an interleaving between termination
-		// future callback registrations
-		CompletableFuture.runAsync(
-			() -> currentExecutionAttempt.cancelingComplete(),
-			TestingUtils.defaultExecutor());
-
-		// to increase probability for problematic interleaving, let the current thread yield the processor
-		Thread.yield();
+		currentExecutionAttempt.cancelingComplete();
 
 		CompletableFuture<Boolean> restartFuture = terminationFuture.thenApply(
 			ignored -> {
 				assertTrue(returnedSlotFuture.isDone());
 				return true;
 			});
-
 
 		// check if the returned slot future was completed first
 		restartFuture.get();
@@ -428,6 +436,7 @@ public class ExecutionTest extends TestLogger {
 
 	@Test
 	public void testEagerSchedulingFailureReturnsSlot() throws Exception {
+
 		final JobVertex jobVertex = createNoOpJobVertex();
 		final JobVertexID jobVertexId = jobVertex.getID();
 
@@ -452,6 +461,8 @@ public class ExecutionTest extends TestLogger {
 			slotProvider,
 			new NoRestartStrategy(),
 			jobVertex);
+
+		executionGraph.start(testMainThreadUtil.getMainThreadExecutor());
 
 		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
@@ -480,16 +491,17 @@ public class ExecutionTest extends TestLogger {
 				},
 				executorService);
 
-			final CompletableFuture<Void> schedulingFuture = execution.scheduleForExecution(
-				slotProvider,
-				false,
-				LocationPreferenceConstraint.ANY,
-				Collections.emptySet());
+			final CompletableFuture<Void> schedulingFuture = testMainThreadUtil.execute(
+				() -> execution.scheduleForExecution(
+					slotProvider,
+					false,
+					LocationPreferenceConstraint.ANY,
+					Collections.emptySet()));
 
 			try {
 				schedulingFuture.get();
 				// cancel the execution in case we could schedule the execution
-				execution.cancel();
+				testMainThreadUtil.execute(execution::cancel);
 			} catch (ExecutionException ignored) {
 			}
 
