@@ -24,6 +24,7 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
 import org.junit.Test;
@@ -386,7 +387,7 @@ public class SSLUtilsTest extends TestLogger {
 		serverConfig.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA256");
 
 		final SSLHandlerFactory serverSSLHandlerFactory = SSLUtils.createInternalServerSSLEngineFactory(serverConfig);
-		final SslHandler sslHandler = serverSSLHandlerFactory.createNettySSLHandler();
+		final SslHandler sslHandler = serverSSLHandlerFactory.createNettySSLHandler(UnpooledByteBufAllocator.DEFAULT);
 
 		assertEquals(1, sslHandler.engine().getEnabledProtocols().length);
 		assertEquals("TLSv1", sslHandler.engine().getEnabledProtocols()[0]);

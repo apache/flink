@@ -147,7 +147,8 @@ class NettyServer {
 			@Override
 			public void initChannel(SocketChannel channel) throws Exception {
 				if (sslHandlerFactory != null) {
-					channel.pipeline().addLast("ssl", sslHandlerFactory.createNettySSLHandler());
+					channel.pipeline().addLast("ssl",
+						sslHandlerFactory.createNettySSLHandler(channel.alloc()));
 				}
 
 				channel.pipeline().addLast(protocol.getServerChannelHandlers());
