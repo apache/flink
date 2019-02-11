@@ -197,23 +197,14 @@ public class ExecutionGraphTestUtils {
 	 */
 	public static void waitForAllExecutionsPredicate(
 			ExecutionGraph executionGraph,
-			Predicate<Execution> executionPredicate,
+			Predicate<AccessExecution> executionPredicate,
 			long maxWaitMillis) throws TimeoutException {
-		final Iterable<ExecutionVertex> allExecutionVertices = executionGraph.getAllExecutionVertices();
-
+		final Predicate<AccessExecutionGraph> allExecutionsPredicate = allExecutionsPredicate(executionPredicate);
 		final Deadline deadline = Deadline.fromNow(Duration.ofMillis(maxWaitMillis));
 		boolean predicateResult;
 
 		do {
-			predicateResult = true;
-			for (ExecutionVertex executionVertex : allExecutionVertices) {
-				final Execution currentExecution = executionVertex.getCurrentExecutionAttempt();
-
-				if (currentExecution == null || !executionPredicate.test(currentExecution)) {
-					predicateResult = false;
-					break;
-				}
-			}
+			predicateResult = allExecutionsPredicate.test(executionGraph);
 
 			if (!predicateResult) {
 				try {
@@ -229,13 +220,29 @@ public class ExecutionGraphTestUtils {
 		}
 	}
 
+	public static Predicate<AccessExecutionGraph> allExecutionsPredicate(final Predicate<AccessExecution> executionPredicate) {
+		return accessExecutionGraph -> {
+			final Iterable<? extends AccessExecutionVertex> allExecutionVertices = accessExecutionGraph.getAllExecutionVertices();
+
+			for (AccessExecutionVertex executionVertex : allExecutionVertices) {
+				final AccessExecution currentExecutionAttempt = executionVertex.getCurrentExecutionAttempt();
+
+				if (currentExecutionAttempt == null || !executionPredicate.test(currentExecutionAttempt)) {
+					return false;
+				}
+			}
+
+			return true;
+		};
+	}
+
 	/**
 	 * Predicate which is true if the given {@link Execution} has a resource assigned.
 	 */
 	static final Predicate<Execution> hasResourceAssigned = (Execution execution) -> execution.getAssignedResource() != null;
 
-	static Predicate<Execution> isInExecutionState(ExecutionState executionState) {
-		return (Execution execution) -> execution.getState() == executionState;
+	public static Predicate<AccessExecution> isInExecutionState(ExecutionState executionState) {
+		return (AccessExecution execution) -> execution.getState() == executionState;
 	}
 
 	public static void waitUntilFailoverRegionState(FailoverRegion region, JobStatus status, long maxWaitMillis)

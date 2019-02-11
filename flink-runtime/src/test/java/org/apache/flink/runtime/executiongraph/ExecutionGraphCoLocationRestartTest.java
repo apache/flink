@@ -91,7 +91,7 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 			eg.scheduleForExecution();
 		});
 
-		Predicate<Execution> isDeploying = ExecutionGraphTestUtils.isInExecutionState(ExecutionState.DEPLOYING);
+		Predicate<AccessExecution> isDeploying = ExecutionGraphTestUtils.isInExecutionState(ExecutionState.DEPLOYING);
 		ExecutionGraphTestUtils.waitForAllExecutionsPredicate(
 			eg,
 			isDeploying,

@@ -35,6 +35,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 
@@ -64,6 +65,22 @@ public class TestingMiniCluster extends MiniCluster {
 	@Override
 	public Collection<DispatcherResourceManagerComponent<?>> getDispatcherResourceManagerComponents() {
 		return super.getDispatcherResourceManagerComponents();
+	}
+
+	@Nonnull
+	@Override
+	public CompletableFuture<Void> terminateTaskExecutor(int index) {
+		return super.terminateTaskExecutor(index);
+	}
+
+	@Override
+	public void startTaskExecutor() throws Exception {
+		super.startTaskExecutor();
+	}
+
+	@Override
+	protected boolean useLocalCommunication() {
+		return false;
 	}
 
 	@Override
