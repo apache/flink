@@ -160,19 +160,14 @@ public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadabl
 	}
 
 	/**
-	 * SelfResolving assists with the migration path to the new serialization abstraction.
+	 * This interface assists with the migration path to the new serialization abstraction.
 	 *
-	 * <p>Previously some {@link TypeSerializer}s were reusing the same {@link TypeSerializerConfigSnapshot} class in
-	 * {@link TypeSerializer#snapshotConfiguration()}, which is considered anti-pattern, and in general each serializer
-	 * should have its own dedicated snapshot class. (For example the {@code TupleSerializerConfigSnapshot} was used by
-	 * few different serializers).
-	 *
-	 * <p>This interface helps to ease the migration for such serializers by allowing them to "redirect" the
+	 * <p>This interface can be used for cases where the `ensureCompatibility` method cannot be removed.
+	 * Implementing this interface by your {@link TypeSerializer} would allow it to "redirect" the
 	 * compatibility check to the corresponding {code TypeSerializerSnapshot} class.
-	 * Make sure that your type serializer is implementing this interface.
 	 *
 	 * <p>Please note that if it is possible to directly override
-	 * {@link TypeSerializerConfigSnapshot#resolveSchemaCompatibility} and preform the redirection logic from there,
+	 * {@link TypeSerializerConfigSnapshot#resolveSchemaCompatibility} and preform the redirection logic there,
 	 * then that is the preferred way. This interface is useful for cases where there is not enough information,
 	 * and the new serializer should assist with the redirection.
 	 */
