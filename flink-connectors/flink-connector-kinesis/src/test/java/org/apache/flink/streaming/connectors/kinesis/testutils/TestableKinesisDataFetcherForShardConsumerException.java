@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kinesis.testutils;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
@@ -34,7 +35,8 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- *
+ * Extension of the {@link KinesisDataFetcher} for testing what happens when the thread is interrupted during
+ * {@link #awaitTermination()}.
  */
 public class TestableKinesisDataFetcherForShardConsumerException<T> extends TestableKinesisDataFetcher<T> {
 	public TestableKinesisDataFetcherForShardConsumerException(final List<String> fakeStreams,
@@ -58,8 +60,7 @@ public class TestableKinesisDataFetcherForShardConsumerException<T> extends Test
 	protected ExecutorService createShardConsumersThreadPool(final String subtaskName) {
 		final ThreadFactory threadFactory =
 			new ThreadFactoryBuilder().setNameFormat("KinesisShardConsumers-%d").build();
-		final ExecutorService executorService = Executors.newSingleThreadExecutor(threadFactory);
-		return executorService;
+		return Executors.newSingleThreadExecutor(threadFactory);
 	}
 
 	@Override

@@ -25,7 +25,8 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import java.io.IOException;
 
 /**
- *
+ * A DeserializationSchema which always throws an exception when the deserialize method is called. Also supports
+ * waiting on a latch until at least one exception has been thrown.
  */
 public class AlwaysThrowsDeserializationSchema implements DeserializationSchema<String> {
 	public static final String EXCEPTION_MESSAGE = "This method always throws an exception.";

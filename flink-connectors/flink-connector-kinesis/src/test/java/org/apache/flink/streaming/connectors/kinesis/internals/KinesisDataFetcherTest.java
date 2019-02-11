@@ -820,18 +820,18 @@ public class KinesisDataFetcherTest extends TestLogger {
 
 	@Test
 	public void testOriginalExceptionIsPreservedWhenInterruptedDuringShutdown() throws Exception {
-		final String stream = "fakeStream";
+		String stream = "fakeStream";
 
 		Map<String, List<BlockingQueue<String>>> streamsToShardQueues = new HashMap<>();
-		final LinkedBlockingQueue<String> queue = new LinkedBlockingQueue<>(10);
+		LinkedBlockingQueue<String> queue = new LinkedBlockingQueue<>(10);
 		queue.put("item1");
 		streamsToShardQueues.put(stream, Collections.singletonList(queue));
 
-		final AlwaysThrowsDeserializationSchema deserializationSchema = new AlwaysThrowsDeserializationSchema();
-		final KinesisProxyInterface fakeKinesis =
+		AlwaysThrowsDeserializationSchema deserializationSchema = new AlwaysThrowsDeserializationSchema();
+		KinesisProxyInterface fakeKinesis =
 			FakeKinesisBehavioursFactory.blockingQueueGetRecords(streamsToShardQueues);
 
-		final TestableKinesisDataFetcherForShardConsumerException<String> fetcher = new TestableKinesisDataFetcherForShardConsumerException<>(
+		TestableKinesisDataFetcherForShardConsumerException<String> fetcher = new TestableKinesisDataFetcherForShardConsumerException<>(
 			Collections.singletonList(stream),
 			new TestSourceContext<>(),
 			TestUtils.getStandardProperties(),
@@ -843,7 +843,7 @@ public class KinesisDataFetcherTest extends TestLogger {
 			new HashMap<>(),
 			fakeKinesis);
 
-		final DummyFlinkKinesisConsumer<String> consumer = new DummyFlinkKinesisConsumer<>(
+		DummyFlinkKinesisConsumer<String> consumer = new DummyFlinkKinesisConsumer<>(
 			TestUtils.getStandardProperties(), fetcher, 1, 0);
 
 		CheckedThread consumerThread = new CheckedThread() {
