@@ -167,7 +167,9 @@ public abstract class KafkaTestBase extends TestLogger {
 			secureProps.clear();
 		}
 
-		kafkaServer.shutdown();
+		if (kafkaServer != null) {
+			kafkaServer.shutdown();
+		}
 	}
 
 	// ------------------------------------------------------------------------
