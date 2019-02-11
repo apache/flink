@@ -27,6 +27,7 @@ import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
 
@@ -40,7 +41,7 @@ public enum PreviousAllocationSlotSelectionStrategy implements SlotSelectionStra
 
 	@Override
 	public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
-		@Nonnull Collection<SlotInfo> availableSlots,
+		@Nonnull Collection<? extends SlotInfo> availableSlots,
 		@Nonnull SlotProfile slotProfile) {
 
 		Collection<AllocationID> priorAllocations = slotProfile.getPreferredAllocations();
@@ -57,17 +58,17 @@ public enum PreviousAllocationSlotSelectionStrategy implements SlotSelectionStra
 
 		// Second, select based on location preference, excluding blacklisted allocations
 		Set<AllocationID> blackListedAllocations = slotProfile.getPreviousExecutionGraphAllocations();
-		Collection<SlotInfo> availableAndAllowedSlots = computeWithoutBlacklistedSlots(availableSlots, blackListedAllocations);
-		return LocationPreferenceSlotSelection.INSTANCE.selectBestSlotForProfile(availableAndAllowedSlots, slotProfile);
+		Collection<? extends SlotInfo> availableAndAllowedSlots = computeWithoutBlacklistedSlots(availableSlots, blackListedAllocations);
+		return LocationPreferenceSlotSelectionStrategy.INSTANCE.selectBestSlotForProfile(availableAndAllowedSlots, slotProfile);
 	}
 
 	@Nonnull
 	private Collection<SlotInfo> computeWithoutBlacklistedSlots(
-		@Nonnull Collection<SlotInfo> availableSlots,
+		@Nonnull Collection<? extends SlotInfo> availableSlots,
 		@Nonnull Set<AllocationID> blacklistedAllocations) {
 
 		if (blacklistedAllocations.isEmpty()) {
-			return availableSlots;
+			return Collections.unmodifiableCollection(availableSlots);
 		}
 
 		ArrayList<SlotInfo> availableAndAllowedSlots = new ArrayList<>(availableSlots.size());

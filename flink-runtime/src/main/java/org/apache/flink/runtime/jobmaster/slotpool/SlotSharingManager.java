@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -177,26 +176,6 @@ public class SlotSharingManager {
 		return rootMultiTaskSlot;
 	}
 
-	/**
-	 * Gets a resolved root slot which does not yet contain the given groupId. First the given set of
-	 * preferred locations is checked.
-	 *
-	 * @param groupId which the returned slot must not contain
-	 * @param matcher slot profile matcher to match slot with the profile requirements
-	 * @return the resolved root slot and its locality wrt to the specified location preferences
-	 * 		or null if there was no root slot which did not contain the given groupId
-	 */
-	@Nullable
-	MultiTaskSlotLocality getResolvedRootSlot(AbstractID groupId, SchedulingStrategy matcher, SlotProfile slotProfile) {
-		Collection<Map<AllocationID, MultiTaskSlot>> resolvedRootSlotsValues = this.resolvedRootSlots.values();
-		return matcher.findMatchWithLocality(
-			slotProfile,
-			() -> resolvedRootSlotsValues.stream().flatMap((Map<AllocationID, MultiTaskSlot> map) -> map.values().stream()),
-			(MultiTaskSlot multiTaskSlot) -> multiTaskSlot.getSlotContextFuture().join(),
-			(MultiTaskSlot multiTaskSlot) -> !multiTaskSlot.contains(groupId),
-			MultiTaskSlotLocality::of);
-	}
-
 	@Nonnull
 	public Collection<SlotInfo> listResolvedRootSlotInfo(@Nullable AbstractID groupId) {
 		return resolvedRootSlots
@@ -319,7 +298,7 @@ public class SlotSharingManager {
 	/**
 	 * {@link TaskSlot} implementation which can have multiple other task slots assigned as children.
 	 */
-	public final class MultiTaskSlot extends TaskSlot implements AllocatedSlotContext.Payload {
+	public final class MultiTaskSlot extends TaskSlot implements PhysicalSlot.Payload {
 
 		private final Map<AbstractID, TaskSlot> children;
 

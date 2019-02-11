@@ -123,7 +123,7 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 	}
 
 	@Override
-	public void returnAllocatedSlot(LogicalSlot logicalSlot) {
+	public void returnLogicalSlot(LogicalSlot logicalSlot) {
 		Preconditions.checkArgument(logicalSlot instanceof Slot);
 
 		final Slot slot = ((Slot) logicalSlot);

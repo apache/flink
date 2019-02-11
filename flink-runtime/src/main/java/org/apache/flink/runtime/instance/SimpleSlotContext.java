@@ -38,15 +38,27 @@ public class SimpleSlotContext implements SlotContext {
 
 	private final TaskManagerGateway taskManagerGateway;
 
+	private final ResourceProfile resourceProfile;
+
 	public SimpleSlotContext(
 			AllocationID allocationId,
 			TaskManagerLocation taskManagerLocation,
 			int physicalSlotNumber,
 			TaskManagerGateway taskManagerGateway) {
+		this(allocationId, taskManagerLocation, physicalSlotNumber, taskManagerGateway, ResourceProfile.UNKNOWN);
+	}
+
+	public SimpleSlotContext(
+			AllocationID allocationId,
+			TaskManagerLocation taskManagerLocation,
+			int physicalSlotNumber,
+			TaskManagerGateway taskManagerGateway,
+			ResourceProfile resourceProfile) {
 		this.allocationId = Preconditions.checkNotNull(allocationId);
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		this.physicalSlotNumber = physicalSlotNumber;
 		this.taskManagerGateway = Preconditions.checkNotNull(taskManagerGateway);
+		this.resourceProfile = resourceProfile;
 	}
 
 	@Override
@@ -71,6 +83,6 @@ public class SimpleSlotContext implements SlotContext {
 
 	@Override
 	public ResourceProfile getResourceProfile() {
-		return ResourceProfile.UNKNOWN;
+		return resourceProfile;
 	}
 }

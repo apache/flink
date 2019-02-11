@@ -75,7 +75,7 @@ public class InstanceTest {
 			// no more slots
 			assertNull(instance.allocateSimpleSlot());
 			try {
-				instance.returnAllocatedSlot(slot2);
+				instance.returnLogicalSlot(slot2);
 				fail("instance accepted a non-cancelled slot.");
 			}
 			catch (IllegalArgumentException e) {
@@ -91,10 +91,10 @@ public class InstanceTest {
 			assertEquals(4, instance.getNumberOfAvailableSlots());
 			assertEquals(0, instance.getNumberOfAllocatedSlots());
 
-			instance.returnAllocatedSlot(slot1);
-			instance.returnAllocatedSlot(slot2);
-			instance.returnAllocatedSlot(slot3);
-			instance.returnAllocatedSlot(slot4);
+			instance.returnLogicalSlot(slot1);
+			instance.returnLogicalSlot(slot2);
+			instance.returnLogicalSlot(slot3);
+			instance.returnLogicalSlot(slot4);
 
 			assertEquals(4, instance.getNumberOfAvailableSlots());
 			assertEquals(0, instance.getNumberOfAllocatedSlots());

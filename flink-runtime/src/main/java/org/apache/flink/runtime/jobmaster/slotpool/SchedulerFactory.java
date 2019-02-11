@@ -29,5 +29,5 @@ public interface SchedulerFactory {
 	 * Creates a new scheduler instance that uses the given {@link SlotPool} to allocate slots.
 	 */
 	@Nonnull
-	Scheduler createScheduler(@Nonnull SlotPool slotPoolGateway);
+	Scheduler createScheduler(@Nonnull SlotPool slotPool);
 }

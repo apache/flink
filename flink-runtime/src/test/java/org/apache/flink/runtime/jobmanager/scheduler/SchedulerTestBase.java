@@ -33,8 +33,8 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelection;
-import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
+import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
+import org.apache.flink.runtime.jobmaster.slotpool.SchedulerImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
@@ -74,14 +74,14 @@ public class SchedulerTestBase extends TestLogger {
 		final SlotPool slotPool = new SlotPoolImpl(jobId);
 		final TestingScheduler testingScheduler = new TestingScheduler(
 			new HashMap<>(16),
-			LocationPreferenceSlotSelection.INSTANCE,
+			LocationPreferenceSlotSelectionStrategy.INSTANCE,
 			slotPool);
 
 		testingSlotProvider = new TestingSlotPoolSlotProvider(slotPool, testingScheduler);
 
 		final JobMasterId jobMasterId = JobMasterId.generate();
 		final String jobManagerAddress = "localhost";
-		ComponentMainThreadExecutor executor = supplyMainThreadExecutorForSetup();
+		ComponentMainThreadExecutor executor = TestingComponentMainThreadExecutorServiceAdapter.forMainThread();
 		slotPool.start(jobMasterId, jobManagerAddress, executor);
 		testingScheduler.start(executor);
 	}
@@ -92,10 +92,6 @@ public class SchedulerTestBase extends TestLogger {
 			testingSlotProvider.shutdown();
 			testingSlotProvider = null;
 		}
-	}
-
-	protected ComponentMainThreadExecutor supplyMainThreadExecutorForSetup() {
-		return TestingComponentMainThreadExecutorServiceAdapter.forMainThread();
 	}
 
 	protected interface TestingSlotProvider extends SlotProvider {
@@ -273,7 +269,7 @@ public class SchedulerTestBase extends TestLogger {
 	/**
 	 * Test implementation of scheduler that offers a bit more introspection.
 	 */
-	private static final class TestingScheduler extends Scheduler {
+	private static final class TestingScheduler extends SchedulerImpl {
 
 		private final Map<SlotSharingGroupId, SlotSharingManager> slotSharingManagersMap;
 
@@ -282,7 +278,7 @@ public class SchedulerTestBase extends TestLogger {
 			@Nonnull SlotSelectionStrategy slotSelectionStrategy,
 			@Nonnull SlotPool slotPoolGateway) {
 
-			super(slotSharingManagersMap, slotSelectionStrategy, slotPoolGateway);
+			super(slotSelectionStrategy, slotPoolGateway, slotSharingManagersMap);
 			this.slotSharingManagersMap = slotSharingManagersMap;
 		}
 

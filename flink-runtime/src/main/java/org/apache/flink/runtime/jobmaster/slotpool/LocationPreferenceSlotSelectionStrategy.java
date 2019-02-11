@@ -36,7 +36,7 @@ import java.util.function.BiFunction;
 /**
  * This class implements a {@link SlotSelectionStrategy} that is based on location preference hints.
  */
-public enum LocationPreferenceSlotSelection implements SlotSelectionStrategy {
+public enum LocationPreferenceSlotSelectionStrategy implements SlotSelectionStrategy {
 
 	INSTANCE;
 
@@ -48,7 +48,7 @@ public enum LocationPreferenceSlotSelection implements SlotSelectionStrategy {
 
 	@Override
 	public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
-		@Nonnull Collection<SlotInfo> availableSlots,
+		@Nonnull Collection<? extends SlotInfo> availableSlots,
 		@Nonnull SlotProfile slotProfile) {
 
 		Collection<TaskManagerLocation> locationPreferences = slotProfile.getPreferredLocations();
@@ -67,7 +67,7 @@ public enum LocationPreferenceSlotSelection implements SlotSelectionStrategy {
 
 	@Nonnull
 	private Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
-		@Nonnull Collection<SlotInfo> availableSlots,
+		@Nonnull Collection<? extends SlotInfo> availableSlots,
 		@Nonnull ResourceProfile resourceProfile) {
 
 		for (SlotInfo candidate : availableSlots) {
@@ -80,7 +80,7 @@ public enum LocationPreferenceSlotSelection implements SlotSelectionStrategy {
 
 	@Nonnull
 	private Optional<SlotInfoAndLocality> selectWitLocationPreference(
-		@Nonnull Collection<SlotInfo> availableSlots,
+		@Nonnull Collection<? extends SlotInfo> availableSlots,
 		@Nonnull Collection<TaskManagerLocation> locationPreferences,
 		@Nonnull ResourceProfile resourceProfile) {
 

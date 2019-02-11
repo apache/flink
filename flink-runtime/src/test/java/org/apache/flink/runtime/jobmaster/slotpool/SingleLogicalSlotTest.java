@@ -36,7 +36,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -111,30 +110,8 @@ public class SingleLogicalSlotTest extends TestLogger {
 		assertThat(singleLogicalSlot.tryAssignPayload(dummyPayload), is(false));
 	}
 
-	@Ignore
-	@Test
-	public void testReleaseOnlyHappensAfterReturningSlotCompleted() {
-
-		final CompletableFuture<Boolean> allocateSlotFuture = new CompletableFuture<>();
-
-		final SingleLogicalSlot singleLogicalSlot = createSingleLogicalSlot(new DummySlotOwner() {
-			@Override
-			public void returnAllocatedSlot(LogicalSlot logicalSlot) {
-			}
-		});
-
-		CompletableFuture<?> releaseFuture = singleLogicalSlot.releaseSlot(new FlinkException("Test exception"));
-
-		// this must not be done, because the future that signals a successful return never completed.
-		assertThat(releaseFuture.isDone(), is(false));
-
-		// and completing the allocation should now also make the release complete.
-		allocateSlotFuture.complete(null);
-		assertThat(releaseFuture.isDone(), is(true));
-	}
-
 	/**
-	 * Tests that the {@link AllocatedSlotContext.Payload#release(Throwable)} does not wait
+	 * Tests that the {@link PhysicalSlot.Payload#release(Throwable)} does not wait
 	 * for the payload to reach a terminal state.
 	 */
 	@Test
@@ -264,7 +241,7 @@ public class SingleLogicalSlotTest extends TestLogger {
 		}
 
 		@Override
-		public void returnAllocatedSlot(LogicalSlot logicalSlot) {
+		public void returnLogicalSlot(LogicalSlot logicalSlot) {
 			counter.incrementAndGet();
 		}
 	}
@@ -303,7 +280,7 @@ public class SingleLogicalSlotTest extends TestLogger {
 		}
 
 		@Override
-		public void returnAllocatedSlot(LogicalSlot logicalSlot) {
+		public void returnLogicalSlot(LogicalSlot logicalSlot) {
 			returnAllocatedSlotFuture.complete(logicalSlot);
 		}
 	}

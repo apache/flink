@@ -28,5 +28,5 @@ public interface SlotOwner {
 	 *
 	 * @param logicalSlot to return
 	 */
-	void returnAllocatedSlot(LogicalSlot logicalSlot);
+	void returnLogicalSlot(LogicalSlot logicalSlot);
 }

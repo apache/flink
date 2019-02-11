@@ -41,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * an AllocatedSlot was allocated to the JobManager as soon as the TaskManager registered at the
  * JobManager. All slots had a default unknown resource profile. 
  */
-class AllocatedSlot implements AllocatedSlotContext {
+class AllocatedSlot implements PhysicalSlot {
 
 	/** The ID under which the slot is allocated. Uniquely identifies the slot. */
 	private final AllocationID allocationId;
@@ -102,44 +102,21 @@ class AllocatedSlot implements AllocatedSlotContext {
 		return getTaskManagerLocation().getResourceID();
 	}
 
-	/**
-	 * Gets the resource profile of the slot.
-	 *
-	 * @return The resource profile of the slot.
-	 */
 	@Override
 	public ResourceProfile getResourceProfile() {
 		return resourceProfile;
 	}
 
-	/**
-	 * Gets the location info of the TaskManager that offers this slot.
-	 *
-	 * @return The location info of the TaskManager that offers this slot
-	 */
 	@Override
 	public TaskManagerLocation getTaskManagerLocation() {
 		return taskManagerLocation;
 	}
 
-	/**
-	 * Gets the actor gateway that can be used to send messages to the TaskManager.
-	 * <p>
-	 * This method should be removed once the new interface-based RPC abstraction is in place
-	 *
-	 * @return The actor gateway that can be used to send messages to the TaskManager.
-	 */
 	@Override
 	public TaskManagerGateway getTaskManagerGateway() {
 		return taskManagerGateway;
 	}
 
-	/**
-	 * Returns the physical slot number of the allocated slot. The physical slot number corresponds
-	 * to the slot index on the TaskExecutor.
-	 *
-	 * @return Physical slot number of the allocated slot
-	 */
 	@Override
 	public int getPhysicalSlotNumber() {
 		return physicalSlotNumber;
@@ -196,9 +173,4 @@ class AllocatedSlot implements AllocatedSlotContext {
 	public String toString() {
 		return "AllocatedSlot " + allocationId + " @ " + taskManagerLocation + " - " + physicalSlotNumber;
 	}
-
-	// -----------------------------------------------------------------------
-	// Interfaces
-	// -----------------------------------------------------------------------
-
 }

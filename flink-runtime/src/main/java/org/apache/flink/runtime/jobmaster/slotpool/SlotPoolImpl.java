@@ -27,11 +27,9 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -44,7 +42,6 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.clock.Clock;
 import org.apache.flink.runtime.util.clock.SystemClock;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -64,7 +61,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
@@ -126,7 +122,7 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 
 	private String jobManagerAddress;
 
-	private ComponentMainThreadExecutor jmMainThreadScheduledExecutor;
+	private ComponentMainThreadExecutor componentMainThreadExecutor;
 
 	// ------------------------------------------------------------------------
 
@@ -160,7 +156,7 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 		this.resourceManagerGateway = null;
 		this.jobManagerAddress = null;
 
-		this.jmMainThreadScheduledExecutor = null;
+		this.componentMainThreadExecutor = null;
 	}
 
 	// ------------------------------------------------------------------------
@@ -172,15 +168,16 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 	 *
 	 * @param jobMasterId The necessary leader id for running the job.
 	 * @param newJobManagerAddress for the slot requests which are sent to the resource manager
+	 * @param componentMainThreadExecutor The main thread executor for the job master's main thread.
 	 */
 	public void start(
 		@Nonnull JobMasterId jobMasterId,
 		@Nonnull String newJobManagerAddress,
-		@Nonnull ComponentMainThreadExecutor jmMainThreadScheduledExecutor) throws Exception {
+		@Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) throws Exception {
 
 		this.jobMasterId = jobMasterId;
 		this.jobManagerAddress = newJobManagerAddress;
-		this.jmMainThreadScheduledExecutor = jmMainThreadScheduledExecutor;
+		this.componentMainThreadExecutor = componentMainThreadExecutor;
 
 		scheduleRunAsync(this::checkIdleSlot, idleSlotTimeout);
 
@@ -195,7 +192,7 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 	@Override
 	public void suspend() {
 
-		jmMainThreadScheduledExecutor.assertRunningInMainThread();
+		componentMainThreadExecutor.assertRunningInMainThread();
 
 		log.info("Suspending SlotPool.");
 
@@ -278,31 +275,25 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 		@Nonnull ResourceProfile resourceProfile,
 		@Nonnull Time timeout) {
 
-		jmMainThreadScheduledExecutor.assertRunningInMainThread();
-
-		CompletableFuture<AllocatedSlot> timeoutFuture = new CompletableFuture<>();
-		// register request timeout
-		FutureUtils.orTimeout(timeoutFuture, timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-
-		CompletableFuture<AllocatedSlot> pendingRequestFuture = timeoutFuture.handleAsync(
-			(AllocatedSlot as, Throwable t) -> {
-				if (t != null) {
-					throw new CompletionException(t);
-				}
-				return as;
-			}, jmMainThreadScheduledExecutor);
+		componentMainThreadExecutor.assertRunningInMainThread();
 
 		final PendingRequest pendingRequest = new PendingRequest(
 			slotRequestId,
-			resourceProfile,
-			pendingRequestFuture);
+			resourceProfile);
 
-		pendingRequestFuture.whenComplete(
-			(AllocatedSlot ignored, Throwable throwable) -> {
-				if (ExceptionUtils.findThrowable(throwable, TimeoutException.class).isPresent()) {
-					timeoutPendingSlotRequest(slotRequestId);
-				}
-			});
+		// register request timeout
+		FutureUtils
+			.orTimeout(
+				pendingRequest.getAllocatedSlotFuture(),
+				timeout.toMilliseconds(),
+				TimeUnit.MILLISECONDS,
+				componentMainThreadExecutor)
+			.whenComplete(
+				(AllocatedSlot ignored, Throwable throwable) -> {
+					if (throwable instanceof TimeoutException) {
+						timeoutPendingSlotRequest(slotRequestId);
+					}
+				});
 
 		if (resourceManagerGateway == null) {
 			stashRequestWaitingForResourceManager(pendingRequest);
@@ -340,14 +331,15 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 			new SlotRequest(jobId, allocationId, pendingRequest.getResourceProfile(), jobManagerAddress),
 			rpcTimeout);
 
-		// on failure, fail the request future
-		rmResponse.whenCompleteAsync(
+		FutureUtils.whenCompleteAsyncIfNotDone(
+			rmResponse,
+			componentMainThreadExecutor,
 			(Acknowledge ignored, Throwable failure) -> {
+				// on failure, fail the request future
 				if (failure != null) {
 					slotRequestToResourceManagerFailed(pendingRequest.getSlotRequestId(), failure);
 				}
-			},
-			jmMainThreadScheduledExecutor);
+			});
 	}
 
 	private void slotRequestToResourceManagerFailed(SlotRequestId slotRequestID, Throwable failure) {
@@ -377,10 +369,43 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 	@Override
 	public void releaseSlot(@Nonnull SlotRequestId slotRequestId, @Nullable Throwable cause) {
 
-		jmMainThreadScheduledExecutor.assertRunningInMainThread();
+		componentMainThreadExecutor.assertRunningInMainThread();
 
 		log.debug("Releasing slot [{}] because: {}", slotRequestId, cause != null ? cause.getMessage() : "null");
 		releaseSingleSlot(slotRequestId, cause);
+	}
+
+	@Override
+	public Optional<PhysicalSlot> allocateAvailableSlot(
+		@Nonnull SlotRequestId slotRequestId,
+		@Nonnull AllocationID allocationID) {
+
+		componentMainThreadExecutor.assertRunningInMainThread();
+
+		AllocatedSlot allocatedSlot = availableSlots.tryRemove(allocationID);
+		if (allocatedSlot != null) {
+			allocatedSlots.add(slotRequestId, allocatedSlot);
+			return Optional.of(allocatedSlot);
+		} else {
+			return Optional.empty();
+		}
+	}
+
+	@Nonnull
+	@Override
+	public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
+		@Nonnull SlotRequestId slotRequestId,
+		@Nonnull ResourceProfile resourceProfile,
+		Time timeout) {
+
+		return requestNewAllocatedSlotInternal(slotRequestId, resourceProfile, timeout)
+			.thenApply((Function.identity()));
+	}
+
+	@Override
+	@Nonnull
+	public Collection<SlotInfo> getAvailableSlotsInformation() {
+		return availableSlots.listSlotInfo();
 	}
 
 	private void releaseSingleSlot(SlotRequestId slotRequestId, Throwable cause) {
@@ -430,39 +455,6 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 			log.info("Failing pending slot request [{}]: {}", pendingRequest.getSlotRequestId(), e.getMessage());
 			pendingRequest.getAllocatedSlotFuture().completeExceptionally(e);
 		}
-	}
-
-	@Override
-	public Optional<AllocatedSlotContext> allocateAvailableSlot(
-		@Nonnull SlotRequestId slotRequestId,
-		@Nonnull AllocationID allocationID) {
-
-		jmMainThreadScheduledExecutor.assertRunningInMainThread();
-
-		AllocatedSlot allocatedSlot = availableSlots.tryRemove(allocationID);
-		if (allocatedSlot != null) {
-			allocatedSlots.add(slotRequestId, allocatedSlot);
-			return Optional.of(allocatedSlot);
-		} else {
-			return Optional.empty();
-		}
-	}
-
-	@Nonnull
-	@Override
-	public CompletableFuture<AllocatedSlotContext> requestNewAllocatedSlot(
-		@Nonnull SlotRequestId slotRequestId,
-		@Nonnull ResourceProfile resourceProfile,
-		Time timeout) {
-
-		return requestNewAllocatedSlotInternal(slotRequestId, resourceProfile, timeout)
-			.thenApply((Function.identity()));
-	}
-
-	@Override
-	@Nonnull
-	public Collection<SlotInfo> getAvailableSlotsInformation() {
-		return availableSlots.listSlotInfo();
 	}
 
 	/**
@@ -543,13 +535,12 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 	 * @param slotOffer the offered slot
 	 * @return True if we accept the offering
 	 */
-	@Override
-	public boolean offerSlot(
+	boolean offerSlot(
 			final TaskManagerLocation taskManagerLocation,
 			final TaskManagerGateway taskManagerGateway,
 			final SlotOffer slotOffer) {
 
-		jmMainThreadScheduledExecutor.assertRunningInMainThread();
+		componentMainThreadExecutor.assertRunningInMainThread();
 
 		// check if this TaskManager is valid
 		final ResourceID resourceID = taskManagerLocation.getResourceID();
@@ -644,7 +635,7 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 	@Override
 	public Optional<ResourceID> failAllocation(final AllocationID allocationID, final Exception cause) {
 
-		jmMainThreadScheduledExecutor.assertRunningInMainThread();
+		componentMainThreadExecutor.assertRunningInMainThread();
 
 		final PendingRequest pendingRequest = pendingRequests.removeKeyB(allocationID);
 		if (pendingRequest != null) {
@@ -698,7 +689,7 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 	@Override
 	public boolean registerTaskManager(final ResourceID resourceID) {
 
-		jmMainThreadScheduledExecutor.assertRunningInMainThread();
+		componentMainThreadExecutor.assertRunningInMainThread();
 
 		log.debug("Register new TaskExecutor {}.", resourceID);
 		return registeredTaskManagers.add(resourceID);
@@ -714,7 +705,7 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 	@Override
 	public boolean releaseTaskManager(final ResourceID resourceId, final Exception cause) {
 
-		jmMainThreadScheduledExecutor.assertRunningInMainThread();
+		componentMainThreadExecutor.assertRunningInMainThread();
 
 		if (registeredTaskManagers.remove(resourceId)) {
 			releaseTaskManagerInternal(resourceId, cause);
@@ -777,12 +768,14 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 					cause,
 					rpcTimeout);
 
-				freeSlotFuture.whenCompleteAsync(
+				FutureUtils.whenCompleteAsyncIfNotDone(
+					freeSlotFuture,
+					componentMainThreadExecutor,
 					(Acknowledge ignored, Throwable throwable) -> {
 						if (throwable != null) {
 							if (registeredTaskManagers.contains(expiredSlot.getTaskManagerId())) {
 								log.debug("Releasing slot [{}] of registered TaskExecutor {} failed. " +
-									"Trying to fulfill a different slot request.", allocationID, expiredSlot.getTaskManagerId(),
+										"Trying to fulfill a different slot request.", allocationID, expiredSlot.getTaskManagerId(),
 									throwable);
 								tryFulfillSlotRequestOrMakeAvailable(expiredSlot);
 							} else {
@@ -790,8 +783,7 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 									"longer registered. Discarding slot.", allocationID, expiredSlot.getTaskManagerId());
 							}
 						}
-					},
-					jmMainThreadScheduledExecutor);
+					});
 			}
 		}
 
@@ -873,7 +865,7 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 	 * @param runnable Runnable to be executed in the main thread of the underlying RPC endpoint
 	 */
 	protected void runAsync(Runnable runnable) {
-		jmMainThreadScheduledExecutor.execute(runnable);
+		componentMainThreadExecutor.execute(runnable);
 	}
 
 	/**
@@ -895,7 +887,7 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 	 * @param delay    The delay after which the runnable will be executed
 	 */
 	protected void scheduleRunAsync(Runnable runnable, long delay, TimeUnit unit) {
-		jmMainThreadScheduledExecutor.schedule(runnable, delay, unit);
+		componentMainThreadExecutor.schedule(runnable, delay, unit);
 	}
 
 	// ------------------------------------------------------------------------
@@ -1113,39 +1105,6 @@ public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
 			} else {
 				return null;
 			}
-		}
-
-		/**
-		 * Poll a slot which matches the required resource profile. The polling tries to satisfy the
-		 * location preferences, by TaskManager and by host.
-		 *
-		 * @param slotProfile slot profile that specifies the requirements for the slot
-		 *
-		 * @return Slot which matches the resource profile, null if we can't find a match
-		 */
-		SlotAndLocality poll(SchedulingStrategy schedulingStrategy, SlotProfile slotProfile) {
-			// fast path if no slots are available
-			if (availableSlots.isEmpty()) {
-				return null;
-			}
-			Collection<SlotAndTimestamp> slotAndTimestamps = availableSlots.values();
-
-			SlotAndLocality matchingSlotAndLocality = schedulingStrategy.findMatchWithLocality(
-				slotProfile,
-				slotAndTimestamps::stream,
-				SlotAndTimestamp::slot,
-				(SlotAndTimestamp slot) -> slot.slot().getResourceProfile().isMatching(slotProfile.getResourceProfile()),
-				(SlotAndTimestamp slotAndTimestamp, Locality locality) -> {
-					AllocatedSlot slot = slotAndTimestamp.slot();
-					return new SlotAndLocality(slot, locality);
-				});
-
-			if (matchingSlotAndLocality != null) {
-				AllocatedSlotContext slot = matchingSlotAndLocality.getSlot();
-				remove(slot.getAllocationId());
-			}
-
-			return matchingSlotAndLocality;
 		}
 
 		/**

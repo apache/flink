@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 /**
  * Implementation of the {@link LogicalSlot} which is used by the {@link SlotPoolImpl}.
  */
-public class SingleLogicalSlot implements LogicalSlot, AllocatedSlotContext.Payload {
+public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
 
 	private static final AtomicReferenceFieldUpdater<SingleLogicalSlot, Payload> PAYLOAD_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
 		SingleLogicalSlot.class,
@@ -176,20 +176,19 @@ public class SingleLogicalSlot implements LogicalSlot, AllocatedSlotContext.Payl
 	private void returnSlotToOwner(CompletableFuture<?> terminalStateFuture) {
 		terminalStateFuture
 			.whenComplete((Object ignored, Throwable throwable) -> {
-				if (state == State.RELEASING) {
-					slotOwner.returnAllocatedSlot(this);
-				}
-			})
-			.whenComplete(
-				(Object ignored, Throwable throwable) -> {
-					markReleased();
 
-					if (throwable != null) {
-						releaseFuture.completeExceptionally(throwable);
-					} else {
-						releaseFuture.complete(null);
-					}
-				});
+				if (state == State.RELEASING) {
+					slotOwner.returnLogicalSlot(this);
+				}
+
+				markReleased();
+
+				if (throwable != null) {
+					releaseFuture.completeExceptionally(throwable);
+				} else {
+					releaseFuture.complete(null);
+				}
+			});
 	}
 
 	private void markReleased() {

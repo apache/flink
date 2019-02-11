@@ -26,6 +26,6 @@ import org.apache.flink.runtime.jobmaster.SlotOwner;
  */
 public class DummySlotOwner implements SlotOwner {
 	@Override
-	public void returnAllocatedSlot(LogicalSlot logicalSlot) {
+	public void returnLogicalSlot(LogicalSlot logicalSlot) {
 	}
 }

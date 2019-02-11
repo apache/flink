@@ -282,7 +282,7 @@ public class Instance implements SlotOwner {
 	 * @return Future which is completed with true, if the slot was returned, false if not.
 	 */
 	@Override
-	public void returnAllocatedSlot(LogicalSlot logicalSlot) {
+	public void returnLogicalSlot(LogicalSlot logicalSlot) {
 		checkNotNull(logicalSlot);
 		checkArgument(logicalSlot instanceof Slot);
 

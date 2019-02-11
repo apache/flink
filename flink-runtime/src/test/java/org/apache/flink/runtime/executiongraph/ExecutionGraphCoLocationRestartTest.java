@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -29,7 +28,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.util.FlinkException;
 
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.function.Predicate;
@@ -48,25 +46,13 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 
 	private static final int NUM_TASKS = 31;
 
-	@ClassRule
-	public static final TestingComponentMainThreadExecutor.Resource EXECUTOR_RESOURCE =
-		new TestingComponentMainThreadExecutor.Resource();
-
-	private final TestingComponentMainThreadExecutor testMainThreadUtil =
-		EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
-
-	@Override
-	protected ComponentMainThreadExecutor supplyMainThreadExecutorForSetup() {
-		return testMainThreadUtil.getMainThreadExecutor();
-	}
-
 	@Test
 	public void testConstraintsAfterRestart() throws Exception {
 
 		final long timeout = 5000L;
 
 		//setting up
-		testMainThreadUtil.execute(() -> testingSlotProvider.addTaskManager(NUM_TASKS));
+		testingSlotProvider.addTaskManager(NUM_TASKS);
 
 		JobVertex groupVertex = ExecutionGraphTestUtils.createNoOpVertex(NUM_TASKS);
 		JobVertex groupVertex2 = ExecutionGraphTestUtils.createNoOpVertex(NUM_TASKS);
@@ -88,14 +74,11 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 
 		// enable the queued scheduling for the slot pool
 		eg.setQueuedSchedulingAllowed(true);
-		eg.start(testMainThreadUtil.getMainThreadExecutor());
+		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 
-		testMainThreadUtil.execute(() -> {
+		assertEquals(JobStatus.CREATED, eg.getState());
 
-			assertEquals(JobStatus.CREATED, eg.getState());
-
-			eg.scheduleForExecution();
-		});
+		eg.scheduleForExecution();
 
 		Predicate<Execution> isDeploying = ExecutionGraphTestUtils.isInExecutionState(ExecutionState.DEPLOYING);
 		ExecutionGraphTestUtils.waitForAllExecutionsPredicate(
@@ -103,21 +86,18 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 			isDeploying,
 			timeout);
 
-		testMainThreadUtil.execute(() -> {
+		assertEquals(JobStatus.RUNNING, eg.getState());
 
-			assertEquals(JobStatus.RUNNING, eg.getState());
+		//sanity checks
+		validateConstraints(eg);
 
-			//sanity checks
-			validateConstraints(eg);
+		eg.getAllExecutionVertices().iterator().next().fail(new FlinkException("Test exception"));
 
-			eg.getAllExecutionVertices().iterator().next().fail(new FlinkException("Test exception"));
+		assertEquals(JobStatus.FAILING, eg.getState());
 
-			assertEquals(JobStatus.FAILING, eg.getState());
-
-			for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
-				vertex.getCurrentExecutionAttempt().cancelingComplete();
-			}
-		});
+		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
+			vertex.getCurrentExecutionAttempt().cancelingComplete();
+		}
 
 		// wait until we have restarted
 		ExecutionGraphTestUtils.waitUntilJobStatus(eg, JobStatus.RUNNING, timeout);
@@ -127,15 +107,12 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 			isDeploying,
 			timeout);
 
-		testMainThreadUtil.execute(() -> {
+		//checking execution vertex properties
+		validateConstraints(eg);
 
-			//checking execution vertex properties
-			validateConstraints(eg);
+		ExecutionGraphTestUtils.finishAllVertices(eg);
 
-			ExecutionGraphTestUtils.finishAllVertices(eg);
-
-			assertThat(eg.getState(), is(FINISHED));
-		});
+		assertThat(eg.getState(), is(FINISHED));
 	}
 
 	private void validateConstraints(ExecutionGraph eg) {

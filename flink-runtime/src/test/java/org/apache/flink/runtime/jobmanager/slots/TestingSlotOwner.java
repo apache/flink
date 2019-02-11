@@ -35,7 +35,7 @@ public class TestingSlotOwner implements SlotOwner {
 	}
 
 	@Override
-	public void returnAllocatedSlot(LogicalSlot logicalSlot) {
+	public void returnLogicalSlot(LogicalSlot logicalSlot) {
 		final Consumer<LogicalSlot> currentReturnAllocatedSlotConsumer = returnAllocatedSlotConsumer;
 
 		if (currentReturnAllocatedSlotConsumer != null) {

@@ -46,39 +46,39 @@ public interface SlotProvider {
 	 * Allocating slot with specific requirement.
 	 *
 	 * @param slotRequestId identifying the slot request
-	 * @param task The task to allocate the slot for
-	 * @param allowQueued Whether allow the task be queued if we do not have enough resource
+	 * @param scheduledUnit The task to allocate the slot for
 	 * @param slotProfile profile of the requested slot
-	 * @param timeout after which the allocation fails with a timeout exception
+	 * @param allowQueuedScheduling Whether allow the task be queued if we do not have enough resource
+	 * @param allocationTimeout after which the allocation fails with a timeout exception
 	 * @return The future of the allocation
 	 */
 	CompletableFuture<LogicalSlot> allocateSlot(
 		SlotRequestId slotRequestId,
-		ScheduledUnit task,
+		ScheduledUnit scheduledUnit,
 		SlotProfile slotProfile,
-		boolean allowQueued,
-		Time timeout);
+		boolean allowQueuedScheduling,
+		Time allocationTimeout);
 
 	/**
 	 * Allocating slot with specific requirement.
 	 *
-	 * @param task The task to allocate the slot for
+	 * @param scheduledUnit The task to allocate the slot for
 	 * @param allowQueued Whether allow the task be queued if we do not have enough resource
 	 * @param slotProfile profile of the requested slot
-	 * @param timeout after which the allocation fails with a timeout exception
+	 * @param allocationTimeout after which the allocation fails with a timeout exception
 	 * @return The future of the allocation
 	 */
 	default CompletableFuture<LogicalSlot> allocateSlot(
-		ScheduledUnit task,
+		ScheduledUnit scheduledUnit,
 		boolean allowQueued,
 		SlotProfile slotProfile,
-		Time timeout) {
+		Time allocationTimeout) {
 		return allocateSlot(
 			new SlotRequestId(),
-			task,
+			scheduledUnit,
 			slotProfile,
 			allowQueued,
-			timeout);
+			allocationTimeout);
 	}
 
 	/**

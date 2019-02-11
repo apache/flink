@@ -99,20 +99,6 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 	boolean releaseTaskManager(final ResourceID resourceId, final Exception cause);
 
 	/**
-	 * Offers a slot to the {@link SlotPool}. The slot offer can be accepted or
-	 * rejected.
-	 *
-	 * @param taskManagerLocation from which the slot offer originates
-	 * @param taskManagerGateway to talk to the slot offerer
-	 * @param slotOffer slot which is offered to the {@link SlotPool}
-	 * @return True if the slot has been accepted, otherwise false
-	 */
-	boolean offerSlot(
-		TaskManagerLocation taskManagerLocation,
-		TaskManagerGateway taskManagerGateway,
-		SlotOffer slotOffer);
-
-	/**
 	 * Offers multiple slots to the {@link SlotPool}. The slot offerings can be
 	 * individually accepted or rejected by returning the collection of accepted
 	 * slot offers.
@@ -158,7 +144,7 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 	 * @param allocationID the allocation id of the requested available slot
 	 * @return the previously available slot with the given allocation id or {@code null} if no such slot existed.
 	 */
-	Optional<AllocatedSlotContext> allocateAvailableSlot(
+	Optional<PhysicalSlot> allocateAvailableSlot(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull AllocationID allocationID);
 
@@ -173,7 +159,7 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 	 * @return a newly allocated slot that was previously not available.
 	 */
 	@Nonnull
-	CompletableFuture<AllocatedSlotContext> requestNewAllocatedSlot(
+	CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull ResourceProfile resourceProfile,
 		@RpcTimeout Time timeout);

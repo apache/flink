@@ -18,22 +18,13 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 
 /**
  * The context of an {@link AllocatedSlot}. This represent an interface to classes outside the slot pool to interact
  * with allocated slots.
  */
-public interface AllocatedSlotContext extends SlotContext {
-
-	/**
-	 * Gets the ID under which the slot is allocated, which uniquely identifies the slot.
-	 *
-	 * @return The ID under which the slot is allocated
-	 */
-	@Override
-	AllocationID getAllocationId();
+public interface PhysicalSlot extends SlotContext {
 
 	/**
 	 * Tries to assign the given payload to this allocated slot. This only works if there has not

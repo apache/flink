@@ -555,7 +555,7 @@ public class ExecutionTest extends TestLogger {
 		}
 
 		@Override
-		public void returnAllocatedSlot(LogicalSlot logicalSlot) {
+		public void returnLogicalSlot(LogicalSlot logicalSlot) {
 			returnedSlot.complete(logicalSlot);
 		}
 	}

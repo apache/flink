@@ -41,14 +41,14 @@ public interface SlotSelectionStrategy {
 	 * @return the selected slot info with the corresponding locality hint.
 	 */
 	Optional<SlotInfoAndLocality> selectBestSlotForProfile(
-		@Nonnull Collection<SlotInfo> availableSlots,
+		@Nonnull Collection<? extends SlotInfo> availableSlots,
 		@Nonnull SlotProfile slotProfile);
 
 
 	/**
 	 * This class is a value type that combines a {@link SlotInfo} with a {@link Locality} hint.
 	 */
-	class SlotInfoAndLocality {
+	final class SlotInfoAndLocality {
 
 		@Nonnull
 		private final SlotInfo slotInfo;

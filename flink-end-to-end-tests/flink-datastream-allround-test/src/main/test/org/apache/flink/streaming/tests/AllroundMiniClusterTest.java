@@ -22,9 +22,11 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
@@ -35,7 +37,8 @@ import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVE
 /**
  * DataStreamAllroundTestProgram on Minicluster.
  */
-public class AllroundMiniClusterTest {
+@Ignore
+public class AllroundMiniClusterTest extends TestLogger {
 
 	@BeforeClass
 	public static void beforeClass() {

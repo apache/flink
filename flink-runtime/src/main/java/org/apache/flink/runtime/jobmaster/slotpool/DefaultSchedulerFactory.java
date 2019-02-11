@@ -23,8 +23,6 @@ import org.apache.flink.configuration.Configuration;
 
 import javax.annotation.Nonnull;
 
-import java.util.HashMap;
-
 /**
  * Default implementation of a {@link SchedulerFactory}.
  */
@@ -39,8 +37,8 @@ public class DefaultSchedulerFactory implements SchedulerFactory {
 
 	@Nonnull
 	@Override
-	public Scheduler createScheduler(@Nonnull SlotPool slotPoolGateway) {
-		return new Scheduler(new HashMap<>(128), slotSelectionStrategy, slotPoolGateway);
+	public Scheduler createScheduler(@Nonnull SlotPool slotPool) {
+		return new SchedulerImpl(slotSelectionStrategy, slotPool);
 	}
 
 	@Nonnull
@@ -48,7 +46,7 @@ public class DefaultSchedulerFactory implements SchedulerFactory {
 		if (configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY)) {
 			return PreviousAllocationSlotSelectionStrategy.INSTANCE;
 		} else {
-			return LocationPreferenceSlotSelection.INSTANCE;
+			return LocationPreferenceSlotSelectionStrategy.INSTANCE;
 		}
 	}
 

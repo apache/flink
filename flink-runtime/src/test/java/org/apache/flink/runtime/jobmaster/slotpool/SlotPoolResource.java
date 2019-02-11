@@ -28,7 +28,6 @@ import org.junit.rules.ExternalResource;
 
 import javax.annotation.Nonnull;
 
-import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
@@ -40,7 +39,7 @@ public class SlotPoolResource extends ExternalResource {
 	@Nonnull
 	private final SlotSelectionStrategy schedulingStrategy;
 
-	private SlotPool slotPool;
+	private SlotPoolImpl slotPool;
 
 	private Scheduler scheduler;
 
@@ -65,7 +64,7 @@ public class SlotPoolResource extends ExternalResource {
 		return testingResourceManagerGateway;
 	}
 
-	public SlotPool getSlotPoolGateway() {
+	public SlotPoolImpl getSlotPool() {
 		checkInitialized();
 		return slotPool;
 	}
@@ -83,7 +82,7 @@ public class SlotPoolResource extends ExternalResource {
 		testingResourceManagerGateway = new TestingResourceManagerGateway();
 
 		slotPool = new SlotPoolImpl(new JobID());
-		scheduler = new Scheduler(new HashMap<>(), schedulingStrategy, slotPool);
+		scheduler = new SchedulerImpl(schedulingStrategy, slotPool);
 		slotPool.start(JobMasterId.generate(), "foobar", mainThreadExecutor);
 		scheduler.start(mainThreadExecutor);
 		slotPool.connectToResourceManager(testingResourceManagerGateway);

@@ -57,7 +57,6 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -510,6 +509,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * @param allPreviousExecutionGraphAllocationIds the allocation ids of all previous executions in the execution job graph.
 	 * @param allocationTimeout timeout for allocating the individual slots
 	 */
+	@SuppressWarnings("unchecked")
 	public Collection<CompletableFuture<Execution>> allocateResourcesForAll(
 			SlotProvider resourceProvider,
 			boolean queued,

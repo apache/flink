@@ -76,7 +76,7 @@ public class SlotPoolCoLocationTest extends TestLogger {
 
 		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 
-		final SlotPool slotPoolGateway = slotPoolResource.getSlotPoolGateway();
+		final SlotPoolImpl slotPoolGateway = slotPoolResource.getSlotPool();
 		slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID());
 
 		CoLocationGroup group = new CoLocationGroup();

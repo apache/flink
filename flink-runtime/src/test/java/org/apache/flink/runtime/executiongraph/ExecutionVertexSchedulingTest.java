@@ -28,11 +28,13 @@ import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.jobmanager.scheduler.TestingScheduler;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -49,7 +51,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class ExecutionVertexSchedulingTest {
+public class ExecutionVertexSchedulingTest extends TestLogger {
 
 	@Test
 	public void testSlotReleasedWhenScheduledImmediately() {
@@ -65,10 +67,19 @@ public class ExecutionVertexSchedulingTest {
 			slot.releaseSlot();
 			assertTrue(slot.isReleased());
 
-			Scheduler scheduler = mock(Scheduler.class);
 			CompletableFuture<LogicalSlot> future = new CompletableFuture<>();
 			future.complete(slot);
-			when(scheduler.allocateSlot(any(SlotRequestId.class), any(ScheduledUnit.class), any(SlotProfile.class), anyBoolean(), any(Time.class))).thenReturn(future);
+			Scheduler scheduler = new TestingScheduler() {
+				@Override
+				public CompletableFuture<LogicalSlot> allocateSlot(
+					SlotRequestId slotRequestId,
+					ScheduledUnit scheduledUnit,
+					SlotProfile slotProfile,
+					boolean allowQueuedScheduling,
+					Time allocationTimeout) {
+					return future;
+				}
+			};
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
