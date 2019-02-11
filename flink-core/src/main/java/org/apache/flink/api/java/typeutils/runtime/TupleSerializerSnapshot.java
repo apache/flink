@@ -24,8 +24,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Snapshot of a tuple serializer's configuration.
@@ -48,7 +51,9 @@ public final class TupleSerializerSnapshot<T extends Tuple>
 		this.tupleClass = serializerInstance.getTupleClass();
 	}
 
-	// for backwards compatibility
+	/**
+	 *  Used for the backwards compatibility path.
+	 */
 	TupleSerializerSnapshot(Class<T> tupleClass) {
 		super(correspondingSerializerClass());
 		this.tupleClass = tupleClass;
@@ -66,25 +71,19 @@ public final class TupleSerializerSnapshot<T extends Tuple>
 
 	@Override
 	protected TupleSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+		checkState(tupleClass != null, "tuple class can not be NULL");
 		return new TupleSerializer<>(tupleClass, nestedSerializers);
 	}
 
 	@Override
 	protected void writeOuterSnapshot(DataOutputView out) throws IOException {
+		checkState(tupleClass != null, "tuple class can not be NULL");
 		out.writeUTF(tupleClass.getName());
 	}
 
 	@Override
 	protected void readOuterSnapshot(int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		final String className = in.readUTF();
-		try {
-			@SuppressWarnings("unchecked")
-			Class<T> typeClass = (Class<T>) Class.forName(className, false, userCodeClassLoader);
-			this.tupleClass = typeClass;
-		}
-		catch (ClassNotFoundException e) {
-			throw new IllegalStateException("Can not find the tuple class '" + tupleClass + "'", e);
-		}
+		this.tupleClass = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
 	}
 
 	@SuppressWarnings("unchecked")
