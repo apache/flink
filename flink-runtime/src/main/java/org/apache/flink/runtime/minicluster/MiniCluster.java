@@ -33,7 +33,6 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -55,11 +54,9 @@ import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerRunner;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -659,31 +656,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		final ActorSystem actorSystem = AkkaUtils.createActorSystem(effectiveAkkaConfig);
 
 		return new AkkaRpcService(actorSystem, akkaRpcServiceConfig);
-	}
-
-	protected ResourceManagerRunner startResourceManager(
-			Configuration configuration,
-			HighAvailabilityServices haServices,
-			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry,
-			RpcService resourceManagerRpcService,
-			ClusterInformation clusterInformation,
-			JobManagerMetricGroup jobManagerMetricGroup) throws Exception {
-
-		final ResourceManagerRunner resourceManagerRunner = new ResourceManagerRunner(
-			ResourceID.generate(),
-			FlinkResourceManager.RESOURCE_MANAGER_NAME + '_' + UUID.randomUUID(),
-			configuration,
-			resourceManagerRpcService,
-			haServices,
-			heartbeatServices,
-			metricRegistry,
-			clusterInformation,
-			jobManagerMetricGroup);
-
-			resourceManagerRunner.start();
-
-		return resourceManagerRunner;
 	}
 
 	@GuardedBy("lock")
