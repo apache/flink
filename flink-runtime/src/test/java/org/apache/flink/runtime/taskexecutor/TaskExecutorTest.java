@@ -108,7 +108,6 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -117,6 +116,7 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -130,8 +130,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
-import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
@@ -144,7 +145,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyString;
@@ -864,9 +864,6 @@ public class TaskExecutorTest extends TestLogger {
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 
-		final String resourceManagerAddress = "rm";
-		final ResourceManagerId resourceManagerLeaderId = ResourceManagerId.generate();
-
 		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		CompletableFuture<Void> initialSlotReportFuture = new CompletableFuture<>();
 		resourceManagerGateway.setSendSlotReportFunction(resourceIDInstanceIDSlotReportTuple3 -> {
@@ -874,28 +871,20 @@ public class TaskExecutorTest extends TestLogger {
 			return CompletableFuture.completedFuture(Acknowledge.get());
 		});
 
-		final String jobManagerAddress = "jm";
-		final UUID jobManagerLeaderId = UUID.randomUUID();
-		final ResourceID jmResourceId = new ResourceID(jobManagerAddress);
-		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
+		final CompletableFuture<Collection<SlotOffer>> offeredSlotsFuture = new CompletableFuture<>();
+		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
+			.setOfferSlotsFunction((resourceID, slotOffers) -> {
 
-		when(jobMasterGateway.registerTaskManager(
-				any(String.class),
-				eq(taskManagerLocation),
-				any(Time.class)
-		)).thenReturn(CompletableFuture.completedFuture(new JMTMRegistrationSuccess(jmResourceId)));
-		when(jobMasterGateway.getHostname()).thenReturn(jobManagerAddress);
-		when(jobMasterGateway.offerSlots(
-			any(ResourceID.class),
-			any(Collection.class),
-			any(Time.class))).thenReturn(mock(CompletableFuture.class, RETURNS_MOCKS));
+				offeredSlotsFuture.complete(new ArrayList<>(slotOffers));
+				return CompletableFuture.completedFuture(slotOffers);
+			})
+			.build();
 
-		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);
-		rpc.registerGateway(jobManagerAddress, jobMasterGateway);
+		rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
+		rpc.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
 
 		final AllocationID allocationId = new AllocationID();
 		final SlotID slotId = new SlotID(taskManagerLocation.getResourceID(), 0);
-		final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
 			false,
@@ -927,7 +916,7 @@ public class TaskExecutorTest extends TestLogger {
 			final TaskExecutorGateway tmGateway = taskManager.getSelfGateway(TaskExecutorGateway.class);
 
 			// tell the task manager about the rm leader
-			resourceManagerLeaderRetriever.notifyListener(resourceManagerAddress, resourceManagerLeaderId.toUUID());
+			resourceManagerLeaderRetriever.notifyListener(resourceManagerGateway.getAddress(), resourceManagerGateway.getFencingToken().toUUID());
 
 			// wait for the initial slot report
 			initialSlotReportFuture.get();
@@ -937,20 +926,18 @@ public class TaskExecutorTest extends TestLogger {
 				slotId,
 				jobId,
 				allocationId,
-				jobManagerAddress,
-				resourceManagerLeaderId,
+				jobMasterGateway.getAddress(),
+				resourceManagerGateway.getFencingToken(),
 				timeout);
 
 			slotRequestAck.get();
 
 			// now inform the task manager about the new job leader
-			jobManagerLeaderRetriever.notifyListener(jobManagerAddress, jobManagerLeaderId);
+			jobManagerLeaderRetriever.notifyListener(jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
 
-			// the job leader should get the allocation id offered
-			verify(jobMasterGateway, Mockito.timeout(timeout.toMilliseconds())).offerSlots(
-					any(ResourceID.class),
-					(Collection<SlotOffer>) MockitoHamcrest.argThat(contains(slotOffer)),
-					any(Time.class));
+			final Collection<SlotOffer> offeredSlots = offeredSlotsFuture.get();
+			final Collection<AllocationID> allocationIds = offeredSlots.stream().map(SlotOffer::getAllocationId).collect(Collectors.toList());
+			assertThat(allocationIds, containsInAnyOrder(allocationId));
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
