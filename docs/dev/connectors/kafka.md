@@ -135,6 +135,15 @@ The universal Kafka connector is compatible with older and newer Kafka brokers t
 It is compatible with broker versions 0.11.0 or newer, depending on the features used.
 For details on Kafka compatibility, please refer to the [Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility).
 
+### Migrating Kafka Connector from 0.11 to universal
+
+In order to perform the migration, see the [upgrading jobs and Flink versions guide]({{ site.baseurl }}/ops/upgrading.html)
+and:
+* Use Flink 1.9 or newer for the whole process.
+* Do not upgrade the Flink and operators at the same time.
+* Make sure that Kafka Consumer and/or Kafka Producer used in your job have assigned unique identifiers (`uid`):
+* Use stop with savepoint feature to take the savepoint (for example by using `stop --withSavepoint`)[CLI command]({{ site.baseurl }}/ops/cli.html).
+
 ### Usage
 
 To use the universal Kafka connector add a dependency to it:
