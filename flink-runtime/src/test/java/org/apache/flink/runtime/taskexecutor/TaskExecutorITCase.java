@@ -1,0 +1,161 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.runtime.taskexecutor;
+
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.minicluster.TestingMiniCluster;
+import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.SupplierWithException;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
+
+/**
+ * Integration tests for the {@link TaskExecutor}.
+ */
+public class TaskExecutorITCase extends TestLogger {
+
+	private static final Duration TESTING_TIMEOUT = Duration.ofMinutes(2L);
+	private static final int NUM_TMS = 2;
+	private static final int SLOTS_PER_TM = 2;
+	private static final int PARALLELISM = NUM_TMS * SLOTS_PER_TM;
+
+	private TestingMiniCluster miniCluster;
+
+	@Before
+	public void setup() throws Exception  {
+		miniCluster = new TestingMiniCluster(
+			new TestingMiniClusterConfiguration.Builder()
+				.setNumTaskManagers(NUM_TMS)
+				.setNumSlotsPerTaskManager(SLOTS_PER_TM)
+				.build(),
+			null);
+
+		miniCluster.start();
+	}
+
+	@After
+	public void teardown() throws Exception {
+		if (miniCluster != null) {
+			miniCluster.close();
+		}
+	}
+
+	/**
+	 * Tests that a job will be re-executed if a new TaskExecutor joins the cluster.
+	 */
+	@Test
+	public void testNewTaskExecutorJoinsCluster() throws Exception {
+
+		final Deadline deadline = Deadline.fromNow(TESTING_TIMEOUT);
+
+		final JobGraph jobGraph = createJobGraph(PARALLELISM);
+
+		miniCluster.submitJob(jobGraph).get();
+
+		final CompletableFuture<JobResult> jobResultFuture = miniCluster.requestJobResult(jobGraph.getJobID());
+
+		assertThat(jobResultFuture.isDone(), is(false));
+
+		CommonTestUtils.waitUntilCondition(
+			jobIsRunning(() -> miniCluster.getExecutionGraph(jobGraph.getJobID())),
+			deadline,
+			20L);
+
+		// kill one TaskExecutor which should fail the job execution
+		miniCluster.terminateTaskExecutor(0);
+
+		final JobResult jobResult = jobResultFuture.get();
+
+		assertThat(jobResult.isSuccess(), is(false));
+
+		miniCluster.startTaskExecutor(false);
+
+		BlockingOperator.unblock();
+
+		miniCluster.submitJob(jobGraph).get();
+
+		miniCluster.requestJobResult(jobGraph.getJobID()).get();
+	}
+
+	private SupplierWithException<Boolean, Exception> jobIsRunning(Supplier<CompletableFuture<? extends AccessExecutionGraph>> executionGraphFutureSupplier) {
+		final Predicate<AccessExecutionGraph> allExecutionsRunning = ExecutionGraphTestUtils.allExecutionsPredicate(ExecutionGraphTestUtils.isInExecutionState(ExecutionState.RUNNING));
+
+		return () -> {
+			final AccessExecutionGraph executionGraph = executionGraphFutureSupplier.get().join();
+			return allExecutionsRunning.test(executionGraph);
+		};
+	}
+
+	private JobGraph createJobGraph(int parallelism) {
+		BlockingOperator.isBlocking = true;
+		final JobVertex vertex = new JobVertex("blocking operator");
+		vertex.setParallelism(parallelism);
+		vertex.setInvokableClass(BlockingOperator.class);
+
+		return new JobGraph("Blocking test job", vertex);
+	}
+
+	/**
+	 * Blocking invokable which is controlled by a static field.
+	 */
+	public static class BlockingOperator extends AbstractInvokable {
+		private static final Object lock = new Object();
+		private static volatile boolean isBlocking = true;
+
+		public BlockingOperator(Environment environment) {
+			super(environment);
+		}
+
+		@Override
+		public void invoke() throws Exception {
+			synchronized (lock) {
+				while (isBlocking) {
+					lock.wait();
+				}
+			}
+		}
+
+		public static void unblock() {
+			synchronized (lock) {
+				isBlocking = false;
+				lock.notifyAll();
+			}
+		}
+	}
+}
