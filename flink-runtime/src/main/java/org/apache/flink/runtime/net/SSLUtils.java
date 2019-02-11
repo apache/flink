@@ -27,6 +27,8 @@ import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.ClientAuth;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.JdkSslContext;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.OpenSsl;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.OpenSslX509KeyManagerFactory;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContextBuilder;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslProvider;
@@ -54,6 +56,9 @@ import java.security.cert.CertificateException;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslProvider.JDK;
+import static org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslProvider.OPENSSL;
+import static org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslProvider.OPENSSL_REFCNT;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -194,6 +199,23 @@ public class SSLUtils {
 		return config.getString(SecurityOptions.SSL_ALGORITHMS).split(",");
 	}
 
+	@VisibleForTesting
+	static SslProvider getSSLProvider(final Configuration config) {
+		checkNotNull(config, "config must not be null");
+		String providerString = config.getString(SecurityOptions.SSL_PROVIDER);
+		if (providerString.equalsIgnoreCase("OPENSSL")) {
+			if (OpenSsl.isAvailable()) {
+				return OPENSSL;
+			} else {
+				throw new IllegalConfigurationException("openSSL not available", OpenSsl.unavailabilityCause());
+			}
+		} else if (providerString.equalsIgnoreCase("JDK")) {
+			return JDK;
+		} else {
+			throw new IllegalConfigurationException("Unknown SSL provider: %s", providerString);
+		}
+	}
+
 	private static TrustManagerFactory getTrustManagerFactory(Configuration config, boolean internal)
 			throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException {
 		String trustStoreFilePath = getAndCheckOption(
@@ -219,7 +241,10 @@ public class SSLUtils {
 		return tmf;
 	}
 
-	private static KeyManagerFactory getKeyManagerFactory(Configuration config, boolean internal)
+	private static KeyManagerFactory getKeyManagerFactory(
+			Configuration config,
+			boolean internal,
+			SslProvider provider)
 			throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException,
 			UnrecoverableKeyException {
 		String keystoreFilePath = getAndCheckOption(
@@ -242,8 +267,12 @@ public class SSLUtils {
 			keyStore.load(keyStoreFile, keystorePassword.toCharArray());
 		}
 
-		KeyManagerFactory kmf =
-			KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+		final KeyManagerFactory kmf;
+		if (provider == OPENSSL || provider == OPENSSL_REFCNT) {
+			kmf = new OpenSslX509KeyManagerFactory();
+		} else {
+			kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+		}
 		kmf.init(keyStore, certPassword.toCharArray());
 
 		return kmf;
@@ -257,7 +286,7 @@ public class SSLUtils {
 	@Nullable
 	private static SSLContext createInternalSSLContext(Configuration config, boolean clientMode) throws Exception {
 		JdkSslContext nettySSLContext =
-			(JdkSslContext) createInternalNettySSLContext(config, clientMode, SslProvider.JDK);
+			(JdkSslContext) createInternalNettySSLContext(config, clientMode, JDK);
 		if (nettySSLContext != null) {
 			return nettySSLContext.context();
 		} else {
@@ -268,7 +297,7 @@ public class SSLUtils {
 	@Nullable
 	private static SslContext createInternalNettySSLContext(Configuration config, boolean clientMode)
 			throws Exception {
-		return createInternalNettySSLContext(config, clientMode, SslProvider.JDK);
+		return createInternalNettySSLContext(config, clientMode, getSSLProvider(config));
 	}
 
 	/**
@@ -291,7 +320,7 @@ public class SSLUtils {
 		int sessionCacheSize = config.getInteger(SecurityOptions.SSL_INTERNAL_SESSION_CACHE_SIZE);
 		int sessionTimeoutMs = config.getInteger(SecurityOptions.SSL_INTERNAL_SESSION_TIMEOUT);
 
-		KeyManagerFactory kmf = getKeyManagerFactory(config, true);
+		KeyManagerFactory kmf = getKeyManagerFactory(config, true, provider);
 		TrustManagerFactory tmf = getTrustManagerFactory(config, true);
 		ClientAuth clientAuth = ClientAuth.REQUIRE;
 
@@ -321,7 +350,7 @@ public class SSLUtils {
 	public static SSLContext createRestSSLContext(Configuration config, boolean clientMode) throws Exception {
 		ClientAuth clientAuth = isRestSSLAuthenticationEnabled(config) ? ClientAuth.REQUIRE : ClientAuth.NONE;
 		JdkSslContext nettySSLContext =
-			(JdkSslContext) createRestNettySSLContext(config, clientMode, clientAuth, SslProvider.JDK);
+			(JdkSslContext) createRestNettySSLContext(config, clientMode, clientAuth, JDK);
 		if (nettySSLContext != null) {
 			return nettySSLContext.context();
 		} else {
@@ -333,7 +362,7 @@ public class SSLUtils {
 	private static SslContext createRestNettySSLContext(
 			Configuration config, boolean clientMode, ClientAuth clientAuth)
 			throws Exception {
-		return createRestNettySSLContext(config, clientMode, clientAuth, SslProvider.JDK);
+		return createRestNettySSLContext(config, clientMode, clientAuth, getSSLProvider(config));
 	}
 
 	/**
@@ -356,11 +385,11 @@ public class SSLUtils {
 		if (clientMode) {
 			sslContextBuilder = SslContextBuilder.forClient();
 			if (clientAuth != ClientAuth.NONE) {
-				KeyManagerFactory kmf = getKeyManagerFactory(config, false);
+				KeyManagerFactory kmf = getKeyManagerFactory(config, false, provider);
 				sslContextBuilder.keyManager(kmf);
 			}
 		} else {
-			KeyManagerFactory kmf = getKeyManagerFactory(config, false);
+			KeyManagerFactory kmf = getKeyManagerFactory(config, false, provider);
 			sslContextBuilder = SslContextBuilder.forServer(kmf);
 		}
 
