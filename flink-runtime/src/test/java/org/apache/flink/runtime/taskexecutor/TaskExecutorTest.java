@@ -108,18 +108,18 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -151,7 +151,6 @@ import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -160,6 +159,7 @@ import static org.mockito.Mockito.when;
  */
 public class TaskExecutorTest extends TestLogger {
 
+	public static final HeartbeatServices HEARTBEAT_SERVICES = new HeartbeatServices(1000L, 1000L);
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
 
@@ -468,8 +468,6 @@ public class TaskExecutorTest extends TestLogger {
 	 */
 	@Test
 	public void testHeartbeatSlotReporting() throws Exception {
-		final long verificationTimeout = 1000L;
-		final long heartbeatTimeout = 10000L;
 		final String rmAddress = "rm";
 		final UUID rmLeaderId = UUID.randomUUID();
 
@@ -499,7 +497,6 @@ public class TaskExecutorTest extends TestLogger {
 
 		rpc.registerGateway(rmAddress, rmGateway);
 
-		final TaskSlotTable taskSlotTable = mock(TaskSlotTable.class);
 		final SlotID slotId = new SlotID(taskManagerLocation.getResourceID(), 0);
 		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
 		final SlotReport slotReport1 = new SlotReport(
@@ -513,28 +510,7 @@ public class TaskExecutorTest extends TestLogger {
 				new JobID(),
 				new AllocationID()));
 
-		when(taskSlotTable.createSlotReport(any(ResourceID.class))).thenReturn(slotReport1, slotReport2);
-
-		final HeartbeatServices heartbeatServices = mock(HeartbeatServices.class);
-
-		when(heartbeatServices.createHeartbeatManager(
-			eq(taskManagerLocation.getResourceID()),
-			any(HeartbeatListener.class),
-			any(ScheduledExecutor.class),
-			any(Logger.class))).thenAnswer(
-			new Answer<HeartbeatManagerImpl<SlotReport, Void>>() {
-				@Override
-				public HeartbeatManagerImpl<SlotReport, Void> answer(InvocationOnMock invocation) throws Throwable {
-					return spy(new HeartbeatManagerImpl<>(
-						heartbeatTimeout,
-						taskManagerLocation.getResourceID(),
-						(HeartbeatListener<SlotReport, Void>) invocation.getArguments()[1],
-						(Executor) invocation.getArguments()[2],
-						(ScheduledExecutor) invocation.getArguments()[2],
-						(Logger) invocation.getArguments()[3]));
-				}
-			}
-		);
+		final TestingTaskSlotTable taskSlotTable = new TestingTaskSlotTable(new ArrayDeque<>(Arrays.asList(slotReport1, slotReport2)));
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
 			false,
@@ -552,7 +528,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerConfiguration,
 			haServices,
 			taskManagerServices,
-			heartbeatServices,
+			HEARTBEAT_SERVICES,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			null,
 			dummyBlobCacheService,
@@ -561,17 +537,12 @@ public class TaskExecutorTest extends TestLogger {
 		try {
 			taskManager.start();
 
-			// wait for spied heartbeat manager instance
-			HeartbeatManager<Void, SlotReport> heartbeatManager = taskManager.getResourceManagerHeartbeatManager();
-
 			// define a leader and see that a registration happens
 			resourceManagerLeaderRetriever.notifyListener(rmAddress, rmLeaderId);
 
 			// register resource manager success will trigger monitoring heartbeat target between tm and rm
 			assertThat(taskExecutorRegistrationFuture.get(), equalTo(taskManagerLocation.getResourceID()));
 			assertThat(initialSlotReportFuture.get(), equalTo(slotReport1));
-
-			verify(heartbeatManager, timeout(verificationTimeout)).monitorTarget(any(ResourceID.class), any(HeartbeatTarget.class));
 
 			TaskExecutorGateway taskExecutorGateway = taskManager.getSelfGateway(TaskExecutorGateway.class);
 
@@ -631,7 +602,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerConfiguration,
 			haServices,
 			taskManagerServices,
-			new HeartbeatServices(1000L, 1000L),
+			HEARTBEAT_SERVICES,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			null,
 			dummyBlobCacheService,
@@ -694,7 +665,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerConfiguration,
 			haServices,
 			taskManagerServices,
-			new HeartbeatServices(1000L, 1000L),
+			HEARTBEAT_SERVICES,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			null,
 			dummyBlobCacheService,
@@ -816,7 +787,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerConfiguration,
 			haServices,
 			taskManagerServices,
-			new HeartbeatServices(1000L, 1000L),
+			HEARTBEAT_SERVICES,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			null,
 			dummyBlobCacheService,
@@ -904,7 +875,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerConfiguration,
 			haServices,
 			taskManagerServices,
-			new HeartbeatServices(1000L, 1000L),
+			HEARTBEAT_SERVICES,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			null,
 			dummyBlobCacheService,
@@ -1017,7 +988,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerConfiguration,
 			haServices,
 			taskManagerServices,
-			new HeartbeatServices(1000L, 1000L),
+			HEARTBEAT_SERVICES,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			null,
 			dummyBlobCacheService,
@@ -1111,7 +1082,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerConfiguration,
 			haServices,
 			taskManagerServices,
-			new HeartbeatServices(1000L, 1000L),
+			HEARTBEAT_SERVICES,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			null,
 			dummyBlobCacheService,
@@ -1346,7 +1317,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerConfiguration,
 			haServices,
 			taskManagerServices,
-			new HeartbeatServices(1000L, 1000L),
+			HEARTBEAT_SERVICES,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			null,
 			dummyBlobCacheService,
@@ -1825,7 +1796,7 @@ public class TaskExecutorTest extends TestLogger {
 			TaskManagerConfiguration.fromConfiguration(configuration),
 			haServices,
 			taskManagerServices,
-			new HeartbeatServices(1000L, 1000L),
+			HEARTBEAT_SERVICES,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			null,
 			dummyBlobCacheService,
@@ -1926,6 +1897,20 @@ public class TaskExecutorTest extends TestLogger {
 		public void monitorTarget(ResourceID resourceID, HeartbeatTarget<O> heartbeatTarget) {
 			super.monitorTarget(resourceID, heartbeatTarget);
 			monitoredTargets.offer(resourceID);
+		}
+	}
+
+	private static final class TestingTaskSlotTable extends TaskSlotTable {
+		private final Queue<SlotReport> slotReports;
+
+		private TestingTaskSlotTable(Queue<SlotReport> slotReports) {
+			super(Collections.singleton(ResourceProfile.UNKNOWN), new TimerService<>(TestingUtils.defaultExecutor(), 10000L));
+			this.slotReports = slotReports;
+		}
+
+		@Override
+		public SlotReport createSlotReport(ResourceID resourceId) {
+			return slotReports.poll();
 		}
 	}
 }
