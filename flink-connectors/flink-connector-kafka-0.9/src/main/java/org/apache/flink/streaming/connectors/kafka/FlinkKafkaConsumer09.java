@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
+import org.apache.flink.streaming.connectors.kafka.config.RateLimiterFactory;
 import org.apache.flink.streaming.connectors.kafka.internal.Kafka09Fetcher;
 import org.apache.flink.streaming.connectors.kafka.internal.Kafka09PartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
@@ -81,6 +82,9 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	/** From Kafka's Javadoc: The time, in milliseconds, spent waiting in poll if data is not
 	 * available. If 0, returns immediately with any records that are available now. */
 	public static final long DEFAULT_POLL_TIMEOUT = 100L;
+
+	/** Configuration to set consumer prefix for ratelimiting. **/
+	private static final String CONSUMER_PREFIX = "kafka";
 
 	// ------------------------------------------------------------------------
 
@@ -247,6 +251,9 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 			properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
 		}
 
+		RateLimiterFactory rateLimiterFactory = new RateLimiterFactory();
+		rateLimiterFactory.configure(CONSUMER_PREFIX, runtimeContext, properties);
+
 		return new Kafka09Fetcher<>(
 				sourceContext,
 				assignedPartitionsWithInitialOffsets,
@@ -261,7 +268,8 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 				pollTimeout,
 				runtimeContext.getMetricGroup(),
 				consumerMetricGroup,
-				useMetrics);
+				useMetrics,
+				rateLimiterFactory);
 	}
 
 	@Override

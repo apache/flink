@@ -22,12 +22,16 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.streaming.connectors.kafka.config.RateLimiterFactory;
 import org.apache.flink.streaming.connectors.kafka.internals.ClosableBlockingQueue;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
 
+import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.RateLimiter;
+
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -120,6 +124,15 @@ public class KafkaConsumerThread extends Thread {
 	/** Flag tracking whether the latest commit request has completed. */
 	private volatile boolean commitInProgress;
 
+	/** Ratelimiter. */
+	private RateLimiter rateLimiter;
+
+	/** Max number of bytes per second that a consumer can read. */
+	private long bytesPerSecondMax;
+
+	/** Boolean flag to indicate if the rate-limiting feature is enabled. */
+	private boolean useRateLimiting;
+
 	public KafkaConsumerThread(
 			Logger log,
 			Handover handover,
@@ -130,7 +143,8 @@ public class KafkaConsumerThread extends Thread {
 			long pollTimeout,
 			boolean useMetrics,
 			MetricGroup consumerMetricGroup,
-			MetricGroup subtaskMetricGroup) {
+			MetricGroup subtaskMetricGroup,
+			RateLimiterFactory rateLimiterFactory) {
 
 		super(threadName);
 		setDaemon(true);
@@ -150,6 +164,11 @@ public class KafkaConsumerThread extends Thread {
 		this.consumerReassignmentLock = new Object();
 		this.nextOffsetsToCommit = new AtomicReference<>();
 		this.running = true;
+
+		this.useRateLimiting = rateLimiterFactory.isRateLimitingEnabled();
+		if (useRateLimiting) {
+			this.rateLimiter = rateLimiterFactory.createRateLimiter();
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -254,7 +273,8 @@ public class KafkaConsumerThread extends Thread {
 				// get the next batch of records, unless we did not manage to hand the old batch over
 				if (records == null) {
 					try {
-						records = consumer.poll(pollTimeout);
+						records = getRecordsFromKafka();
+
 					}
 					catch (WakeupException we) {
 						continue;
@@ -481,6 +501,49 @@ public class KafkaConsumerThread extends Thread {
 	KafkaConsumer<byte[], byte[]> getConsumer(Properties kafkaProperties) {
 		return new KafkaConsumer<>(kafkaProperties);
 	}
+
+	@VisibleForTesting
+	RateLimiter getRateLimiter() {
+		return rateLimiter;
+	}
+
+	// -----------------------------------------------------------------------
+	// Rate limiting methods
+	// -----------------------------------------------------------------------
+	/**
+	 *
+	 * @param records List of ConsumerRecords.
+	 * @return Total batch size in bytes, including key and value.
+	 */
+	private int getRecordBatchSize(ConsumerRecords<byte[], byte[]> records) {
+		int recordBatchSizeBytes = 0;
+		for (ConsumerRecord<byte[], byte[]> record: records) {
+			// Null is an allowed value for the key
+			if (record.key() != null) {
+				recordBatchSizeBytes += record.key().length;
+			}
+			recordBatchSizeBytes += record.value().length;
+
+		}
+		return recordBatchSizeBytes;
+	}
+
+	/**
+	 * Get records from Kafka. If the rate-limiting feature is turned on, this method is called at
+	 * a rate specified by the {@link #rateLimiter}.
+	 * @return ConsumerRecords
+	 */
+	@VisibleForTesting
+	protected ConsumerRecords<byte[], byte[]> getRecordsFromKafka() {
+		ConsumerRecords<byte[], byte[]> records = consumer.poll(pollTimeout);
+		if (useRateLimiting) {
+			int bytesRead = getRecordBatchSize(records);
+			// Ensure number of permits is > 0
+			rateLimiter.acquire(Math.max(1, bytesRead));
+		}
+		return records;
+	}
+
 
 	// ------------------------------------------------------------------------
 	//  Utilities
