@@ -301,8 +301,8 @@ public class SpanningRecordSerializationTest extends TestLogger {
 		}
 
 		@Override
-		public LargeObjectTypeDeserializingTooMuch getRandom(Random rnd) {
-			int length = super.getRandom(rnd).length();
+		public LargeObjectTypeDeserializingTooMuch getRandom(Random random) {
+			int length = super.getRandom(random).length();
 			return new LargeObjectTypeDeserializingTooMuch(length);
 		}
 
@@ -333,8 +333,8 @@ public class SpanningRecordSerializationTest extends TestLogger {
 		}
 
 		@Override
-		public LargeObjectTypeDeserializingNotEnough getRandom(Random rnd) {
-			int length = super.getRandom(rnd).length();
+		public LargeObjectTypeDeserializingNotEnough getRandom(Random random) {
+			int length = super.getRandom(random).length();
 			return new LargeObjectTypeDeserializingNotEnough(length);
 		}
 

@@ -167,7 +167,7 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 			try {
 				target.read(this.spanningWrapper.getInputView());
 
-				int remainingSpanningBytes = this.spanningWrapper.getRemainingBytes();
+				int remainingSpanningBytes = this.spanningWrapper.getRemainingBytesOrZero();
 				if (remainingSpanningBytes != 0) {
 					throwDeserializationError(
 						this.spanningWrapper.recordLength,
@@ -615,7 +615,7 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 			}
 		}
 
-		private int getRemainingBytes() {
+		private int getRemainingBytesOrZero() {
 			if (this.spillFileReader == null) {
 				return this.serializationReadBuffer.available();
 			} else {
