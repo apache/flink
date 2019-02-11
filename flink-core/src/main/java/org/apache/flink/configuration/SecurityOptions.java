@@ -23,6 +23,7 @@ import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.TextElement;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
@@ -298,6 +299,26 @@ public class SecurityOptions {
 		key("security.ssl.verify-hostname")
 			.defaultValue(true)
 			.withDescription("Flag to enable peer’s hostname verification during ssl handshake.");
+
+	/**
+	 * SSL engine provider.
+	 */
+	public static final ConfigOption<String> SSL_PROVIDER =
+		key("security.ssl.provider")
+			.defaultValue("JDK")
+			.withDescription(Description.builder()
+					.text("The SSL engine provider to use for the ssl transport:")
+					.list(
+						TextElement.text("%s: default Java-based SSL engine", TextElement.code("JDK")),
+						TextElement.text("%s: openSSL-based SSL engine using system libraries",
+							TextElement.code("OPENSSL"))
+					)
+					.text("Please note: OPENSSL requires a custom build of %s in our " +
+						"shaded package namespace which is not (yet) available but can be built manually (see %s).",
+						link("http://netty.io/wiki/forked-tomcat-native.html#wiki-h2-4", "netty-tcnative"),
+						link("https://issues.apache.org/jira/browse/FLINK-11579", "FLINK-11579"))
+					.build()
+				);
 
 	// ------------------------ ssl parameters --------------------------------
 
