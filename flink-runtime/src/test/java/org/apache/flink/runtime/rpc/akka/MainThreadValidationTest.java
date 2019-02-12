@@ -30,6 +30,10 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests that the {@link AkkaRpcService} runs all RPCs in the {@link AkkaRpcActor}'s
+ * main thread.
+ */
 public class MainThreadValidationTest extends TestLogger {
 
 	@Test
@@ -80,10 +84,9 @@ public class MainThreadValidationTest extends TestLogger {
 		void someConcurrencyCriticalFunction();
 	}
 
-	@SuppressWarnings("unused")
-	public static class TestEndpoint extends RpcEndpoint implements TestGateway {
+	private static class TestEndpoint extends RpcEndpoint implements TestGateway {
 
-		public TestEndpoint(RpcService rpcService) {
+		private TestEndpoint(RpcService rpcService) {
 			super(rpcService);
 		}
 
