@@ -44,10 +44,12 @@ import java.util.function.Supplier;
  */
 public class TestingMiniCluster extends MiniCluster {
 
+	private final int numberDispatcherResourceManagerComponents;
+
+	private final boolean localCommunication;
+
 	@Nullable
 	private final Supplier<HighAvailabilityServices> highAvailabilityServicesSupplier;
-
-	private final int numberDispatcherResourceManagerComponents;
 
 	public TestingMiniCluster(
 			TestingMiniClusterConfiguration miniClusterConfiguration,
@@ -55,6 +57,7 @@ public class TestingMiniCluster extends MiniCluster {
 		super(miniClusterConfiguration);
 		this.numberDispatcherResourceManagerComponents = miniClusterConfiguration.getNumberDispatcherResourceManagerComponents();
 		this.highAvailabilityServicesSupplier = highAvailabilityServicesSupplier;
+		this.localCommunication = miniClusterConfiguration.isLocalCommunication();
 	}
 
 	public TestingMiniCluster(TestingMiniClusterConfiguration miniClusterConfiguration) {
@@ -80,7 +83,7 @@ public class TestingMiniCluster extends MiniCluster {
 
 	@Override
 	protected boolean useLocalCommunication() {
-		return false;
+		return localCommunication;
 	}
 
 	@Override

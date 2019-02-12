@@ -108,7 +108,7 @@ public class JobRecoveryITCase extends TestLogger {
 	/**
 	 * Receiver which fails once before successfully completing.
 	 */
-	public static final class FailingOnceReceiver extends Tasks.Receiver {
+	public static final class FailingOnceReceiver extends JobExecutionITCase.Receiver {
 
 		private static volatile boolean failed = false;
 
@@ -117,7 +117,7 @@ public class JobRecoveryITCase extends TestLogger {
 		}
 
 		@Override
-		public void invoke() {
+		public void invoke() throws Exception {
 			if (!failed && getEnvironment().getTaskInfo().getIndexOfThisSubtask() == 0) {
 				failed = true;
 				throw new FlinkRuntimeException(getClass().getSimpleName());
