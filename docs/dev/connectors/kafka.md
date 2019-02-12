@@ -205,7 +205,7 @@ produced Java/Scala type to Flink's type system. Users that implement a vanilla 
 to implement the `getProducedType(...)` method themselves.
 
 For accessing both the key and value of the Kafka message, the `KeyedDeserializationSchema` has
-the following deserialize method ` T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset)`.
+the following deserialize method `T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset)`.
 
 For convenience, Flink provides the following schemas:
 
@@ -214,7 +214,7 @@ For convenience, Flink provides the following schemas:
     This schema is a performant Flink-specific alternative to other generic serialization approaches.
 
 2. `JsonDeserializationSchema` (and `JSONKeyValueDeserializationSchema`) which turns the serialized JSON
-    into an ObjectNode object, from which fields can be accessed using objectNode.get("field").as(Int/String/...)().
+    into an ObjectNode object, from which fields can be accessed using `objectNode.get("field").as(Int/String/...)()`.
     The KeyValue objectNode contains a "key" and "value" field which contain all fields, as well as
     an optional "metadata" field that exposes the offset/partition/topic for this message.
     
