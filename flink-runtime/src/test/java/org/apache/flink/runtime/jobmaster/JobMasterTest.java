@@ -648,12 +648,11 @@ public class JobMasterTest extends TestLogger {
 			final long start = System.nanoTime();
 			jobMaster.start(JobMasterId.generate()).get();
 
-			final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+			final TestingResourceManagerGateway resourceManagerGateway = createAndRegisterTestingResourceManagerGateway();
 			final ArrayBlockingQueue<SlotRequest> blockingQueue = new ArrayBlockingQueue<>(2);
 			resourceManagerGateway.setRequestSlotConsumer(blockingQueue::offer);
 
-			rpcService.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
-			rmLeaderRetrievalService.notifyListener(resourceManagerGateway.getAddress(), resourceManagerGateway.getFencingToken().toUUID());
+			notifyResourceManagerLeaderListeners(resourceManagerGateway);
 
 			// wait for the first slot request
 			blockingQueue.take();
@@ -713,15 +712,9 @@ public class JobMasterTest extends TestLogger {
 
 		try {
 			jobMaster.start(JobMasterId.generate()).get();
-			final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
-			final String firstResourceManagerAddress = "address1";
-			final String secondResourceManagerAddress = "address2";
 
-			final TestingResourceManagerGateway firstResourceManagerGateway = new TestingResourceManagerGateway();
-			final TestingResourceManagerGateway secondResourceManagerGateway = new TestingResourceManagerGateway();
-
-			rpcService.registerGateway(firstResourceManagerAddress, firstResourceManagerGateway);
-			rpcService.registerGateway(secondResourceManagerAddress, secondResourceManagerGateway);
+			final TestingResourceManagerGateway firstResourceManagerGateway = createAndRegisterTestingResourceManagerGateway();
+			final TestingResourceManagerGateway secondResourceManagerGateway = createAndRegisterTestingResourceManagerGateway();
 
 			final OneShotLatch firstJobManagerRegistration = new OneShotLatch();
 			final OneShotLatch secondJobManagerRegistration = new OneShotLatch();
@@ -732,13 +725,13 @@ public class JobMasterTest extends TestLogger {
 			secondResourceManagerGateway.setRegisterJobManagerConsumer(
 				jobMasterIdResourceIDStringJobIDTuple4 -> secondJobManagerRegistration.trigger());
 
-			rmLeaderRetrievalService.notifyListener(firstResourceManagerAddress, resourceManagerId.toUUID());
+			notifyResourceManagerLeaderListeners(firstResourceManagerGateway);
 
 			// wait until we have seen the first registration attempt
 			firstJobManagerRegistration.await();
 
 			// this should stop the connection attempts towards the first RM
-			rmLeaderRetrievalService.notifyListener(secondResourceManagerAddress, resourceManagerId.toUUID());
+			notifyResourceManagerLeaderListeners(secondResourceManagerGateway);
 
 			// check that we start registering at the second RM
 			secondJobManagerRegistration.await();
@@ -766,18 +759,14 @@ public class JobMasterTest extends TestLogger {
 		try {
 			// wait for the start to complete
 			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-			final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+			final TestingResourceManagerGateway testingResourceManagerGateway = createAndRegisterTestingResourceManagerGateway();
 			final BlockingQueue<JobMasterId> registrationsQueue = new ArrayBlockingQueue<>(1);
 
 			testingResourceManagerGateway.setRegisterJobManagerConsumer(
 				jobMasterIdResourceIDStringJobIDTuple4 -> registrationsQueue.offer(jobMasterIdResourceIDStringJobIDTuple4.f0));
 
-			rpcService.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
-
 			final ResourceManagerId resourceManagerId = testingResourceManagerGateway.getFencingToken();
-			rmLeaderRetrievalService.notifyListener(
-				testingResourceManagerGateway.getAddress(),
-				resourceManagerId.toUUID());
+			notifyResourceManagerLeaderListeners(testingResourceManagerGateway);
 
 			// wait for first registration attempt
 			final JobMasterId firstRegistrationAttempt = registrationsQueue.take();
@@ -811,16 +800,13 @@ public class JobMasterTest extends TestLogger {
 			// wait for the start to complete
 			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
-			final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+			final TestingResourceManagerGateway testingResourceManagerGateway = createAndRegisterTestingResourceManagerGateway();
 
 			final BlockingQueue<JobMasterId> registrationQueue = new ArrayBlockingQueue<>(1);
 			testingResourceManagerGateway.setRegisterJobManagerConsumer(
 				jobMasterIdResourceIDStringJobIDTuple4 -> registrationQueue.offer(jobMasterIdResourceIDStringJobIDTuple4.f0));
 
-			final String resourceManagerAddress = testingResourceManagerGateway.getAddress();
-			rpcService.registerGateway(resourceManagerAddress, testingResourceManagerGateway);
-
-			rmLeaderRetrievalService.notifyListener(resourceManagerAddress, testingResourceManagerGateway.getFencingToken().toUUID());
+			notifyResourceManagerLeaderListeners(testingResourceManagerGateway);
 
 			final JobMasterId firstRegistrationAttempt = registrationQueue.take();
 
@@ -1236,7 +1222,6 @@ public class JobMasterTest extends TestLogger {
 			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			final TestingResourceManagerGateway testingResourceManagerGateway = createAndRegisterTestingResourceManagerGateway();
-
 			final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
 			testingResourceManagerGateway.setRequestSlotConsumer(slotRequest -> allocationIdFuture.complete(slotRequest.getAllocationId()));
 
@@ -1250,6 +1235,8 @@ public class JobMasterTest extends TestLogger {
 			rpcService.registerGateway(testingTaskExecutorGateway.getAddress(), testingTaskExecutorGateway);
 
 			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+			notifyResourceManagerLeaderListeners(testingResourceManagerGateway);
 
 			final AllocationID allocationId = allocationIdFuture.get();
 
@@ -1313,6 +1300,10 @@ public class JobMasterTest extends TestLogger {
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
+	}
+
+	private void notifyResourceManagerLeaderListeners(TestingResourceManagerGateway testingResourceManagerGateway) {
+		rmLeaderRetrievalService.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
 	}
 
 	/**
@@ -1383,6 +1374,7 @@ public class JobMasterTest extends TestLogger {
 			heartbeatServices);
 
 		final TestingResourceManagerGateway testingResourceManagerGateway = createAndRegisterTestingResourceManagerGateway();
+		notifyResourceManagerLeaderListeners(testingResourceManagerGateway);
 
 		final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
 
@@ -1434,7 +1426,6 @@ public class JobMasterTest extends TestLogger {
 	private TestingResourceManagerGateway createAndRegisterTestingResourceManagerGateway() {
 		final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
 		rpcService.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
-		rmLeaderRetrievalService.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
 		return testingResourceManagerGateway;
 	}
 
@@ -1480,7 +1471,8 @@ public class JobMasterTest extends TestLogger {
 			heartbeatSupplier.get(),
 			onCompletionActions);
 
-		createAndRegisterTestingResourceManagerGateway();
+		final TestingResourceManagerGateway testingResourceManagerGateway = createAndRegisterTestingResourceManagerGateway();
+		notifyResourceManagerLeaderListeners(testingResourceManagerGateway);
 
 		try {
 			jobMaster.start(jobMasterId).get();
