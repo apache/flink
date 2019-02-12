@@ -107,7 +107,7 @@ public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor, Co
 		return insertRunnable(command, true);
 	}
 
-	Collection<ScheduledFuture<?>> getScheduledTasks() {
+	public Collection<ScheduledFuture<?>> getScheduledTasks() {
 		return new ArrayList<>(scheduledTasks);
 	}
 
