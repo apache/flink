@@ -68,31 +68,6 @@
             <td>Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.</td>
         </tr>
         <tr>
-            <td><h5>taskmanager.memory.fraction</h5></td>
-            <td style="word-wrap: break-word;">0.7</td>
-            <td>The relative amount of memory (after subtracting the amount of memory used by network buffers) that the task manager reserves for sorting, hash tables, and caching of intermediate results. For example, a value of `0.8` means that a task manager reserves 80% of its memory for internal data buffers, leaving 20% of free memory for the task manager's heap for objects created by user-defined functions. This parameter is only evaluated, if taskmanager.memory.size is not set.</td>
-        </tr>
-        <tr>
-            <td><h5>taskmanager.memory.off-heap</h5></td>
-            <td style="word-wrap: break-word;">false</td>
-            <td>Memory allocation method (JVM heap or off-heap), used for managed memory of the TaskManager as well as the network buffers.</td>
-        </tr>
-        <tr>
-            <td><h5>taskmanager.memory.preallocate</h5></td>
-            <td style="word-wrap: break-word;">false</td>
-            <td>Whether TaskManager managed memory should be pre-allocated when the TaskManager is starting.</td>
-        </tr>
-        <tr>
-            <td><h5>taskmanager.memory.segment-size</h5></td>
-            <td style="word-wrap: break-word;">"32kb"</td>
-            <td>Size of memory buffers used by the network stack and the memory manager.</td>
-        </tr>
-        <tr>
-            <td><h5>taskmanager.memory.size</h5></td>
-            <td style="word-wrap: break-word;">"0"</td>
-            <td>Amount of memory to be allocated by the task manager's memory manager. If not set, a relative fraction will be allocated.</td>
-        </tr>
-        <tr>
             <td><h5>taskmanager.network.detailed-metrics</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.</td>
