@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rpc;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledFutureAdapter;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -56,7 +57,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>The RPC endpoint provides {@link #runAsync(Runnable)}, {@link #callAsync(Callable, Time)}
  * and the {@link #getMainThreadExecutor()} to execute code in the RPC endpoint's main thread.
  */
-public abstract class RpcEndpoint implements RpcGateway {
+public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -157,11 +158,8 @@ public abstract class RpcEndpoint implements RpcGateway {
 	 * <p>In order to wait on the completion of the shut down, obtain the termination future
 	 * via {@link #getTerminationFuture()}} and wait on its completion.
 	 */
-	public final void shutDown() {
-		rpcService.stopServer(rpcServer);
-	}
-
-	public final CompletableFuture<Void> terminate() {
+	@Override
+	public final CompletableFuture<Void> closeAsync() {
 		rpcService.stopServer(rpcServer);
 		return getTerminationFuture();
 	}

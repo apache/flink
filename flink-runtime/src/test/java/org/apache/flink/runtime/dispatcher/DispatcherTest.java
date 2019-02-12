@@ -680,8 +680,7 @@ public class DispatcherTest extends TestLogger {
 		submissionFuture.get();
 		assertThat(dispatcher.getNumberJobs(TIMEOUT).get(), Matchers.is(1));
 
-		dispatcher.shutDown();
-		dispatcher.getTerminationFuture().get();
+		dispatcher.close();
 
 		assertThat(submittedJobGraphStore.contains(jobGraph.getJobID()), Matchers.is(true));
 	}

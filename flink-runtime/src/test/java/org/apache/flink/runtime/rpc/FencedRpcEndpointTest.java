@@ -101,8 +101,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 			assertEquals(newFencingToken, fencedGateway.getFencingToken());
 			assertEquals(newFencingToken, fencedTestingEndpoint.getFencingToken());
 		} finally {
-			fencedTestingEndpoint.shutDown();
-			fencedTestingEndpoint.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint, timeout);
 		}
 	}
 
@@ -150,8 +149,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 			}
 
 		} finally {
-			fencedTestingEndpoint.shutDown();
-			fencedTestingEndpoint.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint, timeout);
 		}
 	}
 
@@ -197,8 +195,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof FencingTokenException);
 			}
 		} finally {
-			fencedTestingEndpoint.shutDown();
-			fencedTestingEndpoint.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint, timeout);
 		}
 	}
 
@@ -241,8 +238,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 			}
 
 		} finally {
-			fencedTestingEndpoint.shutDown();
-			fencedTestingEndpoint.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint, timeout);
 		}
 	}
 
@@ -277,8 +273,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 				// we should not be able to call getFencingToken on an unfenced gateway
 			}
 		} finally {
-			fencedTestingEndpoint.shutDown();
-			fencedTestingEndpoint.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint, timeout);
 		}
 	}
 

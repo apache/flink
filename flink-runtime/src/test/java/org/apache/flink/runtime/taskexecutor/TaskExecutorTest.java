@@ -645,8 +645,7 @@ public class TaskExecutorTest extends TestLogger {
 					eq(taskManagerAddress), eq(taskManagerLocation.getResourceID()), anyInt(), any(HardwareDescription.class), any(Time.class));
 		}
 		finally {
-			taskManager.shutDown();
-			taskManager.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
 	}
 
@@ -726,8 +725,7 @@ public class TaskExecutorTest extends TestLogger {
 			assertNotNull(taskManager.getResourceManagerConnection());
 		}
 		finally {
-			taskManager.shutDown();
-			taskManager.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
 	}
 
@@ -835,8 +833,7 @@ public class TaskExecutorTest extends TestLogger {
 
 			completionFuture.get();
 		} finally {
-			taskManager.shutDown();
-			taskManager.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
 	}
 
@@ -1061,8 +1058,7 @@ public class TaskExecutorTest extends TestLogger {
 			assertFalse(taskSlotTable.tryMarkSlotActive(jobId, allocationId2));
 			assertTrue(taskSlotTable.isSlotFree(1));
 		} finally {
-			taskManager.shutDown();
-			taskManager.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
 	}
 
@@ -1198,8 +1194,7 @@ public class TaskExecutorTest extends TestLogger {
 			// wait for the task completion
 			taskInTerminalState.await();
 		} finally {
-			taskManager.shutDown();
-			taskManager.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
 	}
 
@@ -1263,8 +1258,7 @@ public class TaskExecutorTest extends TestLogger {
 
 			assertEquals(jobMasterGateway, jobManagerConnection.getJobManagerGateway());
 		} finally {
-			taskExecutor.shutDown();
-			taskExecutor.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
 		}
 	}
 

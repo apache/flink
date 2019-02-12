@@ -268,7 +268,7 @@ public class SlotPoolTest extends TestLogger {
 			assertEquals(slot1.getTaskManagerLocation(), slot2.getTaskManagerLocation());
 			assertEquals(slot1.getPhysicalSlotNumber(), slot2.getPhysicalSlotNumber());
 		} finally {
-			slotPool.shutDown();
+			RpcUtils.terminateRpcEndpoint(slotPool, timeout);
 		}
 	}
 
@@ -336,7 +336,7 @@ public class SlotPoolTest extends TestLogger {
 			assertFalse(slotPoolGateway.offerSlot(taskManagerLocation, taskManagerGateway, anotherSlotOfferWithSameAllocationId).get());
 			assertFalse(slotPoolGateway.offerSlot(anotherTaskManagerLocation, taskManagerGateway, slotOffer).get());
 		} finally {
-			slotPool.shutDown();
+			RpcUtils.terminateRpcEndpoint(slotPool, timeout);
 		}
 	}
 
@@ -393,7 +393,7 @@ public class SlotPoolTest extends TestLogger {
 			Thread.sleep(10);
 			assertFalse(future2.isDone());
 		} finally {
-			slotPool.shutDown();
+			RpcUtils.terminateRpcEndpoint(slotPool, timeout);
 		}
 	}
 
@@ -577,8 +577,7 @@ public class SlotPoolTest extends TestLogger {
 			assertThat(acceptedSlotOffers, Matchers.equalTo(slotOffers));
 
 			// shut down the slot pool
-			slotPool.shutDown();
-			slotPool.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			slotPool.closeAsync().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			// the shut down operation should have freed all registered slots
 			ArrayList<AllocationID> freedSlots = new ArrayList<>(numSlotOffers);

@@ -169,11 +169,9 @@ public class DispatcherResourceManagerComponent<T extends Dispatcher> implements
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
-		dispatcher.shutDown();
-		terminationFutures.add(dispatcher.getTerminationFuture());
+		terminationFutures.add(dispatcher.closeAsync());
 
-		resourceManager.shutDown();
-		terminationFutures.add(resourceManager.getTerminationFuture());
+		terminationFutures.add(resourceManager.closeAsync());
 
 		if (exception != null) {
 			terminationFutures.add(FutureUtils.completedExceptionally(exception));

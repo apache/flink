@@ -413,8 +413,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					if (taskManagers != null) {
 						for (TaskExecutor tm : taskManagers) {
 							if (tm != null) {
-								tm.shutDown();
-								componentTerminationFutures.add(tm.getTerminationFuture());
+								componentTerminationFutures.add(tm.closeAsync());
 							}
 						}
 						taskManagers = null;
@@ -931,7 +930,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 				if (currentTaskManagers != null) {
 					// the shutDown is asynchronous
-					currentTaskManagers[index].shutDown();
+					currentTaskManagers[index].closeAsync();
 				}
 			}
 		}

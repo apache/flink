@@ -26,8 +26,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.util.concurrent.CompletableFuture;
-
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -68,7 +66,7 @@ public class MainThreadValidationTest extends TestLogger {
 			}
 			assertTrue("should fail with an assertion error", exceptionThrown);
 
-			testEndpoint.shutDown();
+			testEndpoint.closeAsync();
 		}
 		finally {
 			akkaRpcService.stopService().get();

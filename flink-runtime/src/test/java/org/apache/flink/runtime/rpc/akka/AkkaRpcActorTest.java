@@ -135,15 +135,17 @@ public class AkkaRpcActorTest extends TestLogger {
 		// start the endpoint so that it can process messages
 		rpcEndpoint.start();
 
-		// send the rpc again
-		result = rpcGateway.foobar();
+		try {
+			// send the rpc again
+			result = rpcGateway.foobar();
 
-		// now we should receive a result :-)
-		Integer actualValue = result.get(timeout.getSize(), timeout.getUnit());
+			// now we should receive a result :-)
+			Integer actualValue = result.get(timeout.getSize(), timeout.getUnit());
 
-		assertThat("The new foobar value should have been returned.", actualValue, Is.is(expectedValue));
-
-		rpcEndpoint.shutDown();
+			assertThat("The new foobar value should have been returned.", actualValue, Is.is(expectedValue));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
+		}
 	}
 
 	/**
@@ -162,7 +164,7 @@ public class AkkaRpcActorTest extends TestLogger {
 		assertFalse(terminationFuture.isDone());
 
 		CompletableFuture.runAsync(
-			rpcEndpoint::shutDown,
+			rpcEndpoint::closeAsync,
 			akkaRpcService.getExecutor());
 
 		// wait until the rpc endpoint has terminated
@@ -216,9 +218,7 @@ public class AkkaRpcActorTest extends TestLogger {
 		FailingOnStopEndpoint rpcEndpoint = new FailingOnStopEndpoint(akkaRpcService, "FailingOnStopEndpoint");
 		rpcEndpoint.start();
 
-		rpcEndpoint.shutDown();
-
-		CompletableFuture<Void> terminationFuture = rpcEndpoint.getTerminationFuture();
+		CompletableFuture<Void> terminationFuture = rpcEndpoint.closeAsync();
 
 		try {
 			terminationFuture.get();
@@ -235,9 +235,7 @@ public class AkkaRpcActorTest extends TestLogger {
 		SimpleRpcEndpoint simpleRpcEndpoint = new SimpleRpcEndpoint(akkaRpcService, "SimpleRpcEndpoint");
 		simpleRpcEndpoint.start();
 
-		simpleRpcEndpoint.shutDown();
-
-		CompletableFuture<Void> terminationFuture = simpleRpcEndpoint.getTerminationFuture();
+		CompletableFuture<Void> terminationFuture = simpleRpcEndpoint.closeAsync();
 
 		// check that we executed the onStop method in the main thread, otherwise an exception
 		// would be thrown here.
@@ -281,9 +279,7 @@ public class AkkaRpcActorTest extends TestLogger {
 		try {
 			endpoint.start();
 
-			final CompletableFuture<Void> terminationFuture = endpoint.getTerminationFuture();
-
-			endpoint.shutDown();
+			final CompletableFuture<Void> terminationFuture = endpoint.closeAsync();
 
 			assertFalse(terminationFuture.isDone());
 
@@ -307,7 +303,7 @@ public class AkkaRpcActorTest extends TestLogger {
 		try {
 			endpoint.start();
 
-			CompletableFuture<Void> terminationFuture = endpoint.terminate();
+			CompletableFuture<Void> terminationFuture = endpoint.closeAsync();
 
 			terminationFuture.get();
 		} finally {
