@@ -171,6 +171,7 @@ public class ConfigOptionsDocsCompletenessITCase {
 
 	private static Collection<DocumentedOption> parseDocumentedOptionsFromFile(Path file) throws IOException {
 		Document document = Jsoup.parse(file.toFile(), StandardCharsets.UTF_8.name());
+		document.outputSettings().syntax(Document.OutputSettings.Syntax.xml);
 		document.outputSettings().prettyPrint(false);
 		return document.getElementsByTag("table").stream()
 			.map(element -> element.getElementsByTag("tbody").get(0))
