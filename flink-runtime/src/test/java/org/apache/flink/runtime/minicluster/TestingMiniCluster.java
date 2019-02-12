@@ -74,8 +74,13 @@ public class TestingMiniCluster extends MiniCluster {
 	}
 
 	@Override
-	public void startTaskExecutor(boolean localCommunication) throws Exception {
-		super.startTaskExecutor(localCommunication);
+	public void startTaskExecutor() throws Exception {
+		super.startTaskExecutor();
+	}
+
+	@Override
+	protected boolean useLocalCommunication() {
+		return false;
 	}
 
 	@Override

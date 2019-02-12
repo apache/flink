@@ -39,6 +39,7 @@ import org.junit.Test;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -81,9 +82,6 @@ public class TaskExecutorITCase extends TestLogger {
 	 */
 	@Test
 	public void testNewTaskExecutorJoinsCluster() throws Exception {
-
-		final Deadline deadline = Deadline.fromNow(TESTING_TIMEOUT);
-
 		final JobGraph jobGraph = createJobGraph(PARALLELISM);
 
 		miniCluster.submitJob(jobGraph).get();
@@ -94,7 +92,7 @@ public class TaskExecutorITCase extends TestLogger {
 
 		CommonTestUtils.waitUntilCondition(
 			jobIsRunning(() -> miniCluster.getExecutionGraph(jobGraph.getJobID())),
-			deadline,
+			Deadline.fromNow(TESTING_TIMEOUT),
 			20L);
 
 		// kill one TaskExecutor which should fail the job execution
@@ -104,7 +102,7 @@ public class TaskExecutorITCase extends TestLogger {
 
 		assertThat(jobResult.isSuccess(), is(false));
 
-		miniCluster.startTaskExecutor(false);
+		miniCluster.startTaskExecutor();
 
 		BlockingOperator.unblock();
 
@@ -123,10 +121,11 @@ public class TaskExecutorITCase extends TestLogger {
 	}
 
 	private JobGraph createJobGraph(int parallelism) {
-		BlockingOperator.isBlocking = true;
 		final JobVertex vertex = new JobVertex("blocking operator");
 		vertex.setParallelism(parallelism);
 		vertex.setInvokableClass(BlockingOperator.class);
+
+		BlockingOperator.reset();
 
 		return new JobGraph("Blocking test job", vertex);
 	}
@@ -135,8 +134,7 @@ public class TaskExecutorITCase extends TestLogger {
 	 * Blocking invokable which is controlled by a static field.
 	 */
 	public static class BlockingOperator extends AbstractInvokable {
-		private static final Object lock = new Object();
-		private static volatile boolean isBlocking = true;
+		private static CountDownLatch countDownLatch = new CountDownLatch(1);
 
 		public BlockingOperator(Environment environment) {
 			super(environment);
@@ -144,18 +142,15 @@ public class TaskExecutorITCase extends TestLogger {
 
 		@Override
 		public void invoke() throws Exception {
-			synchronized (lock) {
-				while (isBlocking) {
-					lock.wait();
-				}
-			}
+			countDownLatch.await();
 		}
 
 		public static void unblock() {
-			synchronized (lock) {
-				isBlocking = false;
-				lock.notifyAll();
-			}
+			countDownLatch.countDown();
+		}
+
+		public static void reset() {
+			countDownLatch = new CountDownLatch(1);
 		}
 	}
 }

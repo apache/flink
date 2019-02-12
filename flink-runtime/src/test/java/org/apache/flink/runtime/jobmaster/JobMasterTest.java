@@ -1467,9 +1467,9 @@ public class JobMasterTest extends TestLogger {
 	}
 
 	private void runJobFailureWhenTaskExecutorTerminatesTest(
-		Supplier<HeartbeatServices> heartbeatSupplier,
-		BiConsumer<LocalTaskManagerLocation, JobMasterGateway> jobReachedRunningState,
-		BiFunction<JobMasterGateway, ResourceID, Consumer<ResourceID>> heartbeatConsumerFunction) throws Exception {
+			Supplier<HeartbeatServices> heartbeatSupplier,
+			BiConsumer<LocalTaskManagerLocation, JobMasterGateway> jobReachedRunningState,
+			BiFunction<JobMasterGateway, ResourceID, Consumer<ResourceID>> heartbeatConsumerFunction) throws Exception {
 		final JobGraph jobGraph = createSingleVertexJobGraph();
 		final TestingOnCompletionActions onCompletionActions = new TestingOnCompletionActions();
 		final JobMaster jobMaster = createJobMaster(
@@ -1499,10 +1499,8 @@ public class JobMasterTest extends TestLogger {
 			rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 
 			jobMasterGateway.registerTaskManager(taskExecutorGateway.getAddress(), taskManagerLocation, testingTimeout).get();
-			final SlotOffer slotOffer = new SlotOffer(new AllocationID(), 0, ResourceProfile.UNKNOWN);
-			final Collection<SlotOffer> slotOffers = jobMasterGateway.offerSlots(taskManagerLocation.getResourceID(), Collections.singleton(slotOffer), testingTimeout).get();
 
-			assertThat(slotOffers, hasSize(1));
+			offerSingleSlot(jobMasterGateway, taskManagerLocation);
 
 			final ExecutionAttemptID executionAttemptId = taskDeploymentFuture.get();
 
@@ -1516,6 +1514,13 @@ public class JobMasterTest extends TestLogger {
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
+	}
+
+	private void offerSingleSlot(JobMasterGateway jobMasterGateway, LocalTaskManagerLocation taskManagerLocation) throws InterruptedException, ExecutionException {
+		final SlotOffer slotOffer = new SlotOffer(new AllocationID(), 0, ResourceProfile.UNKNOWN);
+		final Collection<SlotOffer> slotOffers = jobMasterGateway.offerSlots(taskManagerLocation.getResourceID(), Collections.singleton(slotOffer), testingTimeout).get();
+
+		assertThat(slotOffers, hasSize(1));
 	}
 
 	private static final class TestingOnCompletionActions implements OnCompletionActions {
