@@ -20,16 +20,16 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase
 import org.apache.flink.api.common.typeutils.base.{IntSerializer, StringSerializer}
-import org.apache.flink.api.scala.typeutils.SpecificCaseClassSerializerReflectionTest.SimpleCaseClass
+import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializerReflectionTest.SimpleCaseClass
 
 /**
-  * Test [[SpecificCaseClassSerializer]].
+  * Test [[ScalaCaseClassSerializer]].
   */
-class SpecificCaseClassSerializerTest
+class ScalaCaseClassSerializerTest
     extends SerializerTestBase[SimpleCaseClass] {
 
   override protected def createSerializer() =
-    new SpecificCaseClassSerializer[SimpleCaseClass](
+    new ScalaCaseClassSerializer[SimpleCaseClass](
       classOf[SimpleCaseClass],
       Array(StringSerializer.INSTANCE, IntSerializer.INSTANCE)
     )
@@ -45,7 +45,7 @@ class SpecificCaseClassSerializerTest
   )
 }
 
-object SpecificCaseClassSerializerTest {
+object ScalaCaseClassSerializerTest {
 
   case class SimpleCaseClass(name: String, var age: Int) {
 

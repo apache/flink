@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.api.scala.typeutils.SpecificCaseClassSerializerReflectionTest.{Generic, HigherKind, SimpleCaseClass}
+import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializerReflectionTest.{Generic, HigherKind, SimpleCaseClass}
 import org.apache.flink.util.TestLogger
 
 import org.junit.Assert.assertEquals
@@ -30,11 +30,11 @@ import java.lang.invoke.MethodHandle
   * Test obtaining the primary constructor of a case class
   * via reflection.
   */
-class SpecificCaseClassSerializerReflectionTest extends TestLogger {
+class ScalaCaseClassSerializerReflectionTest extends TestLogger {
 
   @Test
   def usageExample(): Unit = {
-    val constructor: MethodHandle = SpecificCaseClassSerializer
+    val constructor: MethodHandle = ScalaCaseClassSerializer
       .lookupConstructor(classOf[SimpleCaseClass])
 
     val actual = constructor.invoke(Array("hi", 1.asInstanceOf[Any]))
@@ -44,7 +44,7 @@ class SpecificCaseClassSerializerReflectionTest extends TestLogger {
 
   @Test
   def genericCaseClass(): Unit = {
-    val constructor: MethodHandle = SpecificCaseClassSerializer
+    val constructor: MethodHandle = ScalaCaseClassSerializer
       .lookupConstructor(classOf[Generic[_]])
 
     val actual = constructor.invoke(Array(1.asInstanceOf[AnyRef]))
@@ -54,7 +54,7 @@ class SpecificCaseClassSerializerReflectionTest extends TestLogger {
 
   @Test
   def caseClassWithParameterizedList(): Unit = {
-    val constructor: MethodHandle = SpecificCaseClassSerializer
+    val constructor: MethodHandle = ScalaCaseClassSerializer
       .lookupConstructor(classOf[HigherKind])
 
     val actual = constructor.invoke(Array(List(1, 2, 3), "hey"))
@@ -64,7 +64,7 @@ class SpecificCaseClassSerializerReflectionTest extends TestLogger {
 
   @Test
   def tupleType(): Unit = {
-    val constructor: MethodHandle = SpecificCaseClassSerializer
+    val constructor: MethodHandle = ScalaCaseClassSerializer
       .lookupConstructor(classOf[(String, String, Int)])
 
     val actual = constructor.invoke(Array("a", "b", 7))
@@ -77,12 +77,12 @@ class SpecificCaseClassSerializerReflectionTest extends TestLogger {
 
     val outerInstance = new OuterClass
 
-    SpecificCaseClassSerializer
+    ScalaCaseClassSerializer
       .lookupConstructor(classOf[outerInstance.InnerCaseClass])
   }
 }
 
-object SpecificCaseClassSerializerReflectionTest {
+object ScalaCaseClassSerializerReflectionTest {
 
   case class SimpleCaseClass(name: String, var age: Int) {
 

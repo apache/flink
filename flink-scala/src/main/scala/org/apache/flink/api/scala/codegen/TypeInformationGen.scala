@@ -148,14 +148,14 @@ private[flink] trait TypeInformationGen[C <: Context] {
           // (although appears to be unused) since it is required for backwards compatibility
           // with Flink versions pre 1.8, that were using Java deserialization.
           // -------------------------------------------------------------------------------------
-          val unused = new SpecificCaseClassSerializer[T](getTypeClass(), fieldSerializers) {
+          val unused = new ScalaCaseClassSerializer[T](getTypeClass(), fieldSerializers) {
 
             override def createInstance(fields: Array[AnyRef]): T = {
               instance.splice
             }
           }
 
-          new SpecificCaseClassSerializer[T](getTypeClass, fieldSerializers)
+          new ScalaCaseClassSerializer[T](getTypeClass, fieldSerializers)
         }
       }
     }

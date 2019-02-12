@@ -100,9 +100,9 @@ package object scala {
     */
   @Internal()
   private[scala] def tuple2ClassForJava[T1, T2]()
-    : Class[SpecificCaseClassSerializer[(T1, T2)]] = {
+    : Class[ScalaCaseClassSerializer[(T1, T2)]] = {
     classOf[Tuple2CaseClassSerializer[T1, T2]]
-      .asInstanceOf[Class[SpecificCaseClassSerializer[(T1, T2)]]]
+      .asInstanceOf[Class[ScalaCaseClassSerializer[(T1, T2)]]]
   }
 
   /**
@@ -115,7 +115,7 @@ package object scala {
   private[scala] def tuple2Serializer[T1, T2](
     klass: Class[(T1, T2)],
     fieldSerializers: Array[TypeSerializer[_]]
-  ): SpecificCaseClassSerializer[(T1, T2)] = {
+  ): ScalaCaseClassSerializer[(T1, T2)] = {
     new Tuple2CaseClassSerializer[T1, T2](klass, fieldSerializers)
   }
 
@@ -142,7 +142,7 @@ package object scala {
   class Tuple2CaseClassSerializer[T1, T2](
     val clazz: Class[(T1, T2)],
     fieldSerializers: Array[TypeSerializer[_]]
-  ) extends SpecificCaseClassSerializer[(T1, T2)](clazz, fieldSerializers)
+  ) extends ScalaCaseClassSerializer[(T1, T2)](clazz, fieldSerializers)
       with SelfResolvingTypeSerializer[(T1, T2)] {
 
     override def createInstance(fields: Array[AnyRef]): (T1, T2) = {

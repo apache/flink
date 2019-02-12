@@ -34,11 +34,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * {@link TypeSerializerSnapshot} for {@link SpecificCaseClassSerializer}.
+ * {@link TypeSerializerSnapshot} for {@link ScalaCaseClassSerializer}.
  */
 @Internal
-public final class SpecificCaseClassSerializerSnapshot<T extends scala.Product>
-	extends CompositeTypeSerializerSnapshot<T, SpecificCaseClassSerializer<T>> {
+public final class ScalaCaseClassSerializerSnapshot<T extends scala.Product>
+	extends CompositeTypeSerializerSnapshot<T, ScalaCaseClassSerializer<T>> {
 
 	private static final int VERSION = 2;
 
@@ -48,7 +48,7 @@ public final class SpecificCaseClassSerializerSnapshot<T extends scala.Product>
 	 * Used via reflection.
 	 */
 	@SuppressWarnings("unused")
-	public SpecificCaseClassSerializerSnapshot() {
+	public ScalaCaseClassSerializerSnapshot() {
 		super(correspondingSerializerClass());
 	}
 
@@ -59,10 +59,10 @@ public final class SpecificCaseClassSerializerSnapshot<T extends scala.Product>
 	 * {@link #internalResolveSchemaCompatibility(TypeSerializer, TypeSerializerSnapshot[])}.
 	 *
 	 * <p>This is used in
-	 * {@link SpecificCaseClassSerializer#resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(TypeSerializerConfigSnapshot)}.
+	 * {@link ScalaCaseClassSerializer#resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(TypeSerializerConfigSnapshot)}.
 	 */
 	@Internal
-	SpecificCaseClassSerializerSnapshot(Class<T> type) {
+	ScalaCaseClassSerializerSnapshot(Class<T> type) {
 		super(correspondingSerializerClass());
 		this.type = checkNotNull(type, "type can not be NULL");
 	}
@@ -70,7 +70,7 @@ public final class SpecificCaseClassSerializerSnapshot<T extends scala.Product>
 	/**
 	 * Used for the snapshot path.
 	 */
-	public SpecificCaseClassSerializerSnapshot(SpecificCaseClassSerializer<T> serializerInstance) {
+	public ScalaCaseClassSerializerSnapshot(ScalaCaseClassSerializer<T> serializerInstance) {
 		super(serializerInstance);
 		this.type = checkNotNull(serializerInstance.getTupleClass(), "tuple class can not be NULL");
 	}
@@ -81,14 +81,14 @@ public final class SpecificCaseClassSerializerSnapshot<T extends scala.Product>
 	}
 
 	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(SpecificCaseClassSerializer<T> outerSerializer) {
+	protected TypeSerializer<?>[] getNestedSerializers(ScalaCaseClassSerializer<T> outerSerializer) {
 		return outerSerializer.getFieldSerializers();
 	}
 
 	@Override
-	protected SpecificCaseClassSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-		checkState(type != null, "type can not be NULL");
-		return new SpecificCaseClassSerializer<>(type, nestedSerializers);
+	protected ScalaCaseClassSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+			checkState(type != null, "type can not be NULL");
+		return new ScalaCaseClassSerializer<>(type, nestedSerializers);
 	}
 
 	@Override
@@ -103,12 +103,12 @@ public final class SpecificCaseClassSerializerSnapshot<T extends scala.Product>
 	}
 
 	@Override
-	protected boolean isOuterSnapshotCompatible(SpecificCaseClassSerializer<T> newSerializer) {
+	protected boolean isOuterSnapshotCompatible(ScalaCaseClassSerializer<T> newSerializer) {
 		return Objects.equals(type, newSerializer.getTupleClass());
 	}
 
 	@SuppressWarnings("unchecked")
-	private static <T extends scala.Product> Class<SpecificCaseClassSerializer<T>> correspondingSerializerClass() {
-		return (Class<SpecificCaseClassSerializer<T>>) (Class<?>) SpecificCaseClassSerializer.class;
+	private static <T extends scala.Product> Class<ScalaCaseClassSerializer<T>> correspondingSerializerClass() {
+		return (Class<ScalaCaseClassSerializer<T>>) (Class<?>) ScalaCaseClassSerializer.class;
 	}
 }
