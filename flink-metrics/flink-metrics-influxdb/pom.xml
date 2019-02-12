@@ -155,8 +155,8 @@ under the License.
 									<shadedPattern>org.apache.flink.shaded.metrics.influxdb.org.influxdb</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>moshi</pattern>
 									<shadedPattern>org.apache.flink.shaded.metrics.influxdb.moshi</shadedPattern>
+									<pattern>com.squareup.moshi</pattern>
 								</relocation>
 								<relocation>
 									<pattern>okhttp3</pattern>
