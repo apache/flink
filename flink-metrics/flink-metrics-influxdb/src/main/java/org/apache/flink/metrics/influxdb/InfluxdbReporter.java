@@ -18,7 +18,6 @@
 
 package org.apache.flink.metrics.influxdb;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
@@ -50,7 +49,6 @@ import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getStrin
 /**
  * {@link MetricReporter} that exports {@link Metric Metrics} via InfluxDB.
  */
-@Experimental
 public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implements Scheduled {
 
 	private String database;
