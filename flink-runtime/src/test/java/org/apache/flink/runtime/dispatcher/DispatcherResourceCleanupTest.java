@@ -208,8 +208,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	@After
 	public void teardown() throws Exception {
 		if (dispatcher != null) {
-			dispatcher.shutDown();
-			dispatcher.getTerminationFuture().get();
+			dispatcher.close();
 		}
 
 		if (fatalErrorHandler != null) {
@@ -294,7 +293,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	public void testBlobServerCleanupWhenClosingDispatcher() throws Exception {
 		submitJob();
 
-		dispatcher.shutDown();
+		dispatcher.closeAsync();
 		terminationFuture.complete(null);
 		dispatcher.getTerminationFuture().get();
 

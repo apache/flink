@@ -235,13 +235,11 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 			}
 
 			if (resourceManager != null) {
-				resourceManager.shutDown();
-				terminationFutures.add(resourceManager.getTerminationFuture());
+				terminationFutures.add(resourceManager.closeAsync());
 			}
 
 			if (dispatcher != null) {
-				dispatcher.shutDown();
-				terminationFutures.add(dispatcher.getTerminationFuture());
+				terminationFutures.add(dispatcher.closeAsync());
 			}
 
 			final FutureUtils.ConjunctFuture<Void> terminationFuture = FutureUtils.completeAll(terminationFutures);

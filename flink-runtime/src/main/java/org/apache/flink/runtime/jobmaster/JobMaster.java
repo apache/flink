@@ -366,7 +366,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		suspendExecution(new FlinkException("JobManager is shutting down."));
 
 		// shut down will internally release all registered slots
-		slotPool.shutDown();
+		final CompletableFuture<Void> slotPoolTerminationFuture = slotPool.closeAsync();
 
 		final CompletableFuture<Void> disposeInternalSavepointFuture;
 
@@ -375,8 +375,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		} else {
 			disposeInternalSavepointFuture = CompletableFuture.completedFuture(null);
 		}
-
-		final CompletableFuture<Void> slotPoolTerminationFuture = slotPool.getTerminationFuture();
 
 		return FutureUtils.completeAll(Arrays.asList(disposeInternalSavepointFuture, slotPoolTerminationFuture));
 	}
@@ -1509,12 +1507,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	@Override
 	public JobMasterGateway getGateway() {
 		return getSelfGateway(JobMasterGateway.class);
-	}
-
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		shutDown();
-		return getTerminationFuture();
 	}
 
 	//----------------------------------------------------------------------------------------------

@@ -302,10 +302,10 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 				dispatcherGateway.submitJob(nonEmptyJobGraph, TIMEOUT).get();
 
 				if (dispatcher1.getAddress().equals(leaderConnectionInfo.getAddress())) {
-					dispatcher1.shutDown();
+					dispatcher1.closeAsync();
 					assertThat(jobGraphFuture2.get().getJobID(), is(equalTo(nonEmptyJobGraph.getJobID())));
 				} else {
-					dispatcher2.shutDown();
+					dispatcher2.closeAsync();
 					assertThat(jobGraphFuture1.get().getJobID(), is(equalTo(nonEmptyJobGraph.getJobID())));
 				}
 			} finally {

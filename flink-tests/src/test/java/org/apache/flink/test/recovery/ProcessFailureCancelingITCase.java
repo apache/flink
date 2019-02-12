@@ -248,11 +248,11 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 				dispatcherResourceManagerComponent.deregisterApplicationAndClose(ApplicationStatus.SUCCEEDED, null);
 			}
 
-			haServices.closeAndCleanupAllData();
-
 			fatalErrorHandler.rethrowError();
 
 			RpcUtils.terminateRpcService(rpcService, Time.seconds(100L));
+
+			haServices.closeAndCleanupAllData();
 		}
 	}
 

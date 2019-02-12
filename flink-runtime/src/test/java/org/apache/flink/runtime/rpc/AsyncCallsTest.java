@@ -135,7 +135,7 @@ public class AsyncCallsTest extends TestLogger {
 			// validate that no concurrent access happened
 			assertFalse("Rpc Endpoint had concurrent access", concurrentAccess.get());
 		} finally {
-			rpcEndpoint.shutDown();
+			RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
 		}
 	}
 
@@ -320,8 +320,7 @@ public class AsyncCallsTest extends TestLogger {
 
 			return result;
 		} finally {
-			fencedTestEndpoint.shutDown();
-			fencedTestEndpoint.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoint(fencedTestEndpoint, timeout);
 		}
 	}
 

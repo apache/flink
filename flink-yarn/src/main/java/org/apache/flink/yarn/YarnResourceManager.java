@@ -449,7 +449,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	public void onShutdownRequest() {
-		shutDown();
+		closeAsync();
 	}
 
 	@Override

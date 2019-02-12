@@ -542,7 +542,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public CompletableFuture<Acknowledge> shutDownCluster() {
-		shutDown();
+		closeAsync();
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
