@@ -45,7 +45,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
- * Tests that akka rpc invocation messages are properly serialized and errors reported
+ * Tests that akka rpc invocation messages are properly serialized and errors reported.
  */
 public class MessageSerializationTest extends TestLogger {
 	private static RpcService akkaRpcService1;
