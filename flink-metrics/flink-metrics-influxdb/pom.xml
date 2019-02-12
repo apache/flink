@@ -29,7 +29,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-metrics-influxdb</artifactId>
+	<artifactId>flink-metrics-influxdb_${scala.binary.version}</artifactId>
 	<name>flink-metrics-influxdb</name>
 
 	<dependencies>
