@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -37,6 +39,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -78,22 +81,14 @@ public class TaskExecutorITCase extends TestLogger {
 	}
 
 	/**
-	 * Tests that a job will be re-executed if a new TaskExecutor joins the cluster.
+	 * Tests that a job can be re-executed after the job has failed due
+	 * to a TaskExecutor termination.
 	 */
 	@Test
-	public void testNewTaskExecutorJoinsCluster() throws Exception {
+	public void testCleanClusterStateAfterTaskExecutorTermination() throws Exception {
 		final JobGraph jobGraph = createJobGraph(PARALLELISM);
 
-		miniCluster.submitJob(jobGraph).get();
-
-		final CompletableFuture<JobResult> jobResultFuture = miniCluster.requestJobResult(jobGraph.getJobID());
-
-		assertThat(jobResultFuture.isDone(), is(false));
-
-		CommonTestUtils.waitUntilCondition(
-			jobIsRunning(() -> miniCluster.getExecutionGraph(jobGraph.getJobID())),
-			Deadline.fromNow(TESTING_TIMEOUT),
-			20L);
+		final CompletableFuture<JobResult> jobResultFuture = submitJobAndWaitUntilRunning(jobGraph);
 
 		// kill one TaskExecutor which should fail the job execution
 		miniCluster.terminateTaskExecutor(0);
@@ -111,6 +106,40 @@ public class TaskExecutorITCase extends TestLogger {
 		miniCluster.requestJobResult(jobGraph.getJobID()).get();
 	}
 
+	/**
+	 * Tests that the job can recover from a failing {@link TaskExecutor}.
+	 */
+	@Test
+	public void testJobRecoveryWithFailingTaskExecutor() throws Exception {
+		final JobGraph jobGraph = createJobGraphWithRestartStrategy(PARALLELISM);
+
+		final CompletableFuture<JobResult> jobResultFuture = submitJobAndWaitUntilRunning(jobGraph);
+
+		// start an additional TaskExecutor
+		miniCluster.startTaskExecutor();
+
+		miniCluster.terminateTaskExecutor(0).get(); // this should fail the job
+
+		BlockingOperator.unblock();
+
+		assertThat(jobResultFuture.get().isSuccess(), is(true));
+	}
+
+	private CompletableFuture<JobResult> submitJobAndWaitUntilRunning(JobGraph jobGraph) throws Exception {
+		miniCluster.submitJob(jobGraph).get();
+
+		final CompletableFuture<JobResult> jobResultFuture = miniCluster.requestJobResult(jobGraph.getJobID());
+
+		assertThat(jobResultFuture.isDone(), is(false));
+
+		CommonTestUtils.waitUntilCondition(
+			jobIsRunning(() -> miniCluster.getExecutionGraph(jobGraph.getJobID())),
+			Deadline.fromNow(TESTING_TIMEOUT),
+			20L);
+
+		return jobResultFuture;
+	}
+
 	private SupplierWithException<Boolean, Exception> jobIsRunning(Supplier<CompletableFuture<? extends AccessExecutionGraph>> executionGraphFutureSupplier) {
 		final Predicate<AccessExecutionGraph> allExecutionsRunning = ExecutionGraphTestUtils.allExecutionsPredicate(ExecutionGraphTestUtils.isInExecutionState(ExecutionState.RUNNING));
 
@@ -118,6 +147,15 @@ public class TaskExecutorITCase extends TestLogger {
 			final AccessExecutionGraph executionGraph = executionGraphFutureSupplier.get().join();
 			return allExecutionsRunning.test(executionGraph);
 		};
+	}
+
+	private JobGraph createJobGraphWithRestartStrategy(int parallelism) throws IOException {
+		final JobGraph jobGraph = createJobGraph(parallelism);
+		final ExecutionConfig executionConfig = new ExecutionConfig();
+		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+		jobGraph.setExecutionConfig(executionConfig);
+
+		return jobGraph;
 	}
 
 	private JobGraph createJobGraph(int parallelism) {
