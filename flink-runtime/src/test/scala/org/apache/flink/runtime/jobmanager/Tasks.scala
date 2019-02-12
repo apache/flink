@@ -90,24 +90,6 @@ object Tasks {
     }
   }
 
-  class FailingOnceReceiver(environment: Environment)
-    extends Receiver(environment) {
-    import FailingOnceReceiver.failed
-
-    override def invoke(): Unit = {
-      if(!failed && getEnvironment.getTaskInfo.getIndexOfThisSubtask == 0){
-        failed = true
-        throw new Exception("Test exception.")
-      }else{
-        super.invoke()
-      }
-    }
-  }
-
-  object FailingOnceReceiver{
-    var failed = false
-  }
-
   class BlockingOnceReceiver(environment: Environment)
     extends Receiver(environment) {
     import BlockingOnceReceiver.blocking
