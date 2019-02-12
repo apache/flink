@@ -41,26 +41,26 @@ import static org.junit.Assert.assertEquals;
  */
 public class MetricMapperTest extends TestLogger {
 
-	private final String name = "a-metric-name";
-	private final MeasurementInfo info = getMeasurementInfo(name);
-	private final Instant timestamp = Instant.now();
+	private static final String NAME = "a-metric-name";
+	private static final MeasurementInfo INFO = getMeasurementInfo(NAME);
+	private static final Instant TIMESTAMP = Instant.now();
 
 	@Test
 	public void testMapGauge() {
 		verifyPoint(
-			MetricMapper.map(info, timestamp, (Gauge<Number>) () -> 42),
+			MetricMapper.map(INFO, TIMESTAMP, (Gauge<Number>) () -> 42),
 			"value=42");
 
 		verifyPoint(
-			MetricMapper.map(info, timestamp, (Gauge<Number>) () -> null),
+			MetricMapper.map(INFO, TIMESTAMP, (Gauge<Number>) () -> null),
 			"value=null");
 
 		verifyPoint(
-			MetricMapper.map(info, timestamp, (Gauge<String>) () -> "hello"),
+			MetricMapper.map(INFO, TIMESTAMP, (Gauge<String>) () -> "hello"),
 			"value=hello");
 
 		verifyPoint(
-			MetricMapper.map(info, timestamp, (Gauge<Long>) () -> 42L),
+			MetricMapper.map(INFO, TIMESTAMP, (Gauge<Long>) () -> 42L),
 			"value=42");
 	}
 
@@ -70,7 +70,7 @@ public class MetricMapperTest extends TestLogger {
 		counter.inc(42L);
 
 		verifyPoint(
-			MetricMapper.map(info, timestamp, counter),
+			MetricMapper.map(INFO, TIMESTAMP, counter),
 			"count=42");
 	}
 
@@ -79,7 +79,7 @@ public class MetricMapperTest extends TestLogger {
 		Histogram histogram = new TestHistogram();
 
 		verifyPoint(
-			MetricMapper.map(info, timestamp, histogram),
+			MetricMapper.map(INFO, TIMESTAMP, histogram),
 			"count=3",
 			"max=6",
 			"mean=4.0",
@@ -98,7 +98,7 @@ public class MetricMapperTest extends TestLogger {
 		Meter meter = new TestMeter();
 
 		verifyPoint(
-			MetricMapper.map(info, timestamp, meter),
+			MetricMapper.map(INFO, TIMESTAMP, meter),
 			"count=100",
 			"rate=5.0");
 	}
@@ -107,8 +107,8 @@ public class MetricMapperTest extends TestLogger {
 		// Most methods of Point are package private. We use toString() method to check that values are as expected.
 		// An alternative can be to call lineProtocol() method, which additionally escapes values for InfluxDB format.
 		assertEquals(
-			"Point [name=" + name
-			+ ", time=" + timestamp.toEpochMilli()
+			"Point [name=" + NAME
+			+ ", time=" + TIMESTAMP.toEpochMilli()
 			+ ", tags={tag-1=42, tag-2=green}"
 			+ ", precision=MILLISECONDS"
 			+ ", fields={" + String.join(", ", expectedFields) + "}"
