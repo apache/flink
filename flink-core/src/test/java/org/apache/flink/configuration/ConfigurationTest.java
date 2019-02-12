@@ -339,6 +339,44 @@ public class ConfigurationTest extends TestLogger {
 	}
 
 	@Test
+	public void testFallbackAndDeprecatedKeys() {
+		final ConfigOption<Integer> fallback = ConfigOptions
+			.key("fallback")
+			.defaultValue(-1);
+
+		final ConfigOption<Integer> deprecated = ConfigOptions
+			.key("deprecated")
+			.defaultValue(-1);
+
+		final ConfigOption<Integer> mainOption = ConfigOptions
+			.key("main")
+			.defaultValue(-1)
+			.withFallbackKeys(fallback.key())
+			.withDeprecatedKeys(deprecated.key());
+
+		final Configuration fallbackCfg = new Configuration();
+		fallbackCfg.setInteger(fallback, 1);
+		assertEquals(1, fallbackCfg.getInteger(mainOption));
+
+		final Configuration deprecatedCfg = new Configuration();
+		deprecatedCfg.setInteger(deprecated, 2);
+		assertEquals(2, deprecatedCfg.getInteger(mainOption));
+
+		// reverse declaration of fallback and deprecated keys, fallback keys should always be used first
+		final ConfigOption<Integer> reversedMainOption = ConfigOptions
+			.key("main")
+			.defaultValue(-1)
+			.withDeprecatedKeys(deprecated.key())
+			.withFallbackKeys(fallback.key());
+
+		final Configuration deprecatedAndFallBackConfig = new Configuration();
+		deprecatedAndFallBackConfig.setInteger(fallback, 1);
+		deprecatedAndFallBackConfig.setInteger(deprecated, 2);
+		assertEquals(1, deprecatedAndFallBackConfig.getInteger(mainOption));
+		assertEquals(1, deprecatedAndFallBackConfig.getInteger(reversedMainOption));
+	}
+
+	@Test
 	public void testRemove(){
 		Configuration cfg = new Configuration();
 		cfg.setInteger("a", 1);
