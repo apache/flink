@@ -16,15 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security;
+package org.apache.flink.runtime.security.factories;
 
-import java.util.concurrent.Callable;
+import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.runtime.security.modules.SecurityModule;
 
 /**
- * A security context with may be required to run a Callable.
+ * Test security module factory class for service provider discovery.
  */
-public interface SecurityContext {
+public class TestSecurityModuleFactory implements SecurityModuleFactory {
 
-	<T> T runSecured(Callable<T> securedCallable) throws Exception;
+	@Override
+	public SecurityModule createModule(SecurityConfiguration securityConfig) {
+		return new TestSecurityModule();
+	}
 
+	/**
+	 * Test security module class.
+	 */
+	public static class TestSecurityModule implements SecurityModule {
+		public boolean installed;
+
+		@Override
+		public void install() throws SecurityInstallException {
+			installed = true;
+		}
+
+		@Override
+		public void uninstall() throws SecurityInstallException {
+			installed = false;
+		}
+	}
 }

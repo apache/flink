@@ -16,22 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.modules;
+package org.apache.flink.runtime.security.contexts;
 
-import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.util.Preconditions;
+
+import org.apache.hadoop.security.UserGroupInformation;
+
+import java.security.PrivilegedExceptionAction;
+import java.util.concurrent.Callable;
 
 /**
- * A factory for a {@link SecurityModule}. A factory can determine whether a {@link SecurityModule}
- * works in the given environment (for example, it can check whether Hadoop dependencies are
- * available) and can then create (or not) a module based on that.
+ * Hadoop security context which runs a Callable with the previously
+ * initialized UGI and appropriate security credentials.
  */
-@FunctionalInterface
-public interface SecurityModuleFactory {
+public class HadoopSecurityContext implements SecurityContext {
 
-	/**
-	 * Creates and returns a {@link SecurityModule}. This can return {@code null} if the type
-	 * of {@link SecurityModule} that this factory can create does not work in the current
-	 * environment.
-	 */
-	SecurityModule createModule(SecurityConfiguration securityConfig);
+	private final UserGroupInformation ugi;
+
+	public HadoopSecurityContext(UserGroupInformation ugi) {
+		this.ugi = Preconditions.checkNotNull(ugi, "UGI passed cannot be null");
+	}
+
+	public <T> T runSecured(final Callable<T> securedCallable) throws Exception {
+		return ugi.doAs((PrivilegedExceptionAction<T>) securedCallable::call);
+	}
+
 }

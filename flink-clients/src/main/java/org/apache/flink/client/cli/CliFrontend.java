@@ -53,7 +53,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.SecurityEnvironment;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -1121,8 +1121,8 @@ public class CliFrontend {
 				configuration,
 				customCommandLines);
 
-			SecurityUtils.install(new SecurityConfiguration(cli.configuration));
-			int retCode = SecurityUtils.getInstalledContext()
+			SecurityEnvironment.install(new SecurityConfiguration(cli.configuration));
+			int retCode = SecurityEnvironment.getInstalledContext()
 					.runSecured(() -> cli.parseParameters(args));
 			System.exit(retCode);
 		}

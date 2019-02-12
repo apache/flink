@@ -78,7 +78,7 @@ import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegi
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.query.KvStateMessage.{LookupKvStateLocation, NotifyKvStateRegistered, NotifyKvStateUnregistered}
 import org.apache.flink.runtime.query.{KvStateMessage, UnknownKvStateLocation}
-import org.apache.flink.runtime.security.{SecurityConfiguration, SecurityUtils}
+import org.apache.flink.runtime.security.{SecurityConfiguration, SecurityEnvironment}
 import org.apache.flink.runtime.taskexecutor.TaskExecutor
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
@@ -1969,10 +1969,10 @@ object JobManager {
     }
 
     // run the job manager
-    SecurityUtils.install(new SecurityConfiguration(configuration))
+    SecurityEnvironment.install(new SecurityConfiguration(configuration))
 
     try {
-      SecurityUtils.getInstalledContext.runSecured(new Callable[Unit] {
+      SecurityEnvironment.getInstalledContext.runSecured(new Callable[Unit] {
         override def call(): Unit = {
           runJobManager(
             configuration,

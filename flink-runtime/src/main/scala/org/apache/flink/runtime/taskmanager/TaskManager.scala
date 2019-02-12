@@ -66,7 +66,7 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl, MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.process.ProcessReaper
-import org.apache.flink.runtime.security.{SecurityConfiguration, SecurityUtils}
+import org.apache.flink.runtime.security.{SecurityConfiguration, SecurityEnvironment}
 import org.apache.flink.runtime.state.{TaskExecutorLocalStateStoresManager, TaskStateManagerImpl}
 import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.util._
@@ -1608,10 +1608,10 @@ object TaskManager {
     val resourceId = ResourceID.generate()
 
     // run the TaskManager (if requested in an authentication enabled context)
-    SecurityUtils.install(new SecurityConfiguration(configuration))
+    SecurityEnvironment.install(new SecurityConfiguration(configuration))
 
     try {
-      SecurityUtils.getInstalledContext.runSecured(new Callable[Unit] {
+      SecurityEnvironment.getInstalledContext.runSecured(new Callable[Unit] {
         override def call(): Unit = {
           selectNetworkInterfaceAndRunTaskManager(configuration, resourceId, classOf[TaskManager])
         }

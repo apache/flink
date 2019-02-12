@@ -21,17 +21,19 @@ package org.apache.flink.runtime.security;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.runtime.security.modules.HadoopModuleFactory;
-import org.apache.flink.runtime.security.modules.JaasModuleFactory;
-import org.apache.flink.runtime.security.modules.SecurityModuleFactory;
-import org.apache.flink.runtime.security.modules.ZookeeperModuleFactory;
+import org.apache.flink.runtime.security.factories.DefaultSecurityContextFactory;
+import org.apache.flink.runtime.security.factories.HadoopModuleFactory;
+import org.apache.flink.runtime.security.factories.JaasModuleFactory;
+import org.apache.flink.runtime.security.factories.ZookeeperModuleFactory;
 
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -42,10 +44,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class SecurityConfiguration {
 
-	private static final List<SecurityModuleFactory> DEFAULT_MODULES = Collections.unmodifiableList(
-		Arrays.asList(new HadoopModuleFactory(), new JaasModuleFactory(), new ZookeeperModuleFactory()));
+	private static final String DEFAULT_CONTEXT_FACTORY = DefaultSecurityContextFactory.class.getCanonicalName();
 
-	private final List<SecurityModuleFactory> securityModuleFactories;
+	private static final List<String> DEFAULT_MODULE_FACTORIES = Collections.unmodifiableList(Arrays.asList(
+		HadoopModuleFactory.class.getCanonicalName(),
+		JaasModuleFactory.class.getCanonicalName(),
+		ZookeeperModuleFactory.class.getCanonicalName()));
+
+	private final String securityContextFactory;
+
+	private final List<String> securityModuleFactories;
+
+	private final Map<String, Object> properties;
 
 	private final Configuration flinkConfig;
 
@@ -68,7 +78,7 @@ public class SecurityConfiguration {
 	 * @param flinkConf the Flink global configuration.
 */
 	public SecurityConfiguration(Configuration flinkConf) {
-		this(flinkConf, DEFAULT_MODULES);
+		this(flinkConf, DEFAULT_CONTEXT_FACTORY, DEFAULT_MODULE_FACTORIES);
 	}
 
 	/**
@@ -77,7 +87,8 @@ public class SecurityConfiguration {
 	 * @param securityModuleFactories the security modules to apply.
 	 */
 	public SecurityConfiguration(Configuration flinkConf,
-			List<SecurityModuleFactory> securityModuleFactories) {
+			String securityContextFactory,
+			List<String> securityModuleFactories) {
 		this.isZkSaslDisable = flinkConf.getBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
 		this.keytab = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
 		this.principal = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
@@ -86,7 +97,9 @@ public class SecurityConfiguration {
 		this.zkServiceName = flinkConf.getString(SecurityOptions.ZOOKEEPER_SASL_SERVICE_NAME);
 		this.zkLoginContextName = flinkConf.getString(SecurityOptions.ZOOKEEPER_SASL_LOGIN_CONTEXT_NAME);
 		this.securityModuleFactories = Collections.unmodifiableList(securityModuleFactories);
+		this.securityContextFactory = securityContextFactory;
 		this.flinkConfig = checkNotNull(flinkConf);
+		this.properties = new HashMap<>();
 		validate();
 	}
 
@@ -110,7 +123,11 @@ public class SecurityConfiguration {
 		return flinkConfig;
 	}
 
-	public List<SecurityModuleFactory> getSecurityModuleFactories() {
+	public String getSecurityContextFactory() {
+		return securityContextFactory;
+	}
+
+	public List<String> getSecurityModuleFactories() {
 		return securityModuleFactories;
 	}
 
@@ -150,5 +167,13 @@ public class SecurityConfiguration {
 			.trim()
 			.replaceAll("(\\s*,+\\s*)+", ",")
 			.split(","));
+	}
+
+	public void setProperty(String key, Object value) {
+		properties.put(key, value);
+	}
+
+	public Object getProperty(String key) {
+		return properties.get(key);
 	}
 }

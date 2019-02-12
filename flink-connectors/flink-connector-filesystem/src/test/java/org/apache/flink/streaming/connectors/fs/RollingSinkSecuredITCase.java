@@ -24,9 +24,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.modules.HadoopModule;
+import org.apache.flink.runtime.security.factories.DefaultSecurityContextFactory;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.connectors.fs.utils.TestHadoopModuleFactory;
 import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.test.util.TestingSecurityContext;
@@ -117,7 +118,11 @@ public class RollingSinkSecuredITCase extends RollingSinkITCase {
 		SecurityConfiguration ctx =
 			new SecurityConfiguration(
 				flinkConfig,
-				Collections.singletonList(securityConfig -> new HadoopModule(securityConfig, conf)));
+				DefaultSecurityContextFactory.class.getName(),
+				Collections.singletonList(TestHadoopModuleFactory.class.getCanonicalName()));
+
+		ctx.setProperty(TestHadoopModuleFactory.HADOOP_PROPERTY_CONFIG_KEY, conf);
+
 		try {
 			TestingSecurityContext.install(ctx, SecureTestEnvironment.getClientSecurityConfigurationMap());
 		} catch (Exception e) {

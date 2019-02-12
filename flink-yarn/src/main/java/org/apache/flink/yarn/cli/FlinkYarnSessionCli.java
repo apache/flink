@@ -34,7 +34,7 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.SecurityEnvironment;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
@@ -833,9 +833,9 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 				"",
 				""); // no prefix for the YARN session
 
-			SecurityUtils.install(new SecurityConfiguration(flinkConfiguration));
+			SecurityEnvironment.install(new SecurityConfiguration(flinkConfiguration));
 
-			retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.run(args));
+			retCode = SecurityEnvironment.getInstalledContext().runSecured(() -> cli.run(args));
 		} catch (CliArgsException e) {
 			retCode = handleCliArgsException(e);
 		} catch (Throwable t) {

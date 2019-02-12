@@ -21,10 +21,11 @@ package org.apache.flink.yarn;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.SecurityUtils;
-import org.apache.flink.runtime.security.modules.HadoopModule;
+import org.apache.flink.runtime.security.SecurityEnvironment;
+import org.apache.flink.runtime.security.factories.DefaultSecurityContextFactory;
 import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.test.util.TestingSecurityContext;
+import org.apache.flink.yarn.util.TestHadoopModuleFactory;
 
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
@@ -72,15 +73,16 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 		SecurityConfiguration securityConfig =
 			new SecurityConfiguration(
 				flinkConfig,
-				Collections.singletonList(securityConfig1 -> {
-					// manually override the Hadoop Configuration
-					return new HadoopModule(securityConfig1, YARN_CONFIGURATION);
-				}));
+				DefaultSecurityContextFactory.class.getCanonicalName(),
+				Collections.singletonList(TestHadoopModuleFactory.class.getCanonicalName())
+			);
+
+		securityConfig.setProperty(TestHadoopModuleFactory.HADOOP_PROPERTY_CONFIG_KEY, YARN_CONFIGURATION);
 
 		try {
 			TestingSecurityContext.install(securityConfig, SecureTestEnvironment.getClientSecurityConfigurationMap());
 
-			SecurityUtils.getInstalledContext().runSecured(new Callable<Object>() {
+			SecurityEnvironment.getInstalledContext().runSecured(new Callable<Object>() {
 				@Override
 				public Integer call() {
 					startYARNSecureMode(YARN_CONFIGURATION, SecureTestEnvironment.getHadoopServicePrincipal(),

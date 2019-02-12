@@ -20,7 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.SecurityEnvironment;
 import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.runtime.security.modules.SecurityModule;
 import org.apache.flink.util.TestLogger;
@@ -54,7 +54,7 @@ public class YarnTaskExecutorRunnerTest extends TestLogger {
 		Configuration configuration = new Configuration();
 		YarnTaskExecutorRunner.setupConfigurationAndInstallSecurityContext(configuration, resourceDirPath, envs);
 
-		final List<SecurityModule> modules = SecurityUtils.getInstalledModules();
+		final List<SecurityModule> modules = SecurityEnvironment.getInstalledModules();
 		Optional<SecurityModule> moduleOpt = modules.stream().filter(module -> module instanceof HadoopModule).findFirst();
 
 		if (moduleOpt.isPresent()) {

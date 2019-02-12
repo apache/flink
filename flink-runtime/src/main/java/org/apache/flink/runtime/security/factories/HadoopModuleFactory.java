@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.modules;
+package org.apache.flink.runtime.security.factories;
 
 import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.runtime.security.modules.HadoopModule;
+import org.apache.flink.runtime.security.modules.SecurityModule;
 import org.apache.flink.runtime.util.HadoopUtils;
 
 import org.apache.hadoop.conf.Configuration;

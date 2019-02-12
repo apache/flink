@@ -18,10 +18,13 @@
 
 package org.apache.flink.runtime.security;
 
+import org.apache.flink.runtime.security.contexts.NoOpSecurityContext;
+import org.apache.flink.runtime.security.contexts.SecurityContext;
+import org.apache.flink.runtime.security.factories.SecurityContextFactory;
+import org.apache.flink.runtime.security.factories.SecurityFactoryService;
+import org.apache.flink.runtime.security.factories.SecurityModuleFactory;
 import org.apache.flink.runtime.security.modules.SecurityModule;
-import org.apache.flink.runtime.security.modules.SecurityModuleFactory;
 
-import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,14 +32,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Utils for configuring security. The following security subsystems are supported:
- * 1. Java Authentication and Authorization Service (JAAS)
- * 2. Hadoop's User Group Information (UGI)
- * 3. ZooKeeper's process-wide security settings.
+ * Security Environment that holds the security context and modules installed.
  */
-public class SecurityUtils {
+public class SecurityEnvironment {
 
-	private static final Logger LOG = LoggerFactory.getLogger(SecurityUtils.class);
+	private static final Logger LOG = LoggerFactory.getLogger(SecurityEnvironment.class);
 
 	private static SecurityContext installedContext = new NoOpSecurityContext();
 
@@ -56,11 +56,21 @@ public class SecurityUtils {
 	 * <p>Applies the configuration using the available security modules (i.e. Hadoop, JAAS).
 	 */
 	public static void install(SecurityConfiguration config) throws Exception {
+		// Install the security modules first before installing the security context
+		installModules(config);
+		installContext(config);
+	}
 
-		// install the security modules
+	static void installModules(SecurityConfiguration config) throws Exception {
+
+		// install the security module factories
 		List<SecurityModule> modules = new ArrayList<>();
 		try {
-			for (SecurityModuleFactory moduleFactory : config.getSecurityModuleFactories()) {
+			for (String moduleFactoryClass : config.getSecurityModuleFactories()) {
+				SecurityModuleFactory moduleFactory = SecurityFactoryService.findModuleFactory(moduleFactoryClass);
+				if (moduleFactory == null) {
+					throw new Exception("unable to local security module factory for: " + moduleFactoryClass);
+				}
 				SecurityModule module = moduleFactory.createModule(config);
 				// can be null if a SecurityModule is not supported in the current environment
 				if (module != null) {
@@ -68,31 +78,20 @@ public class SecurityUtils {
 					modules.add(module);
 				}
 			}
-		}
-		catch (Exception ex) {
-			throw new Exception("unable to establish the security context", ex);
+		} catch (Exception ex) {
+			throw new Exception("unable to install all security modules", ex);
 		}
 		installedModules = modules;
+	}
 
-		// First check if we have Hadoop in the ClassPath. If not, we simply don't do anything.
-		try {
-			Class.forName(
-				"org.apache.hadoop.security.UserGroupInformation",
-				false,
-				SecurityUtils.class.getClassLoader());
-
-			// install a security context
-			// use the Hadoop login user as the subject of the installed security context
-			if (!(installedContext instanceof NoOpSecurityContext)) {
-				LOG.warn("overriding previous security context");
-			}
-			UserGroupInformation loginUser = UserGroupInformation.getLoginUser();
-			installedContext = new HadoopSecurityContext(loginUser);
-		} catch (ClassNotFoundException e) {
-			LOG.info("Cannot install HadoopSecurityContext because Hadoop cannot be found in the Classpath.");
-		} catch (LinkageError e) {
-			LOG.error("Cannot install HadoopSecurityContext.", e);
+	static void installContext(SecurityConfiguration config) throws Exception {
+		// install the security context factory
+		String contextFactoryClass = config.getSecurityContextFactory();
+		SecurityContextFactory contextFactory = SecurityFactoryService.findContextFactory(contextFactoryClass);
+		if (contextFactory == null) {
+			throw new Exception("unable to local security context factory for: " + contextFactoryClass);
 		}
+		installedContext = contextFactory.createContext(config);
 	}
 
 	static void uninstall() {
@@ -114,8 +113,4 @@ public class SecurityUtils {
 
 		installedContext = new NoOpSecurityContext();
 	}
-
-	// Just a util, shouldn't be instantiated.
-	private SecurityUtils() {}
-
 }

@@ -28,7 +28,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.SecurityEnvironment;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
@@ -100,7 +100,7 @@ public class YarnTaskExecutorRunner {
 			Preconditions.checkArgument(containerId != null,
 				"ContainerId variable %s not set", YarnResourceManager.ENV_FLINK_CONTAINER_ID);
 
-			SecurityUtils.getInstalledContext().runSecured((Callable<Void>) () -> {
+			SecurityEnvironment.getInstalledContext().runSecured((Callable<Void>) () -> {
 				TaskManagerRunner.runTaskManager(configuration, new ResourceID(containerId));
 				return null;
 			});
@@ -163,6 +163,6 @@ public class YarnTaskExecutorRunner {
 
 	private static void installSecurityContext(Configuration configuration) throws Exception {
 		SecurityConfiguration sc = new SecurityConfiguration(configuration);
-		SecurityUtils.install(sc);
+		SecurityEnvironment.install(sc);
 	}
 }

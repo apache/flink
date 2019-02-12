@@ -46,7 +46,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.SecurityEnvironment;
 import org.apache.flink.runtime.taskmanager.MemoryLogger;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
@@ -294,10 +294,10 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 				"filesystem scheme from configuration.", e);
 		}
 
-		SecurityUtils.install(new SecurityConfiguration(configuration));
+		SecurityEnvironment.install(new SecurityConfiguration(configuration));
 
 		try {
-			SecurityUtils.getInstalledContext().runSecured(new Callable<Void>() {
+			SecurityEnvironment.getInstalledContext().runSecured(new Callable<Void>() {
 				@Override
 				public Void call() throws Exception {
 					runTaskManager(configuration, ResourceID.generate());

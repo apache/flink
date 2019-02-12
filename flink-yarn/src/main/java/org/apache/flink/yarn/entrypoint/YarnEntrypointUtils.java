@@ -29,8 +29,8 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.SecurityContext;
-import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.SecurityEnvironment;
+import org.apache.flink.runtime.security.contexts.SecurityContext;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.Utils;
 import org.apache.flink.yarn.YarnConfigKeys;
@@ -56,9 +56,9 @@ public class YarnEntrypointUtils {
 
 		SecurityConfiguration sc = new SecurityConfiguration(configuration);
 
-		SecurityUtils.install(sc);
+		SecurityEnvironment.install(sc);
 
-		return SecurityUtils.getInstalledContext();
+		return SecurityEnvironment.getInstalledContext();
 	}
 
 	public static Configuration loadConfiguration(String workingDirectory, Map<String, String> env, Logger log) {

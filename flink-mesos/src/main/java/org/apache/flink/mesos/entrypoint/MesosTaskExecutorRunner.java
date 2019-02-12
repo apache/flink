@@ -25,7 +25,7 @@ import org.apache.flink.mesos.runtime.clusterframework.MesosConfigKeys;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.SecurityEnvironment;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
@@ -102,10 +102,10 @@ public class MesosTaskExecutorRunner {
 
 		// Run the TM in the security context
 		SecurityConfiguration sc = new SecurityConfiguration(configuration);
-		SecurityUtils.install(sc);
+		SecurityEnvironment.install(sc);
 
 		try {
-			SecurityUtils.getInstalledContext().runSecured(() -> {
+			SecurityEnvironment.getInstalledContext().runSecured(() -> {
 				TaskManagerRunner.runTaskManager(configuration, resourceId);
 
 				return 0;

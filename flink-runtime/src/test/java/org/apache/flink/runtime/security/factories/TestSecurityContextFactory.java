@@ -16,17 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security.modules;
+package org.apache.flink.runtime.security.factories;
 
 import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.runtime.security.contexts.SecurityContext;
+
+import java.util.concurrent.Callable;
 
 /**
- * A {@link SecurityModuleFactory} for {@link JaasModule}.
+ * Test security context factory class for service provider discovery.
  */
-public class JaasModuleFactory implements SecurityModuleFactory {
+public class TestSecurityContextFactory implements SecurityContextFactory {
 
 	@Override
-	public SecurityModule createModule(SecurityConfiguration securityConfig) {
-		return new JaasModule(securityConfig);
+	public SecurityContext createContext(SecurityConfiguration securityConfig) {
+		return new TestSecurityContext();
+	}
+
+	/**
+	 * Test security context class.
+	 */
+	public static class TestSecurityContext implements SecurityContext {
+
+		@Override
+		public <T> T runSecured(Callable<T> securedCallable) throws Exception {
+			return null;
+		}
 	}
 }

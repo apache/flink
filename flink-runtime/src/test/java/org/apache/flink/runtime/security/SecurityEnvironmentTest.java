@@ -20,8 +20,9 @@ package org.apache.flink.runtime.security;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.runtime.security.modules.SecurityModule;
-import org.apache.flink.runtime.security.modules.SecurityModuleFactory;
+import org.apache.flink.runtime.security.contexts.NoOpSecurityContext;
+import org.apache.flink.runtime.security.factories.TestSecurityContextFactory;
+import org.apache.flink.runtime.security.factories.TestSecurityModuleFactory;
 
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -36,49 +37,30 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for the {@link SecurityUtils}.
+ * Tests for the {@link SecurityEnvironment}.
  */
-public class SecurityUtilsTest {
-
-	static class TestSecurityModule implements SecurityModule {
-		boolean installed;
-
-		@Override
-		public void install() throws SecurityInstallException {
-			installed = true;
-		}
-
-		@Override
-		public void uninstall() throws SecurityInstallException {
-			installed = false;
-		}
-
-		static class Factory implements SecurityModuleFactory {
-			@Override
-			public SecurityModule createModule(SecurityConfiguration securityConfig) {
-				return new TestSecurityModule();
-			}
-		}
-	}
+public class SecurityEnvironmentTest {
 
 	@AfterClass
 	public static void afterClass() {
-		SecurityUtils.uninstall();
+		SecurityEnvironment.uninstall();
 	}
 
 	@Test
 	public void testModuleInstall() throws Exception {
 		SecurityConfiguration sc = new SecurityConfiguration(
 			new Configuration(),
-			Collections.singletonList(new TestSecurityModule.Factory()));
+			TestSecurityContextFactory.class.getCanonicalName(),
+			Collections.singletonList(TestSecurityModuleFactory.class.getCanonicalName()));
 
-		SecurityUtils.install(sc);
-		assertEquals(1, SecurityUtils.getInstalledModules().size());
-		TestSecurityModule testModule = (TestSecurityModule) SecurityUtils.getInstalledModules().get(0);
+		SecurityEnvironment.install(sc);
+		assertEquals(1, SecurityEnvironment.getInstalledModules().size());
+		TestSecurityModuleFactory.TestSecurityModule testModule =
+			(TestSecurityModuleFactory.TestSecurityModule) SecurityEnvironment.getInstalledModules().get(0);
 		assertTrue(testModule.installed);
 
-		SecurityUtils.uninstall();
-		assertNull(SecurityUtils.getInstalledModules());
+		SecurityEnvironment.uninstall();
+		assertNull(SecurityEnvironment.getInstalledModules());
 		assertFalse(testModule.installed);
 	}
 
@@ -86,13 +68,14 @@ public class SecurityUtilsTest {
 	public void testSecurityContext() throws Exception {
 		SecurityConfiguration sc = new SecurityConfiguration(
 			new Configuration(),
-			Collections.singletonList(new TestSecurityModule.Factory()));
+			TestSecurityContextFactory.class.getCanonicalName(),
+			Collections.singletonList(TestSecurityModuleFactory.class.getCanonicalName()));
 
-		SecurityUtils.install(sc);
-		assertEquals(HadoopSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
+		SecurityEnvironment.install(sc);
+		assertEquals(TestSecurityContextFactory.TestSecurityContext.class, SecurityEnvironment.getInstalledContext().getClass());
 
-		SecurityUtils.uninstall();
-		assertEquals(NoOpSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
+		SecurityEnvironment.uninstall();
+		assertEquals(NoOpSecurityContext.class, SecurityEnvironment.getInstalledContext().getClass());
 	}
 
 	@Test
@@ -109,7 +92,8 @@ public class SecurityUtilsTest {
 		testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar,Client");
 		testSecurityConf = new SecurityConfiguration(
 			testFlinkConf,
-			Collections.singletonList(new TestSecurityModule.Factory()));
+			TestSecurityContextFactory.class.getCanonicalName(),
+			Collections.singletonList(TestSecurityModuleFactory.class.getCanonicalName()));
 		assertEquals(expectedLoginContexts, testSecurityConf.getLoginContextNames());
 
 		// ------- with whitespaces surrounding comma
@@ -118,7 +102,8 @@ public class SecurityUtilsTest {
 		testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar , Client");
 		testSecurityConf = new SecurityConfiguration(
 			testFlinkConf,
-			Collections.singletonList(new TestSecurityModule.Factory()));
+			TestSecurityContextFactory.class.getCanonicalName(),
+			Collections.singletonList(TestSecurityModuleFactory.class.getCanonicalName()));
 		assertEquals(expectedLoginContexts, testSecurityConf.getLoginContextNames());
 
 		// ------- leading / trailing whitespaces at start and end of list
@@ -127,7 +112,8 @@ public class SecurityUtilsTest {
 		testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, " Foo bar , Client ");
 		testSecurityConf = new SecurityConfiguration(
 			testFlinkConf,
-			Collections.singletonList(new TestSecurityModule.Factory()));
+			TestSecurityContextFactory.class.getCanonicalName(),
+			Collections.singletonList(TestSecurityModuleFactory.class.getCanonicalName()));
 		assertEquals(expectedLoginContexts, testSecurityConf.getLoginContextNames());
 
 		// ------- empty entries
@@ -136,7 +122,8 @@ public class SecurityUtilsTest {
 		testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar,,Client");
 		testSecurityConf = new SecurityConfiguration(
 			testFlinkConf,
-			Collections.singletonList(new TestSecurityModule.Factory()));
+			TestSecurityContextFactory.class.getCanonicalName(),
+			Collections.singletonList(TestSecurityModuleFactory.class.getCanonicalName()));
 		assertEquals(expectedLoginContexts, testSecurityConf.getLoginContextNames());
 
 		// ------- empty trailing String entries with whitespaces
@@ -145,7 +132,9 @@ public class SecurityUtilsTest {
 		testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar, ,, Client,");
 		testSecurityConf = new SecurityConfiguration(
 			testFlinkConf,
-			Collections.singletonList(new TestSecurityModule.Factory()));
+			TestSecurityContextFactory.class.getCanonicalName(),
+			Collections.singletonList(TestSecurityModuleFactory.class.getCanonicalName()));
 		assertEquals(expectedLoginContexts, testSecurityConf.getLoginContextNames());
 	}
 }
+
