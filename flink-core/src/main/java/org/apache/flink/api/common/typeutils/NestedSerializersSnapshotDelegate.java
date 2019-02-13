@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A NestedSerializersSnapshotDelegate represents the snapshots of multiple serializers that are used
@@ -65,8 +66,9 @@ public class NestedSerializersSnapshotDelegate {
 	/**
 	 * Constructor to create a snapshot during deserialization.
 	 */
-	private NestedSerializersSnapshotDelegate(TypeSerializerSnapshot<?>[] snapshots) {
-		this.nestedSnapshots = snapshots;
+	@Internal
+	NestedSerializersSnapshotDelegate(TypeSerializerSnapshot<?>[] snapshots) {
+		this.nestedSnapshots = checkNotNull(snapshots);
 	}
 
 	// ------------------------------------------------------------------------

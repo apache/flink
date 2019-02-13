@@ -48,4 +48,19 @@ public class CompositeTypeSerializerUtil {
 		checkArgument(legacyNestedSnapshots.length > 0);
 		return newCompositeSnapshot.internalResolveSchemaCompatibility(newSerializer, legacyNestedSnapshots);
 	}
+
+
+	/**
+	 * Overrides the existing nested serializer's snapshots with the provided {@code nestedSnapshots}.
+	 *
+	 * @param compositeSnapshot the composite snapshot to overwrite its nested serializers.
+	 * @param nestedSnapshots the nested snapshots to overwrite with.
+	 */
+	public static void setNestedSerializersSnapshots(
+		CompositeTypeSerializerSnapshot<?, ?> compositeSnapshot,
+		TypeSerializerSnapshot<?>... nestedSnapshots) {
+
+		NestedSerializersSnapshotDelegate delegate = new NestedSerializersSnapshotDelegate(nestedSnapshots);
+		compositeSnapshot.setNestedSerializersSnapshotDelegate(delegate);
+	}
 }
