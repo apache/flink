@@ -446,7 +446,7 @@ public class SavepointITCase extends TestLogger {
 			cluster.after();
 		}
 
-		// create a new TestingCluster to make sure we start with completely
+		// create a new MiniCluster to make sure we start with completely
 		// new resources
 		cluster = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()

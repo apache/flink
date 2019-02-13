@@ -242,7 +242,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	 */
 	public void start() throws Exception {
 		synchronized (lock) {
-			checkState(!running, "FlinkMiniCluster is already running");
+			checkState(!running, "MiniCluster is already running");
 
 			LOG.info("Starting Flink Mini Cluster");
 			LOG.debug("Using configuration {}", miniClusterConfiguration);

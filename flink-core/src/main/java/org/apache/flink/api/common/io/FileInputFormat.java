@@ -98,7 +98,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 
 	/**
 	 * Initialize defaults for input format. Needs to be a static method because it is configured for local
-	 * cluster execution, see LocalFlinkMiniCluster.
+	 * cluster execution.
 	 * @param configuration The configuration to load defaults from
 	 */
 	private static void initDefaultsFromConfiguration(Configuration configuration) {

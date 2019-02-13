@@ -83,21 +83,6 @@ object TestingUtils {
   def infiniteTime: Time = {
     Time.milliseconds(Integer.MAX_VALUE);
   }
-  
-
-  def startTestingCluster(numSlots: Int, numTMs: Int = 1,
-                          timeout: String = DEFAULT_AKKA_ASK_TIMEOUT): TestingCluster = {
-    val config = new Configuration()
-    config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlots)
-    config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs)
-    config.setString(AkkaOptions.ASK_TIMEOUT, timeout)
-
-    val cluster = new TestingCluster(config)
-
-    cluster.start()
-
-    cluster
-  }
 
   /** 
     * Gets the shared global testing execution context 
