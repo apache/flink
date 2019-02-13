@@ -18,18 +18,13 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.io.network.api.reader.RecordReader;
-import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
-import org.apache.flink.types.IntValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -76,11 +71,11 @@ public class JobExecutionITCase extends TestLogger {
 	private JobGraph createJobGraph(int parallelism) {
 		final JobVertex sender = new JobVertex("Sender");
 		sender.setParallelism(parallelism);
-		sender.setInvokableClass(Sender.class);
+		sender.setInvokableClass(TestingAbstractInvokables.Sender.class);
 
 		final JobVertex receiver = new JobVertex("Receiver");
 		receiver.setParallelism(parallelism);
-		receiver.setInvokableClass(Receiver.class);
+		receiver.setInvokableClass(TestingAbstractInvokables.Receiver.class);
 
 		// In order to make testCoLocationConstraintJobExecution fail, one needs to
 		// remove the co-location constraint and the slot sharing groups, because then
@@ -97,55 +92,5 @@ public class JobExecutionITCase extends TestLogger {
 		final JobGraph jobGraph = new JobGraph(getClass().getSimpleName(), sender, receiver);
 
 		return jobGraph;
-	}
-
-	/**
-	 * Basic sender {@link AbstractInvokable} which sends 42 and 1337 down stream.
-	 */
-	public static class Sender extends AbstractInvokable {
-
-		public Sender(Environment environment) {
-			super(environment);
-		}
-
-		@Override
-		public void invoke() throws Exception {
-			final RecordWriter<IntValue> writer = new RecordWriter<>(getEnvironment().getWriter(0));
-
-			try {
-				writer.emit(new IntValue(42));
-				writer.emit(new IntValue(1337));
-				writer.flushAll();
-			} finally {
-				writer.clearBuffers();
-			}
-		}
-	}
-
-	/**
-	 * Basic receiver {@link AbstractInvokable} which verifies the sent elements
-	 * from the {@link Sender}.
-	 */
-	public static class Receiver extends AbstractInvokable {
-
-		public Receiver(Environment environment) {
-			super(environment);
-		}
-
-		@Override
-		public void invoke() throws Exception {
-			final RecordReader<IntValue> reader = new RecordReader<>(
-				getEnvironment().getInputGate(0),
-				IntValue.class,
-				getEnvironment().getTaskManagerInfo().getTmpDirectories());
-
-			final IntValue i1 = reader.next();
-			final IntValue i2 = reader.next();
-			final IntValue i3 = reader.next();
-
-			if (i1.getValue() != 42 || i2.getValue() != 1337 || i3 != null) {
-				throw new Exception("Wrong data received.");
-			}
-		}
 	}
 }
