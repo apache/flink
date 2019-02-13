@@ -27,7 +27,7 @@ import org.apache.flink.annotation.Internal;
  * associated snapshot class during deserialization from previous Flink versions.
  */
 @Internal
-public interface LegacySerializerSnapshotTransformation<T> {
+public interface LegacySerializerSnapshotTransformer<T> {
 
 	/**
 	 * Transform a {@link TypeSerializerSnapshot} that was previously associated with {@code this} {@link TypeSerializer}.

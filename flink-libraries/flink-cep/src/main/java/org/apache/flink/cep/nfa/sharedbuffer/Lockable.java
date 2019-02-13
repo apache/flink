@@ -20,7 +20,7 @@ package org.apache.flink.cep.nfa.sharedbuffer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
-import org.apache.flink.api.common.typeutils.LegacySerializerSnapshotTransformation;
+import org.apache.flink.api.common.typeutils.LegacySerializerSnapshotTransformer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -95,7 +95,7 @@ public final class Lockable<T> {
 
 	/** Serializer for {@link Lockable}. */
 	public static class LockableTypeSerializer<E> extends TypeSerializer<Lockable<E>>
-			implements LegacySerializerSnapshotTransformation<Lockable<E>> {
+			implements LegacySerializerSnapshotTransformer<Lockable<E>> {
 
 		private static final long serialVersionUID = 3298801058463337340L;
 		private final TypeSerializer<E> elementSerializer;

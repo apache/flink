@@ -218,7 +218,7 @@ public class TypeSerializerSerializationUtil {
 				configSnapshot = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
 						bufferWrapper, userCodeClassLoader, serializer);
 
-				if (serializer instanceof LegacySerializerSnapshotTransformation) {
+				if (serializer instanceof LegacySerializerSnapshotTransformer) {
 					configSnapshot = transformLegacySnapshot(serializer, configSnapshot);
 				}
 
@@ -233,7 +233,7 @@ public class TypeSerializerSerializationUtil {
 	private static <T, U> TypeSerializerSnapshot<T> transformLegacySnapshot(
 		TypeSerializer<T> serializer, TypeSerializerSnapshot<U> configSnapshot) {
 
-		LegacySerializerSnapshotTransformation<T> transformation = (LegacySerializerSnapshotTransformation<T>) serializer;
+		LegacySerializerSnapshotTransformer<T> transformation = (LegacySerializerSnapshotTransformer<T>) serializer;
 		return transformation.transformLegacySerializerSnapshot(configSnapshot);
 	}
 
