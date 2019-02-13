@@ -140,6 +140,7 @@ under the License.
 									<include>com.squareup.okhttp3:*</include>
 									<include>com.squareup.okio:*</include>
 									<include>com.squareup.retrofit2:*</include>
+									<!-- org.msgpack:msgpack-core is not required -->
 								</includes>
 							</artifactSet>
 							<relocations combine.children="append">
