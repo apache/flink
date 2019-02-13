@@ -652,7 +652,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		return runDispatcherCommand(dispatcherGateway -> dispatcherGateway.requestClusterOverview(RpcUtils.INF_TIMEOUT));
 	}
 
-	private CompletableFuture<DispatcherGateway> getDispatcherGatewayFuture() {
+	@VisibleForTesting
+	protected CompletableFuture<DispatcherGateway> getDispatcherGatewayFuture() {
 		synchronized (lock) {
 			checkState(running, "MiniCluster is not yet running.");
 			return dispatcherGatewayRetriever.getFuture();
