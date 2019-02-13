@@ -156,7 +156,7 @@ public class ResultPartitionTest {
 		ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
 		try {
 			ResultPartition partition = createPartition(notifier, pipelined, true);
-			partition.release();
+			partition.release(null);
 			// partition.add() silently drops the bufferConsumer but recycles it
 			partition.addBufferConsumer(bufferConsumer, 0);
 		} finally {
@@ -251,7 +251,7 @@ public class ResultPartitionTest {
 				assertEquals(0, resultPartition.getBufferPool().getNumberOfAvailableMemorySegments());
 			}
 		} finally {
-			resultPartition.release();
+			resultPartition.release(null);
 			network.shutdown();
 		}
 	}

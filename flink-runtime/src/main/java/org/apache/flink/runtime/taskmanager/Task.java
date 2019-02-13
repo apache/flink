@@ -49,6 +49,7 @@ import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
@@ -188,7 +189,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	/** Serialized version of the job specific execution configuration (see {@link ExecutionConfig}). */
 	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
-	private final ResultPartition[] producedPartitions;
+	private final ResultPartitionWriter[] producedPartitions;
 
 	private final SingleInputGate[] inputGates;
 
@@ -440,7 +441,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		return inputGates;
 	}
 
-	public ResultPartition[] getProducedPartitions() {
+	public ResultPartitionWriter[] getProducedPartitions() {
 		return producedPartitions;
 	}
 
@@ -714,7 +715,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			// ----------------------------------------------------------------
 
 			// finish the produced partitions. if this fails, we consider the execution failed.
-			for (ResultPartition partition : producedPartitions) {
+			for (ResultPartitionWriter partition : producedPartitions) {
 				if (partition != null) {
 					partition.finish();
 				}
@@ -1434,7 +1435,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		private final AbstractInvokable invokable;
 		private final Thread executer;
 		private final String taskName;
-		private final ResultPartition[] producedPartitions;
+		private final ResultPartitionWriter[] producedPartitions;
 		private final SingleInputGate[] inputGates;
 
 		public TaskCanceler(
@@ -1442,7 +1443,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				AbstractInvokable invokable,
 				Thread executer,
 				String taskName,
-				ResultPartition[] producedPartitions,
+				ResultPartitionWriter[] producedPartitions,
 				SingleInputGate[] inputGates) {
 
 			this.logger = logger;
@@ -1472,7 +1473,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				//
 				// Don't do this before cancelling the invokable. Otherwise we
 				// will get misleading errors in the logs.
-				for (ResultPartition partition : producedPartitions) {
+				for (ResultPartitionWriter partition : producedPartitions) {
 					try {
 						partition.destroyBufferPool();
 					} catch (Throwable t) {

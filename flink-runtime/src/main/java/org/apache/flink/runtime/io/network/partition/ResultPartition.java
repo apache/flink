@@ -180,6 +180,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 * <p>The pool is registered with the partition *after* it as been constructed in order to conform
 	 * to the life-cycle of task registrations in the {@link TaskManager}.
 	 */
+	@Override
 	public void registerBufferPool(BufferPool bufferPool) {
 		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
 				"Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for this result partition.");
@@ -197,6 +198,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		return owningTaskName;
 	}
 
+	@Override
 	public ResultPartitionID getPartitionId() {
 		return partitionId;
 	}
@@ -211,10 +213,17 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		return bufferPool;
 	}
 
+	@Override
 	public BufferPool getBufferPool() {
 		return bufferPool;
 	}
 
+	@Override
+	public BufferPoolOwner getBufferPoolOwner() {
+		return this;
+	}
+
+	@Override
 	public int getNumberOfQueuedBuffers() {
 		int totalBuffers = 0;
 
@@ -230,8 +239,14 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 *
 	 * @return result partition type
 	 */
+	@Override
 	public ResultPartitionType getPartitionType() {
 		return partitionType;
+	}
+
+	@Override
+	public ResultSubpartition[] getAllSubPartitions() {
+		return subpartitions;
 	}
 
 	// ------------------------------------------------------------------------
@@ -274,6 +289,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 *
 	 * <p>For BLOCKING results, this will trigger the deployment of consuming tasks.
 	 */
+	@Override
 	public void finish() throws IOException {
 		boolean success = false;
 
@@ -295,13 +311,10 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		}
 	}
 
-	public void release() {
-		release(null);
-	}
-
 	/**
 	 * Releases the result partition.
 	 */
+	@Override
 	public void release(Throwable cause) {
 		if (isReleased.compareAndSet(false, true)) {
 			LOG.debug("{}: Releasing {}.", owningTaskName, this);
@@ -324,6 +337,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		}
 	}
 
+	@Override
 	public void destroyBufferPool() {
 		if (bufferPool != null) {
 			bufferPool.lazyDestroy();
@@ -333,6 +347,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	/**
 	 * Returns the requested subpartition.
 	 */
+	@Override
 	public ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException {
 		int refCnt = pendingReferences.get();
 
@@ -427,10 +442,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 		LOG.debug("{}: Received release notification for subpartition {} (reference count now at: {}).",
 				this, subpartitionIndex, pendingReferences);
-	}
-
-	ResultSubpartition[] getAllPartitions() {
-		return subpartitions;
 	}
 
 	// ------------------------------------------------------------------------

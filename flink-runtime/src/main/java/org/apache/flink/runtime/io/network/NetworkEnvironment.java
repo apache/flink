@@ -23,9 +23,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -207,14 +207,14 @@ public class NetworkEnvironment {
 	// --------------------------------------------------------------------------------------------
 
 	public void registerTask(Task task) throws IOException {
-		final ResultPartition[] producedPartitions = task.getProducedPartitions();
+		final ResultPartitionWriter[] producedPartitions = task.getProducedPartitions();
 
 		synchronized (lock) {
 			if (isShutdown) {
 				throw new IllegalStateException("NetworkEnvironment is shut down");
 			}
 
-			for (final ResultPartition partition : producedPartitions) {
+			for (final ResultPartitionWriter partition : producedPartitions) {
 				setupPartition(partition);
 			}
 
@@ -227,7 +227,7 @@ public class NetworkEnvironment {
 	}
 
 	@VisibleForTesting
-	public void setupPartition(ResultPartition partition) throws IOException {
+	public void setupPartition(ResultPartitionWriter partition) throws IOException {
 		BufferPool bufferPool = null;
 
 		try {
@@ -238,7 +238,7 @@ public class NetworkEnvironment {
 			// callbacks to release memory.
 			bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(),
 				maxNumberOfMemorySegments,
-				partition.getPartitionType().hasBackPressure() ? Optional.empty() : Optional.of(partition));
+				partition.getPartitionType().hasBackPressure() ? Optional.empty() : Optional.of(partition.getBufferPoolOwner()));
 
 			partition.registerBufferPool(bufferPool);
 
@@ -304,7 +304,7 @@ public class NetworkEnvironment {
 				resultPartitionManager.releasePartitionsProducedBy(executionId, task.getFailureCause());
 			}
 
-			for (ResultPartition partition : task.getProducedPartitions()) {
+			for (ResultPartitionWriter partition : task.getProducedPartitions()) {
 				taskEventDispatcher.unregisterPartition(partition.getPartitionId());
 				partition.destroyBufferPool();
 			}

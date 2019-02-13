@@ -19,8 +19,14 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 
 import java.io.IOException;
 
@@ -31,11 +37,25 @@ public interface ResultPartitionWriter {
 
 	BufferProvider getBufferProvider();
 
+	BufferPool getBufferPool();
+
+	BufferPoolOwner getBufferPoolOwner();
+
 	ResultPartitionID getPartitionId();
+
+	ResultPartitionType getPartitionType();
+
+	ResultSubpartition[] getAllSubPartitions();
 
 	int getNumberOfSubpartitions();
 
+	int getNumberOfQueuedBuffers();
+
 	int getNumTargetKeyGroups();
+
+	void registerBufferPool(BufferPool bufferPool);
+
+	void destroyBufferPool();
 
 	/**
 	 * Adds the bufferConsumer to the subpartition with the given index.
@@ -60,4 +80,10 @@ public interface ResultPartitionWriter {
 	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in one specified subpartition.
 	 */
 	void flush(int subpartitionIndex);
+
+	ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException;
+
+	void release(Throwable cause);
+
+	void finish() throws IOException;
 }

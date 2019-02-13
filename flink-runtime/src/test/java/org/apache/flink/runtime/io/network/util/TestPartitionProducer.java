@@ -92,7 +92,7 @@ public class TestPartitionProducer implements Callable<Boolean> {
 		}
 		finally {
 			if (!success) {
-				partition.release();
+				partition.release(null);
 			}
 		}
 	}

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -28,11 +29,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ResultPartitionMetrics {
 
-	private final ResultPartition partition;
+	private final ResultPartitionWriter partition;
 
 	// ------------------------------------------------------------------------
 
-	private ResultPartitionMetrics(ResultPartition partition) {
+	private ResultPartitionMetrics(ResultPartitionWriter partition) {
 		this.partition = checkNotNull(partition);
 	}
 
@@ -49,7 +50,7 @@ public class ResultPartitionMetrics {
 	long refreshAndGetTotal() {
 		long total = 0;
 
-		for (ResultSubpartition part : partition.getAllPartitions()) {
+		for (ResultSubpartition part : partition.getAllSubPartitions()) {
 			total += part.unsynchronizedGetNumberOfQueuedBuffers();
 		}
 
@@ -65,7 +66,7 @@ public class ResultPartitionMetrics {
 	int refreshAndGetMin() {
 		int min = Integer.MAX_VALUE;
 
-		ResultSubpartition[] allPartitions = partition.getAllPartitions();
+		ResultSubpartition[] allPartitions = partition.getAllSubPartitions();
 		if (allPartitions.length == 0) {
 			// meaningful value when no channels exist:
 			return 0;
@@ -88,7 +89,7 @@ public class ResultPartitionMetrics {
 	int refreshAndGetMax() {
 		int max = 0;
 
-		for (ResultSubpartition part : partition.getAllPartitions()) {
+		for (ResultSubpartition part : partition.getAllSubPartitions()) {
 			int size = part.unsynchronizedGetNumberOfQueuedBuffers();
 			max = Math.max(max, size);
 		}
@@ -105,7 +106,7 @@ public class ResultPartitionMetrics {
 	float refreshAndGetAvg() {
 		long total = 0;
 
-		ResultSubpartition[] allPartitions = partition.getAllPartitions();
+		ResultSubpartition[] allPartitions = partition.getAllSubPartitions();
 		for (ResultSubpartition part : allPartitions) {
 			int size = part.unsynchronizedGetNumberOfQueuedBuffers();
 			total += size;
@@ -158,7 +159,7 @@ public class ResultPartitionMetrics {
 	//  Static access
 	// ------------------------------------------------------------------------
 
-	public static void registerQueueLengthMetrics(MetricGroup group, ResultPartition partition) {
+	public static void registerQueueLengthMetrics(MetricGroup group, ResultPartitionWriter partition) {
 		ResultPartitionMetrics metrics = new ResultPartitionMetrics(partition);
 
 		group.gauge("totalQueueLen", metrics.getTotalQueueLenGauge());

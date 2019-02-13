@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.api.writer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -35,32 +34,11 @@ import static org.apache.flink.util.Preconditions.checkState;
  * {@link ResultPartitionWriter} that collects output on the List.
  */
 @ThreadSafe
-public abstract class AbstractCollectingResultPartitionWriter implements ResultPartitionWriter {
-	private final BufferProvider bufferProvider;
+public abstract class AbstractCollectingResultPartitionWriter extends TestResultPartitionWriter {
 	private final ArrayDeque<BufferConsumer> bufferConsumers = new ArrayDeque<>();
 
 	public AbstractCollectingResultPartitionWriter(BufferProvider bufferProvider) {
-		this.bufferProvider = checkNotNull(bufferProvider);
-	}
-
-	@Override
-	public BufferProvider getBufferProvider() {
-		return bufferProvider;
-	}
-
-	@Override
-	public ResultPartitionID getPartitionId() {
-		return new ResultPartitionID();
-	}
-
-	@Override
-	public int getNumberOfSubpartitions() {
-		return 1;
-	}
-
-	@Override
-	public int getNumTargetKeyGroups() {
-		return 1;
+		super(checkNotNull(bufferProvider));
 	}
 
 	@Override

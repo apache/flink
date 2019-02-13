@@ -131,7 +131,7 @@ public class NetworkEnvironmentTest {
 		verify(ig4, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
 
 		for (ResultPartition rp : resultPartitions) {
-			rp.release();
+			rp.release(null);
 		}
 		for (SingleInputGate ig : inputGates) {
 			ig.releaseAllResources();
@@ -255,7 +255,7 @@ public class NetworkEnvironmentTest {
 		verify(ig4, times(invokations)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
 
 		for (ResultPartition rp : resultPartitions) {
-			rp.release();
+			rp.release(null);
 		}
 		for (SingleInputGate ig : inputGates) {
 			ig.releaseAllResources();

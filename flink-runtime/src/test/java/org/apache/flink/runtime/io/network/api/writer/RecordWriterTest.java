@@ -36,7 +36,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.DeserializationUtils;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
@@ -468,10 +467,8 @@ public class RecordWriterTest {
 	/**
 	 * Partition writer that collects the added buffers/events in multiple queue.
 	 */
-	private static class CollectingPartitionWriter implements ResultPartitionWriter {
+	private static class CollectingPartitionWriter extends TestResultPartitionWriter {
 		private final Queue<BufferConsumer>[] queues;
-		private final BufferProvider bufferProvider;
-		private final ResultPartitionID partitionId = new ResultPartitionID();
 
 		/**
 		 * Create the partition writer.
@@ -480,18 +477,9 @@ public class RecordWriterTest {
 		 * @param bufferProvider buffer provider
 		 */
 		private CollectingPartitionWriter(Queue<BufferConsumer>[] queues, BufferProvider bufferProvider) {
+			super(bufferProvider);
+
 			this.queues = queues;
-			this.bufferProvider = bufferProvider;
-		}
-
-		@Override
-		public BufferProvider getBufferProvider() {
-			return bufferProvider;
-		}
-
-		@Override
-		public ResultPartitionID getPartitionId() {
-			return partitionId;
 		}
 
 		@Override
@@ -500,21 +488,8 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public int getNumTargetKeyGroups() {
-			return 1;
-		}
-
-		@Override
 		public void addBufferConsumer(BufferConsumer buffer, int targetChannel) throws IOException {
 			queues[targetChannel].add(buffer);
-		}
-
-		@Override
-		public void flushAll() {
-		}
-
-		@Override
-		public void flush(int subpartitionIndex) {
 		}
 	}
 
@@ -533,45 +508,15 @@ public class RecordWriterTest {
 	/**
 	 * Partition writer that recycles all received buffers and does no further processing.
 	 */
-	private static class RecyclingPartitionWriter implements ResultPartitionWriter {
-		private final BufferProvider bufferProvider;
-		private final ResultPartitionID partitionId = new ResultPartitionID();
+	private static class RecyclingPartitionWriter extends TestResultPartitionWriter {
 
 		private RecyclingPartitionWriter(BufferProvider bufferProvider) {
-			this.bufferProvider = bufferProvider;
-		}
-
-		@Override
-		public BufferProvider getBufferProvider() {
-			return bufferProvider;
-		}
-
-		@Override
-		public ResultPartitionID getPartitionId() {
-			return partitionId;
-		}
-
-		@Override
-		public int getNumberOfSubpartitions() {
-			return 1;
-		}
-
-		@Override
-		public int getNumTargetKeyGroups() {
-			return 1;
+			super(bufferProvider);
 		}
 
 		@Override
 		public void addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
 			bufferConsumer.close();
-		}
-
-		@Override
-		public void flushAll() {
-		}
-
-		@Override
-		public void flush(int subpartitionIndex) {
 		}
 	}
 
