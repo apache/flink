@@ -30,6 +30,8 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A {@link CompositeTypeSerializerSnapshot} is a convenient serializer snapshot class that can be used by
  * simple serializers which 1) delegates its serialization to multiple nested serializers, and 2) may contain
@@ -110,7 +112,7 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 	 * @param correspondingSerializerClass the expected class of the new serializer.
 	 */
 	public CompositeTypeSerializerSnapshot(Class<S> correspondingSerializerClass) {
-		this.correspondingSerializerClass = Preconditions.checkNotNull(correspondingSerializerClass);
+		this.correspondingSerializerClass = checkNotNull(correspondingSerializerClass);
 	}
 
 	/**
@@ -120,7 +122,7 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 	 */
 	@SuppressWarnings("unchecked")
 	public CompositeTypeSerializerSnapshot(S serializerInstance) {
-		Preconditions.checkNotNull(serializerInstance);
+		checkNotNull(serializerInstance);
 		this.nestedSerializersSnapshotDelegate = new NestedSerializersSnapshotDelegate(getNestedSerializers(serializerInstance));
 		this.correspondingSerializerClass = (Class<S>) serializerInstance.getClass();
 	}
@@ -169,6 +171,11 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 		return constructFinalSchemaCompatibilityResult(
 			getNestedSerializers(castedNewSerializer),
 			snapshots);
+	}
+
+	@Internal
+	void setNestedSerializersSnapshotDelegate(NestedSerializersSnapshotDelegate delegate) {
+		this.nestedSerializersSnapshotDelegate = checkNotNull(delegate);
 	}
 
 	@Override
