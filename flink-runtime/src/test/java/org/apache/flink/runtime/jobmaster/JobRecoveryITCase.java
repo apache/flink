@@ -108,7 +108,7 @@ public class JobRecoveryITCase extends TestLogger {
 	/**
 	 * Receiver which fails once before successfully completing.
 	 */
-	public static final class FailingOnceReceiver extends JobExecutionITCase.Receiver {
+	public static final class FailingOnceReceiver extends TestingAbstractInvokables.Receiver {
 
 		private static volatile boolean failed = false;
 
