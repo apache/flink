@@ -218,11 +218,23 @@ public class TypeSerializerSerializationUtil {
 				configSnapshot = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
 						bufferWrapper, userCodeClassLoader, serializer);
 
+				if (serializer instanceof LegacySerializerSnapshotTransformation) {
+					configSnapshot = transformLegacySnapshot(serializer, configSnapshot);
+				}
+
 				serializersAndConfigSnapshots.add(new Tuple2<>(serializer, configSnapshot));
 			}
 		}
 
 		return serializersAndConfigSnapshots;
+	}
+
+	@SuppressWarnings("unchecked")
+	private static <T, U> TypeSerializerSnapshot<T> transformLegacySnapshot(
+		TypeSerializer<T> serializer, TypeSerializerSnapshot<U> configSnapshot) {
+
+		LegacySerializerSnapshotTransformation<T> transformation = (LegacySerializerSnapshotTransformation<T>) serializer;
+		return transformation.transformLegacySerializerSnapshot(configSnapshot);
 	}
 
 	// -----------------------------------------------------------------------------------------------------
