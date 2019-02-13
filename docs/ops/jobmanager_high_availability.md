@@ -34,7 +34,7 @@ By default, there is a single JobManager instance per Flink cluster. This create
 
 With JobManager High Availability, you can recover from JobManager failures and thereby eliminate the *SPOF*. You can configure high availability for both **standalone** and **YARN clusters**.
 
-See more HA implementation details in [JobManager+High+Availability](https://cwiki.apache.org/confluence/display/FLINK/JobManager+High+Availability).
+See more HA implementation details in [JobManager High Availability](https://cwiki.apache.org/confluence/display/FLINK/JobManager+High+Availability) in the Flink wiki.
 
 ## Standalone Cluster High Availability
 
