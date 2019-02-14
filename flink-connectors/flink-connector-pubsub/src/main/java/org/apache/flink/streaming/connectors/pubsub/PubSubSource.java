@@ -28,9 +28,7 @@ import org.apache.flink.streaming.api.functions.source.MultipleIdsMessageAcknowl
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.pubsub.common.PubSubSubscriberFactory;
-import org.apache.flink.streaming.connectors.pubsub.common.SerializableCredentialsProvider;
 
-import com.google.api.gax.core.CredentialsProvider;
 import com.google.auth.Credentials;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.Subscriber;
@@ -42,6 +40,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+
+import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCredentialsProviderBuilder;
 
 /**
  * PubSub Source, this Source will consume PubSub messages from a subscription and Acknowledge them on the next checkpoint.
@@ -187,7 +187,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		protected PSS sourceUnderConstruction;
 
 		private PubSubSubscriberFactory pubSubSubscriberFactory;
-		private SerializableCredentialsProvider serializableCredentialsProvider;
+		private Credentials credentials;
 		private DeserializationSchema<OUT> deserializationSchema;
 		private String projectName;
 		private String subscriptionName;
@@ -205,29 +205,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		 * @return The current PubSubSourceBuilder instance
 		 */
 		public BUILDER withCredentials(Credentials credentials) {
-			this.serializableCredentialsProvider = new SerializableCredentialsProvider(credentials);
-			return (BUILDER) this;
-		}
-
-		/**
-		 * Set the CredentialsProvider.
-		 * If this is not used then the credentials are picked up from the environment variables.
-		 *
-		 * @param credentialsProvider the custom SerializableCredentialsProvider instance.
-		 * @return The current PubSubSourceBuilder instance
-		 */
-		public BUILDER withCredentialsProvider(CredentialsProvider credentialsProvider) throws IOException {
-			return withCredentials(credentialsProvider.getCredentials());
-		}
-
-		/**
-		 * Set the credentials to be absent.
-		 * This means that no credentials are to be used at all.
-		 *
-		 * @return The current PubSubSourceBuilder instance
-		 */
-		public BUILDER withoutCredentials() {
-			this.serializableCredentialsProvider = SerializableCredentialsProvider.withoutCredentials();
+			this.credentials = credentials;
 			return (BUILDER) this;
 		}
 
@@ -284,8 +262,8 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		 * @throws IllegalArgumentException incase required fields were not specified.
 		 */
 		public PSS build() throws IOException {
-			if (serializableCredentialsProvider == null) {
-				serializableCredentialsProvider = SerializableCredentialsProvider.credentialsProviderFromEnvironmentVariables();
+			if (credentials == null) {
+				credentials = defaultCredentialsProviderBuilder().build().getCredentials();
 			}
 			if (deserializationSchema == null) {
 				throw new IllegalArgumentException("The deserializationSchema has not been specified.");
@@ -306,7 +284,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 				}
 			}
 
-			SubscriberWrapper subscriberWrapper = new SubscriberWrapper(serializableCredentialsProvider, ProjectSubscriptionName.of(projectName, subscriptionName), pubSubSubscriberFactory);
+			SubscriberWrapper subscriberWrapper = new SubscriberWrapper(credentials, ProjectSubscriptionName.of(projectName, subscriptionName), pubSubSubscriberFactory);
 			sourceUnderConstruction.setSubscriberWrapper(subscriberWrapper);
 			sourceUnderConstruction.setDeserializationSchema(deserializationSchema);
 

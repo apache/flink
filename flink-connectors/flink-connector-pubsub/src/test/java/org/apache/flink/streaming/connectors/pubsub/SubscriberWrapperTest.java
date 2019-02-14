@@ -19,10 +19,10 @@ package org.apache.flink.streaming.connectors.pubsub;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.connectors.pubsub.common.PubSubSubscriberFactory;
-import org.apache.flink.streaming.connectors.pubsub.common.SerializableCredentialsProvider;
 
 import com.google.api.core.ApiService;
-import com.google.api.gax.core.CredentialsProvider;
+import com.google.auth.Credentials;
+import com.google.cloud.NoCredentials;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Subscriber;
@@ -36,7 +36,6 @@ import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import static org.apache.flink.api.java.ClosureCleaner.ensureSerializable;
-import static org.apache.flink.streaming.connectors.pubsub.common.SerializableCredentialsProvider.withoutCredentials;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Matchers.any;
@@ -69,23 +68,23 @@ public class SubscriberWrapperTest {
 	@Before
 	public void setup() throws Exception {
 		when(pubSubSubscriberFactory.getSubscriber(any(), any(), any())).thenReturn(subscriber);
-		subscriberWrapper = new SubscriberWrapper(withoutCredentials(), ProjectSubscriptionName.of("projectId", "subscriptionId"), pubSubSubscriberFactory);
+		subscriberWrapper = new SubscriberWrapper(NoCredentials.getInstance(), ProjectSubscriptionName.of("projectId", "subscriptionId"), pubSubSubscriberFactory);
 	}
 
 	@Test
 	public void testSerializedSubscriberBuilder() throws Exception {
-		SubscriberWrapper subscriberWrapper = new SubscriberWrapper(withoutCredentials(), ProjectSubscriptionName.of("projectId", "subscriptionId"), SubscriberWrapperTest::subscriberFactory);
+		SubscriberWrapper subscriberWrapper = new SubscriberWrapper(NoCredentials.getInstance(), ProjectSubscriptionName.of("projectId", "subscriptionId"), SubscriberWrapperTest::subscriberFactory);
 		ensureSerializable(subscriberWrapper);
 	}
 
 	@Test
 	public void testInitialisation() {
-		SerializableCredentialsProvider credentialsProvider = withoutCredentials();
+		Credentials credentials = NoCredentials.getInstance();
 		ProjectSubscriptionName projectSubscriptionName = ProjectSubscriptionName.of("projectId", "subscriptionId");
-		SubscriberWrapper subscriberWrapper = new SubscriberWrapper(credentialsProvider, projectSubscriptionName, pubSubSubscriberFactory);
+		SubscriberWrapper subscriberWrapper = new SubscriberWrapper(credentials, projectSubscriptionName, pubSubSubscriberFactory);
 
 		subscriberWrapper.initialize();
-		verify(pubSubSubscriberFactory, times(1)).getSubscriber(credentialsProvider, projectSubscriptionName, subscriberWrapper);
+		verify(pubSubSubscriberFactory, times(1)).getSubscriber(credentials, projectSubscriptionName, subscriberWrapper);
 	}
 
 	@Test
@@ -164,7 +163,7 @@ public class SubscriberWrapperTest {
 			.build();
 	}
 
-	private static Subscriber subscriberFactory(CredentialsProvider credentialsProvider, ProjectSubscriptionName projectSubscriptionName, MessageReceiver messageReceiver) {
+	private static Subscriber subscriberFactory(Credentials credentials, ProjectSubscriptionName projectSubscriptionName, MessageReceiver messageReceiver) {
 		return null;
 	}
 }

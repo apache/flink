@@ -19,9 +19,9 @@ package org.apache.flink.streaming.connectors.pubsub;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.connectors.pubsub.common.PubSubSubscriberFactory;
-import org.apache.flink.streaming.connectors.pubsub.common.SerializableCredentialsProvider;
 
 import com.google.api.core.ApiService;
+import com.google.auth.Credentials;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Subscriber;
@@ -43,7 +43,7 @@ import java.util.concurrent.TimeUnit;
 class SubscriberWrapper implements Serializable, MessageReceiver {
 	private static final Logger LOG = LoggerFactory.getLogger(SubscriberWrapper.class);
 
-	private final SerializableCredentialsProvider serializableCredentialsProvider;
+	private final Credentials credentials;
 	private final String projectId;
 	private final String subscriptionId;
 	private final PubSubSubscriberFactory pubSubSubscriberFactory;
@@ -51,15 +51,15 @@ class SubscriberWrapper implements Serializable, MessageReceiver {
 	private transient Subscriber subscriber;
 	private transient BlockingQueue<Tuple2<PubsubMessage, AckReplyConsumer>> messageQueue;
 
-	SubscriberWrapper(SerializableCredentialsProvider serializableCredentialsProvider, ProjectSubscriptionName projectSubscriptionName, PubSubSubscriberFactory pubSubSubscriberFactory) {
-		this.serializableCredentialsProvider = serializableCredentialsProvider;
+	SubscriberWrapper(Credentials credentials, ProjectSubscriptionName projectSubscriptionName, PubSubSubscriberFactory pubSubSubscriberFactory) {
+		this.credentials = credentials;
 		this.projectId = projectSubscriptionName.getProject();
 		this.subscriptionId = projectSubscriptionName.getSubscription();
 		this.pubSubSubscriberFactory = pubSubSubscriberFactory;
 	}
 
 	void initialize() {
-		this.subscriber = pubSubSubscriberFactory.getSubscriber(serializableCredentialsProvider, ProjectSubscriptionName.of(projectId, subscriptionId), this);
+		this.subscriber = pubSubSubscriberFactory.getSubscriber(credentials, ProjectSubscriptionName.of(projectId, subscriptionId), this);
 		this.messageQueue = new LinkedBlockingQueue<>();
 	}
 

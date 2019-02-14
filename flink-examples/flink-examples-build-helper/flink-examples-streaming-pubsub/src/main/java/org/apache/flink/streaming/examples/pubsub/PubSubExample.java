@@ -68,11 +68,7 @@ public class PubSubExample {
 										.withDeserializationSchema(new IntegerSerializer())
 										.build())
 			.map(PubSubExample::printAndReturn).disableChaining()
-			.addSink(PubSubSink.<Integer>newBuilder()
-							.withProjectName(projectName)
-							.withTopicName(outputTopicName)
-							.withSerializationSchema(new IntegerSerializer())
-							.build());
+			.addSink(PubSubSink.<Integer>newBuilder(new IntegerSerializer(), projectName, outputTopicName).build());
 
 		env.execute("Flink Streaming PubSubReader");
 	}

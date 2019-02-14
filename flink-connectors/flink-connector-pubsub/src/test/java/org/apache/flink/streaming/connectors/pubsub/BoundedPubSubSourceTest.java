@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
+import com.google.cloud.NoCredentials;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
@@ -72,7 +73,7 @@ public class BoundedPubSubSourceTest {
 		when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
 
 		BoundedPubSubSource<Object> boundedPubSubSource = BoundedPubSubSource.newBuilder()
-			.withoutCredentials()
+			.withCredentials(NoCredentials.getInstance())
 			.withDeserializationSchema(deserializationSchema)
 			.withProjectSubscriptionName("projectName", "subscriptionName")
 			.build();

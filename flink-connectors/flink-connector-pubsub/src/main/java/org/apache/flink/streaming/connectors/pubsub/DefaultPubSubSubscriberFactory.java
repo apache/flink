@@ -22,10 +22,11 @@ import org.apache.flink.streaming.connectors.pubsub.common.PubSubSubscriberFacto
 
 import com.google.api.gax.batching.FlowControlSettings;
 import com.google.api.gax.batching.FlowController;
-import com.google.api.gax.core.CredentialsProvider;
+import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.grpc.GrpcTransportChannel;
 import com.google.api.gax.rpc.FixedTransportChannelProvider;
 import com.google.api.gax.rpc.TransportChannel;
+import com.google.auth.Credentials;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Subscriber;
 import com.google.pubsub.v1.ProjectSubscriptionName;
@@ -40,7 +41,7 @@ final class DefaultPubSubSubscriberFactory implements PubSubSubscriberFactory {
 	}
 
 	@Override
-	public Subscriber getSubscriber(CredentialsProvider credentialsProvider, ProjectSubscriptionName projectSubscriptionName, MessageReceiver messageReceiver) {
+	public Subscriber getSubscriber(Credentials credentials, ProjectSubscriptionName projectSubscriptionName, MessageReceiver messageReceiver) {
 		FlowControlSettings flowControlSettings = FlowControlSettings.newBuilder()
 			.setMaxOutstandingElementCount(10000L)
 			.setMaxOutstandingRequestBytes(100000L)
@@ -48,9 +49,9 @@ final class DefaultPubSubSubscriberFactory implements PubSubSubscriberFactory {
 			.build();
 
 		Subscriber.Builder builder = Subscriber
-			.newBuilder(ProjectSubscriptionName.of(projectSubscriptionName.getProject(), projectSubscriptionName.getSubscription()), messageReceiver)
-			.setFlowControlSettings(flowControlSettings)
-			.setCredentialsProvider(credentialsProvider);
+				.newBuilder(ProjectSubscriptionName.of(projectSubscriptionName.getProject(), projectSubscriptionName.getSubscription()), messageReceiver)
+				.setFlowControlSettings(flowControlSettings)
+				.setCredentialsProvider(FixedCredentialsProvider.create(credentials));
 
 		if (hostAndPort != null) {
 			ManagedChannel managedChannel = ManagedChannelBuilder

@@ -95,7 +95,7 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
 				.withDeserializationSchema(new SimpleStringSchema())
 				.withProjectSubscriptionName(PROJECT_NAME, SUBSCRIPTION_NAME)
 				// Specific for emulator
-				.withCredentialsProvider(getPubsubHelper().getCredentialsProvider())
+				.withCredentials(getPubsubHelper().getCredentials())
 				.withHostAndPort(getPubSubHostPort())
 				// Make sure the test topology self terminates
 				.boundedByTimeSinceLastMessage(1000)

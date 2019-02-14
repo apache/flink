@@ -21,9 +21,8 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.connectors.pubsub.common.SerializableCredentialsProvider;
 
-import com.google.api.gax.core.CredentialsProvider;
+import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.grpc.GrpcTransportChannel;
 import com.google.api.gax.rpc.FixedTransportChannelProvider;
 import com.google.api.gax.rpc.TransportChannel;
@@ -40,6 +39,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCredentialsProviderBuilder;
+
 /**
  * A sink function that outputs to PubSub.
  *
@@ -48,7 +49,7 @@ import java.util.concurrent.TimeUnit;
 public class PubSubSink<IN> extends RichSinkFunction<IN> {
 	private static final Logger LOG = LoggerFactory.getLogger(PubSubSink.class);
 
-	private final SerializableCredentialsProvider serializableCredentialsProvider;
+	private final Credentials credentials;
 	private final SerializationSchema<IN> serializationSchema;
 	private final String projectName;
 	private final String topicName;
@@ -57,12 +58,12 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 	private transient Publisher publisher;
 
 	private PubSubSink(
-		SerializableCredentialsProvider serializableCredentialsProvider,
+		Credentials credentials,
 		SerializationSchema<IN> serializationSchema,
 		String projectName,
 		String topicName,
 		String hostAndPort) {
-		this.serializableCredentialsProvider = serializableCredentialsProvider;
+		this.credentials = credentials;
 		this.serializationSchema = serializationSchema;
 		this.projectName = projectName;
 		this.topicName = topicName;
@@ -76,7 +77,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 	public void open(Configuration configuration) throws Exception {
 		Publisher.Builder builder = Publisher
 			.newBuilder(ProjectTopicName.of(projectName, topicName))
-			.setCredentialsProvider(serializableCredentialsProvider);
+			.setCredentialsProvider(FixedCredentialsProvider.create(credentials));
 
 		if (hostAndPort != null) {
 			managedChannel = ManagedChannelBuilder
@@ -145,8 +146,8 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 	 * @param <IN> The generic of the type that is to be written into the sink.
 	 * @return a new PubSubSinkBuilder instance
 	 */
-	public static <IN> PubSubSinkBuilder<IN, ? extends PubSubSink<IN>, ? extends PubSubSinkBuilder<IN, ?, ?>> newBuilder() {
-		return new PubSubSinkBuilder<>();
+	public static <IN> PubSubSinkBuilder<IN> newBuilder(SerializationSchema<IN> serializationSchema, String projectName, String topicName) {
+		return new PubSubSinkBuilder<>(serializationSchema, projectName, topicName);
 	}
 
 	/**
@@ -155,15 +156,18 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 	 * @param <IN> Type of PubSubSink to create.
 	 */
 	@SuppressWarnings("unchecked")
-	public static class PubSubSinkBuilder<IN, PSS extends PubSubSink<IN>, BUILDER extends PubSubSinkBuilder<IN, PSS, BUILDER>> {
-		private SerializableCredentialsProvider serializableCredentialsProvider;
+	public static class PubSubSinkBuilder<IN> {
 		private SerializationSchema<IN> serializationSchema;
 		private String projectName;
 		private String topicName;
+
+		private Credentials credentials;
 		private String hostAndPort;
 
-		private PubSubSinkBuilder() {
-			// Nothing to do here.
+		private PubSubSinkBuilder(SerializationSchema<IN> serializationSchema, String projectName, String topicName) {
+			this.serializationSchema = serializationSchema;
+			this.projectName = projectName;
+			this.topicName = topicName;
 		}
 
 		/**
@@ -173,58 +177,36 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 		 * @param credentials the Credentials needed to connect.
 		 * @return The current PubSubSinkBuilder instance
 		 */
-		public BUILDER withCredentials(Credentials credentials) {
-			this.serializableCredentialsProvider = new SerializableCredentialsProvider(credentials);
-			return (BUILDER) this;
-		}
-
-		/**
-		 * Set the CredentialsProvider.
-		 * If this is not used then the credentials are picked up from the environment variables.
-		 *
-		 * @param credentialsProvider the custom SerializableCredentialsProvider instance.
-		 * @return The current PubSubSinkBuilder instance
-		 */
-		public BUILDER withCredentialsProvider(CredentialsProvider credentialsProvider) throws IOException {
-			return withCredentials(credentialsProvider.getCredentials());
-		}
-
-		/**
-		 * Set the credentials to be absent.
-		 * This means that no credentials are to be used at all.
-		 *
-		 * @return The current PubSubSinkBuilder instance
-		 */
-		public BUILDER withoutCredentials() {
-			this.serializableCredentialsProvider = SerializableCredentialsProvider.withoutCredentials();
-			return (BUILDER) this;
+		public PubSubSinkBuilder<IN> withCredentials(Credentials credentials) {
+			this.credentials = credentials;
+			return this;
 		}
 
 		/**
 		 * @param serializationSchema Instance of a SerializationSchema that converts the IN into a byte[]
 		 * @return The current PubSubSinkBuilder instance
 		 */
-		public BUILDER withSerializationSchema(SerializationSchema<IN> serializationSchema) {
+		public PubSubSinkBuilder<IN> withSerializationSchema(SerializationSchema<IN> serializationSchema) {
 			this.serializationSchema = serializationSchema;
-			return (BUILDER) this;
+			return this;
 		}
 
 		/**
 		 * @param projectName The name of the project in PubSub
 		 * @return The current PubSubSinkBuilder instance
 		 */
-		public BUILDER withProjectName(String projectName) {
+		public PubSubSinkBuilder<IN> withProjectName(String projectName) {
 			this.projectName = projectName;
-			return (BUILDER) this;
+			return this;
 		}
 
 		/**
 		 * @param topicName The name of the topic in PubSub
 		 * @return The current PubSubSinkBuilder instance
 		 */
-		public BUILDER withTopicName(String topicName) {
+		public PubSubSinkBuilder<IN> withTopicName(String topicName) {
 			this.topicName = topicName;
-			return (BUILDER) this;
+			return this;
 		}
 
 		/**
@@ -234,9 +216,9 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 		 * @param hostAndPort The combination of hostname and port to connect to ("hostname:1234")
 		 * @return The current PubSubSinkBuilder instance
 		 */
-		public BUILDER withHostAndPort(String hostAndPort) {
+		public PubSubSinkBuilder<IN> withHostAndPort(String hostAndPort) {
 			this.hostAndPort = hostAndPort;
-			return (BUILDER) this;
+			return this;
 		}
 
 		/**
@@ -247,23 +229,10 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 		 * @throws IllegalArgumentException incase required fields were not specified.
 		 */
 		public PubSubSink<IN> build() throws IOException {
-			if (serializableCredentialsProvider == null) {
-				serializableCredentialsProvider = SerializableCredentialsProvider.credentialsProviderFromEnvironmentVariables();
+			if (credentials == null) {
+				credentials = defaultCredentialsProviderBuilder().build().getCredentials();
 			}
-
-			if (serializationSchema == null) {
-				throw new IllegalArgumentException("The serializationSchema has not been specified.");
-			}
-
-			if (projectName == null) {
-				throw new IllegalArgumentException("The projectName has not been specified.");
-			}
-
-			if (topicName == null) {
-				throw new IllegalArgumentException("The topicName has not been specified.");
-			}
-
-			return new PubSubSink<>(serializableCredentialsProvider, serializationSchema, projectName, topicName, hostAndPort);
+			return new PubSubSink<>(credentials, serializationSchema, projectName, topicName, hostAndPort);
 		}
 	}
 
