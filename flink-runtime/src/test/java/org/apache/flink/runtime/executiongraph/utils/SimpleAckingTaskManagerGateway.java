@@ -36,7 +36,6 @@ import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 
 import javax.annotation.Nonnull;
 
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
@@ -51,26 +50,21 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	private final String address = UUID.randomUUID().toString();
 
-	private Optional<Consumer<ExecutionAttemptID>> optSubmitConsumer;
+	private Consumer<TaskDeploymentDescriptor> submitConsumer = ignore -> { };
 
-	private Optional<Consumer<ExecutionAttemptID>> optCancelConsumer;
+	private Consumer<ExecutionAttemptID> cancelConsumer = ignore -> { };
 
 	private volatile BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction;
 
 	@Nonnull
 	private volatile BiConsumer<InstanceID, Exception> disconnectFromJobManagerConsumer = (ignoredA, ignoredB) -> {};
 
-	public SimpleAckingTaskManagerGateway() {
-		optSubmitConsumer = Optional.empty();
-		optCancelConsumer = Optional.empty();
-	}
-
-	public void setSubmitConsumer(Consumer<ExecutionAttemptID> predicate) {
-		optSubmitConsumer = Optional.of(predicate);
+	public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> predicate) {
+		submitConsumer = predicate;
 	}
 
 	public void setCancelConsumer(Consumer<ExecutionAttemptID> predicate) {
-		optCancelConsumer = Optional.of(predicate);
+		cancelConsumer = predicate;
 	}
 
 	public void setFreeSlotFunction(BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction) {
@@ -112,7 +106,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	@Override
 	public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
-		optSubmitConsumer.ifPresent(condition -> condition.accept(tdd.getExecutionAttemptId()));
+		submitConsumer.accept(tdd);
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
@@ -123,7 +117,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	@Override
 	public CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
-		optCancelConsumer.ifPresent(condition -> condition.accept(executionAttemptID));
+		cancelConsumer.accept(executionAttemptID);
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
