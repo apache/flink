@@ -170,7 +170,7 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
 
 	private void signalPayloadRelease(Throwable cause) {
 		tryAssignPayload(TERMINATED_PAYLOAD);
-		payload.failSync(cause);
+		payload.fail(cause);
 	}
 
 	private void returnSlotToOwner(CompletableFuture<?> terminalStateFuture) {

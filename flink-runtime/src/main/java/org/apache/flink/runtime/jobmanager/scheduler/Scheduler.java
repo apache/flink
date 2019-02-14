@@ -588,7 +588,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 							}
 							catch (Throwable t) {
 								LOG.error("Error calling allocation future for task " + vertex.getTaskNameWithSubtaskIndex(), t);
-								task.getTaskToExecute().failSync(t);
+								task.getTaskToExecute().fail(t);
 							}
 						}
 					}

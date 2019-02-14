@@ -39,7 +39,7 @@ public interface LogicalSlot {
 		private final CompletableFuture<?> completedTerminationFuture = CompletableFuture.completedFuture(null);
 
 		@Override
-		public void failSync(Throwable cause) {
+		public void fail(Throwable cause) {
 			// ignore
 		}
 
@@ -153,7 +153,7 @@ public interface LogicalSlot {
 		 *
 		 * @param cause of the failure
 		 */
-		void failSync(Throwable cause);
+		void fail(Throwable cause);
 
 		/**
 		 * Gets the terminal state future which is completed once the payload

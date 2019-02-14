@@ -669,7 +669,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	}
 
 	public void fail(Throwable t) {
-		this.currentExecution.failSync(t);
+		this.currentExecution.fail(t);
 	}
 
 	/**

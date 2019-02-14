@@ -32,7 +32,7 @@ public class TestingPayload implements LogicalSlot.Payload {
 	}
 
 	@Override
-	public void failSync(Throwable cause) {
+	public void fail(Throwable cause) {
 		terminationFuture.complete(null);
 	}
 

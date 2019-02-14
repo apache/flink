@@ -762,7 +762,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		final int numConsumers = allConsumers.size();
 
 		if (numConsumers > 1) {
-			failSync(new IllegalStateException("Currently, only a single consumer group per partition is supported."));
+			fail(new IllegalStateException("Currently, only a single consumer group per partition is supported."));
 		}
 		else if (numConsumers == 0) {
 			return;
@@ -882,7 +882,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param t The exception that caused the task to fail.
 	 */
 	@Override
-	public void failSync(Throwable t) {
+	public void fail(Throwable t) {
 		processFail(t, false);
 	}
 
@@ -1247,7 +1247,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			cancelResultFuture.whenComplete(
 				(ack, failure) -> {
 					if (failure != null) {
-						failSync(new Exception("Task could not be canceled.", failure));
+						fail(new Exception("Task could not be canceled.", failure));
 					}
 				});
 		}
@@ -1284,7 +1284,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				(ack, failure) -> {
 					// fail if there was a failure
 					if (failure != null) {
-						failSync(new IllegalStateException("Update task on TaskManager " + taskManagerLocation +
+						fail(new IllegalStateException("Update task on TaskManager " + taskManagerLocation +
 							" failed due to:", failure));
 					}
 				}, getVertex().getExecutionGraph().getJobMasterMainThreadExecutor());

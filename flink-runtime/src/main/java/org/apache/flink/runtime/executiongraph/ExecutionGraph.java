@@ -1646,7 +1646,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					default:
 						// we mark as failed and return false, which triggers the TaskManager
 						// to remove the task
-						attempt.failSync(new Exception("TaskManager sent illegal state update: " + state.getExecutionState()));
+						attempt.fail(new Exception("TaskManager sent illegal state update: " + state.getExecutionState()));
 						return false;
 				}
 			}
