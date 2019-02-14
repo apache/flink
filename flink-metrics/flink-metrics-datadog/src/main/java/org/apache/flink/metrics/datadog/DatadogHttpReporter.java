@@ -125,8 +125,12 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 				// Flink uses Gauge to store many types other than Number
 				g.getMetricValue();
 				request.addGauge(g);
-			} catch (Exception e) {
+			} catch (ClassCastException e) {
 				LOGGER.info("The Gauge {} will not be reported because only number types are supported by this reporter.", g.getMetric());
+				gaugesToRemove.add(entry.getKey());
+			} catch (Exception e) {
+				LOGGER.info("The Gauge {} will not be reported because it threw an exception.", g.getMetric());
+				LOGGER.warn("Failed add gauge metric.", e);
 				gaugesToRemove.add(entry.getKey());
 			}
 		}
