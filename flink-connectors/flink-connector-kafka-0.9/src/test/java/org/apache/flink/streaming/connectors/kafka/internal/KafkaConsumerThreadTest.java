@@ -23,7 +23,8 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.streaming.connectors.kafka.config.RateLimiterFactory;
+import org.apache.flink.streaming.connectors.kafka.config.DefaultKafkaRateLimiter;
+import org.apache.flink.streaming.connectors.kafka.config.FlinkConnectorRateLimiter;
 import org.apache.flink.streaming.connectors.kafka.internals.ClosableBlockingQueue;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
@@ -753,10 +754,6 @@ public class KafkaConsumerThreadTest {
 		StreamingRuntimeContext mockRuntimeContext = mock(StreamingRuntimeContext.class);
 		when(mockRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(1);
 		Properties properties = new Properties();
-		RateLimiterFactory rateLimiterFactory = new RateLimiterFactory();
-		properties.setProperty(rateLimiterFactory.getUseRateLimitingProperty("kafka"), "true");
-		properties.setProperty(rateLimiterFactory.getMaxBytesPerSecondProperty("kafka"), "1");
-		rateLimiterFactory.configure("kafka", mockRuntimeContext, properties);
 		KafkaConsumerCallBridge09 mockBridge = mock(KafkaConsumerCallBridge09.class);
 
 		// -- mock Handover and logger ---
@@ -765,6 +762,9 @@ public class KafkaConsumerThreadTest {
 		Logger mockLogger = mock(Logger.class);
 
 		MetricGroup metricGroup = new UnregisteredMetricsGroup();
+		FlinkConnectorRateLimiter rateLimiter = new DefaultKafkaRateLimiter();
+		rateLimiter.setRate(1L);
+		rateLimiter.open(mockRuntimeContext);
 
 		// -- Test Kafka Consumer thread ---
 
@@ -780,7 +780,7 @@ public class KafkaConsumerThreadTest {
 				metricGroup,
 				metricGroup,
 				mockConsumer,
-				rateLimiterFactory
+				rateLimiter
 		);
 
 		testThread.start();
@@ -828,7 +828,7 @@ public class KafkaConsumerThreadTest {
 					false,
 					new UnregisteredMetricsGroup(),
 					new UnregisteredMetricsGroup(),
-					new RateLimiterFactory());
+					null);
 
 			this.mockConsumer = mockConsumer;
 		}
@@ -996,11 +996,11 @@ public class KafkaConsumerThreadTest {
 				boolean useMetrics, MetricGroup consumerMetricGroup,
 				MetricGroup subtaskMetricGroup,
 				KafkaConsumer mockConsumer,
-				RateLimiterFactory rateLimiterFactory) {
+				FlinkConnectorRateLimiter rateLimiter) {
 			super(log, handover, kafkaProperties, unassignedPartitionsQueue, consumerCallBridge,
 					threadName,
 					pollTimeout, useMetrics, consumerMetricGroup, subtaskMetricGroup,
-				rateLimiterFactory);
+				rateLimiter);
 			this.mockConsumer = mockConsumer;
 		}
 

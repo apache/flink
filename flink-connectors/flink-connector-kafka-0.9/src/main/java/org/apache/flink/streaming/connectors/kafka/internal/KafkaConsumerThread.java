@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.streaming.connectors.kafka.config.RateLimiterFactory;
+import org.apache.flink.streaming.connectors.kafka.config.FlinkConnectorRateLimiter;
 import org.apache.flink.streaming.connectors.kafka.internals.ClosableBlockingQueue;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
@@ -127,12 +127,6 @@ public class KafkaConsumerThread extends Thread {
 	/** Ratelimiter. */
 	private RateLimiter rateLimiter;
 
-	/** Max number of bytes per second that a consumer can read. */
-	private long bytesPerSecondMax;
-
-	/** Boolean flag to indicate if the rate-limiting feature is enabled. */
-	private boolean useRateLimiting;
-
 	public KafkaConsumerThread(
 			Logger log,
 			Handover handover,
@@ -144,7 +138,7 @@ public class KafkaConsumerThread extends Thread {
 			boolean useMetrics,
 			MetricGroup consumerMetricGroup,
 			MetricGroup subtaskMetricGroup,
-			RateLimiterFactory rateLimiterFactory) {
+			FlinkConnectorRateLimiter rateLimiter) {
 
 		super(threadName);
 		setDaemon(true);
@@ -165,9 +159,8 @@ public class KafkaConsumerThread extends Thread {
 		this.nextOffsetsToCommit = new AtomicReference<>();
 		this.running = true;
 
-		this.useRateLimiting = rateLimiterFactory.isRateLimitingEnabled();
-		if (useRateLimiting) {
-			this.rateLimiter = rateLimiterFactory.createRateLimiter();
+		if (rateLimiter != null) {
+			this.rateLimiter = rateLimiter.create();
 		}
 	}
 
@@ -510,6 +503,7 @@ public class KafkaConsumerThread extends Thread {
 	// -----------------------------------------------------------------------
 	// Rate limiting methods
 	// -----------------------------------------------------------------------
+
 	/**
 	 *
 	 * @param records List of ConsumerRecords.
@@ -536,7 +530,7 @@ public class KafkaConsumerThread extends Thread {
 	@VisibleForTesting
 	protected ConsumerRecords<byte[], byte[]> getRecordsFromKafka() {
 		ConsumerRecords<byte[], byte[]> records = consumer.poll(pollTimeout);
-		if (useRateLimiting) {
+		if (rateLimiter != null) {
 			int bytesRead = getRecordBatchSize(records);
 			// Ensure number of permits is > 0
 			rateLimiter.acquire(Math.max(1, bytesRead));

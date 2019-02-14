@@ -23,8 +23,8 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.kafka.config.FlinkConnectorRateLimiter;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
-import org.apache.flink.streaming.connectors.kafka.config.RateLimiterFactory;
 import org.apache.flink.streaming.connectors.kafka.internal.Kafka010Fetcher;
 import org.apache.flink.streaming.connectors.kafka.internal.Kafka010PartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
@@ -70,9 +70,11 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 
 	private static final long serialVersionUID = 2324564345203409112L;
 
-	/** Configuration to set consumer prefix for ratelimiting. **/
-	private static final String CONSUMER_PREFIX = "kafka";
-
+	/**
+	 * RateLimiter to throttle bytes read from Kafka. The rateLimiter is set via
+	 * {@link #setRateLimiter(FlinkConnectorRateLimiter, long)}.
+	 */
+	private FlinkConnectorRateLimiter rateLimiter;
 
 	// ------------------------------------------------------------------------
 
@@ -199,8 +201,10 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 			properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
 		}
 
-		RateLimiterFactory rateLimiterFactory = new RateLimiterFactory();
-		rateLimiterFactory.configure(CONSUMER_PREFIX, runtimeContext, properties);
+		// If a rateLimiter is set, then call rateLimiter.open() with the runtime context.
+		if (rateLimiter != null) {
+			rateLimiter.open(runtimeContext);
+		}
 
 		return new Kafka010Fetcher<>(
 				sourceContext,
@@ -217,7 +221,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 				runtimeContext.getMetricGroup(),
 				consumerMetricGroup,
 				useMetrics,
-				rateLimiterFactory);
+				rateLimiter);
 	}
 
 	@Override
@@ -267,5 +271,15 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 		}
 
 		return result;
+	}
+
+	/**
+	 *
+	 * @param kafkaRateLimiter A ratelimiter to rate limit bytes read from Kafka.
+	 * @param maxBytesPerSecond The global rate limit for the consumer.
+	 */
+	public void setRateLimiter(FlinkConnectorRateLimiter kafkaRateLimiter, long maxBytesPerSecond) {
+		this.rateLimiter = kafkaRateLimiter;
+		kafkaRateLimiter.setRate(maxBytesPerSecond);
 	}
 }
