@@ -135,7 +135,7 @@ public class TaskExecutorITCase extends TestLogger {
 		CommonTestUtils.waitUntilCondition(
 			jobIsRunning(() -> miniCluster.getExecutionGraph(jobGraph.getJobID())),
 			Deadline.fromNow(TESTING_TIMEOUT),
-			20L);
+			50L);
 
 		return jobResultFuture;
 	}
