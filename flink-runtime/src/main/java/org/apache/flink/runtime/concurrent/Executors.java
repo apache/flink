@@ -26,7 +26,8 @@ import scala.concurrent.ExecutionContext;
 /**
  * Collection of {@link Executor}, {@link ExecutorService} and {@link ExecutionContext} implementations.
  */
-public class Executors {
+public enum Executors {
+	;
 
 	/**
 	 * Return a direct executor. The direct executor directly executes the runnable in the calling
