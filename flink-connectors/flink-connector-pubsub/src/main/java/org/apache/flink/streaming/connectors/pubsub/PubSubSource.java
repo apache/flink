@@ -44,7 +44,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * PubSub Source, this Source will consume PubSub messages from a subscription and Acknowledge them as soon as they have been received.
+ * PubSub Source, this Source will consume PubSub messages from a subscription and Acknowledge them on the next checkpoint.
+ * This ensures every message will get acknowledged at least once.
  */
 public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OUT, String, AckReplyConsumer>
 		implements ResultTypeQueryable<OUT>, ParallelSourceFunction<OUT>, StoppableFunction {

@@ -41,7 +41,7 @@ under the License.
 				<!-- This is the way we get a consistent set of versions of the Google tools -->
 				<groupId>com.google.cloud</groupId>
 				<artifactId>google-cloud-bom</artifactId>
-				<version>0.70.0-alpha</version>
+				<version>0.80.0-alpha</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
