@@ -509,7 +509,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * @param allPreviousExecutionGraphAllocationIds the allocation ids of all previous executions in the execution job graph.
 	 * @param allocationTimeout timeout for allocating the individual slots
 	 */
-	@SuppressWarnings("unchecked")
 	public Collection<CompletableFuture<Execution>> allocateResourcesForAll(
 			SlotProvider resourceProvider,
 			boolean queued,
@@ -517,6 +516,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds,
 			Time allocationTimeout) {
 		final ExecutionVertex[] vertices = this.taskVertices;
+
+		@SuppressWarnings("unchecked")
 		final CompletableFuture<Execution>[] slots = new CompletableFuture[vertices.length];
 
 		// try to acquire a slot future for each execution.

@@ -82,12 +82,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>TODO : Make pending requests location preference aware
  * TODO : Make pass location preferences to ResourceManager when sending a slot request
  */
-public class SlotPoolImpl implements SlotPool, AllocatedSlotActions {
+public class SlotPoolImpl implements SlotPool {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	/** The interval (in milliseconds) in which the SlotPool writes its slot distribution on debug level. */
-	private static final int STATUS_LOG_INTERVAL_MS = 60_000;
+	private static final long STATUS_LOG_INTERVAL_MS = 60_000;
 
 	private final JobID jobId;
 

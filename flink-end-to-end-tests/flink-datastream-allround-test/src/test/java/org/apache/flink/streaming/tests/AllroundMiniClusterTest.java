@@ -35,9 +35,9 @@ import java.io.File;
 import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVER_STRATEGY;
 
 /**
- * DataStreamAllroundTestProgram on Minicluster.
+ * DataStreamAllroundTestProgram on MiniCluster for manual debugging purposes.
  */
-@Ignore
+@Ignore("Test is already part of end-to-end tests. This is for manual debugging.")
 public class AllroundMiniClusterTest extends TestLogger {
 
 	@BeforeClass
