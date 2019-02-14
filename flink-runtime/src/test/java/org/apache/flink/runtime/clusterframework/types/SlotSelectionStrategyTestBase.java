@@ -51,10 +51,10 @@ public abstract class SlotSelectionStrategyTestBase extends TestLogger {
 
 	protected final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
 
-	protected SimpleSlotContext ssc1 = new SimpleSlotContext(aid1, tml1, 1, taskManagerGateway, resourceProfile);
-	protected SimpleSlotContext ssc2 = new SimpleSlotContext(aid2, tml2, 2, taskManagerGateway, biggerResourceProfile);
-	protected SimpleSlotContext ssc3 = new SimpleSlotContext(aid3, tml3, 3, taskManagerGateway, resourceProfile);
-	protected SimpleSlotContext ssc4 = new SimpleSlotContext(aid4, tml4, 4, taskManagerGateway, resourceProfile);
+	protected final SimpleSlotContext ssc1 = new SimpleSlotContext(aid1, tml1, 1, taskManagerGateway, resourceProfile);
+	protected final SimpleSlotContext ssc2 = new SimpleSlotContext(aid2, tml2, 2, taskManagerGateway, biggerResourceProfile);
+	protected final SimpleSlotContext ssc3 = new SimpleSlotContext(aid3, tml3, 3, taskManagerGateway, resourceProfile);
+	protected final SimpleSlotContext ssc4 = new SimpleSlotContext(aid4, tml4, 4, taskManagerGateway, resourceProfile);
 
 	protected final Set<SlotContext> candidates = Collections.unmodifiableSet(createCandidates());
 

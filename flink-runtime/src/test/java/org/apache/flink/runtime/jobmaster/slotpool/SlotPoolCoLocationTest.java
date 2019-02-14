@@ -41,14 +41,16 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Test cases for {@link CoLocationConstraint} with the {@link SlotPoolImpl}.
@@ -76,7 +78,7 @@ public class SlotPoolCoLocationTest extends TestLogger {
 
 		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 
-		final SlotPoolImpl slotPoolGateway = slotPoolResource.getSlotPool();
+		final SlotPool slotPoolGateway = slotPoolResource.getSlotPool();
 		slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID());
 
 		CoLocationGroup group = new CoLocationGroup();
@@ -128,24 +130,24 @@ public class SlotPoolCoLocationTest extends TestLogger {
 		final AllocationID allocationId1 = allocationIds.take();
 		final AllocationID allocationId2 = allocationIds.take();
 
-		boolean slotOfferFuture1 = slotPoolGateway.offerSlot(
+		Collection<SlotOffer> slotOfferFuture1 = slotPoolGateway.offerSlots(
 			taskManagerLocation,
 			new SimpleAckingTaskManagerGateway(),
-			new SlotOffer(
+			Collections.singletonList(new SlotOffer(
 				allocationId1,
 				0,
-				ResourceProfile.UNKNOWN));
+				ResourceProfile.UNKNOWN)));
 
-		boolean slotOfferFuture2 = slotPoolGateway.offerSlot(
+		Collection<SlotOffer> slotOfferFuture2 = slotPoolGateway.offerSlots(
 			taskManagerLocation,
 			new SimpleAckingTaskManagerGateway(),
-			new SlotOffer(
+			Collections.singletonList(new SlotOffer(
 				allocationId2,
 				0,
-				ResourceProfile.UNKNOWN));
+				ResourceProfile.UNKNOWN)));
 
-		assertTrue(slotOfferFuture1);
-		assertTrue(slotOfferFuture2);
+		assertFalse(slotOfferFuture1.isEmpty());
+		assertFalse(slotOfferFuture2.isEmpty());
 
 		LogicalSlot logicalSlot11 = logicalSlotFuture11.get();
 		LogicalSlot logicalSlot12 = logicalSlotFuture12.get();

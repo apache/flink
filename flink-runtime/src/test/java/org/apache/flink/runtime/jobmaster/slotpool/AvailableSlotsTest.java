@@ -21,26 +21,24 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.net.InetAddress;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 public class AvailableSlotsTest extends TestLogger {
 
 	static final ResourceProfile DEFAULT_TESTING_PROFILE = new ResourceProfile(1.0, 512);
 
-	static final ResourceProfile DEFAULT_TESTING_BIG_PROFILE = new ResourceProfile(2.0, 1024);
-
 	@Test
-	public void testAddAndRemove() throws Exception {
+	public void testAddAndRemove() {
 		SlotPoolImpl.AvailableSlots availableSlots = new SlotPoolImpl.AvailableSlots();
 
 		final ResourceID resource1 = new ResourceID("resource1");
@@ -80,17 +78,12 @@ public class AvailableSlotsTest extends TestLogger {
 		assertFalse(availableSlots.containsTaskManager(resource2));
 	}
 
-	static AllocatedSlot createAllocatedSlot(final ResourceID resourceId) {
-		TaskManagerLocation mockTaskManagerLocation = mock(TaskManagerLocation.class);
-		when(mockTaskManagerLocation.getResourceID()).thenReturn(resourceId);
-
-		TaskManagerGateway mockTaskManagerGateway = mock(TaskManagerGateway.class);
-
+	private static AllocatedSlot createAllocatedSlot(final ResourceID resourceId) {
 		return new AllocatedSlot(
 			new AllocationID(),
-			mockTaskManagerLocation,
+			new TaskManagerLocation(resourceId, InetAddress.getLoopbackAddress(), 42),
 			0,
 			DEFAULT_TESTING_PROFILE,
-			mockTaskManagerGateway);
+			new SimpleAckingTaskManagerGateway());
 	}
 }

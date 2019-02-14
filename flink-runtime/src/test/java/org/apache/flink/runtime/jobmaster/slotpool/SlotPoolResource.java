@@ -28,9 +28,6 @@ import org.junit.rules.ExternalResource;
 
 import javax.annotation.Nonnull;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
-
 /**
  * {@link ExternalResource} which provides a {@link SlotPoolImpl}.
  */
@@ -98,9 +95,5 @@ public class SlotPoolResource extends ExternalResource {
 
 	private void terminateSlotPool() {
 		slotPool.close();
-	}
-
-	public <V> V executeInMainThreadAndJoin(Supplier<V> supplier) throws Exception {
-		return CompletableFuture.supplyAsync(supplier, mainThreadExecutor).get();
 	}
 }

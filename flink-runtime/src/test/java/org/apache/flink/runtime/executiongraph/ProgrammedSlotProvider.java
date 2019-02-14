@@ -20,13 +20,15 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collections;
@@ -43,7 +45,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A slot provider where one can pre-set the slot futures for tasks based on
  * vertex ID and subtask index.
  */
-class ProgrammedSlotProvider implements SlotProvider {
+class ProgrammedSlotProvider implements Scheduler {
 
 	private final Map<JobVertexID, CompletableFuture<LogicalSlot>[]> slotFutures = new HashMap<>();
 
@@ -140,5 +142,20 @@ class ProgrammedSlotProvider implements SlotProvider {
 			@Nullable SlotSharingGroupId slotSharingGroupId,
 			Throwable cause) {
 		canceledSlotRequests.add(slotRequestId);
+	}
+
+	@Override
+	public void start(@Nonnull ComponentMainThreadExecutor mainThreadExecutor) {
+
+	}
+
+	@Override
+	public boolean requiresPreviousExecutionGraphAllocations() {
+		return false;
+	}
+
+	@Override
+	public void returnLogicalSlot(LogicalSlot logicalSlot) {
+		throw new UnsupportedOperationException();
 	}
 }

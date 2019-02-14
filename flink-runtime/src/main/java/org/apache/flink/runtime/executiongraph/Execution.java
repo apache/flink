@@ -545,9 +545,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				});
 
 			// This forces calls to the slot pool back into the main thread, for normal and exceptional completion
-			return FutureUtils.handleAsyncIfNotDone(
-				logicalSlotFuture,
-				mainThreadExecutor,
+			return logicalSlotFuture.handle(
 				(LogicalSlot logicalSlot, Throwable failure) -> {
 
 					if (failure != null) {
@@ -880,7 +878,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	/**
 	 * This method fails the vertex due to an external condition. The task will move to state FAILED.
 	 * If the task was in state RUNNING or DEPLOYING before, it will send a cancel call to the TaskManager.
-	 * This method must be called from the current main thread, otherwise use {@link #failAsync(Throwable)}.
 	 *
 	 * @param t The exception that caused the task to fail.
 	 */
