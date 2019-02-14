@@ -21,10 +21,13 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
@@ -36,6 +39,8 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
+import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
@@ -43,6 +48,7 @@ import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -51,12 +57,16 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
@@ -182,12 +192,8 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 	@Test
 	public void testRegisterTaskExecutor() throws Exception {
 		// test response successful
-		CompletableFuture<RegistrationResponse> successfulFuture = rmGateway.registerTaskExecutor(
-			taskExecutorGateway.getAddress(),
-			taskExecutorResourceID,
-			dataPort,
-			hardwareDescription,
-			TIMEOUT);
+		CompletableFuture<RegistrationResponse> successfulFuture = registerTaskExecutor(rmGateway, taskExecutorGateway.getAddress());
+
 		RegistrationResponse response = successfulFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
 		assertTrue(response instanceof TaskExecutorRegistrationSuccess);
 		final TaskManagerInfo taskManagerInfo = rmGateway.requestTaskManagerInfo(
@@ -196,13 +202,8 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 		assertThat(taskManagerInfo.getResourceId(), equalTo(taskExecutorResourceID));
 
 		// test response successful with instanceID not equal to previous when receive duplicate registration from taskExecutor
-		CompletableFuture<RegistrationResponse> duplicateFuture =
-			rmGateway.registerTaskExecutor(
-				taskExecutorGateway.getAddress(),
-				taskExecutorResourceID,
-				dataPort,
-				hardwareDescription,
-				TIMEOUT);
+		CompletableFuture<RegistrationResponse> duplicateFuture = registerTaskExecutor(rmGateway, taskExecutorGateway.getAddress());
+
 		RegistrationResponse duplicateResponse = duplicateFuture.get();
 		assertTrue(duplicateResponse instanceof TaskExecutorRegistrationSuccess);
 		assertNotEquals(((TaskExecutorRegistrationSuccess) response).getRegistrationId(), ((TaskExecutorRegistrationSuccess) duplicateResponse).getRegistrationId());
@@ -211,18 +212,44 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 	}
 
 	/**
+	 * Tests that a TaskExecutor can disconnect from the {@link ResourceManager}.
+	 */
+	@Test
+	public void testDisconnectTaskExecutor() throws Exception {
+		final RegistrationResponse registrationResponse = registerTaskExecutor(rmGateway, taskExecutorGateway.getAddress()).get();
+		assertThat(registrationResponse, instanceOf(TaskExecutorRegistrationSuccess.class));
+
+		final InstanceID registrationId = ((TaskExecutorRegistrationSuccess) registrationResponse).getRegistrationId();
+		final int numberSlots = 10;
+		final Collection<SlotStatus> slots = createSlots(numberSlots);
+		final SlotReport slotReport = new SlotReport(slots);
+		rmGateway.sendSlotReport(taskExecutorResourceID, registrationId, slotReport, TIMEOUT).get();
+
+		final ResourceOverview resourceOverview = rmGateway.requestResourceOverview(TIMEOUT).get();
+		assertThat(resourceOverview.getNumberTaskManagers(), is(1));
+		assertThat(resourceOverview.getNumberRegisteredSlots(), is(numberSlots));
+
+		rmGateway.disconnectTaskManager(taskExecutorResourceID, new FlinkException("testDisconnectTaskExecutor"));
+
+		final ResourceOverview afterDisconnectResourceOverview = rmGateway.requestResourceOverview(TIMEOUT).get();
+		assertThat(afterDisconnectResourceOverview.getNumberTaskManagers(), is(0));
+		assertThat(afterDisconnectResourceOverview.getNumberRegisteredSlots(), is(0));
+	}
+
+	private Collection<SlotStatus> createSlots(int numberSlots) {
+		return IntStream.range(0, numberSlots)
+			.mapToObj(index ->
+				new SlotStatus(new SlotID(taskExecutorResourceID, index), ResourceProfile.UNKNOWN))
+			.collect(Collectors.toList());
+	}
+
+	/**
 	 * Test receive registration with unmatched leadershipId from task executor.
 	 */
 	@Test
 	public void testRegisterTaskExecutorWithUnmatchedLeaderSessionId() throws Exception {
 		// test throw exception when receive a registration from taskExecutor which takes unmatched leaderSessionId
-		CompletableFuture<RegistrationResponse> unMatchedLeaderFuture =
-			wronglyFencedGateway.registerTaskExecutor(
-				taskExecutorGateway.getAddress(),
-				taskExecutorResourceID,
-				dataPort,
-				hardwareDescription,
-				TIMEOUT);
+		CompletableFuture<RegistrationResponse> unMatchedLeaderFuture = registerTaskExecutor(wronglyFencedGateway, taskExecutorGateway.getAddress());
 
 		try {
 			unMatchedLeaderFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
@@ -239,8 +266,17 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 	public void testRegisterTaskExecutorFromInvalidAddress() throws Exception {
 		// test throw exception when receive a registration from taskExecutor which takes invalid address
 		String invalidAddress = "/taskExecutor2";
-		CompletableFuture<RegistrationResponse> invalidAddressFuture =
-			rmGateway.registerTaskExecutor(invalidAddress, taskExecutorResourceID, dataPort, hardwareDescription, TIMEOUT);
+
+		CompletableFuture<RegistrationResponse> invalidAddressFuture = registerTaskExecutor(rmGateway, invalidAddress);
 		assertTrue(invalidAddressFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS) instanceof RegistrationResponse.Decline);
+	}
+
+	private CompletableFuture<RegistrationResponse> registerTaskExecutor(ResourceManagerGateway resourceManagerGateway, String taskExecutorAddress) {
+		return resourceManagerGateway.registerTaskExecutor(
+			taskExecutorAddress,
+			taskExecutorResourceID,
+			dataPort,
+			hardwareDescription,
+			TIMEOUT);
 	}
 }
