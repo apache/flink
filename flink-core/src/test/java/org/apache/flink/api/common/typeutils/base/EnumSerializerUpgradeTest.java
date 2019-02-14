@@ -60,7 +60,7 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 	 */
 	@Test
 	public void checkAppendedField() throws Exception {
-		Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_B).isCompatibleAsIs());
+		Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_B).isCompatibleWithReconfiguredSerializer());
 	}
 
 	/**
@@ -68,7 +68,7 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 	 */
 	@Test
 	public void checkRemovedField() throws Exception {
-		Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_C).isIncompatible());
+		Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_C).isCompatibleAfterMigration());
 	}
 
 	/**
