@@ -294,7 +294,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	 * Called to shut down the TaskManager. The method closes all TaskManager services.
 	 */
 	@Override
-	public CompletableFuture<Void> postStop() {
+	public CompletableFuture<Void> onStop() {
 		log.info("Stopping TaskExecutor {}.", getAddress());
 
 		Throwable throwable = null;
@@ -921,6 +921,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				getRpcService(),
 				getAddress(),
 				getResourceID(),
+				taskManagerConfiguration.getRetryingRegistrationConfiguration(),
 				taskManagerLocation.dataPort(),
 				hardwareDescription,
 				resourceManagerAddress.getAddress(),

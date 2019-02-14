@@ -43,15 +43,8 @@ public abstract class StreamPartitionerTest extends TestLogger {
 		serializationDelegate.setInstance(streamRecord);
 	}
 
-	protected int selectChannelAndAssertLength() {
-		int[] selectedChannels = streamPartitioner.selectChannels(serializationDelegate);
-		assertEquals(1, selectedChannels.length);
-
-		return selectedChannels[0];
-	}
-
 	protected void assertSelectedChannel(int expectedChannel) {
-		int actualResult = selectChannelAndAssertLength();
+		int actualResult = streamPartitioner.selectChannel(serializationDelegate);
 		assertEquals(expectedChannel, actualResult);
 	}
 

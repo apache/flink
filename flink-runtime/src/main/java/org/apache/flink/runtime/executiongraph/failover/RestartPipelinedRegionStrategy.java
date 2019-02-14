@@ -21,9 +21,9 @@ package org.apache.flink.runtime.executiongraph.failover;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -32,10 +32,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -52,33 +52,17 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 	/** The execution graph on which this FailoverStrategy works */
 	private final ExecutionGraph executionGraph;
 
-	/** The executor used for future actions */
-	private final Executor executor;
-
 	/** Fast lookup from vertex to failover region */
 	private final HashMap<ExecutionVertex, FailoverRegion> vertexToRegion;
 
-
 	/**
 	 * Creates a new failover strategy to restart pipelined regions that works on the given
-	 * execution graph and uses the execution graph's future executor to call restart actions.
+	 * execution graph.
 	 * 
 	 * @param executionGraph The execution graph on which this FailoverStrategy will work
 	 */
 	public RestartPipelinedRegionStrategy(ExecutionGraph executionGraph) {
-		this(executionGraph, executionGraph.getFutureExecutor());
-	}
-
-	/**
-	 * Creates a new failover strategy to restart pipelined regions that works on the given
-	 * execution graph and uses the given executor to call restart actions.
-	 * 
-	 * @param executionGraph The execution graph on which this FailoverStrategy will work
-	 * @param executor  The executor used for future actions
-	 */
-	public RestartPipelinedRegionStrategy(ExecutionGraph executionGraph, Executor executor) {
 		this.executionGraph = checkNotNull(executionGraph);
-		this.executor = checkNotNull(executor);
 		this.vertexToRegion = new HashMap<>();
 	}
 
@@ -209,7 +193,7 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 				distinctRegions.size(), executionGraph.getJobName(), executionGraph.getJobID());
 
 		for (List<ExecutionVertex> region : distinctRegions.keySet()) {
-			final FailoverRegion failoverRegion = new FailoverRegion(executionGraph, executor, region);
+			final FailoverRegion failoverRegion = createFailoverRegion(executionGraph, region);
 			for (ExecutionVertex ev : region) {
 				this.vertexToRegion.put(ev, failoverRegion);
 			}
@@ -227,15 +211,18 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 			// safe some incremental size growing
 			allVertices.ensureCapacity(allVertices.size() + ejv.getParallelism());
 
-			for (ExecutionVertex ev : ejv.getTaskVertices()) {
-				allVertices.add(ev);
-			}
+			allVertices.addAll(Arrays.asList(ejv.getTaskVertices()));
 		}
 
-		final FailoverRegion singleRegion = new FailoverRegion(executionGraph, executor, allVertices);
+		final FailoverRegion singleRegion = createFailoverRegion(executionGraph, allVertices);
 		for (ExecutionVertex ev : allVertices) {
 			vertexToRegion.put(ev, singleRegion);
 		}
+	}
+
+	@VisibleForTesting
+	protected FailoverRegion createFailoverRegion(ExecutionGraph eg, List<ExecutionVertex> connectedExecutions) {
+		return new FailoverRegion(eg, connectedExecutions);
 	}
 
 	// ------------------------------------------------------------------------

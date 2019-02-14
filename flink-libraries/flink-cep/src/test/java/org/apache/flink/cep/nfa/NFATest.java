@@ -295,7 +295,7 @@ public class NFATest extends TestLogger {
 			nfaTestHarness.consumeRecord(new StreamRecord<>(d, 7));
 			nfaTestHarness.consumeRecord(new StreamRecord<>(a, 8));
 
-			NFAStateSerializer serializer = NFAStateSerializer.INSTANCE;
+			NFAStateSerializer serializer = new NFAStateSerializer();
 
 			//serialize
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();

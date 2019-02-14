@@ -41,20 +41,21 @@ import akka.actor.ActorSelection;
 import akka.actor.ActorSystem;
 import akka.actor.Address;
 import akka.actor.Identify;
-import akka.actor.PoisonPill;
 import akka.actor.Props;
-import akka.actor.Terminated;
 import akka.dispatch.Futures;
 import akka.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -315,7 +316,7 @@ public class AkkaRpcService implements RpcService {
 			}
 
 			if (rpcEndpoint != null) {
-				akkaClient.getActorRef().tell(PoisonPill.getInstance(), ActorRef.noSender());
+				terminateAkkaRpcActor(akkaClient.getActorRef(), rpcEndpoint);
 			} else {
 				LOG.debug("RPC endpoint {} already stopped or from different RPC service", selfGateway.getAddress());
 			}
@@ -324,24 +325,26 @@ public class AkkaRpcService implements RpcService {
 
 	@Override
 	public CompletableFuture<Void> stopService() {
+		final CompletableFuture<Void> akkaRpcActorsTerminationFuture;
+
 		synchronized (lock) {
 			if (stopped) {
 				return terminationFuture;
 			}
 
+			LOG.info("Stopping Akka RPC service.");
+
 			stopped = true;
+
+			akkaRpcActorsTerminationFuture = terminateAkkaRpcActors();
 		}
 
-		LOG.info("Stopping Akka RPC service.");
-
-		final CompletableFuture<Terminated> actorSystemTerminationFuture = FutureUtils.toJava(actorSystem.terminate());
+		final CompletableFuture<Void> actorSystemTerminationFuture = FutureUtils.composeAfterwards(
+			akkaRpcActorsTerminationFuture,
+			() -> FutureUtils.toJava(actorSystem.terminate()));
 
 		actorSystemTerminationFuture.whenComplete(
-			(Terminated ignored, Throwable throwable) -> {
-				synchronized (lock) {
-					actors.clear();
-				}
-
+			(Void ignored, Throwable throwable) -> {
 				if (throwable != null) {
 					terminationFuture.completeExceptionally(throwable);
 				} else {
@@ -352,6 +355,25 @@ public class AkkaRpcService implements RpcService {
 			});
 
 		return terminationFuture;
+	}
+
+	@GuardedBy("lock")
+	@Nonnull
+	private CompletableFuture<Void> terminateAkkaRpcActors() {
+		final Collection<CompletableFuture<Void>> akkaRpcActorTerminationFutures = new ArrayList<>(actors.size());
+
+		for (Map.Entry<ActorRef, RpcEndpoint> actorRefRpcEndpointEntry : actors.entrySet()) {
+			akkaRpcActorTerminationFutures.add(terminateAkkaRpcActor(actorRefRpcEndpointEntry.getKey(), actorRefRpcEndpointEntry.getValue()));
+		}
+		actors.clear();
+
+		return FutureUtils.waitForAll(akkaRpcActorTerminationFutures);
+	}
+
+	private CompletableFuture<Void> terminateAkkaRpcActor(ActorRef akkaRpcActorRef, RpcEndpoint rpcEndpoint) {
+		akkaRpcActorRef.tell(ControlMessages.TERMINATE, ActorRef.noSender());
+
+		return rpcEndpoint.getTerminationFuture();
 	}
 
 	@Override

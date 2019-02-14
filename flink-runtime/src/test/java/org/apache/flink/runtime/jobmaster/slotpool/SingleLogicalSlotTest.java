@@ -109,6 +109,29 @@ public class SingleLogicalSlotTest extends TestLogger {
 		assertThat(singleLogicalSlot.tryAssignPayload(dummyPayload), is(false));
 	}
 
+	@Test
+	public void testReleaseOnlyHappensAfterReturningSlotCompleted() {
+
+		final CompletableFuture<Boolean> allocateSlotFuture = new CompletableFuture<>();
+
+		final SingleLogicalSlot singleLogicalSlot = createSingleLogicalSlot(new DummySlotOwner() {
+			@Override
+			public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
+				// we return a future that will never complete instead
+				return allocateSlotFuture;
+			}
+		});
+
+		CompletableFuture<?> releaseFuture = singleLogicalSlot.releaseSlot(new FlinkException("Test exception"));
+
+		// this must not be done, because the future that signals a successful return never completed.
+		assertThat(releaseFuture.isDone(), is(false));
+
+		// and completing the allocation should now also make the release complete.
+		allocateSlotFuture.complete(null);
+		assertThat(releaseFuture.isDone(), is(true));
+	}
+
 	/**
 	 * Tests that the {@link AllocatedSlot.Payload#release(Throwable)} does not wait
 	 * for the payload to reach a terminal state.
@@ -217,7 +240,12 @@ public class SingleLogicalSlotTest extends TestLogger {
 		}
 
 		@Override
-		public void fail(Throwable cause) {
+		public void failAsync(Throwable cause) {
+			failSync(cause);
+		}
+
+		@Override
+		public void failSync(Throwable cause) {
 			failCounter.incrementAndGet();
 		}
 
@@ -258,7 +286,12 @@ public class SingleLogicalSlotTest extends TestLogger {
 		}
 
 		@Override
-		public void fail(Throwable cause) {
+		public void failAsync(Throwable cause) {
+			failSync(cause);
+		}
+
+		@Override
+		public void failSync(Throwable cause) {
 			failFuture.completeExceptionally(cause);
 		}
 

@@ -88,12 +88,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 	private Throwable flusherException;
 
 	public RecordWriter(ResultPartitionWriter writer) {
-		this(writer, new RoundRobinChannelSelector<T>());
-	}
-
-	@SuppressWarnings("unchecked")
-	public RecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector) {
-		this(writer, channelSelector, -1, null);
+		this(writer, new RoundRobinChannelSelector<T>(), -1, null);
 	}
 
 	public RecordWriter(
@@ -130,7 +125,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	public void emit(T record) throws IOException, InterruptedException {
 		checkErroneous();
-		emit(record, channelSelector.selectChannels(record));
+		emit(record, channelSelector.selectChannel(record));
 	}
 
 	/**
@@ -139,25 +134,10 @@ public class RecordWriter<T extends IOReadableWritable> {
 	 */
 	public void broadcastEmit(T record) throws IOException, InterruptedException {
 		checkErroneous();
-		emit(record, broadcastChannels);
-	}
-
-	/**
-	 * This is used to send LatencyMarks to a random target channel.
-	 */
-	public void randomEmit(T record) throws IOException, InterruptedException {
-		checkErroneous();
-		serializer.serializeRecord(record);
-		if (copyFromSerializerToTargetChannel(rng.nextInt(numberOfChannels))) {
-			serializer.prune();
-		}
-	}
-
-	private void emit(T record, int[] targetChannels) throws IOException, InterruptedException {
 		serializer.serializeRecord(record);
 
 		boolean pruneAfterCopying = false;
-		for (int channel : targetChannels) {
+		for (int channel : broadcastChannels) {
 			if (copyFromSerializerToTargetChannel(channel)) {
 				pruneAfterCopying = true;
 			}
@@ -165,6 +145,21 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 		// Make sure we don't hold onto the large intermediate serialization buffer for too long
 		if (pruneAfterCopying) {
+			serializer.prune();
+		}
+	}
+
+	/**
+	 * This is used to send LatencyMarks to a random target channel.
+	 */
+	public void randomEmit(T record) throws IOException, InterruptedException {
+		emit(record, rng.nextInt(numberOfChannels));
+	}
+
+	private void emit(T record, int targetChannel) throws IOException, InterruptedException {
+		serializer.serializeRecord(record);
+
+		if (copyFromSerializerToTargetChannel(targetChannel)) {
 			serializer.prune();
 		}
 	}
@@ -313,6 +308,25 @@ public class RecordWriter<T extends IOReadableWritable> {
 		if (flusherException != null) {
 			throw new IOException("An exception happened while flushing the outputs", flusherException);
 		}
+	}
+
+	public static RecordWriter createRecordWriter(
+			ResultPartitionWriter writer,
+			ChannelSelector channelSelector,
+			long timeout,
+			String taskName) {
+		if (channelSelector.isBroadcast()) {
+			return new BroadcastRecordWriter<>(writer, channelSelector, timeout, taskName);
+		} else {
+			return new RecordWriter<>(writer, channelSelector, timeout, taskName);
+		}
+	}
+
+	public static RecordWriter createRecordWriter(
+			ResultPartitionWriter writer,
+			ChannelSelector channelSelector,
+			String taskName) {
+		return createRecordWriter(writer, channelSelector, -1, taskName);
 	}
 
 	// ------------------------------------------------------------------------

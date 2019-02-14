@@ -31,41 +31,78 @@ The Table API and the SQL interfaces are tightly integrated with each other as w
 
 **Please note that the Table API and SQL are not yet feature complete and are being actively developed. Not all operations are supported by every combination of \[Table API, SQL\] and \[stream, batch\] input.**
 
-Setup
------
+Dependency Structure
+--------------------
 
-The Table API and SQL are bundled in the `flink-table` Maven artifact. 
-The following dependency must be added to your project in order to use the Table API and SQL:
+All Table API and SQL components are bundled in the `flink-table` Maven artifact.
+
+The following dependencies are relevant for most projects:
+
+* `flink-table-common`: A common module for extending the table ecosystem by custom functions, formats, etc.
+* `flink-table-api-java`: The Table & SQL API for pure table programs using the Java programming language (in early development stage, not recommended!).
+* `flink-table-api-scala`: The Table & SQL API for pure table programs using the Scala programming language (in early development stage, not recommended!).
+* `flink-table-api-java-bridge`: The Table & SQL API with DataStream/DataSet API support using the Java programming language.
+* `flink-table-api-scala-bridge`: The Table & SQL API with DataStream/DataSet API support using the Scala programming language.
+* `flink-table-planner`: The table program planner and runtime.
+* `flink-table-uber`: Packages the modules above into a distribution for most Table & SQL API use cases. The uber JAR file `flink-table*.jar` is located in the `/opt` directory of a Flink release and can be moved to `/lib` if desired.
+
+### Table Program Dependencies
+
+The following dependencies must be added to a project in order to use the Table API & SQL for defining pipelines:
 
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
+  <artifactId>flink-table-planner{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version}}</version>
 </dependency>
 {% endhighlight %}
 
-In addition, you need to add a dependency for either Flink's Scala batch or streaming API. For a batch query you need to add:
+Additionally, depending on the target programming language, you need to add the Java or Scala API.
 
 {% highlight xml %}
+<!-- Either... -->
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-scala{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
+  <artifactId>flink-table-api-java-bridge{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+<!-- or... -->
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-table-api-scala-bridge{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version}}</version>
 </dependency>
 {% endhighlight %}
 
-For a streaming query you need to add:
+Internally, parts of the table ecosystem are implemented in Scala. Therefore, please make sure to add the following dependency for both batch and streaming applications:
 
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-streaming-scala{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version }}</version>
+  <version>{{site.version}}</version>
 </dependency>
 {% endhighlight %}
 
-**Note:** Due to an issue in Apache Calcite, which prevents the user classloaders from being garbage-collected, we do *not* recommend building a fat-jar that includes the `flink-table` dependency. Instead, we recommend configuring Flink to include the `flink-table` dependency in the system classloader. This can be done by copying the `flink-table.jar` file from the `./opt` folder to the `./lib` folder. See [these instructions]({{ site.baseurl }}/dev/linking.html) for further details.
+### Extension Dependencies
+
+If you want to implement a [custom format](({{ site.baseurl }}/dev/table/sourceSinks.html#define-a-tablefactory)) for interacting with Kafka or a set of [user-defined functions]({{ site.baseurl }}/dev/table/functions.html), the following dependency is sufficient and can be used for JAR files for the SQL Client:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-table-common</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+{% endhighlight %}
+
+Currently, the module includes extension points for:
+- `SerializationSchemaFactory`
+- `DeserializationSchemaFactory`
+- `ScalarFunction`
+- `TableFunction`
+- `AggregateFunction`
 
 {% top %}
 

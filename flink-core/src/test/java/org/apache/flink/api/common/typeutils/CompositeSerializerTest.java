@@ -191,6 +191,11 @@ public class CompositeSerializerTest {
 			PrecomputedParameters precomputed, TypeSerializer<?>... originalSerializers) {
 			return new TestListCompositeSerializer(precomputed, originalSerializers);
 		}
+
+		@Override
+		public TypeSerializerSnapshot<List<Object>> snapshotConfiguration() {
+			throw new UnsupportedOperationException();
+		}
 	}
 
 	private static class CompositeSerializerTestInstance extends SerializerTestInstance<List<Object>> {

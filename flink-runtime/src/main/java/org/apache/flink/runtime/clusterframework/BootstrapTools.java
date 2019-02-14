@@ -32,7 +32,6 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
-import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.NetUtils;
@@ -304,13 +303,7 @@ public class BootstrapTools {
 
 			// start the web frontend. we need to load this dynamically
 			// because it is not in the same project/dependencies
-			WebMonitor monitor = WebMonitorUtils.startWebRuntimeMonitor(
-				config,
-				highAvailabilityServices,
-				jobManagerRetriever,
-				queryServiceRetriever,
-				timeout,
-				scheduledExecutor);
+			WebMonitor monitor = null;
 
 			// start the web monitor
 			if (monitor != null) {

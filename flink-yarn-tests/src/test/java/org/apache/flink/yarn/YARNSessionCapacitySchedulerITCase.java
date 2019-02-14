@@ -36,6 +36,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
@@ -343,7 +344,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			final String host,
 			final int port,
 			final Duration waitDuration) throws Exception {
-		waitUntilCondition(() -> getNumberOfTaskManagers(host, port) > 0, Deadline.fromNow(waitDuration));
+		CommonTestUtils.waitUntilCondition(() -> getNumberOfTaskManagers(host, port) > 0, Deadline.fromNow(waitDuration));
 	}
 
 	private static void assertNumberOfSlotsPerTask(
@@ -351,7 +352,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			final int port,
 			final int slotsNumber) throws Exception {
 		try {
-			waitUntilCondition(() -> getNumberOfSlotsPerTaskManager(host, port) == slotsNumber, Deadline.fromNow(Duration.ofSeconds(30)));
+			CommonTestUtils.waitUntilCondition(() -> getNumberOfSlotsPerTaskManager(host, port) == slotsNumber, Deadline.fromNow(Duration.ofSeconds(30)));
 		} catch (final TimeoutException e) {
 			final int currentNumberOfSlots = getNumberOfSlotsPerTaskManager(host, port);
 			fail(String.format("Expected slots per TM to be %d, was: %d", slotsNumber, currentNumberOfSlots));

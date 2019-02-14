@@ -119,7 +119,7 @@ import static org.junit.Assert.fail;
  * Abstract test base for all Kafka consumer tests.
  */
 @SuppressWarnings("serial")
-public abstract class KafkaConsumerTestBase extends KafkaTestBase {
+public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
 	@Rule
 	public RetryRule retryRule = new RetryRule();

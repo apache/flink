@@ -131,6 +131,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -334,18 +335,19 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	 * @return Future acknowledge indicating that the job has been suspended. Otherwise the future contains an exception
 	 */
 	public CompletableFuture<Acknowledge> suspend(final Exception cause) {
-		CompletableFuture<Acknowledge> suspendFuture = callAsyncWithoutFencing(() -> suspendExecution(cause), RpcUtils.INF_TIMEOUT);
+		CompletableFuture<Acknowledge> suspendFuture = callAsyncWithoutFencing(
+				() -> suspendExecution(cause),
+				RpcUtils.INF_TIMEOUT)
+			.thenCompose(Function.identity());
 
-		stop();
-
-		return suspendFuture;
+		return suspendFuture.whenComplete((acknowledge, throwable) -> stop());
 	}
 
 	/**
 	 * Suspend the job and shutdown all other services including rpc.
 	 */
 	@Override
-	public CompletableFuture<Void> postStop() {
+	public CompletableFuture<Void> onStop() {
 		log.info("Stopping the JobMaster for job {}({}).", jobGraph.getName(), jobGraph.getJobID());
 
 		// disconnect from all registered TaskExecutors
@@ -364,7 +366,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		suspendExecution(new FlinkException("JobManager is shutting down."));
 
 		// shut down will internally release all registered slots
-		slotPool.shutDown();
+		final CompletableFuture<Void> slotPoolTerminationFuture = slotPool.closeAsync();
 
 		final CompletableFuture<Void> disposeInternalSavepointFuture;
 
@@ -373,8 +375,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		} else {
 			disposeInternalSavepointFuture = CompletableFuture.completedFuture(null);
 		}
-
-		final CompletableFuture<Void> slotPoolTerminationFuture = slotPool.getTerminationFuture();
 
 		return FutureUtils.completeAll(Arrays.asList(disposeInternalSavepointFuture, slotPoolTerminationFuture));
 	}
@@ -510,7 +510,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			},
 			getMainThreadExecutor());
 
-		rescalingFuture.whenComplete(
+		rescalingFuture.whenCompleteAsync(
 			(Acknowledge ignored, Throwable throwable) -> {
 				if (throwable != null) {
 					// fail the newly created execution graph
@@ -520,7 +520,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 								String.format("Failed to rescale the job %s.", jobGraph.getJobID()),
 								throwable)));
 				}
-			});
+			}, getMainThreadExecutor());
 
 		return rescalingFuture;
 	}
@@ -756,7 +756,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			} catch (Exception e) {
-				log.error("Failed to notify KvStateRegistry about registration {}.", registrationName);
+				log.error("Failed to notify KvStateRegistry about registration {}.", registrationName, e);
 				return FutureUtils.completedExceptionally(e);
 			}
 		} else {
@@ -785,7 +785,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			} catch (Exception e) {
-				log.error("Failed to notify KvStateRegistry about registration {}.", registrationName, e);
+				log.error("Failed to notify KvStateRegistry about unregistration {}.", registrationName, e);
 				return FutureUtils.completedExceptionally(e);
 			}
 		} else {
@@ -1003,6 +1003,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	//-- job starting and stopping  -----------------------------------------------------------------
 
 	private Acknowledge startJobExecution(JobMasterId newJobMasterId) throws Exception {
+
 		validateRunsInMainThread();
 
 		checkNotNull(newJobMasterId, "The new JobMasterId must not be null.");
@@ -1017,7 +1018,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		startJobMasterServices();
 
-		log.info("Starting execution of job {} ({})", jobGraph.getName(), jobGraph.getJobID());
+		log.info("Starting execution of job {} ({}) under job master id {}.", jobGraph.getName(), jobGraph.getJobID(), newJobMasterId);
 
 		resetAndScheduleExecutionGraph();
 
@@ -1061,12 +1062,12 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	 *
 	 * @param cause The reason of why this job been suspended.
 	 */
-	private Acknowledge suspendExecution(final Exception cause) {
+	private CompletableFuture<Acknowledge> suspendExecution(final Exception cause) {
 		validateRunsInMainThread();
 
 		if (getFencingToken() == null) {
 			log.debug("Job has already been suspended or shutdown.");
-			return Acknowledge.get();
+			return CompletableFuture.completedFuture(null);
 		}
 
 		// not leader anymore --> set the JobMasterId to null
@@ -1081,12 +1082,12 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		suspendAndClearExecutionGraphFields(cause);
 
 		// the slot pool stops receiving messages and clears its pooled slots
-		slotPoolGateway.suspend();
+		CompletableFuture<Acknowledge> slotPoolSuspendFuture = slotPoolGateway.suspend();
 
 		// disconnect from resource manager:
 		closeResourceManagerConnection(cause);
 
-		return Acknowledge.get();
+		return slotPoolSuspendFuture;
 	}
 
 	private void assignExecutionGraph(
@@ -1107,17 +1108,18 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		if (executionGraph.getState() == JobStatus.CREATED) {
 			executionGraphAssignedFuture = CompletableFuture.completedFuture(null);
+			executionGraph.start(getMainThreadExecutor());
 		} else {
 			suspendAndClearExecutionGraphFields(new FlinkException("ExecutionGraph is being reset in order to be rescheduled."));
 			final JobManagerJobMetricGroup newJobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
 			final ExecutionGraph newExecutionGraph = createAndRestoreExecutionGraph(newJobManagerJobMetricGroup);
 
-			executionGraphAssignedFuture = executionGraph.getTerminationFuture().handleAsync(
+			executionGraphAssignedFuture = executionGraph.getTerminationFuture().handle(
 				(JobStatus ignored, Throwable throwable) -> {
+					newExecutionGraph.start(getMainThreadExecutor());
 					assignExecutionGraph(newExecutionGraph, newJobManagerJobMetricGroup);
 					return null;
-				},
-				getMainThreadExecutor());
+				});
 		}
 
 		executionGraphAssignedFuture.thenRun(this::scheduleExecutionGraph);
@@ -1507,12 +1509,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		return getSelfGateway(JobMasterGateway.class);
 	}
 
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		shutDown();
-		return getTerminationFuture();
-	}
-
 	//----------------------------------------------------------------------------------------------
 	// Utility classes
 	//----------------------------------------------------------------------------------------------
@@ -1564,8 +1560,14 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		@Override
 		protected RetryingRegistration<ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess> generateRegistration() {
 			return new RetryingRegistration<ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess>(
-					log, getRpcService(), "ResourceManager", ResourceManagerGateway.class,
-					getTargetAddress(), getTargetLeaderId()) {
+				log,
+				getRpcService(),
+				"ResourceManager",
+				ResourceManagerGateway.class,
+				getTargetAddress(),
+				getTargetLeaderId(),
+				jobMasterConfiguration.getRetryingRegistrationConfiguration()) {
+
 				@Override
 				protected CompletableFuture<RegistrationResponse> invokeRegistration(
 						ResourceManagerGateway gateway, ResourceManagerId fencingToken, long timeoutMillis) {

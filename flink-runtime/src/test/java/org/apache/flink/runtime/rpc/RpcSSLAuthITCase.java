@@ -145,11 +145,6 @@ public class RpcSSLAuthITCase extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<Void> postStop() {
-			return CompletableFuture.completedFuture(null);
-		}
-
-		@Override
 		public CompletableFuture<String> foo() {
 			return CompletableFuture.completedFuture("bar");
 		}

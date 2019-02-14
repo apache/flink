@@ -79,7 +79,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The slot pool serves slot request issued by {@link ExecutionGraph}. It will will attempt to acquire new slots
+ * The slot pool serves slot request issued by {@link ExecutionGraph}. It will attempt to acquire new slots
  * from the ResourceManager when it cannot serve a slot request. If no ResourceManager is currently available,
  * or it gets a decline from the ResourceManager, or a request times out, it fails the slot request. The slot pool also
  * holds all the slots that were offered to it and accepted, and can thus provides registered free slots even if the
@@ -217,7 +217,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	}
 
 	@Override
-	public CompletableFuture<Void> postStop() {
+	public CompletableFuture<Void> onStop() {
 		log.info("Stopping SlotPool.");
 		// cancel all pending allocations
 		Set<AllocationID> allocationIds = pendingRequests.keySetB();
@@ -242,7 +242,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	 * Suspends this pool, meaning it has lost its authority to accept and distribute slots.
 	 */
 	@Override
-	public void suspend() {
+	public CompletableFuture<Acknowledge> suspend() {
 		log.info("Suspending SlotPool.");
 
 		validateRunsInMainThread();
@@ -265,6 +265,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		// Clear (but not release!) the available slots. The TaskManagers should re-register them
 		// at the new leader JobManager/SlotPool
 		clear();
+
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
 	// ------------------------------------------------------------------------

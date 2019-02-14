@@ -105,30 +105,6 @@ public class StreamShardHandle {
 	 *         or 0 if they are equal
 	 */
 	public static int compareShardIds(String firstShardId, String secondShardId) {
-		if (!isValidShardId(firstShardId)) {
-			throw new IllegalArgumentException("The first shard id has invalid format.");
-		}
-
-		if (!isValidShardId(secondShardId)) {
-			throw new IllegalArgumentException("The second shard id has invalid format.");
-		}
-
-		// digit segment of the shard id starts at index 8
-		return Long.compare(Long.parseLong(firstShardId.substring(8)), Long.parseLong(secondShardId.substring(8)));
-	}
-
-	/**
-	 * Checks if a shard id has valid format.
-	 * Kinesis stream shard ids have 12-digit numbers left-padded with 0's,
-	 * prefixed with "shardId-", ex. "shardId-000000000015".
-	 *
-	 * @param shardId the shard id to check
-	 * @return whether the shard id is valid
-	 */
-	public static boolean isValidShardId(String shardId) {
-		if (shardId == null) {
-			return false;
-		}
-		return shardId.matches("^shardId-\\d{12}");
+		return firstShardId.compareTo(secondShardId);
 	}
 }

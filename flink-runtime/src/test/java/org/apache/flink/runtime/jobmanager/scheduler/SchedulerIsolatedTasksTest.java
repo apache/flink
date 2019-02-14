@@ -49,7 +49,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link Scheduler} when scheduling individual tasks.
+ * Tests for scheduling individual tasks.
  */
 public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 	

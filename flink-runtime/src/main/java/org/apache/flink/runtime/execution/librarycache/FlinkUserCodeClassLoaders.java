@@ -51,7 +51,7 @@ public class FlinkUserCodeClassLoaders {
 			case PARENT_FIRST:
 				return parentFirst(urls, parent);
 			default:
-				throw new IllegalArgumentException("Unkown class resolution order: " + resolveOrder);
+				throw new IllegalArgumentException("Unknown class resolution order: " + resolveOrder);
 		}
 	}
 

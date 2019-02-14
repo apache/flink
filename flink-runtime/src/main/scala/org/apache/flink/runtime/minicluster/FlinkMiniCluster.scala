@@ -413,15 +413,7 @@ abstract class FlinkMiniCluster(
       LOG.info("Starting JobManger web frontend")
       // start the new web frontend. we need to load this dynamically
       // because it is not in the same project/dependencies
-      val webServer = Option(
-        WebMonitorUtils.startWebRuntimeMonitor(
-          config,
-          highAvailabilityServices,
-          new AkkaJobManagerRetriever(actorSystem, flinkTimeout, 10, Time.milliseconds(50L)),
-          new AkkaQueryServiceRetriever(actorSystem, flinkTimeout),
-          flinkTimeout,
-          new ScheduledExecutorServiceAdapter(futureExecutor))
-      )
+      val webServer = None: Option[WebMonitor]
 
       webServer.foreach(_.start())
 

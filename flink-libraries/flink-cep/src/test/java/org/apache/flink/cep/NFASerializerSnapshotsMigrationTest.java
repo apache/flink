@@ -20,6 +20,8 @@ package org.apache.flink.cep;
 
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase;
 import org.apache.flink.cep.nfa.DeweyNumber;
+import org.apache.flink.cep.nfa.NFAStateSerializer;
+import org.apache.flink.cep.nfa.NFAStateSerializerSnapshot;
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferEdge;
@@ -41,7 +43,6 @@ public class NFASerializerSnapshotsMigrationTest extends TypeSerializerSnapshotM
 		super(testSpecification);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Parameterized.Parameters(name = "Test Specification = {0}")
 	public static Collection<TestSpecification<?>> testSpecifications() {
 
@@ -72,6 +73,11 @@ public class NFASerializerSnapshotsMigrationTest extends TypeSerializerSnapshotM
 			SharedBufferNode.SharedBufferNodeSerializer.class,
 			SharedBufferNode.SharedBufferNodeSerializer.SharedBufferNodeSerializerSnapshot.class,
 			SharedBufferNode.SharedBufferNodeSerializer::new);
+		testSpecifications.add(
+			"nfa-state-serializer",
+			NFAStateSerializer.class,
+			NFAStateSerializerSnapshot.class,
+			NFAStateSerializer::new);
 
 		return testSpecifications.get();
 	}
