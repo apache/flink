@@ -42,7 +42,6 @@ import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, Leader
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl}
 import org.apache.flink.runtime.util.{ExecutorThreadFactory, Hardware}
-import org.apache.flink.runtime.webmonitor.retriever.impl.{AkkaJobManagerRetriever, AkkaQueryServiceRetriever}
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
 import org.apache.flink.util.{ExecutorUtils, NetUtils}
 import org.slf4j.LoggerFactory
