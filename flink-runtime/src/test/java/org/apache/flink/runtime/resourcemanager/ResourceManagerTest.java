@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -37,37 +38,48 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
+/**
+ * Tests for the {@link ResourceManager}.
+ */
 public class ResourceManagerTest extends TestLogger {
 
-	private TestingRpcService rpcService;
+	private static final Time TIMEOUT = Time.minutes(2L);
 
-	@Before
-	public void setUp() {
+	private static TestingRpcService rpcService;
+
+	private TestingHighAvailabilityServices highAvailabilityServices;
+
+	private TestingLeaderElectionService resourceManagerLeaderElectionService;
+
+	private TestingFatalErrorHandler testingFatalErrorHandler;
+
+	private TestingResourceManager resourceManager;
+
+	@BeforeClass
+	public static void setUp() {
 		rpcService = new TestingRpcService();
 	}
 
-	@After
-	public void tearDown() throws ExecutionException, InterruptedException {
-		if (rpcService != null) {
-			rpcService.stopService().get();
-			rpcService = null;
-		}
+	@Before
+	public void setup() throws Exception {
+		highAvailabilityServices = new TestingHighAvailabilityServices();
+		resourceManagerLeaderElectionService = new TestingLeaderElectionService();
+		highAvailabilityServices.setResourceManagerLeaderElectionService(resourceManagerLeaderElectionService);
+		testingFatalErrorHandler = new TestingFatalErrorHandler();
+
+		resourceManager = createAndStartResourceManager();
 	}
 
-	/**
-	 * Tests that we can retrieve the correct {@link TaskManagerInfo} from the {@link ResourceManager}.
-	 */
-	@Test
-	public void testRequestTaskManagerInfo() throws Exception {
-		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
+	private TestingResourceManager createAndStartResourceManager() throws Exception {
 		final SlotManager slotManager = new SlotManager(
 			rpcService.getScheduledExecutor(),
 			TestingUtils.infiniteTime(),
@@ -77,10 +89,6 @@ public class ResourceManagerTest extends TestLogger {
 			highAvailabilityServices,
 			rpcService.getScheduledExecutor(),
 			TestingUtils.infiniteTime());
-		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
-
-		final TestingLeaderElectionService resourceManagerLeaderElectionService = new TestingLeaderElectionService();
-		highAvailabilityServices.setResourceManagerLeaderElectionService(resourceManagerLeaderElectionService);
 
 		final TestingResourceManager resourceManager = new TestingResourceManager(
 			rpcService,
@@ -96,50 +104,73 @@ public class ResourceManagerTest extends TestLogger {
 
 		resourceManager.start();
 
-		try {
-			final ResourceID taskManagerId = ResourceID.generate();
-			final ResourceManagerGateway resourceManagerGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
-			final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
+		return resourceManager;
+	}
 
-			// first make the ResourceManager the leader
-			resourceManagerLeaderElectionService.isLeader(UUID.randomUUID()).get();
-
-			rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
-
-			final HardwareDescription hardwareDescription = new HardwareDescription(
-				42,
-				1337L,
-				1337L,
-				0L);
-
-			final int dataPort = 1234;
-
-			CompletableFuture<RegistrationResponse> registrationResponseFuture = resourceManagerGateway.registerTaskExecutor(
-				taskExecutorGateway.getAddress(),
-				taskManagerId,
-				dataPort,
-				hardwareDescription,
-				TestingUtils.TIMEOUT());
-
-			Assert.assertTrue(registrationResponseFuture.get() instanceof RegistrationResponse.Success);
-
-			CompletableFuture<TaskManagerInfo> taskManagerInfoFuture = resourceManagerGateway.requestTaskManagerInfo(
-				taskManagerId,
-				TestingUtils.TIMEOUT());
-
-			TaskManagerInfo taskManagerInfo = taskManagerInfoFuture.get();
-
-			Assert.assertEquals(taskManagerId, taskManagerInfo.getResourceId());
-			Assert.assertEquals(hardwareDescription, taskManagerInfo.getHardwareDescription());
-			Assert.assertEquals(taskExecutorGateway.getAddress(), taskManagerInfo.getAddress());
-			Assert.assertEquals(dataPort, taskManagerInfo.getDataPort());
-			Assert.assertEquals(0, taskManagerInfo.getNumberSlots());
-			Assert.assertEquals(0, taskManagerInfo.getNumberAvailableSlots());
-
-			testingFatalErrorHandler.rethrowError();
-		} finally {
-			RpcUtils.terminateRpcEndpoint(resourceManager, TestingUtils.TIMEOUT());
-			highAvailabilityServices.close();
+	@After
+	public void after() throws Exception {
+		if (resourceManager != null) {
+			RpcUtils.terminateRpcEndpoint(resourceManager, TIMEOUT);
 		}
+
+		if (highAvailabilityServices != null) {
+			highAvailabilityServices.closeAndCleanupAllData();
+		}
+
+		if (testingFatalErrorHandler.hasExceptionOccurred()) {
+			testingFatalErrorHandler.rethrowError();
+		}
+	}
+
+	@AfterClass
+	public static void tearDown() throws Exception {
+		if (rpcService != null) {
+			RpcUtils.terminateRpcServices(TIMEOUT, rpcService);
+		}
+	}
+
+	/**
+	 * Tests that we can retrieve the correct {@link TaskManagerInfo} from the {@link ResourceManager}.
+	 */
+	@Test
+	public void testRequestTaskManagerInfo() throws Exception {
+		final ResourceID taskManagerId = ResourceID.generate();
+		final ResourceManagerGateway resourceManagerGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
+		final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
+
+		// first make the ResourceManager the leader
+		resourceManagerLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
+
+		final HardwareDescription hardwareDescription = new HardwareDescription(
+			42,
+			1337L,
+			1337L,
+			0L);
+
+		final int dataPort = 1234;
+
+		CompletableFuture<RegistrationResponse> registrationResponseFuture = resourceManagerGateway.registerTaskExecutor(
+			taskExecutorGateway.getAddress(),
+			taskManagerId,
+			dataPort,
+			hardwareDescription,
+			TestingUtils.TIMEOUT());
+
+		Assert.assertTrue(registrationResponseFuture.get() instanceof RegistrationResponse.Success);
+
+		CompletableFuture<TaskManagerInfo> taskManagerInfoFuture = resourceManagerGateway.requestTaskManagerInfo(
+			taskManagerId,
+			TestingUtils.TIMEOUT());
+
+		TaskManagerInfo taskManagerInfo = taskManagerInfoFuture.get();
+
+		Assert.assertEquals(taskManagerId, taskManagerInfo.getResourceId());
+		Assert.assertEquals(hardwareDescription, taskManagerInfo.getHardwareDescription());
+		Assert.assertEquals(taskExecutorGateway.getAddress(), taskManagerInfo.getAddress());
+		Assert.assertEquals(dataPort, taskManagerInfo.getDataPort());
+		Assert.assertEquals(0, taskManagerInfo.getNumberSlots());
+		Assert.assertEquals(0, taskManagerInfo.getNumberAvailableSlots());
 	}
 }
