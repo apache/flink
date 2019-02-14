@@ -33,6 +33,7 @@ import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -40,8 +41,8 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -51,9 +52,9 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.operators.BatchTask;
@@ -81,7 +82,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import static junit.framework.TestCase.assertTrue;
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -182,14 +182,27 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jid2);
 			ExecutionVertex vertex = ejv.getTaskVertices()[3];
 
-			ExecutionGraphTestUtils.SimpleActorGatewayWithTDD instanceGateway =
-				new ExecutionGraphTestUtils.SimpleActorGatewayWithTDD(
-					TestingUtils.directExecutionContext(),
-					blobCache);
+			SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
+			CompletableFuture<TaskDeploymentDescriptor> tdd = new CompletableFuture<>();
+			taskManagerGateway.setSubmitConsumer(taskDeploymentDescriptor -> {
+				try {
+					taskDeploymentDescriptor.loadBigData(blobCache);
+				} catch (Exception e) {
+					e.printStackTrace();
+					fail(e.getMessage());
+				}
 
-			final Instance instance = getInstance(new ActorTaskManagerGateway(instanceGateway));
+				tdd.complete(taskDeploymentDescriptor);
+			});
 
-			final SimpleSlot slot = instance.allocateSimpleSlot();
+			LogicalSlot slot = new TestingLogicalSlot(
+				new LocalTaskManagerLocation(),
+				taskManagerGateway,
+				0,
+				new AllocationID(),
+				new SlotRequestId(),
+				new SlotSharingGroupId(),
+				null);
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -198,7 +211,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 			checkTaskOffloaded(eg, vertex.getJobvertexId());
 
-			TaskDeploymentDescriptor descr = instanceGateway.lastTDD;
+			TaskDeploymentDescriptor descr = tdd.get();
 			assertNotNull(descr);
 
 			JobInformation jobInformation =
