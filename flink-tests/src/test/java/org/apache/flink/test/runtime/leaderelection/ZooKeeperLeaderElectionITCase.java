@@ -137,7 +137,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 				final Dispatcher dispatcher = leadingDispatcherResourceManagerComponent.getDispatcher();
 
-				CommonTestUtils.waitUntilCondition(() -> dispatcher.requestJobStatus(jobGraph.getJobID(), RPC_TIMEOUT).get() == JobStatus.RUNNING, timeout, 10L);
+				CommonTestUtils.waitUntilCondition(() -> dispatcher.requestJobStatus(jobGraph.getJobID(), RPC_TIMEOUT).get() == JobStatus.RUNNING, timeout, 50L);
 
 				leadingDispatcherResourceManagerComponent.closeAsync();
 			}

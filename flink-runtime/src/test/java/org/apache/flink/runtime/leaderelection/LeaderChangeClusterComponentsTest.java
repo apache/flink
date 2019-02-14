@@ -151,14 +151,22 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 
 	@Test
 	public void testTaskExecutorsReconnectToClusterWithLeadershipChange() throws Exception {
-		assertThat(miniCluster.requestClusterOverview().get().getNumTaskManagersConnected(), is(NUM_TMS));
+		final Deadline deadline = Deadline.fromNow(TESTING_TIMEOUT);
+		waitUntilTaskExecutorsHaveConnected(NUM_TMS, deadline);
 		highAvailabilityServices.revokeResourceManagerLeadership().get();
 		highAvailabilityServices.grantResourceManagerLeadership();
 
 		// wait for the ResourceManager to confirm the leadership
 		assertThat(LeaderRetrievalUtils.retrieveLeaderConnectionInfo(highAvailabilityServices.getResourceManagerLeaderRetriever(), Time.minutes(TESTING_TIMEOUT.toMinutes())).getLeaderSessionID(), is(notNullValue()));
 
-		CommonTestUtils.waitUntilCondition(() -> miniCluster.requestClusterOverview().get().getNumTaskManagersConnected() == NUM_TMS, Deadline.fromNow(TESTING_TIMEOUT), 10L);
+		waitUntilTaskExecutorsHaveConnected(NUM_TMS, deadline);
+	}
+
+	private void waitUntilTaskExecutorsHaveConnected(int numTaskExecutors, Deadline deadline) throws Exception {
+		CommonTestUtils.waitUntilCondition(
+			() -> miniCluster.requestClusterOverview().get().getNumTaskManagersConnected() == numTaskExecutors,
+			deadline,
+			10L);
 	}
 
 	private JobGraph createJobGraph(int parallelism) {
