@@ -27,7 +27,7 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
@@ -36,15 +36,19 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
+import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.UUID;
@@ -53,24 +57,26 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the {@link ResourceManager} and {@link TaskExecutor} interaction.
+ */
 public class ResourceManagerTaskExecutorTest extends TestLogger {
 
-	private final Time timeout = Time.seconds(10L);
+	private static final Time TIMEOUT = Time.seconds(10L);
 
-	private TestingRpcService rpcService;
+	private static TestingRpcService rpcService;
+
+	private TestingTaskExecutorGateway taskExecutorGateway;
 
 	private int dataPort = 1234;
 
 	private HardwareDescription hardwareDescription = new HardwareDescription(1, 2L, 3L, 4L);
-
-	private static String taskExecutorAddress = "/taskExecutor1";
 
 	private ResourceID taskExecutorResourceID;
 
@@ -84,105 +90,36 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 
 	private TestingFatalErrorHandler testingFatalErrorHandler;
 
+	@BeforeClass
+	public static void setupClass() {
+		rpcService = new TestingRpcService();
+	}
+
 	@Before
 	public void setup() throws Exception {
 		rpcService = new TestingRpcService();
 
-		taskExecutorResourceID = mockTaskExecutor(taskExecutorAddress);
+		createAndRegisterTaskExecutorGateway();
+		taskExecutorResourceID = ResourceID.generate();
 		resourceManagerResourceID = ResourceID.generate();
 		testingFatalErrorHandler = new TestingFatalErrorHandler();
 		TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
 		resourceManager = createAndStartResourceManager(rmLeaderElectionService, testingFatalErrorHandler);
 		rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 		wronglyFencedGateway = rpcService.connect(resourceManager.getAddress(), ResourceManagerId.generate(), ResourceManagerGateway.class)
-			.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
 
-		grantLeadership(rmLeaderElectionService).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+		grantLeadership(rmLeaderElectionService).get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
-	@After
-	public void teardown() throws Exception {
-		RpcUtils.terminateRpcService(rpcService, timeout);
+	private void createAndRegisterTaskExecutorGateway() {
+		taskExecutorGateway = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
+		rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 	}
 
-	/**
-	 * Test receive normal registration from task executor and receive duplicate registration
-	 * from task executor.
-	 */
-	@Test
-	public void testRegisterTaskExecutor() throws Exception {
-		try {
-			// test response successful
-			CompletableFuture<RegistrationResponse> successfulFuture =
-				rmGateway.registerTaskExecutor(taskExecutorAddress, taskExecutorResourceID, dataPort, hardwareDescription, timeout);
-			RegistrationResponse response = successfulFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-			assertTrue(response instanceof TaskExecutorRegistrationSuccess);
-			final TaskManagerInfo taskManagerInfo = rmGateway.requestTaskManagerInfo(
-				taskExecutorResourceID,
-				timeout).get();
-			assertThat(taskManagerInfo.getResourceId(), equalTo(taskExecutorResourceID));
-
-			// test response successful with instanceID not equal to previous when receive duplicate registration from taskExecutor
-			CompletableFuture<RegistrationResponse> duplicateFuture =
-				rmGateway.registerTaskExecutor(taskExecutorAddress, taskExecutorResourceID, dataPort, hardwareDescription, timeout);
-			RegistrationResponse duplicateResponse = duplicateFuture.get();
-			assertTrue(duplicateResponse instanceof TaskExecutorRegistrationSuccess);
-			assertNotEquals(((TaskExecutorRegistrationSuccess) response).getRegistrationId(), ((TaskExecutorRegistrationSuccess) duplicateResponse).getRegistrationId());
-		} finally {
-			if (testingFatalErrorHandler.hasExceptionOccurred()) {
-				testingFatalErrorHandler.rethrowError();
-			}
-		}
-	}
-
-	/**
-	 * Test receive registration with unmatched leadershipId from task executor
-	 */
-	@Test
-	public void testRegisterTaskExecutorWithUnmatchedLeaderSessionId() throws Exception {
-		try {
-			// test throw exception when receive a registration from taskExecutor which takes unmatched leaderSessionId
-			CompletableFuture<RegistrationResponse> unMatchedLeaderFuture =
-				wronglyFencedGateway.registerTaskExecutor(taskExecutorAddress, taskExecutorResourceID, dataPort, hardwareDescription, timeout);
-
-			try {
-				unMatchedLeaderFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-				fail("Should have failed because we are using a wrongly fenced ResourceManagerGateway.");
-			} catch (ExecutionException e) {
-				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof FencingTokenException);
-			}
-		} finally {
-			if (testingFatalErrorHandler.hasExceptionOccurred()) {
-				testingFatalErrorHandler.rethrowError();
-			}
-		}
-	}
-
-	/**
-	 * Test receive registration with invalid address from task executor
-	 */
-	@Test
-	public void testRegisterTaskExecutorFromInvalidAddress() throws Exception {
-		try {
-			// test throw exception when receive a registration from taskExecutor which takes invalid address
-			String invalidAddress = "/taskExecutor2";
-			CompletableFuture<RegistrationResponse> invalidAddressFuture =
-				rmGateway.registerTaskExecutor(invalidAddress, taskExecutorResourceID, dataPort, hardwareDescription, timeout);
-			assertTrue(invalidAddressFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS) instanceof RegistrationResponse.Decline);
-		} finally {
-			if (testingFatalErrorHandler.hasExceptionOccurred()) {
-				testingFatalErrorHandler.rethrowError();
-			}
-		}
-	}
-
-	private ResourceID mockTaskExecutor(String taskExecutorAddress) {
-		TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
-		when(taskExecutorGateway.getAddress()).thenReturn(taskExecutorAddress);
-
-		ResourceID taskExecutorResourceID = ResourceID.generate();
-		rpcService.registerGateway(taskExecutorAddress, taskExecutorGateway);
-		return taskExecutorResourceID;
+	private CompletableFuture<UUID> grantLeadership(TestingLeaderElectionService leaderElectionService) {
+		UUID leaderSessionId = UUID.randomUUID();
+		return leaderElectionService.isLeader(leaderSessionId);
 	}
 
 	private StandaloneResourceManager createAndStartResourceManager(LeaderElectionService rmLeaderElectionService, FatalErrorHandler fatalErrorHandler) throws Exception {
@@ -196,7 +133,6 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime());
 
-		MetricRegistryImpl metricRegistry = mock(MetricRegistryImpl.class);
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			highAvailabilityServices,
 			rpcService.getScheduledExecutor(),
@@ -205,12 +141,12 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 		StandaloneResourceManager resourceManager =
 			new StandaloneResourceManager(
 				rpcService,
-				FlinkResourceManager.RESOURCE_MANAGER_NAME,
+				FlinkResourceManager.RESOURCE_MANAGER_NAME + UUID.randomUUID(),
 				resourceManagerResourceID,
 				highAvailabilityServices,
 				heartbeatServices,
 				slotManager,
-				metricRegistry,
+				NoOpMetricRegistry.INSTANCE,
 				jobLeaderIdService,
 				new ClusterInformation("localhost", 1234),
 				fatalErrorHandler,
@@ -221,9 +157,90 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 		return resourceManager;
 	}
 
-	private CompletableFuture<UUID> grantLeadership(TestingLeaderElectionService leaderElectionService) {
-		UUID leaderSessionId = UUID.randomUUID();
-		return leaderElectionService.isLeader(leaderSessionId);
+	@After
+	public void teardown() throws Exception {
+		if (resourceManager != null) {
+			RpcUtils.terminateRpcEndpoint(resourceManager, TIMEOUT);
+		}
+
+		if (testingFatalErrorHandler != null && testingFatalErrorHandler.hasExceptionOccurred()) {
+			testingFatalErrorHandler.rethrowError();
+		}
 	}
 
+	@AfterClass
+	public static void teardownClass() throws Exception {
+		if (rpcService != null) {
+			RpcUtils.terminateRpcService(rpcService, TIMEOUT);
+		}
+	}
+
+	/**
+	 * Test receive normal registration from task executor and receive duplicate registration
+	 * from task executor.
+	 */
+	@Test
+	public void testRegisterTaskExecutor() throws Exception {
+		// test response successful
+		CompletableFuture<RegistrationResponse> successfulFuture = rmGateway.registerTaskExecutor(
+			taskExecutorGateway.getAddress(),
+			taskExecutorResourceID,
+			dataPort,
+			hardwareDescription,
+			TIMEOUT);
+		RegistrationResponse response = successfulFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+		assertTrue(response instanceof TaskExecutorRegistrationSuccess);
+		final TaskManagerInfo taskManagerInfo = rmGateway.requestTaskManagerInfo(
+			taskExecutorResourceID,
+			TIMEOUT).get();
+		assertThat(taskManagerInfo.getResourceId(), equalTo(taskExecutorResourceID));
+
+		// test response successful with instanceID not equal to previous when receive duplicate registration from taskExecutor
+		CompletableFuture<RegistrationResponse> duplicateFuture =
+			rmGateway.registerTaskExecutor(
+				taskExecutorGateway.getAddress(),
+				taskExecutorResourceID,
+				dataPort,
+				hardwareDescription,
+				TIMEOUT);
+		RegistrationResponse duplicateResponse = duplicateFuture.get();
+		assertTrue(duplicateResponse instanceof TaskExecutorRegistrationSuccess);
+		assertNotEquals(((TaskExecutorRegistrationSuccess) response).getRegistrationId(), ((TaskExecutorRegistrationSuccess) duplicateResponse).getRegistrationId());
+
+		assertThat(rmGateway.requestResourceOverview(TIMEOUT).get().getNumberTaskManagers(), is(1));
+	}
+
+	/**
+	 * Test receive registration with unmatched leadershipId from task executor.
+	 */
+	@Test
+	public void testRegisterTaskExecutorWithUnmatchedLeaderSessionId() throws Exception {
+		// test throw exception when receive a registration from taskExecutor which takes unmatched leaderSessionId
+		CompletableFuture<RegistrationResponse> unMatchedLeaderFuture =
+			wronglyFencedGateway.registerTaskExecutor(
+				taskExecutorGateway.getAddress(),
+				taskExecutorResourceID,
+				dataPort,
+				hardwareDescription,
+				TIMEOUT);
+
+		try {
+			unMatchedLeaderFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+			fail("Should have failed because we are using a wrongly fenced ResourceManagerGateway.");
+		} catch (ExecutionException e) {
+			assertTrue(ExceptionUtils.stripExecutionException(e) instanceof FencingTokenException);
+		}
+	}
+
+	/**
+	 * Test receive registration with invalid address from task executor.
+	 */
+	@Test
+	public void testRegisterTaskExecutorFromInvalidAddress() throws Exception {
+		// test throw exception when receive a registration from taskExecutor which takes invalid address
+		String invalidAddress = "/taskExecutor2";
+		CompletableFuture<RegistrationResponse> invalidAddressFuture =
+			rmGateway.registerTaskExecutor(invalidAddress, taskExecutorResourceID, dataPort, hardwareDescription, TIMEOUT);
+		assertTrue(invalidAddressFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS) instanceof RegistrationResponse.Decline);
+	}
 }
