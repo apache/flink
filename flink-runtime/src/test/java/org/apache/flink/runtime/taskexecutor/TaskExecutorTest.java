@@ -50,7 +50,6 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -99,6 +98,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.FunctionUtils;
 
 import org.junit.After;
 import org.junit.Before;
@@ -553,57 +553,35 @@ public class TaskExecutorTest extends TestLogger {
 	@Test
 	public void testImmediatelyRegistersIfLeaderIsKnown() throws Exception {
 		final String resourceManagerAddress = "/resource/manager/address/one";
-		final ResourceID resourceManagerResourceId = new ResourceID(resourceManagerAddress);
-		final String dispatcherAddress = "localhost";
-		final String jobManagerAddress = "localhost";
-		final String webMonitorAddress = "localhost";
 
-		// register a mock resource manager gateway
-		ResourceManagerGateway rmGateway = mock(ResourceManagerGateway.class);
-		when(rmGateway.registerTaskExecutor(
-					anyString(), any(ResourceID.class), anyInt(), any(HardwareDescription.class), any(Time.class)))
-			.thenReturn(CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(
-				new InstanceID(), resourceManagerResourceId, new ClusterInformation("localhost", 1234))));
+		final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+		final CountDownLatch taskManagerRegisteredLatch = new CountDownLatch(1);
+		testingResourceManagerGateway.setRegisterTaskExecutorFunction(FunctionUtils.uncheckedFunction(
+			ignored -> {
+				taskManagerRegisteredLatch.countDown();
+				return CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(
+					new InstanceID(), new ResourceID(resourceManagerAddress), new ClusterInformation("localhost", 1234)));
+			}
+		));
 
-		rpc.registerGateway(resourceManagerAddress, rmGateway);
+		rpc.registerGateway(resourceManagerAddress, testingResourceManagerGateway);
 
-		StandaloneHaServices haServices = new StandaloneHaServices(
-			resourceManagerAddress,
-			dispatcherAddress,
-			jobManagerAddress,
-			webMonitorAddress);
-
-		final TaskSlotTable taskSlotTable = mock(TaskSlotTable.class);
-		final SlotReport slotReport = new SlotReport();
-		when(taskSlotTable.createSlotReport(any(ResourceID.class))).thenReturn(slotReport);
-
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService);
 		final TaskExecutorLocalStateStoresManager localStateStoresManager = createTaskExecutorLocalStateStoresManager();
-
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
 			.setTaskManagerLocation(taskManagerLocation)
 			.setTaskSlotTable(taskSlotTable)
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		TaskExecutor taskManager = new TaskExecutor(
-			rpc,
-			taskManagerConfiguration,
-			haServices,
-			taskManagerServices,
-			HEARTBEAT_SERVICES,
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			dummyBlobCacheService,
-			testingFatalErrorHandler);
+		final TaskExecutor taskManager = createTaskExecutor(taskManagerServices);
 
 		try {
 			taskManager.start();
-			String taskManagerAddress = taskManager.getAddress();
+			resourceManagerLeaderRetriever.notifyListener(resourceManagerAddress, UUID.randomUUID());
 
-			verify(rmGateway, Mockito.timeout(timeout.toMilliseconds())).registerTaskExecutor(
-					eq(taskManagerAddress), eq(taskManagerLocation.getResourceID()), anyInt(), any(HardwareDescription.class), any(Time.class));
-		}
-		finally {
+			assertTrue(taskManagerRegisteredLatch.await(timeout.toMilliseconds(), TimeUnit.MILLISECONDS));
+		} finally {
 			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
 	}
