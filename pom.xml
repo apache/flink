@@ -100,7 +100,7 @@ under the License.
 		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
-		<flink.shaded.version>5.0</flink.shaded.version>
+		<flink.shaded.version>6.0</flink.shaded.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.4.20</akka.version>
 		<java.version>1.8</java.version>
@@ -271,7 +271,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-netty</artifactId>
-				<version>4.1.24.Final-${flink.shaded.version}</version>
+				<version>4.1.24.Final-5.0</version>
 			</dependency>
 
 			<!-- This manages the 'javax.annotation' annotations (JSR305) -->
