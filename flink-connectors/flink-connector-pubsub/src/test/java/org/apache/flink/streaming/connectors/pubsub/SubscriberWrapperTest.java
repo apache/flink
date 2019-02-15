@@ -41,6 +41,7 @@ import static org.hamcrest.Matchers.is;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
@@ -111,6 +112,17 @@ public class SubscriberWrapperTest {
 		subscriberWrapper.stop();
 		verify(subscriber, times(1)).stopAsync();
 		verify(apiService, times(1)).awaitTerminated();
+	}
+
+	@Test
+	public void testStopAsyncWithInitialize() {
+		when(subscriber.stopAsync()).thenReturn(apiService);
+		subscriberWrapper.initialize();
+
+		subscriberWrapper.stopAsync();
+		verify(subscriber, times(1)).stopAsync();
+		verifyNoMoreInteractions(subscriber);
+		verifyZeroInteractions(apiService);
 	}
 
 	@Test

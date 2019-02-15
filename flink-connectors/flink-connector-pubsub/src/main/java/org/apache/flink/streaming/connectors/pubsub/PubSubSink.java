@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
 import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.grpc.GrpcTransportChannel;
 import com.google.api.gax.rpc.FixedTransportChannelProvider;
 import com.google.api.gax.rpc.TransportChannel;
@@ -53,7 +54,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 	private final SerializationSchema<IN> serializationSchema;
 	private final String projectName;
 	private final String topicName;
-	private final String hostAndPort;
+	private final String hostAndPortForEmulator;
 
 	private transient Publisher publisher;
 
@@ -62,12 +63,12 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 		SerializationSchema<IN> serializationSchema,
 		String projectName,
 		String topicName,
-		String hostAndPort) {
+		String hostAndPortForEmulator) {
 		this.credentials = credentials;
 		this.serializationSchema = serializationSchema;
 		this.projectName = projectName;
 		this.topicName = topicName;
-		this.hostAndPort = hostAndPort;
+		this.hostAndPortForEmulator = hostAndPortForEmulator;
 	}
 
 	private transient ManagedChannel managedChannel = null;
@@ -79,13 +80,14 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 			.newBuilder(ProjectTopicName.of(projectName, topicName))
 			.setCredentialsProvider(FixedCredentialsProvider.create(credentials));
 
-		if (hostAndPort != null) {
+		if (hostAndPortForEmulator != null) {
 			managedChannel = ManagedChannelBuilder
-				.forTarget(hostAndPort)
+				.forTarget(hostAndPortForEmulator)
 				.usePlaintext(true) // This is 'Ok' because this is ONLY used for testing.
 				.build();
 			channel = GrpcTransportChannel.newBuilder().setManagedChannel(managedChannel).build();
-			builder.setChannelProvider(FixedTransportChannelProvider.create(channel));
+			builder.setChannelProvider(FixedTransportChannelProvider.create(channel))
+					.setCredentialsProvider(NoCredentialsProvider.create());
 		}
 
 		publisher = builder.build();
@@ -216,7 +218,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 		 * @param hostAndPort The combination of hostname and port to connect to ("hostname:1234")
 		 * @return The current PubSubSinkBuilder instance
 		 */
-		public PubSubSinkBuilder<IN> withHostAndPort(String hostAndPort) {
+		public PubSubSinkBuilder<IN> withHostAndPortForEmulator(String hostAndPort) {
 			this.hostAndPort = hostAndPort;
 			return this;
 		}

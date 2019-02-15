@@ -17,10 +17,9 @@
 
 package org.apache.flink.streaming.connectors.pubsub.emulator;
 
-import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.rpc.NotFoundException;
 import com.google.api.gax.rpc.TransportChannelProvider;
-import com.google.auth.Credentials;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.cloud.pubsub.v1.Subscriber;
@@ -54,29 +53,23 @@ public class PubsubHelper {
 	private static final Logger LOG = LoggerFactory.getLogger(PubsubHelper.class);
 
 	private TransportChannelProvider channelProvider = null;
-	private Credentials credentials = null;
 
 	private TopicAdminClient topicClient;
 	private SubscriptionAdminClient subscriptionAdminClient;
 
-	public PubsubHelper(TransportChannelProvider channelProvider, Credentials credentials) {
+	public PubsubHelper(TransportChannelProvider channelProvider) {
 		this.channelProvider = channelProvider;
-		this.credentials = credentials;
 	}
 
 	public TransportChannelProvider getChannelProvider() {
 		return channelProvider;
 	}
 
-	public Credentials getCredentials() {
-		return credentials;
-	}
-
 	public TopicAdminClient getTopicAdminClient() throws IOException {
 		if (topicClient == null) {
 			TopicAdminSettings topicAdminSettings = TopicAdminSettings.newBuilder()
 				.setTransportChannelProvider(channelProvider)
-				.setCredentialsProvider(FixedCredentialsProvider.create(credentials))
+				.setCredentialsProvider(NoCredentialsProvider.create())
 				.build();
 			topicClient = TopicAdminClient.create(topicAdminSettings);
 		}
@@ -121,7 +114,7 @@ public class PubsubHelper {
 				SubscriptionAdminSettings
 					.newBuilder()
 					.setTransportChannelProvider(channelProvider)
-					.setCredentialsProvider(FixedCredentialsProvider.create(credentials))
+					.setCredentialsProvider(NoCredentialsProvider.create())
 					.build();
 			subscriptionAdminClient = SubscriptionAdminClient.create(subscriptionAdminSettings);
 		}
@@ -171,7 +164,7 @@ public class PubsubHelper {
 		SubscriberStubSettings subscriberStubSettings =
 			SubscriberStubSettings.newBuilder()
 				.setTransportChannelProvider(channelProvider)
-				.setCredentialsProvider(FixedCredentialsProvider.create(credentials))
+				.setCredentialsProvider(NoCredentialsProvider.create())
 				.build();
 		try (SubscriberStub subscriber = GrpcSubscriberStub.create(subscriberStubSettings)) {
 			// String projectId = "my-project-id";
@@ -211,7 +204,7 @@ public class PubsubHelper {
 			Subscriber
 				.newBuilder(subscriptionName, messageReceiver)
 				.setChannelProvider(channelProvider)
-				.setCredentialsProvider(FixedCredentialsProvider.create(credentials))
+				.setCredentialsProvider(NoCredentialsProvider.create())
 				.build();
 		subscriber.startAsync();
 		return subscriber;
@@ -221,7 +214,7 @@ public class PubsubHelper {
 		return Publisher
 			.newBuilder(ProjectTopicName.of(project, topic))
 			.setChannelProvider(channelProvider)
-			.setCredentialsProvider(FixedCredentialsProvider.create(credentials))
+			.setCredentialsProvider(NoCredentialsProvider.create())
 			.build();
 	}
 

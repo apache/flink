@@ -20,8 +20,6 @@ package org.apache.flink.streaming.connectors.pubsub.emulator;
 import com.google.api.gax.grpc.GrpcTransportChannel;
 import com.google.api.gax.rpc.FixedTransportChannelProvider;
 import com.google.api.gax.rpc.TransportChannelProvider;
-import com.google.auth.Credentials;
-import com.google.cloud.NoCredentials;
 import com.spotify.docker.client.exceptions.DockerException;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -54,7 +52,6 @@ public class GCloudUnitTestBase implements Serializable {
 
 	private static ManagedChannel channel = null;
 	private static TransportChannelProvider channelProvider = null;
-	private static Credentials credentials = null;
 
 	public static PubsubHelper getPubsubHelper() {
 		if (channel == null) {
@@ -65,9 +62,8 @@ public class GCloudUnitTestBase implements Serializable {
 				.build();
 			channelProvider = FixedTransportChannelProvider
 				.create(GrpcTransportChannel.create(channel));
-			credentials = NoCredentials.getInstance();
 		}
-		return new PubsubHelper(channelProvider, credentials);
+		return new PubsubHelper(channelProvider);
 	}
 
 	public static String getPubSubHostPort() {

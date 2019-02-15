@@ -74,6 +74,12 @@ class SubscriberWrapper implements Serializable, MessageReceiver {
 		}
 	}
 
+	void stopAsync() {
+		if (subscriber != null) {
+			subscriber.stopAsync();
+		}
+	}
+
 	Tuple2<PubsubMessage, AckReplyConsumer> take() throws InterruptedException {
 		return messageQueue.poll(1000L, TimeUnit.MILLISECONDS);
 	}

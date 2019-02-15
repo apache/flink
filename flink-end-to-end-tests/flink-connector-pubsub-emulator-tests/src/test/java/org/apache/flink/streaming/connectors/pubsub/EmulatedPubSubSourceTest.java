@@ -88,17 +88,13 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
 		});
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.enableCheckpointing(100);
+		env.enableCheckpointing(1000);
+		env.setParallelism(1);
 
 		DataStream<String> fromPubSub = env
-			.addSource(BoundedPubSubSource.<String>newBuilder()
-				.withDeserializationSchema(new SimpleStringSchema())
-				.withProjectSubscriptionName(PROJECT_NAME, SUBSCRIPTION_NAME)
+			.addSource(PubSubSource.newBuilder(new BoundedStringDeserializer(10), PROJECT_NAME, SUBSCRIPTION_NAME)
 				// Specific for emulator
-				.withCredentials(getPubsubHelper().getCredentials())
 				.withHostAndPort(getPubSubHostPort())
-				// Make sure the test topology self terminates
-				.boundedByTimeSinceLastMessage(1000)
 				.build())
 			.name("PubSub source");
 
@@ -113,4 +109,19 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
 		}
 	}
 
+	private static class BoundedStringDeserializer extends SimpleStringSchema {
+		private final int maxMessage;
+		private int counter;
+
+		private BoundedStringDeserializer(int maxMessages) {
+			this.maxMessage = maxMessages;
+			this.counter = 0;
+		}
+
+		@Override
+		public boolean isEndOfStream(String message) {
+			counter++;
+			return counter >= maxMessage;
+		}
+	}
 }

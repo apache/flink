@@ -23,6 +23,7 @@ import org.apache.flink.streaming.connectors.pubsub.common.PubSubSubscriberFacto
 import com.google.api.gax.batching.FlowControlSettings;
 import com.google.api.gax.batching.FlowController;
 import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.api.gax.grpc.GrpcTransportChannel;
 import com.google.api.gax.rpc.FixedTransportChannelProvider;
 import com.google.api.gax.rpc.TransportChannel;
@@ -33,10 +34,10 @@ import com.google.pubsub.v1.ProjectSubscriptionName;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
-final class DefaultPubSubSubscriberFactory implements PubSubSubscriberFactory {
-	private String hostAndPort;
+class DefaultPubSubSubscriberFactory implements PubSubSubscriberFactory {
+	private final String hostAndPort;
 
-	void withHostAndPort(String hostAndPort) {
+	DefaultPubSubSubscriberFactory(String hostAndPort) {
 		this.hostAndPort = hostAndPort;
 	}
 
@@ -59,7 +60,8 @@ final class DefaultPubSubSubscriberFactory implements PubSubSubscriberFactory {
 				.usePlaintext() // This is 'Ok' because this is ONLY used for testing.
 				.build();
 			TransportChannel transportChannel = GrpcTransportChannel.newBuilder().setManagedChannel(managedChannel).build();
-			builder.setChannelProvider(FixedTransportChannelProvider.create(transportChannel));
+			builder.setChannelProvider(FixedTransportChannelProvider.create(transportChannel))
+					.setCredentialsProvider(NoCredentialsProvider.create());
 		}
 
 		return builder.build();

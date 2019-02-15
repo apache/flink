@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.functions.source.MultipleIdsMessageAcknowl
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.pubsub.common.PubSubSubscriberFactory;
+import org.apache.flink.util.Preconditions;
 
 import com.google.auth.Credentials;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
@@ -56,15 +57,9 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	protected boolean running = true;
 	protected transient volatile SourceContext<OUT> sourceContext = null;
 
-	protected PubSubSource() {
+	PubSubSource(DeserializationSchema<OUT> deserializationSchema, SubscriberWrapper subscriberWrapper) {
 		super(String.class);
-	}
-
-	protected void setDeserializationSchema(DeserializationSchema<OUT> deserializationSchema) {
 		this.deserializationSchema = deserializationSchema;
-	}
-
-	protected void setSubscriberWrapper(SubscriberWrapper subscriberWrapper) {
 		this.subscriberWrapper = subscriberWrapper;
 	}
 
@@ -125,7 +120,11 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 			}
 
 			sessionIds.add(ackReplyConsumer);
-			sourceContext.collect(deserializeMessage(message));
+			OUT deserializedMessage = deserializeMessage(message);
+			sourceContext.collect(deserializedMessage);
+			if (deserializationSchema.isEndOfStream(deserializedMessage)) {
+				stop();
+			}
 		}
 	}
 
@@ -154,7 +153,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 
 	@Override
 	public void stop() {
-		subscriberWrapper.stop();
+		subscriberWrapper.stopAsync();
 		running = false;
 	}
 
@@ -171,30 +170,32 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		return deserializationSchema.getProducedType();
 	}
 
-	public static <OUT> PubSubSourceBuilder<OUT, ? extends PubSubSource<OUT>, ? extends PubSubSourceBuilder<OUT, ?, ?>> newBuilder() {
-		return new PubSubSourceBuilder<>(new PubSubSource<>());
+	public static <OUT> PubSubSourceBuilder<OUT> newBuilder(DeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
+		Preconditions.checkNotNull(deserializationSchema);
+		Preconditions.checkNotNull(projectName);
+		Preconditions.checkNotNull(subscriptionName);
+		return new PubSubSourceBuilder<>(deserializationSchema, projectName, subscriptionName);
 	}
 
 	/**
 	 * Builder to create PubSubSource.
 	 *
 	 * @param <OUT>     The type of objects which will be read
-	 * @param <PSS>     The type of PubSubSource
-	 * @param <BUILDER> The type of Builder to create the PubSubSource
 	 */
 	@SuppressWarnings("unchecked")
-	public static class PubSubSourceBuilder<OUT, PSS extends PubSubSource<OUT>, BUILDER extends PubSubSourceBuilder<OUT, PSS, BUILDER>> {
-		protected PSS sourceUnderConstruction;
-
-		private PubSubSubscriberFactory pubSubSubscriberFactory;
-		private Credentials credentials;
+	public static class PubSubSourceBuilder<OUT> {
 		private DeserializationSchema<OUT> deserializationSchema;
 		private String projectName;
 		private String subscriptionName;
+
+		private PubSubSubscriberFactory pubSubSubscriberFactory;
+		private Credentials credentials;
 		private String hostAndPort;
 
-		protected PubSubSourceBuilder(PSS sourceUnderConstruction) {
-			this.sourceUnderConstruction = sourceUnderConstruction;
+		protected PubSubSourceBuilder(DeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
+			this.deserializationSchema = deserializationSchema;
+			this.projectName = projectName;
+			this.subscriptionName = subscriptionName;
 		}
 
 		/**
@@ -204,18 +205,18 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		 * @param credentials the Credentials needed to connect.
 		 * @return The current PubSubSourceBuilder instance
 		 */
-		public BUILDER withCredentials(Credentials credentials) {
+		public PubSubSourceBuilder<OUT> withCredentials(Credentials credentials) {
 			this.credentials = credentials;
-			return (BUILDER) this;
+			return this;
 		}
 
 		/**
 		 * @param deserializationSchema Instance of a DeserializationSchema that converts the OUT into a byte[]
 		 * @return The current PubSubSourceBuilder instance
 		 */
-		public BUILDER withDeserializationSchema(DeserializationSchema<OUT> deserializationSchema) {
+		public PubSubSourceBuilder<OUT> withDeserializationSchema(DeserializationSchema<OUT> deserializationSchema) {
 			this.deserializationSchema = deserializationSchema;
-			return (BUILDER) this;
+			return this;
 		}
 
 		/**
@@ -223,10 +224,10 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		 * @param subscriptionName The name of the subscription in PubSub
 		 * @return The current PubSubSourceBuilder instance
 		 */
-		public BUILDER withProjectSubscriptionName(String projectName, String subscriptionName) {
+		public PubSubSourceBuilder<OUT> withProjectSubscriptionName(String projectName, String subscriptionName) {
 			this.projectName = projectName;
 			this.subscriptionName = subscriptionName;
-			return (BUILDER) this;
+			return this;
 		}
 
 		/**
@@ -236,22 +237,22 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		 * @param hostAndPort The combination of hostname and port to connect to ("hostname:1234")
 		 * @return The current PubSubSourceBuilder instance
 		 */
-		public BUILDER withHostAndPort(String hostAndPort) {
+		public PubSubSourceBuilder<OUT> withHostAndPort(String hostAndPort) {
 			this.hostAndPort = hostAndPort;
-			return (BUILDER) this;
+			return this;
 		}
 
 		/**
 		 * Set a PubSubSubscriberFactory
 		 * This allows for custom Subscriber options to be set.
-		 * Cannot be used in combination with withHostAndPort().
+		 * Cannot be used in combination with withHostAndPortForEmulator().
 		 *
 		 * @param pubSubSubscriberFactory A factory to create a {@link Subscriber}
 		 * @return The current PubSubSourceBuilder instance
 		 */
-		public BUILDER withPubSubSubscriberFactory(PubSubSubscriberFactory pubSubSubscriberFactory) {
+		public PubSubSourceBuilder<OUT> withPubSubSubscriberFactory(PubSubSubscriberFactory pubSubSubscriberFactory) {
 			this.pubSubSubscriberFactory = pubSubSubscriberFactory;
-			return (BUILDER) this;
+			return this;
 		}
 
 		/**
@@ -261,34 +262,21 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		 * @throws IOException              incase of a problem getting the credentials
 		 * @throws IllegalArgumentException incase required fields were not specified.
 		 */
-		public PSS build() throws IOException {
+		public PubSubSource<OUT> build() throws IOException {
 			if (credentials == null) {
 				credentials = defaultCredentialsProviderBuilder().build().getCredentials();
 			}
-			if (deserializationSchema == null) {
-				throw new IllegalArgumentException("The deserializationSchema has not been specified.");
-			}
 
 			if (pubSubSubscriberFactory != null && hostAndPort != null) {
-				throw new IllegalArgumentException(("withPubSubSubscriberFactory() and withHostAndPort() both called, only one may be called."));
-			}
-
-			if (projectName == null || subscriptionName == null) {
-				throw new IllegalArgumentException("ProjectName or SubscriptionName has not been specified.");
+				throw new IllegalArgumentException(("withPubSubSubscriberFactory() and withHostAndPortForEmulator() both called, only one may be called."));
 			}
 
 			if (pubSubSubscriberFactory == null) {
-				pubSubSubscriberFactory = new DefaultPubSubSubscriberFactory();
-				if (hostAndPort != null) {
-					((DefaultPubSubSubscriberFactory) pubSubSubscriberFactory).withHostAndPort(hostAndPort);
-				}
+				pubSubSubscriberFactory = new DefaultPubSubSubscriberFactory(hostAndPort);
 			}
 
 			SubscriberWrapper subscriberWrapper = new SubscriberWrapper(credentials, ProjectSubscriptionName.of(projectName, subscriptionName), pubSubSubscriberFactory);
-			sourceUnderConstruction.setSubscriberWrapper(subscriberWrapper);
-			sourceUnderConstruction.setDeserializationSchema(deserializationSchema);
-
-			return sourceUnderConstruction;
+			return new PubSubSource<>(deserializationSchema, subscriberWrapper);
 		}
 	}
 }

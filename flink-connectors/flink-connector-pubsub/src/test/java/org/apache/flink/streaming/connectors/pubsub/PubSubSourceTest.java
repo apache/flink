@@ -27,7 +27,6 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
-import com.google.cloud.NoCredentials;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
@@ -152,7 +151,7 @@ public class PubSubSourceTest {
 		PubSubSource<String> pubSubSource = createTestSource();
 		pubSubSource.stop();
 
-		verify(subscriberWrapper, times(1)).stop();
+		verify(subscriberWrapper, times(1)).stopAsync();
 	}
 
 	@Test
@@ -200,14 +199,29 @@ public class PubSubSourceTest {
 		verify(deserializationSchema, times(1)).getProducedType();
 	}
 
+	@Test
+	public void testStoppingConnectorWhenDeserializationSchemaIndicatesEndOfStream() throws Exception {
+		when(deserializationSchema.deserialize(SERIALIZED_MESSAGE)).thenReturn(MESSAGE);
+		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
+		when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
+		when(sourceContext.getCheckpointLock()).thenReturn("some object to lock on");
+		when(functionInitializationContext.getOperatorStateStore()).thenReturn(operatorStateStore);
+		when(operatorStateStore.getSerializableListState(any(String.class))).thenReturn(null);
+		PubSubSource<String> pubSubSource = createTestSource();
+		pubSubSource.initializeState(functionInitializationContext);
+		pubSubSource.setRuntimeContext(streamingRuntimeContext);
+		pubSubSource.open(null);
+		pubSubSource.run(sourceContext);
+
+		when(deserializationSchema.isEndOfStream(MESSAGE)).thenReturn(true);
+		//Process message
+		pubSubSource.processMessage(Tuple2.of(pubSubMessage(), ackReplyConsumer));
+
+		verify(subscriberWrapper, times(1)).stopAsync();
+	}
+
 	private PubSubSource<String> createTestSource() throws IOException {
-		PubSubSource pubSubSource = PubSubSource.<String>newBuilder()
-				.withCredentials(NoCredentials.getInstance())
-				.withDeserializationSchema(deserializationSchema)
-				.withProjectSubscriptionName("projectName", "subscriptionName")
-				.build();
-		pubSubSource.setSubscriberWrapper(subscriberWrapper);
-		return pubSubSource;
+		return new PubSubSource<>(deserializationSchema, subscriberWrapper);
 	}
 
 	private PubsubMessage pubSubMessage() {
