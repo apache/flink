@@ -80,23 +80,6 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 			String targetName,
 			Class<G> targetType,
 			String targetAddress,
-			F fencingToken) {
-		this(
-			log,
-			rpcService,
-			targetName,
-			targetType,
-			targetAddress,
-			fencingToken,
-			RetryingRegistrationConfiguration.defaultConfiguration());
-	}
-
-	public RetryingRegistration(
-			Logger log,
-			RpcService rpcService,
-			String targetName,
-			Class<G> targetType,
-			String targetAddress,
 			F fencingToken,
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration) {
 
