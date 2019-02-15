@@ -33,7 +33,7 @@ import org.apache.flink.runtime.util.SignalHandler;
 
 import javax.annotation.Nonnull;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 /**
  * {@link JobClusterEntrypoint} which is started with a job in a predefined
@@ -41,13 +41,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 
-	private final String[] programArguments;
-
 	@Nonnull
 	private final String jobClassName;
 
 	@Nonnull
 	private final SavepointRestoreSettings savepointRestoreSettings;
+
+	@Nonnull
+	private final String[] programArguments;
 
 	StandaloneJobClusterEntryPoint(
 			Configuration configuration,
@@ -55,9 +56,9 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 			@Nonnull SavepointRestoreSettings savepointRestoreSettings,
 			@Nonnull String[] programArguments) {
 		super(configuration);
-		this.programArguments = checkNotNull(programArguments);
-		this.jobClassName = checkNotNull(jobClassName);
-		this.savepointRestoreSettings = savepointRestoreSettings;
+		this.jobClassName = requireNonNull(jobClassName, "jobClassName");
+		this.savepointRestoreSettings = requireNonNull(savepointRestoreSettings, "savepointRestoreSettings");
+		this.programArguments = requireNonNull(programArguments, "programArguments");
 	}
 
 	@Override
