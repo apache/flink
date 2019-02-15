@@ -26,7 +26,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
  *
  * <p>The ratelimiter is configured via {@link #setRate(long)} and
  * created via {@link #create()}.
- * An example implementation can be found {@link DefaultKafkaRateLimiter}.
+ * An example implementation can be found {@link GuavaFlinkConnectorRateLimiter}.
  * */
 
 @PublicEvolving
@@ -43,6 +43,12 @@ public interface FlinkConnectorRateLimiter {
 	 */
 	void setRate(long rate);
 
-	void close();
+	/**
+	 * Acquires permits for the rate limiter.
+	 */
+	void acquire(int permits);
 
+	long getRate();
+
+	void close();
 }

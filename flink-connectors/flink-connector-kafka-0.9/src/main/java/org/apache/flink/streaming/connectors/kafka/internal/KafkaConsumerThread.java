@@ -29,8 +29,6 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
 
-import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.RateLimiter;
-
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -125,7 +123,7 @@ public class KafkaConsumerThread extends Thread {
 	private volatile boolean commitInProgress;
 
 	/** Ratelimiter. */
-	private RateLimiter rateLimiter;
+	private FlinkConnectorRateLimiter rateLimiter;
 
 	public KafkaConsumerThread(
 			Logger log,
@@ -160,7 +158,8 @@ public class KafkaConsumerThread extends Thread {
 		this.running = true;
 
 		if (rateLimiter != null) {
-			this.rateLimiter = rateLimiter.create();
+			this.rateLimiter = rateLimiter;
+			this.rateLimiter.create();
 		}
 	}
 
@@ -496,7 +495,7 @@ public class KafkaConsumerThread extends Thread {
 	}
 
 	@VisibleForTesting
-	RateLimiter getRateLimiter() {
+	FlinkConnectorRateLimiter getRateLimiter() {
 		return rateLimiter;
 	}
 
@@ -532,8 +531,7 @@ public class KafkaConsumerThread extends Thread {
 		ConsumerRecords<byte[], byte[]> records = consumer.poll(pollTimeout);
 		if (rateLimiter != null) {
 			int bytesRead = getRecordBatchSize(records);
-			// Ensure number of permits is > 0
-			rateLimiter.acquire(Math.max(1, bytesRead));
+			rateLimiter.acquire(bytesRead);
 		}
 		return records;
 	}

@@ -23,9 +23,9 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.RateLimiter;
 
 /**
- * A default KafkaRateLimiter that uses Guava's RateLimiter to throttle the bytes read from Kafka.
+ * An implemetation of {@link FlinkConnectorRateLimiter} that uses Guava's RateLimiter for rate limiting.
  */
-public class DefaultKafkaRateLimiter implements FlinkConnectorRateLimiter {
+public class GuavaFlinkConnectorRateLimiter implements FlinkConnectorRateLimiter {
 
 	/** Rate in bytes per second for the consumer on a whole. */
 	private long globalRateBytesPerSecond;
@@ -35,6 +35,9 @@ public class DefaultKafkaRateLimiter implements FlinkConnectorRateLimiter {
 
 	/** Runtime context. **/
 	private RuntimeContext runtimeContext;
+
+	/** RateLimiter. **/
+	private RateLimiter rateLimiter;
 
 	@Override
 	public void open(RuntimeContext runtimeContext) {
@@ -47,7 +50,8 @@ public class DefaultKafkaRateLimiter implements FlinkConnectorRateLimiter {
 	@Override
 	public RateLimiter create() {
 		localRateBytesPerSecond = globalRateBytesPerSecond / runtimeContext.getNumberOfParallelSubtasks();
-		return RateLimiter.create(localRateBytesPerSecond);
+		this.rateLimiter = RateLimiter.create(localRateBytesPerSecond);
+		return rateLimiter;
 	}
 
 	/**
@@ -57,6 +61,17 @@ public class DefaultKafkaRateLimiter implements FlinkConnectorRateLimiter {
 	@Override
 	public void setRate(long globalRate) {
 		this.globalRateBytesPerSecond = globalRate;
+	}
+
+	@Override
+	public void acquire(int permits) {
+		// Ensure permits > 0
+		rateLimiter.acquire(Math.max(1, permits));
+	}
+
+	@Override
+	public long getRate() {
+		return globalRateBytesPerSecond;
 	}
 
 	@Override

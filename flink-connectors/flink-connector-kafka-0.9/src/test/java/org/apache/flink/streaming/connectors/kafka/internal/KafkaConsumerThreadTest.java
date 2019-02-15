@@ -23,8 +23,8 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.streaming.connectors.kafka.config.DefaultKafkaRateLimiter;
 import org.apache.flink.streaming.connectors.kafka.config.FlinkConnectorRateLimiter;
+import org.apache.flink.streaming.connectors.kafka.config.GuavaFlinkConnectorRateLimiter;
 import org.apache.flink.streaming.connectors.kafka.internals.ClosableBlockingQueue;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
@@ -762,7 +762,7 @@ public class KafkaConsumerThreadTest {
 		Logger mockLogger = mock(Logger.class);
 
 		MetricGroup metricGroup = new UnregisteredMetricsGroup();
-		FlinkConnectorRateLimiter rateLimiter = new DefaultKafkaRateLimiter();
+		FlinkConnectorRateLimiter rateLimiter = new GuavaFlinkConnectorRateLimiter();
 		rateLimiter.setRate(1L);
 		rateLimiter.open(mockRuntimeContext);
 

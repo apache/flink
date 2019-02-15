@@ -72,7 +72,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 
 	/**
 	 * RateLimiter to throttle bytes read from Kafka. The rateLimiter is set via
-	 * {@link #setRateLimiter(FlinkConnectorRateLimiter, long)}.
+	 * {@link #setRateLimiter(FlinkConnectorRateLimiter)}.
 	 */
 	private FlinkConnectorRateLimiter rateLimiter;
 
@@ -274,12 +274,11 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	}
 
 	/**
-	 *
+	 * Set a rate limiter to ratelimit bytes read from Kafka.
 	 * @param kafkaRateLimiter A ratelimiter to rate limit bytes read from Kafka.
-	 * @param maxBytesPerSecond The global rate limit for the consumer.
+	 *
 	 */
-	public void setRateLimiter(FlinkConnectorRateLimiter kafkaRateLimiter, long maxBytesPerSecond) {
+	public void setRateLimiter(FlinkConnectorRateLimiter kafkaRateLimiter) {
 		this.rateLimiter = kafkaRateLimiter;
-		kafkaRateLimiter.setRate(maxBytesPerSecond);
 	}
 }
