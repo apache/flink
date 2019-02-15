@@ -141,19 +141,11 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 		return getLogicalScope(filter, registry.getDelimiter());
 	}
 
-	String getLogicalScope(CharacterFilter filter, char delimiter) {
-		return createLogicalScope(filter, delimiter);
-	}
-
 	String getLogicalScope(CharacterFilter filter, int reporterIndex) {
-		if (logicalScopeStrings.length == 0 || (reporterIndex < 0 || reporterIndex >= logicalScopeStrings.length)) {
-			return createLogicalScope(filter, registry.getDelimiter());
-		} else {
-			if (logicalScopeStrings[reporterIndex] == null) {
-				logicalScopeStrings[reporterIndex] = createLogicalScope(filter, registry.getDelimiter(reporterIndex));
-			}
-			return logicalScopeStrings[reporterIndex];
-		}
+		final char delimiter = reporterIndex < 0 || reporterIndex >= logicalScopeStrings.length
+			? registry.getDelimiter()
+			: registry.getDelimiter(reporterIndex);
+		return getLogicalScope(filter, delimiter, reporterIndex);
 	}
 
 	/**
@@ -165,16 +157,18 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @param reporterIndex index of the reporter
 	 * @return logical scope
 	 */
-	@Deprecated
 	String getLogicalScope(CharacterFilter filter, char delimiter, int reporterIndex) {
-		if (logicalScopeStrings.length == 0 || (reporterIndex < 0 || reporterIndex >= logicalScopeStrings.length)) {
-			return createLogicalScope(filter, delimiter);
-		} else {
+		final String logicalScope = getLogicalScope(filter, delimiter);
+		if (reporterIndex < 0 || reporterIndex >= logicalScopeStrings.length) {
 			if (logicalScopeStrings[reporterIndex] == null) {
-				logicalScopeStrings[reporterIndex] = createLogicalScope(filter, delimiter);
+				logicalScopeStrings[reporterIndex] = logicalScope;
 			}
-			return logicalScopeStrings[reporterIndex];
 		}
+		return logicalScope;
+	}
+
+	private String getLogicalScope(CharacterFilter filter, char delimiter) {
+		return createLogicalScope(filter, delimiter);
 	}
 
 	private String createLogicalScope(CharacterFilter filter, char delimiter) {
