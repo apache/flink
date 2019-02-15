@@ -98,6 +98,8 @@ import static org.mockito.Mockito.mock;
  */
 public class FlinkKafkaConsumerBaseTest extends TestLogger {
 
+	private static final int maxParallelism = Short.MAX_VALUE / 2;
+
 	/**
 	 * Tests that not both types of timestamp extractors / watermark generators can be used.
 	 */
@@ -638,6 +640,9 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 			new AbstractStreamOperatorTestHarness[restoredParallelism];
 
 		for (int i = 0; i < restoredParallelism; i++) {
+			OperatorSubtaskState initState = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+				mergedState, maxParallelism, initialParallelism, restoredParallelism, i);
+
 			TestPartitionDiscoverer partitionDiscoverer = new TestPartitionDiscoverer(
 				new KafkaTopicsDescriptor(Collections.singletonList("test-topic"), null),
 				i,
@@ -649,7 +654,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 			restoredTestHarnesses[i] = createTestHarness(restoredConsumers[i], restoredParallelism, i);
 
 			// initializeState() is always called, null signals that we didn't restore
-			restoredTestHarnesses[i].initializeState(mergedState);
+			restoredTestHarnesses[i].initializeState(initState);
 			restoredTestHarnesses[i].open();
 		}
 
@@ -677,7 +682,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 
 		AbstractStreamOperatorTestHarness<T> testHarness =
 			new AbstractStreamOperatorTestHarness<>(
-				new StreamSource<>(source), Short.MAX_VALUE / 2, numSubtasks, subtaskIndex);
+				new StreamSource<>(source), maxParallelism, numSubtasks, subtaskIndex);
 
 		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
