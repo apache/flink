@@ -22,6 +22,8 @@ dist: trusty
 cache:
   directories:
   - $HOME/.m2
+  # keep in sync with tools/travis/setup_maven.sh
+  - $HOME/maven_cache
 
 install: true
 

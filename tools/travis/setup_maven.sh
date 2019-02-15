@@ -17,26 +17,22 @@
 # limitations under the License.
 ################################################################################
 
-REMOTE=${REMOTE:-apache}
-BRANCH=${BRANCH:-master}
+MAVEN_VERSION=${MVN_VERSION}
+MAVEN_CACHE_DIR=${HOME}/maven_cache
+MAVEN_VERSIONED_DIR=${MAVEN_CACHE_DIR}/apache-maven-${MAVEN_VERSION}
 
-if [[ -z ${MVN_VERSION} ]]; then
-    echo "MVN_VERSION was not set."
-    exit 1
+if [ ! -d "${MAVEN_VERSIONED_DIR}" ]; then
+  wget https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.zip
+  unzip -d "${MAVEN_CACHE_DIR}" -qq "apache-maven-${MAVEN_VERSION}-bin.zip"
+  rm "/apache-maven-${MAVEN_VERSION}-bin.zip"
 fi
 
-source ./tools/travis/setup_maven.sh
+export M2_HOME="${MAVEN_VERSIONED_DIR}"
+export PATH=${M2_HOME}/bin:${PATH}
+export MAVEN_OPTS="-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS"
 
-git clone --single-branch -b ${BRANCH} https://github.com/${REMOTE}/flink
+# just in case: clean up the .m2 home and remove invalid jar files
+if [ -d "${HOME}/.m2/repository/" ]; then
+  find ${HOME}/.m2/repository/ -name "*.jar" -exec sh -c 'if ! zip -T {} >/dev/null ; then echo "deleting invalid file: {}"; rm -f {} ; fi' \;
+fi
 
-cd flink
-
-LOG4J_PROPERTIES=${FLINK_DIR}/tools/log4j-travis.properties
-
-MVN_LOGGING_OPTIONS="-Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
-MVN_COMPILE_OPTIONS="-nsu -B -DskipTests -Dfast"
-
-MVN_COMPILE="mvn ${MVN_COMPILE_OPTIONS} ${MVN_LOGGING_OPTIONS} ${PROFILE} clean package"
-
-eval "${MVN_COMPILE}"
-exit $?
