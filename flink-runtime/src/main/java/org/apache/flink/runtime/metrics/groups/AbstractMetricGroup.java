@@ -138,7 +138,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @return logical scope
 	 */
 	public String getLogicalScope(CharacterFilter filter) {
-		return getLogicalScope(filter, registry.getDelimiter());
+		return createLogicalScope(filter, registry.getDelimiter());
 	}
 
 	String getLogicalScope(CharacterFilter filter, int reporterIndex) {
@@ -160,17 +160,13 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @return logical scope
 	 */
 	String getLogicalScope(CharacterFilter filter, char delimiter, int reporterIndex) {
-		final String logicalScope = getLogicalScope(filter, delimiter);
+		final String logicalScope = createLogicalScope(filter, delimiter);
 		if (reporterIndex < 0 || reporterIndex >= logicalScopeStrings.length) {
 			if (logicalScopeStrings[reporterIndex] == null) {
 				logicalScopeStrings[reporterIndex] = logicalScope;
 			}
 		}
 		return logicalScope;
-	}
-
-	private String getLogicalScope(CharacterFilter filter, char delimiter) {
-		return createLogicalScope(filter, delimiter);
 	}
 
 	private String createLogicalScope(CharacterFilter filter, char delimiter) {
