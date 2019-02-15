@@ -24,6 +24,9 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+
 /**
  * Test job which is used for {@link ClassPathJobGraphRetrieverTest}.
  */
@@ -38,5 +41,21 @@ public class TestJob {
 
 		ParameterTool parameterTool = ParameterTool.fromArgs(args);
 		env.execute(TestJob.class.getCanonicalName() + "-" + parameterTool.getRequired("arg"));
+	}
+
+	/**
+	 * Returns the test jar including {@link TestJob} (see pom.xml and assembly/test-assembly.xml).
+	 *
+	 * @return Test jar file
+	 * @throws FileNotFoundException If test-jar can not be found
+	 */
+	static File getTestJobJar() throws FileNotFoundException {
+		// Check the module's pom.xml for how we create the JAR
+		File f = new File("target/maven-test-jar.jar");
+		if (!f.exists()) {
+			throw new FileNotFoundException("Test jar not present. Invoke tests using Maven "
+				+ "or build the jar using 'mvn process-test-classes' in flink-container");
+		}
+		return f;
 	}
 }
