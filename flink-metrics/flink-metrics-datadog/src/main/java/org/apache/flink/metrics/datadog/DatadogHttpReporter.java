@@ -127,13 +127,13 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 				g.getMetricValue();
 				request.addGauge(g);
 			} catch (ClassCastException e) {
-				LOGGER.info("The Gauge {} will not be reported because only number types are supported by this reporter.", g.getMetric());
+				LOGGER.info("The metric {} will not be reported because only number types are supported by this reporter.", g.getMetric());
 				gaugesToRemove.add(entry.getKey());
 			} catch (Exception e) {
 				if (LOGGER.isDebugEnabled()) {
-					LOGGER.debug("The Gauge {} will not be reported because it threw an exception.", g.getMetric(), e);
+					LOGGER.debug("The metric {} will not be reported because it threw an exception.", g.getMetric(), e);
 				} else {
-					LOGGER.info("The Gauge {} will not be reported because it threw an exception.", g.getMetric());
+					LOGGER.info("The metric {} will not be reported because it threw an exception.", g.getMetric());
 				}
 				gaugesToRemove.add(entry.getKey());
 			}
