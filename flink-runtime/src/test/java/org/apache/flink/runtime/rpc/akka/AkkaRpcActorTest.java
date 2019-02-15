@@ -19,16 +19,19 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -42,9 +45,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import scala.concurrent.Await;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -311,6 +316,48 @@ public class AkkaRpcActorTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that when the onStop future completes that no other messages will be
+	 * processed.
+	 */
+	@Test
+	public void testOnStopFutureCompletionDirectlyTerminatesAkkaRpcActor() throws Exception {
+		final CompletableFuture<Void> onStopFuture = new CompletableFuture<>();
+		final TerminatingAfterOnStopFutureCompletionEndpoint endpoint = new TerminatingAfterOnStopFutureCompletionEndpoint(akkaRpcService, onStopFuture);
+
+		try {
+			endpoint.start();
+
+			final AsyncOperationGateway asyncOperationGateway = endpoint.getSelfGateway(AsyncOperationGateway.class);
+
+			final CompletableFuture<Void> terminationFuture = endpoint.closeAsync();
+
+			assertThat(terminationFuture.isDone(), is(false));
+
+			final CompletableFuture<Integer> firstAsyncOperationFuture = asyncOperationGateway.asyncOperation(timeout);
+			final CompletableFuture<Integer> secondAsyncOperationFuture = asyncOperationGateway.asyncOperation(timeout);
+
+			endpoint.awaitEnterAsyncOperation();
+
+			// complete stop operation which should prevent the second async operation from being executed
+			onStopFuture.complete(null);
+
+			// we can only complete the termination after the first async operation has been completed
+			assertThat(terminationFuture.isDone(), is(false));
+
+			endpoint.triggerUnblockAsyncOperation();
+
+			assertThat(firstAsyncOperationFuture.get(), is(42));
+
+			terminationFuture.get();
+
+			assertThat(endpoint.getNumberAsyncOperationCalls(), is(1));
+			assertThat(secondAsyncOperationFuture.isDone(), is(false));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(endpoint, timeout);
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Test Actors and Interfaces
 	// ------------------------------------------------------------------------
@@ -444,4 +491,56 @@ public class AkkaRpcActorTest extends TestLogger {
 		}
 	}
 
+	// ------------------------------------------------------------------------
+
+	interface AsyncOperationGateway extends RpcGateway {
+		CompletableFuture<Integer> asyncOperation(@RpcTimeout Time timeout);
+	}
+
+	private static class TerminatingAfterOnStopFutureCompletionEndpoint extends RpcEndpoint implements AsyncOperationGateway {
+
+		private final CompletableFuture<Void> onStopFuture;
+
+		private final OneShotLatch blockAsyncOperation = new OneShotLatch();
+
+		private final OneShotLatch enterAsyncOperation = new OneShotLatch();
+
+		private final AtomicInteger asyncOperationCounter = new AtomicInteger(0);
+
+		protected TerminatingAfterOnStopFutureCompletionEndpoint(RpcService rpcService, CompletableFuture<Void> onStopFuture) {
+			super(rpcService);
+			this.onStopFuture = onStopFuture;
+		}
+
+		@Override
+		public CompletableFuture<Integer> asyncOperation(Time timeout) {
+			asyncOperationCounter.incrementAndGet();
+			enterAsyncOperation.trigger();
+
+			try {
+				blockAsyncOperation.await();
+			} catch (InterruptedException e) {
+				throw new FlinkRuntimeException(e);
+			}
+
+			return CompletableFuture.completedFuture(42);
+		}
+
+		@Override
+		public CompletableFuture<Void> onStop() {
+			return onStopFuture;
+		}
+
+		void awaitEnterAsyncOperation() throws InterruptedException {
+			enterAsyncOperation.await();
+		}
+
+		void triggerUnblockAsyncOperation() {
+			blockAsyncOperation.trigger();
+		}
+
+		int getNumberAsyncOperationCalls() {
+			return asyncOperationCounter.get();
+		}
+	}
 }
