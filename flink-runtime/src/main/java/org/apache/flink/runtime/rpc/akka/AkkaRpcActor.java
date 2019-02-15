@@ -38,7 +38,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 
 import akka.actor.ActorRef;
-import akka.actor.Kill;
 import akka.actor.Status;
 import akka.actor.UntypedActor;
 import akka.pattern.Patterns;
@@ -457,6 +456,13 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 		return message;
 	}
 
+	/**
+	 * Stop the actor immediately.
+	 */
+	private void stop() {
+		getContext().stop(getSelf());
+	}
+
 	// ---------------------------------------------------------------------------
 	// Internal state machine
 	// ---------------------------------------------------------------------------
@@ -521,7 +527,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 			// future.
 			// Complete the termination future so that others know that we've stopped.
 
-			akkaRpcActor.rpcEndpointTerminationFuture.whenComplete((ignored, throwable) -> akkaRpcActor.getSelf().tell(Kill.getInstance(), ActorRef.noSender()));
+			akkaRpcActor.rpcEndpointTerminationFuture.whenComplete((ignored, throwable) -> akkaRpcActor.stop());
 
 			return TerminatingState.INSTANCE;
 		}
@@ -549,7 +555,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 		@Override
 		public State terminate(AkkaRpcActor<?> akkaRpcActor) {
 			akkaRpcActor.rpcEndpointTerminationFuture = CompletableFuture.completedFuture(null);
-			akkaRpcActor.getSelf().tell(Kill.getInstance(), ActorRef.noSender());
+			akkaRpcActor.stop();
 
 			return TerminatingState.INSTANCE;
 		}
