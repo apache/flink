@@ -151,6 +151,8 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	/**
 	 * Returns the logical scope of this group, for example
 	 * {@code "taskmanager.job.task"}.
+	 * 
+	 * This method is necessary for backwards compatibility, see the usage in {@link FrontMetricGroup}.
 	 *
 	 * @param filter character filter which is applied to the scope components
 	 * @param delimiter delimiter to use for concatenating scope components
