@@ -17,6 +17,12 @@
 # limitations under the License.
 ################################################################################
 
+echo $M2_HOME
+echo $PATH
+echo $MAVEN_OPTS
+
+mvn -version
+
 HERE="`dirname \"$0\"`"				# relative
 HERE="`( cd \"$HERE\" && pwd )`" 	# absolutized and normalized
 if [ -z "$HERE" ] ; then
