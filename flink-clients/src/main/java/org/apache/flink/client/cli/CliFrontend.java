@@ -204,7 +204,7 @@ public class CliFrontend {
 			program = buildProgram(runOptions);
 		}
 		catch (FileNotFoundException e) {
-			throw new CliArgsException("Could not build the program from JAR file.", e);
+			throw new CliArgsException("JAR file does not exist: " + runOptions.getJarFilePath(), e);
 		}
 
 		final CustomCommandLine<?> customCommandLine = getActiveCustomCommandLine(commandLine);
@@ -881,7 +881,7 @@ public class CliFrontend {
 	private static int handleArgException(CliArgsException e) {
 		LOG.error("Invalid command line arguments.", e);
 
-		e.printStackTrace();
+		System.out.println(e.getMessage());
 		System.out.println();
 		System.out.println("Use the help option (-h or --help) to get help on the command.");
 		return 1;
