@@ -20,18 +20,14 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.TestLogger;
 
@@ -237,14 +233,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 					return result;
 				}};
 
-			LogicalSlot slot = new TestingLogicalSlot(
-				new LocalTaskManagerLocation(),
-				taskManagerGateway,
-				0,
-				new AllocationID(),
-				new SlotRequestId(),
-				new SlotSharingGroupId(),
-				null);
+			LogicalSlot slot = new TestingLogicalSlot(taskManagerGateway);
 
 			setVertexResource(vertex, slot);
 			setVertexState(vertex, ExecutionState.RUNNING);

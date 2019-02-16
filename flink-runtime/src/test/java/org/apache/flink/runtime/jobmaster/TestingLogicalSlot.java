@@ -67,6 +67,17 @@ public class TestingLogicalSlot implements LogicalSlot {
 			null);
 	}
 
+	public TestingLogicalSlot(TaskManagerGateway taskManagerGateway) {
+		this(
+			new LocalTaskManagerLocation(),
+			taskManagerGateway,
+			0,
+			new AllocationID(),
+			new SlotRequestId(),
+			new SlotSharingGroupId(),
+			null);
+	}
+
 	public TestingLogicalSlot(
 			TaskManagerLocation taskManagerLocation,
 			TaskManagerGateway taskManagerGateway,
