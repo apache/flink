@@ -23,14 +23,18 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+* Toc
+{:toc}
+
+## Overview
+
 The JobManager coordinates every Flink deployment. It is responsible for both *scheduling* and *resource management*.
 
 By default, there is a single JobManager instance per Flink cluster. This creates a *single point of failure* (SPOF): if the JobManager crashes, no new programs can be submitted and running programs fail.
 
 With JobManager High Availability, you can recover from JobManager failures and thereby eliminate the *SPOF*. You can configure high availability for both **standalone** and **YARN clusters**.
 
-* Toc
-{:toc}
+See more HA implementation details in [JobManager High Availability](https://cwiki.apache.org/confluence/display/FLINK/JobManager+High+Availability) in the Flink wiki.
 
 ## Standalone Cluster High Availability
 

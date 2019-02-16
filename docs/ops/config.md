@@ -70,6 +70,10 @@ These parameters configure the default HDFS used by Flink. Setups that do not sp
 
 {% include generated/task_manager_configuration.html %}
 
+### Distributed Coordination
+
+{% include generated/cluster_configuration.html %}
+
 ### Distributed Coordination (via Akka)
 
 {% include generated/akka_configuration.html %}

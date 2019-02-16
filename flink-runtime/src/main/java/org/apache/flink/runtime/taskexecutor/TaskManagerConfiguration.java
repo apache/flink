@@ -28,6 +28,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Preconditions;
 
@@ -73,20 +74,23 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	@Nullable
 	private final String taskManagerStdoutPath;
 
+	private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
+
 	public TaskManagerConfiguration(
-		int numberSlots,
-		String[] tmpDirectories,
-		Time timeout,
-		@Nullable Time maxRegistrationDuration,
-		Time initialRegistrationPause,
-		Time maxRegistrationPause,
-		Time refusedRegistrationPause,
-		Configuration configuration,
-		boolean exitJvmOnOutOfMemory,
-		FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
-		String[] alwaysParentFirstLoaderPatterns,
-		@Nullable String taskManagerLogPath,
-		@Nullable String taskManagerStdoutPath) {
+			int numberSlots,
+			String[] tmpDirectories,
+			Time timeout,
+			@Nullable Time maxRegistrationDuration,
+			Time initialRegistrationPause,
+			Time maxRegistrationPause,
+			Time refusedRegistrationPause,
+			Configuration configuration,
+			boolean exitJvmOnOutOfMemory,
+			FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
+			String[] alwaysParentFirstLoaderPatterns,
+			@Nullable String taskManagerLogPath,
+			@Nullable String taskManagerStdoutPath,
+			RetryingRegistrationConfiguration retryingRegistrationConfiguration) {
 
 		this.numberSlots = numberSlots;
 		this.tmpDirectories = Preconditions.checkNotNull(tmpDirectories);
@@ -101,6 +105,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		this.alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderPatterns;
 		this.taskManagerLogPath = taskManagerLogPath;
 		this.taskManagerStdoutPath = taskManagerStdoutPath;
+		this.retryingRegistrationConfiguration = retryingRegistrationConfiguration;
 	}
 
 	public int getNumberSlots() {
@@ -160,6 +165,10 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	@Nullable
 	public String getTaskManagerStdoutPath() {
 		return taskManagerStdoutPath;
+	}
+
+	public RetryingRegistrationConfiguration getRetryingRegistrationConfiguration() {
+		return retryingRegistrationConfiguration;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -263,6 +272,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			taskManagerStdoutPath = null;
 		}
 
+		final RetryingRegistrationConfiguration retryingRegistrationConfiguration = RetryingRegistrationConfiguration.fromConfiguration(configuration);
+
 		return new TaskManagerConfiguration(
 			numberSlots,
 			tmpDirPaths,
@@ -276,6 +287,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),
 			alwaysParentFirstLoaderPatterns,
 			taskManagerLogPath,
-			taskManagerStdoutPath);
+			taskManagerStdoutPath,
+			retryingRegistrationConfiguration);
 	}
 }

@@ -27,6 +27,7 @@ import org.apache.flink.types.{IntValue, StringValue}
 
 import org.junit.{Assert, Test}
 
+@SerialVersionUID(-1509730037212683566L)
 case class CustomCaseClass(a: String, b: Int)
 
 case class UmlautCaseClass(ä: String, ß: Int)

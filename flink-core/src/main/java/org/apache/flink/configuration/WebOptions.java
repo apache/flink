@@ -24,7 +24,7 @@ import org.apache.flink.annotation.docs.Documentation;
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
- * Configuration options for the WebRuntimeMonitor.
+ * Configuration options for the WebMonitorEndpoint.
  */
 @PublicEvolving
 public class WebOptions {
@@ -172,12 +172,12 @@ public class WebOptions {
 			.withDescription("Delay between stack trace samples to determine back pressure in milliseconds.");
 
 	/**
-	 * Timeout for asynchronous operations by the WebRuntimeMonitor in milliseconds.
+	 * Timeout for asynchronous operations by the web monitor in milliseconds.
 	 */
 	public static final ConfigOption<Long> TIMEOUT =
 		key("web.timeout")
 		.defaultValue(10L * 1000L)
-		.withDescription("Timeout for asynchronous operations by the WebRuntimeMonitor in milliseconds.");
+		.withDescription("Timeout for asynchronous operations by the web monitor in milliseconds.");
 
 	// ------------------------------------------------------------------------
 

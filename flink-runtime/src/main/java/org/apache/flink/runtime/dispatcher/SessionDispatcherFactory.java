@@ -26,6 +26,7 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nullable;
 
@@ -40,7 +41,7 @@ public enum SessionDispatcherFactory implements DispatcherFactory<Dispatcher> {
 				Configuration configuration,
 				RpcService rpcService,
 				HighAvailabilityServices highAvailabilityServices,
-				ResourceManagerGateway resourceManagerGateway,
+				GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 				BlobServer blobServer,
 				HeartbeatServices heartbeatServices,
 				JobManagerMetricGroup jobManagerMetricGroup,
@@ -51,10 +52,10 @@ public enum SessionDispatcherFactory implements DispatcherFactory<Dispatcher> {
 		// create the default dispatcher
 		return new StandaloneDispatcher(
 			rpcService,
-			Dispatcher.DISPATCHER_NAME,
+			getEndpointId(),
 			configuration,
 			highAvailabilityServices,
-			resourceManagerGateway,
+			resourceManagerGatewayRetriever,
 			blobServer,
 			heartbeatServices,
 			jobManagerMetricGroup,

@@ -53,14 +53,14 @@ class CorrelateITCase(
     val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
 
     val func1 = new TableFunc1
-    val result = in.join(func1('c) as 's).select('c, 's).toDataSet[Row]
+    val result = in.joinLateral(func1('c) as 's).select('c, 's).toDataSet[Row]
     val results = result.collect()
     val expected = "Jack#22,Jack\n" + "Jack#22,22\n" + "John#19,John\n" + "John#19,19\n" +
       "Anna#44,Anna\n" + "Anna#44,44\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
 
     // with overloading
-    val result2 = in.join(func1('c, "$") as 's).select('c, 's).toDataSet[Row]
+    val result2 = in.joinLateral(func1('c, "$") as 's).select('c, 's).toDataSet[Row]
     val results2 = result2.collect()
     val expected2 = "Jack#22,$Jack\n" + "Jack#22,$22\n" + "John#19,$John\n" +
       "John#19,$19\n" + "Anna#44,$Anna\n" + "Anna#44,$44\n"
@@ -74,7 +74,7 @@ class CorrelateITCase(
     val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
 
     val func2 = new TableFunc2
-    val result = in.leftOuterJoin(func2('c) as ('s, 'l)).select('c, 's, 'l).toDataSet[Row]
+    val result = in.leftOuterJoinLateral(func2('c) as ('s, 'l)).select('c, 's, 'l).toDataSet[Row]
     val results = result.collect()
     val expected = "Jack#22,Jack,4\n" + "Jack#22,22,2\n" + "John#19,John,4\n" +
       "John#19,19,2\n" + "Anna#44,Anna,4\n" + "Anna#44,44,2\n" + "nosharp,null,null"
@@ -89,7 +89,7 @@ class CorrelateITCase(
     val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
 
     val func2 = new TableFunc2
-    val result = in.leftOuterJoin(func2('c) as ('s, 'l)).select('c, 's, 'l).toDataSet[Row]
+    val result = in.leftOuterJoinLateral(func2('c) as ('s, 'l)).select('c, 's, 'l).toDataSet[Row]
     val results = result.collect()
     val expected = "Jack#22,Jack,4\n" + "Jack#22,22,2\n" + "John#19,John,4\n" +
       "John#19,19,2\n" + "Anna#44,Anna,4\n" + "Anna#44,44,2\n" + "nosharp,null,null"
@@ -107,7 +107,7 @@ class CorrelateITCase(
 
     val func2 = new TableFunc2
     val result = in
-      .leftOuterJoin(func2('c) as ('s, 'l), 'a === 'l)
+      .leftOuterJoinLateral(func2('c) as ('s, 'l), 'a === 'l)
       .select('c, 's, 'l)
       .toDataSet[Row]
     val results = result.collect()
@@ -123,7 +123,7 @@ class CorrelateITCase(
     val func0 = new TableFunc0
 
     val result = in
-      .join(func0('c) as ('name, 'age))
+      .joinLateral(func0('c) as ('name, 'age))
       .select('c, 'name, 'age)
       .filter('age > 20)
       .toDataSet[Row]
@@ -141,7 +141,7 @@ class CorrelateITCase(
     val func2 = new TableFunc2
 
     val result = in
-      .join(func2('c) as ('name, 'len))
+      .joinLateral(func2('c) as ('name, 'len))
       .select('c, 'name, 'len)
       .toDataSet[Row]
 
@@ -159,7 +159,7 @@ class CorrelateITCase(
 
     val hierarchy = new HierarchyTableFunction
     val result = in
-      .join(hierarchy('c) as ('name, 'adult, 'len))
+      .joinLateral(hierarchy('c) as ('name, 'adult, 'len))
       .select('c, 'name, 'adult, 'len)
       .toDataSet[Row]
 
@@ -177,7 +177,7 @@ class CorrelateITCase(
 
     val pojo = new PojoTableFunc()
     val result = in
-      .join(pojo('c))
+      .joinLateral(pojo('c))
       .where('age > 20)
       .select('c, 'name, 'age)
       .toDataSet[Row]
@@ -195,7 +195,7 @@ class CorrelateITCase(
     val func1 = new TableFunc1
 
     val result = in
-      .join(func1('c.substring(2)) as 's)
+      .joinLateral(func1('c.substring(2)) as 's)
       .select('c, 's)
       .toDataSet[Row]
 
@@ -213,7 +213,7 @@ class CorrelateITCase(
     val func0 = new TableFunc0
 
     val result = in
-      .join(func0('c))
+      .joinLateral(func0('c))
       .where(Func18('name, "J") && (Func1('a) < 3) && Func1('age) > 20)
       .select('c, 'name, 'age)
       .toDataSet[Row]
@@ -235,7 +235,7 @@ class CorrelateITCase(
         .select(Date.valueOf("1990-10-14") as 'x,
                 1000L as 'y,
                 Timestamp.valueOf("1990-10-14 12:10:10") as 'z)
-        .join(func0('x, 'y, 'z) as 's)
+        .joinLateral(func0('x, 'y, 'z) as 's)
         .select('s)
         .toDataSet[Row]
 
@@ -253,7 +253,7 @@ class CorrelateITCase(
 
     val result = in
       .select('a.cast(Types.BYTE) as 'a, 'a.cast(Types.SHORT) as 'b, 'b.cast(Types.FLOAT) as 'c)
-      .join(tFunc('a, 'b, 'c) as ('a2, 'b2, 'c2))
+      .joinLateral(tFunc('a, 'b, 'c) as ('a2, 'b2, 'c2))
       .toDataSet[Row]
 
     val results = result.collect()
@@ -275,7 +275,7 @@ class CorrelateITCase(
 
     val result = testData(env)
       .toTable(tEnv, 'a, 'b, 'c)
-      .join(richTableFunc1('c) as 's)
+      .joinLateral(richTableFunc1('c) as 's)
       .select('a, 's)
 
     val expected = "1,Jack\n" + "1,22\n" + "2,John\n" + "2,19\n" + "3,Anna\n" + "3,44"
@@ -297,7 +297,7 @@ class CorrelateITCase(
 
     val result = CollectionDataSets.getSmall3TupleDataSet(env)
       .toTable(tEnv, 'a, 'b, 'c)
-      .join(richTableFunc1(richFunc2('c)) as 's)
+      .joinLateral(richTableFunc1(richFunc2('c)) as 's)
       .select('a, 's)
 
     val expected = "1,Hi\n1,test\n2,Hello\n2,test\n3,Hello world\n3,test"
@@ -315,11 +315,11 @@ class CorrelateITCase(
     val func32 = new TableFunc3("TwoConf_")
 
     val result = in
-      .join(func30('c) as('d, 'e))
+      .joinLateral(func30('c) as('d, 'e))
       .select('c, 'd, 'e)
-      .join(func31('c) as ('f, 'g))
+      .joinLateral(func31('c) as ('f, 'g))
       .select('c, 'd, 'e, 'f, 'g)
-      .join(func32('c) as ('h, 'i))
+      .joinLateral(func32('c) as ('h, 'i))
       .select('c, 'd, 'f, 'h, 'e, 'g, 'i)
       .toDataSet[Row]
 
@@ -341,7 +341,7 @@ class CorrelateITCase(
     val result = testData(env)
       .toTable(tableEnv, 'a, 'b, 'c)
       .select('c)
-      .join(varArgsFunc0("1", "2", 'c))
+      .joinLateral(varArgsFunc0("1", "2", 'c))
 
     val expected = "Anna#44,1\n" +
       "Anna#44,2\n" +
@@ -362,7 +362,7 @@ class CorrelateITCase(
     val result0 = testData(env)
       .toTable(tableEnv, 'a, 'b, 'c)
       .select('c)
-      .join(varArgsFunc0())
+      .joinLateral(varArgsFunc0())
     val results0 = result0.toDataSet[Row].collect()
     assertTrue(results0.isEmpty)
   }
@@ -376,7 +376,7 @@ class CorrelateITCase(
     val func20 = new Func20
 
     val result = t
-      .join(func0('c) as('d, 'e))
+      .joinLateral(func0('c) as('d, 'e))
       .where(func20('e))
       .select('c, 'd, 'e)
 

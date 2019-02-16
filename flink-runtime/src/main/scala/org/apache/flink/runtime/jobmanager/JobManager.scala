@@ -23,7 +23,7 @@ import java.net._
 import java.util
 import java.util.UUID
 import java.util.concurrent.{TimeUnit, Future => _, TimeoutException => _, _}
-import java.util.function.{BiFunction, Consumer}
+import java.util.function.{BiFunction, BooleanSupplier, Consumer}
 
 import akka.actor.Status.{Failure, Success}
 import akka.actor._
@@ -45,7 +45,7 @@ import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceMa
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.clusterframework.{BootstrapTools, FlinkResourceManager}
 import org.apache.flink.runtime.concurrent.Executors.directExecutionContext
-import org.apache.flink.runtime.concurrent.{FutureUtils, ScheduledExecutorServiceAdapter}
+import org.apache.flink.runtime.concurrent.{ComponentMainThreadExecutorServiceAdapter, FutureUtils, ScheduledExecutorServiceAdapter}
 import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders.ResolveOrder
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, LibraryCacheManager}
@@ -82,7 +82,6 @@ import org.apache.flink.runtime.security.{SecurityConfiguration, SecurityUtils}
 import org.apache.flink.runtime.taskexecutor.TaskExecutor
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
-import org.apache.flink.runtime.webmonitor.retriever.impl.{AkkaJobManagerRetriever, AkkaQueryServiceRetriever}
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.util._
@@ -1301,6 +1300,13 @@ class JobManager(
           currentJobs.put(jobGraph.getJobID, (executionGraph, jobInfo))
         }
 
+        executionGraph.start(
+          new ComponentMainThreadExecutorServiceAdapter(
+            futureExecutor,
+            new Runnable {
+              override def run(): Unit = {}
+            }))
+
         // get notified about job status changes
         executionGraph.registerJobStatusListener(
           new StatusListenerMessenger(self, leaderSessionID.orNull))
@@ -2200,13 +2206,7 @@ object JobManager {
 
         // start the web frontend. we need to load this dynamically
         // because it is not in the same project/dependencies
-        val webServer = WebMonitorUtils.startWebRuntimeMonitor(
-          configuration,
-          highAvailabilityServices,
-          new AkkaJobManagerRetriever(jobManagerSystem, timeout, 10, Time.milliseconds(50L)),
-          new AkkaQueryServiceRetriever(jobManagerSystem, timeout),
-          timeout,
-          new ScheduledExecutorServiceAdapter(futureExecutor))
+        val webServer = null
 
         Option(webServer)
       }

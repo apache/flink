@@ -38,7 +38,7 @@ import java.util.Map;
  * such as whether the fields that are uses as join/grouping keys actually exist.
  *
  * <p>The type information also bridges between the programming languages object model and a
- * logical flat schema. It maps fields from the types to to columns (fields) in a flat schema.
+ * logical flat schema. It maps fields from the types to columns (fields) in a flat schema.
  * Not all fields from a type are mapped to a separate fields in the flat schema and
  * often, entire types are mapped to one field. It is important to notice that the schema must
  * hold for all instances of a type. For that reason, elements in lists and arrays are not

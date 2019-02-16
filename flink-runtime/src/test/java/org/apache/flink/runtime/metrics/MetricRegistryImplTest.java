@@ -70,27 +70,6 @@ public class MetricRegistryImplTest extends TestLogger {
 	}
 
 	/**
-	 * Verifies that the reporter name list is correctly used to determine which reporters should be instantiated.
-	 */
-	@Test
-	public void testReporterInclusion() throws Exception {
-		Configuration config = new Configuration();
-
-		config.setString(MetricOptions.REPORTERS_LIST, "test");
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter11.class.getName());
-
-		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
-
-		assertTrue(metricRegistry.getReporters().size() == 1);
-
-		Assert.assertTrue(TestReporter1.wasOpened);
-		Assert.assertFalse(TestReporter11.wasOpened);
-
-		metricRegistry.shutdown().get();
-	}
-
-	/**
 	 * Reporter that exposes whether open() was called.
 	 */
 	protected static class TestReporter1 extends TestReporter {
@@ -158,23 +137,6 @@ public class MetricRegistryImplTest extends TestLogger {
 		public void open(MetricConfig config) {
 			wasOpened = true;
 		}
-	}
-
-	/**
-	 * Verifies that configured arguments are properly forwarded to the reporter.
-	 */
-	@Test
-	public void testReporterArgumentForwarding() throws Exception {
-		Configuration config = new Configuration();
-
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter2.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg1", "hello");
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg2", "world");
-
-		new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config)).shutdown().get();
-
-		Assert.assertEquals("hello", TestReporter2.mc.getString("arg1", null));
-		Assert.assertEquals("world", TestReporter2.mc.getString("arg2", null));
 	}
 
 	/**

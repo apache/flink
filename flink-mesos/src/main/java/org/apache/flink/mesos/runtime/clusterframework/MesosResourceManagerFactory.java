@@ -89,7 +89,7 @@ public class MesosResourceManagerFactory implements ResourceManagerFactory<Regis
 
 		return new MesosResourceManager(
 			rpcService,
-			ResourceManager.RESOURCE_MANAGER_NAME,
+			getEndpointId(),
 			resourceId,
 			highAvailabilityServices,
 			heartbeatServices,

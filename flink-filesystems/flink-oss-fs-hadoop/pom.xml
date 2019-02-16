@@ -28,7 +28,7 @@ under the License.
 	<artifactId>flink-oss-fs-hadoop</artifactId>
 
 	<properties>
-		<fs.oss.sdk.version>3.1.0</fs.oss.sdk.version>
+		<fs.oss.sdk.version>3.4.1</fs.oss.sdk.version>
 	</properties>
 
 	<dependencies>

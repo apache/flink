@@ -135,7 +135,7 @@ public class AsyncCallsTest extends TestLogger {
 			// validate that no concurrent access happened
 			assertFalse("Rpc Endpoint had concurrent access", concurrentAccess.get());
 		} finally {
-			rpcEndpoint.shutDown();
+			RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
 		}
 	}
 
@@ -320,8 +320,7 @@ public class AsyncCallsTest extends TestLogger {
 
 			return result;
 		} finally {
-			fencedTestEndpoint.shutDown();
-			fencedTestEndpoint.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoint(fencedTestEndpoint, timeout);
 		}
 	}
 
@@ -366,11 +365,6 @@ public class AsyncCallsTest extends TestLogger {
 			} else {
 				concurrentAccess.set(true);
 			}
-		}
-
-		@Override
-		public CompletableFuture<Void> postStop() {
-			return CompletableFuture.completedFuture(null);
 		}
 	}
 
@@ -450,11 +444,6 @@ public class AsyncCallsTest extends TestLogger {
 			setFencingToken(fencingToken);
 
 			return CompletableFuture.completedFuture(Acknowledge.get());
-		}
-
-		@Override
-		public CompletableFuture<Void> postStop() {
-			return CompletableFuture.completedFuture(null);
 		}
 
 		@Override

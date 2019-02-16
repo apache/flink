@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstrain
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -40,7 +41,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class ExecutionVertexSchedulingTest {
+public class ExecutionVertexSchedulingTest extends TestLogger {
 
 	@Test
 	public void testSlotReleasedWhenScheduledImmediately() {
@@ -61,11 +62,7 @@ public class ExecutionVertexSchedulingTest {
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
-			vertex.scheduleForExecution(
-				new TestingSlotProvider(ignore -> future),
-				false,
-				LocationPreferenceConstraint.ALL,
-				Collections.emptySet());
+			vertex.scheduleForExecution(new TestingSlotProvider((i) -> future), false, LocationPreferenceConstraint.ALL, Collections.emptySet());
 
 			// will have failed
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());

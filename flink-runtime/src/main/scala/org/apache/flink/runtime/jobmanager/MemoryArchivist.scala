@@ -18,27 +18,23 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import java.io.IOException
-import java.net.URI
 import java.util
 
 import akka.actor.ActorRef
 import grizzled.slf4j.Logger
 import org.apache.flink.api.common.JobID
-import org.apache.flink.core.fs.{FileSystem, Path}
+import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.messages.accumulators._
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils
 import org.apache.flink.runtime.{FlinkActor, LogMessages}
 import org.apache.flink.runtime.messages.webmonitor._
 import org.apache.flink.runtime.executiongraph.{ArchivedExecutionGraph, ExecutionGraph}
-import org.apache.flink.runtime.history.FsJobArchivist
 import org.apache.flink.runtime.messages.ArchiveMessages._
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview.JobIdWithStatus
 
 import scala.collection.mutable
-import scala.concurrent.future
 
 /**
  * Actor which stores terminated Flink jobs. The number of stored Flink jobs is set by max_entries.
@@ -104,8 +100,6 @@ class MemoryArchivist(
           // ignore transitional states, e.g. Cancelling, Running, Failing, etc.
         case _ =>
       }
-
-      archiveJsonFiles(graph)
 
       trimHistory()
 
@@ -194,27 +188,6 @@ class MemoryArchivist(
     }
   }
 
-  private def archiveJsonFiles(graph: ArchivedExecutionGraph) {
-    // a suspended job is expected to continue on another job manager,
-    // so we aren't archiving it yet.
-    if (archivePath.isDefined && graph.getState.isGloballyTerminalState) {
-      try {
-        val p = validateAndNormalizeUri(archivePath.get.toUri)
-        future {
-          try {
-            FsJobArchivist.archiveJob(p, graph)
-          } catch {
-            case e: Exception =>
-              log.error("Failed to archive job.", e)
-          }
-        }(context.dispatcher)
-      } catch {
-        case e: Exception =>
-          log.warn(s"Failed to create Path for $archivePath. Job will not be archived.", e)
-      }
-    }
-  }
-
   // --------------------------------------------------------------------------
   //  Request Responses
   // --------------------------------------------------------------------------
@@ -249,50 +222,5 @@ class MemoryArchivist(
       val (jobID, value) = graphs.head
       graphs.remove(jobID)
     }
-  }
-
-  /**
-    * Checks and normalizes the archive path URI. This method first checks the validity of the
-    * URI (scheme, path, availability of a matching file system) and then normalizes the URL
-    * to a path.
-    *
-    * If the URI does not include an authority, but the file system configured for the URI has an
-    * authority, then the normalized path will include this authority.
-    *
-    * @param archivePathUri The URI to check and normalize.
-    * @return a normalized URI as a Path.
-    *
-    * @throws IllegalArgumentException Thrown, if the URI misses schema or path.
-    * @throws IOException Thrown, if no file system can be found for the URI's scheme.
-    */
-  @throws[IOException]
-  private def validateAndNormalizeUri(archivePathUri: URI): Path = {
-    val scheme = archivePathUri.getScheme
-    val path = archivePathUri.getPath
-
-    // some validity checks
-    if (scheme == null) {
-      throw new IllegalArgumentException("The scheme (hdfs://, file://, etc) is null. " +
-        "Please specify the file system scheme explicitly in the URI: " + archivePathUri)
-    }
-
-    if (path == null) {
-      throw new IllegalArgumentException("The path to store the job archives is null. " +
-        "Please specify a directory path for storing job archives. and the URI is: " +
-        archivePathUri)
-    }
-
-    if (path.length == 0 || path == "/") {
-      throw new IllegalArgumentException("Cannot use the root directory for storing job archives.")
-    }
-
-    try {
-      FileSystem.get(archivePathUri)
-    }
-    catch {
-      case e: Exception =>
-          throw new IllegalArgumentException(s"No file system found for URI '${archivePathUri}'.")
-    }
-    new Path(archivePathUri)
   }
 }

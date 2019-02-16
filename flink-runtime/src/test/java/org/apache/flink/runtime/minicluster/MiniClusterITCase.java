@@ -571,7 +571,7 @@ public class MiniClusterITCase extends TestLogger {
 
 	private Configuration getDefaultConfiguration() {
 		final Configuration configuration = new Configuration();
-		configuration.setInteger(RestOptions.PORT, 0);
+		configuration.setString(RestOptions.BIND_PORT, "0");
 
 		return configuration;
 	}

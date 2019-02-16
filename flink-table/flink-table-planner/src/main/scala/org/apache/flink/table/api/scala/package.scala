@@ -17,14 +17,12 @@
  */
 package org.apache.flink.table.api
 
-import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.types.Row
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
-import org.apache.flink.table.functions.TableFunction
 
 import _root_.scala.language.implicitConversions
 
@@ -88,9 +86,5 @@ package object scala extends ImplicitExpressionConversions {
   implicit def table2RowDataStream(table: Table): DataStream[Row] = {
     val tableEnv = table.tableEnv.asInstanceOf[ScalaStreamTableEnv]
     tableEnv.toAppendStream[Row](table)
-  }
-
-  implicit def tableFunctionCall2Table[T](tf: TableFunction[T]): TableFunctionConversions[T] = {
-    new TableFunctionConversions[T](tf)
   }
 }
