@@ -24,7 +24,7 @@ MAVEN_VERSIONED_DIR=${MAVEN_CACHE_DIR}/apache-maven-${MAVEN_VERSION}
 if [ ! -d "${MAVEN_VERSIONED_DIR}" ]; then
   wget https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.zip
   unzip -d "${MAVEN_CACHE_DIR}" -qq "apache-maven-${MAVEN_VERSION}-bin.zip"
-  rm "/apache-maven-${MAVEN_VERSION}-bin.zip"
+  rm "apache-maven-${MAVEN_VERSION}-bin.zip"
 fi
 
 export M2_HOME="${MAVEN_VERSIONED_DIR}"
