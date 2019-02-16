@@ -18,21 +18,20 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.instance.BaseTestingActorGateway;
-import org.apache.flink.runtime.instance.DummyActorGateway;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
-import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
-import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.TestLogger;
 
@@ -42,10 +41,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
-import scala.concurrent.ExecutionContext;
-
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getInstance;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.setVertexResource;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.setVertexState;
 import static org.junit.Assert.assertEquals;
@@ -125,12 +121,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
-			ActorGateway actorGateway = new CancelSequenceActorGateway(
-					TestingUtils.directExecutionContext(),
-					1);
-
-			Instance instance = getInstance(new ActorTaskManagerGateway(actorGateway));
-			SimpleSlot slot = instance.allocateSimpleSlot();
+			LogicalSlot slot = new TestingLogicalSlot();
 
 			setVertexResource(vertex, slot);
 			setVertexState(vertex, ExecutionState.RUNNING);
@@ -142,7 +133,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
 			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 
-			assertTrue(slot.isReleased());
+			assertFalse(slot.isAlive());
 
 			assertNull(vertex.getFailureCause());
 
@@ -165,12 +156,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
-			final ActorGateway actorGateway = new CancelSequenceActorGateway(
-					TestingUtils.directExecutionContext(),
-					1);
-
-			Instance instance = getInstance(new ActorTaskManagerGateway(actorGateway));
-			SimpleSlot slot = instance.allocateSimpleSlot();
+			LogicalSlot slot = new TestingLogicalSlot();
 
 			setVertexResource(vertex, slot);
 			setVertexState(vertex, ExecutionState.RUNNING);
@@ -190,7 +176,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
 			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 
-			assertTrue(slot.isReleased());
+			assertFalse(slot.isAlive());
 
 			assertNull(vertex.getFailureCause());
 
@@ -213,12 +199,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
-			final ActorGateway actorGateway = new CancelSequenceActorGateway(
-					TestingUtils.directExecutionContext(),
-					1);
-
-			Instance instance = getInstance(new ActorTaskManagerGateway(actorGateway));
-			SimpleSlot slot = instance.allocateSimpleSlot();
+			LogicalSlot slot = new TestingLogicalSlot();
 
 			setVertexResource(vertex, slot);
 			setVertexState(vertex, ExecutionState.RUNNING);
@@ -248,10 +229,22 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
 
-			final ActorGateway gateway = new CancelSequenceActorGateway(TestingUtils.directExecutionContext(), 0);
+			final SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway() {
+				@Override
+				public CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
+					CompletableFuture<Acknowledge> result = new CompletableFuture<>();
+					result.completeExceptionally(new IOException("Rpc call fails"));
+					return result;
+				}};
 
-			Instance instance = getInstance(new ActorTaskManagerGateway(gateway));
-			SimpleSlot slot = instance.allocateSimpleSlot();
+			LogicalSlot slot = new TestingLogicalSlot(
+				new LocalTaskManagerLocation(),
+				taskManagerGateway,
+				0,
+				new AllocationID(),
+				new SlotRequestId(),
+				new SlotSharingGroupId(),
+				null);
 
 			setVertexResource(vertex, slot);
 			setVertexState(vertex, ExecutionState.RUNNING);
@@ -263,7 +256,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			// Callback fails, leading to CANCELED
 			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 
-			assertTrue(slot.isReleased());
+			assertFalse(slot.isAlive());
 
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
@@ -328,8 +321,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			// deploying after canceling from CREATED needs to raise an exception, because
 			// the scheduler (or any caller) needs to know that the slot should be released
 			try {
-				Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
-				SimpleSlot slot = instance.allocateSimpleSlot();
+				LogicalSlot slot = new TestingLogicalSlot();
 
 				vertex.deployToSlot(slot);
 				fail("Method should throw an exception");
@@ -374,8 +366,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 						AkkaUtils.getDefaultTimeout());
 				setVertexState(vertex, ExecutionState.CANCELING);
 
-				Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
-				SimpleSlot slot = instance.allocateSimpleSlot();
+				LogicalSlot slot = new TestingLogicalSlot();
 
 				vertex.deployToSlot(slot);
 				fail("Method should throw an exception");
@@ -390,8 +381,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 						AkkaUtils.getDefaultTimeout());
 
-				Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
-				SimpleSlot slot = instance.allocateSimpleSlot();
+				LogicalSlot slot = new TestingLogicalSlot();
 
 				setVertexResource(vertex, slot);
 				setVertexState(vertex, ExecutionState.CANCELING);
@@ -401,42 +391,12 @@ public class ExecutionVertexCancelTest extends TestLogger {
 				vertex.fail(failureCause);
 				assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 
-				assertTrue(slot.isReleased());
+				assertFalse(slot.isAlive());
 			}
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-	}
-
-	public static class CancelSequenceActorGateway extends BaseTestingActorGateway {
-		private final int successfulOperations;
-		private int index = -1;
-
-		public CancelSequenceActorGateway(ExecutionContext executionContext, int successfulOperations) {
-			super(executionContext);
-			this.successfulOperations = successfulOperations;
-		}
-
-		@Override
-		public Object handleMessage(Object message) throws Exception {
-			Object result;
-			if(message instanceof SubmitTask) {
-				result = Acknowledge.get();
-			} else if(message instanceof CancelTask) {
-				index++;
-
-				if(index >= successfulOperations){
-					throw new IOException("RPC call failed.");
-				} else {
-					result = Acknowledge.get();
-				}
-			} else {
-				result = null;
-			}
-
-			return result;
 		}
 	}
 }
