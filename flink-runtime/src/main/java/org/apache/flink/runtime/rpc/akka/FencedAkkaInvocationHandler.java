@@ -23,6 +23,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.FencedMainThreadExecutable;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.messages.CallAsync;
 import org.apache.flink.runtime.rpc.messages.FencedMessage;
 import org.apache.flink.runtime.rpc.messages.LocalFencedMessage;
@@ -61,8 +62,9 @@ public class FencedAkkaInvocationHandler<F extends Serializable> extends AkkaInv
 			Time timeout,
 			long maximumFramesize,
 			@Nullable CompletableFuture<Void> terminationFuture,
-			Supplier<F> fencingTokenSupplier) {
-		super(address, hostname, rpcEndpoint, timeout, maximumFramesize, terminationFuture);
+			Supplier<F> fencingTokenSupplier,
+			RpcService rpcService) {
+		super(address, hostname, rpcEndpoint, timeout, maximumFramesize, terminationFuture, rpcService);
 
 		this.fencingTokenSupplier = Preconditions.checkNotNull(fencingTokenSupplier);
 	}

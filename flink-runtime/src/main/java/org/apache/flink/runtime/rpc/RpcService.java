@@ -159,6 +159,14 @@ public interface RpcService {
 	ScheduledExecutor getScheduledExecutor();
 
 	/**
+	 * Gets the executor, provided by this RPC service. This executor can be used for the
+	 * serialization of the rpc messages.
+	 *
+	 * @return The execution context provided by the RPC service
+	 */
+	Executor getIOExecutor();
+
+	/**
 	 * Execute the runnable in the execution context of this RPC Service, as returned by
 	 * {@link #getExecutor()}, after a scheduled delay.
 	 *

@@ -24,6 +24,7 @@ import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcServer;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.StartStoppable;
 import org.apache.flink.runtime.rpc.exceptions.RpcException;
@@ -78,6 +79,8 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 
 	private final ActorRef rpcEndpoint;
 
+	private final RpcService rpcService;
+
 	// whether the actor ref is local and thus no message serialization is needed
 	protected final boolean isLocal;
 
@@ -96,7 +99,8 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 			ActorRef rpcEndpoint,
 			Time timeout,
 			long maximumFramesize,
-			@Nullable CompletableFuture<Void> terminationFuture) {
+			@Nullable CompletableFuture<Void> terminationFuture,
+			RpcService rpcService) {
 
 		this.address = Preconditions.checkNotNull(address);
 		this.hostname = Preconditions.checkNotNull(hostname);
@@ -105,6 +109,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 		this.timeout = Preconditions.checkNotNull(timeout);
 		this.maximumFramesize = maximumFramesize;
 		this.terminationFuture = terminationFuture;
+		this.rpcService = rpcService;
 	}
 
 	@Override
@@ -213,12 +218,12 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 
 			CompletableFuture<?> completableFuture = resultFuture.thenApply((Object o) -> {
 				if (o instanceof SerializedValue) {
+					CompletableFuture<?> deserializeFuture = deserializeResultMessage((SerializedValue) o, methodName);
+
 					try {
-						return  ((SerializedValue<?>) o).deserializeValue(getClass().getClassLoader());
-					} catch (IOException | ClassNotFoundException e) {
-						throw new CompletionException(
-							new RpcException("Could not deserialize the serialized payload of RPC method : "
-								+ methodName, e));
+						return deserializeFuture.get();
+					} catch (Exception e) {
+						throw new CompletionException(e);
 					}
 				} else {
 					return o;
@@ -237,6 +242,19 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 		}
 
 		return result;
+	}
+
+	private CompletableFuture<?> deserializeResultMessage(SerializedValue<?> message, String methodName) {
+		return CompletableFuture
+			.supplyAsync(() -> {
+				try {
+					return message.deserializeValue(getClass().getClassLoader());
+				} catch (IOException | ClassNotFoundException e) {
+					throw new CompletionException(
+						new RpcException("Could not deserialize the serialized payload of RPC method : "
+							+ methodName, e));
+				}
+			}, rpcService.getIOExecutor());
 	}
 
 	/**

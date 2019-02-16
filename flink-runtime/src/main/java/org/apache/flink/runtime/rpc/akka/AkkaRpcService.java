@@ -165,7 +165,8 @@ public class AkkaRpcService implements RpcService {
 					actorRef,
 					configuration.getTimeout(),
 					configuration.getMaximumFramesize(),
-					null);
+					null,
+					this);
 			});
 	}
 
@@ -185,7 +186,8 @@ public class AkkaRpcService implements RpcService {
 					configuration.getTimeout(),
 					configuration.getMaximumFramesize(),
 					null,
-					() -> fencingToken);
+					() -> fencingToken,
+					this);
 			});
 	}
 
@@ -247,7 +249,8 @@ public class AkkaRpcService implements RpcService {
 				configuration.getTimeout(),
 				configuration.getMaximumFramesize(),
 				terminationFuture,
-				((FencedRpcEndpoint<?>) rpcEndpoint)::getFencingToken);
+				((FencedRpcEndpoint<?>) rpcEndpoint)::getFencingToken,
+				this);
 
 			implementedRpcGateways.add(FencedMainThreadExecutable.class);
 		} else {
@@ -257,7 +260,8 @@ public class AkkaRpcService implements RpcService {
 				actorRef,
 				configuration.getTimeout(),
 				configuration.getMaximumFramesize(),
-				terminationFuture);
+				terminationFuture,
+				this);
 		}
 
 		// Rather than using the System ClassLoader directly, we derive the ClassLoader
@@ -285,7 +289,8 @@ public class AkkaRpcService implements RpcService {
 				configuration.getTimeout(),
 				configuration.getMaximumFramesize(),
 				null,
-				() -> fencingToken);
+				() -> fencingToken,
+				this);
 
 			// Rather than using the System ClassLoader directly, we derive the ClassLoader
 			// from this class . That works better in cases where Flink runs embedded and all Flink
@@ -389,6 +394,11 @@ public class AkkaRpcService implements RpcService {
 	@Override
 	public ScheduledExecutor getScheduledExecutor() {
 		return internalScheduledExecutor;
+	}
+
+	@Override
+	public Executor getIOExecutor() {
+		return actorSystem.dispatcher();
 	}
 
 	@Override
