@@ -40,7 +40,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -51,7 +50,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
@@ -64,6 +62,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.FunctionUtils;
 
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
@@ -81,7 +80,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import static junit.framework.TestCase.assertTrue;
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -182,14 +180,15 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jid2);
 			ExecutionVertex vertex = ejv.getTaskVertices()[3];
 
-			ExecutionGraphTestUtils.SimpleActorGatewayWithTDD instanceGateway =
-				new ExecutionGraphTestUtils.SimpleActorGatewayWithTDD(
-					TestingUtils.directExecutionContext(),
-					blobCache);
+			final SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
+			final CompletableFuture<TaskDeploymentDescriptor> tdd = new CompletableFuture<>();
 
-			final Instance instance = getInstance(new ActorTaskManagerGateway(instanceGateway));
+			taskManagerGateway.setSubmitConsumer(FunctionUtils.uncheckedConsumer(taskDeploymentDescriptor -> {
+				taskDeploymentDescriptor.loadBigData(blobCache);
+				tdd.complete(taskDeploymentDescriptor);
+			}));
 
-			final SimpleSlot slot = instance.allocateSimpleSlot();
+			final LogicalSlot slot = new TestingLogicalSlot(taskManagerGateway);
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -198,7 +197,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 			checkTaskOffloaded(eg, vertex.getJobvertexId());
 
-			TaskDeploymentDescriptor descr = instanceGateway.lastTDD;
+			TaskDeploymentDescriptor descr = tdd.get();
 			assertNotNull(descr);
 
 			JobInformation jobInformation =

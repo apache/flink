@@ -25,12 +25,10 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -60,7 +58,6 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.SerializedValue;
 
-import akka.actor.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -517,35 +514,6 @@ public class ExecutionGraphTestUtils {
 				return new Object();
 			} else {
 				return null;
-			}
-		}
-	}
-
-	@SuppressWarnings("serial")
-	public static class SimpleActorGatewayWithTDD extends SimpleActorGateway {
-
-		public TaskDeploymentDescriptor lastTDD;
-		private final PermanentBlobService blobCache;
-
-		public SimpleActorGatewayWithTDD(ExecutionContext executionContext, PermanentBlobService blobCache) {
-			super(executionContext);
-			this.blobCache = blobCache;
-		}
-
-		@Override
-		public Object handleMessage(Object message) {
-			if(message instanceof SubmitTask) {
-				SubmitTask submitTask = (SubmitTask) message;
-				lastTDD = submitTask.tasks();
-				try {
-					lastTDD.loadBigData(blobCache);
-					return Acknowledge.get();
-				} catch (Exception e) {
-					e.printStackTrace();
-					return new Status.Failure(e);
-				}
-			} else {
-				return super.handleMessage(message);
 			}
 		}
 	}
