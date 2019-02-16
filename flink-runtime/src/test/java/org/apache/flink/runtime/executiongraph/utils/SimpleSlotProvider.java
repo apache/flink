@@ -60,7 +60,7 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 
 	private final ArrayDeque<SlotContext> slots;
 
-	private final HashMap<SlotRequestId, SlotContext> allocatedSlots;
+	private final HashMap<SlotRequestId, SimpleSlot> allocatedSlots;
 
 	public SimpleSlotProvider(JobID jobId, int numSlots) {
 		this(jobId, numSlots, new SimpleAckingTaskManagerGateway());
@@ -101,7 +101,7 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 			}
 			if (slot != null) {
 				SimpleSlot result = new SimpleSlot(slot, this, 0);
-				allocatedSlots.put(slotRequestId, slot);
+				allocatedSlots.put(slotRequestId, result);
 				return CompletableFuture.completedFuture(result);
 			}
 			else {
@@ -113,10 +113,10 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 	@Override
 	public CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
 		synchronized (lock) {
-			final SlotContext slotContext = allocatedSlots.remove(slotRequestId);
+			final Slot slot = allocatedSlots.remove(slotRequestId);
 
-			if (slotContext != null) {
-				slots.add(slotContext);
+			if (slot != null) {
+				slots.add(slot.getSlotContext());
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			} else {
 				return FutureUtils.completedExceptionally(new FlinkException("Unknown slot request id " + slotRequestId + '.'));
@@ -140,6 +140,13 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 	public int getNumberOfAvailableSlots() {
 		synchronized (lock) {
 			return slots.size();
+		}
+	}
+
+	public void releaseSlots() {
+		for (SimpleSlot slot : allocatedSlots.values()) {
+			returnAllocatedSlot(slot);
+			slot.releaseSlot(new Exception("Test Exception"));
 		}
 	}
 }
