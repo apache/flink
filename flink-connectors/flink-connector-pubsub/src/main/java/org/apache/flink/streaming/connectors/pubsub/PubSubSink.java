@@ -105,7 +105,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 		try {
 			publisher.shutdown();
 		} catch (Exception e) {
-			LOG.info("Shutting down Publisher failed: {}", e.getMessage());
+			LOG.info("Shutting down Publisher failed.", e);
 		}
 	}
 
@@ -116,7 +116,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 		try {
 			channel.close();
 		} catch (Exception e) {
-			LOG.info("Shutting down TransportChannel failed: {}", e.getMessage());
+			LOG.info("Shutting down TransportChannel failed.", e);
 		}
 	}
 
@@ -128,7 +128,7 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 			managedChannel.shutdownNow();
 			managedChannel.awaitTermination(1000L, TimeUnit.MILLISECONDS);
 		} catch (Exception e) {
-			LOG.info("Shutting down ManagedChannel failed: {}", e.getMessage());
+			LOG.info("Shutting down ManagedChannel failed.", e);
 		}
 	}
 
