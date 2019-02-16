@@ -27,7 +27,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -291,7 +290,6 @@ public class YarnResourceManagerTest extends TestLogger {
 		 */
 		class MockResourceManagerRuntimeServices {
 
-			private final ScheduledExecutor scheduledExecutor;
 			private final TestingHighAvailabilityServices highAvailabilityServices;
 			private final HeartbeatServices heartbeatServices;
 			private final MetricRegistry metricRegistry;
@@ -302,11 +300,10 @@ public class YarnResourceManagerTest extends TestLogger {
 			private UUID rmLeaderSessionId;
 
 			MockResourceManagerRuntimeServices() throws Exception {
-				scheduledExecutor = mock(ScheduledExecutor.class);
 				highAvailabilityServices = new TestingHighAvailabilityServices();
 				rmLeaderElectionService = new TestingLeaderElectionService();
 				highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
-				heartbeatServices = new TestingHeartbeatServices(5L, 5L, scheduledExecutor);
+				heartbeatServices = new TestingHeartbeatServices();
 				metricRegistry = NoOpMetricRegistry.INSTANCE;
 				slotManager = new SlotManager(
 						new ScheduledExecutorServiceAdapter(new DirectScheduledExecutorService()),

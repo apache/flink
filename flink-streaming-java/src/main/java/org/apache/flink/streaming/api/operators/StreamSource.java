@@ -39,8 +39,7 @@ import java.util.concurrent.ScheduledFuture;
  * @param <SRC> Type of the source function of this stream source operator
  */
 @Internal
-public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
-		extends AbstractUdfStreamOperator<OUT, SRC> implements StreamOperator<OUT> {
+public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends AbstractUdfStreamOperator<OUT, SRC> {
 
 	private static final long serialVersionUID = 1L;
 

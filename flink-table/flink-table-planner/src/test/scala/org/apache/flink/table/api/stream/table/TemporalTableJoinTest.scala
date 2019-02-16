@@ -58,16 +58,22 @@ class TemporalTableJoinTest extends TableTestBase {
   @Test
   def testSimpleJoin(): Unit = {
     val result = orders
-      .join(rates('o_rowtime), "currency = o_currency")
+      .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
       .select("o_amount * rate").as("rate")
 
     util.verifyTable(result, getExpectedSimpleJoinPlan())
+
+    val resultJava = orders
+      .joinLateral("Rates(o_rowtime)", "currency = o_currency")
+      .select("o_amount * rate").as("rate")
+
+    util.verifyTable(resultJava, getExpectedSimpleJoinPlan())
   }
 
   @Test
   def testSimpleProctimeJoin(): Unit = {
     val result = proctimeOrders
-      .join(proctimeRates('o_proctime), "currency = o_currency")
+      .joinLateral(proctimeRates('o_proctime), 'currency === 'o_currency)
       .select("o_amount * rate").as("rate")
 
     util.verifyTable(result, getExpectedSimpleProctimeJoinPlan())
@@ -93,7 +99,7 @@ class TemporalTableJoinTest extends TableTestBase {
     util.addFunction("Rates", rates)
 
     val result = orders
-      .join(rates('o_rowtime))
+      .joinLateral(rates('o_rowtime))
       .filter('currency === 'o_currency || 'secondary_key === 'o_secondary_key)
       .select('o_amount * 'rate, 'secondary_key).as('rate, 'secondary_key)
       .join(thirdTable, 't3_secondary_key === 'secondary_key)
@@ -113,7 +119,7 @@ class TemporalTableJoinTest extends TableTestBase {
       filteredRatesHistory.createTemporalTableFunction('rowtime, 'currency))
 
     val result = orders
-      .join(filteredRates('o_rowtime), "currency = o_currency")
+      .joinLateral(filteredRates('o_rowtime), 'currency === 'o_currency)
       .select("o_amount * rate")
       .as('rate)
 

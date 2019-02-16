@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableEnvironment, Types}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.descriptors.{Rowtime, Schema}
 import org.apache.flink.table.expressions.utils.Func15
 import org.apache.flink.table.runtime.stream.sql.SqlITCase.TimestampAndWatermarkWithOffset
@@ -74,7 +74,7 @@ class SqlITCase extends StreamingWithStateTestBase {
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, String)](10L))
 
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     val table = stream.toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
     tEnv.registerTable("MyTable", table)
     tEnv.registerFunction("myCount", new MultiArgCount)
@@ -106,7 +106,7 @@ class SqlITCase extends StreamingWithStateTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setParallelism(1)
     StreamITCase.clear
 
@@ -140,7 +140,7 @@ class SqlITCase extends StreamingWithStateTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.testResults = mutable.MutableList()
     StreamITCase.clear
     env.setParallelism(1)
@@ -168,7 +168,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testNonWindowedCount(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.retractedResults = mutable.ArrayBuffer()
     StreamITCase.clear
 
@@ -194,7 +194,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testRowRegister(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val sqlQuery = "SELECT * FROM MyTableRow WHERE c < 3"
@@ -227,7 +227,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testUnboundedGroupBy(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val sqlQuery = "SELECT b, COUNT(a) FROM MyTable GROUP BY b"
@@ -247,7 +247,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testDistinctGroupBy(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val sqlQuery =
@@ -273,7 +273,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testDistinctWithRetraction(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val data = new mutable.MutableList[(Int, Long, String)]
@@ -310,7 +310,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testUnboundedGroupByCollect(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     StreamITCase.clear
 
@@ -337,7 +337,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testUnboundedGroupByCollectWithObject(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     StreamITCase.clear
 
@@ -370,7 +370,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testSelectStar(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val sqlQuery = "SELECT * FROM MyTable"
@@ -391,7 +391,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testSelectExpressionFromTable(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val sqlQuery = "SELECT a * 2, b - 1 FROM MyTable"
@@ -411,7 +411,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testSelectExpressionWithSplitFromTable(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     tEnv.getConfig.setMaxGeneratedCodeLength(1) // split every field
     StreamITCase.clear
 
@@ -433,7 +433,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testSimpleFilter(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val sqlQuery = "SELECT * FROM MyTable WHERE a = 3"
@@ -454,7 +454,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testDatastreamFilter(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val sqlQuery = "SELECT * FROM MyTable WHERE _1 = 3"
@@ -474,7 +474,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   @Test
   def testUnion(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val sqlQuery = "SELECT * FROM T1 " +
@@ -501,7 +501,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   @Test
   def testUnionWithFilter(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val sqlQuery = "SELECT * FROM T1 WHERE a = 3 " +
@@ -527,7 +527,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   @Test
   def testUnionTableWithDataSet(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val sqlQuery = "SELECT c FROM T1 WHERE a = 3 " +
@@ -550,7 +550,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   @Test
   def testUnnestPrimitiveArrayFromTable(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val data = List(
@@ -581,7 +581,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   @Test
   def testUnnestArrayOfArrayFromTable(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val data = List(
@@ -610,7 +610,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   @Test
   def testUnnestObjectArrayFromTableWithFilter(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val data = List(
@@ -636,7 +636,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   @Test
   def testUnnestMultiSetFromCollectResult(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStateBackend(getStateBackend)
     StreamITCase.clear
 
@@ -679,7 +679,7 @@ class SqlITCase extends StreamingWithStateTestBase {
       (7, "8", "Hello World"))
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val t1 = env.fromCollection(data).toTable(tEnv).as('a, 'b, 'c)
@@ -707,7 +707,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   @Test
   def testHopStartEndWithHaving(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setStateBackend(getStateBackend)
     StreamITCase.clear
@@ -759,7 +759,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testWriteReadTableSourceSink(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     MemoryTableSourceSinkUtil.clear()
 
     val desc = Schema()
@@ -796,7 +796,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   @Test
   def testUDFWithLongVarargs(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     tEnv.registerFunction("func15", Func15)
@@ -821,7 +821,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   @Test
   def testUDTFWithLongVarargs(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     tEnv.registerFunction("udtf", new JavaUserDefinedTableFunctions.JavaTableFunc1)
@@ -848,7 +848,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testVeryBigQuery(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val t = StreamTestData.getSingletonDataStream(env).toTable(tEnv).as('a, 'b, 'c)

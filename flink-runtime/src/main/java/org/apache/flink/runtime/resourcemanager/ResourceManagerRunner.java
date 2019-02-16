@@ -43,8 +43,6 @@ public class ResourceManagerRunner implements FatalErrorHandler, AutoCloseableAs
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResourceManagerRunner.class);
 
-	private final Object lock = new Object();
-
 	private final ResourceManagerRuntimeServices resourceManagerRuntimeServices;
 
 	private final ResourceManager<?> resourceManager;
@@ -88,10 +86,6 @@ public class ResourceManagerRunner implements FatalErrorHandler, AutoCloseableAs
 			jobManagerMetricGroup);
 	}
 
-	public ResourceManagerGateway getResourceManageGateway() {
-		return resourceManager.getSelfGateway(ResourceManagerGateway.class);
-	}
-
 	//-------------------------------------------------------------------------------------
 	// Lifecycle management
 	//-------------------------------------------------------------------------------------
@@ -102,11 +96,7 @@ public class ResourceManagerRunner implements FatalErrorHandler, AutoCloseableAs
 
 	@Override
 	public CompletableFuture<Void> closeAsync() {
-		synchronized (lock) {
-			resourceManager.shutDown();
-
-			return resourceManager.getTerminationFuture();
-		}
+			return resourceManager.closeAsync();
 	}
 
 	//-------------------------------------------------------------------------------------

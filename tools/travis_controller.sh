@@ -17,6 +17,12 @@
 # limitations under the License.
 ################################################################################
 
+echo $M2_HOME
+echo $PATH
+echo $MAVEN_OPTS
+
+mvn -version
+
 CACHE_DIR="$HOME/flink_cache"
 CACHE_BUILD_DIR="$CACHE_DIR/$TRAVIS_BUILD_NUMBER"
 CACHE_FLINK_DIR="$CACHE_BUILD_DIR/flink"

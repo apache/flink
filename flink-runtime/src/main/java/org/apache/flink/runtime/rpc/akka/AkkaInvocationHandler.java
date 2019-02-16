@@ -26,7 +26,6 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcServer;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.StartStoppable;
-import org.apache.flink.runtime.rpc.akka.messages.Processing;
 import org.apache.flink.runtime.rpc.exceptions.RpcException;
 import org.apache.flink.runtime.rpc.messages.CallAsync;
 import org.apache.flink.runtime.rpc.messages.LocalRpcInvocation;
@@ -172,12 +171,12 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 
 	@Override
 	public void start() {
-		rpcEndpoint.tell(Processing.START, ActorRef.noSender());
+		rpcEndpoint.tell(ControlMessages.START, ActorRef.noSender());
 	}
 
 	@Override
 	public void stop() {
-		rpcEndpoint.tell(Processing.STOP, ActorRef.noSender());
+		rpcEndpoint.tell(ControlMessages.STOP, ActorRef.noSender());
 	}
 
 	// ------------------------------------------------------------------------

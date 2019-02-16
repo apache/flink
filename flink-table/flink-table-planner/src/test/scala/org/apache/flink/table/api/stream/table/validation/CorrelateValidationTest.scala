@@ -40,7 +40,7 @@ class CorrelateValidationTest extends TableTestBase {
     expectExceptionThrown(
       util.javaTableEnv.registerFunction("func3", ObjectTableFunction), "Scala object")
 
-    expectExceptionThrown(t.join(ObjectTableFunction('a, 1)), "Scala object")
+    expectExceptionThrown(t.joinLateral(ObjectTableFunction('a, 1)), "Scala object")
   }
 
   @Test
@@ -56,73 +56,73 @@ class CorrelateValidationTest extends TableTestBase {
     // table function call select
     expectExceptionThrown(
       func1('c).select("f0"),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "Table functions can only be used in table.joinLateral() and table.leftOuterJoinLateral()."
     )
 
     // table function call select
     expectExceptionThrown(
       func1('c).select('f0),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "Table functions can only be used in table.joinLateral() and table.leftOuterJoinLateral()."
     )
 
     // table function call insertInto
     expectExceptionThrown(
       func1('c).insertInto("testSink"),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "Table functions can only be used in table.joinLateral() and table.leftOuterJoinLateral()."
     )
 
     // table function call distinct
     expectExceptionThrown(
       func1('c).distinct(),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "Table functions can only be used in table.joinLateral() and table.leftOuterJoinLateral()."
     )
 
     // table function call filter
     expectExceptionThrown(
       func1('c).filter('f0 === "?"),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "Table functions can only be used in table.joinLateral() and table.leftOuterJoinLateral()."
     )
 
     // table function call filter
     expectExceptionThrown(
       func1('c).filter("f0 = '?'"),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "Table functions can only be used in table.joinLateral() and table.leftOuterJoinLateral()."
     )
 
     // table function call limit
     expectExceptionThrown(
       func1('c).orderBy('f0).offset(3),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "Table functions can only be used in table.joinLateral() and table.leftOuterJoinLateral()."
     )
 
     // table function call limit
     expectExceptionThrown(
       func1('c).orderBy('f0).fetch(3),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "Table functions can only be used in table.joinLateral() and table.leftOuterJoinLateral()."
     )
 
     // table function call orderBy
     expectExceptionThrown(
       func1('c).orderBy("f0"),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "Table functions can only be used in table.joinLateral() and table.leftOuterJoinLateral()."
     )
 
     // table function call orderBy
     expectExceptionThrown(
       func1('c).orderBy('f0),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "Table functions can only be used in table.joinLateral() and table.leftOuterJoinLateral()."
     )
 
     // table function call where
     expectExceptionThrown(
       func1('c).where("f0 = '?'"),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "Table functions can only be used in table.joinLateral() and table.leftOuterJoinLateral()."
     )
 
     // table function call where
     expectExceptionThrown(
       func1('c).where('f0 === "?"),
-      "TableFunction can only be used in join and leftOuterJoin."
+      "Table functions can only be used in table.joinLateral() and table.leftOuterJoinLateral()."
     )
 
   }
@@ -139,14 +139,13 @@ class CorrelateValidationTest extends TableTestBase {
     expectExceptionThrown(
       util.tableEnv.registerFunction("udtf", ObjectTableFunction), "Scala object")
     // Scala Table API directly call
-    expectExceptionThrown(t.join(ObjectTableFunction('a, 1)), "Scala object")
+    expectExceptionThrown(t.joinLateral(ObjectTableFunction('a, 1)), "Scala object")
 
 
     //============ throw exception when table function is not registered =========
     // Java Table API call
     expectExceptionThrown(
-      t.join(new Table(util.tableEnv, "nonexist(a)")
-      ), "Undefined function: NONEXIST")
+      t.joinLateral("nonexist(a)"), "Undefined function: NONEXIST")
     // SQL API call
     expectExceptionThrown(
       util.tableEnv.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(nonexist(a))"),
@@ -158,8 +157,8 @@ class CorrelateValidationTest extends TableTestBase {
 
     // Java Table API call
     expectExceptionThrown(
-      t.join(new Table(util.tableEnv, "func0(a)")),
-      "only accept String that define table function",
+      t.joinLateral("func0(a)"),
+      "only accepts a string expression which defines a table function call",
       classOf[TableException])
     // SQL API call
     // NOTE: it doesn't throw an exception but an AssertionError, maybe a Calcite bug
@@ -172,7 +171,7 @@ class CorrelateValidationTest extends TableTestBase {
     // Java Table API call
     util.addFunction("func2", new TableFunc2)
     expectExceptionThrown(
-      t.join(new Table(util.tableEnv, "func2(c, c)")),
+      t.joinLateral("func2(c, c)"),
       "Given parameters of function 'FUNC2' do not match any signature")
     // SQL API call
     expectExceptionThrown(

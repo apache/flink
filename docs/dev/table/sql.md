@@ -42,7 +42,7 @@ The following examples show how to specify a SQL queries on registered and inlin
 <div data-lang="java" markdown="1">
 {% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // ingest a DataStream from an external source
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
@@ -74,7 +74,7 @@ tableEnv.sqlUpdate(
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 // read a DataStream from an external source
 val ds: DataStream[(Long, String, Integer)] = env.addSource(...)
@@ -861,7 +861,7 @@ The following examples show how to specify SQL queries with group windows on str
 <div data-lang="java" markdown="1">
 {% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // ingest a DataStream from an external source
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
@@ -898,7 +898,7 @@ Table result4 = tableEnv.sqlQuery(
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 // read a DataStream from an external source
 val ds: DataStream[(Long, String, Int)] = env.addSource(...)

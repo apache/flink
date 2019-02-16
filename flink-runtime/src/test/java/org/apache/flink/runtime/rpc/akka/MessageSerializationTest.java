@@ -21,14 +21,12 @@ package org.apache.flink.runtime.rpc.akka;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorSystem;
 import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -47,38 +45,30 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
- * Tests that akka rpc invocation messages are properly serialized and errors reported
+ * Tests that akka rpc invocation messages are properly serialized and errors reported.
  */
 public class MessageSerializationTest extends TestLogger {
-	private static ActorSystem actorSystem1;
-	private static ActorSystem actorSystem2;
-	private static AkkaRpcService akkaRpcService1;
-	private static AkkaRpcService akkaRpcService2;
+	private static RpcService akkaRpcService1;
+	private static RpcService akkaRpcService2;
 
 	private static final Time timeout = Time.seconds(10L);
 	private static final int maxFrameSize = 32000;
 
 	@BeforeClass
-	public static void setup() {
+	public static void setup() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setString(AkkaOptions.FRAMESIZE, maxFrameSize + "b");
 
-		actorSystem1 = AkkaUtils.createDefaultActorSystem();
-		actorSystem2 = AkkaUtils.createDefaultActorSystem();
-
-		AkkaRpcServiceConfiguration akkaRpcServiceConfig = AkkaRpcServiceConfiguration.fromConfiguration(configuration);
-		akkaRpcService1 = new AkkaRpcService(actorSystem1, akkaRpcServiceConfig);
-		akkaRpcService2 = new AkkaRpcService(actorSystem2, akkaRpcServiceConfig);
+		akkaRpcService1 = AkkaRpcServiceUtils.createRpcService("localhost", 0, configuration);
+		akkaRpcService2 = AkkaRpcServiceUtils.createRpcService("localhost", 0, configuration);
 	}
 
 	@AfterClass
 	public static void teardown() throws InterruptedException, ExecutionException, TimeoutException {
-		final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(4);
+		final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(2);
 
 		terminationFutures.add(akkaRpcService1.stopService());
-		terminationFutures.add(FutureUtils.toJava(actorSystem1.terminate()));
 		terminationFutures.add(akkaRpcService2.stopService());
-		terminationFutures.add(FutureUtils.toJava(actorSystem2.terminate()));
 
 		FutureUtils
 			.waitForAll(terminationFutures)
@@ -190,11 +180,6 @@ public class MessageSerializationTest extends TestLogger {
 		@Override
 		public void foobar(Object object) throws InterruptedException {
 			queue.put(object);
-		}
-
-		@Override
-		public CompletableFuture<Void> postStop() {
-			return CompletableFuture.completedFuture(null);
 		}
 	}
 

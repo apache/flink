@@ -197,8 +197,7 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 	/**
 	 * Test Specification.
 	 */
-	@SuppressWarnings("WeakerAccess")
-	protected static final class TestSpecification<T> {
+	public static final class TestSpecification<T> {
 		private final Class<? extends TypeSerializer<T>> serializerType;
 		private final Class<? extends TypeSerializerSnapshot<T>> snapshotClass;
 		private final String name;
@@ -298,7 +297,7 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 	 * multiple test migration versions. For each test specification added,
 	 * an entry will be added for each specified migration version.
 	 */
-	protected static final class TestSpecifications {
+	public static final class TestSpecifications {
 
 		private static final int DEFAULT_TEST_DATA_COUNT = 10;
 		private static final String DEFAULT_SNAPSHOT_FILENAME_FORMAT = "flink-%s-%s-snapshot";

@@ -26,8 +26,8 @@ import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 import _root_.scala.reflect.ClassTag
 
 /**
-  * The [[TableEnvironment]] for a Scala batch [[DataSet]]
-  * [[ExecutionEnvironment]].
+  * The [[TableEnvironment]] for a Scala batch [[ExecutionEnvironment]] that works
+  * with [[DataSet]]s.
   *
   * A TableEnvironment can be used to:
   * - convert a [[DataSet]] to a [[Table]]
@@ -41,7 +41,9 @@ import _root_.scala.reflect.ClassTag
   * @param execEnv The Scala batch [[ExecutionEnvironment]] of the TableEnvironment.
   * @param config The configuration of the TableEnvironment.
   */
-class BatchTableEnvironment(
+class BatchTableEnvironment @deprecated(
+      "This constructor will be removed. Use BatchTableEnvironment.create() instead.",
+      "1.8.0") (
     execEnv: ExecutionEnvironment,
     config: TableConfig)
   extends org.apache.flink.table.api.BatchTableEnvironment(execEnv.getJavaEnv, config) {
@@ -184,5 +186,50 @@ class BatchTableEnvironment(
       f: AggregateFunction[T, ACC])
   : Unit = {
     registerAggregateFunctionInternal[T, ACC](name, f)
+  }
+}
+
+object BatchTableEnvironment {
+
+  /**
+    * The [[TableEnvironment]] for a Scala batch [[ExecutionEnvironment]] that works
+    * with [[DataSet]]s.
+    *
+    * A TableEnvironment can be used to:
+    * - convert a [[DataSet]] to a [[Table]]
+    * - register a [[DataSet]] in the [[TableEnvironment]]'s catalog
+    * - register a [[Table]] in the [[TableEnvironment]]'s catalog
+    * - scan a registered table to obtain a [[Table]]
+    * - specify a SQL query on registered tables to obtain a [[Table]]
+    * - convert a [[Table]] into a [[DataSet]]
+    * - explain the AST and execution plan of a [[Table]]
+    *
+    * @param executionEnvironment The Scala batch [[ExecutionEnvironment]] of the TableEnvironment.
+    */
+  def create(executionEnvironment: ExecutionEnvironment): BatchTableEnvironment = {
+    new BatchTableEnvironment(executionEnvironment, new TableConfig())
+  }
+
+  /**
+    * The [[TableEnvironment]] for a Scala batch [[ExecutionEnvironment]] that works
+    * with [[DataSet]]s.
+    *
+    * A TableEnvironment can be used to:
+    * - convert a [[DataSet]] to a [[Table]]
+    * - register a [[DataSet]] in the [[TableEnvironment]]'s catalog
+    * - register a [[Table]] in the [[TableEnvironment]]'s catalog
+    * - scan a registered table to obtain a [[Table]]
+    * - specify a SQL query on registered tables to obtain a [[Table]]
+    * - convert a [[Table]] into a [[DataSet]]
+    * - explain the AST and execution plan of a [[Table]]
+    *
+    * @param executionEnvironment The Scala batch [[ExecutionEnvironment]] of the TableEnvironment.
+    * @param tableConfig The configuration of the TableEnvironment.
+    */
+  def create(
+    executionEnvironment: ExecutionEnvironment,
+    tableConfig: TableConfig): BatchTableEnvironment = {
+
+    new BatchTableEnvironment(executionEnvironment, tableConfig)
   }
 }

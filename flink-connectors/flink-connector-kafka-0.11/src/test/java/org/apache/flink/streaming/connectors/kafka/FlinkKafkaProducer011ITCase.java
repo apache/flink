@@ -60,7 +60,7 @@ import static org.junit.Assert.fail;
  * IT cases for the {@link FlinkKafkaProducer011}.
  */
 @SuppressWarnings("serial")
-public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
+public class FlinkKafkaProducer011ITCase extends KafkaTestBaseWithFlink {
 	protected String transactionalId;
 	protected Properties extraProperties;
 
@@ -202,55 +202,6 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		testHarness.setup();
 		testHarness.initializeState(snapshot);
 		testHarness.close();
-
-		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43));
-
-		deleteTestTopic(topic);
-	}
-
-	@Test
-	public void testFlinkKafkaProducer011FailTransactionCoordinatorBeforeNotify() throws Exception {
-		String topic = "flink-kafka-producer-fail-transaction-coordinator-before-notify";
-
-		Properties properties = createProperties();
-
-		FlinkKafkaProducer011<Integer> kafkaProducer = new FlinkKafkaProducer011<>(
-			topic,
-			integerKeyedSerializationSchema,
-			properties,
-			EXACTLY_ONCE);
-
-		OneInputStreamOperatorTestHarness<Integer, Object> testHarness1 = new OneInputStreamOperatorTestHarness<>(
-			new StreamSink<>(kafkaProducer),
-			IntSerializer.INSTANCE);
-
-		testHarness1.setup();
-		testHarness1.open();
-		testHarness1.processElement(42, 0);
-		testHarness1.snapshot(0, 1);
-		testHarness1.processElement(43, 2);
-		int transactionCoordinatorId = kafkaProducer.getTransactionCoordinatorId();
-		OperatorSubtaskState snapshot = testHarness1.snapshot(1, 3);
-
-		failBroker(transactionCoordinatorId);
-
-		try {
-			testHarness1.processElement(44, 4);
-			testHarness1.notifyOfCompletedCheckpoint(1);
-			testHarness1.close();
-		}
-		catch (Exception ex) {
-			// Expected... some random exception could be thrown by any of the above operations.
-		}
-		finally {
-			kafkaServer.restartBroker(transactionCoordinatorId);
-		}
-
-		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness2 = createTestHarness(topic)) {
-			testHarness2.setup();
-			testHarness2.initializeState(snapshot);
-			testHarness2.open();
-		}
 
 		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43));
 

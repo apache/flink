@@ -210,12 +210,13 @@ public class DispatcherTest extends TestLogger {
 
 	@Nonnull
 	private TestingDispatcher createDispatcher(HeartbeatServices heartbeatServices, TestingHighAvailabilityServices haServices, JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
+		TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		return new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
 			configuration,
 			haServices,
-			new TestingResourceManagerGateway(),
+			() -> CompletableFuture.completedFuture(resourceManagerGateway),
 			blobServer,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
@@ -679,8 +680,7 @@ public class DispatcherTest extends TestLogger {
 		submissionFuture.get();
 		assertThat(dispatcher.getNumberJobs(TIMEOUT).get(), Matchers.is(1));
 
-		dispatcher.shutDown();
-		dispatcher.getTerminationFuture().get();
+		dispatcher.close();
 
 		assertThat(submittedJobGraphStore.contains(jobGraph.getJobID()), Matchers.is(true));
 	}
@@ -710,6 +710,17 @@ public class DispatcherTest extends TestLogger {
 		} catch (ExecutionException ee) {
 			assertThat(ExceptionUtils.findThrowable(ee, JobNotFinishedException.class).isPresent(), is(true));
 		}
+	}
+
+	@Test
+	public void testShutDownClusterShouldTerminateDispatcher() throws Exception {
+		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, DefaultJobManagerRunnerFactory.INSTANCE);
+		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+		dispatcherGateway.shutDownCluster().get();
+
+		dispatcher.getTerminationFuture().get();
 	}
 
 	private final class BlockingJobManagerRunnerFactory extends TestingJobManagerRunnerFactory {

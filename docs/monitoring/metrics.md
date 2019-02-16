@@ -644,6 +644,35 @@ metrics.reporter.grph.protocol: TCP
 
 {% endhighlight %}
 
+### InfluxDB (org.apache.flink.metrics.influxdb.InfluxdbReporter)
+
+In order to use this reporter you must copy `/opt/flink-metrics-influxdb-{{site.version}}.jar` into the `/lib` folder
+of your Flink distribution.
+
+Parameters:
+
+- `host` - the InfluxDB server host
+- `port` - (optional) the InfluxDB server port, defaults to `8086`
+- `db` - the InfluxDB database to store metrics
+- `username` - (optional) InfluxDB username used for authentication
+- `password` - (optional) InfluxDB username's password used for authentication
+
+Example configuration:
+
+{% highlight yaml %}
+
+metrics.reporter.influxdb.class: org.apache.flink.metrics.influxdb.InfluxdbReporter
+metrics.reporter.influxdb.host: localhost
+metrics.reporter.influxdb.port: 8086
+metrics.reporter.influxdb.db: flink
+metrics.reporter.influxdb.username: flink-metrics
+metrics.reporter.influxdb.password: qwerty
+
+{% endhighlight %}
+
+The reporter would send metrics using http protocol with default retention policy defined on InfluxDB server.
+All Flink metrics variables (see [List of all Variables](#list-of-all-variables)) are exported as InfluxDB tags.
+
 ### Prometheus (org.apache.flink.metrics.prometheus.PrometheusReporter)
 
 In order to use this reporter you must copy `/opt/flink-metrics-prometheus{{site.scala_version_suffix}}-{{site.version}}.jar` into the `/lib` folder

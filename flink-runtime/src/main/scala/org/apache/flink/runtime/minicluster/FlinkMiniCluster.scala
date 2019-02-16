@@ -42,7 +42,6 @@ import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, Leader
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl}
 import org.apache.flink.runtime.util.{ExecutorThreadFactory, Hardware}
-import org.apache.flink.runtime.webmonitor.retriever.impl.{AkkaJobManagerRetriever, AkkaQueryServiceRetriever}
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
 import org.apache.flink.util.{ExecutorUtils, NetUtils}
 import org.slf4j.LoggerFactory
@@ -413,15 +412,7 @@ abstract class FlinkMiniCluster(
       LOG.info("Starting JobManger web frontend")
       // start the new web frontend. we need to load this dynamically
       // because it is not in the same project/dependencies
-      val webServer = Option(
-        WebMonitorUtils.startWebRuntimeMonitor(
-          config,
-          highAvailabilityServices,
-          new AkkaJobManagerRetriever(actorSystem, flinkTimeout, 10, Time.milliseconds(50L)),
-          new AkkaQueryServiceRetriever(actorSystem, flinkTimeout),
-          flinkTimeout,
-          new ScheduledExecutorServiceAdapter(futureExecutor))
-      )
+      val webServer = None: Option[WebMonitor]
 
       webServer.foreach(_.start())
 

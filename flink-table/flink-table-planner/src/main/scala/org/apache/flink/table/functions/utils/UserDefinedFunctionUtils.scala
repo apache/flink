@@ -767,15 +767,16 @@ object UserDefinedFunctionUtils {
       (candidate.getComponentType == expected.getComponentType))
 
   /**
-    * Creates a [[LogicalTableFunctionCall]] by parsing a String expression.
+    * Creates a [[LogicalTableFunctionCall]] by an expression.
     *
     * @param tableEnv The table environment to lookup the function.
-    * @param udtf a String expression of a TableFunctionCall, such as "split(c)"
+    * @param callExpr an expression of a TableFunctionCall, such as "split(c)"
     * @return A LogicalTableFunctionCall.
     */
   def createLogicalFunctionCall(
       tableEnv: TableEnvironment,
-      udtf: String): LogicalTableFunctionCall = {
+      callExpr: Expression)
+    : LogicalTableFunctionCall = {
 
     var alias: Option[Seq[String]] = None
 
@@ -790,13 +791,16 @@ object UserDefinedFunctionUtils {
       case c: TableFunctionCall => c
       case _ =>
         throw new TableException(
-          "Table(TableEnv, String) constructor only accept String that " +
-            "define table function followed by some Alias.")
+          "A lateral join only accepts a string expression which defines a table function " +
+            "call that might be followed by some alias.")
     }
 
-    val functionCall: LogicalTableFunctionCall = unwrap(ExpressionParser.parseExpression(udtf))
-      .as(alias).toLogicalTableFunctionCall(child = null)
-    functionCall
+    val tableFunctionCall = unwrap(callExpr)
+
+    // aliases defined in an expression have highest precedence
+    alias.foreach(a => tableFunctionCall.setAliases(a))
+
+    tableFunctionCall.toLogicalTableFunctionCall(child = null)
   }
 
   def getOperandTypeInfo(callBinding: SqlCallBinding): Seq[TypeInformation[_]] = {

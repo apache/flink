@@ -25,7 +25,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{TableEnvironment, TableSchema, Types, ValidationException}
+import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.api.{TableSchema, Types, ValidationException}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps
@@ -40,7 +41,7 @@ class TableSourceValidationTest {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val schema = new TableSchema(
       Array("id", "name", "amount", "value"),
@@ -59,7 +60,7 @@ class TableSourceValidationTest {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val schema = new TableSchema(
       Array("id", "name", "amount"),
@@ -78,7 +79,7 @@ class TableSourceValidationTest {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val schema = new TableSchema(
       Array("id", "name", "amount"),
@@ -96,7 +97,7 @@ class TableSourceValidationTest {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val schema = new TableSchema(
       Array("id", "name", "amount"),
@@ -114,7 +115,7 @@ class TableSourceValidationTest {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val schema = new TableSchema(
       Array("id", "name", "amount", "ptime"),
@@ -133,7 +134,7 @@ class TableSourceValidationTest {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val schema = new TableSchema(
       Array("id", "name", "amount", "rtime"),
@@ -153,7 +154,7 @@ class TableSourceValidationTest {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val schema = new TableSchema(
       Array("id", "name", "amount", "time"),
@@ -174,7 +175,7 @@ class TableSourceValidationTest {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val schema = new TableSchema(
       Array("id", "name", "amount", "rtime"),
@@ -203,7 +204,7 @@ class TableSourceValidationTest {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val fieldNames = Array("id", "name", "amount")
     val rowType = new RowTypeInfo(

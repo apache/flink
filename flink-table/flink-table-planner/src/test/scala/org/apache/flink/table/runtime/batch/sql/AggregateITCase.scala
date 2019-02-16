@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.batch.sql
 import org.apache.calcite.runtime.SqlFunctions.{internalToTimestamp => toTimestamp}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
@@ -45,7 +44,7 @@ class AggregateITCase(
   def testAggregationTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT sum(_1), min(_1), max(_1), count(_1), avg(_1) FROM MyTable"
 
@@ -63,7 +62,7 @@ class AggregateITCase(
   def testTableAggregation(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT sum(_1) FROM MyTable"
 
@@ -81,7 +80,7 @@ class AggregateITCase(
   def testDataSetAggregation(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT sum(_1) FROM MyTable"
 
@@ -99,7 +98,7 @@ class AggregateITCase(
   def testAggregationDataTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT avg(a), avg(b), avg(c), avg(d), avg(e), avg(f), count(g), " +
       "min(g), min('Ciao'), max(g), max('Ciao'), sum(CAST(f AS DECIMAL)) FROM MyTable"
@@ -120,7 +119,7 @@ class AggregateITCase(
   def testTableProjection(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT avg(a), sum(a), count(a), avg(b), sum(b) " +
       "FROM MyTable"
@@ -139,7 +138,7 @@ class AggregateITCase(
   def testTableAggregationWithArithmetic(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT avg(a + 2) + 2, count(b) + 5 " +
       "FROM MyTable"
@@ -158,7 +157,7 @@ class AggregateITCase(
   def testAggregationWithTwoCount(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT count(_1), count(_2) FROM MyTable"
 
@@ -177,7 +176,7 @@ class AggregateITCase(
   def testAggregationAfterProjection(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT avg(a), sum(b), count(c) FROM " +
       "(SELECT _1 as a, _2 as b, _3 as c FROM MyTable)"
@@ -198,7 +197,7 @@ class AggregateITCase(
   def testDistinctAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT sum(_1) as a, count(distinct _3) as b FROM MyTable"
 
@@ -216,7 +215,7 @@ class AggregateITCase(
   def testGroupedDistinctAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT _2, avg(distinct _1) as a, count(_3) as b FROM MyTable GROUP BY _2"
 
@@ -235,7 +234,7 @@ class AggregateITCase(
   def testGroupingSetAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery =
       "SELECT _2, _3, avg(_1) as a, GROUP_ID() as g FROM MyTable GROUP BY GROUPING SETS (_2, _3)"
@@ -262,7 +261,7 @@ class AggregateITCase(
   def testAggregateEmptyDataSets(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
     val myAgg = new NonMergableCount
     tEnv.registerFunction("myAgg", myAgg)
 
@@ -310,7 +309,7 @@ class AggregateITCase(
   def testTumbleWindowAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
     tEnv.registerFunction("countFun", new CountAggFunction)
     tEnv.registerFunction("wAvgWithMergeAndReset", new WeightedAvgWithMergeAndReset)
 
@@ -341,7 +340,7 @@ class AggregateITCase(
   def testTumbleWindowAggregateWithCollect(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery =
       "SELECT b, COLLECT(b)" +
@@ -369,7 +368,7 @@ class AggregateITCase(
   @Test
   def testTumbleWindowAggregateWithCollectUnnest(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
       // create timestamps
@@ -397,7 +396,7 @@ class AggregateITCase(
   @Test
   def testTumbleWindowWithProperties(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery =
       "SELECT b, COUNT(a), " +
@@ -433,7 +432,7 @@ class AggregateITCase(
   def testHopWindowAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
     tEnv.registerFunction("countFun", new CountAggFunction)
     tEnv.registerFunction("wAvgWithMergeAndReset", new WeightedAvgWithMergeAndReset)
 
@@ -464,7 +463,7 @@ class AggregateITCase(
   def testHopWindowWithProperties(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery =
       "SELECT b, COUNT(a), " +
@@ -506,7 +505,7 @@ class AggregateITCase(
   def testSessionWindowAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
     tEnv.registerFunction("countFun", new CountAggFunction)
     tEnv.registerFunction("wAvgWithMergeAndReset", new WeightedAvgWithMergeAndReset)
 
@@ -535,7 +534,7 @@ class AggregateITCase(
   def testSessionWindowWithProperties(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery =
       "SELECT COUNT(a), " +
@@ -563,7 +562,7 @@ class AggregateITCase(
   @Test
   def testMultipleDistinctWithDiffParams(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlWithNull = "SELECT a, " +
       " CASE WHEN b = 2 THEN null ELSE b END AS b, " +

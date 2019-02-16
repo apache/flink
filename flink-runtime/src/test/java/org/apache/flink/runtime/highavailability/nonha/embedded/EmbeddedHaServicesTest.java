@@ -24,15 +24,22 @@ import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeast;
@@ -163,5 +170,71 @@ public class EmbeddedHaServicesTest extends TestLogger {
 		leaderElectionService.confirmLeaderSessionID(leaderId);
 
 		verify(leaderRetrievalListener).notifyLeaderAddress(eq(address), eq(leaderId));
+	}
+
+	/**
+	 * Tests that concurrent leadership operations (granting and revoking) leadership leave the
+	 * system in a sane state.
+	 */
+	@Test
+	public void testConcurrentLeadershipOperations() throws Exception {
+		final LeaderElectionService dispatcherLeaderElectionService = embeddedHaServices.getDispatcherLeaderElectionService();
+		final ArrayBlockingQueue<UUID> offeredSessionIds = new ArrayBlockingQueue<>(2);
+		final TestingLeaderContender leaderContender = new TestingLeaderContender(offeredSessionIds);
+
+		dispatcherLeaderElectionService.start(leaderContender);
+
+		final UUID oldLeaderSessionId = offeredSessionIds.take();
+
+		assertThat(dispatcherLeaderElectionService.hasLeadership(oldLeaderSessionId), is(true));
+
+		embeddedHaServices.getDispatcherLeaderService().revokeLeadership().get();
+		assertThat(dispatcherLeaderElectionService.hasLeadership(oldLeaderSessionId), is(false));
+
+		embeddedHaServices.getDispatcherLeaderService().grantLeadership();
+		final UUID newLeaderSessionId = offeredSessionIds.take();
+
+		assertThat(dispatcherLeaderElectionService.hasLeadership(newLeaderSessionId), is(true));
+
+		dispatcherLeaderElectionService.confirmLeaderSessionID(oldLeaderSessionId);
+		dispatcherLeaderElectionService.confirmLeaderSessionID(newLeaderSessionId);
+
+		assertThat(dispatcherLeaderElectionService.hasLeadership(newLeaderSessionId), is(true));
+
+		leaderContender.tryRethrowException();
+	}
+
+	private static final class TestingLeaderContender implements LeaderContender {
+
+		private final BlockingQueue<UUID> offeredSessionIds;
+
+		private final AtomicReference<Exception> occurredException;
+
+		private TestingLeaderContender(BlockingQueue<UUID> offeredSessionIds) {
+			this.offeredSessionIds = offeredSessionIds;
+			occurredException = new AtomicReference<>(null);
+		}
+
+		@Override
+		public void grantLeadership(UUID leaderSessionID) {
+			offeredSessionIds.offer(leaderSessionID);
+		}
+
+		@Override
+		public void revokeLeadership() {}
+
+		@Override
+		public String getAddress() {
+			return "foobar";
+		}
+
+		@Override
+		public void handleError(Exception exception) {
+			occurredException.compareAndSet(null, exception);
+		}
+
+		public void tryRethrowException() throws Exception {
+			ExceptionUtils.tryRethrowException(occurredException.get());
+		}
 	}
 }

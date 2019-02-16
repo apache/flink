@@ -151,7 +151,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
     val t = util.addTable[(Long, Long, Int)]('rowtime.rowtime, 'long, 'int, 'proctime.proctime)
     val func = new TableFunc
 
-    val result = t.join(func('rowtime, 'proctime, "") as 's).select('rowtime, 'proctime, 's)
+    val result = t.joinLateral(func('rowtime, 'proctime, "") as 's).select('rowtime, 'proctime, 's)
 
     val expected = unaryNode(
       "DataStreamCalc",

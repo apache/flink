@@ -21,15 +21,16 @@ package org.apache.flink.table.utils
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.{LocalEnvironment, DataSet => JDataSet, ExecutionEnvironment => JExecutionEnvironment}
+import org.apache.flink.api.java.{LocalEnvironment, DataSet => JDataSet}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
-import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment => JStreamExecutionEnvironment}
+import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment}
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
+import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Table, TableEnvironment, TableSchema}
+import org.apache.flink.table.api.{Table, TableSchema}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.junit.Assert.assertEquals
@@ -187,9 +188,9 @@ object TableTestUtil {
 
 case class BatchTableTestUtil() extends TableTestUtil {
   val javaEnv = new LocalEnvironment()
-  val javaTableEnv = TableEnvironment.getTableEnvironment(javaEnv)
+  val javaTableEnv = JavaBatchTableEnv.create(javaEnv)
   val env = new ExecutionEnvironment(javaEnv)
-  val tableEnv = TableEnvironment.getTableEnvironment(env)
+  val tableEnv = ScalaBatchTableEnv.create(env)
 
   def addTable[T: TypeInformation](
       name: String,
@@ -273,9 +274,9 @@ case class StreamTableTestUtil() extends TableTestUtil {
   val javaEnv = new LocalStreamEnvironment()
   javaEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
-  val javaTableEnv = TableEnvironment.getTableEnvironment(javaEnv)
+  val javaTableEnv = JavaStreamTableEnv.create(javaEnv)
   val env = new StreamExecutionEnvironment(javaEnv)
-  val tableEnv = TableEnvironment.getTableEnvironment(env)
+  val tableEnv = ScalaStreamTableEnv.create(env)
 
   def addTable[T: TypeInformation](
       name: String,

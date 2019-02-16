@@ -27,7 +27,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * channels. This distributes only to a subset of downstream nodes because
  * {@link org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator} instantiates
  * a {@link DistributionPattern#POINTWISE} distribution pattern when encountering
- * {@code SemiRebalancePartitioner}.
+ * {@code RescalePartitioner}.
  *
  * <p>The subset of downstream operations to which the upstream operation sends
  * elements depends on the degree of parallelism of both the upstream and downstream operation.

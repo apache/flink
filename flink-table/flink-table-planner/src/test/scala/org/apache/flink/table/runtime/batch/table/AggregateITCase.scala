@@ -22,7 +22,7 @@ import java.math.BigDecimal
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.{TableEnvironment, Types}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinctWithMergeAndReset, WeightedAvgWithMergeAndReset}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
@@ -46,7 +46,7 @@ class AggregationsITCase(
   @Test
   def testAggregationWithCaseClass(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val inputTable = CollectionDataSets.getSmallNestedTupleDataSet(env).toTable(tEnv, 'a, 'b)
     tEnv.registerDataSet("MyTable", inputTable)
@@ -64,7 +64,7 @@ class AggregationsITCase(
   def testAggregationTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
       .select('_1.sum, '_1.sum0, '_1.min, '_1.max, '_1.count, '_1.avg)
@@ -78,7 +78,7 @@ class AggregationsITCase(
   def testWorkingAggregationDataTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val t = env.fromElements(
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
@@ -94,7 +94,7 @@ class AggregationsITCase(
   def testProjection(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val t = env.fromElements(
       (1: Byte, 1: Short),
@@ -110,7 +110,7 @@ class AggregationsITCase(
   def testAggregationWithArithmetic(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val t = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable(tEnv)
       .select(('_1 + 2).avg + 2, '_2.count + 5)
@@ -124,7 +124,7 @@ class AggregationsITCase(
   def testAggregationWithTwoCount(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val t = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable(tEnv)
       .select('_1.count, '_2.count)
@@ -138,7 +138,7 @@ class AggregationsITCase(
   def testAggregationAfterProjection(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val t = env.fromElements(
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
@@ -155,7 +155,7 @@ class AggregationsITCase(
   def testSQLStyleAggregations(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .select(
@@ -175,7 +175,7 @@ class AggregationsITCase(
   def testPojoAggregation(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val input = env.fromElements(
       WC("hello", 1),
@@ -198,7 +198,7 @@ class AggregationsITCase(
   @Test
   def testDistinct(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val distinct = ds.select('b).distinct()
@@ -211,7 +211,7 @@ class AggregationsITCase(
   @Test
   def testDistinctAfterAggregate(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val ds = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
     val distinct = ds.groupBy('a, 'e).select('e).distinct()
@@ -225,7 +225,7 @@ class AggregationsITCase(
   def testGroupedAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
     val countFun = new CountAggFunction
     val wAvgFun = new WeightedAvgWithMergeAndReset
     val countDistinct = new CountDistinctWithMergeAndReset
@@ -244,7 +244,7 @@ class AggregationsITCase(
   def testGroupingKeyForwardIfNotUsed(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
@@ -259,7 +259,7 @@ class AggregationsITCase(
   def testGroupNoAggregation(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val t = CollectionDataSets.get3TupleDataSet(env)
       .toTable(tEnv, 'a, 'b, 'c)
@@ -276,7 +276,7 @@ class AggregationsITCase(
   def testAggregateEmptyDataSets(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val myAgg = new NonMergableCount
 
@@ -301,7 +301,7 @@ class AggregationsITCase(
     // This uses very long keys to force serialized comparison.
     // With short keys, the normalized key is sufficient.
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val ds = env.fromElements(
       ("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhaa", 1, 2),
@@ -326,7 +326,7 @@ class AggregationsITCase(
   def testGroupedAggregateWithConstant1(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .select('a, 4 as 'four, 'b)
@@ -345,7 +345,7 @@ class AggregationsITCase(
   def testGroupedAggregateWithConstant2(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .select('b, 4 as 'four, 'a)
@@ -361,7 +361,7 @@ class AggregationsITCase(
   def testGroupedAggregateWithExpression(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val t = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .groupBy('e, 'b % 3)
@@ -377,7 +377,7 @@ class AggregationsITCase(
   def testGroupedAggregateWithFilter(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
@@ -392,7 +392,7 @@ class AggregationsITCase(
   @Test
   def testAnalyticAggregation(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv =BatchTableEnvironment.create(env)
     val ds = env.fromElements(
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, BigDecimal.ONE),
       (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, new BigDecimal(2))).toTable(tEnv)
@@ -422,7 +422,7 @@ class AggregationsITCase(
   def testComplexAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
     val top10Fun = new Top10
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
@@ -443,7 +443,7 @@ class AggregationsITCase(
   @Test
   def testCollect(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)

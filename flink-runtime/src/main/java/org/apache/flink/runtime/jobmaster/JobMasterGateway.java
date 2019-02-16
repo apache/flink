@@ -267,8 +267,7 @@ public interface JobMasterGateway extends
 	 * Requests the statistics on operator back pressure.
 	 *
 	 * @param jobVertexId JobVertex for which the stats are requested.
-	 * @return A Future to the {@link OperatorBackPressureStatsResponse} or {@code null} if the stats are
-	 * not available (yet).
+	 * @return A Future to the {@link OperatorBackPressureStatsResponse}.
 	 */
 	CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(JobVertexID jobVertexId);
 
