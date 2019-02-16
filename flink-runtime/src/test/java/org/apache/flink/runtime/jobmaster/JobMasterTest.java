@@ -1470,10 +1470,10 @@ public class JobMasterTest extends TestLogger {
 			updateAggregateFuture = jobMasterGateway.updateGlobalAggregate("agg2", 23, serializedAggregateFunction);
 			assertThat(updateAggregateFuture.get(), equalTo(33));
 
-    } finally {
+		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
-  }
+	}
 
 	private AggregateFunction<Integer, Integer, Integer> createAggregateFunction() {
 		return new AggregateFunction<Integer, Integer, Integer>() {
@@ -1500,9 +1500,9 @@ public class JobMasterTest extends TestLogger {
 				return add(a, b);
 			}
 		};
-  }
+	}
 
-  @Nonnull
+	@Nonnull
 	private TestingResourceManagerGateway createAndRegisterTestingResourceManagerGateway() {
 		final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
 		rpcService.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
