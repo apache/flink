@@ -47,6 +47,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -337,7 +338,7 @@ public class ExecutionGraphTestUtils {
 		}
 	}
 	
-	public static void setVertexResource(ExecutionVertex vertex, SimpleSlot slot) {
+	public static void setVertexResource(ExecutionVertex vertex, LogicalSlot slot) {
 		Execution exec = vertex.getCurrentExecutionAttempt();
 
 		if(!exec.tryAssignResource(slot)) {
