@@ -92,8 +92,10 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 
 		while (subscriberWrapper.isRunning()) {
 			try {
-				Optional.ofNullable(subscriberWrapper.take())
-						.ifPresent(this::processMessage);
+				Tuple2<PubsubMessage, AckReplyConsumer> newMessage = subscriberWrapper.take();
+				if (newMessage != null) {
+					processMessage(newMessage);
+				}
 			} catch (InterruptedException e) {
 				LOG.debug("Interrupted - stop or cancel called?");
 			}
