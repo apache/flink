@@ -37,7 +37,7 @@ following dependency to your project:
 
 Note that the streaming connectors are currently not part of the binary
 distribution. See
-[here]({{ site.baseurl }}/dev/linking.html)
+[here]({{ site.baseurl }}/dev/projectsetup/dependencies.html)
 for information about how to package the program with the libraries for
 cluster execution.
 
@@ -73,7 +73,7 @@ streamExecEnv.addSource(source);
 
 The connector provides a Sink for writing data to PubSub.
 
-The class `PubSubSource(…)` has a builder to create PubSubsources. `PubSubSource.newBuilder()`
+The class `PubSubSource(…)` has a builder to create PubSubsources. `PubSubSource.newBuilder(...)`
 
 This builder works in a similar way to the PubSubSource.
 Example:
@@ -81,28 +81,28 @@ Example:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-StreamExecutionEnvironment streamExecEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+DataStream<SomeObject> dataStream = (...);
 
 SerializationSchema<SomeObject> serializationSchema = (...);
 SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder(deserializationSchema, "google-project", "topic")
                                                 .build()
 
-streamExecEnv.addSink(pubsubSink);
+dataStream.addSink(pubsubSink);
 {% endhighlight %}
 </div>
 </div>
 
 ### Google Credentials
 
-Google uses [Credentials](https://cloud.google.com/docs/authentication/production) to authenticate and authorize applications so that they can use Google cloud resources such as PubSub. Both builders allow several ways to provide these credentials.
+Google uses [Credentials](https://cloud.google.com/docs/authentication/production) to authenticate and authorize applications so that they can use Google Cloud Platform resources (such as PubSub). 
 
-By default the connectors will look for an environment variable: [GOOGLE_APPLICATION_CREDENTIALS](https://cloud.google.com/docs/authentication/production#obtaining_and_providing_service_account_credentials_manually) which should point to a file containing the credentials.
+Both builders allow you to provide these credentials but by default the connectors will look for an environment variable: [GOOGLE_APPLICATION_CREDENTIALS](https://cloud.google.com/docs/authentication/production#obtaining_and_providing_service_account_credentials_manually) which should point to a file containing the credentials.
 
-It is also possible to provide a Credentials object directly. For instance if you read the Credentials yourself from an external system you can use `PubSubSource.newBuilder(...).withCredentials(...)` .
+If you want to provide Credentials manually, for instance if you read the Credentials yourself from an external system, you can use `PubSubSource.newBuilder(...).withCredentials(...)`.
 
 ### Integration testing
 
-When running integration tests you might not want to connect to PubSub directly but use a docker container to read and write to.
+When running integration tests you might not want to connect to PubSub directly but use a docker container to read and write to. (See: [PubSub testing locally](https://cloud.google.com/pubsub/docs/emulator))
 
 This is possible by using `PubSubSource.newBuilder().withHostAndPort("localhost:1234")`, note in this case the connector will use the `NoCredentialsProvider` from the `google-cloud-pubsub` sdk to make sure it connects properly with the docker container.
 
@@ -110,29 +110,16 @@ This is possible by using `PubSubSource.newBuilder().withHostAndPort("localhost:
 
 Backpressure can happen when the source function produces messages faster than the flink pipeline can handle.
 
-The connector uses the Google Cloud PubSub SDK under the hood and this allows us to deal with backpressure. Through the PubSubSource builder you are able set a PubSubSubscriberFactory, this factory produces a [Subscriber](http://googleapis.github.io/google-cloud-java/google-cloud-clients/apidocs/index.html?com/google/cloud/pubsub/v1/package-summary.html). This `Subscriber` gives you control of how it handles backpressure through [Message Flow Control](https://cloud.google.com/pubsub/docs/pull#message-flow-control). For instance, in the following example we allow at most 10000 messages to be buffered (meaning messages read but not yet acknowledged), once we have more than 10000 messages we stop pulling in more messages.
+The connector uses the Google Cloud PubSub SDK under the hood and this allows us to deal with backpressure. Through the PubSubSource builder you are able to use `.withBackpressureParameters()` or `.withPubSubSubscriberFactory()`. Both affect how the [Subscriber](http://googleapis.github.io/google-cloud-java/google-cloud-clients/apidocs/index.html?com/google/cloud/pubsub/v1/package-summary.html), which is used within the connector, handles backpressure through [Message Flow Control](https://cloud.google.com/pubsub/docs/pull#message-flow-control). For instance, in the following example we allow at most 10000 messages to be buffered (meaning messages read but not yet acknowledged), once we have more than 10000 messages we stop pulling in more messages.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 StreamExecutionEnvironment streamExecEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 
-PubSubSubscriberFactory factory = (Credentials credentials, ProjectSubscriptionName projectSubscriptionName, MessageReceiver messageReceiver) -> {
-    FlowControlSettings flowControlSettings = FlowControlSettings.newBuilder()
-                                                                 .setMaxOutstandingElementCount(10000L)
-                                                                 .setMaxOutstandingRequestBytes(100000L)
-                                                                 .setLimitExceededBehavior(FlowController.LimitExceededBehavior.Block)
-                                                                 .build();
-    return Subscriber.newBuilder(projectSubscriptionName, messageReceiver)
-                     .setCredentialsProvider(FixedCredentialsProvider.create(credentials))
-                     .setFlowControlSettings(flowControlSettings)
-                     .setMaxAckExtensionPeriod(Duration.ofMinutes(5))
-                     .build();
-};
-
 DeserializationSchema<SomeObject> deserializationSchema = (...);
 SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder(deserializationSchema, "google-project", "subscription")
-                                                .withPubSubSubscriberFactory(factory)
+                                                .withBackpressureParameters(10_000L, 100_000L)
                                                 .build();
 
 streamExecEnv.addSource(source);
