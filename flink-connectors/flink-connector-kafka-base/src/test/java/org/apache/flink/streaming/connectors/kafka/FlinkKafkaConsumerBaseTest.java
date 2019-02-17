@@ -77,6 +77,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.everyItem;
@@ -248,6 +249,124 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 		setupConsumer(consumer);
 
 		assertEquals(OffsetCommitMode.DISABLED, consumer.getOffsetCommitMode());
+	}
+
+	/**
+	 * Tests that subscribed partitions are the same when restored partitions
+	 * and discovered partitions didn't change.
+	 * (filterRestoredPartitionsWithDiscovered is active)
+	 */
+	@Test
+	public void testSetFilterRestoredParitionsNoChange() throws Exception {
+		checkFilterRestoredPartitionsWithDisovered(
+			Arrays.asList(new String[]{"kafka_topic_1", "kafka_topic_2"}),
+			Arrays.asList(new String[]{"kafka_topic_1", "kafka_topic_2"}),
+			Arrays.asList(new String[]{"kafka_topic_1", "kafka_topic_2"}),
+			false);
+	}
+
+	/**
+	 * Tests that removed partitions will be removed from subscribed partitions
+	 * Even if it's still in restored partitions.
+	 * (filterRestoredPartitionsWithDiscovered is active)
+	 */
+	@Test
+	public void testSetFilterRestoredParitionsWithRemovedTopic() throws Exception {
+		checkFilterRestoredPartitionsWithDisovered(
+			Arrays.asList(new String[]{"kafka_topic_1", "kafka_topic_2"}),
+			Arrays.asList(new String[]{"kafka_topic_1"}),
+			Arrays.asList(new String[]{"kafka_topic_1"}),
+			false);
+	}
+
+	/**
+	 * Tests that newly added partitions will be added to subscribed partitions.
+	 * (filterRestoredPartitionsWithDiscovered is active)
+	 */
+	@Test
+	public void testSetFilterRestoredParitionsWithAddedTopic() throws Exception {
+		checkFilterRestoredPartitionsWithDisovered(
+			Arrays.asList(new String[]{"kafka_topic_1"}),
+			Arrays.asList(new String[]{"kafka_topic_1", "kafka_topic_2"}),
+			Arrays.asList(new String[]{"kafka_topic_1", "kafka_topic_2"}),
+			false);
+	}
+
+	/**
+	 * Tests that subscribed partitions are the same when restored partitions
+	 * and discovered partitions didn't change.
+	 * (filterRestoredPartitionsWithDiscovered is disabled)
+	 */
+	@Test
+	public void testDisableFilterRestoredParitionsNoChange() throws Exception {
+		checkFilterRestoredPartitionsWithDisovered(
+			Arrays.asList(new String[]{"kafka_topic_1", "kafka_topic_2"}),
+			Arrays.asList(new String[]{"kafka_topic_1", "kafka_topic_2"}),
+			Arrays.asList(new String[]{"kafka_topic_1", "kafka_topic_2"}),
+			true);
+	}
+
+	/**
+	 * Tests that removed partitions will not be removed from subscribed partitions
+	 * Even if it's still in restored partitions.
+	 * (filterRestoredPartitionsWithDiscovered is disabled)
+	 */
+	@Test
+	public void testDisableFilterRestoredParitionsWithRemovedTopic() throws Exception {
+		checkFilterRestoredPartitionsWithDisovered(
+			Arrays.asList(new String[]{"kafka_topic_1", "kafka_topic_2"}),
+			Arrays.asList(new String[]{"kafka_topic_1"}),
+			Arrays.asList(new String[]{"kafka_topic_1", "kafka_topic_2"}),
+			true);
+	}
+
+	/**
+	 * Tests that newly added partitions will be added to subscribed partitions.
+	 * (filterRestoredPartitionsWithDiscovered is disabled)
+	 */
+	@Test
+	public void testDisableFilterRestoredParitionsWithAddedTopic() throws Exception {
+		checkFilterRestoredPartitionsWithDisovered(
+			Arrays.asList(new String[]{"kafka_topic_1"}),
+			Arrays.asList(new String[]{"kafka_topic_1", "kafka_topic_2"}),
+			Arrays.asList(new String[]{"kafka_topic_1", "kafka_topic_2"}),
+			true);
+	}
+
+	private void checkFilterRestoredPartitionsWithDisovered(List<String> restoredKafkaTopics,
+															List<String> discoveredKafkaTopics,
+															List<String> expectedSubscribedPartitions,
+															Boolean disableFiltering) throws Exception {
+		final AbstractPartitionDiscoverer discoverer = new TestPartitionDiscoverer(
+			new KafkaTopicsDescriptor(discoveredKafkaTopics, null),
+			0,
+			1,
+			TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(discoveredKafkaTopics),
+			TestPartitionDiscoverer.createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(
+				discoveredKafkaTopics.stream()
+					.map(topic -> new KafkaTopicPartition(topic, 0))
+					.collect(Collectors.toList())));
+		final FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>(discoverer);
+		if (disableFiltering) {
+			consumer.disableFilterRestoredPartitionsWithDiscovered();
+		}
+
+		final TestingListState<Tuple2<KafkaTopicPartition, Long>> listState = new TestingListState<>();
+
+		for (int i = 0; i < restoredKafkaTopics.size(); i++) {
+			listState.add(new Tuple2<>(new KafkaTopicPartition(restoredKafkaTopics.get(i), 0), 12345L));
+		}
+
+		setupConsumer(consumer, true, listState, true, 0, 1);
+
+		Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets = consumer.getSubscribedPartitionsToStartOffsets();
+
+		assertEquals(new HashSet<>(expectedSubscribedPartitions),
+			subscribedPartitionsToStartOffsets
+				.keySet()
+				.stream()
+				.map(partition -> partition.getTopic())
+				.collect(Collectors.toSet()));
 	}
 
 	@Test
