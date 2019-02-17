@@ -19,4 +19,4 @@
 
 set -Eeuo pipefail
 
-source "$(dirname "$0")"/test_sql_client_kafka_common.sh 2.1 2.1.0 5.0.0 5.0 "kafka" "universal"
+source "$(dirname "$0")"/test_sql_client_kafka_common.sh 2.1 2.1.1 5.0.0 5.0 "kafka" "universal"
