@@ -1098,6 +1098,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		try {
 			resourceManagerLeaderRetriever.stop();
+			resourceManagerAddress = null;
 		} catch (Throwable t) {
 			log.warn("Failed to stop resource manager leader retriever when suspending.", t);
 		}
