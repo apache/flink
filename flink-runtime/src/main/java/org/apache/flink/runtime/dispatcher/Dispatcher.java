@@ -139,7 +139,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			String endpointId,
 			DispatcherServices dispatcherServices,
 			JobGraphStore jobGraphStore) throws Exception {
-		super(rpcService, endpointId);
+		super(rpcService, endpointId, null);
 		Preconditions.checkNotNull(dispatcherServices);
 
 		this.configuration = dispatcherServices.getConfiguration();
