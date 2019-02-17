@@ -60,7 +60,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -399,13 +398,13 @@ public class RocksDBStateBackendConfigTest {
 	}
 
 	@Test
-	public void testSetCustomizedOptions() throws Exception  {
+	public void testSetConfigurableOptions() throws Exception  {
 		String checkpointPath = tempFolder.newFolder().toURI().toString();
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
 
-		assertTrue(rocksDbBackend.getCustomizedOptions().getConfiguredOptions().isEmpty());
+		assertNull(rocksDbBackend.getOptions());
 
-		RocksDBCustomizedOptions customizedOptions = new RocksDBCustomizedOptions()
+		ConfigurableOptionsFactory customizedOptions = new ConfigurableOptionsFactory()
 			.setMaxBackgroundThreads(4)
 			.setMaxOpenFiles(-1)
 			.setCompactionStyle(CompactionStyle.LEVEL)
@@ -416,12 +415,9 @@ public class RocksDBStateBackendConfigTest {
 			.setMaxWriteBufferNumber(4)
 			.setMinWriteBufferNumberToMerge(3)
 			.setBlockSize("64KB")
-			.setBlockCacheSize("512mb")
-			.setPinL0FilterIndex(true)
-			.setOptimizeFiltersForHits(true)
-			.setCacheIndexAndFilterBlocks(true);
+			.setBlockCacheSize("512mb");
 
-		rocksDbBackend.setCustomizedOptions(customizedOptions);
+		rocksDbBackend.setOptions(customizedOptions);
 
 		try (DBOptions dbOptions = rocksDbBackend.getDbOptions()) {
 			assertEquals(-1, dbOptions.maxOpenFiles());
@@ -434,61 +430,52 @@ public class RocksDBStateBackendConfigTest {
 			assertEquals(128 * SizeUnit.MB, columnOptions.maxBytesForLevelBase());
 			assertEquals(4, columnOptions.maxWriteBufferNumber());
 			assertEquals(3, columnOptions.minWriteBufferNumberToMerge());
-			assertTrue(columnOptions.optimizeFiltersForHits());
 
 			BlockBasedTableConfig tableConfig = (BlockBasedTableConfig) columnOptions.tableFormatConfig();
 			assertEquals(64 * SizeUnit.KB, tableConfig.blockSize());
 			assertEquals(512 * SizeUnit.MB, tableConfig.blockCacheSize());
-			assertTrue(tableConfig.pinL0FilterAndIndexBlocksInCache());
-			assertTrue(tableConfig.cacheIndexAndFilterBlocks());
 		}
 	}
 
 	@Test
-	public void testCustomizedOptionsFromConfig() throws IOException {
+	public void testConfigurableOptionsFromConfig() throws IOException {
 		Configuration configuration = new Configuration();
-		assertTrue(RocksDBCustomizedOptions.fromConfig(configuration).getConfiguredOptions().isEmpty());
+		assertTrue(ConfigurableOptionsFactory.fromConfig(configuration).getConfiguredOptions().isEmpty());
 
 		// verify illegal configuration
 		{
-			verifyIllegalArgument(RocksDBCustomizedOptions.MAX_BACKGROUND_THREADS, "-1");
-			verifyIllegalArgument(RocksDBCustomizedOptions.MAX_WRITE_BUFFER_NUMBER, "-1");
-			verifyIllegalArgument(RocksDBCustomizedOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE, "-1");
+			verifyIllegalArgument(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, "-1");
+			verifyIllegalArgument(RocksDBConfigurableOptions.MAX_WRITE_BUFFER_NUMBER, "-1");
+			verifyIllegalArgument(RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE, "-1");
 
-			verifyIllegalArgument(RocksDBCustomizedOptions.TARGET_FILE_SIZE_BASE, "0KB");
-			verifyIllegalArgument(RocksDBCustomizedOptions.MAX_SIZE_LEVEL_BASE, "1BB");
-			verifyIllegalArgument(RocksDBCustomizedOptions.WRITE_BUFFER_SIZE, "-1KB");
-			verifyIllegalArgument(RocksDBCustomizedOptions.BLOCK_SIZE, "0MB");
-			verifyIllegalArgument(RocksDBCustomizedOptions.BLOCK_CACHE_SIZE, "0");
+			verifyIllegalArgument(RocksDBConfigurableOptions.TARGET_FILE_SIZE_BASE, "0KB");
+			verifyIllegalArgument(RocksDBConfigurableOptions.MAX_SIZE_LEVEL_BASE, "1BB");
+			verifyIllegalArgument(RocksDBConfigurableOptions.WRITE_BUFFER_SIZE, "-1KB");
+			verifyIllegalArgument(RocksDBConfigurableOptions.BLOCK_SIZE, "0MB");
+			verifyIllegalArgument(RocksDBConfigurableOptions.BLOCK_CACHE_SIZE, "0");
 
-			verifyIllegalArgument(RocksDBCustomizedOptions.USE_DYNAMIC_LEVEL_SIZE, "1");
-			verifyIllegalArgument(RocksDBCustomizedOptions.PIN_L0_FILTER_INDEX, "ture");
-			verifyIllegalArgument(RocksDBCustomizedOptions.OPTIMIZE_HIT, "flase");
-			verifyIllegalArgument(RocksDBCustomizedOptions.CACHE_INDEX_FILTER, "T");
+			verifyIllegalArgument(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, "1");
 
-			verifyIllegalArgument(RocksDBCustomizedOptions.COMPACTION_STYLE, "LEV");
+			verifyIllegalArgument(RocksDBConfigurableOptions.COMPACTION_STYLE, "LEV");
 		}
 
 		// verify legal configuration
 		{
-			configuration.setString(RocksDBCustomizedOptions.COMPACTION_STYLE, "level");
-			configuration.setString(RocksDBCustomizedOptions.USE_DYNAMIC_LEVEL_SIZE, "TRUE");
-			configuration.setString(RocksDBCustomizedOptions.TARGET_FILE_SIZE_BASE, "8 mb");
-			configuration.setString(RocksDBCustomizedOptions.MAX_SIZE_LEVEL_BASE, "128MB");
-			configuration.setString(RocksDBCustomizedOptions.MAX_BACKGROUND_THREADS, "4");
-			configuration.setString(RocksDBCustomizedOptions.MAX_WRITE_BUFFER_NUMBER, "4");
-			configuration.setString(RocksDBCustomizedOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE, "2");
-			configuration.setString(RocksDBCustomizedOptions.WRITE_BUFFER_SIZE, "64 MB");
-			configuration.setString(RocksDBCustomizedOptions.BLOCK_SIZE, "4 kb");
-			configuration.setString(RocksDBCustomizedOptions.BLOCK_CACHE_SIZE, "512 mb");
-			configuration.setString(RocksDBCustomizedOptions.PIN_L0_FILTER_INDEX, "true");
-			configuration.setString(RocksDBCustomizedOptions.OPTIMIZE_HIT, "False");
-			configuration.setString(RocksDBCustomizedOptions.CACHE_INDEX_FILTER, "True");
+			configuration.setString(RocksDBConfigurableOptions.COMPACTION_STYLE, "level");
+			configuration.setString(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, "TRUE");
+			configuration.setString(RocksDBConfigurableOptions.TARGET_FILE_SIZE_BASE, "8 mb");
+			configuration.setString(RocksDBConfigurableOptions.MAX_SIZE_LEVEL_BASE, "128MB");
+			configuration.setString(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, "4");
+			configuration.setString(RocksDBConfigurableOptions.MAX_WRITE_BUFFER_NUMBER, "4");
+			configuration.setString(RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE, "2");
+			configuration.setString(RocksDBConfigurableOptions.WRITE_BUFFER_SIZE, "64 MB");
+			configuration.setString(RocksDBConfigurableOptions.BLOCK_SIZE, "4 kb");
+			configuration.setString(RocksDBConfigurableOptions.BLOCK_CACHE_SIZE, "512 mb");
 
-			RocksDBCustomizedOptions customizedOptions = RocksDBCustomizedOptions.fromConfig(configuration);
+			ConfigurableOptionsFactory customizedOptions = ConfigurableOptionsFactory.fromConfig(configuration);
 			String checkpointPath = tempFolder.newFolder().toURI().toString();
 			RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
-			rocksDbBackend.setCustomizedOptions(customizedOptions);
+			rocksDbBackend.setOptions(customizedOptions);
 
 			try (DBOptions dbOptions = rocksDbBackend.getDbOptions()) {
 				assertEquals(-1, dbOptions.maxOpenFiles());
@@ -506,9 +493,6 @@ public class RocksDBStateBackendConfigTest {
 				BlockBasedTableConfig tableConfig = (BlockBasedTableConfig) columnOptions.tableFormatConfig();
 				assertEquals(4 * SizeUnit.KB, tableConfig.blockSize());
 				assertEquals(512 * SizeUnit.MB, tableConfig.blockCacheSize());
-				assertTrue(tableConfig.pinL0FilterAndIndexBlocksInCache());
-				assertFalse(columnOptions.optimizeFiltersForHits());
-				assertTrue(tableConfig.cacheIndexAndFilterBlocks());
 			}
 		}
 	}
@@ -520,7 +504,7 @@ public class RocksDBStateBackendConfigTest {
 	public void testConfigOptions() throws Exception  {
 		Configuration configuration = new Configuration();
 		configuration.setString(RocksDBOptions.PREDEFINED_OPTIONS, PredefinedOptions.SPINNING_DISK_OPTIMIZED.name());
-		configuration.setString(RocksDBCustomizedOptions.MAX_WRITE_BUFFER_NUMBER, "4");
+		configuration.setString(RocksDBConfigurableOptions.MAX_WRITE_BUFFER_NUMBER, "4");
 
 		String checkpointPath = tempFolder.newFolder().toURI().toString();
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
@@ -528,9 +512,9 @@ public class RocksDBStateBackendConfigTest {
 		// we re-configured predefined options as 'PredefinedOptions.DEFAULT' programmatically.
 		rocksDbBackend.setPredefinedOptions(PredefinedOptions.DEFAULT);
 
-		RocksDBCustomizedOptions rocksDBCustomizedOptions = new RocksDBCustomizedOptions().setMaxWriteBufferNumber(3);
+		ConfigurableOptionsFactory optionsFactory = new ConfigurableOptionsFactory().setMaxWriteBufferNumber(3);
 		// we re-configured max write-buffer number as '3' programmatically.
-		rocksDbBackend.setCustomizedOptions(rocksDBCustomizedOptions);
+		rocksDbBackend.setOptions(optionsFactory);
 
 		rocksDbBackend = rocksDbBackend.configure(configuration);
 
@@ -565,21 +549,13 @@ public class RocksDBStateBackendConfigTest {
 	}
 
 	@Test
-	public void testPredefinedCustomizedAndOptionsFactory() throws Exception {
+	public void testPredefinedAndOptionsFactory() throws Exception {
 		String checkpointPath = tempFolder.newFolder().toURI().toString();
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
 
 		assertEquals(PredefinedOptions.DEFAULT, rocksDbBackend.getPredefinedOptions());
 
 		rocksDbBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED);
-
-		RocksDBCustomizedOptions customizedOptions = new RocksDBCustomizedOptions()
-			// setting of dynamic level size would override predefined options.
-			.setUseDynamicLevelSize(false)
-			// setting of CompactionStyle would be overrode by options factory.
-			.setCompactionStyle(CompactionStyle.FIFO);
-
-		rocksDbBackend.setCustomizedOptions(customizedOptions);
 		rocksDbBackend.setOptions(new OptionsFactory() {
 			@Override
 			public DBOptions createDBOptions(DBOptions currentOptions) {
@@ -593,11 +569,8 @@ public class RocksDBStateBackendConfigTest {
 		});
 
 		assertEquals(PredefinedOptions.SPINNING_DISK_OPTIMIZED, rocksDbBackend.getPredefinedOptions());
-		assertEquals(customizedOptions, rocksDbBackend.getCustomizedOptions());
 		assertNotNull(rocksDbBackend.getOptions());
-
 		try (ColumnFamilyOptions colCreated = rocksDbBackend.getColumnOptions()) {
-			assertFalse(colCreated.levelCompactionDynamicLevelBytes());
 			assertEquals(CompactionStyle.UNIVERSAL, colCreated.compactionStyle());
 		}
 	}
@@ -707,7 +680,7 @@ public class RocksDBStateBackendConfigTest {
 		Configuration configuration = new Configuration();
 		configuration.setString(configOption, configValue);
 		try {
-			RocksDBCustomizedOptions.fromConfig(configuration);
+			ConfigurableOptionsFactory.fromConfig(configuration);
 			fail("Not throwing expected IllegalArgumentException.");
 		} catch (IllegalArgumentException e) {
 			// ignored
