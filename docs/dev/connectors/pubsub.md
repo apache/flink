@@ -50,8 +50,7 @@ Google PubSub has an `Atleast-Once` guarantee and as such this connector deliver
 
 The class `PubSubSource(…)` has a builder to create PubSubsources. `PubSubSource.newBuilder(...)`
 
-There are several optional methods to alter how the PubSubSource is created,
-the bare minimum is to provide a Google project, Pubsub subscription and a way to deserialize the PubSubMessages.
+There are several optional methods to alter how the PubSubSource is created, the bare minimum is to provide a Google project, Pubsub subscription and a way to deserialize the PubSubMessages.
 
 Example:
 
