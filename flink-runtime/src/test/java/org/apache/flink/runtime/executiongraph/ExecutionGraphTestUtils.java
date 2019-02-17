@@ -518,27 +518,6 @@ public class ExecutionGraphTestUtils {
 		}
 	}
 
-	@SuppressWarnings("serial")
-	public static class SimpleFailingActorGateway extends BaseTestingActorGateway {
-
-		public SimpleFailingActorGateway(ExecutionContext executionContext) {
-			super(executionContext);
-		}
-
-		@Override
-		public Object handleMessage(Object message) throws Exception {
-			if(message instanceof SubmitTask) {
-				throw new Exception(ERROR_MESSAGE);
-			} else if (message instanceof CancelTask) {
-				CancelTask cancelTask = (CancelTask) message;
-
-				return Acknowledge.get();
-			} else {
-				return null;
-			}
-		}
-	}
-
 	public static final String ERROR_MESSAGE = "test_failure_error_message";
 
 	public static ExecutionJobVertex getExecutionVertex(
