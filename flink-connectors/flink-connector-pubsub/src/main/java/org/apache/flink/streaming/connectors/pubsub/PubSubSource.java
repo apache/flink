@@ -191,6 +191,8 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		private String subscriptionName;
 
 		private PubSubSubscriberFactory pubSubSubscriberFactory;
+		private Long maxMessagesReceivedNotProcessed;
+		private Long maxBytesReceivedNotProcessed;
 		private Credentials credentials;
 		private String hostAndPort;
 
@@ -258,6 +260,18 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		}
 
 		/**
+		 * Tune how many messages the connector will buffer when the Flink pipeline cannot keep up (backpressure).
+		 *
+		 * @param maxMessagesReceivedNotProcessed This indicates how many messages will be read and buffered until when the flink pipeline can't handle the messages fast enough.
+		 * @param maxBytesReceivedNotProcessed This indicates how many bytes will be read and buffered. A good pick would be: maxBytesReceivedNotProcessed = maxMessagesReceivedNotProcessed * averageBytesSizePerMessage
+		 */
+		public PubSubSourceBuilder<OUT> withBackpressureParameters(long maxMessagesReceivedNotProcessed, long maxBytesReceivedNotProcessed) {
+			this.maxMessagesReceivedNotProcessed = maxMessagesReceivedNotProcessed;
+			this.maxBytesReceivedNotProcessed = maxBytesReceivedNotProcessed;
+			return this;
+		}
+
+		/**
 		 * Actually build the desired instance of the PubSubSourceBuilder.
 		 *
 		 * @return a brand new SourceFunction
@@ -273,8 +287,12 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 				throw new IllegalArgumentException(("withPubSubSubscriberFactory() and withHostAndPortForEmulator() both called, only one may be called."));
 			}
 
+			if (pubSubSubscriberFactory != null && maxMessagesReceivedNotProcessed != null) {
+				throw new IllegalArgumentException(("withPubSubSubscriberFactory() and withBackpressureParameters() both called, only one may be called."));
+			}
+
 			if (pubSubSubscriberFactory == null) {
-				pubSubSubscriberFactory = new DefaultPubSubSubscriberFactory(hostAndPort);
+				pubSubSubscriberFactory = new DefaultPubSubSubscriberFactory(hostAndPort, maxMessagesReceivedNotProcessed, maxBytesReceivedNotProcessed);
 			}
 
 			SubscriberWrapper subscriberWrapper = new SubscriberWrapper(credentials, ProjectSubscriptionName.of(projectName, subscriptionName), pubSubSubscriberFactory);

@@ -35,17 +35,21 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
 class DefaultPubSubSubscriberFactory implements PubSubSubscriberFactory {
+	private final long maxOutstandingElementCount;
+	private final long maxOutstandingRequestBytes;
 	private final String hostAndPort;
 
-	DefaultPubSubSubscriberFactory(String hostAndPort) {
+	DefaultPubSubSubscriberFactory(String hostAndPort, long maxOutstandingElementCount, long maxOutstandingRequestBytes) {
 		this.hostAndPort = hostAndPort;
+		this.maxOutstandingElementCount = maxOutstandingElementCount;
+		this.maxOutstandingRequestBytes = maxOutstandingRequestBytes;
 	}
 
 	@Override
 	public Subscriber getSubscriber(Credentials credentials, ProjectSubscriptionName projectSubscriptionName, MessageReceiver messageReceiver) {
 		FlowControlSettings flowControlSettings = FlowControlSettings.newBuilder()
-			.setMaxOutstandingElementCount(10000L)
-			.setMaxOutstandingRequestBytes(100000L)
+			.setMaxOutstandingElementCount(maxOutstandingElementCount)
+			.setMaxOutstandingRequestBytes(maxOutstandingRequestBytes)
 			.setLimitExceededBehavior(FlowController.LimitExceededBehavior.Block)
 			.build();
 
