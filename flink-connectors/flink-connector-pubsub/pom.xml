@@ -68,7 +68,6 @@ under the License.
 					<artifactId>guava-jdk5</artifactId>
 				</exclusion>
 			</exclusions>
-			<scope>provided</scope>
 		</dependency>
 
 		<dependency>

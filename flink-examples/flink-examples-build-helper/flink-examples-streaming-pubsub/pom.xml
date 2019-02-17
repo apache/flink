@@ -32,10 +32,6 @@ under the License.
 	<name>flink-examples-streaming-pubsub</name>
 	<packaging>jar</packaging>
 
-	<properties>
-		<pubsub.version>1.59.0</pubsub.version>
-	</properties>
-
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -46,11 +42,6 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-pubsub_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.google.cloud</groupId>
-			<artifactId>google-cloud-pubsub</artifactId>
-			<version>${pubsub.version}</version>
 		</dependency>
 	</dependencies>
 
