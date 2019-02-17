@@ -753,6 +753,7 @@ public class TaskExecutorTest extends TestLogger {
 			jobMasterGateway,
 			mock(TaskManagerActions.class),
 			mock(CheckpointResponder.class),
+			new TestGlobalAggregateManager(),
 			libraryCacheManager,
 			new NoOpResultPartitionConsumableNotifier(),
 			mock(PartitionProducerStateChecker.class));
