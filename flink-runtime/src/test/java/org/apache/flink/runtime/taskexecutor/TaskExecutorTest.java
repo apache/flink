@@ -316,10 +316,12 @@ public class TaskExecutorTest extends TestLogger {
 		final UUID jmLeaderId = UUID.randomUUID();
 
 		final ResourceID jmResourceId = ResourceID.generate();
+		final CountDownLatch registrationAttempts = new CountDownLatch(2);
 		final CompletableFuture<TaskManagerLocation> taskManagerLocationFuture = new CompletableFuture<>();
 		final CompletableFuture<ResourceID> disconnectTaskManagerFuture = new CompletableFuture<>();
 		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
 			.setRegisterTaskManagerFunction((s, taskManagerLocation) -> {
+				registrationAttempts.countDown();
 				taskManagerLocationFuture.complete(taskManagerLocation);
 				return CompletableFuture.completedFuture(new JMTMRegistrationSuccess(jmResourceId));
 			})
@@ -371,6 +373,9 @@ public class TaskExecutorTest extends TestLogger {
 			final ResourceID resourceID = disconnectTaskManagerFuture.get(heartbeatTimeout * 50L, TimeUnit.MILLISECONDS);
 			assertThat(resourceID, equalTo(taskManagerLocation.getResourceID()));
 
+			assertTrue(
+				"The TaskExecutor should try to reconnect to the JM",
+				registrationAttempts.await(timeout.toMilliseconds(), TimeUnit.SECONDS));
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
@@ -449,9 +454,9 @@ public class TaskExecutorTest extends TestLogger {
 			// heartbeat timeout should trigger disconnect TaskManager from ResourceManager
 			assertThat(taskExecutorDisconnectFuture.get(heartbeatTimeout * 50L, TimeUnit.MILLISECONDS), equalTo(taskManagerLocation.getResourceID()));
 
-			// the TaskExecutor should try to reconnect to the RM
-			registrationAttempts.await();
-
+			assertTrue(
+				"The TaskExecutor should try to reconnect to the RM",
+				registrationAttempts.await(timeout.toMilliseconds(), TimeUnit.SECONDS));
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
