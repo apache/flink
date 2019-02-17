@@ -140,6 +140,14 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	private boolean enableCommitOnCheckpoints = true;
 
 	/**
+	 * User-set flag to disable filter restored partitions with current
+	 * discovered partitions. It's enabled by default since otherwise will result in
+	 * unexpected behaviors - e.g. When changing the topic name, or remove some topics,
+	 * The removed/renamed partitions will be still consumed.
+	 */
+	private boolean filterRestoredPartitionsWithDiscovered = true;
+
+	/**
 	 * The offset commit mode for the consumer.
 	 * The value of this can only be determined in {@link FlinkKafkaConsumerBase#open(Configuration)} since it depends
 	 * on whether or not checkpointing is enabled for the job.
@@ -462,6 +470,18 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		return this;
 	}
 
+	/* Disable filtering the restored partitions with discovered partitions.
+
+	 * Note: this may result in un-wanted behaviors: e.g. When changing the
+	 * topic name, or remove some topics, the removed/renamed partitions
+	 * will be still consumed.
+	 * @return The consumer object, to allow function chaining.
+	 */
+	public FlinkKafkaConsumerBase<T> disableFilterRestoredPartitionsWithDiscovered() {
+		this.filterRestoredPartitionsWithDiscovered = false;
+		return this;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Work methods
 	// ------------------------------------------------------------------------
@@ -504,6 +524,18 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 					// in this case, just use the restored state as the subscribed partitions
 					subscribedPartitionsToStartOffsets.put(restoredStateEntry.getKey(), restoredStateEntry.getValue());
 				}
+			}
+
+			if (filterRestoredPartitionsWithDiscovered) {
+				subscribedPartitionsToStartOffsets.entrySet().removeIf(entry -> {
+					if (!topicsDescriptor.isMatchingTopic(entry.getKey().getTopic())) {
+						LOG.warn(
+							"{} is removed from subscribed partitions since it is no longer associated with topics descriptor of current execution.",
+							entry.getKey());
+						return true;
+					}
+					return false;
+				});
 			}
 
 			LOG.info("Consumer subtask {} will start reading {} partitions with offsets in restored state: {}",
