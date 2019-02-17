@@ -168,7 +168,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			FatalErrorHandler fatalErrorHandler,
 			JobManagerMetricGroup jobManagerMetricGroup) {
 
-		super(rpcService, resourceManagerEndpointId);
+		super(rpcService, resourceManagerEndpointId, null);
 
 		this.resourceId = checkNotNull(resourceId);
 		this.highAvailabilityServices = checkNotNull(highAvailabilityServices);
