@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.hadoop.{mapred, mapreduce}
 import org.apache.hadoop.fs.{Path => HadoopPath}
 import org.apache.hadoop.mapred.{JobConf, FileInputFormat => MapredFileInputFormat, InputFormat => MapredInputFormat}
-import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => MapreduceFileInputFormat}
+import org.apache.hadoop.mapreduce.lib.input.{SequenceFileInputFormat, FileInputFormat => MapreduceFileInputFormat}
 import org.apache.hadoop.mapreduce.{Job, InputFormat => MapreduceInputFormat}
 
 /**
@@ -70,8 +70,23 @@ object HadoopInputs {
   /**
     * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that reads a Hadoop sequence
     * file with the given key and value classes.
+    * @deprecated Use [[readMapRedSequenceFile(Class, Class String)]] instead.
     */
+  @deprecated
   def readSequenceFile[K, V](
+      key: Class[K],
+      value: Class[V],
+      inputPath: String)(implicit tpe: TypeInformation[(K, V)]): mapred.HadoopInputFormat[K, V] = {
+
+    readMapRedSequenceFile(key, value, inputPath)
+  }
+
+  /**
+    * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that reads a Hadoop
+    * [[org.apache.hadoop.mapred.SequenceFileInputFormat]] file with the given key
+    * and value classes.
+    */
+  def readMapRedSequenceFile[K, V](
       key: Class[K],
       value: Class[V],
       inputPath: String)(implicit tpe: TypeInformation[(K, V)]): mapred.HadoopInputFormat[K, V] = {
@@ -81,7 +96,7 @@ object HadoopInputs {
       key,
       value,
       inputPath
-   )
+    )
   }
 
   /**
@@ -125,6 +140,24 @@ object HadoopInputs {
       inputPath: String)(implicit tpe: TypeInformation[(K, V)]): mapreduce.HadoopInputFormat[K, V] =
   {
     readHadoopFile(mapreduceInputFormat, key, value, inputPath, Job.getInstance)
+  }
+
+  /**
+    * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that reads a Hadoop
+    * [[org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat]] file with the given key
+    * and value classes.
+    */
+  def readMapReduceSequenceFile[K, V](
+      key: Class[K],
+      value: Class[V],
+      inputPath: String)(implicit ti: TypeInformation[(K, V)]): mapreduce.HadoopInputFormat[K, V] =
+  {
+    readHadoopFile(
+      new SequenceFileInputFormat[K, V],
+      key,
+      value,
+      inputPath
+    )
   }
 
   /**

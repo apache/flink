@@ -66,9 +66,20 @@ public final class HadoopInputs {
 	/**
 	 * Creates a Flink {@link InputFormat} to read a Hadoop sequence file for the given key and value classes.
 	 *
-	 * @return A Flink InputFormat that wraps a Hadoop SequenceFileInputFormat.
+	 * @return A Flink InputFormat that wraps a Hadoop {@link org.apache.hadoop.mapred.SequenceFileInputFormat}.
+	 * @deprecated Use {@link #readMapRedSequenceFile(Class, Class, String)} instead
 	 */
+	@Deprecated
 	public static <K, V> HadoopInputFormat<K, V> readSequenceFile(Class<K> key, Class<V> value, String inputPath) throws IOException {
+		return readMapRedSequenceFile(key, value, inputPath);
+	}
+
+	/**
+	 * Creates a Flink {@link InputFormat} to read a Hadoop sequence file for the given key and value classes.
+	 *
+	 * @return A Flink InputFormat that wraps a Hadoop {@link org.apache.hadoop.mapred.SequenceFileInputFormat}.
+	 */
+	public static <K, V> HadoopInputFormat<K, V> readMapRedSequenceFile(Class<K> key, Class<V> value, String inputPath) throws IOException {
 		return readHadoopFile(new org.apache.hadoop.mapred.SequenceFileInputFormat<K, V>(), key, value, inputPath);
 	}
 
@@ -102,6 +113,15 @@ public final class HadoopInputs {
 	public static <K, V> org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat<K, V> readHadoopFile(
 			org.apache.hadoop.mapreduce.lib.input.FileInputFormat<K, V> mapreduceInputFormat, Class<K> key, Class<V> value, String inputPath) throws IOException {
 		return readHadoopFile(mapreduceInputFormat, key, value, inputPath, Job.getInstance());
+	}
+
+	/**
+	 * Creates a Flink {@link InputFormat} to read a Hadoop sequence file for the given key and value classes.
+	 *
+	 * @return A Flink InputFormat that wraps a Hadoop {@link org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat}.
+	 */
+	public static <K, V> org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat<K, V> readMapReduceSequenceFile(Class<K> key, Class<V> value, String inputPath) throws IOException {
+		return readHadoopFile(new org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat<>(), key, value, inputPath);
 	}
 
 	/**
