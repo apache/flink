@@ -29,7 +29,6 @@ import grizzled.slf4j.Logger
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration._
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.concurrent.{ScheduledExecutor, ScheduledExecutorServiceAdapter}
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices
@@ -38,8 +37,6 @@ import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
 import org.apache.flink.runtime.messages.TaskManagerMessages.{NotifyWhenRegisteredAtJobManager, RegisteredAtJobManager}
 import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl}
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.testutils.TestingResourceManager
-import org.apache.flink.runtime.util.LeaderRetrievalUtils
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 
 import scala.concurrent.duration.{TimeUnit, _}
@@ -382,34 +379,6 @@ object TestingUtils {
     }
 
     new AkkaActorGateway(actor, leaderId)
-  }
-
-  /** Creates a testing JobManager using the given configuration and high availability services.
-    *
-    * @param actorSystem The actor system to start the actor
-    * @param configuration The configuration
-    * @param highAvailabilityServices The high availability services to use
-    * @return
-    */
-  def createResourceManager(
-      actorSystem: ActorSystem,
-      configuration: Configuration,
-      highAvailabilityServices: HighAvailabilityServices)
-  : ActorGateway = {
-
-    val resourceManager = FlinkResourceManager.startResourceManagerActors(
-      configuration,
-      actorSystem,
-      highAvailabilityServices.getJobManagerLeaderRetriever(
-        HighAvailabilityServices.DEFAULT_JOB_ID),
-      classOf[TestingResourceManager])
-
-    val leaderId = LeaderRetrievalUtils.retrieveLeaderSessionId(
-      highAvailabilityServices.getJobManagerLeaderRetriever(
-        HighAvailabilityServices.DEFAULT_JOB_ID),
-      TestingUtils.TESTING_TIMEOUT)
-
-    new AkkaActorGateway(resourceManager, leaderId)
   }
 
   class ForwardingActor(val target: ActorRef, val leaderSessionID: Option[UUID])
