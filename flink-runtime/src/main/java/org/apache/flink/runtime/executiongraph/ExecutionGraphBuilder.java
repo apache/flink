@@ -280,9 +280,6 @@ public class ExecutionGraphBuilder {
 					snapshotSettings.getCheckpointCoordinatorConfiguration(),
 					metrics);
 
-			// The default directory for externalized checkpoints
-			String externalizedCheckpointsDir = jobManagerConfig.getString(CheckpointingOptions.CHECKPOINTS_DIRECTORY);
-
 			// load the state backend from the application settings
 			final StateBackend applicationConfiguredBackend;
 			final SerializedValue<StateBackend> serializedAppConfigured = snapshotSettings.getDefaultStateBackend();

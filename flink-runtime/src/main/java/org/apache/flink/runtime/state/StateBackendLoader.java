@@ -111,9 +111,9 @@ public class StateBackendLoader {
 
 				if (logger != null) {
 					Path memExternalized = memBackend.getCheckpointPath();
-					String extern = memExternalized == null ? "" :
+					String external = memExternalized == null ? "" :
 							" (externalized to " + memExternalized + ')';
-					logger.info("State backend is set to heap memory (checkpoint to JobManager) {}", extern);
+					logger.info("State backend is set to heap memory (checkpoint to JobManager) {}", external);
 				}
 				return memBackend;
 
