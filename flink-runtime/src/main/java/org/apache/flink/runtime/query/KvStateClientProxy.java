@@ -32,9 +32,9 @@ import javax.annotation.Nullable;
  *
  * <p>These are:
  * <ol>
- *     <li> the {@link org.apache.flink.runtime.jobmanager.JobManager Job Manager},
+ *     <li> the {@link org.apache.flink.runtime.jobmaster.JobMaster Job Manager},
  *     which is responsible for sending the
- *     {@link org.apache.flink.runtime.taskmanager.TaskManager Task Manager} storing
+ *     {@link org.apache.flink.runtime.taskexecutor.TaskExecutor Task Manager} storing
  *     the requested state, and </li>
  *     <li> the Task Manager having the state itself.</li>
  * </ol>
@@ -42,7 +42,7 @@ import javax.annotation.Nullable;
 public interface KvStateClientProxy extends KvStateServer {
 
 	/**
-	 * Updates the active {@link org.apache.flink.runtime.jobmanager.JobManager Job Manager}
+	 * Updates the active {@link org.apache.flink.runtime.jobmaster.JobMaster Job Manager}
 	 * in case of change.
 	 *
 	 * <p>This is useful in settings where high-availability is enabled and

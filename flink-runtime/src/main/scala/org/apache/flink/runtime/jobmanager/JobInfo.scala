@@ -23,7 +23,7 @@ import org.apache.flink.runtime.akka.ListeningBehaviour
 
 
 /**
- * Utility class to store job information on the [[JobManager]]. The JobInfo stores which actor
+ * Utility class to store job information on the JobManager. The JobInfo stores which actor
  * submitted the job, when the start time and, if already terminated, the end time was.
  * Additionally, it stores whether the job was started in the detached mode. Detached means that
  * the submitting actor does not wait for the job result once the job has terminated.
