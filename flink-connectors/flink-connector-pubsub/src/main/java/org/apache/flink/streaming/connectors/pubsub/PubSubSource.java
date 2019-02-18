@@ -124,7 +124,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 				return;
 			}
 
-            sourceContext.collect(deserializedMessage);
+			sourceContext.collect(deserializedMessage);
 		}
 	}
 
@@ -155,7 +155,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	}
 
 	private OUT deserializeMessage(PubsubMessage message) throws IOException {
-        return deserializationSchema.deserialize(message.getData().toByteArray());
+		return deserializationSchema.deserialize(message.getData().toByteArray());
 	}
 
 	@Override

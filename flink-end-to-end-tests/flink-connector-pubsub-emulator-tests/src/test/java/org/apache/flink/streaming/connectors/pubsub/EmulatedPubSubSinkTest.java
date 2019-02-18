@@ -79,7 +79,7 @@ public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
 
 		// Sink into pubsub
 		theData
-			.addSink(PubSubSink.<String>newBuilder(new SimpleStringSchema(), PROJECT_NAME, TOPIC_NAME)
+			.addSink(PubSubSink.newBuilder(new SimpleStringSchema(), PROJECT_NAME, TOPIC_NAME)
 				// Specific for emulator
 				.withHostAndPortForEmulator(getPubSubHostPort())
 				.build())

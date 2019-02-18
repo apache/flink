@@ -70,11 +70,14 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
 	@Test
 	public void testFlinkSource() throws Exception {
 		// Create some messages and put them into pubsub
-		List<String> input = Arrays.asList("One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eigth", "Nine", "Ten");
+		List<String> input = Arrays.asList("One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten");
+
+		List<String> messagesToSend = new ArrayList<>(input);
+		messagesToSend.add("End");
 
 		// Publish the messages into PubSub
 		Publisher publisher = pubsubHelper.createPublisher(PROJECT_NAME, TOPIC_NAME);
-		input.forEach(s -> {
+		messagesToSend.forEach(s -> {
 			try {
 				publisher
 					.publish(PubsubMessage
@@ -95,6 +98,7 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
 			.addSource(PubSubSource.newBuilder(new BoundedStringDeserializer(10), PROJECT_NAME, SUBSCRIPTION_NAME)
 				// Specific for emulator
 				.withHostAndPort(getPubSubHostPort())
+				.withBackpressureParameters(100, 1000)
 				.build())
 			.name("PubSub source");
 
@@ -121,7 +125,7 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
 		@Override
 		public boolean isEndOfStream(String message) {
 			counter++;
-			return counter >= maxMessage;
+			return counter > maxMessage;
 		}
 	}
 }
