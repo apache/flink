@@ -119,7 +119,7 @@ public abstract class MemorySegment {
 	/**
 	 * The heap byte array object relative to which we access the memory.
 	 *
-	 * <p>Is non-<tt>null</tt> if the memory is on the heap, and is <tt>null</tt>, if the memory if
+	 * <p>Is non-<tt>null</tt> if the memory is on the heap, and is <tt>null</tt>, if the memory is
 	 * off the heap. If we have this buffer, we must never void this reference, or the memory
 	 * segment will point to undefined addresses outside the heap and may in out-of-order execution
 	 * cases cause segmentation faults.
