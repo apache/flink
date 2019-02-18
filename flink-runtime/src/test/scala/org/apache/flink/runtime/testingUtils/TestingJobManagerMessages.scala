@@ -49,8 +49,6 @@ object TestingJobManagerMessages {
   case class WaitForAllVerticesToBeRunningOrFinished(jobID: JobID)
   case class AllVerticesRunning(jobID: JobID)
 
-  case class NotifyWhenJobRemoved(jobID: JobID)
-
   case class RequestWorkingTaskManager(jobID: JobID)
   case class WorkingTaskManager(gatewayOption: Option[ActorGateway])
 

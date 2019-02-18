@@ -1476,7 +1476,7 @@ public class TaskManagerTest extends TestLogger {
 								Thread.sleep(sleepTime);
 
 								Future<?> removeFuture = taskManager.ask(
-										new TestingJobManagerMessages.NotifyWhenJobRemoved(jobId),
+										new TestingTaskManagerMessages.NotifyWhenJobRemoved(jobId),
 										remaining());
 
 								// Cancel the task
