@@ -107,7 +107,7 @@ This is possible by using `PubSubSource.newBuilder().withHostAndPort("localhost:
 
 ## Backpressure
 
-Backpressure can happen when the source function produces messages faster than the flink pipeline can handle.
+Backpressure can happen when the source function produces messages faster than the Flink pipeline can handle.
 
 The connector uses the Google Cloud PubSub SDK under the hood and this allows us to deal with backpressure. Through the PubSubSource builder you are able to use `.withBackpressureParameters()` or `.withPubSubSubscriberFactory()`. Both affect how the [Subscriber](http://googleapis.github.io/google-cloud-java/google-cloud-clients/apidocs/index.html?com/google/cloud/pubsub/v1/package-summary.html), which is used within the connector, handles backpressure through [Message Flow Control](https://cloud.google.com/pubsub/docs/pull#message-flow-control). For instance, in the following example we allow at most 10000 messages to be buffered (meaning messages read but not yet acknowledged), once we have more than 10000 messages we stop pulling in more messages.
 
