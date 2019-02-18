@@ -93,7 +93,7 @@ object JobManagerMessages {
   /**
    * Triggers the submission of the recovered job
    *
-   * @param submittedJobGraph Contains the submitted JobGraph and the associated JobInfo
+   * @param submittedJobGraph Contains the submitted JobGraph
    */
   case class RecoverSubmittedJob(submittedJobGraph: SubmittedJobGraph)
     extends RequiresLeaderSessionID
