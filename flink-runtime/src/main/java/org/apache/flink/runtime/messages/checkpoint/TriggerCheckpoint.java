@@ -25,8 +25,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * This message is sent from the {@link org.apache.flink.runtime.jobmanager.JobManager} to the
- * {@link org.apache.flink.runtime.taskmanager.TaskManager} to tell a certain task to trigger its
+ * This message is sent from the {@link org.apache.flink.runtime.jobmaster.JobMaster} to the
+ * {@link org.apache.flink.runtime.taskexecutor.TaskExecutor} to tell a certain task to trigger its
  * checkpoint.
  */
 public class TriggerCheckpoint extends AbstractCheckpointMessage {
