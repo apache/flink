@@ -35,10 +35,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
-import org.apache.flink.runtime.akka.AkkaJobManagerGateway;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.client.JobClient;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
@@ -484,40 +481,6 @@ public abstract class ClusterClient<T> {
 			throws ProgramInvocationException {
 		JobGraph job = getJobGraph(flinkConfig, compiledPlan, libraries, classpaths, savepointSettings);
 		return submitJob(job, classLoader);
-	}
-
-	/**
-	 * Submits a JobGraph detached.
-	 * @param jobGraph The JobGraph
-	 * @param classLoader User code class loader to deserialize the results and errors (may contain custom classes).
-	 * @return JobSubmissionResult
-	 * @throws ProgramInvocationException
-	 */
-	public JobSubmissionResult runDetached(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-
-		waitForClusterToBeReady();
-
-		final ActorGateway jobManagerGateway;
-		try {
-			jobManagerGateway = getJobManagerGateway();
-		} catch (Exception e) {
-			throw new ProgramInvocationException("Failed to retrieve the JobManager gateway.",
-				jobGraph.getJobID(), e);
-		}
-
-		try {
-			logAndSysout("Submitting Job with JobID: " + jobGraph.getJobID() + ". Returning after job submission.");
-			JobClient.submitJobDetached(
-				new AkkaJobManagerGateway(jobManagerGateway),
-				flinkConfig,
-				jobGraph,
-				Time.milliseconds(timeout.toMillis()),
-				classLoader);
-			return new JobSubmissionResult(jobGraph.getJobID());
-		} catch (JobExecutionException e) {
-			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(),
-				jobGraph.getJobID(), e);
-		}
 	}
 
 	/**
