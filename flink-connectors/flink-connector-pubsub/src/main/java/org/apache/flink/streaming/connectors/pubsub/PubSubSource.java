@@ -102,7 +102,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		subscriberWrapper.awaitTerminated();
 	}
 
-	void processMessage(SourceContext<OUT> sourceContext, Tuple2<PubsubMessage, AckReplyConsumer> input) {
+	void processMessage(SourceContext<OUT> sourceContext, Tuple2<PubsubMessage, AckReplyConsumer> input) throws IOException {
 		PubsubMessage message = input.f0;
 		AckReplyConsumer ackReplyConsumer = input.f1;
 
@@ -147,12 +147,8 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		subscriberWrapper.stopAsync();
 	}
 
-	private OUT deserializeMessage(PubsubMessage message) {
-		try {
-			return deserializationSchema.deserialize(message.getData().toByteArray());
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+	private OUT deserializeMessage(PubsubMessage message) throws IOException {
+        return deserializationSchema.deserialize(message.getData().toByteArray());
 	}
 
 	@Override
