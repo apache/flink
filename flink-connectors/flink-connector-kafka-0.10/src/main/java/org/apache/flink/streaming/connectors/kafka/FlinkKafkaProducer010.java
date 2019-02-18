@@ -28,6 +28,8 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartiti
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
+import org.apache.flink.streaming.util.serialization.KafkaSerializationSchema;
+import org.apache.flink.streaming.util.serialization.KafkaSerializationSchemaAdapter010;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 
@@ -189,12 +191,30 @@ public class FlinkKafkaProducer010<T> extends FlinkKafkaProducer09<T> {
 	 *                          round-robin fashion.
 	 */
 	public FlinkKafkaProducer010(
-			String topicId,
-			KeyedSerializationSchema<T> serializationSchema,
-			Properties producerConfig,
-			@Nullable FlinkKafkaPartitioner<T> customPartitioner) {
+		String topicId,
+		KeyedSerializationSchema<T> serializationSchema,
+		Properties producerConfig,
+		@Nullable FlinkKafkaPartitioner<T> customPartitioner) {
 
-		super(topicId, serializationSchema, producerConfig, customPartitioner);
+		this(
+			new KafkaSerializationSchemaAdapter010<>(
+				topicId,
+				serializationSchema,
+				customPartitioner
+			),
+			producerConfig);
+	}
+
+	/**
+	 * Creates a FlinkKafkaProducer for a given topic. The sink produces its input to
+	 * the topic. It accepts a keyed {@link KafkaSerializationSchema}.
+	 * @param serializationSchema A serializable serialization schema for turning user objects into a ProducerRecord
+	 * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is the only required argument.
+	 */
+	public FlinkKafkaProducer010(
+		KafkaSerializationSchema<T> serializationSchema,
+		Properties producerConfig) {
+		super(serializationSchema, producerConfig);
 	}
 
 	// ------------------- User configuration ----------------------
@@ -348,32 +368,16 @@ public class FlinkKafkaProducer010<T> extends FlinkKafkaProducer09<T> {
 
 	@Override
 	public void invoke(T value, Context context) throws Exception {
-
 		checkErroneous();
-
-		byte[] serializedKey = schema.serializeKey(value);
-		byte[] serializedValue = schema.serializeValue(value);
-		String targetTopic = schema.getTargetTopic(value);
-		if (targetTopic == null) {
-			targetTopic = defaultTopicId;
-		}
 
 		Long timestamp = null;
 		if (this.writeTimestampToKafka) {
 			timestamp = context.timestamp();
 		}
 
-		ProducerRecord<byte[], byte[]> record;
-		int[] partitions = topicPartitionsMap.get(targetTopic);
-		if (null == partitions) {
-			partitions = getPartitionsByTopic(targetTopic, producer);
-			topicPartitionsMap.put(targetTopic, partitions);
-		}
-		if (flinkKafkaPartitioner == null) {
-			record = new ProducerRecord<>(targetTopic, null, timestamp, serializedKey, serializedValue);
-		} else {
-			record = new ProducerRecord<>(targetTopic, flinkKafkaPartitioner.partition(value, serializedKey, serializedValue, targetTopic, partitions), timestamp, serializedKey, serializedValue);
-		}
+		ProducerRecord<byte[], byte[]> record = schema.serialize(
+			value, timestamp, schemaPartitionInfo);
+
 		if (flushOnCheckpoint) {
 			synchronized (pendingRecordsLock) {
 				pendingRecords++;
@@ -488,4 +492,5 @@ public class FlinkKafkaProducer010<T> extends FlinkKafkaProducer09<T> {
 			return this;
 		}
 	}
+
 }

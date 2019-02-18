@@ -39,15 +39,14 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.serialization.KafkaSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableListMultimap;
 import org.apache.flink.shaded.guava18.com.google.common.primitives.Longs;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.header.Header;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.header.internals.RecordHeaders;
@@ -58,10 +57,8 @@ import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -404,8 +401,8 @@ public class Kafka011ITCase extends KafkaConsumerTestBase {
 			}
 		});
 
-		FlinkKafkaProducer011<Long> producer = new FlinkKafkaProducer011<>(topic,
-			new ValidatingTestHeadersKeyedSerializationSchema(topic), standardProps, Optional.empty());
+		FlinkKafkaProducer011<Long> producer = new FlinkKafkaProducer011<>(
+			new TestHeadersKafkaSerializationSchema(topic), standardProps);
 		testSequence.addSink(producer).setParallelism(3);
 		env.execute("Produce some data");
 
@@ -459,60 +456,27 @@ public class Kafka011ITCase extends KafkaConsumerTestBase {
 	}
 
 	/**
-	 * Convert headers into list of tuples representation. List of tuples is more convenient to use in
-	 * assert expressions, because they have equals
-	 * @param headers - headers
-	 * @return list of tuples(string, list of Bytes)
-	 */
-	private static List<Tuple2<String, List<Byte>>> headersAsList(Headers headers) {
-		List<Tuple2<String, List<Byte>>> r = new ArrayList<>();
-		for (Header header : headers) {
-			final Tuple2<String, List<Byte>> t = new Tuple2<>();
-			t.f0 = header.key();
-			t.f1 = new ArrayList<>(header.value().length);
-			for (byte b: header.value()) {
-				t.f1.add(b);
-			}
-			r.add(t);
-		}
-		return r;
-	}
-
-
-	/**
 	 * Serialization schema, which serialize given element as value, lowest element byte as key,
 	 * low 32-bit integer is also stored as two "low" headers with 16-bit parts as headers values,
 	 * and similar high 32-bit integer is stored as two "high" headers, each 16-bit part is "high" header value.
 	 */
-	private static class ValidatingTestHeadersKeyedSerializationSchema implements KeyedSerializationSchema<Long> {
+	private static class TestHeadersKafkaSerializationSchema implements KafkaSerializationSchema<Long> {
 		private final String topic;
 
-		ValidatingTestHeadersKeyedSerializationSchema(String topic) {
+		TestHeadersKafkaSerializationSchema(String topic) {
 			this.topic = Objects.requireNonNull(topic);
 		}
 
 		@Override
-		public byte[] serializeKey(Long element) {
-			return new byte[] { element.byteValue() };
-		}
-
-		@Override
-		public byte[] serializeValue(Long data) {
-			return data == null ? null : Longs.toByteArray(data);
-		}
-
-		@Override
-		public String getTargetTopic(Long element) {
-			return topic;
-		}
-
-		@Override
-		public Iterable<Map.Entry<String, byte[]>> headers(Long element) {
-			final ImmutableListMultimap.Builder<String, byte[]> multimap = ImmutableListMultimap.builder();
-			for (Header header : headersFor(element)) {
-				multimap.put(header.key(), header.value());
-			}
-			return multimap.build().entries();
+		public ProducerRecord<byte[], byte[]> serialize(Long element, @Nullable Long timestamp, PartitionInfo partitionInfo) {
+			return new ProducerRecord<>(
+				topic,
+				null,
+				timestamp,
+				new byte[] { element.byteValue() },
+				Longs.toByteArray(element),
+				headersFor(element)
+			);
 		}
 	}
 
