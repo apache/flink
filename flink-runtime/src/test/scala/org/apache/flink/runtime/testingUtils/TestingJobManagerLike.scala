@@ -37,11 +37,11 @@ import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.Messages.Disconnect
 import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager
 import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
-import org.apache.flink.runtime.state.memory.MemoryStateBackend
 import org.apache.flink.runtime.state.StateBackendLoader
+import org.apache.flink.runtime.state.memory.MemoryStateBackend
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages._
-import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.AccumulatorsChanged
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{AccumulatorsChanged, NotifyWhenJobRemoved}
 import org.apache.flink.util.OptionalFailure
 
 import scala.collection.mutable
