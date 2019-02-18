@@ -722,9 +722,11 @@ ORDER BY orderTime
         <span class="label label-primary">Batch</span>
       </td>
       <td>
+<b>Note:</b> The LIMIT clause requires an ORDER BY clause. 
 {% highlight sql %}
 SELECT *
 FROM Orders
+ORDER BY orderTime
 LIMIT 3
 {% endhighlight %}
       </td>
