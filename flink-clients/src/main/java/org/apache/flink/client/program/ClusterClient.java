@@ -487,43 +487,6 @@ public abstract class ClusterClient<T> {
 	}
 
 	/**
-	 * Submits a JobGraph blocking.
-	 * @param jobGraph The JobGraph
-	 * @param classLoader User code class loader to deserialize the results and errors (may contain custom classes).
-	 * @return JobExecutionResult
-	 * @throws ProgramInvocationException
-	 */
-	public JobExecutionResult run(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-
-		waitForClusterToBeReady();
-
-		final ActorSystem actorSystem;
-
-		try {
-			actorSystem = actorSystemLoader.get();
-		} catch (FlinkException fe) {
-			throw new ProgramInvocationException("Could not start the ActorSystem needed to talk to the " +
-				"JobManager.", jobGraph.getJobID(), fe);
-		}
-
-		try {
-			logAndSysout("Submitting job with JobID: " + jobGraph.getJobID() + ". Waiting for job completion.");
-			this.lastJobExecutionResult = JobClient.submitJobAndWait(
-				actorSystem,
-				flinkConfig,
-				highAvailabilityServices,
-				jobGraph,
-				timeout,
-				printStatusDuringExecution,
-				classLoader);
-
-			return lastJobExecutionResult;
-		} catch (JobExecutionException e) {
-			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), jobGraph.getJobID(), e);
-		}
-	}
-
-	/**
 	 * Submits a JobGraph detached.
 	 * @param jobGraph The JobGraph
 	 * @param classLoader User code class loader to deserialize the results and errors (may contain custom classes).

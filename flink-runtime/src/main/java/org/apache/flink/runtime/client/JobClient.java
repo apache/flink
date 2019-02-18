@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
@@ -33,7 +32,6 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -43,7 +41,6 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Identify;
 import akka.actor.PoisonPill;
-import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 import org.slf4j.Logger;
@@ -81,52 +78,6 @@ public class JobClient {
 		ActorSystem system = BootstrapTools.startActorSystem(config, hostname, 0, LOG);
 
 		return system;
-	}
-
-	/**
-	 * Submits a job to a Flink cluster (non-blocking) and returns a JobListeningContext which can be
-	 * passed to {@code awaitJobResult} to get the result of the submission.
-	 * @return JobListeningContext which may be used to retrieve the JobExecutionResult via
-	 * 			{@code awaitJobResult(JobListeningContext context)}.
-	 */
-	public static JobListeningContext submitJob(
-			ActorSystem actorSystem,
-			Configuration config,
-			HighAvailabilityServices highAvailabilityServices,
-			JobGraph jobGraph,
-			FiniteDuration timeout,
-			boolean sysoutLogUpdates,
-			ClassLoader classLoader) {
-
-		checkNotNull(actorSystem, "The actorSystem must not be null.");
-		checkNotNull(highAvailabilityServices, "The high availability services must not be null.");
-		checkNotNull(jobGraph, "The jobGraph must not be null.");
-		checkNotNull(timeout, "The timeout must not be null.");
-
-		// for this job, we create a proxy JobClientActor that deals with all communication with
-		// the JobManager. It forwards the job submission, checks the success/failure responses, logs
-		// update messages, watches for disconnect between client and JobManager, ...
-
-		Props jobClientActorProps = JobSubmissionClientActor.createActorProps(
-			highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
-			timeout,
-			sysoutLogUpdates,
-			config);
-
-		ActorRef jobClientActor = actorSystem.actorOf(jobClientActorProps);
-
-		Future<Object> submissionFuture = Patterns.ask(
-				jobClientActor,
-				new JobClientMessages.SubmitJobAndWait(jobGraph),
-				new Timeout(AkkaUtils.INF_TIMEOUT()));
-
-		return new JobListeningContext(
-			jobGraph.getJobID(),
-			submissionFuture,
-			jobClientActor,
-			timeout,
-			classLoader,
-			highAvailabilityServices);
 	}
 
 	/**
@@ -305,44 +256,6 @@ public class JobClient {
 			throw new JobExecutionException(jobID,
 				"Unknown answer from JobManager after submitting the job: " + answer);
 		}
-	}
-
-	/**
-	 * Sends a [[JobGraph]] to the JobClient actor specified by jobClient which submits it then to
-	 * the JobManager. The method blocks until the job has finished or the JobManager is no longer
-	 * alive. In the former case, the [[SerializedJobExecutionResult]] is returned and in the latter
-	 * case a [[JobExecutionException]] is thrown.
-	 *
-	 * @param actorSystem The actor system that performs the communication.
-	 * @param config The cluster wide configuration.
-	 * @param highAvailabilityServices Service factory for high availability services
-	 * @param jobGraph    JobGraph describing the Flink job
-	 * @param timeout     Timeout for futures
-	 * @param sysoutLogUpdates prints log updates to system out if true
-	 * @param classLoader The class loader for deserializing the results
-	 * @return The job execution result
-	 * @throws JobExecutionException Thrown if the job
-	 *                                                               execution fails.
-	 */
-	public static JobExecutionResult submitJobAndWait(
-			ActorSystem actorSystem,
-			Configuration config,
-			HighAvailabilityServices highAvailabilityServices,
-			JobGraph jobGraph,
-			FiniteDuration timeout,
-			boolean sysoutLogUpdates,
-			ClassLoader classLoader) throws JobExecutionException {
-
-		JobListeningContext jobListeningContext = submitJob(
-				actorSystem,
-				config,
-				highAvailabilityServices,
-				jobGraph,
-				timeout,
-				sysoutLogUpdates,
-				classLoader);
-
-		return awaitJobResult(jobListeningContext);
 	}
 
 	/**
