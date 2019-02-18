@@ -53,7 +53,6 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	protected DeserializationSchema<OUT> deserializationSchema;
 	protected SubscriberWrapper subscriberWrapper;
 
-	protected boolean running = true;
 	protected transient volatile SourceContext<OUT> sourceContext = null;
 
 	PubSubSource(DeserializationSchema<OUT> deserializationSchema, SubscriberWrapper subscriberWrapper) {
@@ -149,13 +148,11 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	public void cancel() {
 		sourceContext = null;
 		subscriberWrapper.stop();
-		running = false;
 	}
 
 	@Override
 	public void stop() {
 		subscriberWrapper.stopAsync();
-		running = false;
 	}
 
 	private OUT deserializeMessage(PubsubMessage message) {
@@ -274,8 +271,8 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		 * Actually build the desired instance of the PubSubSourceBuilder.
 		 *
 		 * @return a brand new SourceFunction
-		 * @throws IOException              incase of a problem getting the credentials
-		 * @throws IllegalArgumentException incase required fields were not specified.
+		 * @throws IOException              in case of a problem getting the credentials
+		 * @throws IllegalArgumentException in case required fields were not specified.
 		 */
 		public PubSubSource<OUT> build() throws IOException {
 			if (credentials == null) {
