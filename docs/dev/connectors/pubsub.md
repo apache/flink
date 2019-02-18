@@ -128,7 +128,7 @@ streamExecEnv.addSource(source);
 
 One important aspect to keep in mind is the 10000 messages limit is based on the amount of messages that has not been acknowledged yet. The connector will only acknowledge messages on successful checkpoints. This means if you checkpoint once every minute and you set the message limit to 10000. Your max throughput will be 10000 messages per minute.
 
-To give insight into this behavior 2 metrics have been added:
+To give insight into this behavior two metrics have been added:
   * `PubSubMessagesReceivedNotProcessed` this is the amount of messages that has been received but have not been processed yet. If this number is high that is a good indicator you are having backpressure problems.
   * `PubSubMessagesProcessedNotAcked` this is the amount of messages that has been send to the next operator in the pipeline but has not yet been acknowledged. (Again note: only after a successful checkpoint are messages acknowledged)
 
