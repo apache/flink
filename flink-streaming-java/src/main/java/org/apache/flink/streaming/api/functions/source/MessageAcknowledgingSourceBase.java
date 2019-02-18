@@ -168,8 +168,12 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 
 	@Override
 	public void close() throws Exception {
-		idsForCurrentCheckpoint.clear();
-		pendingCheckpoints.clear();
+		if (idsForCurrentCheckpoint != null) {
+			idsForCurrentCheckpoint.clear();
+		}
+		if (pendingCheckpoints != null) {
+			pendingCheckpoints.clear();
+		}
 	}
 
 

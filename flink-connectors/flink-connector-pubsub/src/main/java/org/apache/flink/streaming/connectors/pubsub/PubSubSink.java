@@ -103,7 +103,9 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 
 	private void shutdownPublisher() {
 		try {
-			publisher.shutdown();
+			if (publisher != null) {
+				publisher.shutdown();
+			}
 		} catch (Exception e) {
 			LOG.info("Shutting down Publisher failed.", e);
 		}
