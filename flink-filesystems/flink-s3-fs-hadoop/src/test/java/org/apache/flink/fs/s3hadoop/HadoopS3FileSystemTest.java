@@ -26,7 +26,8 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Unit tests for the S3 file system support via Hadoop's {@link org.apache.hadoop.fs.s3a.S3AFileSystem}.
+ * Unit tests for the S3 file system support via Hadoop's
+ * {@link org.apache.hadoop.fs.s3a.S3AFileSystem}.
  */
 public class HadoopS3FileSystemTest {
 
@@ -40,11 +41,11 @@ public class HadoopS3FileSystemTest {
 
 		org.apache.hadoop.conf.Configuration hadoopConfig = configLoader.getOrLoadHadoopConfig();
 		assertEquals("org.apache.flink.fs.s3hadoop.shaded.com.amazonaws.auth.ContainerCredentialsProvider",
-			hadoopConfig.get("fs.s3a.aws.credentials.provider"));
+				hadoopConfig.get("fs.s3a.aws.credentials.provider"));
 	}
 
 	// ------------------------------------------------------------------------
-	//  These tests check that the S3FileSystemFactory properly forwards
+	// These tests check that the S3FileSystemFactory properly forwards
 	// various patterns of keys for credentials.
 	// ------------------------------------------------------------------------
 
@@ -56,8 +57,9 @@ public class HadoopS3FileSystemTest {
 		Configuration conf = new Configuration();
 		conf.setString("fs.s3a.access.key", "test_access_key");
 		conf.setString("fs.s3a.secret.key", "test_secret_key");
+		conf.setString("fs.s3a.endpoint", "test_endpoint");
 
-		checkHadoopAccessKeys(conf, "test_access_key", "test_secret_key");
+		checkHadoopConfigs(conf, "test_access_key", "test_secret_key", "test_endpoint");
 	}
 
 	/**
@@ -68,8 +70,9 @@ public class HadoopS3FileSystemTest {
 		Configuration conf = new Configuration();
 		conf.setString("s3.access.key", "my_key_a");
 		conf.setString("s3.secret.key", "my_key_b");
+		conf.setString("s3.endpoint", "my_endpoint");
 
-		checkHadoopAccessKeys(conf, "my_key_a", "my_key_b");
+		checkHadoopConfigs(conf, "my_key_a", "my_key_b", "my_endpoint");
 	}
 
 	/**
@@ -80,10 +83,13 @@ public class HadoopS3FileSystemTest {
 		Configuration conf = new Configuration();
 		conf.setString("s3.access-key", "clé d'accès");
 		conf.setString("s3.secret-key", "clef secrète");
-				checkHadoopAccessKeys(conf, "clé d'accès", "clef secrète");
+		conf.setString("s3.endpoint", "point de terminaison");
+
+		checkHadoopConfigs(conf, "clé d'accès", "clef secrète", "point de terminaison");
 	}
 
-	private static void checkHadoopAccessKeys(Configuration flinkConf, String accessKey, String secretKey) {
+	private static void checkHadoopAccessKeys(Configuration flinkConf, String accessKey, String secretKey,
+			String endpoint) {
 		HadoopConfigLoader configLoader = S3FileSystemFactory.createHadoopConfigLoader();
 		configLoader.setFlinkConfig(flinkConf);
 
@@ -91,5 +97,6 @@ public class HadoopS3FileSystemTest {
 
 		assertEquals(accessKey, hadoopConf.get("fs.s3a.access.key", null));
 		assertEquals(secretKey, hadoopConf.get("fs.s3a.secret.key", null));
+		assertEquals(endpoint, hadoopConf.get("fs.s3a.endpoint", null));
 	}
 }
