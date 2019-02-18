@@ -20,7 +20,6 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -146,7 +145,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 
 		ResourceManager<?> resourceManager = new StandaloneResourceManager(
 			rpcService,
-			FlinkResourceManager.RESOURCE_MANAGER_NAME,
+			ResourceManager.RESOURCE_MANAGER_NAME,
 			rmResourceId,
 			haServices,
 			heartbeatServices,
