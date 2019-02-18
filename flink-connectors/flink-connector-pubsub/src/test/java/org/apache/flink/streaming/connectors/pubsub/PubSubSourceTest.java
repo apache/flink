@@ -155,20 +155,23 @@ public class PubSubSourceTest {
 	}
 
 	@Test
-	public void testDuplicateMessagesAreIgnored() throws Exception {
-		when(deserializationSchema.deserialize(SERIALIZED_MESSAGE)).thenReturn(MESSAGE);
+	public void testDuplicateMessagesAreIgnoredWhenParallelismIsOne() throws Exception {
 		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
 		when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
-		when(sourceContext.getCheckpointLock()).thenReturn("some object to lock on");
 		when(functionInitializationContext.getOperatorStateStore()).thenReturn(operatorStateStore);
 		when(operatorStateStore.getSerializableListState(any(String.class))).thenReturn(null);
+		when(streamingRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(1);
+
 		PubSubSource<String> pubSubSource = createTestSource();
 		pubSubSource.initializeState(functionInitializationContext);
 		pubSubSource.setRuntimeContext(streamingRuntimeContext);
 		pubSubSource.open(null);
 		pubSubSource.run(sourceContext);
 
+		when(sourceContext.getCheckpointLock()).thenReturn("some object to lock on");
+
 		//Process first message
+		when(deserializationSchema.deserialize(SERIALIZED_MESSAGE)).thenReturn(MESSAGE);
 		pubSubSource.processMessage(sourceContext, Tuple2.of(pubSubMessage(), ackReplyConsumer));
 		verify(sourceContext, times(1)).getCheckpointLock();
 		verify(sourceContext, times(1)).collect(MESSAGE);
@@ -176,6 +179,35 @@ public class PubSubSourceTest {
 		//Ignore second message
 		pubSubSource.processMessage(sourceContext, Tuple2.of(pubSubMessage(), ackReplyConsumer));
 		verify(sourceContext, times(2)).getCheckpointLock();
+		verifyNoMoreInteractions(sourceContext);
+	}
+
+	@Test
+	public void testDuplicateMessagesAreNotIgnoredWhenParallelismIsHigherThanOne() throws Exception {
+		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
+		when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
+		when(functionInitializationContext.getOperatorStateStore()).thenReturn(operatorStateStore);
+		when(operatorStateStore.getSerializableListState(any(String.class))).thenReturn(null);
+		when(streamingRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(12);
+
+		PubSubSource<String> pubSubSource = createTestSource();
+		pubSubSource.initializeState(functionInitializationContext);
+		pubSubSource.setRuntimeContext(streamingRuntimeContext);
+		pubSubSource.open(null);
+		pubSubSource.run(sourceContext);
+
+		when(sourceContext.getCheckpointLock()).thenReturn("some object to lock on");
+
+		//Process first message
+		when(deserializationSchema.deserialize(SERIALIZED_MESSAGE)).thenReturn(MESSAGE);
+		pubSubSource.processMessage(sourceContext, Tuple2.of(pubSubMessage(), ackReplyConsumer));
+		verify(sourceContext, times(1)).getCheckpointLock();
+		verify(sourceContext, times(1)).collect(MESSAGE);
+
+		//Process second message
+		pubSubSource.processMessage(sourceContext, Tuple2.of(pubSubMessage(), ackReplyConsumer));
+		verify(sourceContext, times(2)).getCheckpointLock();
+		verify(sourceContext, times(2)).collect(MESSAGE);
 		verifyNoMoreInteractions(sourceContext);
 	}
 
@@ -210,6 +242,8 @@ public class PubSubSourceTest {
 		pubSubSource.processMessage(sourceContext, Tuple2.of(pubSubMessage(), ackReplyConsumer));
 
 		verify(subscriberWrapper, times(1)).stopAsync();
+		verify(sourceContext, times(1)).getCheckpointLock();
+		verifyNoMoreInteractions(sourceContext);
 	}
 
 	private PubSubSource<String> createTestSource() throws IOException {

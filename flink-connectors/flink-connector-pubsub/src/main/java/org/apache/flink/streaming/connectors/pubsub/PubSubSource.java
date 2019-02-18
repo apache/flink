@@ -119,10 +119,12 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 			}
 
 			OUT deserializedMessage = deserializeMessage(message);
-			sourceContext.collect(deserializedMessage);
 			if (deserializationSchema.isEndOfStream(deserializedMessage)) {
 				stop();
+				return;
 			}
+
+            sourceContext.collect(deserializedMessage);
 		}
 	}
 
