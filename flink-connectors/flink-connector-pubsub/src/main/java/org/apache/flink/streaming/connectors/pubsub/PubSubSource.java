@@ -53,6 +53,8 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	protected DeserializationSchema<OUT> deserializationSchema;
 	protected SubscriberWrapper subscriberWrapper;
 
+	protected transient boolean deduplicateMessages;
+
 	PubSubSource(DeserializationSchema<OUT> deserializationSchema, SubscriberWrapper subscriberWrapper) {
 		super(String.class);
 		this.deserializationSchema = deserializationSchema;
@@ -70,6 +72,8 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 
 		getRuntimeContext().getMetricGroup().gauge("PubSubMessagesProcessedNotAcked", this::getOutstandingMessagesToAck);
 		getRuntimeContext().getMetricGroup().gauge("PubSubMessagesReceivedNotProcessed", subscriberWrapper::amountOfMessagesInBuffer);
+
+		deduplicateMessages = getRuntimeContext().getNumberOfParallelSubtasks() == 1;
 	}
 
 	private boolean hasNoCheckpointingEnabled(RuntimeContext runtimeContext) {
@@ -107,12 +111,13 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		AckReplyConsumer ackReplyConsumer = input.f1;
 
 		synchronized (sourceContext.getCheckpointLock()) {
-			boolean alreadyProcessed = !addId(message.getMessageId());
-			if (alreadyProcessed) {
+			sessionIds.add(ackReplyConsumer);
+
+			if (deduplicateMessages && !addId(message.getMessageId())) {
+				// message is duplicate so just ignore it
 				return;
 			}
 
-			sessionIds.add(ackReplyConsumer);
 			OUT deserializedMessage = deserializeMessage(message);
 			sourceContext.collect(deserializedMessage);
 			if (deserializationSchema.isEndOfStream(deserializedMessage)) {
