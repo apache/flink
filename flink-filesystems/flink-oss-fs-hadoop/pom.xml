@@ -29,6 +29,7 @@ under the License.
 
 	<properties>
 		<fs.oss.sdk.version>3.4.1</fs.oss.sdk.version>
+		<oss.hadoop.version>3.1.2</oss.hadoop.version>
 	</properties>
 
 	<dependencies>
@@ -47,14 +48,26 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-fs-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-fs-hadoop-shaded</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-common</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-aliyun</artifactId>
-			<version>${fs.hadoopshaded.version}</version>
+			<version>${oss.hadoop.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>com.aliyun.oss</groupId>
@@ -73,6 +86,12 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-fs-hadoop-shaded</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-common</artifactId>
+				</exclusion>
+			</exclusions>
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>

@@ -16,68 +16,66 @@
  * limitations under the License.
  */
 
-package org.apache.flink.fs.s3hadoop;
+package org.apache.flink.fs.osshadoop;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableWriter;
-import org.apache.flink.fs.s3.common.FlinkS3FileSystem;
-import org.apache.flink.fs.s3.common.writer.S3Recoverable;
+import org.apache.flink.fs.osshadoop.writer.OSSRecoverable;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopRecoverableWriterITCase;
-import org.apache.flink.testutils.s3.S3TestCredentials;
+import org.apache.flink.testutils.oss.OSSTestCredentials;
 
 import org.junit.BeforeClass;
 
 import java.io.IOException;
 import java.util.UUID;
 
-import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.MAX_CONCURRENT_UPLOADS;
-import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.PART_UPLOAD_MIN_SIZE;
+import static org.apache.flink.fs.osshadoop.OSSFileSystemFactory.MAX_CONCURRENT_UPLOADS;
+import static org.apache.flink.fs.osshadoop.OSSFileSystemFactory.PART_UPLOAD_MIN_SIZE;
 
 /**
- * Tests for the {@link org.apache.flink.fs.s3.common.writer.S3RecoverableWriter S3RecoverableWriter}.
+ * Tests for the {@link org.apache.flink.fs.osshadoop.writer.OSSRecoverableWriter OSSRecoverableWriter}.
  */
-public class HadoopS3RecoverableWriterITCase extends AbstractHadoopRecoverableWriterITCase {
+public class HadoopOSSRecoverableWriterITCase extends AbstractHadoopRecoverableWriterITCase {
 
-	// ----------------------- S3 general configuration -----------------------
+	// ----------------------- OSS general configuration -----------------------
 
-	private static final long PART_UPLOAD_MIN_SIZE_VALUE = 7L << 20;
 	private static final int MAX_CONCURRENT_UPLOADS_VALUE = 2;
 
 	@BeforeClass
 	public static void checkCredentialsAndSetup() throws IOException {
 		// check whether credentials exist
-		S3TestCredentials.assumeCredentialsAvailable();
+		OSSTestCredentials.assumeCredentialsAvailable();
 
-		basePath = new Path(S3TestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
+		basePath = new Path(OSSTestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
 
 		// initialize configuration with valid credentials
 		final Configuration conf = new Configuration();
-		conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-		conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
+		conf.setString("fs.oss.endpoint", OSSTestCredentials.getOSSEndpoint());
+		conf.setString("fs.oss.accessKeyId", OSSTestCredentials.getOSSAccessKey());
+		conf.setString("fs.oss.accessKeySecret", OSSTestCredentials.getOSSSecretKey());
 
-		conf.setLong(PART_UPLOAD_MIN_SIZE, PART_UPLOAD_MIN_SIZE_VALUE);
 		conf.setInteger(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
 
-		final String defaultTmpDir = TEMP_FOLDER.getRoot().getAbsolutePath() + "s3_tmp_dir";
+		final String defaultTmpDir = TEMP_FOLDER.getRoot().getAbsolutePath() + "/oss_tmp_dir";
 		conf.setString(CoreOptions.TMP_DIRS, defaultTmpDir);
 
 		FileSystem.initialize(conf);
 
-		bigDataChunk = createBigDataChunk(TEST_DATA_1, PART_UPLOAD_MIN_SIZE_VALUE);
+		bigDataChunk = createBigDataChunk(TEST_DATA_1, PART_UPLOAD_MIN_SIZE.defaultValue());
 
 		skipped = false;
 	}
 
 	@Override
 	protected String getLocalTmpDir() throws Exception {
-		return ((FlinkS3FileSystem) getFileSystem()).getLocalTmpDir();
+		return ((FlinkOSSFileSystem) getFileSystem()).getLocalTmpDir();
 	}
 
 	@Override
 	protected String getIncompleteObjectName(RecoverableWriter.ResumeRecoverable recoverable) {
-		return ((S3Recoverable) recoverable).incompleteObjectName();
+		return ((OSSRecoverable) recoverable).getLastPartObject();
 	}
 }
