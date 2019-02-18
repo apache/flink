@@ -62,30 +62,30 @@ public abstract class GenericTypeSerializerSnapshot<T, S extends TypeSerializer>
 	protected abstract Class<?> serializerClass();
 
 	@Override
-	public int getCurrentVersion() {
+	public final int getCurrentVersion() {
 		return VERSION;
 	}
 
 	@Override
-	public void writeSnapshot(DataOutputView out) throws IOException {
+	public final void writeSnapshot(DataOutputView out) throws IOException {
 		checkState(typeClass != null, "type class can not be NULL");
 		out.writeUTF(typeClass.getName());
 	}
 
 	@Override
-	public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+	public final void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
 		typeClass = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public TypeSerializer<T> restoreSerializer() {
+	public final TypeSerializer<T> restoreSerializer() {
 		checkState(typeClass != null, "type class can not be NULL");
 		return createSerializer(typeClass);
 	}
 
 	@Override
-	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
+	public final TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
 		if (!serializerClass().isInstance(newSerializer)) {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
