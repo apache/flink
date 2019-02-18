@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.client;
 
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
@@ -35,14 +34,8 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.SerializedThrowable;
 
-import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.actor.Identify;
-import akka.actor.PoisonPill;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,11 +47,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.Duration;
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -150,111 +138,6 @@ public class JobClient {
 			return FlinkUserCodeClassLoaders.parentFirst(allURLs, JobClient.class.getClassLoader());
 		} else {
 			throw new JobRetrievalException(jobID, "Couldn't retrieve class loader. Job " + jobID + " not found");
-		}
-	}
-
-	/**
-	 * Given a JobListeningContext, awaits the result of the job execution that this context is bound to
-	 * @param listeningContext The listening context of the job execution
-	 * @return The result of the execution
-	 * @throws JobExecutionException if anything goes wrong while monitoring the job
-	 */
-	public static JobExecutionResult awaitJobResult(JobListeningContext listeningContext) throws JobExecutionException {
-
-		final JobID jobID = listeningContext.getJobID();
-		final ActorRef jobClientActor = listeningContext.getJobClientActor();
-		final Future<Object> jobSubmissionFuture = listeningContext.getJobResultFuture();
-		final FiniteDuration askTimeout = listeningContext.getTimeout();
-		// retrieves class loader if necessary
-		final ClassLoader classLoader = listeningContext.getClassLoader();
-
-		// wait for the future which holds the result to be ready
-		// ping the JobClientActor from time to time to check if it is still running
-		while (!jobSubmissionFuture.isCompleted()) {
-			try {
-				Await.ready(jobSubmissionFuture, askTimeout);
-			} catch (InterruptedException e) {
-				throw new JobExecutionException(
-					jobID,
-					"Interrupted while waiting for job completion.");
-			} catch (TimeoutException e) {
-				try {
-					Await.result(
-						Patterns.ask(
-							jobClientActor,
-							// Ping the Actor to see if it is alive
-							new Identify(true),
-							Timeout.durationToTimeout(askTimeout)),
-						askTimeout);
-					// we got a reply, continue waiting for the job result
-				} catch (Exception eInner) {
-					// we could have a result but the JobClientActor might have been killed and
-					// thus the health check failed
-					if (!jobSubmissionFuture.isCompleted()) {
-						throw new JobExecutionException(
-							jobID,
-							"JobClientActor seems to have died before the JobExecutionResult could be retrieved.",
-							eInner);
-					}
-				}
-			}
-		}
-
-		final Object answer;
-		try {
-			// we have already awaited the result, zero time to wait here
-			answer = Await.result(jobSubmissionFuture, Duration.Zero());
-		}
-		catch (Throwable throwable) {
-			throw new JobExecutionException(jobID,
-				"Couldn't retrieve the JobExecutionResult from the JobManager.", throwable);
-		}
-		finally {
-			// failsafe shutdown of the client actor
-			jobClientActor.tell(PoisonPill.getInstance(), ActorRef.noSender());
-		}
-
-		// second block handles the actual response
-		if (answer instanceof JobManagerMessages.JobResultSuccess) {
-			LOG.info("Job execution complete");
-
-			SerializedJobExecutionResult result = ((JobManagerMessages.JobResultSuccess) answer).result();
-			if (result != null) {
-				try {
-					return result.toJobExecutionResult(classLoader);
-				} catch (Throwable t) {
-					throw new JobExecutionException(jobID,
-						"Job was successfully executed but JobExecutionResult could not be deserialized.");
-				}
-			} else {
-				throw new JobExecutionException(jobID,
-					"Job was successfully executed but result contained a null JobExecutionResult.");
-			}
-		}
-		else if (answer instanceof JobManagerMessages.JobResultFailure) {
-			LOG.info("Job execution failed");
-
-			SerializedThrowable serThrowable = ((JobManagerMessages.JobResultFailure) answer).cause();
-			if (serThrowable != null) {
-				Throwable cause = serThrowable.deserializeError(classLoader);
-				if (cause instanceof JobExecutionException) {
-					throw (JobExecutionException) cause;
-				} else {
-					throw new JobExecutionException(jobID, "Job execution failed", cause);
-				}
-			} else {
-				throw new JobExecutionException(jobID,
-					"Job execution failed with null as failure cause.");
-			}
-		}
-		else if (answer instanceof JobManagerMessages.JobNotFound) {
-			throw new JobRetrievalException(
-				((JobManagerMessages.JobNotFound) answer).jobID(),
-				"Couldn't retrieve Job " + jobID + " because it was not running.");
-		}
-		else {
-			throw new JobExecutionException(jobID,
-				"Unknown answer from JobManager after submitting the job: " + answer);
 		}
 	}
 
