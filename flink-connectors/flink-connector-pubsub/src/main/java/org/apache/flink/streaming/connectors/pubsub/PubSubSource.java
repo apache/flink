@@ -53,8 +53,6 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	protected DeserializationSchema<OUT> deserializationSchema;
 	protected SubscriberWrapper subscriberWrapper;
 
-	protected transient volatile SourceContext<OUT> sourceContext = null;
-
 	PubSubSource(DeserializationSchema<OUT> deserializationSchema, SubscriberWrapper subscriberWrapper) {
 		super(String.class);
 		this.deserializationSchema = deserializationSchema;
@@ -85,14 +83,13 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 
 	@Override
 	public void run(SourceContext<OUT> sourceContext) throws Exception {
-		this.sourceContext = sourceContext;
 		subscriberWrapper.start();
 
 		while (subscriberWrapper.isRunning()) {
 			try {
 				Tuple2<PubsubMessage, AckReplyConsumer> newMessage = subscriberWrapper.take();
 				if (newMessage != null) {
-					processMessage(newMessage);
+					processMessage(sourceContext, newMessage);
 				}
 			} catch (InterruptedException e) {
 				LOG.debug("Interrupted - stop or cancel called?");
@@ -105,13 +102,9 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		subscriberWrapper.awaitTerminated();
 	}
 
-	void processMessage(Tuple2<PubsubMessage, AckReplyConsumer> input) {
+	void processMessage(SourceContext<OUT> sourceContext, Tuple2<PubsubMessage, AckReplyConsumer> input) {
 		PubsubMessage message = input.f0;
 		AckReplyConsumer ackReplyConsumer = input.f1;
-		if (sourceContext == null) {
-			ackReplyConsumer.nack();
-			return;
-		}
 
 		synchronized (sourceContext.getCheckpointLock()) {
 			boolean alreadyProcessed = !addId(message.getMessageId());
@@ -146,7 +139,6 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 
 	@Override
 	public void cancel() {
-		sourceContext = null;
 		subscriberWrapper.stop();
 	}
 

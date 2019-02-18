@@ -155,14 +155,6 @@ public class PubSubSourceTest {
 	}
 
 	@Test
-	public void testProcessingMessageOnNonRunningPubSubSource() throws Exception {
-		PubSubSource<String> pubSubSource = createTestSource();
-		pubSubSource.processMessage(Tuple2.of(pubSubMessage(), ackReplyConsumer));
-
-		verify(ackReplyConsumer, times(1)).nack();
-	}
-
-	@Test
 	public void testDuplicateMessagesAreIgnored() throws Exception {
 		when(deserializationSchema.deserialize(SERIALIZED_MESSAGE)).thenReturn(MESSAGE);
 		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
@@ -177,12 +169,12 @@ public class PubSubSourceTest {
 		pubSubSource.run(sourceContext);
 
 		//Process first message
-		pubSubSource.processMessage(Tuple2.of(pubSubMessage(), ackReplyConsumer));
+		pubSubSource.processMessage(sourceContext, Tuple2.of(pubSubMessage(), ackReplyConsumer));
 		verify(sourceContext, times(1)).getCheckpointLock();
 		verify(sourceContext, times(1)).collect(MESSAGE);
 
 		//Ignore second message
-		pubSubSource.processMessage(Tuple2.of(pubSubMessage(), ackReplyConsumer));
+		pubSubSource.processMessage(sourceContext, Tuple2.of(pubSubMessage(), ackReplyConsumer));
 		verify(sourceContext, times(2)).getCheckpointLock();
 		verifyNoMoreInteractions(sourceContext);
 	}
@@ -215,7 +207,7 @@ public class PubSubSourceTest {
 
 		when(deserializationSchema.isEndOfStream(MESSAGE)).thenReturn(true);
 		//Process message
-		pubSubSource.processMessage(Tuple2.of(pubSubMessage(), ackReplyConsumer));
+		pubSubSource.processMessage(sourceContext, Tuple2.of(pubSubMessage(), ackReplyConsumer));
 
 		verify(subscriberWrapper, times(1)).stopAsync();
 	}
