@@ -241,7 +241,7 @@ trait TestingTaskManagerLike extends FlinkActor {
     * No killing of the VM for testing.
     */
   override protected def shutdown(): Unit = {
-    log.info("Shutting down TestingJobManager.")
+    log.info("Shutting down JobManager.")
     waitForShutdown.foreach(_ ! ComponentShutdown(self))
     waitForShutdown.clear()
   }
