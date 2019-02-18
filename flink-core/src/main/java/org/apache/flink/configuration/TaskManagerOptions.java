@@ -20,8 +20,10 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * The set of configuration options relating to TaskManager and Task settings.
@@ -83,11 +85,26 @@ public class TaskManagerOptions {
 	public static final ConfigOption<String> HOST =
 		key("taskmanager.host")
 			.noDefaultValue()
-			.withDescription("The hostname of the network interface that the TaskManager binds to. By default, the" +
-				" TaskManager searches for network interfaces that can connect to the JobManager and other TaskManagers." +
-				" This option can be used to define a hostname if that strategy fails for some reason. Because" +
-				" different TaskManagers need different values for this option, it usually is specified in an" +
+			.withDescription("The address of the network interface that the TaskManager binds to." +
+				" This option can be used to define explicitly a binding address. Because" +
+				" different TaskManagers need different values for this option, usually it is specified in an" +
 				" additional non-shared TaskManager-specific config file.");
+
+	/**
+	 * The config parameter for automatically defining the TaskManager's binding address,
+	 * if {@link #HOST} configuration option is not set.
+	 */
+	public static final ConfigOption<String> HOST_BIND_POLICY =
+		key("taskmanager.host.bind-policy")
+		.defaultValue("hostname")
+		.withDescription(Description.builder()
+			.text("The automatic address binding policy used by the TaskManager if \"" + HOST.key() + "\" is not set." +
+				" The value should be one of the following:\n")
+			.list(
+				text("\"hostname\" - uses host's hostname as binding address"),
+				text("\"ip\" - uses host's ip address as binding address"),
+				text("\"auto-detect-hostname\" - searches for network interfaces that can connect to the JobManager"))
+			.build());
 
 	/**
 	 * The default network port range the task manager expects incoming IPC connections. The {@code "0"} means that

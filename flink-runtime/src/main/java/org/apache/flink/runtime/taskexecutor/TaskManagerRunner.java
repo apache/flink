@@ -409,13 +409,30 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		if (taskManagerHostname != null) {
 			LOG.info("Using configured hostname/address for TaskManager: {}.", taskManagerHostname);
 		} else {
-			Time lookupTimeout = Time.milliseconds(AkkaUtils.getLookupTimeout(configuration).toMillis());
+			InetAddress taskManagerAddress;
 
-			InetAddress taskManagerAddress = LeaderRetrievalUtils.findConnectingAddress(
-				haServices.getResourceManagerLeaderRetriever(),
-				lookupTimeout);
+			String bindPolicy = configuration.getString(TaskManagerOptions.HOST_BIND_POLICY);
+			switch (bindPolicy.toLowerCase()) {
+				case "hostname":
+					taskManagerAddress = InetAddress.getLocalHost();
+					taskManagerHostname = taskManagerAddress.getHostName();
+					break;
+				case "ip":
+					taskManagerAddress = InetAddress.getLocalHost();
+					taskManagerHostname = taskManagerAddress.getHostAddress();
+					break;
+				case "auto-detect-hostname":
+					Time lookupTimeout = Time.milliseconds(AkkaUtils.getLookupTimeout(configuration).toMillis());
 
-			taskManagerHostname = taskManagerAddress.getHostName();
+					taskManagerAddress = LeaderRetrievalUtils.findConnectingAddress(
+						haServices.getResourceManagerLeaderRetriever(),
+						lookupTimeout);
+
+					taskManagerHostname = taskManagerAddress.getHostName();
+					break;
+				default:
+					throw new IllegalArgumentException("Unknown " + TaskManagerOptions.HOST_BIND_POLICY.key() + ": " + bindPolicy);
+			}
 
 			LOG.info("TaskManager will use hostname/address '{}' ({}) for communication.",
 				taskManagerHostname, taskManagerAddress.getHostAddress());
