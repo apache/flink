@@ -237,7 +237,7 @@ public class ExecutionTest extends TestLogger {
 		execution.cancel();
 		assertEquals(ExecutionState.CANCELING, execution.getState());
 
-		execution.cancelingComplete();
+		execution.completeCancelling();
 
 		assertEquals(slot, slotOwner.getReturnedSlotFuture().get());
 	}
@@ -385,7 +385,7 @@ public class ExecutionTest extends TestLogger {
 		CompletableFuture<LogicalSlot> returnedSlotFuture = slotOwner.getReturnedSlotFuture();
 		CompletableFuture<?> terminationFuture = executionVertex.cancel();
 
-		currentExecutionAttempt.cancelingComplete();
+		currentExecutionAttempt.completeCancelling();
 
 		CompletableFuture<Boolean> restartFuture = terminationFuture.thenApply(
 			ignored -> {
@@ -474,7 +474,7 @@ public class ExecutionTest extends TestLogger {
 		taskManagerGateway.setCancelConsumer(
 			executionAttemptID -> {
 				if (execution.getAttemptId().equals(executionAttemptID)) {
-					execution.cancelingComplete();
+					execution.completeCancelling();
 				}
 			}
 		);
