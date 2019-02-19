@@ -37,7 +37,6 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -430,8 +429,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		writeBatchWrapper.flush();
 
 		RocksDBSnapshotStrategyBase<K> chosenSnapshotStrategy =
-			CheckpointType.SAVEPOINT == checkpointOptions.getCheckpointType() ?
-				savepointSnapshotStrategy : checkpointSnapshotStrategy;
+				checkpointOptions.getCheckpointType().isSavepoint() ? savepointSnapshotStrategy : checkpointSnapshotStrategy;
 
 		RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotRunner =
 			chosenSnapshotStrategy.snapshot(checkpointId, timestamp, streamFactory, checkpointOptions);

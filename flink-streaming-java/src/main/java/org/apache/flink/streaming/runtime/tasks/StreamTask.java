@@ -180,6 +180,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private final List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWriters;
 
+	private final SynchronousSavepointLatch syncSavepointLatch;
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -211,6 +213,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.configuration = new StreamConfig(getTaskConfiguration());
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 		this.recordWriters = createRecordWriters(configuration, environment);
+		this.syncSavepointLatch = new SynchronousSavepointLatch();
 	}
 
 	// ------------------------------------------------------------------------
@@ -234,6 +237,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			getEnvironment(),
 			stateBackend,
 			timerService);
+	}
+
+	@VisibleForTesting
+	SynchronousSavepointLatch getSynchronousSavepointLatch() {
+		return syncSavepointLatch;
 	}
 
 	@Override
@@ -398,6 +406,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		// the "cancel task" call must come first, but the cancelables must be
 		// closed no matter what
 		try {
+			syncSavepointLatch.cancelCheckpointLatch();
 			cancelTask();
 		}
 		finally {
@@ -618,9 +627,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		LOG.debug("Starting checkpoint ({}) {} on task {}",
 			checkpointMetaData.getCheckpointId(), checkpointOptions.getCheckpointType(), getName());
 
+		final long checkpointId = checkpointMetaData.getCheckpointId();
+
+		final boolean result;
 		synchronized (lock) {
 			if (isRunning) {
-				// we can do a checkpoint
+
+				if (checkpointOptions.getCheckpointType().isSynchronous()) {
+					syncSavepointLatch.setCheckpointId(checkpointId);
+				}
 
 				// All of the following steps happen as an atomic step from the perspective of barriers and
 				// records/watermarks/timers/callbacks.
@@ -629,18 +644,19 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				// Step (1): Prepare the checkpoint, allow operators to do some pre-barrier work.
 				//           The pre-barrier work should be nothing or minimal in the common case.
-				operatorChain.prepareSnapshotPreBarrier(checkpointMetaData.getCheckpointId());
+				operatorChain.prepareSnapshotPreBarrier(checkpointId);
 
 				// Step (2): Send the checkpoint barrier downstream
 				operatorChain.broadcastCheckpointBarrier(
-						checkpointMetaData.getCheckpointId(),
+						checkpointId,
 						checkpointMetaData.getTimestamp(),
 						checkpointOptions);
 
 				// Step (3): Take the state snapshot. This should be largely asynchronous, to not
 				//           impact progress of the streaming topology
 				checkpointState(checkpointMetaData, checkpointOptions, checkpointMetrics);
-				return true;
+
+				result = true;
 			}
 			else {
 				// we cannot perform our checkpoint - let the downstream operators know that they
@@ -665,9 +681,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					throw exception;
 				}
 
-				return false;
+				result = false;
 			}
 		}
+
+		if (isRunning && syncSavepointLatch.isSet()) {
+			syncSavepointLatch.blockUntilCheckpointIsAcknowledged();
+		}
+
+		return result;
 	}
 
 	public ExecutorService getAsyncOperationsThreadPool() {
@@ -685,6 +707,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						operator.notifyCheckpointComplete(checkpointId);
 					}
 				}
+
+				syncSavepointLatch.acknowledgeCheckpointAndTrigger(checkpointId);
 			}
 			else {
 				LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", getName());
@@ -1103,7 +1127,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						checkpointMetrics.getSyncDurationMillis());
 				}
 
-				owner.synchronousCheckpointExceptionHandler.tryHandleCheckpointException(checkpointMetaData, ex);
+				if (checkpointOptions.getCheckpointType().isSynchronous()) {
+					// in the case of a synchronous checkpoint, we always rethrow the exception,
+					// so that the task fails (as if we had the FailingCheckpointExceptionHandler).
+					// this is because the intention is always to stop the job after this checkpointing
+					// operation, and without the failure, the task would go back to normal execution.
+					throw ex;
+				} else {
+					owner.synchronousCheckpointExceptionHandler.tryHandleCheckpointException(checkpointMetaData, ex);
+				}
 			}
 		}
 

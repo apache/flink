@@ -36,5 +36,6 @@ public class CheckpointTypeTest {
 	public void testOrdinalsAreConstant() {
 		assertEquals(0, CheckpointType.CHECKPOINT.ordinal());
 		assertEquals(1, CheckpointType.SAVEPOINT.ordinal());
+		assertEquals(2, CheckpointType.SYNC_SAVEPOINT.ordinal());
 	}
 }
