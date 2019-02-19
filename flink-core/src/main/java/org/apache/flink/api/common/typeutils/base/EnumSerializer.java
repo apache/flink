@@ -220,26 +220,10 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 		public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
 			enumClass = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
 
-			if (readVersion == 1) {
-				try (final DataInputViewStream inViewWrapper = new DataInputViewStream(in)) {
-					try {
-						T[] legacyEnumConstants = InstantiationUtil.deserializeObject(inViewWrapper, userCodeClassLoader);
-						this.previousEnumConstants = buildEnumConstantsList(legacyEnumConstants);
-					} catch (ClassNotFoundException e) {
-						throw new IOException("The requested enum class cannot be found in classpath.", e);
-					} catch (IllegalArgumentException e) {
-						throw new IOException("A previously existing enum constant of "
-							+ enumClass.getName() + " no longer exists.", e);
-					}
-				}
-			} else if (readVersion >= 2) {
-				int numEnumConstants = in.readInt();
-				this.previousEnumConstants = new ArrayList<>(numEnumConstants);
-				for (int i = 0; i < numEnumConstants; i++) {
-					previousEnumConstants.add(in.readUTF());
-				}
-			} else {
-				throw new IOException("Cannot deserialize EnumSerializerSnapshot with version " + readVersion);
+			int numEnumConstants = in.readInt();
+			this.previousEnumConstants = new ArrayList<>(numEnumConstants);
+			for (int i = 0; i < numEnumConstants; i++) {
+				previousEnumConstants.add(in.readUTF());
 			}
 		}
 
