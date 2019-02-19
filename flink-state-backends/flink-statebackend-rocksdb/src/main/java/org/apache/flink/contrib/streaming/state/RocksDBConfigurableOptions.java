@@ -30,12 +30,12 @@ import static org.rocksdb.CompactionStyle.LEVEL;
 import static org.rocksdb.CompactionStyle.UNIVERSAL;
 
 /**
- * Configure RocksDB with provided options with created {@link ConfigurableOptionsFactory}.
+ * This class contains the configuration options for the {@link ConfigurableOptionsFactory}.
  *
  * <p>If nothing specified, RocksDB's options would be configured by {@link PredefinedOptions} and user-defined {@link OptionsFactory}.
  *
  * <p>If some options has been specifically configured, a corresponding {@link ConfigurableOptionsFactory} would be created
- * and applied on top of {@link PredefinedOptions} until a user-defined {@link OptionsFactory} totally override it.
+ * and applied on top of {@link PredefinedOptions} except if a user-defined {@link OptionsFactory} overrides it.
  */
 public class RocksDBConfigurableOptions implements Serializable {
 

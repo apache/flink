@@ -45,6 +45,7 @@ import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TernaryBoolean;
 
@@ -345,7 +346,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 		// configure RocksDB options factory
 		this.optionsFactory = original.optionsFactory == null ?
-			ConfigurableOptionsFactory.fromConfig(config) : original.optionsFactory;
+			loadOptionsFactory(config.getString(RocksDBOptions.OPTIONS_FACTORY), config) : original.optionsFactory;
 	}
 
 	// ------------------------------------------------------------------------
@@ -482,11 +483,23 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		LocalRecoveryConfig localRecoveryConfig =
 			env.getTaskStateManager().createLocalRecoveryConfig();
 
+		ClassLoader userClassLoader = env.getUserClassLoader();
+
+		if (optionsFactory instanceof UserConfiguredOptionsFactory) {
+			UserConfiguredOptionsFactory userConfiguredOptionsFactory = (UserConfiguredOptionsFactory) this.optionsFactory;
+			try {
+				userConfiguredOptionsFactory.instantiateOptionsFactory(userClassLoader);
+			} catch (DynamicCodeLoadingException e) {
+				throw new IOException("Fail to instantiate the user configured optionsFactory: '" +
+					userConfiguredOptionsFactory.getClassName() + "'.", e);
+			}
+		}
+
 		ExecutionConfig executionConfig = env.getExecutionConfig();
 		StreamCompressionDecorator keyGroupCompressionDecorator = getCompressionDecorator(executionConfig);
 		RocksDBKeyedStateBackendBuilder<K> builder = new RocksDBKeyedStateBackendBuilder<>(
 			operatorIdentifier,
-			env.getUserClassLoader(),
+			userClassLoader,
 			instanceBasePath,
 			getDbOptions(),
 			stateName -> getColumnOptions(),
@@ -527,6 +540,14 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				env.getUserClassLoader(),
 				env.getExecutionConfig(),
 				asyncSnapshots);
+	}
+
+	private OptionsFactory loadOptionsFactory(String factoryClassName, Configuration config) {
+		if (factoryClassName.equalsIgnoreCase(ConfigurableOptionsFactory.class.getName())) {
+			return ConfigurableOptionsFactory.fromConfig(config);
+		} else {
+			return new UserConfiguredOptionsFactory(factoryClassName);
+		}
 	}
 
 	// ------------------------------------------------------------------------

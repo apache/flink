@@ -76,4 +76,14 @@ public class RocksDBOptions {
 			"from the OptionsFactory are applied on top of these predefined ones.",
 			DEFAULT.name(), SPINNING_DISK_OPTIMIZED.name(), SPINNING_DISK_OPTIMIZED_HIGH_MEM.name(), FLASH_SSD_OPTIMIZED.name()));
 
+	/**
+	 * The options factory class for RocksDB to create DBOptions and ColumnFamilyOptions.
+	 */
+	public static final ConfigOption<String> OPTIONS_FACTORY = ConfigOptions
+		.key("state.backend.rocksdb.options-factory")
+		.defaultValue(ConfigurableOptionsFactory.class.getName())
+		.withDescription(String.format("The options factory class for RocksDB to create DBOptions and ColumnFamilyOptions. " +
+				"The default options factory is %s, and it would read the configured options which provided in 'RocksDBConfigurableOptions'.",
+				ConfigurableOptionsFactory.class.getName()));
+
 }

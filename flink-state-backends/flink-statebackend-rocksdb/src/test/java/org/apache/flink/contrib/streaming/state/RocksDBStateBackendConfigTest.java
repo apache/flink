@@ -530,6 +530,22 @@ public class RocksDBStateBackendConfigTest {
 		String checkpointPath = tempFolder.newFolder().toURI().toString();
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
 
+		// 1. verify configure user-defined options factory through flink-conf.yaml
+		Configuration config = new Configuration();
+		config.setString(RocksDBOptions.OPTIONS_FACTORY.key(), TestOptionsFactory.class.getName());
+
+		rocksDbBackend = rocksDbBackend.configure(config);
+
+		final Environment env = getMockEnvironment(tempFolder.newFolder());
+		// call createKeyedStateBackend to instantiate the user-defined options factory.
+		createKeyedStateBackend(rocksDbBackend, env);
+
+		assertNotNull(rocksDbBackend.getOptions());
+		try (ColumnFamilyOptions colCreated = rocksDbBackend.getColumnOptions()) {
+			assertEquals(CompactionStyle.UNIVERSAL, colCreated.compactionStyle());
+		}
+
+		// 2. verify set user-defined options factory
 		rocksDbBackend.setOptions(new OptionsFactory() {
 			@Override
 			public DBOptions createDBOptions(DBOptions currentOptions) {
@@ -684,6 +700,22 @@ public class RocksDBStateBackendConfigTest {
 			fail("Not throwing expected IllegalArgumentException.");
 		} catch (IllegalArgumentException e) {
 			// ignored
+		}
+	}
+
+	/**
+	 * An implementation of options factory for testing.
+	 */
+	public static class TestOptionsFactory implements OptionsFactory {
+
+		@Override
+		public DBOptions createDBOptions(DBOptions currentOptions) {
+			return currentOptions;
+		}
+
+		@Override
+		public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+			return currentOptions.setCompactionStyle(CompactionStyle.UNIVERSAL);
 		}
 	}
 }
