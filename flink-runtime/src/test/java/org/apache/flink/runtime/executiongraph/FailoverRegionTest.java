@@ -78,7 +78,7 @@ public class FailoverRegionTest extends TestLogger {
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev).getState());
 
 		for (ExecutionVertex evs : eg.getAllExecutionVertices()) {
-			evs.getCurrentExecutionAttempt().cancelingComplete();
+			evs.getCurrentExecutionAttempt().completeCancelling();
 		}
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev).getState());
 	}
@@ -164,7 +164,7 @@ public class FailoverRegionTest extends TestLogger {
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev22).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev31).getState());
 
-		ev11.getCurrentExecutionAttempt().cancelingComplete();
+		ev11.getCurrentExecutionAttempt().completeCancelling();
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev11).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev22).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev31).getState());
@@ -185,7 +185,7 @@ public class FailoverRegionTest extends TestLogger {
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev22).getState());
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev31).getState());
 
-		ev32.getCurrentExecutionAttempt().cancelingComplete();
+		ev32.getCurrentExecutionAttempt().completeCancelling();
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev11).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev22).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev31).getState());
@@ -205,7 +205,7 @@ public class FailoverRegionTest extends TestLogger {
 		ev.fail(new Exception("Test Exception"));
 
 		for (ExecutionVertex evs : eg.getAllExecutionVertices()) {
-			evs.getCurrentExecutionAttempt().cancelingComplete();
+			evs.getCurrentExecutionAttempt().completeCancelling();
 		}
 		assertEquals(JobStatus.FAILED, eg.getState());
 	}
@@ -281,10 +281,10 @@ public class FailoverRegionTest extends TestLogger {
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev11).getState());
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev31).getState());
 
-		ev32.getCurrentExecutionAttempt().cancelingComplete();
+		ev32.getCurrentExecutionAttempt().completeCancelling();
 		waitUntilFailoverRegionState(strategy.getFailoverRegion(ev31), JobStatus.RUNNING, 1000);
 
-		ev12.getCurrentExecutionAttempt().cancelingComplete();
+		ev12.getCurrentExecutionAttempt().completeCancelling();
 		waitUntilFailoverRegionState(strategy.getFailoverRegion(ev11), JobStatus.RUNNING, 1000);
 	}
 
@@ -392,7 +392,7 @@ public class FailoverRegionTest extends TestLogger {
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev1).getState());
 
 		for (ExecutionVertex evs : eg.getAllExecutionVertices()) {
-			evs.getCurrentExecutionAttempt().cancelingComplete();
+			evs.getCurrentExecutionAttempt().completeCancelling();
 		}
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev1).getState());
 

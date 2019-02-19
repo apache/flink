@@ -137,7 +137,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 
 			vertex.cancel();
-			vertex.getCurrentExecutionAttempt().cancelingComplete(); // response by task manager once actually canceled
+			vertex.getCurrentExecutionAttempt().completeCancelling(); // response by task manager once actually canceled
 
 			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 
@@ -185,7 +185,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
 
 			// callback by TaskManager after canceling completes
-			vertex.getCurrentExecutionAttempt().cancelingComplete();
+			vertex.getCurrentExecutionAttempt().completeCancelling();
 
 			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 

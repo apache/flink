@@ -567,7 +567,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 				// if the execution was cancelled in state SCHEDULING, then it might already have been removed
 				if (execution != null) {
-					execution.cancelingComplete();
+					execution.completeCancelling();
 				}
 			}
 		);

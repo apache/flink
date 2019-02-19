@@ -49,7 +49,7 @@ import static org.junit.Assert.assertThat;
 public class ExecutionGraphSuspendTest extends TestLogger {
 
 	/**
-	 * Going into SUSPENDING out of CREATED should immediately cancel everything and
+	 * Going into SUSPENDED out of CREATED should immediately cancel everything and
 	 * not send out RPC calls.
 	 */
 	@Test
@@ -72,7 +72,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	}
 
 	/**
-	 * Going into SUSPENDING out of DEPLOYING vertices should cancel all vertices once with RPC calls.
+	 * Going into SUSPENDED out of DEPLOYING vertices should cancel all vertices once with RPC calls.
 	 */
 	@Test
 	public void testSuspendedOutOfDeploying() throws Exception {
@@ -85,23 +85,16 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 		validateAllVerticesInState(eg, ExecutionState.DEPLOYING);
 
 		// suspend
-
 		eg.suspend(new Exception("suspend"));
 
-		assertEquals(JobStatus.SUSPENDING, eg.getState());
-
-		validateAllVerticesInState(eg, ExecutionState.CANCELING);
-		validateCancelRpcCalls(gateway, parallelism);
-
-		ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
-
 		assertEquals(JobStatus.SUSPENDED, eg.getState());
+		validateCancelRpcCalls(gateway, parallelism);
 
 		ensureCannotLeaveSuspendedState(eg, gateway);
 	}
 
 	/**
-	 * Going into SUSPENDING out of RUNNING vertices should cancel all vertices once with RPC calls.
+	 * Going into SUSPENDED out of RUNNING vertices should cancel all vertices once with RPC calls.
 	 */
 	@Test
 	public void testSuspendedOutOfRunning() throws Exception {
@@ -116,24 +109,16 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 		validateAllVerticesInState(eg, ExecutionState.RUNNING);
 
 		// suspend
-
 		eg.suspend(new Exception("suspend"));
 
-		assertEquals(JobStatus.SUSPENDING, eg.getState());
-
-		validateAllVerticesInState(eg, ExecutionState.CANCELING);
-
-		validateCancelRpcCalls(gateway, parallelism);
-
-		ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
-
 		assertEquals(JobStatus.SUSPENDED, eg.getState());
+		validateCancelRpcCalls(gateway, parallelism);
 
 		ensureCannotLeaveSuspendedState(eg, gateway);
 	}
 
 	/**
-	 * Suspending from FAILING goes to SUSPENDING and sends no additional RPC calls.
+	 * Suspending from FAILING goes to SUSPENDED and sends no additional RPC calls.
 	 */
 	@Test
 	public void testSuspendedOutOfFailing() throws Exception {
@@ -151,14 +136,8 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 
 		// suspend
 		eg.suspend(new Exception("suspend"));
-		assertEquals(JobStatus.SUSPENDING, eg.getState());
-
-		ensureCannotLeaveSuspendingState(eg, gateway);
-
-		ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
 
 		assertEquals(JobStatus.SUSPENDED, eg.getState());
-
 		ensureCannotLeaveSuspendedState(eg, gateway);
 	}
 
@@ -191,7 +170,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	}
 
 	/**
-	 * Suspending from CANCELING goes to SUSPENDING and sends no additional RPC calls.
+	 * Suspending from CANCELING goes to SUSPENDED and sends no additional RPC calls.
 	 */
 	@Test
 	public void testSuspendedOutOfCanceling() throws Exception {
@@ -209,11 +188,6 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 
 		// suspend
 		eg.suspend(new Exception("suspend"));
-		assertEquals(JobStatus.SUSPENDING, eg.getState());
-
-		ensureCannotLeaveSuspendingState(eg, gateway);
-
-		ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
 
 		assertEquals(JobStatus.SUSPENDED, eg.getState());
 
@@ -293,27 +267,6 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 
 		eg.suspend(new Exception("suspend again"));
 		assertEquals(JobStatus.SUSPENDED, eg.getState());
-		validateNoInteractions(gateway);
-
-		for (ExecutionVertex ev : eg.getAllExecutionVertices()) {
-			assertEquals(0, ev.getCurrentExecutionAttempt().getAttemptNumber());
-		}
-	}
-
-	private static void ensureCannotLeaveSuspendingState(ExecutionGraph eg, InteractionsCountingTaskManagerGateway gateway) {
-		assertEquals(JobStatus.SUSPENDING, eg.getState());
-		gateway.resetCounts();
-
-		eg.failGlobal(new Exception("fail"));
-		assertEquals(JobStatus.SUSPENDING, eg.getState());
-		validateNoInteractions(gateway);
-
-		eg.cancel();
-		assertEquals(JobStatus.SUSPENDING, eg.getState());
-		validateNoInteractions(gateway);
-
-		eg.suspend(new Exception("suspend again"));
-		assertEquals(JobStatus.SUSPENDING, eg.getState());
 		validateNoInteractions(gateway);
 
 		for (ExecutionVertex ev : eg.getAllExecutionVertices()) {

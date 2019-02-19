@@ -664,6 +664,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return exec.getReleaseFuture();
 	}
 
+	public CompletableFuture<?> suspend() {
+		return currentExecution.suspend();
+	}
+
 	public void stop() {
 		this.currentExecution.stop();
 	}
