@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
@@ -29,18 +30,18 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.junit.Assert.assertThat;
 
 /**
  * Validates that suspending out of various states works correctly.
@@ -53,7 +54,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendedOutOfCreated() throws Exception {
-		final TaskManagerGateway gateway = spy(new SimpleAckingTaskManagerGateway());
+		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway();
 		final int parallelism = 10;
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
@@ -75,7 +76,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendedOutOfDeploying() throws Exception {
-		final TaskManagerGateway gateway = spy(new SimpleAckingTaskManagerGateway());
+		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway();
 		final int parallelism = 10;
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
@@ -104,7 +105,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendedOutOfRunning() throws Exception {
-		final TaskManagerGateway gateway = spy(new SimpleAckingTaskManagerGateway());
+		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway();
 		final int parallelism = 10;
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
@@ -136,7 +137,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendedOutOfFailing() throws Exception {
-		final TaskManagerGateway gateway = spy(new SimpleAckingTaskManagerGateway());
+		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway();
 		final int parallelism = 10;
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
@@ -166,7 +167,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendedOutOfFailed() throws Exception {
-		final TaskManagerGateway gateway = spy(new SimpleAckingTaskManagerGateway());
+		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway();
 		final int parallelism = 10;
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
@@ -194,7 +195,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendedOutOfCanceling() throws Exception {
-		final TaskManagerGateway gateway = spy(new SimpleAckingTaskManagerGateway());
+		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway();
 		final int parallelism = 10;
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
@@ -224,7 +225,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendedOutOfCanceled() throws Exception {
-		final TaskManagerGateway gateway = spy(new SimpleAckingTaskManagerGateway());
+		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway();
 		final int parallelism = 10;
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
@@ -278,46 +279,50 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	//  utilities
 	// ------------------------------------------------------------------------
 
-	private static void ensureCannotLeaveSuspendedState(ExecutionGraph eg, TaskManagerGateway gateway) {
+	private static void ensureCannotLeaveSuspendedState(ExecutionGraph eg, InteractionsCountingTaskManagerGateway gateway) {
 		assertEquals(JobStatus.SUSPENDED, eg.getState());
-		reset(gateway);
+		gateway.resetCounts();
 
 		eg.failGlobal(new Exception("fail"));
 		assertEquals(JobStatus.SUSPENDED, eg.getState());
-		verifyNoMoreInteractions(gateway);
+		validateNoInteractions(gateway);
 
 		eg.cancel();
 		assertEquals(JobStatus.SUSPENDED, eg.getState());
-		verifyNoMoreInteractions(gateway);
+		validateNoInteractions(gateway);
 
 		eg.suspend(new Exception("suspend again"));
 		assertEquals(JobStatus.SUSPENDED, eg.getState());
-		verifyNoMoreInteractions(gateway);
+		validateNoInteractions(gateway);
 
 		for (ExecutionVertex ev : eg.getAllExecutionVertices()) {
 			assertEquals(0, ev.getCurrentExecutionAttempt().getAttemptNumber());
 		}
 	}
 
-	private static void ensureCannotLeaveSuspendingState(ExecutionGraph eg, TaskManagerGateway gateway) {
+	private static void ensureCannotLeaveSuspendingState(ExecutionGraph eg, InteractionsCountingTaskManagerGateway gateway) {
 		assertEquals(JobStatus.SUSPENDING, eg.getState());
-		reset(gateway);
+		gateway.resetCounts();
 
 		eg.failGlobal(new Exception("fail"));
 		assertEquals(JobStatus.SUSPENDING, eg.getState());
-		verifyNoMoreInteractions(gateway);
+		validateNoInteractions(gateway);
 
 		eg.cancel();
 		assertEquals(JobStatus.SUSPENDING, eg.getState());
-		verifyNoMoreInteractions(gateway);
+		validateNoInteractions(gateway);
 
 		eg.suspend(new Exception("suspend again"));
 		assertEquals(JobStatus.SUSPENDING, eg.getState());
-		verifyNoMoreInteractions(gateway);
+		validateNoInteractions(gateway);
 
 		for (ExecutionVertex ev : eg.getAllExecutionVertices()) {
 			assertEquals(0, ev.getCurrentExecutionAttempt().getAttemptNumber());
 		}
+	}
+
+	private static void validateNoInteractions(InteractionsCountingTaskManagerGateway gateway) {
+		assertThat(gateway.getInteractionsCount(), is(0));
 	}
 
 	private static void validateAllVerticesInState(ExecutionGraph eg, ExecutionState expected) {
@@ -326,8 +331,8 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 		}
 	}
 
-	private static void validateCancelRpcCalls(TaskManagerGateway gateway, int num) {
-		verify(gateway, times(num)).cancelTask(any(ExecutionAttemptID.class), any(Time.class));
+	private static void validateCancelRpcCalls(InteractionsCountingTaskManagerGateway gateway, int num) {
+		assertThat(gateway.getCancelTaskCount(), is(num));
 	}
 
 	private static ExecutionGraph createExecutionGraph(TaskManagerGateway gateway, int parallelism) throws Exception {
@@ -346,5 +351,37 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 			vertex);
 		simpleTestGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
 		return simpleTestGraph;
+	}
+
+	private static class InteractionsCountingTaskManagerGateway extends SimpleAckingTaskManagerGateway {
+
+		private final AtomicInteger cancelTaskCount = new AtomicInteger(0);
+
+		private final AtomicInteger submitTaskCount = new AtomicInteger(0);
+
+		@Override
+		public CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
+			cancelTaskCount.incrementAndGet();
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		}
+
+		@Override
+		public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
+			submitTaskCount.incrementAndGet();
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		}
+
+		private void resetCounts() {
+			cancelTaskCount.set(0);
+			submitTaskCount.set(0);
+		}
+
+		private int getCancelTaskCount() {
+			return cancelTaskCount.get();
+		}
+
+		private int getInteractionsCount() {
+			return cancelTaskCount.get() + submitTaskCount.get();
+		}
 	}
 }
