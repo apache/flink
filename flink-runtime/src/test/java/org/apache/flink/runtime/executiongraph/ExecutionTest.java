@@ -39,6 +39,7 @@ import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
@@ -51,6 +52,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -59,6 +61,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -501,6 +504,48 @@ public class ExecutionTest extends TestLogger {
 		}
 
 		assertThat(returnedSlotFuture.get(), is(equalTo(slotRequestIdFuture.get())));
+	}
+
+	/**
+	 * Tests that a slot release will atomically release the assigned {@link Execution}.
+	 */
+	@Test
+	public void testSlotReleaseAtomicallyReleasesExecution() throws Exception {
+		final JobVertex jobVertex = createNoOpJobVertex();
+
+		final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
+		final SingleLogicalSlot slot = ExecutionGraphSchedulingTest.createSingleLogicalSlot(
+			slotOwner,
+			new SimpleAckingTaskManagerGateway(),
+			new SlotRequestId());
+		final CompletableFuture<LogicalSlot> slotFuture = CompletableFuture.completedFuture(slot);
+
+		final CountDownLatch slotRequestLatch = new CountDownLatch(1);
+		final TestingSlotProvider slotProvider = new TestingSlotProvider(slotRequestId -> {
+			slotRequestLatch.countDown();
+			return slotFuture;
+		});
+		final ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
+			new JobID(),
+			slotProvider,
+			new NoRestartStrategy(),
+			jobVertex);
+
+		final Execution execution = executionGraph.getJobVertex(jobVertex.getID()).getTaskVertices()[0].getCurrentExecutionAttempt();
+
+		executionGraph.start(testMainThreadUtil.getMainThreadExecutor());
+		testMainThreadUtil.execute(executionGraph::scheduleForExecution);
+
+		// wait until the slot has been requested
+		slotRequestLatch.await();
+
+		testMainThreadUtil.execute(() -> {
+			assertThat(execution.getAssignedResource(), is(sameInstance(slot)));
+
+			slot.release(new FlinkException("Test exception"));
+
+			assertThat(execution.getReleaseFuture().isDone(), is(true));
+		});
 	}
 
 	@Nonnull

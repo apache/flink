@@ -1307,10 +1307,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			ComponentMainThreadExecutor jobMasterMainThreadExecutor =
 				getVertex().getExecutionGraph().getJobMasterMainThreadExecutor();
 
-			FutureUtils.whenCompleteAsyncIfNotDone(
-				slot.releaseSlot(cause),
-				jobMasterMainThreadExecutor,
-				(Object ignored, Throwable throwable) -> {
+			slot.releaseSlot(cause)
+				.whenComplete((Object ignored, Throwable throwable) -> {
+					jobMasterMainThreadExecutor.assertRunningInMainThread();
 					if (throwable != null) {
 						releaseFuture.completeExceptionally(throwable);
 					} else {
