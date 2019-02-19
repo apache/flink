@@ -195,6 +195,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			new InfiniteDelayRestartStrategy(),
 			scheduler);
 
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+
 		JobVertex jobVertex = new JobVertex("NoOpInvokable");
 		jobVertex.setInvokableClass(NoOpInvokable.class);
 		jobVertex.setParallelism(NUM_TASKS);
@@ -211,8 +213,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		// Kill the instance and wait for the job to restart
 		instance.markDead();
-
-		Assert.assertEquals(JobStatus.RESTARTING, executionGraph.getState());
 
 		assertEquals(JobStatus.RESTARTING, executionGraph.getState());
 
@@ -797,7 +797,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	}
 
 	private static ExecutionGraph newExecutionGraph(RestartStrategy restartStrategy, SlotProvider slotProvider) throws IOException {
-		return new ExecutionGraph(
+		final ExecutionGraph executionGraph = new ExecutionGraph(
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			new JobID(),
@@ -807,6 +807,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			restartStrategy,
 			slotProvider);
+
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+
+		return executionGraph;
 	}
 
 	private void restartAfterFailure(ExecutionGraph eg, FiniteDuration timeout, boolean haltAfterRestart) {
