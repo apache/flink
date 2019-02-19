@@ -20,15 +20,14 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.LegacySerializerSnapshotTransformer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerializationUtil;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
@@ -44,6 +43,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -77,27 +77,20 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	 * <p>The fields are kept as a separate transient member, with their serialization
 	 * handled with the {@link #readObject(ObjectInputStream)} and {@link #writeObject(ObjectOutputStream)}
 	 * methods.
-	 *
-	 * <p>These may be reconfigured in {@link #ensureCompatibility(TypeSerializerConfigSnapshot)}.
 	 */
 	private transient Field[] fields;
-	private TypeSerializer<Object>[] fieldSerializers;
+	private final TypeSerializer<Object>[] fieldSerializers;
 	private final int numFields;
 
 	/**
 	 * Registered subclasses and their serializers.
 	 * Each subclass to their registered class tag is maintained as a separate map ordered by the class tag.
-	 *
-	 * <p>These may be reconfigured in {@link #ensureCompatibility(TypeSerializerConfigSnapshot)}.
 	 */
-	private LinkedHashMap<Class<?>, Integer> registeredClasses;
-	private TypeSerializer<?>[] registeredSerializers;
+	private final LinkedHashMap<Class<?>, Integer> registeredClasses;
+	private final TypeSerializer<?>[] registeredSerializers;
 
 	/**
 	 * Cache of non-registered subclasses to their serializers, created on-the-fly.
-	 *
-	 * <p>This cache is persisted and will be repopulated with reconfigured serializers
-	 * in {@link #ensureCompatibility(TypeSerializerConfigSnapshot)}.
 	 */
 	private transient HashMap<Class<?>, TypeSerializer<?>> subclassSerializerCache;
 
@@ -105,10 +98,6 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	/**
 	 * Configuration of the current execution.
-	 *
-	 * <p>Nested serializers created using this will have the most up-to-date configuration,
-	 * and can be resolved for backwards compatibility with previous configuration
-	 * snapshots in {@link #ensureCompatibility(TypeSerializerConfigSnapshot)}.
 	 */
 	private final ExecutionConfig executionConfig;
 
@@ -586,8 +575,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public PojoSerializerConfigSnapshot<T> snapshotConfiguration() {
-		return buildConfigSnapshot(
+	public PojoSerializerSnapshot<T> snapshotConfiguration() {
+		return buildSnapshot(
 				clazz,
 				registeredClasses,
 				registeredSerializers,
@@ -596,163 +585,11 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 				subclassSerializerCache);
 	}
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-		if (configSnapshot instanceof PojoSerializerConfigSnapshot) {
-			final PojoSerializerConfigSnapshot<T> config = (PojoSerializerConfigSnapshot<T>) configSnapshot;
-
-			boolean requiresMigration = false;
-
-			if (clazz.equals(config.getTypeClass())) {
-				if (this.numFields == config.getFieldToSerializerConfigSnapshot().size()) {
-
-					CompatibilityResult<?> compatResult;
-
-					// ----------- check field order and compatibility of field serializers -----------
-
-					// reordered fields and their serializers;
-					// this won't be applied to this serializer until all compatibility checks have been completed
-					final Field[] reorderedFields = new Field[this.numFields];
-					final TypeSerializer<Object>[] reorderedFieldSerializers =
-						(TypeSerializer<Object>[]) new TypeSerializer<?>[this.numFields];
-
-					int i = 0;
-					for (Map.Entry<String, Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> fieldToConfigSnapshotEntry
-							: config.getFieldToSerializerConfigSnapshot().entrySet()) {
-
-						int fieldIndex = findField(fieldToConfigSnapshotEntry.getKey());
-						if (fieldIndex != -1) {
-							reorderedFields[i] = fields[fieldIndex];
-
-							compatResult = CompatibilityUtil.resolveCompatibilityResult(
-								fieldToConfigSnapshotEntry.getValue().f0,
-								UnloadableDummyTypeSerializer.class,
-								fieldToConfigSnapshotEntry.getValue().f1,
-								fieldSerializers[fieldIndex]);
-
-							if (compatResult.isRequiresMigration()) {
-								requiresMigration = true;
-
-								if (compatResult.getConvertDeserializer() != null) {
-									reorderedFieldSerializers[i] = (TypeSerializer<Object>) compatResult.getConvertDeserializer();
-								} else {
-									return CompatibilityResult.requiresMigration();
-								}
-							} else {
-								reorderedFieldSerializers[i] = fieldSerializers[fieldIndex];
-							}
-						} else {
-							return CompatibilityResult.requiresMigration();
-						}
-
-						i++;
-					}
-
-					// ---- check subclass registration order and compatibility of registered serializers ----
-
-					// reordered subclass registrations and their serializers;
-					// this won't be applied to this serializer until all compatibility checks have been completed
-					final LinkedHashMap<Class<?>, Integer> reorderedRegisteredSubclassesToClasstags;
-					final TypeSerializer<?>[] reorderedRegisteredSubclassSerializers;
-
-					final LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> previousRegistrations =
-						config.getRegisteredSubclassesToSerializerConfigSnapshots();
-
-					// the reconfigured list of registered subclasses will be the previous registered
-					// subclasses in the original order with new subclasses appended at the end
-					LinkedHashSet<Class<?>> reorderedRegisteredSubclasses = new LinkedHashSet<>();
-					reorderedRegisteredSubclasses.addAll(previousRegistrations.keySet());
-					reorderedRegisteredSubclasses.addAll(
-						getRegisteredSubclassesFromExecutionConfig(clazz, executionConfig));
-
-					// re-establish the registered class tags and serializers
-					reorderedRegisteredSubclassesToClasstags = createRegisteredSubclassTags(reorderedRegisteredSubclasses);
-					reorderedRegisteredSubclassSerializers = createRegisteredSubclassSerializers(
-						reorderedRegisteredSubclasses, executionConfig);
-
-					i = 0;
-					for (Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> previousRegisteredSerializerConfig : previousRegistrations.values()) {
-						// check compatibility of subclass serializer
-						compatResult = CompatibilityUtil.resolveCompatibilityResult(
-								previousRegisteredSerializerConfig.f0,
-								UnloadableDummyTypeSerializer.class,
-								previousRegisteredSerializerConfig.f1,
-								reorderedRegisteredSubclassSerializers[i]);
-
-						if (compatResult.isRequiresMigration()) {
-							requiresMigration = true;
-
-							if (compatResult.getConvertDeserializer() == null) {
-								return CompatibilityResult.requiresMigration();
-							}
-						}
-
-						i++;
-					}
-
-					// ------------------ ensure compatibility of non-registered subclass serializers ------------------
-
-					// the rebuilt cache for non-registered subclass serializers;
-					// this won't be applied to this serializer until all compatibility checks have been completed
-					HashMap<Class<?>, TypeSerializer<?>> rebuiltCache = new HashMap<>();
-
-					for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> previousCachedEntry
-							: config.getNonRegisteredSubclassesToSerializerConfigSnapshots().entrySet()) {
-
-						TypeSerializer<?> cachedSerializer = createSubclassSerializer(previousCachedEntry.getKey());
-
-						// check compatibility of cached subclass serializer
-						compatResult = CompatibilityUtil.resolveCompatibilityResult(
-								previousCachedEntry.getValue().f0,
-								UnloadableDummyTypeSerializer.class,
-								previousCachedEntry.getValue().f1,
-								cachedSerializer);
-
-						if (compatResult.isRequiresMigration()) {
-							requiresMigration = true;
-
-							if (compatResult.getConvertDeserializer() != null) {
-								rebuiltCache.put(previousCachedEntry.getKey(), cachedSerializer);
-							} else {
-								return CompatibilityResult.requiresMigration();
-							}
-						} else {
-							rebuiltCache.put(previousCachedEntry.getKey(), cachedSerializer);
-						}
-					}
-
-					// completed compatibility checks; up to this point, we can just reconfigure
-					// the serializer so that it is compatible and migration is not required
-
-					if (!requiresMigration) {
-						this.fields = reorderedFields;
-						this.fieldSerializers = reorderedFieldSerializers;
-
-						this.registeredClasses = reorderedRegisteredSubclassesToClasstags;
-						this.registeredSerializers = reorderedRegisteredSubclassSerializers;
-
-						this.subclassSerializerCache = rebuiltCache;
-
-						return CompatibilityResult.compatible();
-					} else {
-						return CompatibilityResult.requiresMigration(
-							new PojoSerializer<>(
-								clazz,
-								reorderedFields,
-								reorderedFieldSerializers,
-								reorderedRegisteredSubclassesToClasstags,
-								reorderedRegisteredSubclassSerializers,
-								rebuiltCache,
-								null));
-					}
-				}
-			}
-		}
-
-		return CompatibilityResult.requiresMigration();
-	}
-
+	/**
+	 * @deprecated This snapshot class is no longer being used.
+	 *             It has been fully replaced by {@link PojoSerializerSnapshot}.
+	 */
+	@Deprecated
 	public static final class PojoSerializerConfigSnapshot<T> extends GenericTypeSerializerConfigSnapshot<T> {
 
 		private static final int VERSION = 1;
@@ -819,6 +656,54 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					Preconditions.checkNotNull(nonRegisteredSubclassesToSerializerConfigSnapshots);
 
 			this.ignoreTypeSerializerSerialization = ignoreTypeSerializerSerialization;
+		}
+
+		/**
+		 * This legacy snapshot delegates compatibility checks to the {@link PojoSerializerSnapshot}.
+		 */
+		@Override
+		public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
+			LinkedHashMap<String, TypeSerializerSnapshot<?>> legacyFieldSerializerSnapshots =
+				preprocessLegacySerializerSnapshotTuples(fieldToSerializerConfigSnapshot);
+
+			int numFields = legacyFieldSerializerSnapshots.size();
+			ArrayList<Field> fields = new ArrayList<>(numFields);
+			ArrayList<TypeSerializerSnapshot<?>> fieldSerializerSnapshots = new ArrayList<>(numFields);
+			legacyFieldSerializerSnapshots.forEach((fieldName, fieldSerializerSnapshot) -> {
+				fields.add(PojoFieldUtils.getField(fieldName, getTypeClass()));
+				fieldSerializerSnapshots.add(fieldSerializerSnapshot);
+			});
+
+			PojoSerializerSnapshot<T> newSnapshot = new PojoSerializerSnapshot<>(
+				getTypeClass(),
+				fields.toArray(new Field[numFields]),
+				fieldSerializerSnapshots.toArray(new TypeSerializerSnapshot[numFields]),
+				preprocessLegacySerializerSnapshotTuples(registeredSubclassesToSerializerConfigSnapshots),
+				preprocessLegacySerializerSnapshotTuples(nonRegisteredSubclassesToSerializerConfigSnapshots));
+
+			return newSnapshot.resolveSchemaCompatibility(newSerializer);
+		}
+
+		@SuppressWarnings("unchecked")
+		private static <K> LinkedHashMap<K, TypeSerializerSnapshot<?>> preprocessLegacySerializerSnapshotTuples(Map<K, Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> originalMap) {
+			LinkedHashMap<K, TypeSerializerSnapshot<?>> converted = new LinkedHashMap<>(originalMap.size());
+
+			originalMap.forEach((key, serializerSnapshotTuple) -> {
+				TypeSerializer<?> serializer = serializerSnapshotTuple.f0;
+				TypeSerializerSnapshot<?> snapshot = serializerSnapshotTuple.f1;
+
+				if (snapshot instanceof TypeSerializerConfigSnapshot) {
+					((TypeSerializerConfigSnapshot) snapshot).setPriorSerializer(serializer);
+				}
+
+				if (serializer instanceof LegacySerializerSnapshotTransformer) {
+					snapshot = ((LegacySerializerSnapshotTransformer) serializer).transformLegacySerializerSnapshot(snapshot);
+				}
+
+				converted.put(key, snapshot);
+			});
+
+			return converted;
 		}
 
 		@Override
@@ -1219,7 +1104,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	/**
 	 * Build and return a snapshot of the serializer's parameters and currently cached serializers.
 	 */
-	private static <T> PojoSerializerConfigSnapshot<T> buildConfigSnapshot(
+	private static <T> PojoSerializerSnapshot<T> buildSnapshot(
 			Class<T> pojoType,
 			LinkedHashMap<Class<?>, Integer> registeredSubclassesToTags,
 			TypeSerializer<?>[] registeredSubclassSerializers,
@@ -1227,39 +1112,17 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			TypeSerializer<?>[] fieldSerializers,
 			HashMap<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializerCache) {
 
-		final LinkedHashMap<String, Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> fieldToSerializerConfigSnapshots =
-			new LinkedHashMap<>(fields.length);
-
-		for (int i = 0; i < fields.length; i++) {
-			fieldToSerializerConfigSnapshots.put(
-				fields[i].getName(),
-				new Tuple2<>(fieldSerializers[i], fieldSerializers[i].snapshotConfiguration()));
-		}
-
-		final LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> registeredSubclassesToSerializerConfigSnapshots =
-				new LinkedHashMap<>(registeredSubclassesToTags.size());
+		final LinkedHashMap<Class<?>, TypeSerializer<?>> subclassRegistry = new LinkedHashMap<>(registeredSubclassesToTags.size());
 
 		for (Map.Entry<Class<?>, Integer> entry : registeredSubclassesToTags.entrySet()) {
-			registeredSubclassesToSerializerConfigSnapshots.put(
-					entry.getKey(),
-					new Tuple2<>(
-						registeredSubclassSerializers[entry.getValue()],
-						registeredSubclassSerializers[entry.getValue()].snapshotConfiguration()));
+			subclassRegistry.put(entry.getKey(), registeredSubclassSerializers[entry.getValue()]);
 		}
 
-		final HashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> nonRegisteredSubclassesToSerializerConfigSnapshots =
-				new LinkedHashMap<>(nonRegisteredSubclassSerializerCache.size());
-
-		for (Map.Entry<Class<?>, TypeSerializer<?>> entry : nonRegisteredSubclassSerializerCache.entrySet()) {
-			nonRegisteredSubclassesToSerializerConfigSnapshots.put(
-				entry.getKey(),
-				new Tuple2<>(entry.getValue(), entry.getValue().snapshotConfiguration()));
-		}
-
-		return new PojoSerializerConfigSnapshot<>(
+		return new PojoSerializerSnapshot<>(
 				pojoType,
-				fieldToSerializerConfigSnapshots,
-				registeredSubclassesToSerializerConfigSnapshots,
-				nonRegisteredSubclassesToSerializerConfigSnapshots);
+				fields,
+				fieldSerializers,
+				subclassRegistry,
+				nonRegisteredSubclassSerializerCache);
 	}
 }

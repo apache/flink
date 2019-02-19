@@ -529,7 +529,7 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 	// Utilities
 	// --------------------------------------------------------------------------------------------------------------
 
-	private static <T> Matcher<TypeSerializerSchemaCompatibility<T>> hasSameCompatibilityType(TypeSerializerSchemaCompatibility<T> expectedCompatibilty) {
+	public static <T> Matcher<TypeSerializerSchemaCompatibility<T>> hasSameCompatibilityType(TypeSerializerSchemaCompatibility<T> expectedCompatibilty) {
 		return new TypeSafeMatcher<TypeSerializerSchemaCompatibility<T>>() {
 
 			@Override
