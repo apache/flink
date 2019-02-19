@@ -93,7 +93,7 @@ object JobManagerMessages {
   /**
    * Triggers the submission of the recovered job
    *
-   * @param submittedJobGraph Contains the submitted JobGraph and the associated JobInfo
+   * @param submittedJobGraph Contains the submitted JobGraph
    */
   case class RecoverSubmittedJob(submittedJobGraph: SubmittedJobGraph)
     extends RequiresLeaderSessionID
@@ -173,7 +173,7 @@ object JobManagerMessages {
     extends RequiresLeaderSessionID
 
   /**
-   * Notifies the [[org.apache.flink.runtime.jobmanager.JobManager]] about available data for a
+   * Notifies the org.apache.flink.runtime.jobmanager.JobManager about available data for a
    * produced partition.
    * <p>
    * There is a call to this method for each
@@ -182,7 +182,7 @@ object JobManagerMessages {
    * either when first producing data (for pipelined executions) or when all data has been produced
    * (for staged executions).
    * <p>
-   * The [[org.apache.flink.runtime.jobmanager.JobManager]] then can decide when to schedule the
+   * The org.apache.flink.runtime.jobmanager.JobManager then can decide when to schedule the
    * partition consumers of the given session.
    *
    * @see [[org.apache.flink.runtime.io.network.partition.ResultPartition]]

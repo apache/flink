@@ -33,7 +33,6 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, TableSinkBase}
 import org.apache.flink.table.sources._
-import org.apache.flink.table.util.TableConnectorUtil
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
@@ -115,7 +114,7 @@ object MemoryTableSourceSinkUtil {
     override def emitDataSet(dataSet: DataSet[Row]): Unit = {
       dataSet
         .output(new MemoryCollectionOutputFormat)
-        .name(TableConnectorUtil.generateRuntimeName(this.getClass, getFieldNames))
+        .name(TableConnectorUtils.generateRuntimeName(this.getClass, getFieldNames))
     }
 
     override def emitDataStream(dataStream: DataStream[Row]): Unit = {
@@ -123,7 +122,7 @@ object MemoryTableSourceSinkUtil {
       dataStream
         .addSink(new MemoryAppendSink)
         .setParallelism(inputParallelism)
-        .name(TableConnectorUtil.generateRuntimeName(this.getClass, getFieldNames))
+        .name(TableConnectorUtils.generateRuntimeName(this.getClass, getFieldNames))
     }
   }
 

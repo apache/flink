@@ -32,7 +32,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Not thread safe class for producing {@link Buffer}.
  *
  * <p>It reads data written by {@link BufferBuilder}.
- * Although it is not thread safe and can be used only by one single thread, this thread can be different then the
+ * Although it is not thread safe and can be used only by one single thread, this thread can be different than the
  * thread using/writing to {@link BufferBuilder}. Pattern here is simple: one thread writes data to
  * {@link BufferBuilder} and there can be a different thread reading from it using {@link BufferConsumer}.
  */

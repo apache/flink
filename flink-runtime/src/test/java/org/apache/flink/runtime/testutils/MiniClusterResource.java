@@ -74,7 +74,7 @@ public class MiniClusterResource extends ExternalResource {
 	}
 
 	public URI getRestAddres() {
-		return miniCluster.getRestAddress();
+		return miniCluster.getRestAddress().join();
 	}
 
 	@Override
@@ -127,7 +127,7 @@ public class MiniClusterResource extends ExternalResource {
 
 		// set rest and rpc port to 0 to avoid clashes with concurrent MiniClusters
 		configuration.setInteger(JobManagerOptions.PORT, 0);
-		configuration.setInteger(RestOptions.PORT, 0);
+		configuration.setString(RestOptions.BIND_PORT, "0");
 
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
 			.setConfiguration(configuration)
@@ -139,7 +139,7 @@ public class MiniClusterResource extends ExternalResource {
 
 		miniCluster.start();
 
-		final URI restAddress = miniCluster.getRestAddress();
+		final URI restAddress = miniCluster.getRestAddress().get();
 		createClientConfiguration(restAddress);
 	}
 

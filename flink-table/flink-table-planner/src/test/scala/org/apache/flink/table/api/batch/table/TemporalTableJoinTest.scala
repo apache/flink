@@ -46,7 +46,7 @@ class TemporalTableJoinTest extends TableTestBase {
     expectedException.expectMessage("Cannot generate a valid execution plan for the given query")
 
     val result = orders
-      .join(rates('o_rowtime), "currency = o_currency")
+      .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
       .select("o_amount * rate").as("rate")
 
     util.printTable(result)
@@ -58,7 +58,9 @@ class TemporalTableJoinTest extends TableTestBase {
     expectedException.expectMessage(startsWith("Unsupported argument"))
 
     val result = orders
-      .join(rates(java.sql.Timestamp.valueOf("2016-06-27 10:10:42.123")), "o_currency = currency")
+      .joinLateral(
+        rates(java.sql.Timestamp.valueOf("2016-06-27 10:10:42.123")),
+        'o_currency === 'currency)
       .select("o_amount * rate")
 
     util.printTable(result)

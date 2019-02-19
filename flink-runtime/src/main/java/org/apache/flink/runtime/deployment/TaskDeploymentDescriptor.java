@@ -208,10 +208,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 */
 	@Nullable
 	public SerializedValue<TaskInformation> getSerializedTaskInformation() {
-		if (serializedJobInformation instanceof NonOffloaded) {
-			NonOffloaded<TaskInformation> jobInformation =
+		if (serializedTaskInformation instanceof NonOffloaded) {
+			NonOffloaded<TaskInformation> taskInformation =
 				(NonOffloaded<TaskInformation>) serializedTaskInformation;
-			return jobInformation.serializedValue;
+			return taskInformation.serializedValue;
 		} else {
 			throw new IllegalStateException(
 				"Trying to work with offloaded serialized job information.");

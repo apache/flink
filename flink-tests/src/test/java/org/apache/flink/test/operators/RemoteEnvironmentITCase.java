@@ -65,7 +65,7 @@ public class RemoteEnvironmentITCase extends TestLogger {
 		Configuration config = new Configuration();
 		config.setString(AkkaOptions.STARTUP_TIMEOUT, VALID_STARTUP_TIMEOUT);
 
-		final URI restAddress = MINI_CLUSTER_RESOURCE.getMiniCluster().getRestAddress();
+		final URI restAddress = MINI_CLUSTER_RESOURCE.getRestAddres();
 		final String hostname = restAddress.getHost();
 		final int port = restAddress.getPort();
 

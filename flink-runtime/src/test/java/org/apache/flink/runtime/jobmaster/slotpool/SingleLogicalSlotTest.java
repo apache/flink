@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
@@ -110,7 +111,7 @@ public class SingleLogicalSlotTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the {@link AllocatedSlot.Payload#release(Throwable)} does not wait
+	 * Tests that the {@link PhysicalSlot.Payload#release(Throwable)} does not wait
 	 * for the payload to reach a terminal state.
 	 */
 	@Test
@@ -240,9 +241,8 @@ public class SingleLogicalSlotTest extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
+		public void returnLogicalSlot(LogicalSlot logicalSlot) {
 			counter.incrementAndGet();
-			return CompletableFuture.completedFuture(true);
 		}
 	}
 
@@ -280,9 +280,8 @@ public class SingleLogicalSlotTest extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
+		public void returnLogicalSlot(LogicalSlot logicalSlot) {
 			returnAllocatedSlotFuture.complete(logicalSlot);
-			return returnAllocatedSlotResponse;
 		}
 	}
 
@@ -313,6 +312,11 @@ public class SingleLogicalSlotTest extends TestLogger {
 		@Override
 		public int getPhysicalSlotNumber() {
 			return 0;
+		}
+
+		@Override
+		public ResourceProfile getResourceProfile() {
+			return ResourceProfile.UNKNOWN;
 		}
 
 		@Override

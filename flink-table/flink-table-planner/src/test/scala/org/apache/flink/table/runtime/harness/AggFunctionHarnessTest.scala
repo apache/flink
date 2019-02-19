@@ -27,7 +27,6 @@ import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.dataview.MapView
 import org.apache.flink.table.dataview.StateMapView
 import org.apache.flink.table.runtime.aggregate.GroupAggProcessFunction
@@ -46,7 +45,7 @@ class AggFunctionHarnessTest extends HarnessTestBase {
   @Test
   def testCollectAggregate(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val data = new mutable.MutableList[(JInt, String)]
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b)
@@ -111,7 +110,7 @@ class AggFunctionHarnessTest extends HarnessTestBase {
   @Test
   def testMinMaxAggFunctionWithRetract(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = StreamTableEnvironment.create(env)
 
     val data = new mutable.MutableList[(JInt, JInt, String)]
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)

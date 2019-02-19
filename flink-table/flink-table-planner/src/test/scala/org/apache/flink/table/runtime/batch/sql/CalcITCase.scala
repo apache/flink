@@ -24,7 +24,7 @@ import java.util
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableEnvironment, ValidationException}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions.utils.SplitUDF
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.runtime.batch.table.OldHashCode
@@ -48,7 +48,7 @@ class CalcITCase(
   def testSelectStarFromTable(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable"
 
@@ -72,7 +72,7 @@ class CalcITCase(
   def testSelectStarFromNestedTable(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable"
 
@@ -91,7 +91,7 @@ class CalcITCase(
   def testSelectStarFromDataSet(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable"
 
@@ -115,7 +115,7 @@ class CalcITCase(
   def testSimpleSelectAll(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT a, b, c FROM MyTable"
 
@@ -139,7 +139,7 @@ class CalcITCase(
   def testSelectWithNaming(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT `1-_./Ü`, b FROM (SELECT _1 as `1-_./Ü`, _2 as b FROM MyTable)"
 
@@ -160,7 +160,7 @@ class CalcITCase(
   def testInvalidFields(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT a, foo FROM MyTable"
 
@@ -174,7 +174,7 @@ class CalcITCase(
   def testAllRejectingFilter(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable WHERE false"
 
@@ -192,7 +192,7 @@ class CalcITCase(
   def testAllPassingFilter(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable WHERE true"
 
@@ -215,7 +215,7 @@ class CalcITCase(
   def testFilterOnString(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable WHERE c LIKE '%world%'"
 
@@ -233,7 +233,7 @@ class CalcITCase(
   def testFilterOnInteger(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable WHERE MOD(a,2)=0"
 
@@ -254,7 +254,7 @@ class CalcITCase(
   def testDisjunctivePredicate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable WHERE a < 2 OR a > 20 OR a IN(3,4,5)"
 
@@ -273,7 +273,7 @@ class CalcITCase(
   def testFilterWithAnd(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable WHERE MOD(a,2)<>0 AND MOD(b,2)=0 AND b NOT IN(1,2,3)"
 
@@ -291,7 +291,7 @@ class CalcITCase(
   @Test
   def testAdvancedDataTypes(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT a, b, c, DATE '1984-07-12', TIME '14:34:24', " +
       "TIMESTAMP '1984-07-12 14:34:24' FROM MyTable"
@@ -313,7 +313,7 @@ class CalcITCase(
   @Test
   def testValueConstructor(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     val sqlQuery = "SELECT (a, b, c), ARRAY[12, b], MAP[a, c] FROM MyTable " +
       "WHERE (a, b, c) = ('foo', 12, TIMESTAMP '1984-07-12 14:34:24')"
@@ -339,7 +339,7 @@ class CalcITCase(
   @Test
   def testUserDefinedScalarFunction(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     tEnv.registerFunction("hashCode", OldHashCode)
     tEnv.registerFunction("hashCode", MyHashCode)
@@ -363,7 +363,7 @@ class CalcITCase(
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val splitUDF0 = new SplitUDF(deterministic = true)
     val splitUDF1 = new SplitUDF(deterministic = false)

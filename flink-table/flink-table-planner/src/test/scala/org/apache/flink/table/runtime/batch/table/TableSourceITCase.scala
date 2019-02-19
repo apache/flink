@@ -27,7 +27,7 @@ import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment => JExecEnv}
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableEnvironment, TableException, TableSchema, Types}
+import org.apache.flink.table.api.{TableException, TableSchema, Types}
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.runtime.utils.{CommonTestData, TableProgramsCollectionTestBase}
 import org.apache.flink.table.sources.BatchTableSource
@@ -48,7 +48,7 @@ class TableSourceITCase(
   @Test(expected = classOf[TableException])
   def testInvalidDatastreamType(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val tableSource = new BatchTableSource[Row]() {
       private val fieldNames: Array[String] = Array("name", "id", "value")
@@ -77,7 +77,7 @@ class TableSourceITCase(
     val csvTable = CommonTestData.getCsvTableSource
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     tEnv.registerTableSource("csvTable", csvTable)
 
@@ -100,7 +100,7 @@ class TableSourceITCase(
   def testTableSourceWithFilterable(): Unit = {
     val tableName = "MyTable"
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = BatchTableEnvironment.create(env, config)
     tableEnv.registerTableSource(tableName, TestFilterableTableSource())
     val results = tableEnv
       .scan(tableName)
@@ -117,7 +117,7 @@ class TableSourceITCase(
   def testRowtimeRowTableSource(): Unit = {
     val tableName = "MyTable"
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val data = Seq(
       Row.of("Mary", new JLong(1L), new JInt(10)),
@@ -151,7 +151,7 @@ class TableSourceITCase(
   def testProctimeRowTableSource(): Unit = {
     val tableName = "MyTable"
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val data = Seq(
       Row.of("Mary", new JLong(1L), new JInt(10)),
@@ -187,7 +187,7 @@ class TableSourceITCase(
   def testRowtimeProctimeRowTableSource(): Unit = {
     val tableName = "MyTable"
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val data = Seq(
       Row.of("Mary", new JLong(1L), new JInt(10)),
@@ -223,7 +223,7 @@ class TableSourceITCase(
   def testRowtimeAsTimestampRowTableSource(): Unit = {
     val tableName = "MyTable"
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val data = Seq(
       Row.of("Mary", toTimestamp(1L), new JInt(10)),
@@ -256,7 +256,7 @@ class TableSourceITCase(
   def testTableSourceWithFilterableDate(): Unit = {
     val tableName = "MyTable"
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = BatchTableEnvironment.create(env, config)
 
     val rowTypeInfo = new RowTypeInfo(
       Array[TypeInformation[_]](BasicTypeInfo.INT_TYPE_INFO, SqlTimeTypeInfo.DATE),
@@ -288,7 +288,7 @@ class TableSourceITCase(
   def testRowtimeLongTableSource(): Unit = {
     val tableName = "MyTable"
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val data = Seq(new JLong(1L), new JLong(2L), new JLong(2L), new JLong(2001L), new JLong(4001L))
 
@@ -315,7 +315,7 @@ class TableSourceITCase(
   def testProctimeStringTableSource(): Unit = {
     val tableName = "MyTable"
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val data = Seq("Mary", "Peter", "Bob", "Liz")
 
@@ -338,7 +338,7 @@ class TableSourceITCase(
   def testRowtimeProctimeLongTableSource(): Unit = {
     val tableName = "MyTable"
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val data = Seq(new JLong(1L), new JLong(2L), new JLong(2L), new JLong(2001L), new JLong(4001L))
 
@@ -368,7 +368,7 @@ class TableSourceITCase(
   def testFieldMappingTableSource(): Unit = {
     val tableName = "MyTable"
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val data = Seq(
       Row.of("Mary", new JLong(1L), new JInt(10)),
@@ -401,7 +401,7 @@ class TableSourceITCase(
   @Test
   def testProjectWithoutRowtimeProctime(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val data = Seq(
       Row.of(new JInt(1), "Mary", new JLong(10L), new JLong(1)),
@@ -436,7 +436,7 @@ class TableSourceITCase(
   @Test
   def testProjectWithoutProctime(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val data = Seq(
       Row.of(new JInt(1), "Mary", new JLong(10L), new JLong(1)),
@@ -471,7 +471,7 @@ class TableSourceITCase(
   @Test
   def testProjectWithoutRowtime(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val data = Seq(
       Row.of(new JInt(1), "Mary", new JLong(10L), new JLong(1)),
@@ -507,7 +507,7 @@ class TableSourceITCase(
   @Test
   def testProjectOnlyProctime(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val data = Seq(
       Row.of(new JInt(1), new JLong(1), new JLong(10L), "Mary"),
@@ -539,7 +539,7 @@ class TableSourceITCase(
   @Test
   def testProjectOnlyRowtime(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val data = Seq(
       Row.of(new JInt(1), new JLong(1), new JLong(10L), "Mary"),
@@ -574,7 +574,7 @@ class TableSourceITCase(
   @Test
   def testProjectWithMapping(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val data = Seq(
       Row.of(new JLong(1), new JInt(1), "Mary", new JLong(10)),
@@ -611,7 +611,7 @@ class TableSourceITCase(
   def testNestedProject(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val data = Seq(
       Row.of(new JLong(1),
@@ -680,7 +680,7 @@ class TableSourceITCase(
   def testTableSourceWithFilterableTime(): Unit = {
     val tableName = "MyTable"
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = BatchTableEnvironment.create(env, config)
 
     val rowTypeInfo = new RowTypeInfo(
       Array[TypeInformation[_]](BasicTypeInfo.INT_TYPE_INFO, SqlTimeTypeInfo.TIME),
@@ -713,7 +713,7 @@ class TableSourceITCase(
   def testTableSourceWithFilterableTimestamp(): Unit = {
     val tableName = "MyTable"
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = BatchTableEnvironment.create(env, config)
 
     val rowTypeInfo = new RowTypeInfo(
       Array[TypeInformation[_]](BasicTypeInfo.INT_TYPE_INFO, SqlTimeTypeInfo.TIMESTAMP),

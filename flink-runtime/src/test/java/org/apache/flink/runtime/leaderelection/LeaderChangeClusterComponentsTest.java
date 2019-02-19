@@ -20,6 +20,8 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.highavailability.nonha.embedded.TestingEmbeddedHaServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -27,9 +29,11 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
+import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -38,10 +42,12 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -49,6 +55,8 @@ import static org.junit.Assert.fail;
  * Tests which verify the cluster behaviour in case of leader changes.
  */
 public class LeaderChangeClusterComponentsTest extends TestLogger {
+
+	private static final Duration TESTING_TIMEOUT = Duration.ofMinutes(2L);
 
 	private static final int SLOTS_PER_TM = 2;
 	private static final int NUM_TMS = 2;
@@ -67,9 +75,9 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 		highAvailabilityServices = new TestingEmbeddedHaServices(TestingUtils.defaultExecutor());
 
 		miniCluster = new TestingMiniCluster(
-			new MiniClusterConfiguration.Builder()
+			new TestingMiniClusterConfiguration.Builder()
+				.setNumTaskManagers(NUM_TMS)
 				.setNumSlotsPerTaskManager(SLOTS_PER_TM)
-				.setNumSlotsPerTaskManager(NUM_TMS)
 				.build(),
 			() -> highAvailabilityServices);
 
@@ -139,6 +147,26 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 		JobResult jobResult = jobResultFuture.get();
 
 		assertThat(jobResult.isSuccess(), is(true));
+	}
+
+	@Test
+	public void testTaskExecutorsReconnectToClusterWithLeadershipChange() throws Exception {
+		final Deadline deadline = Deadline.fromNow(TESTING_TIMEOUT);
+		waitUntilTaskExecutorsHaveConnected(NUM_TMS, deadline);
+		highAvailabilityServices.revokeResourceManagerLeadership().get();
+		highAvailabilityServices.grantResourceManagerLeadership();
+
+		// wait for the ResourceManager to confirm the leadership
+		assertThat(LeaderRetrievalUtils.retrieveLeaderConnectionInfo(highAvailabilityServices.getResourceManagerLeaderRetriever(), Time.minutes(TESTING_TIMEOUT.toMinutes())).getLeaderSessionID(), is(notNullValue()));
+
+		waitUntilTaskExecutorsHaveConnected(NUM_TMS, deadline);
+	}
+
+	private void waitUntilTaskExecutorsHaveConnected(int numTaskExecutors, Deadline deadline) throws Exception {
+		CommonTestUtils.waitUntilCondition(
+			() -> miniCluster.requestClusterOverview().get().getNumTaskManagersConnected() == numTaskExecutors,
+			deadline,
+			10L);
 	}
 
 	private JobGraph createJobGraph(int parallelism) {

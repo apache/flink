@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{CommonTestData, TableProgramsCollectionTestBase}
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
@@ -41,7 +40,7 @@ class TableSourceITCase(
     val csvTable = CommonTestData.getCsvTableSource
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tEnv = BatchTableEnvironment.create(env, config)
 
     tEnv.registerTableSource("csvTable", csvTable)
     val results = tEnv.sqlQuery(
@@ -62,7 +61,7 @@ class TableSourceITCase(
   @Test
   def testNested(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val tableEnv = BatchTableEnvironment.create(env, config)
     val nestedTable = CommonTestData.getNestedTableSource
 
     tableEnv.registerTableSource("NestedPersons", nestedTable)

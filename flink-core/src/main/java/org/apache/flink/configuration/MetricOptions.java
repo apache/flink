@@ -182,7 +182,8 @@ public class MetricOptions {
 		key("metrics.fetcher.update-interval")
 			.defaultValue(10000L)
 			.withDescription("Update interval for the metric fetcher used by the web UI in milliseconds. Decrease this value for " +
-				"faster updating metrics. Increase this value if the metric fetcher causes too much load.");
+				"faster updating metrics. Increase this value if the metric fetcher causes too much load. Setting this value to 0 " +
+				"disables the metric fetching completely.");
 
 	private MetricOptions() {
 	}

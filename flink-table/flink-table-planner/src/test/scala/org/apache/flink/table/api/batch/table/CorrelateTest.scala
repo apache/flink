@@ -38,7 +38,7 @@ class CorrelateTest extends TableTestBase {
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc1)
 
-    val result1 = table.join(function('c) as 's).select('c, 's)
+    val result1 = table.joinLateral(function('c) as 's).select('c, 's)
 
     val expected1 = unaryNode(
       "DataSetCalc",
@@ -59,7 +59,7 @@ class CorrelateTest extends TableTestBase {
 
     // test overloading
 
-    val result2 = table.join(function('c, "$") as 's).select('c, 's)
+    val result2 = table.joinLateral(function('c, "$") as 's).select('c, 's)
 
     val expected2 = unaryNode(
       "DataSetCalc",
@@ -85,7 +85,7 @@ class CorrelateTest extends TableTestBase {
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc1)
 
-    val result = table.leftOuterJoin(function('c) as 's).select('c, 's).where('s > "")
+    val result = table.leftOuterJoinLateral(function('c) as 's).select('c, 's).where('s > "")
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -112,7 +112,7 @@ class CorrelateTest extends TableTestBase {
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc1)
 
-    val result = table.leftOuterJoin(function('c) as 's, true).select('c, 's)
+    val result = table.leftOuterJoinLateral(function('c) as 's, true).select('c, 's)
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -138,7 +138,7 @@ class CorrelateTest extends TableTestBase {
     val function = util.addFunction("func1", new TableFunc0)
 
     val result = sourceTable.select('a, 'b, 'c)
-      .join(function('c) as('d, 'e))
+      .joinLateral(function('c) as('d, 'e))
       .select('c, 'd, 'e)
       .where('e > 10)
       .where('e > 20)
@@ -185,7 +185,7 @@ class CorrelateTest extends TableTestBase {
     val function = util.addFunction("func1", new TableFunc0)
 
     val result = sourceTable.select('a, 'b, 'c)
-      .join(function('c) as('d, 'e))
+      .joinLateral(function('c) as('d, 'e))
       .select('c, 'd, 'e)
       .where('e > 10)
       .where('e > 20)

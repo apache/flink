@@ -129,50 +129,6 @@ public class JobClient {
 			highAvailabilityServices);
 	}
 
-
-	/**
-	 * Attaches to a running Job using the JobID.
-	 * Reconstructs the user class loader by downloading the jars from the JobManager.
-	 */
-	public static JobListeningContext attachToRunningJob(
-			JobID jobID,
-			Configuration configuration,
-			ActorSystem actorSystem,
-			HighAvailabilityServices highAvailabilityServices,
-			FiniteDuration timeout,
-			boolean sysoutLogUpdates) {
-
-		checkNotNull(jobID, "The jobID must not be null.");
-		checkNotNull(configuration, "The configuration must not be null.");
-		checkNotNull(actorSystem, "The actorSystem must not be null.");
-		checkNotNull(highAvailabilityServices, "The high availability services must not be null.");
-		checkNotNull(timeout, "The timeout must not be null.");
-
-		// we create a proxy JobClientActor that deals with all communication with
-		// the JobManager. It forwards the job attachments, checks the success/failure responses, logs
-		// update messages, watches for disconnect between client and JobManager, ...
-		Props jobClientActorProps = JobAttachmentClientActor.createActorProps(
-			highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
-			timeout,
-			sysoutLogUpdates);
-
-		ActorRef jobClientActor = actorSystem.actorOf(jobClientActorProps);
-
-		Future<Object> attachmentFuture = Patterns.ask(
-				jobClientActor,
-				new JobClientMessages.AttachToJobAndWait(jobID),
-				new Timeout(AkkaUtils.INF_TIMEOUT()));
-
-		return new JobListeningContext(
-			jobID,
-			attachmentFuture,
-			jobClientActor,
-			timeout,
-			actorSystem,
-			configuration,
-			highAvailabilityServices);
-	}
-
 	/**
 	 * Reconstructs the class loader by first requesting information about it at the JobManager
 	 * and then downloading missing jar files.

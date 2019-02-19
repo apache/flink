@@ -275,11 +275,11 @@ public class ExecutionContext<T> {
 			if (mergedEnv.getExecution().isStreamingExecution()) {
 				streamExecEnv = createStreamExecutionEnvironment();
 				execEnv = null;
-				tableEnv = TableEnvironment.getTableEnvironment(streamExecEnv);
+				tableEnv = StreamTableEnvironment.create(streamExecEnv);
 			} else if (mergedEnv.getExecution().isBatchExecution()) {
 				streamExecEnv = null;
 				execEnv = createExecutionEnvironment();
-				tableEnv = TableEnvironment.getTableEnvironment(execEnv);
+				tableEnv = BatchTableEnvironment.create(execEnv);
 			} else {
 				throw new SqlExecutionException("Unsupported execution type specified.");
 			}

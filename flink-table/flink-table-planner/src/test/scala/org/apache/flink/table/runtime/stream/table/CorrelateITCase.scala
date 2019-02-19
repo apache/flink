@@ -22,7 +22,7 @@ import java.lang.{Boolean => JBoolean}
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableEnvironment, Types, ValidationException}
+import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.expressions.utils.{Func18, Func20, RichFunc2}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, _}
 import org.apache.flink.table.utils._
@@ -36,7 +36,7 @@ import scala.collection.mutable
 class CorrelateITCase extends AbstractTestBase {
 
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-  val tEnv: StreamTableEnvironment = TableEnvironment.getTableEnvironment(env)
+  val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env)
 
   @Before
   def clear(): Unit = {
@@ -50,9 +50,9 @@ class CorrelateITCase extends AbstractTestBase {
     val pojoFunc0 = new PojoTableFunc()
 
     val result = t
-      .join(func0('c) as('d, 'e))
+      .joinLateral(func0('c) as('d, 'e))
       .select('c, 'd, 'e)
-      .join(pojoFunc0('c))
+      .joinLateral(pojoFunc0('c))
       .where('age > 20)
       .select('c, 'name, 'age)
       .toAppendStream[Row]
@@ -70,7 +70,7 @@ class CorrelateITCase extends AbstractTestBase {
     val func0 = new TableFunc0
 
     val result = t
-      .leftOuterJoin(func0('c) as('d, 'e))
+      .leftOuterJoinLateral(func0('c) as('d, 'e))
       .select('c, 'd, 'e)
       .toAppendStream[Row]
 
@@ -92,7 +92,7 @@ class CorrelateITCase extends AbstractTestBase {
     val func0 = new TableFunc0
 
     val result = t
-      .leftOuterJoin(func0('c) as ('s, 'l), 'a === 'l)
+      .leftOuterJoinLateral(func0('c) as ('s, 'l), 'a === 'l)
       .select('c, 's, 'l)
       .toAppendStream[Row]
 
@@ -110,7 +110,7 @@ class CorrelateITCase extends AbstractTestBase {
     val func0 = new TableFunc0
 
     val result = t
-      .join(func0('c) as('d, 'e))
+      .joinLateral(func0('c) as('d, 'e))
       .where(Func18('d, "J"))
       .select('c, 'd, 'e)
       .toAppendStream[Row]
@@ -131,7 +131,7 @@ class CorrelateITCase extends AbstractTestBase {
 
     val result = StreamTestData.getSmall3TupleDataStream(env)
       .toTable(tEnv, 'a, 'b, 'c)
-      .join(tableFunc1('c) as 's)
+      .joinLateral(tableFunc1('c) as 's)
       .select('a, 's)
 
     val results = result.toAppendStream[Row]
@@ -155,7 +155,7 @@ class CorrelateITCase extends AbstractTestBase {
 
     val result = StreamTestData.getSmall3TupleDataStream(env)
       .toTable(tEnv, 'a, 'b, 'c)
-      .join(tableFunc1(richFunc2('c)) as 's)
+      .joinLateral(tableFunc1(richFunc2('c)) as 's)
       .select('a, 's)
 
     val results = result.toAppendStream[Row]
@@ -181,11 +181,11 @@ class CorrelateITCase extends AbstractTestBase {
     val func32 = new TableFunc3("TwoConf_", config)
 
     val result = t
-      .join(func30('c) as('d, 'e))
+      .joinLateral(func30('c) as('d, 'e))
       .select('c, 'd, 'e)
-      .join(func31('c) as ('f, 'g))
+      .joinLateral(func31('c) as ('f, 'g))
       .select('c, 'd, 'e, 'f, 'g)
-      .join(func32('c) as ('h, 'i))
+      .joinLateral(func32('c) as ('h, 'i))
       .select('c, 'd, 'f, 'h, 'e, 'g, 'i)
       .toAppendStream[Row]
 
@@ -211,7 +211,7 @@ class CorrelateITCase extends AbstractTestBase {
     val result = testData(env)
       .toTable(tEnv, 'a, 'b, 'c)
       .select('c)
-      .join(varArgsFunc0("1", "2", 'c))
+      .joinLateral(varArgsFunc0("1", "2", 'c))
 
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
@@ -245,7 +245,7 @@ class CorrelateITCase extends AbstractTestBase {
 
     val tableFunc5 = new TableFunc5()
     val result = in
-      .join(tableFunc5('c) as ('f0, 'f1, 'f2))
+      .joinLateral(tableFunc5('c) as ('f0, 'f1, 'f2))
       .select('c, 'f2)
 
     result.addSink(new StreamITCase.StringSink[Row])
@@ -264,7 +264,7 @@ class CorrelateITCase extends AbstractTestBase {
     val func20 = new Func20
 
     val result = t
-      .join(func0('c) as('d, 'e))
+      .joinLateral(func0('c) as('d, 'e))
       .where(func20('e))
       .select('c, 'd, 'e)
       .toAppendStream[Row]
@@ -291,7 +291,7 @@ class CorrelateITCase extends AbstractTestBase {
 
     // this case will generate 'timestamp' member field and 'DateFormatter'
     val result = t
-      .join(func0('c) as('d, 'e))
+      .joinLateral(func0('c) as('d, 'e))
       .where(dateFormat(currentTimestamp(), "yyyyMMdd") === 'd)
       .select('c, 'd, 'e)
       .toAppendStream[Row]

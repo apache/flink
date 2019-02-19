@@ -124,8 +124,8 @@ public class LocalExecutor extends PlanExecutor {
 	}
 
 	private JobExecutorService createJobExecutorService(Configuration configuration) throws Exception {
-		if (!configuration.contains(RestOptions.PORT)) {
-			configuration.setInteger(RestOptions.PORT, 0);
+		if (!configuration.contains(RestOptions.BIND_PORT)) {
+			configuration.setString(RestOptions.BIND_PORT, "0");
 		}
 
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
@@ -143,7 +143,7 @@ public class LocalExecutor extends PlanExecutor {
 		final MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration);
 		miniCluster.start();
 
-		configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
+		configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().get().getPort());
 
 		return miniCluster;
 	}

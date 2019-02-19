@@ -66,6 +66,9 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 
 	static final long NUM_STRINGS = 16_000;
 
+	// this is already the default, but we explicitly set it to make the test explicit
+	static final String PART_PREFIX = "part";
+
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -115,6 +118,7 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 				.setBucketer(new BasePathBucketer<String>())
 				.setBatchSize(10000)
 				.setValidLengthPrefix("")
+				.setPartPrefix(PART_PREFIX)
 				.setPendingPrefix("")
 				.setPendingSuffix(PENDING_SUFFIX)
 				.setInProgressSuffix(IN_PROGRESS_SUFFIX);
@@ -144,6 +148,10 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 
 		while (files.hasNext()) {
 			LocatedFileStatus file = files.next();
+			if (!file.getPath().getName().startsWith(PART_PREFIX)) {
+				// ignore files that don't match with our expected part prefix
+				continue;
+			}
 
 			if (!file.getPath().toString().endsWith(".valid-length")) {
 				int validLength = (int) file.getLen();

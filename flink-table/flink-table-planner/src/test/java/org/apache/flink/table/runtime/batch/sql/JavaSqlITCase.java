@@ -28,7 +28,6 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase;
 import org.apache.flink.test.operators.util.CollectionDataSets;
@@ -56,7 +55,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 	@Test
 	public void testValues() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		String sqlQuery = "VALUES (1, 'Test', TRUE, DATE '1944-02-24', 12.4444444444444445)," +
 			"(2, 'Hello', TRUE, DATE '1944-02-24', 12.666666665)," +
@@ -76,7 +75,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 	@Test
 	public void testSelectFromTable() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		Table in = tableEnv.fromDataSet(ds, "a,b,c");
@@ -100,7 +99,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 	@Test
 	public void testFilterFromDataSet() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		tableEnv.registerDataSet("DataSetTable", ds, "x, y, z");
@@ -117,7 +116,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 	@Test
 	public void testAggregation() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		tableEnv.registerDataSet("AggTable", ds, "x, y, z");
@@ -134,7 +133,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 	@Test
 	public void testJoin() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
@@ -154,7 +153,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 	@Test
 	public void testMap() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
 		List<Tuple2<Integer, Map<String, String>>> rows = new ArrayList<>();
 		rows.add(new Tuple2<>(1, Collections.singletonMap("foo", "bar")));
