@@ -30,7 +30,6 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.AsyncSnapshotCallable;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
@@ -156,8 +155,7 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 		CheckpointStreamFactory primaryStreamFactory,
 		CheckpointOptions checkpointOptions) {
 
-		return localRecoveryConfig.isLocalRecoveryEnabled() &&
-			(CheckpointType.SAVEPOINT != checkpointOptions.getCheckpointType()) ?
+		return localRecoveryConfig.isLocalRecoveryEnabled() && !checkpointOptions.getCheckpointType().isSavepoint() ?
 
 			() -> CheckpointStreamWithResultProvider.createDuplicatingStream(
 				checkpointId,

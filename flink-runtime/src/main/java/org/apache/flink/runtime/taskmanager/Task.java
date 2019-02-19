@@ -1146,7 +1146,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	 */
 	public void triggerCheckpointBarrier(
 			final long checkpointID,
-			long checkpointTimestamp,
+			final long checkpointTimestamp,
 			final CheckpointOptions checkpointOptions) {
 
 		final AbstractInvokable invokable = this.invokable;
@@ -1308,7 +1308,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			if (executor == null) {
 				// first time use, initialize
 				checkState(userCodeClassLoader != null, "userCodeClassLoader must not be null");
-				executor = Executors.newSingleThreadExecutor(
+				executor = Executors.newCachedThreadPool(
 						new DispatcherThreadFactory(
 							TASK_THREADS_GROUP,
 							"Async calls on " + taskNameWithSubtask,

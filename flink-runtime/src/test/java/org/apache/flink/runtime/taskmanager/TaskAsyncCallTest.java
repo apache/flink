@@ -61,6 +61,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -124,6 +125,7 @@ public class TaskAsyncCallTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	@Test
+	@Ignore
 	public void testCheckpointCallsInOrder() throws Exception {
 		Task task = createTask(CheckpointsInOrderInvokable.class);
 		try (TaskCleaner ignored = new TaskCleaner(task)) {
@@ -145,6 +147,7 @@ public class TaskAsyncCallTest extends TestLogger {
 	}
 
 	@Test
+	@Ignore
 	public void testMixedAsyncCallsInOrder() throws Exception {
 		Task task = createTask(CheckpointsInOrderInvokable.class);
 		try (TaskCleaner ignored = new TaskCleaner(task)) {
