@@ -270,7 +270,7 @@ public class ExecutionGraphTestUtils {
 		assertEquals(JobStatus.FAILING, executionGraph.getState());
 
 		for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
-			vertex.getCurrentExecutionAttempt().cancelingComplete();
+			vertex.getCurrentExecutionAttempt().completeCancelling();
 		}
 	}
 
@@ -290,7 +290,7 @@ public class ExecutionGraphTestUtils {
 	 */
 	public static void completeCancellingForAllVertices(ExecutionGraph eg) {
 		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
-			vertex.getCurrentExecutionAttempt().cancelingComplete();
+			vertex.getCurrentExecutionAttempt().completeCancelling();
 		}
 	}
 

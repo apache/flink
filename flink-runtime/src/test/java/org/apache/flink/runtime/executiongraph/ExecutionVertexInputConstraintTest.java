@@ -223,7 +223,7 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 
 		for (ExecutionVertex ev : eg.getAllExecutionVertices()) {
 			if (ev.getCurrentExecutionAttempt().getState() == ExecutionState.CANCELING) {
-				ev.getCurrentExecutionAttempt().cancelingComplete();
+				ev.getCurrentExecutionAttempt().completeCancelling();
 			}
 		}
 

@@ -353,7 +353,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 	}
 
 	/**
-	 * Verifies that {@link Execution#cancelingComplete(Map, IOMetrics)} and {@link Execution#markFailed(Throwable, Map, IOMetrics)}
+	 * Verifies that {@link Execution#completeCancelling(Map, IOMetrics)} and {@link Execution#markFailed(Throwable, Map, IOMetrics)}
 	 * store the given accumulators and metrics correctly.
 	 */
 	@Test
@@ -371,7 +371,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		Execution execution1 = executions.values().iterator().next();
 		execution1.cancel();
-		execution1.cancelingComplete(accumulators, ioMetrics);
+		execution1.completeCancelling(accumulators, ioMetrics);
 		
 		assertEquals(ioMetrics, execution1.getIOMetrics());
 		assertEquals(accumulators, execution1.getUserAccumulators());
@@ -397,7 +397,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 			for (Execution e : executions.values()) {
 				e.cancel();
-				e.cancelingComplete();
+				e.completeCancelling();
 			}
 
 			assertEquals(0, executions.size());
