@@ -20,26 +20,19 @@ package org.apache.flink.runtime.executiongraph.utils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.StackTrace;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
-
-import javax.annotation.Nonnull;
 
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -56,9 +49,6 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 	private Optional<Consumer<ExecutionAttemptID>> optCancelConsumer;
 
 	private volatile BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction;
-
-	@Nonnull
-	private volatile BiConsumer<InstanceID, Exception> disconnectFromJobManagerConsumer = (ignoredA, ignoredB) -> {};
 
 	public SimpleAckingTaskManagerGateway() {
 		optSubmitConsumer = Optional.empty();
@@ -77,26 +67,9 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 		this.freeSlotFunction = freeSlotFunction;
 	}
 
-	public void setDisconnectFromJobManagerConsumer(@Nonnull BiConsumer<InstanceID, Exception> disconnectFromJobManagerConsumer) {
-		this.disconnectFromJobManagerConsumer = disconnectFromJobManagerConsumer;
-	}
-
 	@Override
 	public String getAddress() {
 		return address;
-	}
-
-	@Override
-	public void disconnectFromJobManager(InstanceID instanceId, Exception cause) {
-		disconnectFromJobManagerConsumer.accept(instanceId, cause);
-	}
-
-	@Override
-	public void stopCluster(ApplicationStatus applicationStatus, String message) {}
-
-	@Override
-	public CompletableFuture<StackTrace> requestStackTrace(Time timeout) {
-		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	}
 
 	@Override
@@ -149,16 +122,6 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 			long checkpointId,
 			long timestamp,
 			CheckpointOptions checkpointOptions) {}
-
-	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerLog(Time timeout) {
-		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
-	}
-
-	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerStdout(Time timeout) {
-		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
-	}
 
 	@Override
 	public CompletableFuture<Acknowledge> freeSlot(AllocationID allocationId, Throwable cause, Time timeout) {
