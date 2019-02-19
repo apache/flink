@@ -24,6 +24,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.net.InetAddress;
+
 import static org.junit.Assert.*;
 
 /**
@@ -81,6 +83,33 @@ public class TaskManagerServicesConfigurationTest extends TestLogger {
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
 		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
+	}
+
+	/**
+	 * Verifies that {@link TaskManagerServicesConfiguration#hasNewNetworkBufConf(Configuration)}
+	 * returns the correct result for new configurations via
+	 * {@link TaskManagerOptions#NETWORK_REQUEST_BACKOFF_INITIAL},
+	 * {@link TaskManagerOptions#NETWORK_REQUEST_BACKOFF_MAX},
+	 * {@link TaskManagerOptions#NETWORK_BUFFERS_PER_CHANNEL} and
+	 * {@link TaskManagerOptions#NETWORK_EXTRA_BUFFERS_PER_GATE}
+	 */
+	@Test
+	public void testNetworkRequestBackoffAndBuffers() throws Exception {
+
+		// set some non-default values
+		final Configuration config = new Configuration();
+		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+		config.setInteger(TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL, 10);
+		config.setInteger(TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, 100);
+
+		TaskManagerServicesConfiguration tmConfig =
+			TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLoopbackAddress(), true);
+
+		assertEquals(tmConfig.getNetworkConfig().partitionRequestInitialBackoff(), 100);
+		assertEquals(tmConfig.getNetworkConfig().partitionRequestMaxBackoff(), 200);
+		assertEquals(tmConfig.getNetworkConfig().networkBuffersPerChannel(), 10);
+		assertEquals(tmConfig.getNetworkConfig().floatingNetworkBuffersPerGate(), 100);
 	}
 
 	/**
