@@ -19,6 +19,9 @@ package org.apache.flink.streaming.connectors.pubsub;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
@@ -47,7 +50,7 @@ import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCreden
  *
  * @param <IN> type of PubSubSink messages to write
  */
-public class PubSubSink<IN> extends RichSinkFunction<IN> {
+public class PubSubSink<IN> extends RichSinkFunction<IN> implements CheckpointedFunction {
 	private static final Logger LOG = LoggerFactory.getLogger(PubSubSink.class);
 
 	private final Credentials credentials;
@@ -141,7 +144,6 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 			.setData(ByteString.copyFrom(serializationSchema.serialize(message)))
 			.build();
 		publisher.publish(pubsubMessage);
-		publisher.publishAllOutstanding();
 	}
 
 	/**
@@ -152,6 +154,16 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 	 */
 	public static <IN> PubSubSinkBuilder<IN> newBuilder(SerializationSchema<IN> serializationSchema, String projectName, String topicName) {
 		return new PubSubSinkBuilder<>(serializationSchema, projectName, topicName);
+	}
+
+	@Override
+	public void snapshotState(FunctionSnapshotContext context) throws Exception {
+		//before checkpoints make sure all the batched / buffered pubsub messages have actually been sent
+		publisher.publishAllOutstanding();
+	}
+
+	@Override
+	public void initializeState(FunctionInitializationContext context) throws Exception {
 	}
 
 	/**
