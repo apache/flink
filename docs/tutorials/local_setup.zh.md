@@ -257,7 +257,7 @@ Starting execution of program
     </div>
   </div>
 
-* 单词以5秒的时间窗口 (processing time, tumbling windows) 来计数，并打印到stdout。监视 TaskManager的输出文件和 nc 的输入（输入的内容被逐行发送到 flink ） <RETURN>):
+* 单词以5秒的时间窗口 (processing time, tumbling windows) 来计数，并打印到 stdout。监视 TaskManager的输出文件和 nc 的输入（输入的内容被逐行发送到 flink ） <RETURN>):
 
 {% highlight bash %}
 $ nc -l 9000
@@ -283,6 +283,6 @@ $ ./bin/stop-cluster.sh
 
 ## 下一步
 
-查看更多的 [样例]({{ site.baseurl }}/examples) 以便更好的理解 Flink's APIs。当你做完这些的时候, 就可以继续向前，去读 [streaming 指南]({{ site.baseurl }}/dev/datastream_api.html).
+查看更多的 [examples]({{ site.baseurl }}/examples) 以便更好的理解 Flink's APIs。当你做完这些的时候, 就可以继续向前，去读 [streaming 指南]({{ site.baseurl }}/dev/datastream_api.html).
 
 {% top %}
