@@ -36,6 +36,7 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -106,6 +107,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
@@ -308,7 +310,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private void handleStartTaskExecutorServicesException(Exception e) throws Exception {
 		try {
-			stopTaskExecutorServices();
+			stopServicesBeforeTasksCompletion();
+			stopServicesAfterTasksCompletion();
 		} catch (Exception inner) {
 			e.addSuppressed(inner);
 		}
@@ -329,16 +332,19 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			resourceManagerConnection.close();
 		}
 
+		List<CompletableFuture<ExecutionState>> taskCompletionFutures = new ArrayList<>();
 		for (JobManagerConnection jobManagerConnection : jobManagerConnections.values()) {
 			try {
-				disassociateFromJobManager(jobManagerConnection, new FlinkException("The TaskExecutor is shutting down."));
+				FlinkException cause = new FlinkException("The TaskExecutor is shutting down.");
+				taskCompletionFutures.addAll(failTasks(jobManagerConnection.getJobID(), cause));
+				disassociateFromJobManager(jobManagerConnection, cause);
 			} catch (Throwable t) {
 				throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
 			}
 		}
 
 		try {
-			stopTaskExecutorServices();
+			stopServicesBeforeTasksCompletion();
 		} catch (Exception e) {
 			throwable = ExceptionUtils.firstOrSuppressed(e, throwable);
 		}
@@ -346,12 +352,33 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		if (throwable != null) {
 			return FutureUtils.completedExceptionally(new FlinkException("Error while shutting the TaskExecutor down.", throwable));
 		} else {
-			log.info("Stopped TaskExecutor {}.", getAddress());
-			return CompletableFuture.completedFuture(null);
+			return FutureUtils.waitForAll(taskCompletionFutures).thenRun(() -> {
+				try {
+					stopServicesAfterTasksCompletion();
+				} catch (Exception e) {
+					throw new FlinkRuntimeException("Error while shutting the TaskExecutor down.", e);
+				}
+				log.info("Stopped TaskExecutor {}.", getAddress());
+			});
 		}
 	}
 
-	private void stopTaskExecutorServices() throws Exception {
+	private List<CompletableFuture<ExecutionState>> failTasks(JobID jobID, Throwable cause) {
+		List<CompletableFuture<ExecutionState>> taskCompletionFutures = new ArrayList<>();
+		Iterator<Task> tasks = taskSlotTable.getTasks(jobID);
+		while (tasks.hasNext()) {
+			try {
+				Task task = tasks.next();
+				task.failExternally(cause);
+				taskCompletionFutures.add(task.getTerminationFuture());
+			} catch (Throwable t) {
+				taskCompletionFutures.add(FutureUtils.completedExceptionally(t));
+			}
+        }
+        return taskCompletionFutures;
+	}
+
+	private void stopServicesBeforeTasksCompletion() throws Exception {
 		Exception exception = null;
 
 		try {
@@ -367,6 +394,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
+
+		ExceptionUtils.tryRethrowException(exception);
+	}
+
+	private void stopServicesAfterTasksCompletion() throws Exception {
+		Exception exception = null;
 
 		try {
 			taskExecutorServices.shutDown();

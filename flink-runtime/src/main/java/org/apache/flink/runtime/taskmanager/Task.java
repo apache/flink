@@ -266,6 +266,9 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	/** Initialized from the Flink configuration. May also be set at the ExecutionConfig */
 	private long taskCancellationTimeout;
 
+	/** Future which is completed once the Task#run method is completed */
+	private CompletableFuture<Void> taskCompletionFuture = new CompletableFuture<>();
+
 	/**
 	 * This class loader should be set as the context class loader of the threads in
 	 * {@link #asyncCallDispatcher} because user code may dynamically load classes in all callbacks.
