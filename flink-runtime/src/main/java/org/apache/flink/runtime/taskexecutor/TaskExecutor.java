@@ -132,6 +132,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -181,6 +183,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	/** The kvState registration service in the task manager. */
 	private final KvStateService kvStateService;
+
+	private final TaskCompletionTracker taskCompletionTracker;
 
 	// --------- job manager connections -----------
 
@@ -273,6 +277,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.currentRegistrationTimeoutId = null;
 
 		this.stackTraceSampleService = new StackTraceSampleService(rpcService.getScheduledExecutor());
+		this.taskCompletionTracker = new TaskCompletionTracker();
 	}
 
 	@Override
@@ -333,31 +338,46 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	public CompletableFuture<Void> onStop() {
 		log.info("Stopping TaskExecutor {}.", getAddress());
 
-		Throwable throwable = null;
+		Throwable jobManagerDisconnectThrowable = null;
 
 		if (resourceManagerConnection != null) {
 			resourceManagerConnection.close();
 		}
 
+		FlinkException cause = new FlinkException("The TaskExecutor is shutting down.");
 		for (JobManagerConnection jobManagerConnection : jobManagerConnections.values()) {
 			try {
-				disassociateFromJobManager(jobManagerConnection, new FlinkException("The TaskExecutor is shutting down."));
+				disassociateFromJobManager(jobManagerConnection, cause);
 			} catch (Throwable t) {
-				throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
+				jobManagerDisconnectThrowable = ExceptionUtils.firstOrSuppressed(t, jobManagerDisconnectThrowable);
 			}
 		}
 
-		try {
-			stopTaskExecutorServices();
-		} catch (Exception e) {
-			throwable = ExceptionUtils.firstOrSuppressed(e, throwable);
+		final Throwable throwableBeforeTasksCompletion = jobManagerDisconnectThrowable;
+
+		return FutureUtils
+			.runAfterwards(
+				taskCompletionTracker.failIncompleteTasksAndGetTerminationFuture(),
+				this::stopTaskExecutorServices)
+  		    .handle((ignored, throwable) -> {
+  		    	handleOnStopException(throwableBeforeTasksCompletion, throwable);
+  		    	return null;
+			});
+	}
+
+	private void handleOnStopException(Throwable throwableBeforeTasksCompletion, Throwable throwableAfterTasksCompletion) {
+		final Throwable throwable;
+
+		if (throwableBeforeTasksCompletion != null) {
+			throwable = ExceptionUtils.firstOrSuppressed(throwableBeforeTasksCompletion, throwableAfterTasksCompletion);
+		} else {
+			throwable = throwableAfterTasksCompletion;
 		}
 
 		if (throwable != null) {
-			return FutureUtils.completedExceptionally(new FlinkException("Error while shutting the TaskExecutor down.", throwable));
+			throw new CompletionException(new FlinkException("Error while shutting the TaskExecutor down.", throwable));
 		} else {
 			log.info("Stopped TaskExecutor {}.", getAddress());
-			return CompletableFuture.completedFuture(null);
 		}
 	}
 
@@ -596,6 +616,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 			if (taskAdded) {
 				task.startTaskThread();
+				taskCompletionTracker.trackTaskCompletion(task);
 
 				setupResultPartitionBookkeeping(tdd, task.getTerminationFuture());
 				return CompletableFuture.completedFuture(Acknowledge.get());
@@ -1824,6 +1845,32 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		public SlotReport retrievePayload(ResourceID resourceID) {
 			validateRunsInMainThread();
 			return taskSlotTable.createSlotReport(getResourceID());
+		}
+	}
+
+	private static class TaskCompletionTracker {
+		private final Map<ExecutionAttemptID, Task> incompleteTasks;
+
+		private TaskCompletionTracker() {
+			incompleteTasks = new ConcurrentHashMap<>(8);
+		}
+
+		void trackTaskCompletion(Task task) {
+			incompleteTasks.put(task.getExecutionId(), task);
+			task.getTerminationFuture().thenRun(() -> incompleteTasks.remove(task.getExecutionId()));
+		}
+
+		CompletableFuture<Void> failIncompleteTasksAndGetTerminationFuture() {
+			FlinkException cause = new FlinkException("The TaskExecutor is shutting down.");
+			return FutureUtils.waitForAll(
+				incompleteTasks
+					.values()
+					.stream()
+					.map(task -> {
+						task.failExternally(cause);
+						return task.getTerminationFuture();
+					})
+					.collect(Collectors.toList()));
 		}
 	}
 }
