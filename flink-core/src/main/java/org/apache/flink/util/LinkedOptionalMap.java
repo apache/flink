@@ -21,6 +21,10 @@ package org.apache.flink.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map.Entry;
@@ -28,8 +32,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import javax.annotation.Nullable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -56,7 +58,7 @@ public final class LinkedOptionalMap<K, V> {
 	 * @param <V>           value type
 	 * @return an {@code LinkedOptionalMap} with optional named keys, and optional values.
 	 */
-	public static <K, V> LinkedOptionalMap<K, V> optionalMapOf(LinkedHashMap<K, V> sourceMap, Function<K, String> keyNameGetter) {
+	public static <K, V> LinkedOptionalMap<K, V> optionalMapOf(HashMap<K, V> sourceMap, Function<K, String> keyNameGetter) {
 
 		LinkedHashMap<String, KeyValue<K, V>> underlyingMap = new LinkedHashMap<>(sourceMap.size());
 
@@ -84,7 +86,7 @@ public final class LinkedOptionalMap<K, V> {
 
 	private final LinkedHashMap<String, KeyValue<K, V>> underlyingMap;
 
-	LinkedOptionalMap() {
+	public LinkedOptionalMap() {
 		this(new LinkedHashMap<>());
 	}
 
@@ -128,6 +130,21 @@ public final class LinkedOptionalMap<K, V> {
 			.filter(LinkedOptionalMap::keyOrValueIsAbsent)
 			.map(Entry::getKey)
 			.collect(Collectors.toSet());
+	}
+
+	/**
+	 * A {@link java.util.function.Consumer} that throws exceptions.
+	 */
+	@FunctionalInterface
+	public interface ConsumerWithException<K, V, E extends Throwable> {
+		void accept(@Nonnull String keyName, @Nullable K key , @Nullable V value) throws E;
+	}
+
+	public <E extends Throwable> void forEach(ConsumerWithException<K, V, E> consumer) throws E {
+		for (Entry<String, KeyValue<K, V>> entry : underlyingMap.entrySet()) {
+			KeyValue<K, V> kv = entry.getValue();
+			consumer.accept(entry.getKey(), kv.key, kv.value);
+		}
 	}
 
 	/**
