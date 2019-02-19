@@ -21,7 +21,6 @@ import java.io.IOException
 
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils.{TypeSerializer, TypeSerializerConfigSnapshot, TypeSerializerSchemaCompatibility}
-import org.apache.flink.api.common.typeutils.base.IntSerializer
 import org.apache.flink.api.java.typeutils.runtime.{DataInputViewStream, DataOutputViewStream}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 import org.apache.flink.util.{InstantiationUtil, Preconditions}
@@ -37,25 +36,25 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
 
   type T = E#Value
 
-  val intSerializer = new IntSerializer()
-
   override def duplicate: EnumValueSerializer[E] = this
 
   override def createInstance: T = enum(0)
 
   override def isImmutableType: Boolean = true
 
-  override def getLength: Int = intSerializer.getLength
+  override def getLength: Int = 4
 
   override def copy(from: T): T = enum.apply(from.id)
 
   override def copy(from: T, reuse: T): T = copy(from)
 
-  override def copy(src: DataInputView, tgt: DataOutputView): Unit = intSerializer.copy(src, tgt)
+  override def copy(src: DataInputView, tgt: DataOutputView): Unit = {
+    tgt.writeInt(src.readInt())
+  }
 
-  override def serialize(v: T, tgt: DataOutputView): Unit = intSerializer.serialize(v.id, tgt)
+  override def serialize(v: T, tgt: DataOutputView): Unit = tgt.writeInt(v.id)
 
-  override def deserialize(source: DataInputView): T = enum(intSerializer.deserialize(source))
+  override def deserialize(source: DataInputView): T = enum(source.readInt())
 
   override def deserialize(reuse: T, source: DataInputView): T = deserialize(source)
 
