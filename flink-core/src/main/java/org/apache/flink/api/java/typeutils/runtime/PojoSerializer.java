@@ -19,7 +19,6 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
@@ -115,6 +114,9 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	private transient ClassLoader cl;
 
+	/**
+	 * Constructor to create a new {@link PojoSerializer}.
+	 */
 	@SuppressWarnings("unchecked")
 	public PojoSerializer(
 			Class<T> clazz,
@@ -144,13 +146,18 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		this.subclassSerializerCache = new HashMap<>();
 	}
 
-	public PojoSerializer(
+	/**
+	 * Constructor to create a restore serializer or a reconfigured serializer
+	 * from a {@link PojoSerializerSnapshot}.
+	 */
+	PojoSerializer(
 			Class<T> clazz,
 			Field[] fields,
 			TypeSerializer<Object>[] fieldSerializers,
 			LinkedHashMap<Class<?>, Integer> registeredClasses,
 			TypeSerializer<?>[] registeredSerializers,
-			HashMap<Class<?>, TypeSerializer<?>> subclassSerializerCache) {
+			HashMap<Class<?>, TypeSerializer<?>> subclassSerializerCache,
+			ExecutionConfig executionConfig) {
 
 		this.clazz = checkNotNull(clazz);
 		this.fields = checkNotNull(fields);
@@ -159,8 +166,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		this.registeredClasses = checkNotNull(registeredClasses);
 		this.registeredSerializers = checkNotNull(registeredSerializers);
 		this.subclassSerializerCache = checkNotNull(subclassSerializerCache);
-
-		this.executionConfig = null;
+		this.executionConfig = checkNotNull(executionConfig);
 	}
 	
 	@Override
@@ -737,7 +743,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 								reorderedFieldSerializers,
 								reorderedRegisteredSubclassesToClasstags,
 								reorderedRegisteredSubclassSerializers,
-								rebuiltCache));
+								rebuiltCache,
+								null));
 					}
 				}
 			}
@@ -1054,6 +1061,52 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	}
 
 	// --------------------------------------------------------------------------------------------
+	// Configuration access
+	// --------------------------------------------------------------------------------------------
+
+	Class<T> getPojoClass() {
+		return clazz;
+	}
+
+	Field[] getFields() {
+		return fields;
+	}
+
+	TypeSerializer<?>[] getFieldSerializers() {
+		return fieldSerializers;
+	}
+
+	TypeSerializer<?> getFieldSerializer(Field targetField) {
+		int fieldIndex = findField(targetField.getName());
+		if (fieldIndex == -1) {
+			return null;
+		}
+		return fieldSerializers[fieldIndex];
+	}
+
+	ExecutionConfig getExecutionConfig() {
+		return executionConfig;
+	}
+
+	LinkedHashMap<Class<?>, Integer> getRegisteredClasses() {
+		return registeredClasses;
+	}
+
+	TypeSerializer<?>[] getRegisteredSerializers() {
+		return registeredSerializers;
+	}
+
+	LinkedHashMap<Class<?>, TypeSerializer<?>> getBundledSubclassSerializerRegistry() {
+		final LinkedHashMap<Class<?>, TypeSerializer<?>> result = new LinkedHashMap<>(registeredClasses.size());
+		registeredClasses.forEach((registeredClass, id) -> result.put(registeredClass, registeredSerializers[id]));
+		return result;
+	}
+
+	HashMap<Class<?>, TypeSerializer<?>> getSubclassSerializerCache() {
+		return subclassSerializerCache;
+	}
+
+	// --------------------------------------------------------------------------------------------
 	// Utilities
 	// --------------------------------------------------------------------------------------------
 
@@ -1208,34 +1261,5 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 				fieldToSerializerConfigSnapshots,
 				registeredSubclassesToSerializerConfigSnapshots,
 				nonRegisteredSubclassesToSerializerConfigSnapshots);
-	}
-
-	// --------------------------------------------------------------------------------------------
-	// Test utilities
-	// --------------------------------------------------------------------------------------------
-
-	@VisibleForTesting
-	Field[] getFields() {
-		return fields;
-	}
-
-	@VisibleForTesting
-	TypeSerializer<?>[] getFieldSerializers() {
-		return fieldSerializers;
-	}
-
-	@VisibleForTesting
-	LinkedHashMap<Class<?>, Integer> getRegisteredClasses() {
-		return registeredClasses;
-	}
-
-	@VisibleForTesting
-	TypeSerializer<?>[] getRegisteredSerializers() {
-		return registeredSerializers;
-	}
-
-	@VisibleForTesting
-	HashMap<Class<?>, TypeSerializer<?>> getSubclassSerializerCache() {
-		return subclassSerializerCache;
 	}
 }

@@ -21,15 +21,18 @@ package org.apache.flink.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import javax.annotation.Nullable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -56,7 +59,7 @@ public final class LinkedOptionalMap<K, V> {
 	 * @param <V>           value type
 	 * @return an {@code LinkedOptionalMap} with optional named keys, and optional values.
 	 */
-	public static <K, V> LinkedOptionalMap<K, V> optionalMapOf(LinkedHashMap<K, V> sourceMap, Function<K, String> keyNameGetter) {
+	public static <K, V> LinkedOptionalMap<K, V> optionalMapOf(HashMap<K, V> sourceMap, Function<K, String> keyNameGetter) {
 
 		LinkedHashMap<String, KeyValue<K, V>> underlyingMap = new LinkedHashMap<>(sourceMap.size());
 
@@ -86,6 +89,10 @@ public final class LinkedOptionalMap<K, V> {
 
 	public LinkedOptionalMap() {
 		this(new LinkedHashMap<>());
+	}
+
+	public LinkedOptionalMap(int initialSize) {
+		this(new LinkedHashMap<>(initialSize));
 	}
 
 	@SuppressWarnings("CopyConstructorMissesField")
@@ -131,6 +138,41 @@ public final class LinkedOptionalMap<K, V> {
 	}
 
 	/**
+	 * Checks whether there are entries with absent keys or values.
+	 */
+	public boolean hasAbsentKeysOrValues() {
+		for (Entry<String, KeyValue<K, V>> entry : underlyingMap.entrySet()) {
+			if (keyOrValueIsAbsent(entry)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * A {@link java.util.function.Consumer} that throws exceptions.
+	 */
+	@FunctionalInterface
+	public interface ConsumerWithException<K, V, E extends Throwable> {
+		void accept(@Nonnull String keyName, @Nullable K key , @Nullable V value) throws E;
+	}
+
+	public <E extends Throwable> void forEach(ConsumerWithException<K, V, E> consumer) throws E {
+		for (Entry<String, KeyValue<K, V>> entry : underlyingMap.entrySet()) {
+			KeyValue<K, V> kv = entry.getValue();
+			consumer.accept(entry.getKey(), kv.key, kv.value);
+		}
+	}
+
+	public Set<KeyValue<K, V>> getPresentEntries() {
+		return underlyingMap.entrySet()
+			.stream()
+			.filter(entry -> !LinkedOptionalMap.keyOrValueIsAbsent(entry))
+			.map(Entry::getValue)
+			.collect(Collectors.toCollection(LinkedHashSet::new));
+	}
+
+	/**
 	 * Assuming all the entries of this map are present (keys and values) this method would return
 	 * a map with these key and values, stripped from their Optional wrappers.
 	 * NOTE: please note that if any of the key or values are absent this method would throw an {@link IllegalStateException}.
@@ -149,7 +191,6 @@ public final class LinkedOptionalMap<K, V> {
 			}
 			unwrapped.put(kv.key, kv.value);
 		}
-
 		return unwrapped;
 	}
 
@@ -189,13 +230,27 @@ public final class LinkedOptionalMap<K, V> {
 	// Inner Classes
 	// --------------------------------------------------------------------------------------------------------
 
-	private static final class KeyValue<K, V> {
+	/**
+	 * Key-value pairs stored by the underlying map.
+	 *
+	 * @param <K> key type.
+	 * @param <V> value type.
+	 */
+	public static final class KeyValue<K, V> {
 		K key;
 		V value;
 
 		KeyValue(K key, V value) {
 			this.key = key;
 			this.value = value;
+		}
+
+		public K getKey() {
+			return key;
+		}
+
+		public V getValue() {
+			return value;
 		}
 
 		KeyValue<K, V> merge(K key, V value) {
