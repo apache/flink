@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KafkaDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
 import java.util.Map;
@@ -52,7 +52,7 @@ public class Kafka011Fetcher<T> extends Kafka010Fetcher<T> {
 		long autoWatermarkInterval,
 		ClassLoader userCodeClassLoader,
 		String taskNameWithSubtasks,
-		KeyedDeserializationSchema<T> deserializer,
+		KafkaDeserializationSchema<T> deserializer,
 		Properties kafkaProperties,
 		long pollTimeout,
 		MetricGroup subtaskMetricGroup,

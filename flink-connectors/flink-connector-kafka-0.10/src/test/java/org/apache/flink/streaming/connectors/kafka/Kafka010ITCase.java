@@ -36,7 +36,7 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KafkaDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -311,7 +311,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		}
 	}
 
-	private static class LimitedLongDeserializer implements KeyedDeserializationSchema<Long> {
+	private static class LimitedLongDeserializer implements KafkaDeserializationSchema<Long> {
 
 		private static final long serialVersionUID = 6966177118923713521L;
 		private final TypeInformation<Long> ti;

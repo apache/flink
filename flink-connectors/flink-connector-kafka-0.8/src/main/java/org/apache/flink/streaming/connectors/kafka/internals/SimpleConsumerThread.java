@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka.internals;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KafkaDeserializationSchema;
 import org.apache.flink.util.ExceptionUtils;
 
 import kafka.api.FetchRequestBuilder;
@@ -69,7 +69,7 @@ class SimpleConsumerThread<T> extends Thread {
 
 	private final Kafka08Fetcher<T> owner;
 
-	private final KeyedDeserializationSchema<T> deserializer;
+	private final KafkaDeserializationSchema<T> deserializer;
 
 	private final List<KafkaTopicPartitionState<TopicAndPartition>> partitions;
 
@@ -105,7 +105,7 @@ class SimpleConsumerThread<T> extends Thread {
 			Node broker,
 			List<KafkaTopicPartitionState<TopicAndPartition>> seedPartitions,
 			ClosableBlockingQueue<KafkaTopicPartitionState<TopicAndPartition>> unassignedPartitions,
-			KeyedDeserializationSchema<T> deserializer,
+			KafkaDeserializationSchema<T> deserializer,
 			long invalidOffsetBehavior) {
 		this.owner = owner;
 		this.errorHandler = errorHandler;

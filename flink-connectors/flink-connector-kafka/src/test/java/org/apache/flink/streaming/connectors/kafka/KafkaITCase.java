@@ -38,8 +38,8 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.serialization.KafkaDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KafkaSerializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 
 import org.apache.flink.shaded.guava18.com.google.common.primitives.Longs;
@@ -333,7 +333,7 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 		}
 	}
 
-	private static class LimitedLongDeserializer implements KeyedDeserializationSchema<Long> {
+	private static class LimitedLongDeserializer implements KafkaDeserializationSchema<Long> {
 
 		private static final long serialVersionUID = 6966177118923713521L;
 		private final TypeInformation<Long> ti;
@@ -413,7 +413,7 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 		env.getConfig().disableSysoutLogging();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
-		FlinkKafkaConsumer<TestHeadersElement> kafkaSource = new FlinkKafkaConsumer<>(topic, new TestHeadersKeyedDeserializationSchema(testSequenceLength), standardProps);
+		FlinkKafkaConsumer<TestHeadersElement> kafkaSource = new FlinkKafkaConsumer<>(topic, new TestHeadersKafkaDeserializationSchema(testSequenceLength), standardProps);
 
 		env.addSource(kafkaSource).addSink(new DiscardingSink<>());
 		env.execute("Consume again");
@@ -483,10 +483,10 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 	/**
 	 * Deserialization schema for TestHeadersElement elements.
 	 */
-	private static class TestHeadersKeyedDeserializationSchema implements KeyedDeserializationSchema<TestHeadersElement> {
+	private static class TestHeadersKafkaDeserializationSchema implements KafkaDeserializationSchema<TestHeadersElement> {
 		private final long count;
 
-		TestHeadersKeyedDeserializationSchema(long count){
+		TestHeadersKafkaDeserializationSchema(long count){
 			this.count = count;
 		}
 

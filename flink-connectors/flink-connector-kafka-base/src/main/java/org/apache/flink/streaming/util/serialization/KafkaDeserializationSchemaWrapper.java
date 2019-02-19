@@ -24,18 +24,18 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 /**
- * A simple wrapper for using the DeserializationSchema with the KeyedDeserializationSchema
+ * A simple wrapper for using the DeserializationSchema with the KafkaDeserializationSchema
  * interface.
  * @param <T> The type created by the deserialization schema.
  */
 @Internal
-public class KeyedDeserializationSchemaWrapper<T> implements KeyedDeserializationSchema<T> {
+public class KafkaDeserializationSchemaWrapper<T> implements KafkaDeserializationSchema<T> {
 
 	private static final long serialVersionUID = 2651665280744549932L;
 
 	private final DeserializationSchema<T> deserializationSchema;
 
-	public KeyedDeserializationSchemaWrapper(DeserializationSchema<T> deserializationSchema) {
+	public KafkaDeserializationSchemaWrapper(DeserializationSchema<T> deserializationSchema) {
 		this.deserializationSchema = deserializationSchema;
 	}
 

@@ -39,7 +39,7 @@ import static org.apache.flink.api.java.typeutils.TypeExtractor.getForClass;
  * the "offset" (long), "topic" (String) and "partition" (int).
  */
 @PublicEvolving
-public class JSONKeyValueDeserializationSchema implements KeyedDeserializationSchema<ObjectNode> {
+public class JSONKeyValueDeserializationSchema implements KafkaDeserializationSchema<ObjectNode> {
 
 	private static final long serialVersionUID = 1509391548173891955L;
 

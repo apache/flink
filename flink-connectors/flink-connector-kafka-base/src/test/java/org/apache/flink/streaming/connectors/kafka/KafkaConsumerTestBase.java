@@ -65,8 +65,8 @@ import org.apache.flink.streaming.connectors.kafka.testutils.PartitionValidating
 import org.apache.flink.streaming.connectors.kafka.testutils.ThrottledMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.Tuple2FlinkPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.ValidatingExactlyOnceSink;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
+import org.apache.flink.streaming.util.serialization.KafkaDeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KafkaDeserializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.TypeInformationKeyValueSerializationSchema;
@@ -422,8 +422,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			new KeyedSerializationSchemaWrapper<>(
 				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
-		final KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
-			new KeyedDeserializationSchemaWrapper<>(
+		final KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
+			new KafkaDeserializationSchemaWrapper<>(
 				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
 		// setup and run the latest-consuming job
@@ -1418,7 +1418,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env.setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
 
-		KeyedDeserializationSchema<Tuple2<Long, PojoValue>> readSchema = new TypeInformationKeyValueSerializationSchema<>(Long.class, PojoValue.class, env.getConfig());
+		KafkaDeserializationSchema<Tuple2<Long, PojoValue>> readSchema = new TypeInformationKeyValueSerializationSchema<>(Long.class, PojoValue.class, env.getConfig());
 
 		Properties props = new Properties();
 		props.putAll(standardProps);
@@ -1866,8 +1866,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				new KeyedSerializationSchemaWrapper<>(
 						new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
-		final KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
-				new KeyedDeserializationSchemaWrapper<>(
+		final KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
+				new KafkaDeserializationSchemaWrapper<>(
 						new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
 		final int maxNumAttempts = 10;
@@ -1964,8 +1964,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			new KeyedSerializationSchemaWrapper<>(
 				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
-		final KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
-			new KeyedDeserializationSchemaWrapper<>(
+		final KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
+			new KafkaDeserializationSchemaWrapper<>(
 				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
 		// -------- Write the append sequence --------
@@ -2026,7 +2026,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	private boolean validateSequence(
 			final String topic,
 			final int parallelism,
-			KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema,
+			KafkaDeserializationSchema<Tuple2<Integer, Integer>> deserSchema,
 			final int totalNumElements) throws Exception {
 
 		final StreamExecutionEnvironment readEnv = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -2195,7 +2195,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 	}
 
-	private static class Tuple2WithTopicSchema implements KeyedDeserializationSchema<Tuple3<Integer, Integer, String>>,
+	private static class Tuple2WithTopicSchema implements KafkaDeserializationSchema<Tuple3<Integer, Integer, String>>,
 		KeyedSerializationSchema<Tuple3<Integer, Integer, String>> {
 
 		private final TypeSerializer<Tuple2<Integer, Integer>> ts;
