@@ -30,10 +30,10 @@ import org.apache.flink.runtime.executiongraph.failover.RestartPipelinedRegionSt
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
@@ -49,7 +49,7 @@ import static org.junit.Assert.assertTrue;
 
 /**
  * These tests make sure that global failover (restart all) always takes precedence over
- * local recovery strategies for the {@link RestartPipelinedRegionStrategy}
+ * local recovery strategies for the {@link RestartPipelinedRegionStrategy}.
  * 
  * <p>This test must be in the package it resides in, because it uses package-private methods
  * from the ExecutionGraph classes.
@@ -111,7 +111,7 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		executor.trigger();
 
 		// now report that cancelling is complete for the other vertex
-		vertex2.getCurrentExecutionAttempt().cancelingComplete();
+		vertex2.getCurrentExecutionAttempt().completeCancelling();
 
 		assertEquals(JobStatus.CANCELED, graph.getTerminationFuture().get());
 		assertTrue(vertex1.getCurrentExecutionAttempt().getState().isTerminal());
@@ -176,7 +176,7 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		executor.trigger();
 
 		// now report that cancelling is complete for the other vertex
-		vertex2.getCurrentExecutionAttempt().cancelingComplete();
+		vertex2.getCurrentExecutionAttempt().completeCancelling();
 
 		assertEquals(JobStatus.FAILED, graph.getState());
 		assertTrue(vertex1.getCurrentExecutionAttempt().getState().isTerminal());
@@ -213,7 +213,7 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 				new FixedDelayRestartStrategy(2, 0), // twice restart, no delay
 				slotProvider,
 				2);
-		RestartPipelinedRegionStrategy strategy = (RestartPipelinedRegionStrategy)graph.getFailoverStrategy();
+		RestartPipelinedRegionStrategy strategy = (RestartPipelinedRegionStrategy) graph.getFailoverStrategy();
 
 		final ExecutionJobVertex ejv = graph.getVerticesTopologically().iterator().next();
 		final ExecutionVertex vertex1 = ejv.getTaskVertices()[0];
@@ -240,7 +240,7 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		assertEquals(ExecutionState.CANCELING, vertex1.getCurrentExecutionAttempt().getState());
 
 		// now report that cancelling is complete for the other vertex
-		vertex1.getCurrentExecutionAttempt().cancelingComplete();
+		vertex1.getCurrentExecutionAttempt().completeCancelling();
 
 		waitUntilJobStatus(graph, JobStatus.RUNNING, 1000);
 		assertEquals(JobStatus.RUNNING, graph.getState());

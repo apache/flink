@@ -137,7 +137,7 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 		executor.trigger();
 
 		// now report that cancelling is complete for the other vertex
-		vertex2.getCurrentExecutionAttempt().cancelingComplete();
+		vertex2.getCurrentExecutionAttempt().completeCancelling();
 
 		assertEquals(JobStatus.CANCELED, graph.getTerminationFuture().get());
 		assertTrue(vertex1.getCurrentExecutionAttempt().getState().isTerminal());
@@ -201,7 +201,7 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 		executor.trigger();
 
 		// now report that cancelling is complete for the other vertex
-		vertex2.getCurrentExecutionAttempt().cancelingComplete();
+		vertex2.getCurrentExecutionAttempt().completeCancelling();
 
 		assertEquals(JobStatus.FAILED, graph.getState());
 		assertTrue(vertex1.getCurrentExecutionAttempt().getState().isTerminal());
@@ -262,7 +262,7 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 		assertEquals(ExecutionState.CANCELING, vertex1.getCurrentExecutionAttempt().getState());
 
 		// now report that cancelling is complete for the other vertex
-		vertex1.getCurrentExecutionAttempt().cancelingComplete();
+		vertex1.getCurrentExecutionAttempt().completeCancelling();
 
 		waitUntilJobStatus(graph, JobStatus.RUNNING, 1000);
 		assertEquals(JobStatus.RUNNING, graph.getState());

@@ -133,7 +133,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	}
 
 	private void completeCanceling(ExecutionGraph eg) {
-		executeOperationForAllExecutions(eg, Execution::cancelingComplete);
+		executeOperationForAllExecutions(eg, Execution::completeCancelling);
 	}
 
 	private void executeOperationForAllExecutions(ExecutionGraph eg, Consumer<Execution> operation) {
@@ -355,7 +355,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		finishedExecution.markFinished();
 
 		failedExecution.fail(new Exception("Test Exception"));
-		failedExecution.cancelingComplete();
+		failedExecution.completeCancelling();
 
 		FiniteDuration timeout = new FiniteDuration(2, TimeUnit.MINUTES);
 
@@ -428,7 +428,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		Execution execution = eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt();
 
-		execution.cancelingComplete();
+		execution.completeCancelling();
 		assertEquals(JobStatus.CANCELED, eg.getState());
 	}
 
@@ -472,7 +472,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		Execution execution = eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt();
 
-		execution.cancelingComplete();
+		execution.completeCancelling();
 		assertEquals(JobStatus.RESTARTING, eg.getState());
 	}
 

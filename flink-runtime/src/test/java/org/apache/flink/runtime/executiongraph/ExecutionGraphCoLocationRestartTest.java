@@ -72,10 +72,8 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 			groupVertex,
 			groupVertex2);
 
-
 		// enable the queued scheduling for the slot pool
 		eg.setQueuedSchedulingAllowed(true);
-
 
 		assertEquals(JobStatus.CREATED, eg.getState());
 

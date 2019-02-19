@@ -224,7 +224,7 @@ public class ExecutionTest extends TestLogger {
 		execution.cancel();
 		assertEquals(ExecutionState.CANCELING, execution.getState());
 
-		execution.cancelingComplete();
+		execution.completeCancelling();
 
 		assertEquals(slot, slotOwner.getReturnedSlotFuture().get());
 	}
@@ -371,7 +371,7 @@ public class ExecutionTest extends TestLogger {
 		// run canceling in a separate thread to allow an interleaving between termination
 		// future callback registrations
 		CompletableFuture.runAsync(
-			() -> currentExecutionAttempt.cancelingComplete(),
+			() -> currentExecutionAttempt.completeCancelling(),
 			TestingUtils.defaultExecutor());
 
 		// to increase probability for problematic interleaving, let the current thread yield the processor
@@ -382,7 +382,6 @@ public class ExecutionTest extends TestLogger {
 				assertTrue(returnedSlotFuture.isDone());
 				return true;
 			});
-
 
 		// check if the returned slot future was completed first
 		restartFuture.get();
@@ -462,7 +461,7 @@ public class ExecutionTest extends TestLogger {
 		taskManagerGateway.setCancelConsumer(
 			executionAttemptID -> {
 				if (execution.getAttemptId().equals(executionAttemptID)) {
-					execution.cancelingComplete();
+					execution.completeCancelling();
 				}
 			}
 		);

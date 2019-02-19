@@ -300,7 +300,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		//
 		//  Create the slots, futures, and the slot provider
 
-		final TaskManagerGateway taskManager = mock(TaskManagerGateway.class);
+		final TaskManagerGateway taskManager = createTaskManager();
 		final BlockingQueue<AllocationID> returnedSlots = new ArrayBlockingQueue<>(parallelism);
 		final TestingSlotOwner slotOwner = new TestingSlotOwner();
 		slotOwner.setReturnAllocatedSlotConsumer(
@@ -387,7 +387,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		slotOwner.setReturnAllocatedSlotConsumer(
 			(LogicalSlot logicalSlot) -> returnedSlots.offer(logicalSlot.getAllocationId()));
 
-		final TaskManagerGateway taskManager = mock(TaskManagerGateway.class);
+		final TaskManagerGateway taskManager = createTaskManager();
 		final SimpleSlot[] slots = new SimpleSlot[parallelism];
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		final CompletableFuture<LogicalSlot>[] slotFutures = new CompletableFuture[parallelism];
@@ -582,7 +582,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 				// if the execution was cancelled in state SCHEDULING, then it might already have been removed
 				if (execution != null) {
-					execution.cancelingComplete();
+					execution.completeCancelling();
 				}
 			}
 		);
@@ -662,6 +662,8 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		TaskManagerGateway tm = mock(TaskManagerGateway.class);
 		when(tm.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class)))
 				.thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
+		when(tm.cancelTask(any(ExecutionAttemptID.class), any(Time.class)))
+			.thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 		return tm;
 	}
 
