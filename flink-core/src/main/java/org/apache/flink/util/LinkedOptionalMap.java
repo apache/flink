@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
@@ -147,6 +148,28 @@ public final class LinkedOptionalMap<K, V> {
 		}
 	}
 
+	public Set<KeyValue<K, V>> getPresentEntries() {
+		return underlyingMap.entrySet()
+			.stream()
+			.filter(entry -> !LinkedOptionalMap.keyOrValueIsAbsent(entry))
+			.map(Entry::getValue)
+			.collect(Collectors.toCollection(LinkedHashSet::new));
+	}
+
+	public Set<K> getKeysNoThrow() {
+		return underlyingMap.values()
+			.stream()
+			.map(KeyValue::getKey)
+			.collect(Collectors.toCollection(LinkedHashSet::new));
+	}
+
+	public Set<V> getValues() {
+		return underlyingMap.values()
+			.stream()
+			.map(KeyValue::getValue)
+			.collect(Collectors.toCollection(LinkedHashSet::new));
+	}
+
 	/**
 	 * assuming all the entries of this map are present (keys and values) this method would return
 	 * a map with these key and values, striped from their Optional wrappers.
@@ -166,7 +189,6 @@ public final class LinkedOptionalMap<K, V> {
 			}
 			unwrapped.put(kv.key, kv.value);
 		}
-
 		return unwrapped;
 	}
 
@@ -205,13 +227,27 @@ public final class LinkedOptionalMap<K, V> {
 	// Inner Classes
 	// --------------------------------------------------------------------------------------------------------
 
-	private static final class KeyValue<K, V> {
+	/**
+	 * Key-value pairs stored by the underlying map.
+	 *
+	 * @param <K> key type.
+	 * @param <V> value type.
+	 */
+	public static final class KeyValue<K, V> {
 		K key;
 		V value;
 
 		KeyValue(K key, V value) {
 			this.key = key;
 			this.value = value;
+		}
+
+		public K getKey() {
+			return key;
+		}
+
+		public V getValue() {
+			return value;
 		}
 
 		KeyValue<K, V> merge(K key, V value) {
