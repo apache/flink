@@ -88,7 +88,7 @@ public class HadoopS3FileSystemTest {
 		checkHadoopConfigs(conf, "clé d'accès", "clef secrète", "point de terminaison");
 	}
 
-	private static void checkHadoopAccessKeys(Configuration flinkConf, String accessKey, String secretKey,
+	private static void checkHadoopConfigs(Configuration flinkConf, String accessKey, String secretKey,
 			String endpoint) {
 		HadoopConfigLoader configLoader = S3FileSystemFactory.createHadoopConfigLoader();
 		configLoader.setFlinkConfig(flinkConf);
