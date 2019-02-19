@@ -111,6 +111,24 @@ final class PojoSerializerSnapshotData<T> {
 		return PojoSerializerSnapshotData.readSnapshotData(in, userCodeClassLoader);
 	}
 
+	/**
+	 * Creates a {@link PojoSerializerSnapshotData} from existing snapshotted configuration of a {@link PojoSerializer}.
+	 *
+	 * <p>This factory method is meant to be used for backwards compatible read paths.
+	 */
+	static <T> PojoSerializerSnapshotData<T> createFrom(
+		Class<T> pojoClass,
+		LinkedHashMap<Field, TypeSerializerSnapshot<?>> existingFieldSerializerSnapshots,
+		LinkedHashMap<Class<?>, TypeSerializerSnapshot<?>> existingRegisteredSubclassSerializerSnapshots,
+		LinkedHashMap<Class<?>, TypeSerializerSnapshot<?>> existingNonRegisteredSubclassSerializerSnapshots) {
+
+		return new PojoSerializerSnapshotData<>(
+			pojoClass,
+			optionalMapOf(existingFieldSerializerSnapshots, Field::getName),
+			optionalMapOf(existingRegisteredSubclassSerializerSnapshots, Class::getName),
+			optionalMapOf(existingNonRegisteredSubclassSerializerSnapshots, Class::getName));
+	}
+
 	private Class<T> pojoClass;
 	private LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> fieldSerializerSnapshots;
 	private LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>> registeredSubclassSerializerSnapshots;

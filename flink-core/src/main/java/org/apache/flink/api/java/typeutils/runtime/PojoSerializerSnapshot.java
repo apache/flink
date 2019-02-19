@@ -83,6 +83,29 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 			nonRegisteredSubclassSerializers);
 	}
 
+	/**
+	 * Constructor for backwards compatibilty paths with the {@link PojoSerializer.PojoSerializerConfigSnapshot}.
+	 * This is used in {@link PojoSerializer.PojoSerializerConfigSnapshot#resolveSchemaCompatibility(TypeSerializer)}
+	 * to delegate the compatibility check to this snapshot class.
+	 *
+	 * @param pojoClass the Pojo type class.
+	 * @param existingFieldSerializerSnapshots the map of field serializer snapshots in the legacy snapshot.
+	 * @param existingRegisteredSubclassSerializerSnapshots the map of registered subclass serializer snapshots in the legacy snapshot.
+	 * @param existingNonRegisteredSubclassSerializerSnapshots the map of non-registered subclass serializer snapshots in the legacy snapshot.
+	 */
+	PojoSerializerSnapshot(
+			Class<T> pojoClass,
+			LinkedHashMap<Field, TypeSerializerSnapshot<?>> existingFieldSerializerSnapshots,
+			LinkedHashMap<Class<?>, TypeSerializerSnapshot<?>> existingRegisteredSubclassSerializerSnapshots,
+			LinkedHashMap<Class<?>, TypeSerializerSnapshot<?>> existingNonRegisteredSubclassSerializerSnapshots) {
+
+		this.snapshotData = PojoSerializerSnapshotData.createFrom(
+			pojoClass,
+			existingFieldSerializerSnapshots,
+			existingRegisteredSubclassSerializerSnapshots,
+			existingNonRegisteredSubclassSerializerSnapshots);
+	}
+
 	@Override
 	public int getCurrentVersion() {
 		return VERSION;
