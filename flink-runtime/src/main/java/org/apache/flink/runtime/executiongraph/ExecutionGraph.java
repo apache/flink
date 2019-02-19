@@ -1028,7 +1028,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 								executionMessageBuilder.append("completed exceptionally: " + completionException + "/" + executionFuture);
 							}
 
-							if (i < allAllocationFutures.size() - 1 ) {
+							if (i < allAllocationFutures.size() - 1) {
 								executionMessageBuilder.append(", ");
 							}
 						}
