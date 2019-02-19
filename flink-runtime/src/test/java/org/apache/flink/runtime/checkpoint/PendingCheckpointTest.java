@@ -105,6 +105,21 @@ public class PendingCheckpointTest {
 		assertTrue(pending.canBeSubsumed());
 	}
 
+	@Test
+	public void testSyncSavepointCannotBeSubsumed() throws Exception {
+		// Forced checkpoints cannot be subsumed
+		CheckpointProperties forced = CheckpointProperties.forSyncSavepoint();
+		PendingCheckpoint pending = createPendingCheckpoint(forced);
+		assertFalse(pending.canBeSubsumed());
+
+		try {
+			pending.abortSubsumed();
+			fail("Did not throw expected Exception");
+		} catch (IllegalStateException ignored) {
+			// Expected
+		}
+	}
+
 	/**
 	 * Tests that the completion future is succeeded on finalize and failed on
 	 * abort and failures during finalize.
