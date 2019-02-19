@@ -16,14 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.ttl;
+package org.apache.flink.contrib.streaming.state.ttl;
 
-/** Mocked time provider for state TTL. */
-public class MockTtlTimeProvider implements TtlTimeProvider {
-	public long time = 0;
+import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.util.TernaryBoolean;
+
+/** Test suite for rocksdb state TTL with incremental snapshot strategy. */
+public class IncSnapshotRocksDbTtlStateTest extends RocksDBTtlStateTestBase {
+	@Override
+	StateBackend createStateBackend() {
+		return createStateBackend(TernaryBoolean.TRUE);
+	}
 
 	@Override
-	public long currentTimestamp() {
-		return time;
+	public boolean fullSnapshot() {
+		return false;
 	}
 }

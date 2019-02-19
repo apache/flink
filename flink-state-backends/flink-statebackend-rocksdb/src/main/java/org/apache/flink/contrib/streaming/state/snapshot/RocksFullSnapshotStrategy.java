@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStatesPerKeyGroupMergeIterator;
 import org.apache.flink.contrib.streaming.state.iterator.RocksTransformingIteratorWrapper;
@@ -40,7 +41,6 @@ import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
@@ -90,7 +90,7 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 		@Nonnull RocksDB db,
 		@Nonnull ResourceGuard rocksDBResourceGuard,
 		@Nonnull TypeSerializer<K> keySerializer,
-		@Nonnull LinkedHashMap<String, Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase>> kvStateInformation,
+		@Nonnull LinkedHashMap<String, RocksDbKvStateInfo> kvStateInformation,
 		@Nonnull KeyGroupRange keyGroupRange,
 		@Nonnegative int keyGroupPrefixBytes,
 		@Nonnull LocalRecoveryConfig localRecoveryConfig,
@@ -122,13 +122,13 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 			createCheckpointStreamSupplier(checkpointId, primaryStreamFactory, checkpointOptions);
 
 		final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots = new ArrayList<>(kvStateInformation.size());
-		final List<Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase>> metaDataCopy =
+		final List<RocksDbKvStateInfo> metaDataCopy =
 			new ArrayList<>(kvStateInformation.size());
 
-		for (Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> tuple2 : kvStateInformation.values()) {
+		for (RocksDbKvStateInfo stateInfo : kvStateInformation.values()) {
 			// snapshot meta info
-			stateMetaInfoSnapshots.add(tuple2.f1.snapshot());
-			metaDataCopy.add(tuple2);
+			stateMetaInfoSnapshots.add(stateInfo.metaInfo.snapshot());
+			metaDataCopy.add(stateInfo);
 		}
 
 		final ResourceGuard.Lease lease = rocksDBResourceGuard.acquireResource();
@@ -202,7 +202,7 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 			@Nonnull ResourceGuard.Lease dbLease,
 			@Nonnull Snapshot snapshot,
 			@Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-			@Nonnull List<Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase>> metaDataCopy,
+			@Nonnull List<RocksDbKvStateInfo> metaDataCopy,
 			@Nonnull String logPathString) {
 
 			this.checkpointStreamSupplier = checkpointStreamSupplier;
@@ -274,10 +274,8 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 			int kvStateId = 0;
 
 			for (MetaData metaDataEntry : metaData) {
-
 				RocksIteratorWrapper rocksIteratorWrapper = getRocksIterator(
-					db, metaDataEntry.columnFamilyHandle, metaDataEntry.stateSnapshotTransformer, readOptions);
-
+					db, metaDataEntry.rocksDbKvStateInfo.columnFamilyHandle, metaDataEntry.stateSnapshotTransformer, readOptions);
 				kvStateIterators.add(Tuple2.of(rocksIteratorWrapper, kvStateId));
 				++kvStateId;
 			}
@@ -403,15 +401,15 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 	}
 
 	private static List<MetaData> fillMetaData(
-		List<Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase>> metaDataCopy) {
+		List<RocksDbKvStateInfo> metaDataCopy) {
 		List<MetaData> metaData = new ArrayList<>(metaDataCopy.size());
-		for (Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> metaInfo : metaDataCopy) {
+		for (RocksDbKvStateInfo rocksDbKvStateInfo : metaDataCopy) {
 			StateSnapshotTransformer<byte[]> stateSnapshotTransformer = null;
-			if (metaInfo.f1 instanceof RegisteredKeyValueStateBackendMetaInfo) {
-				stateSnapshotTransformer = ((RegisteredKeyValueStateBackendMetaInfo<?, ?>) metaInfo.f1).
+			if (rocksDbKvStateInfo.metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo) {
+				stateSnapshotTransformer = ((RegisteredKeyValueStateBackendMetaInfo<?, ?>) rocksDbKvStateInfo.metaInfo).
 					getStateSnapshotTransformFactory().createForSerializedState().orElse(null);
 			}
-			metaData.add(new MetaData(metaInfo.f0, metaInfo.f1, stateSnapshotTransformer));
+			metaData.add(new MetaData(rocksDbKvStateInfo, stateSnapshotTransformer));
 		}
 		return metaData;
 	}
@@ -429,17 +427,14 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 	}
 
 	private static class MetaData {
-		final ColumnFamilyHandle columnFamilyHandle;
-		final RegisteredStateMetaInfoBase registeredStateMetaInfoBase;
+		final RocksDbKvStateInfo rocksDbKvStateInfo;
 		final StateSnapshotTransformer<byte[]> stateSnapshotTransformer;
 
 		private MetaData(
-			ColumnFamilyHandle columnFamilyHandle,
-			RegisteredStateMetaInfoBase registeredStateMetaInfoBase,
+			RocksDbKvStateInfo rocksDbKvStateInfo,
 			StateSnapshotTransformer<byte[]> stateSnapshotTransformer) {
 
-			this.columnFamilyHandle = columnFamilyHandle;
-			this.registeredStateMetaInfoBase = registeredStateMetaInfoBase;
+			this.rocksDbKvStateInfo = rocksDbKvStateInfo;
 			this.stateSnapshotTransformer = stateSnapshotTransformer;
 		}
 	}
