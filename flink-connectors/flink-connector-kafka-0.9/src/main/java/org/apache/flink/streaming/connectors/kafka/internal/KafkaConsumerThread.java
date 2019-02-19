@@ -159,7 +159,6 @@ public class KafkaConsumerThread extends Thread {
 
 		if (rateLimiter != null) {
 			this.rateLimiter = rateLimiter;
-			this.rateLimiter.create();
 		}
 	}
 
@@ -293,6 +292,11 @@ public class KafkaConsumerThread extends Thread {
 			// make sure the handover is closed if it is not already closed or has an error
 			handover.close();
 
+			// If a ratelimiter was created, make sure it's closed.
+			if (rateLimiter != null) {
+				rateLimiter.close();
+			}
+
 			// make sure the KafkaConsumer is closed
 			try {
 				consumer.close();
@@ -328,6 +332,12 @@ public class KafkaConsumerThread extends Thread {
 				hasBufferedWakeup = true;
 			}
 		}
+
+		// If a ratelimiter was created, make sure it's closed.
+		if (rateLimiter != null) {
+			rateLimiter.close();
+		}
+
 	}
 
 	/**

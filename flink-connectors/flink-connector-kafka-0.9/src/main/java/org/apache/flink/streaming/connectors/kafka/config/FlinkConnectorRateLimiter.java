@@ -25,7 +25,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
  * An interface to create a ratelimiter
  *
  * <p>The ratelimiter is configured via {@link #setRate(long)} and
- * created via {@link #create()}.
+ * created via {@link #open(RuntimeContext)}.
  * An example implementation can be found {@link GuavaFlinkConnectorRateLimiter}.
  * */
 
@@ -33,9 +33,6 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 public interface FlinkConnectorRateLimiter {
 
 	void open(RuntimeContext runtimeContext);
-
-	/** Creates a rate limiter.  */
-	<T> T create();
 
 	/**
 	 * Sets the desired rate for the rate limiter.
