@@ -26,10 +26,9 @@ import java.util.concurrent.Callable;
 /**
  * Message for asynchronous callable invocations
  */
-public final class CallAsync implements Serializable {
-	private static final long serialVersionUID = 2834204738928484060L;
+public final class CallAsync {
 
-	private transient Callable<?> callable;
+	private final Callable<?> callable;
 
 	public CallAsync(Callable<?> callable) {
 		this.callable = Preconditions.checkNotNull(callable);
