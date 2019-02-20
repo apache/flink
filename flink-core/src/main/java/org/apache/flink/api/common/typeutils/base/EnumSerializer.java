@@ -69,21 +69,14 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 	private T[] values;
 
 	public EnumSerializer(Class<T> enumClass) {
-		this.enumClass = checkNotNull(enumClass);
-		checkArgument(Enum.class.isAssignableFrom(enumClass), "not an enum");
-
-		buildValues(enumClass.getEnumConstants());
+		this(enumClass, enumClass.getEnumConstants());
 	}
 
 	EnumSerializer(Class<T> enumClass, T[] enumValues) {
 		this.enumClass = checkNotNull(enumClass);
+		this.values = checkNotNull(enumValues);
 		checkArgument(Enum.class.isAssignableFrom(enumClass), "not an enum");
 
-		buildValues(enumValues);
-	}
-
-	private void buildValues(T[] values) {
-		this.values = values;
 		checkArgument(this.values.length > 0, "cannot use an empty enum");
 
 		this.valueToOrdinal = new EnumMap<>(this.enumClass);
@@ -126,20 +119,17 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 
 	@Override
 	public void serialize(T record, DataOutputView target) throws IOException {
-		checkState(values != null);
 		// use our own maintained ordinals instead of the actual enum ordinal
 		target.writeInt(valueToOrdinal.get(record));
 	}
 
 	@Override
 	public T deserialize(DataInputView source) throws IOException {
-		checkState(values != null);
 		return values[source.readInt()];
 	}
 
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
-		checkState(values != null);
 		return values[source.readInt()];
 	}
 
