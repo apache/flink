@@ -306,7 +306,7 @@ public class NetworkEnvironment {
 
 			for (ResultPartition partition : task.getProducedPartitions()) {
 				taskEventDispatcher.unregisterPartition(partition.getPartitionId());
-				partition.destroyBufferPool();
+				partition.close();
 			}
 
 			final SingleInputGate[] inputGates = task.getAllInputGates();

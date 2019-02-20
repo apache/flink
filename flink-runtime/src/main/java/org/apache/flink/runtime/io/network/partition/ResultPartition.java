@@ -324,7 +324,8 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		}
 	}
 
-	public void destroyBufferPool() {
+	@Override
+	public void close() {
 		if (bufferPool != null) {
 			bufferPool.lazyDestroy();
 		}

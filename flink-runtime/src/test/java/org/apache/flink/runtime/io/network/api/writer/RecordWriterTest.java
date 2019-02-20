@@ -516,6 +516,10 @@ public class RecordWriterTest {
 		@Override
 		public void flush(int subpartitionIndex) {
 		}
+
+		@Override
+		public void close() {
+		}
 	}
 
 	private static BufferOrEvent parseBuffer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
@@ -572,6 +576,10 @@ public class RecordWriterTest {
 
 		@Override
 		public void flush(int subpartitionIndex) {
+		}
+
+		@Override
+		public void close() {
 		}
 	}
 
