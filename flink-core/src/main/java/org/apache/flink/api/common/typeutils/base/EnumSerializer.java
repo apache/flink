@@ -28,7 +28,6 @@ import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -45,6 +44,9 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
+/**
+ * {@link TypeSerializer} for Java enums.
+ */
 @Internal
 public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 
@@ -53,7 +55,7 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 	private final Class<T> enumClass;
 
 	/**
-	 * Maintain our own map of enum value to their ordinal, instead of directly using {@link Enum#ordinal}.
+	 * Maintain our own map of enum value to their ordinal, instead of directly using {@link Enum#ordinal()}.
 	 * This allows us to maintain backwards compatibility for previous serialized data in the case that the
 	 * order of enum constants was changed or new constants were added.
 	 *
@@ -72,7 +74,7 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 		this(enumClass, enumClass.getEnumConstants());
 	}
 
-	EnumSerializer(Class<T> enumClass, T[] enumValues) {
+	private EnumSerializer(Class<T> enumClass, T[] enumValues) {
 		this.enumClass = checkNotNull(enumClass);
 		this.values = checkNotNull(enumValues);
 		checkArgument(Enum.class.isAssignableFrom(enumClass), "not an enum");
@@ -181,6 +183,9 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 		return new EnumSerializerSnapshot<>(enumClass, values);
 	}
 
+	/**
+	 * {@link TypeSerializerSnapshot} for {@link EnumSerializer}.
+	 */
 	public static final class EnumSerializerSnapshot<T extends Enum<T>> implements TypeSerializerSnapshot<T> {
 		private static final int CURRENT_VERSION = 3;
 
@@ -276,7 +281,7 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 	/**
 	 * Configuration snapshot of a serializer for enumerations.
 	 *
-	 * Configuration contains the enum class, and an array of the enum's constants
+	 * <p>Configuration contains the enum class, and an array of the enum's constants
 	 * that existed when the configuration snapshot was taken.
 	 *
 	 * @param <T> the enum type.
@@ -290,12 +295,8 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 		private List<String> enumConstants;
 
 		/** This empty nullary constructor is required for deserializing the configuration. */
+		@SuppressWarnings("unused")
 		public EnumSerializerConfigSnapshot() {}
-
-		public EnumSerializerConfigSnapshot(Class<T> enumClass, T[] enumConstantsArr) {
-			super(enumClass);
-			this.enumConstants = buildEnumConstantsList(Preconditions.checkNotNull(enumConstantsArr));
-		}
 
 		@Override
 		public void write(DataOutputView out) throws IOException {
@@ -366,7 +367,7 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 			return new int[] {VERSION, 1};
 		}
 
-		public List<String> getEnumConstants() {
+		List<String> getEnumConstants() {
 			return enumConstants;
 		}
 
