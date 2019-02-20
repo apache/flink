@@ -497,7 +497,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 					// restored partitions that should not be subscribed by this subtask
 					if (KafkaTopicPartitionAssigner.assign(
 						restoredStateEntry.getKey(), getRuntimeContext().getNumberOfParallelSubtasks())
-						== getRuntimeContext().getIndexOfThisSubtask()){
+							== getRuntimeContext().getIndexOfThisSubtask()){
 						subscribedPartitionsToStartOffsets.put(restoredStateEntry.getKey(), restoredStateEntry.getValue());
 					}
 				} else {
@@ -545,16 +545,16 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 					}
 
 					for (Map.Entry<KafkaTopicPartition, Long> partitionToOffset
-						: fetchOffsetsWithTimestamp(allPartitions, startupOffsetsTimestamp).entrySet()) {
+							: fetchOffsetsWithTimestamp(allPartitions, startupOffsetsTimestamp).entrySet()) {
 						subscribedPartitionsToStartOffsets.put(
 							partitionToOffset.getKey(),
 							(partitionToOffset.getValue() == null)
-								// if an offset cannot be retrieved for a partition with the given timestamp,
-								// we default to using the latest offset for the partition
-								? KafkaTopicPartitionStateSentinel.LATEST_OFFSET
-								// since the specified offsets represent the next record to read, we subtract
-								// it by one so that the initial state of the consumer will be correct
-								: partitionToOffset.getValue() - 1);
+									// if an offset cannot be retrieved for a partition with the given timestamp,
+									// we default to using the latest offset for the partition
+									? KafkaTopicPartitionStateSentinel.LATEST_OFFSET
+									// since the specified offsets represent the next record to read, we subtract
+									// it by one so that the initial state of the consumer will be correct
+									: partitionToOffset.getValue() - 1);
 					}
 
 					break;
