@@ -18,13 +18,25 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase;
 import org.apache.flink.testutils.migration.MigrationVersion;
 
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.util.Arrays;
 import java.util.Collection;
+
+import static org.apache.flink.api.common.typeutils.base.TestEnum.BAR;
+import static org.apache.flink.api.common.typeutils.base.TestEnum.EMMA;
+import static org.apache.flink.api.common.typeutils.base.TestEnum.FOO;
+import static org.apache.flink.api.common.typeutils.base.TestEnum.NATHANIEL;
+import static org.apache.flink.api.common.typeutils.base.TestEnum.PAULA;
+import static org.apache.flink.api.common.typeutils.base.TestEnum.PETER;
 
 /**
  * Migration tests for {@link EnumSerializer}.
@@ -37,19 +49,58 @@ public class EnumSerializerSnapshotMigrationTest extends TypeSerializerSnapshotM
 		super(enumSerializer);
 	}
 
+	private static TestEnum[] previousEnumValues = {FOO, BAR, PETER, NATHANIEL, EMMA, PAULA};
+
 	@SuppressWarnings("unchecked")
 	@Parameterized.Parameters(name = "Test Specification = {0}")
 	public static Collection<TestSpecification<?>> testSpecifications() {
 
 		final TestSpecifications testSpecifications = new TestSpecifications(MigrationVersion.v1_6, MigrationVersion.v1_7);
 
-		testSpecifications.add(
-			SPEC_NAME,
-			EnumSerializer.class,
-			EnumSerializer.EnumSerializerSnapshot.class,
-			() -> new EnumSerializer(TestEnum.class));
+		testSpecifications.addWithCompatibilityMatcher(
+				SPEC_NAME,
+				EnumSerializer.class,
+				EnumSerializer.EnumSerializerSnapshot.class,
+				() -> new EnumSerializer(TestEnum.class),
+				hasExpectedEnumSerializer(previousEnumValues));
 
 		return testSpecifications.get();
+	}
+
+
+	private static Matcher<TypeSerializerSchemaCompatibility<TestEnum>> hasExpectedEnumSerializer(
+			final TestEnum[] expectedEnumValues) {
+
+		return new TypeSafeDiagnosingMatcher<TypeSerializerSchemaCompatibility<TestEnum>>() {
+			@Override
+			protected boolean matchesSafely(
+					TypeSerializerSchemaCompatibility<TestEnum> item,
+					Description mismatchDescription) {
+				if (!item.isCompatibleWithReconfiguredSerializer()) {
+					mismatchDescription.appendText("compatibility mismatch ").appendValue(item);
+					return false;
+				}
+
+				EnumSerializer<TestEnum> reconfiguredSerialized =
+						(EnumSerializer<TestEnum>) item.getReconfiguredSerializer();
+
+				if (!Arrays.equals(reconfiguredSerialized.getValues(), expectedEnumValues)) {
+					mismatchDescription
+							.appendText("reconfigured values are ")
+							.appendValueList("{", ", ", "}", reconfiguredSerialized.getValues());
+					return false;
+				}
+
+				return true;
+			}
+
+			@Override
+			public void describeTo(Description description) {
+				description
+						.appendText("EnumSerializer with values ")
+						.appendValueList("{", ", ", "}", expectedEnumValues);
+			}
+		};
 	}
 }
 
