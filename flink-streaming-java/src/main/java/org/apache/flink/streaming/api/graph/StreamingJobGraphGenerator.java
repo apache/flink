@@ -478,9 +478,6 @@ public class StreamingJobGraphGenerator {
 			config.setIterationWaitTime(streamGraph.getLoopTimeout(vertexID));
 		}
 
-		List<StreamEdge> allOutputs = new ArrayList<StreamEdge>(chainableOutputs);
-		allOutputs.addAll(nonChainableOutputs);
-
 		vertexConfigs.put(vertexID, config);
 	}
 
