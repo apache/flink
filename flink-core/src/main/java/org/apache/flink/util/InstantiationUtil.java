@@ -43,6 +43,7 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -89,6 +90,40 @@ public final class InstantiationUtil {
 			}
 
 			return super.resolveClass(desc);
+		}
+
+		@Override
+		protected Class<?> resolveProxyClass(String[] interfaces) throws IOException, ClassNotFoundException {
+			if (classLoader != null) {
+				ClassLoader nonPublicLoader = null;
+				boolean hasNonPublicInterface = false;
+
+				// define proxy in class loader of non-public interface(s), if any
+				Class<?>[] classObjs = new Class<?>[interfaces.length];
+				for (int i = 0; i < interfaces.length; i++) {
+					Class<?> cl = Class.forName(interfaces[i], false, classLoader);
+					if ((cl.getModifiers() & Modifier.PUBLIC) == 0) {
+						if (hasNonPublicInterface) {
+							if (nonPublicLoader != cl.getClassLoader()) {
+								throw new IllegalAccessError(
+									"conflicting non-public interface class loaders");
+							}
+						} else {
+							nonPublicLoader = cl.getClassLoader();
+							hasNonPublicInterface = true;
+						}
+					}
+					classObjs[i] = cl;
+				}
+				try {
+					return Proxy.getProxyClass(
+						hasNonPublicInterface ? nonPublicLoader : classLoader, classObjs);
+				} catch (IllegalArgumentException e) {
+					throw new ClassNotFoundException(null, e);
+				}
+			}
+
+			return super.resolveProxyClass(interfaces);
 		}
 
 		// ------------------------------------------------
@@ -210,11 +245,12 @@ public final class InstantiationUtil {
 
 			final Class localClass = resolveClass(streamClassDescriptor);
 			final String name = localClass.getName();
-			if (scalaSerializerClassnames.contains(name) || scalaTypes.contains(name) || isAnonymousClass(localClass)) {
+			if (scalaSerializerClassnames.contains(name) || scalaTypes.contains(name) || isAnonymousClass(localClass)
+				|| isOldAvroSerializer(name, streamClassDescriptor.getSerialVersionUID())) {
 				final ObjectStreamClass localClassDescriptor = ObjectStreamClass.lookup(localClass);
 				if (localClassDescriptor != null
 					&& localClassDescriptor.getSerialVersionUID() != streamClassDescriptor.getSerialVersionUID()) {
-					LOG.warn("Ignoring serialVersionUID mismatch for anonymous class {}; was {}, now {}.",
+					LOG.warn("Ignoring serialVersionUID mismatch for class {}; was {}, now {}.",
 						streamClassDescriptor.getName(), streamClassDescriptor.getSerialVersionUID(), localClassDescriptor.getSerialVersionUID());
 
 					streamClassDescriptor = localClassDescriptor;
@@ -223,6 +259,7 @@ public final class InstantiationUtil {
 
 			return streamClassDescriptor;
 		}
+
 	}
 
 	private static boolean isAnonymousClass(Class clazz) {
@@ -240,6 +277,11 @@ public final class InstantiationUtil {
 		} catch (InternalError e) {
 			return false;
 		}
+	}
+
+	private static boolean isOldAvroSerializer(String name, long serialVersionUID) {
+		// please see FLINK-11436 for details on why we need to ignore serial version UID here for the AvroSerializer
+		return (serialVersionUID == 1) && "org.apache.flink.formats.avro.typeutils.AvroSerializer".equals(name);
 	}
 
 	/**

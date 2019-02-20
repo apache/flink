@@ -272,17 +272,25 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 		}
 	}
 
-	@Override
-	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
-		JobDetailsHeaders detailsHeaders = JobDetailsHeaders.getInstance();
+	/**
+	 * Requests the job details.
+	 *
+	 * @param jobId The job id
+	 * @return Job details
+	 */
+	public CompletableFuture<JobDetailsInfo> getJobDetails(JobID jobId) {
+		final JobDetailsHeaders detailsHeaders = JobDetailsHeaders.getInstance();
 		final JobMessageParameters  params = new JobMessageParameters();
 		params.jobPathParameter.resolve(jobId);
 
-		CompletableFuture<JobDetailsInfo> responseFuture = sendRequest(
+		return sendRequest(
 			detailsHeaders,
 			params);
+	}
 
-		return responseFuture.thenApply(JobDetailsInfo::getJobStatus);
+	@Override
+	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
+		return getJobDetails(jobId).thenApply(JobDetailsInfo::getJobStatus);
 	}
 
 	/**
@@ -694,7 +702,8 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 		return sendRequest(messageHeaders, EmptyMessageParameters.getInstance(), EmptyRequestBody.getInstance());
 	}
 
-	private <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P>
+	@VisibleForTesting
+	public <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P>
 			sendRequest(M messageHeaders, U messageParameters, R request) {
 		return sendRetriableRequest(
 			messageHeaders, messageParameters, request, isConnectionProblemOrServiceUnavailable());

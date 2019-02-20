@@ -119,10 +119,11 @@ public final class LongPrimitiveArraySerializer extends TypeSerializerSingleton<
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class LongPrimitiveArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<long[]> {
 
 		public LongPrimitiveArraySerializerSnapshot() {
-			super(LongPrimitiveArraySerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

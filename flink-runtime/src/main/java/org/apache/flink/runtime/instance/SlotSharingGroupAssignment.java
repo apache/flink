@@ -553,7 +553,7 @@ public class SlotSharingGroupAssignment {
 		
 		if (parent == null) {
 			// root slot, return to the instance.
-			sharedSlot.getOwner().returnAllocatedSlot(sharedSlot);
+			sharedSlot.getOwner().returnLogicalSlot(sharedSlot);
 
 			// also, make sure we remove this slot from everywhere
 			allSlots.remove(sharedSlot);

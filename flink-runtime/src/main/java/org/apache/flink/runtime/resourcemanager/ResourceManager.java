@@ -226,7 +226,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	@Override
-	public CompletableFuture<Void> postStop() {
+	public CompletableFuture<Void> onStop() {
 		Exception exception = null;
 
 		taskManagerHeartbeatManager.stop();
@@ -314,17 +314,21 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		CompletableFuture<RegistrationResponse> registrationResponseFuture = jobMasterGatewayFuture.thenCombineAsync(
 			jobMasterIdFuture,
-			(JobMasterGateway jobMasterGateway, JobMasterId currentJobMasterId) -> {
-				if (Objects.equals(currentJobMasterId, jobMasterId)) {
+			(JobMasterGateway jobMasterGateway, JobMasterId leadingJobMasterId) -> {
+				if (Objects.equals(leadingJobMasterId, jobMasterId)) {
 					return registerJobMasterInternal(
 						jobMasterGateway,
 						jobId,
 						jobManagerAddress,
 						jobManagerResourceId);
 				} else {
-					log.debug("The current JobMaster leader id {} did not match the received " +
-						"JobMaster id {}.", jobMasterId, currentJobMasterId);
-					return new RegistrationResponse.Decline("Job manager leader id did not match.");
+					final String declineMessage = String.format(
+						"The leading JobMaster id %s did not match the received JobMaster id %s. " +
+						"This indicates that a JobMaster leader change has happened.",
+						leadingJobMasterId,
+						jobMasterId);
+					log.debug(declineMessage);
+					return new RegistrationResponse.Decline(declineMessage);
 				}
 			},
 			getMainThreadExecutor());

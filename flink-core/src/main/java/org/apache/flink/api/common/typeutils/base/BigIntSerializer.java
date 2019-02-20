@@ -156,10 +156,11 @@ public final class BigIntSerializer extends TypeSerializerSingleton<BigInteger> 
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class BigIntSerializerSnapshot extends SimpleTypeSerializerSnapshot<BigInteger> {
 
 		public BigIntSerializerSnapshot() {
-			super(BigIntSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

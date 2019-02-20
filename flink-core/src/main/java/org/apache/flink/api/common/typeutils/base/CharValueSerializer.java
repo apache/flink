@@ -96,10 +96,11 @@ public class CharValueSerializer extends TypeSerializerSingleton<CharValue> {
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class CharValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<CharValue> {
 
 		public CharValueSerializerSnapshot() {
-			super(CharValueSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

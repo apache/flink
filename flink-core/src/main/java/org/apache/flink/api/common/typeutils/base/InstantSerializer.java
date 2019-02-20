@@ -115,10 +115,11 @@ public final class InstantSerializer extends TypeSerializerSingleton<Instant> {
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class InstantSerializerSnapshot extends SimpleTypeSerializerSnapshot<Instant> {
 
 		public InstantSerializerSnapshot() {
-			super(InstantSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

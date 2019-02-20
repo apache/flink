@@ -100,10 +100,11 @@ public final class StringSerializer extends TypeSerializerSingleton<String> {
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class StringSerializerSnapshot extends SimpleTypeSerializerSnapshot<String> {
 
 		public StringSerializerSnapshot() {
-			super(StringSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

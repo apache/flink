@@ -24,8 +24,8 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaHandshakeException;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
+import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcInvalidStateException;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaUnknownMessageException;
-import org.apache.flink.runtime.rpc.akka.messages.Processing;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.rpc.messages.CallAsync;
 import org.apache.flink.runtime.rpc.messages.HandshakeSuccessMessage;
@@ -33,7 +33,9 @@ import org.apache.flink.runtime.rpc.messages.LocalRpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RemoteHandshakeMessage;
 import org.apache.flink.runtime.rpc.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RunAsync;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.SerializedValue;
 
 import akka.actor.ActorRef;
 import akka.actor.Status;
@@ -41,6 +43,9 @@ import akka.actor.UntypedActor;
 import akka.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -52,11 +57,12 @@ import java.util.concurrent.TimeUnit;
 import scala.concurrent.duration.FiniteDuration;
 import scala.concurrent.impl.Promise;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Akka rpc actor which receives {@link LocalRpcInvocation}, {@link RunAsync} and {@link CallAsync}
- * {@link Processing} messages.
+ * {@link ControlMessages} messages.
  *
  * <p>The {@link LocalRpcInvocation} designates a rpc and is dispatched to the given {@link RpcEndpoint}
  * instance.
@@ -64,8 +70,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>The {@link RunAsync} and {@link CallAsync} messages contain executable code which is executed
  * in the context of the actor thread.
  *
- * <p>The {@link Processing} message controls the processing behaviour of the akka rpc actor. A
- * {@link Processing#START} starts processing incoming messages. A {@link Processing#STOP} message
+ * <p>The {@link ControlMessages} message controls the processing behaviour of the akka rpc actor. A
+ * {@link ControlMessages#START} starts processing incoming messages. A {@link ControlMessages#STOP} message
  * stops processing messages. All messages which arrive when the processing is stopped, will be
  * discarded.
  *
@@ -85,36 +91,36 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 
 	private final int version;
 
+	private final long maximumFramesize;
+
+	@Nonnull
 	private State state;
 
-	AkkaRpcActor(final T rpcEndpoint, final CompletableFuture<Boolean> terminationFuture, final int version) {
+	@Nullable
+	private CompletableFuture<Void> rpcEndpointTerminationFuture;
+
+	AkkaRpcActor(
+			final T rpcEndpoint,
+			final CompletableFuture<Boolean> terminationFuture,
+			final int version,
+			final long maximumFramesize) {
+
+		checkArgument(maximumFramesize > 0, "Maximum framesize must be positive.");
 		this.rpcEndpoint = checkNotNull(rpcEndpoint, "rpc endpoint");
 		this.mainThreadValidator = new MainThreadValidatorUtil(rpcEndpoint);
 		this.terminationFuture = checkNotNull(terminationFuture);
 		this.version = version;
-		this.state = State.STOPPED;
+		this.maximumFramesize = maximumFramesize;
+		this.state = StoppedState.INSTANCE;
+		this.rpcEndpointTerminationFuture = null;
 	}
 
 	@Override
 	public void postStop() throws Exception {
-		mainThreadValidator.enterMainThread();
+		super.postStop();
 
-		try {
-			CompletableFuture<Void> postStopFuture;
-			try {
-				postStopFuture = rpcEndpoint.postStop();
-			} catch (Throwable throwable) {
-				postStopFuture = FutureUtils.completedExceptionally(throwable);
-			}
-
-			super.postStop();
-
-			// IMPORTANT: This only works if we don't use a restarting supervisor strategy. Otherwise
-			// we would complete the future and let the actor system restart the actor with a completed
-			// future.
-			// Complete the termination future so that others know that we've stopped.
-
-			postStopFuture.whenComplete(
+		if (rpcEndpointTerminationFuture != null && rpcEndpointTerminationFuture.isDone()) {
+			rpcEndpointTerminationFuture.whenComplete(
 				(Void value, Throwable throwable) -> {
 					if (throwable != null) {
 						terminationFuture.completeExceptionally(throwable);
@@ -122,20 +128,22 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 						terminationFuture.complete(null);
 					}
 				});
-		} finally {
-			mainThreadValidator.exitMainThread();
+		} else {
+			terminationFuture.completeExceptionally(
+				new AkkaRpcException(
+					String.format("RpcEndpoint %s has not been properly stopped.", rpcEndpoint.getEndpointId())));
 		}
+
+		state = state.finishTermination();
 	}
 
 	@Override
 	public void onReceive(final Object message) {
 		if (message instanceof RemoteHandshakeMessage) {
 			handleHandshakeMessage((RemoteHandshakeMessage) message);
-		} else if (message.equals(Processing.START)) {
-			state = State.STARTED;
-		} else if (message.equals(Processing.STOP)) {
-			state = State.STOPPED;
-		} else if (state == State.STARTED) {
+		} else if (message instanceof ControlMessages) {
+			handleControlMessage(((ControlMessages) message));
+		} else if (state.isRunning()) {
 			mainThreadValidator.enterMainThread();
 
 			try {
@@ -151,6 +159,28 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 			sendErrorIfSender(new AkkaRpcException(
 				String.format("Discard message, because the rpc endpoint %s has not been started yet.", rpcEndpoint.getAddress())));
 		}
+	}
+
+	private void handleControlMessage(ControlMessages controlMessage) {
+		switch (controlMessage) {
+			case START:
+				state = state.start();
+				break;
+			case STOP:
+				state = state.stop();
+				break;
+			case TERMINATE:
+				state.terminate(this);
+				break;
+			default:
+				handleUnknownControlMessage(controlMessage);
+		}
+	}
+
+	private void handleUnknownControlMessage(ControlMessages controlMessage) {
+		final String message = String.format("Received unknown control message %s. Dropping this message!", controlMessage);
+		log.warn(message);
+		sendErrorIfSender(new AkkaUnknownMessageException(message));
 	}
 
 	protected void handleRpcMessage(Object message) {
@@ -254,6 +284,9 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 						return;
 					}
 
+					final boolean isRemoteSender = isRemoteSender();
+					final String methodName = rpcMethod.getName();
+
 					if (result instanceof CompletableFuture) {
 						final CompletableFuture<?> future = (CompletableFuture<?>) result;
 						Promise.DefaultPromise<Object> promise = new Promise.DefaultPromise<>();
@@ -263,14 +296,33 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 								if (throwable != null) {
 									promise.failure(throwable);
 								} else {
-									promise.success(value);
+									if (isRemoteSender) {
+										Either<SerializedValue<?>, AkkaRpcException> serializedResult = serializeRemoteResultAndVerifySize(value, methodName);
+
+										if (serializedResult.isLeft()) {
+											promise.success(serializedResult.left());
+										} else {
+											promise.failure(serializedResult.right());
+										}
+									} else {
+										promise.success(value);
+									}
 								}
 							});
 
 						Patterns.pipe(promise.future(), getContext().dispatcher()).to(getSender());
 					} else {
-						// tell the sender the result of the computation
-						getSender().tell(new Status.Success(result), getSelf());
+						if (isRemoteSender) {
+							Either<SerializedValue<?>, AkkaRpcException> serializedResult = serializeRemoteResultAndVerifySize(result, methodName);
+
+							if (serializedResult.isLeft()) {
+								getSender().tell(new Status.Success(serializedResult.left()), getSelf());
+							} else {
+								getSender().tell(new Status.Failure(serializedResult.right()), getSelf());
+							}
+						} else {
+							getSender().tell(new Status.Success(result), getSelf());
+						}
 					}
 				}
 			} catch (Throwable e) {
@@ -278,6 +330,28 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 				// tell the sender about the failure
 				getSender().tell(new Status.Failure(e), getSelf());
 			}
+		}
+	}
+
+	private boolean isRemoteSender() {
+		return !getSender().path().address().hasLocalScope();
+	}
+
+	private Either<SerializedValue<?>, AkkaRpcException> serializeRemoteResultAndVerifySize(Object result, String methodName) {
+		try {
+			SerializedValue<?> serializedResult = new SerializedValue<>(result);
+
+			long resultSize = serializedResult.getByteArray().length;
+			if (resultSize > maximumFramesize) {
+				return Either.Right(new AkkaRpcException(
+					"The method " + methodName + "'s result size " + resultSize
+						+ " exceeds the maximum size " + maximumFramesize + " ."));
+			} else {
+				return Either.Left(serializedResult);
+			}
+		} catch (IOException e) {
+			return Either.Right(new AkkaRpcException(
+				"Failed to serialize the result for RPC call : " + methodName + '.', e));
 		}
 	}
 
@@ -382,8 +456,122 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 		return message;
 	}
 
-	enum State {
-		STARTED,
-		STOPPED
+	/**
+	 * Stop the actor immediately.
+	 */
+	private void stop() {
+		getContext().stop(getSelf());
+	}
+
+	// ---------------------------------------------------------------------------
+	// Internal state machine
+	// ---------------------------------------------------------------------------
+
+	interface State {
+		default State start() {
+			throw new AkkaRpcInvalidStateException(invalidStateTransitionMessage(StartedState.INSTANCE));
+		}
+
+		default State stop() {
+			throw new AkkaRpcInvalidStateException(invalidStateTransitionMessage(StoppedState.INSTANCE));
+		}
+
+		default State terminate(AkkaRpcActor<?> akkaRpcActor) {
+			throw new AkkaRpcInvalidStateException(invalidStateTransitionMessage(TerminatingState.INSTANCE));
+		}
+
+		default State finishTermination() {
+			return TerminatedState.INSTANCE;
+		}
+
+		default boolean isRunning() {
+			return false;
+		}
+
+		default String invalidStateTransitionMessage(State targetState) {
+			return String.format("AkkaRpcActor is currently in state %s and cannot go into state %s.", this, targetState);
+		}
+	}
+
+	@SuppressWarnings("Singleton")
+	enum StartedState implements State {
+		INSTANCE;
+
+		@Override
+		public State start() {
+			return INSTANCE;
+		}
+
+		@Override
+		public State stop() {
+			return StoppedState.INSTANCE;
+		}
+
+		@Override
+		public State terminate(AkkaRpcActor<?> akkaRpcActor) {
+			akkaRpcActor.mainThreadValidator.enterMainThread();
+
+			try {
+				akkaRpcActor.rpcEndpointTerminationFuture = akkaRpcActor.rpcEndpoint.onStop();
+			} catch (Throwable t) {
+				akkaRpcActor.rpcEndpointTerminationFuture = FutureUtils.completedExceptionally(
+					new AkkaRpcException(
+						String.format("Failure while stopping RpcEndpoint %s.", akkaRpcActor.rpcEndpoint.getEndpointId()),
+						t));
+			} finally {
+				akkaRpcActor.mainThreadValidator.exitMainThread();
+			}
+
+			// IMPORTANT: This only works if we don't use a restarting supervisor strategy. Otherwise
+			// we would complete the future and let the actor system restart the actor with a completed
+			// future.
+			// Complete the termination future so that others know that we've stopped.
+
+			akkaRpcActor.rpcEndpointTerminationFuture.whenComplete((ignored, throwable) -> akkaRpcActor.stop());
+
+			return TerminatingState.INSTANCE;
+		}
+
+		@Override
+		public boolean isRunning() {
+			return true;
+		}
+	}
+
+	@SuppressWarnings("Singleton")
+	enum StoppedState implements State {
+		INSTANCE;
+
+		@Override
+		public State start() {
+			return StartedState.INSTANCE;
+		}
+
+		@Override
+		public State stop() {
+			return INSTANCE;
+		}
+
+		@Override
+		public State terminate(AkkaRpcActor<?> akkaRpcActor) {
+			akkaRpcActor.rpcEndpointTerminationFuture = CompletableFuture.completedFuture(null);
+			akkaRpcActor.stop();
+
+			return TerminatingState.INSTANCE;
+		}
+	}
+
+	@SuppressWarnings("Singleton")
+	enum TerminatingState implements State {
+		INSTANCE;
+
+		@Override
+		public boolean isRunning() {
+			return true;
+		}
+	}
+
+	enum TerminatedState implements State {
+		INSTANCE
 	}
 }

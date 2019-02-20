@@ -102,6 +102,7 @@ public class TestingJobMasterGatewayBuilder {
 	private BiFunction<JobID, String, CompletableFuture<KvStateLocation>> requestKvStateLocationFunction = (ignoredA, registrationName) -> FutureUtils.completedExceptionally(new UnknownKvStateLocation(registrationName));
 	private Function<Tuple6<JobID, JobVertexID, KeyGroupRange, String, KvStateID, InetSocketAddress>, CompletableFuture<Acknowledge>> notifyKvStateRegisteredFunction = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
 	private Function<Tuple4<JobID, JobVertexID, KeyGroupRange, String>, CompletableFuture<Acknowledge>> notifyKvStateUnregisteredFunction = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
+	private TriFunction<String, Object, byte[], CompletableFuture<Object>> updateAggregateFunction = (a, b, c) -> CompletableFuture.completedFuture(new Object());
 
 	public TestingJobMasterGatewayBuilder setAddress(String address) {
 		this.address = address;
@@ -248,7 +249,12 @@ public class TestingJobMasterGatewayBuilder {
 		return this;
 	}
 
+	public TestingJobMasterGatewayBuilder setUpdateAggregateFunction(TriFunction<String, Object, byte[], CompletableFuture<Object>> updateAggregateFunction) {
+		this.updateAggregateFunction = updateAggregateFunction;
+		return this;
+	}
+
 	public TestingJobMasterGateway build() {
-		return new TestingJobMasterGateway(address, hostname, cancelFunction, stopFunction, rescalingJobFunction, rescalingOperatorsFunction, updateTaskExecutionStateFunction, requestNextInputSplitFunction, requestPartitionStateFunction, scheduleOrUpdateConsumersFunction, disconnectTaskManagerFunction, disconnectResourceManagerConsumer, classloadingPropsSupplier, offerSlotsFunction, failSlotConsumer, registerTaskManagerFunction, taskManagerHeartbeatConsumer, resourceManagerHeartbeatConsumer, requestJobDetailsSupplier, requestJobSupplier, triggerSavepointFunction, requestOperatorBackPressureStatsFunction, notifyAllocationFailureConsumer, acknowledgeCheckpointConsumer, declineCheckpointConsumer, fencingTokenSupplier, requestKvStateLocationFunction, notifyKvStateRegisteredFunction, notifyKvStateUnregisteredFunction);
+		return new TestingJobMasterGateway(address, hostname, cancelFunction, stopFunction, rescalingJobFunction, rescalingOperatorsFunction, updateTaskExecutionStateFunction, requestNextInputSplitFunction, requestPartitionStateFunction, scheduleOrUpdateConsumersFunction, disconnectTaskManagerFunction, disconnectResourceManagerConsumer, classloadingPropsSupplier, offerSlotsFunction, failSlotConsumer, registerTaskManagerFunction, taskManagerHeartbeatConsumer, resourceManagerHeartbeatConsumer, requestJobDetailsSupplier, requestJobSupplier, triggerSavepointFunction, requestOperatorBackPressureStatsFunction, notifyAllocationFailureConsumer, acknowledgeCheckpointConsumer, declineCheckpointConsumer, fencingTokenSupplier, requestKvStateLocationFunction, notifyKvStateRegisteredFunction, notifyKvStateUnregisteredFunction, updateAggregateFunction);
 	}
 }

@@ -130,7 +130,7 @@ public class PythonPlanStreamer {
 					server.close();
 				}
 			} catch (IOException e) {
-				LOG.error("Failed to close socket.", e);
+				LOG.error("Failed to close server.", e);
 			}
 		}
 	}

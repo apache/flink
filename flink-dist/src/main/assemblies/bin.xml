@@ -95,14 +95,14 @@ under the License.
 
 		<!-- copy SQL client -->
 		<fileSet>
-			<directory>../flink-libraries/flink-sql-client/bin/</directory>
+			<directory>../flink-table/flink-sql-client/bin/</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
 
 		<!-- copy SQL client configuration files -->
 		<fileSet>
-			<directory>../flink-libraries/flink-sql-client/conf/</directory>
+			<directory>../flink-table/flink-sql-client/conf/</directory>
 			<outputDirectory>conf</outputDirectory>
 			<fileMode>0644</fileMode>
 		</fileSet>

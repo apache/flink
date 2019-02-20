@@ -92,7 +92,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	/** Environment variable name of the final container id used by the YarnResourceManager.
 	 * Container ID generation may vary across Hadoop versions. */
-	private static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
+	static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
 
 	/** Environment variable name of the hostname given by the YARN.
 	 * In task executor we use the hostnames given by YARN consistently throughout akka */
@@ -254,7 +254,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	@Override
-	public CompletableFuture<Void> postStop() {
+	public CompletableFuture<Void> onStop() {
 		// shut down all components
 		Throwable firstException = null;
 
@@ -274,7 +274,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			}
 		}
 
-		final CompletableFuture<Void> terminationFuture = super.postStop();
+		final CompletableFuture<Void> terminationFuture = super.onStop();
 
 		if (firstException != null) {
 			return FutureUtils.completedExceptionally(new FlinkException("Error while shutting down YARN resource manager", firstException));
@@ -449,7 +449,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	public void onShutdownRequest() {
-		shutDown();
+		closeAsync();
 	}
 
 	@Override

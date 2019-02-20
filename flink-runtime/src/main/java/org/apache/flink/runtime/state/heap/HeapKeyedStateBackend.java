@@ -61,8 +61,8 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
-import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
+import org.apache.flink.runtime.state.StateSnapshotTransformers;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
@@ -78,7 +78,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -89,7 +88,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Collectors;
@@ -229,7 +227,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
 			TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<?, V> stateDesc,
-			@Nullable StateSnapshotTransformer<V> snapshotTransformer) throws StateMigrationException {
+			@Nonnull StateSnapshotTransformFactory<V> snapshotTransformFactory) throws StateMigrationException {
 
 		@SuppressWarnings("unchecked")
 		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) registeredKVStates.get(stateDesc.getName());
@@ -239,7 +237,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		if (stateTable != null) {
 			RegisteredKeyValueStateBackendMetaInfo<N, V> restoredKvMetaInfo = stateTable.getMetaInfo();
 
-			restoredKvMetaInfo.updateSnapshotTransformer(snapshotTransformer);
+			restoredKvMetaInfo.updateSnapshotTransformFactory(snapshotTransformFactory);
 
 			TypeSerializerSchemaCompatibility<N> namespaceCompatibility =
 				restoredKvMetaInfo.updateNamespaceSerializer(namespaceSerializer);
@@ -263,7 +261,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateDesc.getName(),
 				namespaceSerializer,
 				newStateSerializer,
-				snapshotTransformer);
+				snapshotTransformFactory);
 
 			stateTable = snapshotStrategy.newStateTable(newMetaInfo);
 			registeredKVStates.put(stateDesc.getName(), stateTable);
@@ -301,27 +299,20 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			throw new FlinkRuntimeException(message);
 		}
 		StateTable<K, N, SV> stateTable = tryRegisterStateTable(
-			namespaceSerializer, stateDesc, getStateSnapshotTransformer(stateDesc, snapshotTransformFactory));
+			namespaceSerializer, stateDesc, getStateSnapshotTransformFactory(stateDesc, snapshotTransformFactory));
 		return stateFactory.createState(stateDesc, stateTable, getKeySerializer());
 	}
 
 	@SuppressWarnings("unchecked")
-	private <SV, SEV> StateSnapshotTransformer<SV> getStateSnapshotTransformer(
+	private <SV, SEV> StateSnapshotTransformFactory<SV> getStateSnapshotTransformFactory(
 		StateDescriptor<?, SV> stateDesc,
 		StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
-		Optional<StateSnapshotTransformer<SEV>> original = snapshotTransformFactory.createForDeserializedState();
-		if (original.isPresent()) {
-			if (stateDesc instanceof ListStateDescriptor) {
-				return (StateSnapshotTransformer<SV>) new StateSnapshotTransformer
-					.ListStateSnapshotTransformer<>(original.get());
-			} else if (stateDesc instanceof MapStateDescriptor) {
-				return (StateSnapshotTransformer<SV>) new StateSnapshotTransformer
-					.MapStateSnapshotTransformer<>(original.get());
-			} else {
-				return (StateSnapshotTransformer<SV>) original.get();
-			}
+		if (stateDesc instanceof ListStateDescriptor) {
+			return (StateSnapshotTransformFactory<SV>) new StateSnapshotTransformers.ListStateSnapshotTransformFactory<>(snapshotTransformFactory);
+		} else if (stateDesc instanceof MapStateDescriptor) {
+			return (StateSnapshotTransformFactory<SV>) new StateSnapshotTransformers.MapStateSnapshotTransformFactory<>(snapshotTransformFactory);
 		} else {
-			return null;
+			return (StateSnapshotTransformFactory<SV>) snapshotTransformFactory;
 		}
 	}
 
@@ -729,7 +720,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						final CheckpointStreamWithResultProvider streamWithResultProvider =
 							checkpointStreamSupplier.get();
 
-						registerCloseableForCancellation(streamWithResultProvider);
+						snapshotCloseableRegistry.registerCloseable(streamWithResultProvider);
 
 						final CheckpointStreamFactory.CheckpointStateOutputStream localStream =
 							streamWithResultProvider.getCheckpointOutputStream();
@@ -760,7 +751,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							}
 						}
 
-						if (unregisterCloseableFromCancellation(streamWithResultProvider)) {
+						if (snapshotCloseableRegistry.unregisterCloseable(streamWithResultProvider)) {
 							KeyGroupRangeOffsets kgOffs = new KeyGroupRangeOffsets(keyGroupRange, keyGroupRangeOffsets);
 							SnapshotResult<StreamStateHandle> result =
 								streamWithResultProvider.closeAndFinalizeCheckpointStreamResult();

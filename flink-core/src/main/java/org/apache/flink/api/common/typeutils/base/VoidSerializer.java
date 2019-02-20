@@ -100,10 +100,11 @@ public final class VoidSerializer extends TypeSerializerSingleton<Void> {
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class VoidSerializerSnapshot extends SimpleTypeSerializerSnapshot<Void> {
 
 		public VoidSerializerSnapshot() {
-			super(VoidSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

@@ -119,10 +119,11 @@ public class IntPrimitiveArraySerializer extends TypeSerializerSingleton<int[]>{
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class IntPrimitiveArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<int[]> {
 
 		public IntPrimitiveArraySerializerSnapshot() {
-			super(IntPrimitiveArraySerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

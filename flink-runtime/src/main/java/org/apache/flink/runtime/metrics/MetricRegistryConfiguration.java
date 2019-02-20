@@ -19,16 +19,14 @@
 package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.util.Preconditions;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -132,6 +130,7 @@ public class MetricRegistryConfiguration {
 
 		String includedReportersString = configuration.getString(MetricOptions.REPORTERS_LIST, "");
 		Set<String> includedReporters = reporterListPattern.splitAsStream(includedReportersString)
+			.filter(r -> !r.isEmpty()) // splitting an empty string results in an empty string on jdk9+
 			.collect(Collectors.toSet());
 
 		// use a TreeSet to make the reporter order deterministic, which is useful for testing
@@ -171,10 +170,7 @@ public class MetricRegistryConfiguration {
 			}
 		}
 
-		final String maxFrameSizeStr = configuration.getString(AkkaOptions.FRAMESIZE);
-		final String akkaConfigStr = String.format("akka {remote {netty.tcp {maximum-frame-size = %s}}}", maxFrameSizeStr);
-		final Config akkaConfig = ConfigFactory.parseString(akkaConfigStr);
-		final long maximumFrameSize = akkaConfig.getBytes("akka.remote.netty.tcp.maximum-frame-size");
+		final long maximumFrameSize = AkkaRpcServiceUtils.extractMaximumFramesize(configuration);
 
 		// padding to account for serialization overhead
 		final long messageSizeLimitPadding = 256;

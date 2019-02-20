@@ -187,7 +187,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 			BufferOrEvent bufferOrEvent = next.get();
 			if (isBlocked(bufferOrEvent.getChannelIndex())) {
-				// if the channel is blocked we, we just store the BufferOrEvent
+				// if the channel is blocked, we just store the BufferOrEvent
 				bufferBlocker.add(bufferOrEvent);
 				checkSizeLimit();
 			}

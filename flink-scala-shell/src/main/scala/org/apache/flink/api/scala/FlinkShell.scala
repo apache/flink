@@ -151,7 +151,7 @@ object FlinkShell {
           .build()
         val cluster = new MiniCluster(miniClusterConfig)
         cluster.start()
-        val port = cluster.getRestAddress.getPort
+        val port = cluster.getRestAddress.get.getPort
 
         println(s"\nStarting local Flink cluster (host: localhost, port: $port).\n")
         ("localhost", port, Some(Left(cluster)))

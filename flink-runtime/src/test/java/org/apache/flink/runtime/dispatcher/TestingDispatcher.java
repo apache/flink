@@ -29,6 +29,7 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -46,7 +47,7 @@ class TestingDispatcher extends Dispatcher {
 		String endpointId,
 		Configuration configuration,
 		HighAvailabilityServices highAvailabilityServices,
-		ResourceManagerGateway resourceManagerGateway,
+		GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
 		JobManagerMetricGroup jobManagerMetricGroup,
@@ -60,7 +61,7 @@ class TestingDispatcher extends Dispatcher {
 			configuration,
 			highAvailabilityServices,
 			highAvailabilityServices.getSubmittedJobGraphStore(),
-			resourceManagerGateway,
+			resourceManagerGatewayRetriever,
 			blobServer,
 			heartbeatServices,
 			jobManagerMetricGroup,
@@ -86,5 +87,11 @@ class TestingDispatcher extends Dispatcher {
 		return callAsyncWithoutFencing(
 			this::getRecoveryOperation,
 			timeout).thenCompose(Function.identity());
+	}
+
+	CompletableFuture<Integer> getNumberJobs(Time timeout) {
+		return callAsyncWithoutFencing(
+			() -> listJobs(timeout).get().size(),
+			timeout);
 	}
 }

@@ -66,7 +66,7 @@ import static org.junit.Assert.fail;
  * Abstract test base for all Kafka producer tests.
  */
 @SuppressWarnings("serial")
-public abstract class KafkaProducerTestBase extends KafkaTestBase {
+public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
 	private static final long KAFKA_READ_TIMEOUT = 60_000L;
 

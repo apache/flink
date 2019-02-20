@@ -21,9 +21,9 @@ package org.apache.flink.client.cli;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.util.MockedCliFrontend;
-import org.apache.flink.client.program.StandaloneClusterClient;
+import org.apache.flink.client.deployment.StandaloneClusterId;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.messages.Acknowledge;
 
 import org.hamcrest.Matchers;
@@ -115,13 +115,12 @@ public class CliFrontendModifyTest extends CliFrontendTestBase {
 		return rescaleJobFuture.get();
 	}
 
-	private static final class TestingClusterClient extends StandaloneClusterClient {
+	private static final class TestingClusterClient extends RestClusterClient<StandaloneClusterId> {
 
 		private final CompletableFuture<Tuple2<JobID, Integer>> rescaleJobFuture;
 
-		TestingClusterClient(
-			CompletableFuture<Tuple2<JobID, Integer>> rescaleJobFuture, Configuration configuration) {
-			super(configuration, new TestingHighAvailabilityServices(), false);
+		TestingClusterClient(CompletableFuture<Tuple2<JobID, Integer>> rescaleJobFuture, Configuration configuration) throws Exception {
+			super(configuration, StandaloneClusterId.getInstance());
 
 			this.rescaleJobFuture = rescaleJobFuture;
 		}

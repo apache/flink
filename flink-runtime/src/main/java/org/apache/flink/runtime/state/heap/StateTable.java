@@ -24,6 +24,7 @@ import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StateTransformationFunction;
+import org.apache.flink.runtime.state.internal.InternalKvState.StateIncrementalVisitor;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -165,6 +166,8 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 	public abstract S get(K key, N namespace);
 
 	public abstract Stream<K> getKeys(N namespace);
+
+	public abstract StateIncrementalVisitor<K, N, S> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords);
 
 	// Meta data setter / getter and toString -----------------------------------------------------
 

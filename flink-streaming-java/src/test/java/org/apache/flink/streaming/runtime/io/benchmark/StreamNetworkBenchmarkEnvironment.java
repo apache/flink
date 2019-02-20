@@ -34,6 +34,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
@@ -52,7 +53,6 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.streaming.runtime.io.StreamRecordWriter;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -182,9 +182,9 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 		return receiver;
 	}
 
-	public StreamRecordWriter<T> createRecordWriter(int partitionIndex, long flushTimeout) throws Exception {
+	public RecordWriter<T> createRecordWriter(int partitionIndex, long flushTimeout) throws Exception {
 		ResultPartitionWriter sender = createResultPartition(jobId, partitionIds[partitionIndex], senderEnv, channels);
-		return new StreamRecordWriter<>(sender,  new RoundRobinChannelSelector<T>(), flushTimeout);
+		return new RecordWriter<>(sender, new RoundRobinChannelSelector<T>(), flushTimeout, null);
 	}
 
 	private void generatePartitionIds() throws Exception {

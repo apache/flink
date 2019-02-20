@@ -119,10 +119,11 @@ public final class SqlTimeSerializer extends TypeSerializerSingleton<Time> {
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class SqlTimeSerializerSnapshot extends SimpleTypeSerializerSnapshot<Time> {
 
 		public SqlTimeSerializerSnapshot() {
-			super(SqlTimeSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

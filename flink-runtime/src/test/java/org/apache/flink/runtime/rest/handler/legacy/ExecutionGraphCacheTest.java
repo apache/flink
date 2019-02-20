@@ -29,7 +29,6 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -251,7 +250,7 @@ public class ExecutionGraphCacheTest extends TestLogger {
 	 * state {@link JobStatus#SUSPENDING} or {@link JobStatus#SUSPENDED}.
 	 *
 	 * <p>This test can be removed once we no longer request the actual {@link ExecutionGraph} from the
-	 * {@link JobManager}.
+	 * JobManager.
 	 */
 	@Test
 	public void testCacheInvalidationIfSuspended() throws Exception {
@@ -297,7 +296,7 @@ public class ExecutionGraphCacheTest extends TestLogger {
 	 * state to {@link JobStatus#SUSPENDING} or {@link JobStatus#SUSPENDED}.
 	 *
 	 * <p>This test can be removed once we no longer request the actual {@link ExecutionGraph} from the
-	 * {@link JobManager}.
+	 * JobManager.
 	 */
 	@Test
 	public void testCacheInvalidationIfSwitchToSuspended() throws Exception {

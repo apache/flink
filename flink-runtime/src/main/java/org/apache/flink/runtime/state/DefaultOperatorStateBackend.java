@@ -700,7 +700,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 						CheckpointStreamFactory.CheckpointStateOutputStream localOut =
 							streamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
-						registerCloseableForCancellation(localOut);
+						snapshotCloseableRegistry.registerCloseable(localOut);
 
 						// get the registered operator state infos ...
 						List<StateMetaInfoSnapshot> operatorMetaInfoSnapshots =
@@ -762,7 +762,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 						// ... and, finally, create the state handle.
 						OperatorStateHandle retValue = null;
 
-						if (unregisterCloseableFromCancellation(localOut)) {
+						if (snapshotCloseableRegistry.unregisterCloseable(localOut)) {
 
 							StreamStateHandle stateHandle = localOut.closeAndGetHandle();
 

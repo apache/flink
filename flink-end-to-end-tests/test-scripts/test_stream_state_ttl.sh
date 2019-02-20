@@ -20,7 +20,7 @@
 source "$(dirname "$0")"/common.sh
 
 STATE_BACKEND_TYPE="${1:-file}"
-STATE_BACKEND_FILE_ASYNC="${2:-false}"
+STATE_BACKEND_FILE_ASYNC="${2:-true}"
 TTL="${3:-1000}"
 PRECISION="${4:-5}"
 PARALLELISM="${5-3}"

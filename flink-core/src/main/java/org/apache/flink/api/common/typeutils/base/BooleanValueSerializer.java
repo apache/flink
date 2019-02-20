@@ -98,10 +98,11 @@ public final class BooleanValueSerializer extends TypeSerializerSingleton<Boolea
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class BooleanValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<BooleanValue> {
 
 		public BooleanValueSerializerSnapshot() {
-			super(BooleanValueSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

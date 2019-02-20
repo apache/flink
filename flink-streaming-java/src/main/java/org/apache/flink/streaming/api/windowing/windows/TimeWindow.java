@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.api.windowing.windows;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
@@ -187,6 +189,24 @@ public class TimeWindow extends Window {
 		@Override
 		public boolean canEqual(Object obj) {
 			return obj instanceof Serializer;
+		}
+
+		// ------------------------------------------------------------------------
+
+		@Override
+		public TypeSerializerSnapshot<TimeWindow> snapshotConfiguration() {
+			return new TimeWindowSerializerSnapshot();
+		}
+
+		/**
+		 * Serializer configuration snapshot for compatibility and format evolution.
+		 */
+		@SuppressWarnings("WeakerAccess")
+		public static final class TimeWindowSerializerSnapshot extends SimpleTypeSerializerSnapshot<TimeWindow> {
+
+			public TimeWindowSerializerSnapshot() {
+				super(Serializer::new);
+			}
 		}
 	}
 

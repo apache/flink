@@ -113,10 +113,11 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class BytePrimitiveArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<byte[]> {
 
 		public BytePrimitiveArraySerializerSnapshot() {
-			super(BytePrimitiveArraySerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

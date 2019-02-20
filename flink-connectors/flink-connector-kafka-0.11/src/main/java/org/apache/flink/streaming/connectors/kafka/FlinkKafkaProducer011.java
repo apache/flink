@@ -26,6 +26,8 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
@@ -155,7 +157,7 @@ public class FlinkKafkaProducer011<IN>
 	 * <p>The range of available to use transactional ids is:
 	 * {@code [0, getNumberOfParallelSubtasks() * kafkaProducersPoolSize) }
 	 *
-	 * <p>This means that if we decrease {@code getNumberOfParallelSubtasks()} by a factor larger then
+	 * <p>This means that if we decrease {@code getNumberOfParallelSubtasks()} by a factor larger than
 	 * {@code SAFE_SCALE_DOWN_FACTOR} we can have a left some lingering transaction.
 	 */
 	public static final int SAFE_SCALE_DOWN_FACTOR = 5;
@@ -1244,6 +1246,23 @@ public class FlinkKafkaProducer011<IN>
 		public boolean canEqual(Object obj) {
 			return obj instanceof TransactionStateSerializer;
 		}
+
+		// ------------------------------------------------------------------------
+
+		@Override
+		public TypeSerializerSnapshot<KafkaTransactionState> snapshotConfiguration() {
+			return new TransactionStateSerializerSnapshot();
+		}
+
+		/**
+		 * Serializer configuration snapshot for compatibility and format evolution.
+		 */
+		@SuppressWarnings("WeakerAccess")
+		public static final class TransactionStateSerializerSnapshot extends SimpleTypeSerializerSnapshot<KafkaTransactionState> {
+			public TransactionStateSerializerSnapshot() {
+				super(TransactionStateSerializer::new);
+			}
+		}
 	}
 
 	/**
@@ -1325,6 +1344,23 @@ public class FlinkKafkaProducer011<IN>
 		@Override
 		public boolean canEqual(Object obj) {
 			return obj instanceof ContextStateSerializer;
+		}
+
+		// ------------------------------------------------------------------------
+
+		@Override
+		public TypeSerializerSnapshot<KafkaTransactionContext> snapshotConfiguration() {
+			return new ContextStateSerializerSnapshot();
+		}
+
+		/**
+		 * Serializer configuration snapshot for compatibility and format evolution.
+		 */
+		@SuppressWarnings("WeakerAccess")
+		public static final class ContextStateSerializerSnapshot extends SimpleTypeSerializerSnapshot<KafkaTransactionContext> {
+			public ContextStateSerializerSnapshot() {
+				super(ContextStateSerializer::new);
+			}
 		}
 	}
 
