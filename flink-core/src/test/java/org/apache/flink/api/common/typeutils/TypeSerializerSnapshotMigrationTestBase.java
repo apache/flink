@@ -79,7 +79,7 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 
 		TypeSerializerSchemaCompatibility<ElementT> result = snapshot.resolveSchemaCompatibility(testSpecification.createSerializer());
 
-		assertThat(result, hasSameCompatibilityType(testSpecification.expectedCompatibilityResult));
+		assertThat(result, testSpecification.schemaCompatibilityMatcher);
 	}
 
 	@Test
@@ -203,7 +203,7 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 		private final String name;
 		private final MigrationVersion testMigrationVersion;
 		private Supplier<? extends TypeSerializer<T>> serializerProvider;
-		private TypeSerializerSchemaCompatibility<T> expectedCompatibilityResult;
+		private Matcher<TypeSerializerSchemaCompatibility<T>> schemaCompatibilityMatcher;
 		private String snapshotDataLocation;
 		private String testDataLocation;
 		private int testDataCount;
@@ -245,7 +245,13 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 				Supplier<? extends TypeSerializer<T>> serializerProvider,
 				TypeSerializerSchemaCompatibility<T> expectedCompatibilityResult) {
 			this.serializerProvider = serializerProvider;
-			this.expectedCompatibilityResult = expectedCompatibilityResult;
+			this.schemaCompatibilityMatcher = hasSameCompatibilityType(expectedCompatibilityResult);
+			return this;
+		}
+
+		public TestSpecification<T> withSchemaCompatibilityMatcher(
+				Matcher<TypeSerializerSchemaCompatibility<T>> schemaCompatibilityMatcher) {
+			this.schemaCompatibilityMatcher = schemaCompatibilityMatcher;
 			return this;
 		}
 
@@ -345,6 +351,39 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 						.withTestData(
 							String.format(DEFAULT_TEST_DATA_FILENAME_FORMAT, testVersion, name),
 							DEFAULT_TEST_DATA_COUNT)
+				);
+			}
+		}
+
+		/**
+		 * Adds a test specification to be tested for all specified test versions.
+		 *
+		 * <p>This method adds the specification with pre-defined snapshot and data filenames,
+		 * with the format "flink-&lt;testVersion&gt;-&lt;specName&gt;-&lt;data/snapshot&gt;",
+		 * and each specification's test data count is assumed to always be 10.
+		 *
+		 * @param <T> type of the test data.
+		 */
+		public <T> void addWithCompatibilityMatcher(
+				String name,
+				Class<? extends TypeSerializer> serializerClass,
+				Class<? extends TypeSerializerSnapshot> snapshotClass,
+				Supplier<? extends TypeSerializer<T>> serializerProvider,
+				Matcher<TypeSerializerSchemaCompatibility<T>> schemaCompatibilityMatcher) {
+			for (MigrationVersion testVersion : testVersions) {
+				testSpecifications.add(
+						TestSpecification.<T>builder(
+								getSpecNameForVersion(name, testVersion),
+								serializerClass,
+								snapshotClass,
+								testVersion)
+								.withNewSerializerProvider(serializerProvider)
+								.withSchemaCompatibilityMatcher(schemaCompatibilityMatcher)
+								.withSnapshotDataLocation(
+										String.format(DEFAULT_SNAPSHOT_FILENAME_FORMAT, testVersion, name))
+								.withTestData(
+										String.format(DEFAULT_TEST_DATA_FILENAME_FORMAT, testVersion, name),
+										DEFAULT_TEST_DATA_COUNT)
 				);
 			}
 		}
