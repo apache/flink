@@ -20,7 +20,6 @@ package org.apache.flink.runtime.rpc.messages;
 
 import org.apache.flink.util.Preconditions;
 
-import java.io.Serializable;
 import java.util.concurrent.Callable;
 
 /**
