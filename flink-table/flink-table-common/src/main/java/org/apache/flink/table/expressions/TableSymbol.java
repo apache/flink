@@ -20,32 +20,10 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-import java.util.Collections;
-import java.util.List;
-
 /**
- * The symbol expression.
+ * The base interface for all table symbol, such as time interval unit, time point unit
+ * are all defined based on TableSymbol.
  */
 @PublicEvolving
-public final class CommonSymbolExpression implements CommonExpression {
-
-	private final CommonTableSymbol symbol;
-
-	public CommonSymbolExpression(CommonTableSymbol symbol) {
-		this.symbol = symbol;
-	}
-
-	public CommonTableSymbol getSymbol() {
-		return symbol;
-	}
-
-	@Override
-	public List<CommonExpression> getChildren() {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public <R> R accept(ExpressionVisitor<R> visitor) {
-		return visitor.visitSymbol(this);
-	}
+public interface TableSymbol {
 }

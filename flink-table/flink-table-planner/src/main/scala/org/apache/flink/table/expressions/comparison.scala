@@ -48,7 +48,7 @@ abstract class BinaryComparison extends BinaryExpression {
     }
 }
 
-case class EqualTo(left: Expression, right: Expression) extends BinaryComparison {
+case class EqualTo(left: PlannerExpression, right: PlannerExpression) extends BinaryComparison {
   override def toString = s"$left === $right"
 
   private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.EQUALS
@@ -64,7 +64,7 @@ case class EqualTo(left: Expression, right: Expression) extends BinaryComparison
     }
 }
 
-case class NotEqualTo(left: Expression, right: Expression) extends BinaryComparison {
+case class NotEqualTo(left: PlannerExpression, right: PlannerExpression) extends BinaryComparison {
   override def toString = s"$left !== $right"
 
   private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.NOT_EQUALS
@@ -80,31 +80,33 @@ case class NotEqualTo(left: Expression, right: Expression) extends BinaryCompari
     }
 }
 
-case class GreaterThan(left: Expression, right: Expression) extends BinaryComparison {
+case class GreaterThan(left: PlannerExpression, right: PlannerExpression) extends BinaryComparison {
   override def toString = s"$left > $right"
 
   private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.GREATER_THAN
 }
 
-case class GreaterThanOrEqual(left: Expression, right: Expression) extends BinaryComparison {
+case class GreaterThanOrEqual(left: PlannerExpression, right: PlannerExpression)
+  extends BinaryComparison {
   override def toString = s"$left >= $right"
 
   private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.GREATER_THAN_OR_EQUAL
 }
 
-case class LessThan(left: Expression, right: Expression) extends BinaryComparison {
+case class LessThan(left: PlannerExpression, right: PlannerExpression) extends BinaryComparison {
   override def toString = s"$left < $right"
 
   private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.LESS_THAN
 }
 
-case class LessThanOrEqual(left: Expression, right: Expression) extends BinaryComparison {
+case class LessThanOrEqual(left: PlannerExpression, right: PlannerExpression)
+  extends BinaryComparison {
   override def toString = s"$left <= $right"
 
   private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.LESS_THAN_OR_EQUAL
 }
 
-case class IsNull(child: Expression) extends UnaryExpression {
+case class IsNull(child: PlannerExpression) extends UnaryExpression {
   override def toString = s"($child).isNull"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
@@ -114,7 +116,7 @@ case class IsNull(child: Expression) extends UnaryExpression {
   override private[flink] def resultType = BOOLEAN_TYPE_INFO
 }
 
-case class IsNotNull(child: Expression) extends UnaryExpression {
+case class IsNotNull(child: PlannerExpression) extends UnaryExpression {
   override def toString = s"($child).isNotNull"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
@@ -124,7 +126,7 @@ case class IsNotNull(child: Expression) extends UnaryExpression {
   override private[flink] def resultType = BOOLEAN_TYPE_INFO
 }
 
-case class IsTrue(child: Expression) extends UnaryExpression {
+case class IsTrue(child: PlannerExpression) extends UnaryExpression {
   override def toString = s"($child).isTrue"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
@@ -134,7 +136,7 @@ case class IsTrue(child: Expression) extends UnaryExpression {
   override private[flink] def resultType = BOOLEAN_TYPE_INFO
 }
 
-case class IsFalse(child: Expression) extends UnaryExpression {
+case class IsFalse(child: PlannerExpression) extends UnaryExpression {
   override def toString = s"($child).isFalse"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
@@ -144,7 +146,7 @@ case class IsFalse(child: Expression) extends UnaryExpression {
   override private[flink] def resultType = BOOLEAN_TYPE_INFO
 }
 
-case class IsNotTrue(child: Expression) extends UnaryExpression {
+case class IsNotTrue(child: PlannerExpression) extends UnaryExpression {
   override def toString = s"($child).isNotTrue"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
@@ -154,7 +156,7 @@ case class IsNotTrue(child: Expression) extends UnaryExpression {
   override private[flink] def resultType = BOOLEAN_TYPE_INFO
 }
 
-case class IsNotFalse(child: Expression) extends UnaryExpression {
+case class IsNotFalse(child: PlannerExpression) extends UnaryExpression {
   override def toString = s"($child).isNotFalse"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
@@ -165,14 +167,14 @@ case class IsNotFalse(child: Expression) extends UnaryExpression {
 }
 
 abstract class BetweenComparison(
-    expr: Expression,
-    lowerBound: Expression,
-    upperBound: Expression)
+    expr: PlannerExpression,
+    lowerBound: PlannerExpression,
+    upperBound: PlannerExpression)
   extends PlannerExpression {
 
   override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.BOOLEAN_TYPE_INFO
 
-  override private[flink] def children: Seq[Expression] = Seq(expr, lowerBound, upperBound)
+  override private[flink] def children: Seq[PlannerExpression] = Seq(expr, lowerBound, upperBound)
 
   override private[flink] def validateInput(): ValidationResult = {
     (expr.resultType, lowerBound.resultType, upperBound.resultType) match {
@@ -192,9 +194,9 @@ abstract class BetweenComparison(
 }
 
 case class Between(
-    expr: Expression,
-    lowerBound: Expression,
-    upperBound: Expression)
+    expr: PlannerExpression,
+    lowerBound: PlannerExpression,
+    upperBound: PlannerExpression)
   extends BetweenComparison(expr, lowerBound, upperBound) {
 
   override def toString: String = s"($expr).between($lowerBound, $upperBound)"
@@ -216,9 +218,9 @@ case class Between(
 }
 
 case class NotBetween(
-    expr: Expression,
-    lowerBound: Expression,
-    upperBound: Expression)
+    expr: PlannerExpression,
+    lowerBound: PlannerExpression,
+    upperBound: PlannerExpression)
   extends BetweenComparison(expr, lowerBound, upperBound) {
 
   override def toString: String = s"($expr).notBetween($lowerBound, $upperBound)"

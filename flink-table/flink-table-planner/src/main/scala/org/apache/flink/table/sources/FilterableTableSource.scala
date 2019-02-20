@@ -20,7 +20,7 @@ package org.apache.flink.table.sources
 
 import java.util.{List => JList}
 
-import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.expressions.PlannerExpression
 /**
   * Adds support for filtering push-down to a [[TableSource]].
   * A [[TableSource]] extending this interface is able to filter records before returning.
@@ -47,7 +47,7 @@ trait FilterableTableSource[T] {
     * @return A new cloned instance of [[TableSource]] with or without any filters been
     *         pushed into it.
     */
-  def applyPredicate(predicates: JList[Expression]): TableSource[T]
+  def applyPredicate(predicates: JList[PlannerExpression]): TableSource[T]
 
   /**
     * Return the flag to indicate whether filter push down has been tried. Must return true on

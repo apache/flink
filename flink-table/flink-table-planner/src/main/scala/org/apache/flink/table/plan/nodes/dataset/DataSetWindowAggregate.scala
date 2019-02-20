@@ -29,7 +29,7 @@ import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvironment, Tabl
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.AggregationCodeGenerator
-import org.apache.flink.table.expressions.ExpressionUtils._
+import org.apache.flink.table.expressions.PlannerExpressionUtils._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.plan.nodes.CommonAggregate
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.{CalcitePair, _}

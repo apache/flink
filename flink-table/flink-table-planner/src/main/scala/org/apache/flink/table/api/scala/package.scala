@@ -23,6 +23,8 @@ import org.apache.flink.api.scala.DataSet
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
+import org.apache.flink.table.expressions.{DefaultExpressionVisitor, Expression}
+import org.apache.flink.table.expressions.PlannerExpression
 
 import _root_.scala.language.implicitConversions
 
@@ -43,7 +45,8 @@ import _root_.scala.language.implicitConversions
   *
   * When writing a query you can use Scala Symbols to refer to field names. One would
   * refer to field `a` by writing `'a`. Sometimes it is necessary to manually convert a
-  * Scala literal to an Expression literal, in those cases use `Literal`, as in `Literal(3)`.
+  * Scala literal to an Expression literal, in those cases use `ValueLiteralExpression`, as
+  * in `ValueLiteralExpression(3)`.
   *
   * Example:
   *
@@ -86,5 +89,18 @@ package object scala extends ImplicitExpressionConversions {
   implicit def table2RowDataStream(table: Table): DataStream[Row] = {
     val tableEnv = table.tableEnv.asInstanceOf[ScalaStreamTableEnv]
     tableEnv.toAppendStream[Row](table)
+  }
+
+  implicit def expressions2PlannerExpressions(expressions: Seq[Expression])
+  : Seq[PlannerExpression] = {
+    expressions.map(_.accept(DefaultExpressionVisitor.INSTANCE))
+  }
+
+  implicit def expression2PlannerExpression(expression: Expression): PlannerExpression = {
+    if (expression != null) {
+      expression.accept(DefaultExpressionVisitor.INSTANCE)
+    } else {
+      null
+    }
   }
 }

@@ -33,7 +33,7 @@ import java.util.Optional;
  * The literal expression.
  */
 @PublicEvolving
-public final class ValueLiteralExpression implements CommonExpression {
+public final class ValueLiteralExpression implements Expression {
 
 	private final Object value;
 
@@ -58,7 +58,7 @@ public final class ValueLiteralExpression implements CommonExpression {
 	}
 
 	@Override
-	public List<CommonExpression> getChildren() {
+	public List<Expression> getChildren() {
 		return Collections.emptyList();
 	}
 

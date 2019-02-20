@@ -26,7 +26,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.types.Row
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.scala.{Null => ENull, _}
 import org.apache.flink.table.expressions.utils.{ExpressionTestBase, GraduatedStudent, _}
 import org.apache.flink.table.functions.ScalarFunction
 import org.junit.Test
@@ -121,25 +121,25 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   @Test
   def testNullableParameters(): Unit = {
     testAllApis(
-      Func3(Null(INT_TYPE_INFO), Null(STRING_TYPE_INFO)),
+      Func3(ENull(INT_TYPE_INFO), ENull(STRING_TYPE_INFO)),
       "Func3(Null(INT), Null(STRING))",
       "Func3(NULL, NULL)",
       "null and null")
 
     testAllApis(
-      Func3(Null(INT_TYPE_INFO), "Test"),
+      Func3(ENull(INT_TYPE_INFO), "Test"),
       "Func3(Null(INT), 'Test')",
       "Func3(NULL, 'Test')",
       "null and Test")
 
     testAllApis(
-      Func3(42, Null(STRING_TYPE_INFO)),
+      Func3(42, ENull(STRING_TYPE_INFO)),
       "Func3(42, Null(STRING))",
       "Func3(42, NULL)",
       "42 and null")
 
     testAllApis(
-      Func0(Null(INT_TYPE_INFO)),
+      Func0(ENull(INT_TYPE_INFO)),
       "Func0(Null(INT))",
       "Func0(NULL)",
       "-1")
@@ -349,7 +349,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "7591 and 43810000 and 655906210000")
 
     testAllApis(
-      JavaFunc1(Null(Types.SQL_TIME), 15, Null(Types.SQL_TIMESTAMP)),
+      JavaFunc1(ENull(Types.SQL_TIME), 15, ENull(Types.SQL_TIMESTAMP)),
       "JavaFunc1(Null(SQL_TIME), 15, Null(SQL_TIMESTAMP))",
       "JavaFunc1(NULL, 15, NULL)",
       "null and 15 and null")

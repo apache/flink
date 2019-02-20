@@ -28,7 +28,7 @@ import java.util.List;
  * The expression of table reference.
  */
 @PublicEvolving
-public final class TableReferenceExpression implements CommonExpression {
+public final class TableReferenceExpression implements Expression {
 
 	private final String name;
 	private final Table table;
@@ -47,7 +47,7 @@ public final class TableReferenceExpression implements CommonExpression {
 	}
 
 	@Override
-	public List<CommonExpression> getChildren() {
+	public List<Expression> getChildren() {
 		return Collections.emptyList();
 	}
 

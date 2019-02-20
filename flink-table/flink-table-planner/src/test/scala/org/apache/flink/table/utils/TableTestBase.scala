@@ -24,15 +24,16 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{LocalEnvironment, DataSet => JDataSet}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment}
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{Table, TableSchema}
-import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.expressions.{DefaultExpressionVisitor, Expression}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.expressions.PlannerExpression
 import org.junit.Assert.assertEquals
 import org.junit.{ComparisonFailure, Rule}
 import org.junit.rules.ExpectedException
@@ -44,6 +45,11 @@ import util.control.Breaks._
   * Test base for testing Table API / SQL plans.
   */
 class TableTestBase {
+
+  implicit def expression2PlannerExpression[E](expression: E)(implicit f: E => Expression)
+  : PlannerExpression = {
+    expression.accept(DefaultExpressionVisitor.INSTANCE)
+  }
 
   // used for accurate exception information checking.
   val expectedException = ExpectedException.none()

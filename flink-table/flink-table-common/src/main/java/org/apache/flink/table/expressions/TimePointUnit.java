@@ -18,23 +18,21 @@
 
 package org.apache.flink.table.expressions;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * The visitor definition of expression. ExpressionVisitor transformations an expression to
- * the R type expression.
+ * The definition of time point unit symbol.
  */
-@Internal
-public interface ExpressionVisitor<R> {
-
-	R visitCall(CallExpression call);
-
-	R visitSymbol(SymbolExpression symbolExpression);
-
-	R visitValueLiteral(ValueLiteralExpression valueLiteralExpression);
-
-	R visit(Expression other);
-
-	R visitFieldReference(FieldReferenceExpression fieldReference);
-
+@PublicEvolving
+public enum TimePointUnit implements TableSymbol {
+	YEAR,
+	MONTH,
+	DAY,
+	HOUR,
+	MINUTE,
+	SECOND,
+	QUARTER,
+	WEEK,
+	MILLISECOND,
+	MICROSECOND
 }

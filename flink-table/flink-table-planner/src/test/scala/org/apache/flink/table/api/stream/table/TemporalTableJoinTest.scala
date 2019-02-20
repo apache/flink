@@ -152,13 +152,14 @@ class TemporalTableJoinTest extends TableTestBase {
 
   @Test
   def testProcessingTimeIndicatorVersion(): Unit = {
-    assertRatesFunction(proctimeRatesHistory.getSchema, proctimeRates, true)
+    assertRatesFunction(proctimeRatesHistory.getSchema,
+      proctimeRates.asInstanceOf[TemporalTableFunction], true)
   }
 
   @Test
   def testValidStringFieldReference(): Unit = {
     val rates = ratesHistory.createTemporalTableFunction("rowtime", "currency")
-    assertRatesFunction(ratesHistory.getSchema, rates)
+    assertRatesFunction(ratesHistory.getSchema, rates.asInstanceOf[TemporalTableFunction])
   }
 
   private def assertRatesFunction(

@@ -20,16 +20,15 @@ package org.apache.flink.table.expressions
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.FunctionDefinitions._
-import org.apache.flink.table.expressions.{Call => PlannerCall, DistinctAgg => PlannerDistinctAgg, E => PlannerE, Literal => PlannerLiteral, TableFunctionCall => PlannerTableFunctionCall, TableReference => PlannerTableReference, UUID => PlannerUUID}
-
+import org.apache.flink.table.expressions.{UUID => PlannerUUID, E => PlannerE, Call => PlannerCall, Literal => PlannerLiteral, TableFunctionCall => PlannerTableFunctionCall, TableReference => PlannerTableReference}
 import _root_.scala.collection.JavaConverters._
 
 /**
   * Default implementation of expression visitor.
   */
-class DefaultExpressionVisitor private extends ExpressionVisitor[Expression] {
+class DefaultExpressionVisitor private extends ExpressionVisitor[PlannerExpression] {
 
-  override def visitCall(call: CallExpression): Expression = {
+  override def visitCall(call: CallExpression): PlannerExpression = {
 
     val func = call.getFunctionDefinition
     val args = call.getChildren.asScala
@@ -156,7 +155,7 @@ class DefaultExpressionVisitor private extends ExpressionVisitor[Expression] {
 
           case DISTINCT =>
             assert(args.size == 1)
-            PlannerDistinctAgg(args.head.accept(this))
+            DistinctAgg(args.head.accept(this))
 
           case AVG =>
             assert(args.size == 1)
@@ -631,42 +630,11 @@ class DefaultExpressionVisitor private extends ExpressionVisitor[Expression] {
     }
   }
 
-  override def visitSymbol(symbolExpression: CommonSymbolExpression): Expression = {
-    val plannerTableSymbol = symbolExpression.getSymbol match {
-      case CommonTimeIntervalUnit.YEAR => TimeIntervalUnit.YEAR
-      case CommonTimeIntervalUnit.YEAR_TO_MONTH => TimeIntervalUnit.YEAR_TO_MONTH
-      case CommonTimeIntervalUnit.QUARTER => TimeIntervalUnit.QUARTER
-      case CommonTimeIntervalUnit.MONTH => TimeIntervalUnit.MONTH
-      case CommonTimeIntervalUnit.WEEK => TimeIntervalUnit.WEEK
-      case CommonTimeIntervalUnit.DAY => TimeIntervalUnit.DAY
-      case CommonTimeIntervalUnit.DAY_TO_HOUR => TimeIntervalUnit.DAY_TO_HOUR
-      case CommonTimeIntervalUnit.DAY_TO_MINUTE => TimeIntervalUnit.DAY_TO_MINUTE
-      case CommonTimeIntervalUnit.DAY_TO_SECOND => TimeIntervalUnit.DAY_TO_SECOND
-      case CommonTimeIntervalUnit.HOUR => TimeIntervalUnit.HOUR
-      case CommonTimeIntervalUnit.SECOND => TimeIntervalUnit.SECOND
-      case CommonTimeIntervalUnit.HOUR_TO_MINUTE => TimeIntervalUnit.HOUR_TO_MINUTE
-      case CommonTimeIntervalUnit.HOUR_TO_SECOND => TimeIntervalUnit.HOUR_TO_SECOND
-      case CommonTimeIntervalUnit.MINUTE => TimeIntervalUnit.MINUTE
-      case CommonTimeIntervalUnit.MINUTE_TO_SECOND => TimeIntervalUnit.MINUTE_TO_SECOND
-      case CommonTimePointUnit.YEAR => TimePointUnit.YEAR
-      case CommonTimePointUnit.MONTH => TimePointUnit.MONTH
-      case CommonTimePointUnit.DAY => TimePointUnit.DAY
-      case CommonTimePointUnit.HOUR => TimePointUnit.HOUR
-      case CommonTimePointUnit.MINUTE => TimePointUnit.MINUTE
-      case CommonTimePointUnit.SECOND => TimePointUnit.SECOND
-      case CommonTimePointUnit.QUARTER => TimePointUnit.QUARTER
-      case CommonTimePointUnit.WEEK => TimePointUnit.WEEK
-      case CommonTimePointUnit.MILLISECOND => TimePointUnit.MILLISECOND
-      case CommonTimePointUnit.MICROSECOND => TimePointUnit.MICROSECOND
-      case CommonTrimMode.BOTH => TrimMode.BOTH
-      case CommonTrimMode.LEADING => TrimMode.LEADING
-      case CommonTrimMode.TRAILING => TrimMode.TRAILING
-    }
-
-    SymbolExpression(plannerTableSymbol)
+  override def visitSymbol(symbolExpression: SymbolExpression): PlannerExpression = {
+    SymbolPlannerExpression(symbolExpression.getSymbol)
   }
 
-  override def visitValueLiteral(literal: ValueLiteralExpression): Expression = {
+  override def visitValueLiteral(literal: ValueLiteralExpression): PlannerExpression = {
     if (!literal.getType.isPresent) {
       PlannerLiteral(literal.getValue)
     } else if (literal.getValue == null) {
@@ -676,18 +644,18 @@ class DefaultExpressionVisitor private extends ExpressionVisitor[Expression] {
     }
   }
 
-  override def visit(other: CommonExpression): Expression = {
+  override def visit(other: Expression): PlannerExpression = {
     other match {
       case e: TableReferenceExpression => PlannerTableReference(
         e.asInstanceOf[TableReferenceExpression].getName,
         e.asInstanceOf[TableReferenceExpression].getTable)
-      case plannerExpression: Expression => plannerExpression
+      case plannerExpression: PlannerExpression => plannerExpression
       case _ =>
         throw new TableException("Unrecognized expression [" + other + "]")
     }
   }
 
-  override def visitFieldReference(fieldReference: FieldReferenceExpression): Expression = {
+  override def visitFieldReference(fieldReference: FieldReferenceExpression): PlannerExpression = {
     if (fieldReference.getResultType.isPresent) {
       ResolvedFieldReference(
         fieldReference.getName,

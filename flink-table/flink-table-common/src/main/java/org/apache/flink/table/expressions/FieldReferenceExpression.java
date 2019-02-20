@@ -29,7 +29,7 @@ import java.util.Optional;
  * The field reference expression.
  */
 @PublicEvolving
-public final class FieldReferenceExpression implements CommonExpression {
+public final class FieldReferenceExpression implements Expression {
 	private final String name;
 
 	private final Optional<TypeInformation<?>> resultType;
@@ -53,7 +53,7 @@ public final class FieldReferenceExpression implements CommonExpression {
 	}
 
 	@Override
-	public List<CommonExpression> getChildren() {
+	public List<Expression> getChildren() {
 		return Collections.emptyList();
 	}
 

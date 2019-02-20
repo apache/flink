@@ -29,7 +29,7 @@ import java.util.List;
 @PublicEvolving
 public final class AggregateCallExpression extends CallExpression {
 
-	public AggregateCallExpression(FunctionDefinition functionDefinition, List<CommonExpression> args) {
+	public AggregateCallExpression(FunctionDefinition functionDefinition, List<Expression> args) {
 		super(functionDefinition, args);
 	}
 }

@@ -56,7 +56,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
 
     val firstExp = ExpressionParser.parseExpression("id > 6")
     val secondExp = ExpressionParser.parseExpression("amount * price < 100")
-    val expected: Array[Expression] = Array(firstExp, secondExp)
+    val expected: Array[PlannerExpression] = Array(firstExp, secondExp)
 
     val (convertedExpressions, unconvertedRexNodes) =
       RexProgramExtractor.extractConjunctiveConditions(
@@ -90,7 +90,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
         relBuilder,
         functionCatalog)
 
-    val expected: Array[Expression] = Array(ExpressionParser.parseExpression("amount >= id"))
+    val expected: Array[PlannerExpression] = Array(ExpressionParser.parseExpression("amount >= id"))
     assertExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
   }
@@ -142,7 +142,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
         relBuilder,
         functionCatalog)
 
-    val expected: Array[Expression] = Array(
+    val expected: Array[PlannerExpression] = Array(
       ExpressionParser.parseExpression("amount < 100 || price == 100 || price === 200"),
       ExpressionParser.parseExpression("id > 100 || price == 100 || price === 200"),
       ExpressionParser.parseExpression("!(amount <= id)"))
@@ -183,7 +183,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
 
     val expanded = program.expandLocalRef(program.getCondition)
 
-    var convertedExpressions = new mutable.ArrayBuffer[Expression]
+    var convertedExpressions = new mutable.ArrayBuffer[PlannerExpression]
     val unconvertedRexNodes = new mutable.ArrayBuffer[RexNode]
     val inputNames = program.getInputRowType.getFieldNames.asScala.toArray
     val converter = new RexNodeToExpressionConverter(inputNames, functionCatalog)
@@ -194,7 +194,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
       case None => unconvertedRexNodes += expanded
     }
 
-    val expected: Array[Expression] = Array(
+    val expected: Array[PlannerExpression] = Array(
       ExpressionParser.parseExpression("amount < 100 && id > 100 && price === 100 && amount <= id"))
 
     assertExpressionArrayEquals(expected, convertedExpressions.toArray)
@@ -231,7 +231,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
       functionCatalog)
 
 
-    val expected = Array[Expression](
+    val expected = Array[PlannerExpression](
       EqualTo(
         UnresolvedFieldReference("timestamp_col"),
         Literal(Timestamp.valueOf("2017-09-10 14:23:01.245"))
@@ -300,7 +300,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
         relBuilder,
         functionCatalog)
 
-    val expected: Array[Expression] = Array(
+    val expected: Array[PlannerExpression] = Array(
       ExpressionParser.parseExpression("amount < id"),
       ExpressionParser.parseExpression("amount <= id"),
       ExpressionParser.parseExpression("amount <> id"),
@@ -361,7 +361,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
         relBuilder,
         functionCatalog)
 
-    val expected: Array[Expression] = Array(
+    val expected: Array[PlannerExpression] = Array(
       GreaterThan(Sum(UnresolvedFieldReference("amount")), Literal(100)),
       EqualTo(Min(UnresolvedFieldReference("id")), Literal(100))
     )
@@ -408,7 +408,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
         relBuilder,
         functionCatalog)
 
-    val expected: Array[Expression] = Array(
+    val expected: Array[PlannerExpression] = Array(
       ExpressionParser.parseExpression("amount <= id")
     )
     assertExpressionArrayEquals(expected, convertedExpressions)
@@ -619,8 +619,8 @@ class RexProgramExtractorTest extends RexProgramTestBase {
   }
 
   private def assertExpressionArrayEquals(
-      expected: Array[Expression],
-      actual: Array[Expression]) = {
+      expected: Array[PlannerExpression],
+      actual: Array[PlannerExpression]) = {
     val sortedExpected = expected.sortBy(e => e.toString)
     val sortedActual = actual.sortBy(e => e.toString)
 

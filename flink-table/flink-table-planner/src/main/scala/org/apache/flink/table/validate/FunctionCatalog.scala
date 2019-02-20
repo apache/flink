@@ -65,7 +65,7 @@ class FunctionCatalog {
   /**
     * Lookup and create an expression if we find a match.
     */
-  def lookupFunction(name: String, children: Seq[Expression]): Expression = {
+  def lookupFunction(name: String, children: Seq[PlannerExpression]): PlannerExpression = {
     val funcClass = functionBuilders
       .getOrElse(name.toLowerCase, throw new ValidationException(s"Undefined function: $name"))
 
@@ -102,27 +102,29 @@ class FunctionCatalog {
         AggFunctionCall(function, returnType, accType, children)
 
       // general expression call
-      case expression if classOf[Expression].isAssignableFrom(expression) =>
+      case expression if classOf[PlannerExpression].isAssignableFrom(expression) =>
         // try to find a constructor accepts `Seq[Expression]`
         Try(funcClass.getDeclaredConstructor(classOf[Seq[_]])) match {
           case Success(seqCtor) =>
-            Try(seqCtor.newInstance(children).asInstanceOf[Expression]) match {
+            Try(seqCtor.newInstance(children).asInstanceOf[PlannerExpression]) match {
               case Success(expr) => expr
               case Failure(e) => throw new ValidationException(e.getMessage)
             }
           case Failure(_) =>
-            Try(funcClass.getDeclaredConstructor(classOf[Expression], classOf[Seq[_]])) match {
+            Try(funcClass.getDeclaredConstructor(
+              classOf[PlannerExpression], classOf[Seq[_]])) match {
               case Success(ctor) =>
-                Try(ctor.newInstance(children.head, children.tail).asInstanceOf[Expression]) match {
+                Try(ctor.newInstance(
+                  children.head, children.tail).asInstanceOf[PlannerExpression]) match {
                   case Success(expr) => expr
                   case Failure(e) => throw new ValidationException(e.getMessage)
                 }
               case Failure(_) =>
-                val childrenClass = Seq.fill(children.length)(classOf[Expression])
+                val childrenClass = Seq.fill(children.length)(classOf[PlannerExpression])
                 // try to find a constructor matching the exact number of children
                 Try(funcClass.getDeclaredConstructor(childrenClass: _*)) match {
                   case Success(ctor) =>
-                    Try(ctor.newInstance(children: _*).asInstanceOf[Expression]) match {
+                    Try(ctor.newInstance(children: _*).asInstanceOf[PlannerExpression]) match {
                       case Success(expr) => expr
                       case Failure(exception) => throw new ValidationException(exception.getMessage)
                     }

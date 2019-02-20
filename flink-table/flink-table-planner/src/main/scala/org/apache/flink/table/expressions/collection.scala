@@ -30,9 +30,9 @@ import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, Val
 
 import scala.collection.JavaConverters._
 
-case class RowConstructor(elements: Seq[Expression]) extends PlannerExpression {
+case class RowConstructor(elements: Seq[PlannerExpression]) extends PlannerExpression {
 
-  override private[flink] def children: Seq[Expression] = elements
+  override private[flink] def children: Seq[PlannerExpression] = elements
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     val relDataType = relBuilder
@@ -59,9 +59,9 @@ case class RowConstructor(elements: Seq[Expression]) extends PlannerExpression {
   }
 }
 
-case class ArrayConstructor(elements: Seq[Expression]) extends PlannerExpression {
+case class ArrayConstructor(elements: Seq[PlannerExpression]) extends PlannerExpression {
 
-  override private[flink] def children: Seq[Expression] = elements
+  override private[flink] def children: Seq[PlannerExpression] = elements
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     val relDataType = relBuilder
@@ -91,8 +91,8 @@ case class ArrayConstructor(elements: Seq[Expression]) extends PlannerExpression
   }
 }
 
-case class MapConstructor(elements: Seq[Expression]) extends PlannerExpression {
-  override private[flink] def children: Seq[Expression] = elements
+case class MapConstructor(elements: Seq[PlannerExpression]) extends PlannerExpression {
+  override private[flink] def children: Seq[PlannerExpression] = elements
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     val typeFactory = relBuilder.asInstanceOf[FlinkRelBuilder].getTypeFactory
@@ -132,9 +132,9 @@ case class MapConstructor(elements: Seq[Expression]) extends PlannerExpression {
   }
 }
 
-case class ArrayElement(array: Expression) extends PlannerExpression {
+case class ArrayElement(array: PlannerExpression) extends PlannerExpression {
 
-  override private[flink] def children: Seq[Expression] = Seq(array)
+  override private[flink] def children: Seq[PlannerExpression] = Seq(array)
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder
@@ -158,9 +158,9 @@ case class ArrayElement(array: Expression) extends PlannerExpression {
   }
 }
 
-case class Cardinality(container: Expression) extends PlannerExpression {
+case class Cardinality(container: PlannerExpression) extends PlannerExpression {
 
-  override private[flink] def children: Seq[Expression] = Seq(container)
+  override private[flink] def children: Seq[PlannerExpression] = Seq(container)
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder
@@ -181,9 +181,9 @@ case class Cardinality(container: Expression) extends PlannerExpression {
   }
 }
 
-case class ItemAt(container: Expression, key: Expression) extends PlannerExpression {
+case class ItemAt(container: PlannerExpression, key: PlannerExpression) extends PlannerExpression {
 
-  override private[flink] def children: Seq[Expression] = Seq(container, key)
+  override private[flink] def children: Seq[PlannerExpression] = Seq(container, key)
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder

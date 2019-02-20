@@ -15,20 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.table.expressions
 
-package org.apache.flink.table.expressions;
-
-import org.apache.flink.annotation.PublicEvolving;
-
-import java.util.List;
-
-/**
- * The interface for all expressions.
- */
-@PublicEvolving
-public interface CommonExpression {
-
-	List<CommonExpression> getChildren();
-
-	<R> R accept(ExpressionVisitor<R> visitor);
+case class DistinctAggExpression(call: AggregateCallExpression) {
+  def distinct: Expression = {
+    ExpressionUtils.aggCall(FunctionDefinitions.DISTINCT, Seq(call))
+  }
 }

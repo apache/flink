@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.table.api.batch.table.CalcTest.{MyHashCode, TestCaseClass, WC, giveMeCaseClass}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.Upper
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.TableTestBase
@@ -239,7 +238,7 @@ class CalcTest extends TableTestBase {
   def testSelectFromGroupedTableWithNonTrivialKey(): Unit = {
     val util = batchTestUtil()
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
-    val resultTable = sourceTable.groupBy(Upper('c) as 'k).select('a.sum)
+    val resultTable = sourceTable.groupBy('c.upperCase() as 'k).select('a.sum)
 
     val expected =
       unaryNode(

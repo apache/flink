@@ -30,19 +30,19 @@ import java.util.List;
  * or a user-defined function.
  */
 @PublicEvolving
-public class CallExpression implements CommonExpression {
+public class CallExpression implements Expression {
 
 	private final FunctionDefinition functionDefinition;
 
-	private final List<CommonExpression> args = new ArrayList<>();
+	private final List<Expression> args = new ArrayList<>();
 
-	public CallExpression(FunctionDefinition functionDefinition, List<CommonExpression> args) {
+	public CallExpression(FunctionDefinition functionDefinition, List<Expression> args) {
 		this.functionDefinition = functionDefinition;
 		this.args.addAll(args);
 	}
 
 	@Override
-	public List<CommonExpression> getChildren() {
+	public List<Expression> getChildren() {
 		return this.args;
 	}
 

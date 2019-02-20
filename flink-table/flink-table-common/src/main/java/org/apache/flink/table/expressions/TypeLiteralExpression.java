@@ -28,7 +28,7 @@ import java.util.List;
  * The type literal which can wraps the TypeInformation.
  */
 @PublicEvolving
-public final class TypeLiteralExpression implements CommonExpression {
+public final class TypeLiteralExpression implements Expression {
 
 	private final TypeInformation<?> type;
 
@@ -41,7 +41,7 @@ public final class TypeLiteralExpression implements CommonExpression {
 	}
 
 	@Override
-	public List<CommonExpression> getChildren() {
+	public List<Expression> getChildren() {
 		return Collections.emptyList();
 	}
 

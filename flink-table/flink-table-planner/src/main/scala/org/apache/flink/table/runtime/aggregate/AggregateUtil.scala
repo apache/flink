@@ -38,7 +38,7 @@ import org.apache.flink.table.api.{StreamQueryConfig, TableConfig, TableExceptio
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.AggregationCodeGenerator
-import org.apache.flink.table.expressions.ExpressionUtils.isTimeIntervalLiteral
+import org.apache.flink.table.expressions.PlannerExpressionUtils.isTimeIntervalLiteral
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.aggfunctions._
 import org.apache.flink.table.functions.utils.AggSqlFunction
@@ -1686,7 +1686,7 @@ object AggregateUtil {
 
 
   private def getTimeFieldPosition(
-    timeField: Expression,
+    timeField: PlannerExpression,
     inputType: RelDataType,
     isParserCaseSensitive: Boolean): Int = {
 
@@ -1713,7 +1713,7 @@ object AggregateUtil {
     }
   }
 
-  private[flink] def asLong(expr: Expression): Long = expr match {
+  private[flink] def asLong(expr: PlannerExpression): Long = expr match {
     case Literal(value: Long, TimeIntervalTypeInfo.INTERVAL_MILLIS) => value
     case Literal(value: Long, RowIntervalTypeInfo.INTERVAL_ROWS) => value
     case _ => throw new IllegalArgumentException()

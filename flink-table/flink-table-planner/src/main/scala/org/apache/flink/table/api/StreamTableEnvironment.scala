@@ -537,10 +537,11 @@ abstract class StreamTableEnvironment(
   protected def registerDataStreamInternal[T](
       name: String,
       dataStream: DataStream[T],
-      fields: Array[Expression])
+      fieldsExpr: Array[Expression])
     : Unit = {
 
     val streamType = dataStream.getType
+    val fields: Array[Expression] = fieldsExpr.map(_.accept(DefaultExpressionVisitor.INSTANCE))
 
     // get field names and types for all non-replaced fields
     val (fieldNames, fieldIndexes) = getFieldInfo[T](streamType, fields)

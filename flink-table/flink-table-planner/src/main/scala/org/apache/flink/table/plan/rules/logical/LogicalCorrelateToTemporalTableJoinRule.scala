@@ -41,7 +41,7 @@ class LogicalCorrelateToTemporalTableJoinRule
         operand(classOf[TableFunctionScan], none()))),
     "LogicalCorrelateToTemporalTableJoinRule") {
 
-  def extractNameFromTimeAttribute(timeAttribute: Expression): String = {
+  def extractNameFromTimeAttribute(timeAttribute: PlannerExpression): String = {
     timeAttribute match {
       case ResolvedFieldReference(name, _)
         if timeAttribute.resultType == Types.LONG ||

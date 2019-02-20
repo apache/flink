@@ -20,12 +20,15 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.util.List;
+
 /**
- * Modes for trimming strings.
+ * The interface for all expressions.
  */
 @PublicEvolving
-public enum CommonTrimMode implements CommonTableSymbol {
-	BOTH,
-	LEADING,
-	TRAILING
+public interface Expression {
+
+	List<Expression> getChildren();
+
+	<R> R accept(ExpressionVisitor<R> visitor);
 }

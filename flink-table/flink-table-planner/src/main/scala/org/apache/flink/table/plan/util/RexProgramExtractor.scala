@@ -26,7 +26,7 @@ import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions.{And, Expression, Literal, Or, ResolvedFieldReference}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.util.Preconditions
 import java.sql.{Date, Time, Timestamp}
@@ -73,7 +73,7 @@ object RexProgramExtractor {
   def extractConjunctiveConditions(
       rexProgram: RexProgram,
       rexBuilder: RexBuilder,
-      catalog: FunctionCatalog): (Array[Expression], Array[RexNode]) = {
+      catalog: FunctionCatalog): (Array[PlannerExpression], Array[RexNode]) = {
 
     rexProgram.getCondition match {
       case condition: RexLocalRef =>
@@ -84,7 +84,7 @@ object RexProgramExtractor {
         // converts the cnf condition to a list of AND conditions
         val conjunctions = RelOptUtil.conjunctions(cnf)
 
-        val convertedExpressions = new mutable.ArrayBuffer[Expression]
+        val convertedExpressions = new mutable.ArrayBuffer[PlannerExpression]
         val unconvertedRexNodes = new mutable.ArrayBuffer[RexNode]
         val inputNames = rexProgram.getInputRowType.getFieldNames.asScala.toArray
         val converter = new RexNodeToExpressionConverter(inputNames, catalog)
@@ -147,9 +147,9 @@ class InputRefVisitor extends RexVisitorImpl[Unit](true) {
 class RexNodeToExpressionConverter(
     inputNames: Array[String],
     functionCatalog: FunctionCatalog)
-    extends RexVisitor[Option[Expression]] {
+    extends RexVisitor[Option[PlannerExpression]] {
 
-  override def visitInputRef(inputRef: RexInputRef): Option[Expression] = {
+  override def visitInputRef(inputRef: RexInputRef): Option[PlannerExpression] = {
     Preconditions.checkArgument(inputRef.getIndex < inputNames.length)
     Some(ResolvedFieldReference(
       inputNames(inputRef.getIndex),
@@ -157,14 +157,14 @@ class RexNodeToExpressionConverter(
     ))
   }
 
-  override def visitTableInputRef(rexTableInputRef: RexTableInputRef): Option[Expression] =
+  override def visitTableInputRef(rexTableInputRef: RexTableInputRef): Option[PlannerExpression] =
     visitInputRef(rexTableInputRef)
 
-  override def visitLocalRef(localRef: RexLocalRef): Option[Expression] = {
+  override def visitLocalRef(localRef: RexLocalRef): Option[PlannerExpression] = {
     throw new TableException("Bug: RexLocalRef should have been expanded")
   }
 
-  override def visitLiteral(literal: RexLiteral): Option[Expression] = {
+  override def visitLiteral(literal: RexLiteral): Option[PlannerExpression] = {
     val literalType = FlinkTypeFactory.toTypeInfo(literal.getType)
 
     val literalValue = literalType match {
@@ -229,7 +229,7 @@ class RexNodeToExpressionConverter(
     Some(Literal(literalValue, literalType))
   }
 
-  override def visitCall(call: RexCall): Option[Expression] = {
+  override def visitCall(call: RexCall): Option[PlannerExpression] = {
     val operands = call.getOperands.map(
       operand => operand.accept(this).orNull
     )
@@ -253,21 +253,24 @@ class RexNodeToExpressionConverter(
     }
   }
 
-  override def visitFieldAccess(fieldAccess: RexFieldAccess): Option[Expression] = None
+  override def visitFieldAccess(fieldAccess: RexFieldAccess): Option[PlannerExpression] = None
 
-  override def visitCorrelVariable(correlVariable: RexCorrelVariable): Option[Expression] = None
+  override def visitCorrelVariable(
+      correlVariable: RexCorrelVariable): Option[PlannerExpression] = None
 
-  override def visitRangeRef(rangeRef: RexRangeRef): Option[Expression] = None
+  override def visitRangeRef(rangeRef: RexRangeRef): Option[PlannerExpression] = None
 
-  override def visitSubQuery(subQuery: RexSubQuery): Option[Expression] = None
+  override def visitSubQuery(subQuery: RexSubQuery): Option[PlannerExpression] = None
 
-  override def visitDynamicParam(dynamicParam: RexDynamicParam): Option[Expression] = None
+  override def visitDynamicParam(dynamicParam: RexDynamicParam): Option[PlannerExpression] = None
 
-  override def visitOver(over: RexOver): Option[Expression] = None
+  override def visitOver(over: RexOver): Option[PlannerExpression] = None
 
-  override def visitPatternFieldRef(fieldRef: RexPatternFieldRef): Option[Expression] = None
+  override def visitPatternFieldRef(fieldRef: RexPatternFieldRef): Option[PlannerExpression] = None
 
-  private def lookupFunction(name: String, operands: Seq[Expression]): Option[Expression] = {
+  private def lookupFunction(
+      name: String,
+      operands: Seq[PlannerExpression]): Option[PlannerExpression] = {
     Try(functionCatalog.lookupFunction(name, operands)) match {
       case Success(expr) => Some(expr)
       case Failure(_) => None

@@ -30,7 +30,7 @@ import org.junit.Test
 class CorrelateValidationTest extends TableTestBase {
 
   @Test
-  def testRegisterFunctionException(): Unit ={
+  def testRegisterFunctionException(): Unit = {
     val util = streamTestUtil()
     val t = util.addTable[(Int, Long, String)]('a, 'b, 'c)
 

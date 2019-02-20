@@ -21,18 +21,23 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * The definition of time point unit symbol.
+ * The definition of time interval unit symbol.
  */
 @PublicEvolving
-public enum CommonTimePointUnit implements CommonTableSymbol {
+public enum TimeIntervalUnit implements TableSymbol {
 	YEAR,
-	MONTH,
-	DAY,
-	HOUR,
-	MINUTE,
-	SECOND,
+	YEAR_TO_MONTH,
 	QUARTER,
+	MONTH,
 	WEEK,
-	MILLISECOND,
-	MICROSECOND
+	DAY,
+	DAY_TO_HOUR,
+	DAY_TO_MINUTE,
+	DAY_TO_SECOND,
+	HOUR,
+	SECOND,
+	HOUR_TO_MINUTE,
+	HOUR_TO_SECOND,
+	MINUTE,
+	MINUTE_TO_SECOND
 }

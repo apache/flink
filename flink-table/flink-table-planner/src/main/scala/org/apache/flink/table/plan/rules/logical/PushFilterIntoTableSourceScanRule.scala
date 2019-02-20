@@ -23,7 +23,7 @@ import java.util
 import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rex.RexProgram
-import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.expressions.PlannerExpression
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.plan.util.RexProgramExtractor
 import org.apache.flink.table.sources.FilterableTableSource
@@ -75,7 +75,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
       return
     }
 
-    val remainingPredicates = new util.LinkedList[Expression]()
+    val remainingPredicates = new util.LinkedList[PlannerExpression]()
     predicates.foreach(e => remainingPredicates.add(e))
 
     val newTableSource = filterableSource.applyPredicate(remainingPredicates)

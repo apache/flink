@@ -33,7 +33,7 @@ abstract class Ordering extends UnaryExpression {
   }
 }
 
-case class Asc(child: Expression) extends Ordering {
+case class Asc(child: PlannerExpression) extends Ordering {
   override def toString: String = s"($child).asc"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
@@ -43,7 +43,7 @@ case class Asc(child: Expression) extends Ordering {
   override private[flink] def resultType: TypeInformation[_] = child.resultType
 }
 
-case class Desc(child: Expression) extends Ordering {
+case class Desc(child: PlannerExpression) extends Ordering {
   override def toString: String = s"($child).desc"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {

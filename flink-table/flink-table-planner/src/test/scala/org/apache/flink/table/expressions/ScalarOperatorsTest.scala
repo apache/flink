@@ -19,7 +19,7 @@
 package org.apache.flink.table.expressions
 
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.scala.{Null => ENull, _}
 import org.apache.flink.table.expressions.utils.{ScalarOperatorsTestBase, ShouldNotExecuteFunc}
 import org.junit.Test
 
@@ -296,7 +296,8 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     )
 
     testTableApi(
-      'f10.in("This is a test String.", "String", "Hello world", "Comment#1", Null(Types.STRING)),
+      'f10.in("This is a test String.", "String", "Hello world", "Comment#1",
+        ENull(Types.STRING)),
       "f10.in('This is a test String.', 'String', 'Hello world', 'Comment#1', Null(STRING))",
       "true"
     )
@@ -308,7 +309,7 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     )
 
     testTableApi(
-      'f10.in("FAIL", "FAIL", Null(Types.STRING)),
+      'f10.in("FAIL", "FAIL", ENull(Types.STRING)),
       "f10.in('FAIL', 'FAIL', Null(STRING))",
       "null"
     )
@@ -350,9 +351,9 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "true")
 
     // null
-    testAllApis(Null(Types.INT), "Null(INT)", "CAST(NULL AS INT)", "null")
+    testAllApis(ENull(Types.INT), "Null(INT)", "CAST(NULL AS INT)", "null")
     testAllApis(
-      Null(Types.STRING) === "",
+      ENull(Types.STRING) === "",
       "Null(STRING) === ''",
       "CAST(NULL AS VARCHAR) = ''",
       "null")
@@ -365,11 +366,6 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "true.?(true.?(true.?(10, 4), 4), 4)",
       "10")
     testTableApi(true, "?((f6 && true), 'true', 'false')", "true")
-    testTableApi(
-      If('f9 > 'f8, 'f9 - 1, 'f9),
-      "If(f9 > f8, f9 - 1, f9)",
-      "9"
-    )
     testSqlApi("CASE 11 WHEN 1 THEN 'a' ELSE 'b' END", "b")
     testSqlApi("CASE 2 WHEN 1 THEN 'a' ELSE 'b' END", "b")
     testSqlApi(
@@ -416,25 +412,25 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
   def testBetween(): Unit = {
     // between
     testAllApis(
-      4.between(Null(Types.INT), 3),
+      4.between(ENull(Types.INT), 3),
       "4.between(Null(INT), 3)",
       "4 BETWEEN NULL AND 3",
       "false"
     )
     testAllApis(
-      4.between(Null(Types.INT), 12),
+      4.between(ENull(Types.INT), 12),
       "4.between(Null(INT), 12)",
       "4 BETWEEN NULL AND 12",
       "null"
     )
     testAllApis(
-      4.between(Null(Types.INT), 3),
+      4.between(ENull(Types.INT), 3),
       "4.between(Null(INT), 3)",
       "4 BETWEEN 5 AND NULL",
       "false"
     )
     testAllApis(
-      4.between(Null(Types.INT), 12),
+      4.between(ENull(Types.INT), 12),
       "4.between(Null(INT), 12)",
       "4 BETWEEN 0 AND NULL",
       "null"
@@ -490,7 +486,7 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
 
     // not between
     testAllApis(
-      2.notBetween(Null(Types.INT), 3),
+      2.notBetween(ENull(Types.INT), 3),
       "2.notBetween(Null(INT), 3)",
       "2 NOT BETWEEN NULL AND 3",
       "null"
