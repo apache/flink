@@ -259,7 +259,7 @@ public class ExecutionGraphCacheTest extends TestLogger {
 		final JobID expectedJobId = new JobID();
 
 		final ArchivedExecutionGraph suspendedExecutionGraph = new ArchivedExecutionGraphBuilder().setState(JobStatus.SUSPENDED).build();
-		final ConcurrentLinkedQueue<CompletableFuture<? extends AccessExecutionGraph>> requestJobAnswers = new ConcurrentLinkedQueue<>();
+		final ConcurrentLinkedQueue<CompletableFuture<ArchivedExecutionGraph>> requestJobAnswers = new ConcurrentLinkedQueue<>();
 
 		requestJobAnswers.offer(CompletableFuture.completedFuture(suspendedExecutionGraph));
 		requestJobAnswers.offer(CompletableFuture.completedFuture(expectedExecutionGraph));
@@ -325,8 +325,8 @@ public class ExecutionGraphCacheTest extends TestLogger {
 		}
 	}
 
-	private CountingRestfulGateway createCountingRestfulGateway(JobID jobId, CompletableFuture<? extends AccessExecutionGraph>... accessExecutionGraphs) {
-		final ConcurrentLinkedQueue<CompletableFuture<? extends AccessExecutionGraph>> queue = new ConcurrentLinkedQueue<>(Arrays.asList(accessExecutionGraphs));
+	private CountingRestfulGateway createCountingRestfulGateway(JobID jobId, CompletableFuture<ArchivedExecutionGraph>... accessExecutionGraphs) {
+		final ConcurrentLinkedQueue<CompletableFuture<ArchivedExecutionGraph>> queue = new ConcurrentLinkedQueue<>(Arrays.asList(accessExecutionGraphs));
 		return new CountingRestfulGateway(
 			jobId,
 			ignored -> queue.poll());
@@ -341,13 +341,13 @@ public class ExecutionGraphCacheTest extends TestLogger {
 
 		private AtomicInteger numRequestJobCalls = new AtomicInteger(0);
 
-		private CountingRestfulGateway(JobID expectedJobId, Function<JobID, CompletableFuture<? extends AccessExecutionGraph>> requestJobFunction) {
+		private CountingRestfulGateway(JobID expectedJobId, Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction) {
 			this.expectedJobId = Preconditions.checkNotNull(expectedJobId);
 			this.requestJobFunction = Preconditions.checkNotNull(requestJobFunction);
 		}
 
 		@Override
-		public CompletableFuture<? extends AccessExecutionGraph> requestJob(JobID jobId, Time timeout) {
+		public CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, Time timeout) {
 			assertThat(jobId, Matchers.equalTo(expectedJobId));
 			numRequestJobCalls.incrementAndGet();
 			return super.requestJob(jobId, timeout);
