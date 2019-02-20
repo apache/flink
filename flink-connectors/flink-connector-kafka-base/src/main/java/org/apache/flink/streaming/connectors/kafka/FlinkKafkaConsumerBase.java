@@ -54,6 +54,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.commons.collections.map.LinkedMap;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +63,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
@@ -248,6 +250,17 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		this.useMetrics = useMetrics;
 	}
 
+	/**
+	 * Make sure that auto commit is disabled when our offset commit mode is ON_CHECKPOINTS.
+	 * This overwrites whatever setting the user configured in the properties.
+	 * @param properties - Kafka configuration properties to be adjusted
+	 * @param offsetCommitMode offset commit mode
+	 */
+	static void adjustAutoCommitConfig(Properties properties, OffsetCommitMode offsetCommitMode) {
+		if (offsetCommitMode == OffsetCommitMode.ON_CHECKPOINTS || offsetCommitMode == OffsetCommitMode.DISABLED) {
+			properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+		}
+	}
 	// ------------------------------------------------------------------------
 	//  Configuration
 	// ------------------------------------------------------------------------
