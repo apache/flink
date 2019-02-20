@@ -403,6 +403,17 @@ the same `TypeSerializerSnapshot` class as their snapshot would complicate the i
 This would also be a bad separation of concerns; a single serializer's serialization schema,
 configuration, as well as how to restore it, should be consolidated in its own dedicated `TypeSerializerSnapshot` class.
 
+#### 3. Avoid using Java serialization for serializer snapshot content
+
+Java serialization should not be used at all when writing contents of a persisted serializer snapshot.
+Take for example, a serializer which needs to persist a class of its target type as part of its snapshot.
+Information about the class should be persisted by writing the class name, instead of directly serializing the class
+using Java. When reading the snapshot, the class name is read, and used to dynamically load the class via the name.
+
+This practice ensures that serializer snapshots can always be safely read. In the above example, if the type class
+was persisted using Java serialization, the snapshot may no longer be readable once the class implementation has changed
+and is no longer binary compatible according to Java serialization specifics.
+
 ## Migrating from deprecated serializer snapshot APIs before Flink 1.7
 
 This section is a guide for API migration from serializers and serializer snapshots that existed before Flink 1.7.
