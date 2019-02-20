@@ -19,25 +19,18 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
-import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -306,35 +299,4 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 		return simpleTestGraph;
 	}
 
-	private static class InteractionsCountingTaskManagerGateway extends SimpleAckingTaskManagerGateway {
-
-		private final AtomicInteger cancelTaskCount = new AtomicInteger(0);
-
-		private final AtomicInteger submitTaskCount = new AtomicInteger(0);
-
-		@Override
-		public CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
-			cancelTaskCount.incrementAndGet();
-			return CompletableFuture.completedFuture(Acknowledge.get());
-		}
-
-		@Override
-		public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
-			submitTaskCount.incrementAndGet();
-			return CompletableFuture.completedFuture(Acknowledge.get());
-		}
-
-		private void resetCounts() {
-			cancelTaskCount.set(0);
-			submitTaskCount.set(0);
-		}
-
-		private int getCancelTaskCount() {
-			return cancelTaskCount.get();
-		}
-
-		private int getInteractionsCount() {
-			return cancelTaskCount.get() + submitTaskCount.get();
-		}
-	}
 }
