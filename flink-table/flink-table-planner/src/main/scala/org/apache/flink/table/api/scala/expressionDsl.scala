@@ -1085,37 +1085,6 @@ trait ImplicitExpressionConversions {
       val alias: Seq[String]
   )
 
-  @deprecated("Please use Table.joinLateral() or Table.leftOuterJoinLateral() instead.", "1.8")
-  implicit def tableFunctionWrapper2Table(tfc: TableFunctionWrapper[_]): Table = {
-    new Table(
-      tableEnv = null, // table environment will be set later.
-      LogicalTableFunctionCall(
-        tfc.tableFunction.getClass.getCanonicalName,
-        tfc.tableFunction,
-        tfc.params.map(_.accept(DefaultExpressionVisitor.INSTANCE)).toList,
-        tfc.resultType,
-        Array.empty,
-        child = null // Child will be set later.
-      )
-    )
-  }
-
-  @deprecated("Please use Table.joinLateral() or Table.leftOuterJoinLateral() instead.", "1.8")
-  implicit def tableFunctionWrapperWithAlias2Table(
-      tfc: TableFunctionWrapperWithAlias[_]): Table = {
-    new Table(
-      tableEnv = null, // table environment will be set later.
-      LogicalTableFunctionCall(
-        tfc.tableFunction.getClass.getCanonicalName,
-        tfc.tableFunction,
-        tfc.params.map(_.accept(DefaultExpressionVisitor.INSTANCE)).toList,
-        tfc.resultType,
-        if (tfc.alias.nonEmpty) tfc.alias.toArray else Array.empty,
-        child = null // Child will be set later.
-      )
-    )
-  }
-
   implicit def tableFunctionWrapper2Expression(
       tfc: TableFunctionWrapper[_]): Expression = {
     val tfd = new TableFunctionDefinition(tfc.tableFunction, tfc.resultType)

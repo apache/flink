@@ -78,25 +78,6 @@ class Table(
       "Table functions can only be used in table.joinLateral() and table.leftOuterJoinLateral().")
   }
 
-  /**
-    * Creates a [[Table]] for a TableFunction call from a String expression.
-    *
-    * @param tableEnv The TableEnvironment in which the call is created.
-    * @param tableFunctionCall A string expression of a table function call.
-    *
-    * @deprecated This constructor will be removed. Use table.joinLateral() or
-    *             table.leftOuterJoinLateral() instead.
-    */
-  @Deprecated
-  @deprecated(
-    "This constructor will be removed. Use table.joinLateral() or " +
-      "table.leftOuterJoinLateral() instead.",
-    "1.8")
-  def this(tableEnv: TableEnvironment, tableFunctionCall: String) {
-    this(tableEnv, UserDefinedFunctionUtils
-      .createLogicalFunctionCall(tableEnv, ExpressionParser.parseExpression(tableFunctionCall)))
-  }
-
   private lazy val tableSchema: TableSchema = new TableSchema(
     logicalPlan.output.map(_.name).toArray,
     logicalPlan.output.map(_.resultType).toArray)
@@ -598,45 +579,17 @@ class Table(
       right: Table,
       joinPredicate: Option[PlannerExpression],
       joinType: JoinType): Table = {
-    // check if we join with a table or a table function
-    if (!containsUnboundedUDTFCall(right.logicalPlan)) {
-      // regular table-table join
 
-      // check that the TableEnvironment of right table is not null
-      // and right table belongs to the same TableEnvironment
-      if (right.tableEnv != this.tableEnv) {
-        throw new ValidationException("Only tables from the same TableEnvironment can be joined.")
-      }
-
-      new Table(
-        tableEnv,
-        Join(this.logicalPlan, right.logicalPlan, joinType, joinPredicate, correlated = false)
-          .validate(tableEnv))
-
-    } else {
-      // join with a table function
-
-      // check join type
-      if (joinType != JoinType.INNER && joinType != JoinType.LEFT_OUTER) {
-        throw new ValidationException(
-          "TableFunctions are currently supported for join and leftOuterJoin.")
-      }
-
-      val udtf = right.logicalPlan.asInstanceOf[LogicalTableFunctionCall]
-      val udtfCall = LogicalTableFunctionCall(
-        udtf.functionName,
-        udtf.tableFunction,
-        udtf.parameters,
-        udtf.resultType,
-        udtf.fieldNames,
-        this.logicalPlan
-      ).validate(tableEnv)
-
-      new Table(
-        tableEnv,
-        Join(this.logicalPlan, udtfCall, joinType, joinPredicate, correlated = true)
-          .validate(tableEnv))
+    // check that the TableEnvironment of right table is not null
+    // and right table belongs to the same TableEnvironment
+    if (right.tableEnv != this.tableEnv) {
+      throw new ValidationException("Only tables from the same TableEnvironment can be joined.")
     }
+
+    new Table(
+      tableEnv,
+      Join(this.logicalPlan, right.logicalPlan, joinType, joinPredicate, correlated = false)
+        .validate(tableEnv))
   }
 
   /**
