@@ -19,7 +19,6 @@
 package org.apache.flink.client;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.client.program.ClusterClient;
@@ -224,34 +223,4 @@ public class RemoteExecutor extends PlanExecutor {
 		return new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(optPlan);
 	}
 
-	@Override
-	public void endSession(JobID jobID) throws Exception {
-		if (jobID == null) {
-			throw new NullPointerException("The supplied jobID must not be null.");
-		}
-
-		synchronized (this.lock) {
-			// check if we start a session dedicated for this execution
-			final boolean shutDownAtEnd;
-
-			if (client == null) {
-				shutDownAtEnd = true;
-				// start the executor for us
-				start();
-			}
-			else {
-				// we use the existing session
-				shutDownAtEnd = false;
-			}
-
-			try {
-				client.endSession(jobID);
-			}
-			finally {
-				if (shutDownAtEnd) {
-					stop();
-				}
-			}
-		}
-	}
 }
