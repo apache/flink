@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig.SerializableSerializer;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
@@ -35,12 +34,10 @@ import java.io.IOException;
 import java.io.InvalidClassException;
 import java.util.LinkedHashMap;
 import java.util.Map.Entry;
-import java.util.Optional;
 import java.util.function.Function;
 
 import static org.apache.flink.api.java.typeutils.runtime.kryo.OptionalMap.optionalMapOf;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 final class KryoSerializerSnapshotData<T> {
 
@@ -87,9 +84,9 @@ final class KryoSerializerSnapshotData<T> {
 	private final OptionalMap<String, KryoRegistration> kryoRegistrations;
 
 	private KryoSerializerSnapshotData(Class<T> typeClass,
-									   OptionalMap<Class<?>, SerializableSerializer<?>> defaultKryoSerializers,
-									   OptionalMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses,
-									   OptionalMap<String, KryoRegistration> kryoRegistrations) {
+			OptionalMap<Class<?>, SerializableSerializer<?>> defaultKryoSerializers,
+			OptionalMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses,
+			OptionalMap<String, KryoRegistration> kryoRegistrations) {
 
 		this.typeClass = typeClass;
 		this.defaultKryoSerializers = defaultKryoSerializers;
@@ -139,7 +136,7 @@ final class KryoSerializerSnapshotData<T> {
 		out.writeInt(kryoRegistrations.size());
 		for (Entry<String, KryoRegistration> entry : kryoRegistrations.unwrapOptionals().entrySet()) {
 			out.writeUTF(entry.getKey());
-			new KryoRegistrationSerializationProxy<>(entry.getValue()).write(out);
+			KryoRegistrationUtil.writeKryoRegistration(entry.getValue(), out);
 		}
 	}
 
@@ -154,11 +151,12 @@ final class KryoSerializerSnapshotData<T> {
 			SerializableSerializer<?> serializerInstance = entry.getValue();
 
 			out.writeUTF(javaClass.getName());
-			InstantiationUtil.serializeObject(new DataOutputViewStream(out), serializerInstance);
+			try (final DataOutputViewStream outViewWrapper = new DataOutputViewStream(out)) {
+				InstantiationUtil.serializeObject(outViewWrapper, serializerInstance);
+			}
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	private static void writeDefaultKryoSerializerClasses(
 		DataOutputView out,
 		OptionalMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses)
@@ -178,29 +176,22 @@ final class KryoSerializerSnapshotData<T> {
 	// Read
 	// --------------------------------------------------------------------------------------------
 
-	@SuppressWarnings("unchecked")
 	private static <T> Class<T> readTypeClass(DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		String genericTypeClassname = in.readUTF();
-		try {
-			return (Class<T>) Class.forName(genericTypeClassname, true, userCodeClassLoader);
-		}
-		catch (ClassNotFoundException e) {
-			throw new IOException("Could not find the requested class " + genericTypeClassname + " in classpath.", e);
-		}
+		return InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
 	}
 
 	private static OptionalMap<String, KryoRegistration> readKryoRegistrations(
 		DataInputView in,
 		ClassLoader userCodeClassLoader) throws IOException {
 
-		KryoRegistrationSerializationProxy<?> proxy = new KryoRegistrationSerializationProxy<>(userCodeClassLoader);
-
 		OptionalMap<String, KryoRegistration> registrations = new OptionalMap<>();
 		final int size = in.readInt();
 		for (int i = 0; i < size; i++) {
 			final String name = in.readUTF();
-			proxy.read(in);
-			registrations.put(name, name, proxy.kryoRegistration.orElse(null));
+			KryoRegistration kryoRegistration = KryoRegistrationUtil.tryReadKryoRegistration(
+					in,
+					userCodeClassLoader);
+			registrations.put(name, name, kryoRegistration);
 		}
 
 		return registrations;
@@ -220,7 +211,9 @@ final class KryoSerializerSnapshotData<T> {
 			}
 			SerializableSerializer<?> kryoSerializer = null;
 			try {
-				kryoSerializer = InstantiationUtil.deserializeObject(new DataInputViewStream(in), cl);
+				try (final DataInputViewStream inViewWrapper = new DataInputViewStream(in)) {
+					kryoSerializer = InstantiationUtil.deserializeObject(inViewWrapper, cl);
+				}
 			}
 			catch (Throwable e) {
 				LOG.warn("Cannot deserialize a previously serialized kryo serializer for the type " + className, e);
@@ -260,31 +253,20 @@ final class KryoSerializerSnapshotData<T> {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Helper Classes
+	// Helpers
 	// --------------------------------------------------------------------------------------------
 
-	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-	private static final class KryoRegistrationSerializationProxy<RC> {
+	private static final class KryoRegistrationUtil {
 
-		private ClassLoader userCodeClassLoader;
+		static void writeKryoRegistration(
+				KryoRegistration kryoRegistration,
+				DataOutputView out) throws IOException {
 
-		private Optional<KryoRegistration> kryoRegistration = Optional.empty();
-
-		private KryoRegistrationSerializationProxy(ClassLoader userCodeClassLoader) {
-			this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
-		}
-
-		private KryoRegistrationSerializationProxy(KryoRegistration kryoRegistration) {
-			this.kryoRegistration = Optional.of(kryoRegistration);
-		}
-
-		public void write(DataOutputView out) throws IOException {
-			checkState(kryoRegistration.isPresent());
-			KryoRegistration kryoRegistration = this.kryoRegistration.get();
+			checkNotNull(kryoRegistration);
 			out.writeUTF(kryoRegistration.getRegisteredClass().getName());
 
 			final KryoRegistration.SerializerDefinitionType serializerDefinitionType =
-				kryoRegistration.getSerializerDefinitionType();
+					kryoRegistration.getSerializerDefinitionType();
 
 			out.writeInt(serializerDefinitionType.ordinal());
 			switch (serializerDefinitionType) {
@@ -306,73 +288,90 @@ final class KryoSerializerSnapshotData<T> {
 				}
 				default: {
 					throw new IllegalStateException(
-						"Unrecognized Kryo registration serializer definition type: " + serializerDefinitionType);
+							"Unrecognized Kryo registration serializer definition type: " + serializerDefinitionType);
+				}
+			}
+		}
+
+		static KryoRegistration tryReadKryoRegistration(
+				DataInputView in,
+				ClassLoader userCodeClassLoader) throws IOException {
+
+			String registeredClassname = in.readUTF();
+			Class<?> registeredClass;
+			try {
+				registeredClass = Class.forName(registeredClassname, true, userCodeClassLoader);
+			}
+			catch (ClassNotFoundException e) {
+				LOG.warn("Cannot find registered class " + registeredClassname + " for Kryo serialization in classpath;" +
+						" using a dummy class as a placeholder.", e);
+				return null;
+			}
+
+			final KryoRegistration.SerializerDefinitionType serializerDefinitionType =
+					KryoRegistration.SerializerDefinitionType.values()[in.readInt()];
+
+			switch (serializerDefinitionType) {
+				case UNSPECIFIED: {
+					return new KryoRegistration(registeredClass);
+				}
+				case CLASS: {
+					return tryReadWithSerializerClass(in, userCodeClassLoader, registeredClassname, registeredClass);
+				}
+				case INSTANCE: {
+					return tryReadWithSerializerInstance(in, userCodeClassLoader, registeredClassname, registeredClass);
+				}
+				default: {
+					throw new IllegalStateException(
+							"Unrecognized Kryo registration serializer definition type: " + serializerDefinitionType);
 				}
 			}
 		}
 
 		@SuppressWarnings("unchecked")
-		public void read(DataInputView in) throws IOException {
-			this.kryoRegistration = Optional.empty();
-
-			String registeredClassname = in.readUTF();
-			Class<RC> registeredClass;
+		private static KryoRegistration tryReadWithSerializerClass(
+				DataInputView in,
+				ClassLoader userCodeClassLoader,
+				String registeredClassname,
+				Class<?> registeredClass) throws IOException {
+			String serializerClassname = in.readUTF();
+			Class serializerClass;
 			try {
-				registeredClass = (Class<RC>) Class.forName(registeredClassname, true, userCodeClassLoader);
+				serializerClass = Class.forName(serializerClassname, true, userCodeClassLoader);
+				return new KryoRegistration(registeredClass, serializerClass);
 			}
 			catch (ClassNotFoundException e) {
-				LOG.warn("Cannot find registered class " + registeredClassname + " for Kryo serialization in classpath;" +
-					" using a dummy class as a placeholder.", e);
-				return;
+				LOG.warn("Cannot find registered Kryo serializer class for class " + registeredClassname +
+						" in classpath; using a dummy Kryo serializer that should be replaced as soon as" +
+						" a new Kryo serializer for the class is present", e);
 			}
-
-			final KryoRegistration.SerializerDefinitionType serializerDefinitionType =
-				KryoRegistration.SerializerDefinitionType.values()[in.readInt()];
-
-			switch (serializerDefinitionType) {
-				case UNSPECIFIED: {
-					kryoRegistration = Optional.of(new KryoRegistration(registeredClass));
-					break;
-				}
-				case CLASS: {
-					String serializerClassname = in.readUTF();
-					Class serializerClass;
-					try {
-						serializerClass = Class.forName(serializerClassname, true, userCodeClassLoader);
-						this.kryoRegistration = Optional.of(new KryoRegistration(registeredClass, serializerClass));
-					}
-					catch (ClassNotFoundException e) {
-						LOG.warn("Cannot find registered Kryo serializer class for class " + registeredClassname +
-							" in classpath; using a dummy Kryo serializer that should be replaced as soon as" +
-							" a new Kryo serializer for the class is present", e);
-					}
-					break;
-				}
-				case INSTANCE: {
-					ExecutionConfig.SerializableSerializer<? extends Serializer<RC>> serializerInstance;
-
-					try (final DataInputViewStream inViewWrapper = new DataInputViewStream(in)) {
-						serializerInstance = InstantiationUtil.deserializeObject(inViewWrapper, userCodeClassLoader);
-						kryoRegistration = Optional.of(new KryoRegistration(registeredClass, serializerInstance));
-					}
-					catch (ClassNotFoundException e) {
-						LOG.warn("Cannot find registered Kryo serializer class for class " + registeredClassname +
-							" in classpath; using a dummy Kryo serializer that should be replaced as soon as" +
-							" a new Kryo serializer for the class is present", e);
-					}
-					catch (InvalidClassException e) {
-						LOG.warn("The registered Kryo serializer class for class " + registeredClassname +
-							" has changed and is no longer valid; using a dummy Kryo serializer that should be replaced" +
-							" as soon as a new Kryo serializer for the class is present.", e);
-
-					}
-					break;
-				}
-				default: {
-					throw new IllegalStateException(
-						"Unrecognized Kryo registration serializer definition type: " + serializerDefinitionType);
-				}
-			}
+			return null;
 		}
+
+		private static KryoRegistration tryReadWithSerializerInstance(
+				DataInputView in,
+				ClassLoader userCodeClassLoader,
+				String registeredClassname,
+				Class<?> registeredClass) throws IOException {
+			SerializableSerializer<? extends Serializer<?>> serializerInstance;
+
+			try (final DataInputViewStream inViewWrapper = new DataInputViewStream(in)) {
+				serializerInstance = InstantiationUtil.deserializeObject(inViewWrapper, userCodeClassLoader);
+				return new KryoRegistration(registeredClass, serializerInstance);
+			}
+			catch (ClassNotFoundException e) {
+				LOG.warn("Cannot find registered Kryo serializer class for class " + registeredClassname +
+						" in classpath; using a dummy Kryo serializer that should be replaced as soon as" +
+						" a new Kryo serializer for the class is present", e);
+			}
+			catch (InvalidClassException e) {
+				LOG.warn("The registered Kryo serializer class for class " + registeredClassname +
+						" has changed and is no longer valid; using a dummy Kryo serializer that should be replaced" +
+						" as soon as a new Kryo serializer for the class is present.", e);
+
+			}
+			return null;
+		}
+
 	}
 }

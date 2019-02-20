@@ -39,6 +39,9 @@ import static org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializerSna
 import static org.apache.flink.api.java.typeutils.runtime.kryo.OptionalMap.mergeRightIntoLeft;
 import static org.apache.flink.api.java.typeutils.runtime.kryo.OptionalMap.optionalMapOf;
 
+/**
+ * {@link TypeSerializerSnapshot} for {@link KryoSerializer}.
+ */
 public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KryoSerializerSnapshot.class);
@@ -52,9 +55,9 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 	}
 
 	KryoSerializerSnapshot(Class<T> typeClass,
-						   LinkedHashMap<Class<?>, SerializableSerializer<?>> defaultKryoSerializers,
-						   LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses,
-						   LinkedHashMap<String, KryoRegistration> kryoRegistrations) {
+			LinkedHashMap<Class<?>, SerializableSerializer<?>> defaultKryoSerializers,
+			LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses,
+			LinkedHashMap<String, KryoRegistration> kryoRegistrations) {
 
 		this.snapshotData = createFrom(typeClass, defaultKryoSerializers, defaultKryoSerializerClasses, kryoRegistrations);
 	}
@@ -126,7 +129,7 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 
-		// there are no missing keys, now we have to decide rather we are compatibly as-is or we require reconfiguration.
+		// there are no missing keys, now we have to decide whether we are compatible as-is or we require reconfiguration.
 		return resolveSchemaCompatibility(
 			reconfiguredDefaultKryoSerializers,
 			reconfiguredDefaultKryoSerializerClasses,
@@ -155,7 +158,7 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 		return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(reconfiguredSerializer);
 	}
 
-	void logMissingKeys(MergeResult<?,?> mergeResult) {
+	private void logMissingKeys(MergeResult<?, ?> mergeResult) {
 		mergeResult.missingKeys().forEach(key -> LOG.warn("The Kryo registration for a previously registered class {} does not have a " +
 			"proper serializer, because its previous serializer cannot be loaded or is no " +
 			"longer valid but a new serializer is not available", key));
