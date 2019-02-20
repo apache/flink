@@ -77,6 +77,11 @@ public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerial
 	}
 
 	@Override
+	protected boolean isOuterSnapshotCompatible(GenericArraySerializer newSerializer) {
+		return this.componentClass == newSerializer.getComponentClass();
+	}
+
+	@Override
 	protected GenericArraySerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
 		@SuppressWarnings("unchecked")
 		TypeSerializer<C> componentSerializer = (TypeSerializer<C>) nestedSerializers[0];
