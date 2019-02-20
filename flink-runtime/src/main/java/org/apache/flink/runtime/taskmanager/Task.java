@@ -1481,7 +1481,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				// will get misleading errors in the logs.
 				for (ResultPartition partition : producedPartitions) {
 					try {
-						partition.destroyBufferPool();
+						partition.close();
 					} catch (Throwable t) {
 						ExceptionUtils.rethrowIfFatalError(t);
 						LOG.error("Failed to release result partition buffer pool for task {}.", taskName, t);
