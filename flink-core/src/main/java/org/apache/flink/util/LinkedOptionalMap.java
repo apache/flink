@@ -130,7 +130,7 @@ public final class LinkedOptionalMap<K, V> {
 			.stream()
 			.filter(LinkedOptionalMap::keyOrValueIsAbsent)
 			.map(Entry::getKey)
-			.collect(Collectors.toSet());
+			.collect(Collectors.toCollection(LinkedHashSet::new));
 	}
 
 	/**
