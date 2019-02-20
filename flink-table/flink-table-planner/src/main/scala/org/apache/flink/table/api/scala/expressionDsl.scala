@@ -1071,14 +1071,6 @@ trait ImplicitExpressionConversions {
     }
   }
 
-  @deprecated("Please use Table.joinLateral() or Table.leftOuterJoinLateral() instead.", "1.8")
-  implicit def tableFunctionCall2Table(tfc: TableFunctionCall): Table = {
-    new Table(
-      tableEnv = null, // table environment will be set later.
-      tfc.toLogicalTableFunctionCall(child = null) // child will be set later.
-    )
-  }
-
   implicit def symbol2FieldExpression(sym: Symbol): Expression = UnresolvedFieldReference(sym.name)
   implicit def byte2Literal(b: Byte): Expression = Literal(b)
   implicit def short2Literal(s: Short): Expression = Literal(s)

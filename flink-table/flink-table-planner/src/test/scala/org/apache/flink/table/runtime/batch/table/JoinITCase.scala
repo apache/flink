@@ -466,7 +466,7 @@ class JoinITCase(
     val ds1 = env.fromCollection(data).toTable(tEnv, 'a)
     val func2 = new TableFunc2
 
-    val joinDs = ds1.join(func2('a) as ('name, 'len))
+    val joinDs = ds1.joinLateral(func2('a) as ('name, 'len))
 
     val results = joinDs.toDataSet[Row].collect()
     val expected = Seq(
