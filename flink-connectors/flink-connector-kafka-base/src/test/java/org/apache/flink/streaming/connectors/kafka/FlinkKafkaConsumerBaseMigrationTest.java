@@ -36,7 +36,6 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.SerializedValue;
 
@@ -370,7 +369,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 			super(
 				Arrays.asList("dummy-topic"),
 				null,
-				(KeyedDeserializationSchema< T >) mock(KeyedDeserializationSchema.class),
+				(KafkaDeserializationSchema< T >) mock(KafkaDeserializationSchema.class),
 				discoveryInterval,
 				false);
 

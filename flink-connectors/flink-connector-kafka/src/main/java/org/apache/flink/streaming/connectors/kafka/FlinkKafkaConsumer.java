@@ -30,8 +30,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
+import org.apache.flink.streaming.util.serialization.KafkaDeserializationSchemaWrapper;
 import org.apache.flink.util.PropertiesUtil;
 import org.apache.flink.util.SerializedValue;
 
@@ -105,14 +104,14 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 	/**
 	 * Creates a new Kafka streaming source consumer.
 	 *
-	 * <p>This constructor allows passing a {@see KeyedDeserializationSchema} for reading key/value
+	 * <p>This constructor allows passing a {@see KafkaDeserializationSchema} for reading key/value
 	 * pairs, offsets, and topic names from Kafka.
 	 *
 	 * @param topic        The name of the topic that should be consumed.
 	 * @param deserializer The keyed de-/serializer used to convert between Kafka's byte messages and Flink's objects.
 	 * @param props
 	 */
-	public FlinkKafkaConsumer(String topic, KeyedDeserializationSchema<T> deserializer, Properties props) {
+	public FlinkKafkaConsumer(String topic, KafkaDeserializationSchema<T> deserializer, Properties props) {
 		this(Collections.singletonList(topic), deserializer, props);
 	}
 
@@ -126,7 +125,7 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 	 * @param props
 	 */
 	public FlinkKafkaConsumer(List<String> topics, DeserializationSchema<T> deserializer, Properties props) {
-		this(topics, new KeyedDeserializationSchemaWrapper<>(deserializer), props);
+		this(topics, new KafkaDeserializationSchemaWrapper<>(deserializer), props);
 	}
 
 	/**
@@ -138,7 +137,7 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 	 * @param deserializer The keyed de-/serializer used to convert between Kafka's byte messages and Flink's objects.
 	 * @param props
 	 */
-	public FlinkKafkaConsumer(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
+	public FlinkKafkaConsumer(List<String> topics, KafkaDeserializationSchema<T> deserializer, Properties props) {
 		this(topics, null, deserializer, props);
 	}
 
@@ -155,7 +154,7 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 	 * @param props
 	 */
 	public FlinkKafkaConsumer(Pattern subscriptionPattern, DeserializationSchema<T> valueDeserializer, Properties props) {
-		this(null, subscriptionPattern, new KeyedDeserializationSchemaWrapper<>(valueDeserializer), props);
+		this(null, subscriptionPattern, new KafkaDeserializationSchemaWrapper<>(valueDeserializer), props);
 	}
 
 	/**
@@ -166,21 +165,21 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 	 * {@link FlinkKafkaConsumer#KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS} in the properties), topics
 	 * with names matching the pattern will also be subscribed to as they are created on the fly.
 	 *
-	 * <p>This constructor allows passing a {@see KeyedDeserializationSchema} for reading key/value
+	 * <p>This constructor allows passing a {@see KafkaDeserializationSchema} for reading key/value
 	 * pairs, offsets, and topic names from Kafka.
 	 *
 	 * @param subscriptionPattern The regular expression for a pattern of topic names to subscribe to.
 	 * @param deserializer        The keyed de-/serializer used to convert between Kafka's byte messages and Flink's objects.
 	 * @param props
 	 */
-	public FlinkKafkaConsumer(Pattern subscriptionPattern, KeyedDeserializationSchema<T> deserializer, Properties props) {
+	public FlinkKafkaConsumer(Pattern subscriptionPattern, KafkaDeserializationSchema<T> deserializer, Properties props) {
 		this(null, subscriptionPattern, deserializer, props);
 	}
 
 	private FlinkKafkaConsumer(
 		List<String> topics,
 		Pattern subscriptionPattern,
-		KeyedDeserializationSchema<T> deserializer,
+		KafkaDeserializationSchema<T> deserializer,
 		Properties props) {
 
 		super(
