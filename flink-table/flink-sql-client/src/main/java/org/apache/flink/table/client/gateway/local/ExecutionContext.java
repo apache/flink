@@ -341,7 +341,8 @@ public class ExecutionContext<T> {
 				plan,
 				dependencies,
 				runOptions.getClasspaths(),
-				runOptions.getSavepointRestoreSettings());
+				runOptions.getSavepointRestoreSettings(),
+				null);
 		}
 
 		private FlinkPlan createPlan(String name, Configuration flinkConfig) {

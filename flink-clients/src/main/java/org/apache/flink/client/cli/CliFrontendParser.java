@@ -93,6 +93,8 @@ public class CliFrontendParser {
 	static final Option SAVEPOINT_DISPOSE_OPTION = new Option("d", "dispose", true,
 			"Path of savepoint to dispose.");
 
+	static final Option JOB_ID_OPTION = new Option("jid", "jobid", true, "Job ID of the job to run.");
+
 	// list specific options
 	static final Option RUNNING_OPTION = new Option("r", "running", false,
 			"Show only running programs and their JobIDs");
@@ -148,6 +150,9 @@ public class CliFrontendParser {
 
 		SAVEPOINT_ALLOW_NON_RESTORED_OPTION.setRequired(false);
 
+		JOB_ID_OPTION.setRequired(false);
+		JOB_ID_OPTION.setArgName("jobId");
+
 		ZOOKEEPER_NAMESPACE_OPTION.setRequired(false);
 		ZOOKEEPER_NAMESPACE_OPTION.setArgName("zookeeperNamespace");
 
@@ -195,7 +200,8 @@ public class CliFrontendParser {
 		Options options = buildGeneralOptions(new Options());
 		options = getProgramSpecificOptions(options);
 		options.addOption(SAVEPOINT_PATH_OPTION);
-		return options.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
+		options.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
+		return options.addOption(JOB_ID_OPTION);
 	}
 
 	static Options getInfoCommandOptions() {

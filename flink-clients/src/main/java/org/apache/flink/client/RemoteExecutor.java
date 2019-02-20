@@ -206,7 +206,7 @@ public class RemoteExecutor extends PlanExecutor {
 			}
 
 			try {
-				return client.run(program, defaultParallelism).getJobExecutionResult();
+				return client.run(program, defaultParallelism, program.getPlan().getJobId()).getJobExecutionResult();
 			}
 			finally {
 				if (shutDownAtEnd) {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.cli;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
@@ -26,6 +27,8 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 
@@ -94,6 +97,12 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 			assertTrue(savepointSettings.restoreSavepoint());
 			assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
 			assertTrue(savepointSettings.allowNonRestoredState());
+		}
+
+		{
+			String[] parameters = {"-jid", "123456789abcdefabcdef12345678900"};
+			RunOptions options = CliFrontendParser.parseRunCommand(parameters);
+			assertEquals("123456789abcdefabcdef12345678900", options.getJobID().toString());
 		}
 
 		// test jar arguments
@@ -176,7 +185,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 		}
 
 		@Override
-		protected void executeProgram(PackagedProgram program, ClusterClient client, int parallelism) {
+		protected void executeProgram(PackagedProgram program, ClusterClient client, int parallelism, @Nullable JobID jobID) {
 			assertEquals(isDetached, client.isDetached());
 			assertEquals(sysoutLogging, client.getPrintStatusDuringExecution());
 			assertEquals(expectedParallelism, parallelism);

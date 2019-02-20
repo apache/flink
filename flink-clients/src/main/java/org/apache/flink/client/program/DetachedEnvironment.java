@@ -29,6 +29,8 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
@@ -48,8 +50,9 @@ public class DetachedEnvironment extends ContextEnvironment {
 			List<URL> jarFiles,
 			List<URL> classpaths,
 			ClassLoader userCodeClassLoader,
-			SavepointRestoreSettings savepointSettings) {
-		super(remoteConnection, jarFiles, classpaths, userCodeClassLoader, savepointSettings);
+			SavepointRestoreSettings savepointSettings,
+			@Nullable JobID jobID) {
+		super(remoteConnection, jarFiles, classpaths, userCodeClassLoader, savepointSettings, jobID);
 	}
 
 	@Override
@@ -74,7 +77,7 @@ public class DetachedEnvironment extends ContextEnvironment {
 	 * Finishes this Context Environment's execution by explicitly running the plan constructed.
 	 */
 	JobSubmissionResult finalizeExecute() throws ProgramInvocationException {
-		return client.run(detachedPlan, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings);
+		return client.run(detachedPlan, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings, jobID);
 	}
 
 	/**

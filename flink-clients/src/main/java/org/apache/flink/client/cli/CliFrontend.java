@@ -65,6 +65,8 @@ import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -231,7 +233,7 @@ public class CliFrontend {
 			if (clusterId == null && runOptions.getDetachedMode()) {
 				int parallelism = runOptions.getParallelism() == -1 ? defaultParallelism : runOptions.getParallelism();
 
-				final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(program, configuration, parallelism);
+				final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(program, configuration, parallelism, runOptions.getJobID());
 
 				final ClusterSpecification clusterSpecification = customCommandLine.getClusterSpecification(commandLine);
 				client = clusterDescriptor.deployJobCluster(
@@ -277,7 +279,7 @@ public class CliFrontend {
 						userParallelism = defaultParallelism;
 					}
 
-					executeProgram(program, client, userParallelism);
+					executeProgram(program, client, userParallelism, runOptions.getJobID());
 				} finally {
 					if (clusterId == null && !client.isDetached()) {
 						// terminate the cluster only if we have started it before and if it's not detached
@@ -800,10 +802,10 @@ public class CliFrontend {
 	//  Interaction with programs and JobManager
 	// --------------------------------------------------------------------------------------------
 
-	protected void executeProgram(PackagedProgram program, ClusterClient<?> client, int parallelism) throws ProgramMissingJobException, ProgramInvocationException {
+	protected void executeProgram(PackagedProgram program, ClusterClient<?> client, int parallelism, @Nullable JobID jobID) throws ProgramMissingJobException, ProgramInvocationException {
 		logAndSysout("Starting execution of program");
 
-		final JobSubmissionResult result = client.run(program, parallelism);
+		final JobSubmissionResult result = client.run(program, parallelism, jobID);
 
 		if (null == result) {
 			throw new ProgramMissingJobException("No JobSubmissionResult returned, please make sure you called " +

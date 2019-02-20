@@ -19,9 +19,12 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
+
+import javax.annotation.Nullable;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -34,6 +37,7 @@ import static org.apache.flink.client.cli.CliFrontendParser.CLASSPATH_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.CLASS_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.JOB_ID_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.LOGGING_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.SHUTDOWN_IF_ATTACHED_OPTION;
@@ -61,6 +65,9 @@ public abstract class ProgramOptions extends CommandLineOptions {
 	private final boolean shutdownOnAttachedExit;
 
 	private final SavepointRestoreSettings savepointSettings;
+
+	@Nullable
+	private final JobID jobID;
 
 	protected ProgramOptions(CommandLine line) throws CliArgsException {
 		super(line);
@@ -119,6 +126,9 @@ public abstract class ProgramOptions extends CommandLineOptions {
 		shutdownOnAttachedExit = line.hasOption(SHUTDOWN_IF_ATTACHED_OPTION.getOpt());
 
 		this.savepointSettings = CliFrontendParser.createSavepointRestoreSettings(line);
+
+		jobID = line.hasOption(JOB_ID_OPTION.getOpt()) ?
+			JobID.fromHexString(line.getOptionValue(JOB_ID_OPTION.getOpt())) : null;
 	}
 
 	public String getJarFilePath() {
@@ -155,5 +165,10 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 	public SavepointRestoreSettings getSavepointRestoreSettings() {
 		return savepointSettings;
+	}
+
+	@Nullable
+	public JobID getJobID() {
+		return jobID;
 	}
 }

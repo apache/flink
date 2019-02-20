@@ -241,18 +241,19 @@ public abstract class ClusterClient<T> {
 	 * on whether {@code setDetached(true)} or {@code setDetached(false)}.
 	 * @param prog the packaged program
 	 * @param parallelism the parallelism to execute the contained Flink job
+	 * @param jobID the specified job id
 	 * @return The result of the execution
 	 * @throws ProgramMissingJobException
 	 * @throws ProgramInvocationException
 	 */
-	public JobSubmissionResult run(PackagedProgram prog, int parallelism)
+	public JobSubmissionResult run(PackagedProgram prog, int parallelism, @Nullable JobID jobID)
 			throws ProgramInvocationException, ProgramMissingJobException {
 		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 		if (prog.isUsingProgramEntryPoint()) {
 
 			final JobWithJars jobWithJars = prog.getPlanWithJars();
 
-			return run(jobWithJars, parallelism, prog.getSavepointSettings());
+			return run(jobWithJars, parallelism, prog.getSavepointSettings(), jobID);
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			log.info("Starting program in interactive mode (detached: {})", isDetached());
@@ -261,7 +262,7 @@ public abstract class ClusterClient<T> {
 
 			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(this, libraries,
 					prog.getClasspaths(), prog.getUserCodeClassLoader(), parallelism, isDetached(),
-					prog.getSavepointSettings());
+					prog.getSavepointSettings(), jobID);
 			ContextEnvironment.setAsContext(factory);
 
 			try {
@@ -288,8 +289,8 @@ public abstract class ClusterClient<T> {
 		}
 	}
 
-	public JobSubmissionResult run(JobWithJars program, int parallelism) throws ProgramInvocationException {
-		return run(program, parallelism, SavepointRestoreSettings.none());
+	public JobSubmissionResult run(JobWithJars program, int parallelism, @Nullable JobID jobID) throws ProgramInvocationException {
+		return run(program, parallelism, SavepointRestoreSettings.none(), jobID);
 	}
 
 	/**
@@ -299,6 +300,7 @@ public abstract class ClusterClient<T> {
 	 * @param jobWithJars The program to be executed.
 	 * @param parallelism The default parallelism to use when running the program. The default parallelism is used
 	 *                    when the program does not set a parallelism by itself.
+	 * @param jobID The specified job id.
 	 *
 	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
 	 * @throws ProgramInvocationException Thrown, if the program could not be instantiated from its jar file,
@@ -306,7 +308,7 @@ public abstract class ClusterClient<T> {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the
 	 *                                    parallel execution failed.
 	 */
-	public JobSubmissionResult run(JobWithJars jobWithJars, int parallelism, SavepointRestoreSettings savepointSettings)
+	public JobSubmissionResult run(JobWithJars jobWithJars, int parallelism, SavepointRestoreSettings savepointSettings, @Nullable JobID jobID)
 			throws CompilerException, ProgramInvocationException {
 		ClassLoader classLoader = jobWithJars.getUserCodeClassLoader();
 		if (classLoader == null) {
@@ -314,18 +316,18 @@ public abstract class ClusterClient<T> {
 		}
 
 		OptimizedPlan optPlan = getOptimizedPlan(compiler, jobWithJars, parallelism);
-		return run(optPlan, jobWithJars.getJarFiles(), jobWithJars.getClasspaths(), classLoader, savepointSettings);
+		return run(optPlan, jobWithJars.getJarFiles(), jobWithJars.getClasspaths(), classLoader, savepointSettings, jobID);
 	}
 
 	public JobSubmissionResult run(
-			FlinkPlan compiledPlan, List<URL> libraries, List<URL> classpaths, ClassLoader classLoader) throws ProgramInvocationException {
-		return run(compiledPlan, libraries, classpaths, classLoader, SavepointRestoreSettings.none());
+			FlinkPlan compiledPlan, List<URL> libraries, List<URL> classpaths, ClassLoader classLoader, @Nullable JobID jobID) throws ProgramInvocationException {
+		return run(compiledPlan, libraries, classpaths, classLoader, SavepointRestoreSettings.none(), jobID);
 	}
 
 	public JobSubmissionResult run(FlinkPlan compiledPlan,
-			List<URL> libraries, List<URL> classpaths, ClassLoader classLoader, SavepointRestoreSettings savepointSettings)
+			List<URL> libraries, List<URL> classpaths, ClassLoader classLoader, SavepointRestoreSettings savepointSettings, @Nullable JobID jobID)
 			throws ProgramInvocationException {
-		JobGraph job = getJobGraph(flinkConfig, compiledPlan, libraries, classpaths, savepointSettings);
+		JobGraph job = getJobGraph(flinkConfig, compiledPlan, libraries, classpaths, savepointSettings, jobID);
 		return submitJob(job, classLoader);
 	}
 
@@ -421,18 +423,18 @@ public abstract class ClusterClient<T> {
 		return getOptimizedPlan(compiler, prog.getPlan(), parallelism);
 	}
 
-	public static JobGraph getJobGraph(Configuration flinkConfig, PackagedProgram prog, FlinkPlan optPlan, SavepointRestoreSettings savepointSettings) throws ProgramInvocationException {
-		return getJobGraph(flinkConfig, optPlan, prog.getAllLibraries(), prog.getClasspaths(), savepointSettings);
+	public static JobGraph getJobGraph(Configuration flinkConfig, PackagedProgram prog, FlinkPlan optPlan, SavepointRestoreSettings savepointSettings, @Nullable JobID jobID) throws ProgramInvocationException {
+		return getJobGraph(flinkConfig, optPlan, prog.getAllLibraries(), prog.getClasspaths(), savepointSettings, null);
 	}
 
-	public static JobGraph getJobGraph(Configuration flinkConfig, FlinkPlan optPlan, List<URL> jarFiles, List<URL> classpaths, SavepointRestoreSettings savepointSettings) {
+	public static JobGraph getJobGraph(Configuration flinkConfig, FlinkPlan optPlan, List<URL> jarFiles, List<URL> classpaths, SavepointRestoreSettings savepointSettings, @Nullable JobID jobID) {
 		JobGraph job;
 		if (optPlan instanceof StreamingPlan) {
-			job = ((StreamingPlan) optPlan).getJobGraph();
+			job = ((StreamingPlan) optPlan).getJobGraph(jobID);
 			job.setSavepointRestoreSettings(savepointSettings);
 		} else {
 			JobGraphGenerator gen = new JobGraphGenerator(flinkConfig);
-			job = gen.compileJobGraph((OptimizedPlan) optPlan);
+			job = gen.compileJobGraph((OptimizedPlan) optPlan, jobID);
 		}
 
 		for (URL jar : jarFiles) {

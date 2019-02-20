@@ -27,6 +27,8 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
+import javax.annotation.Nullable;
+
 import java.net.URL;
 import java.util.List;
 
@@ -46,12 +48,13 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	protected final SavepointRestoreSettings savepointSettings;
 
 	public ContextEnvironment(ClusterClient<?> remoteConnection, List<URL> jarFiles, List<URL> classpaths,
-				ClassLoader userCodeClassLoader, SavepointRestoreSettings savepointSettings) {
+				ClassLoader userCodeClassLoader, SavepointRestoreSettings savepointSettings, @Nullable JobID jobID) {
 		this.client = remoteConnection;
 		this.jarFilesToAttach = jarFiles;
 		this.classpathsToAttach = classpaths;
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.savepointSettings = savepointSettings;
+		this.jobID = jobID;
 	}
 
 	@Override
@@ -59,7 +62,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		Plan p = createProgramPlan(jobName);
 		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.classpathsToAttach,
 				this.userCodeClassLoader);
-		this.lastJobExecutionResult = client.run(toRun, getParallelism(), savepointSettings).getJobExecutionResult();
+		this.lastJobExecutionResult = client.run(toRun, getParallelism(), savepointSettings, jobID).getJobExecutionResult();
 		return this.lastJobExecutionResult;
 	}
 

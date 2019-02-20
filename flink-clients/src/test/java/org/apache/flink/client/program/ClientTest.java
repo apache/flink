@@ -20,6 +20,7 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.ProgramDescription;
@@ -104,7 +105,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestExecuteTwice.class);
-			clusterClient.run(prg, 1);
+			clusterClient.run(prg, 1, null);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -114,7 +115,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestEager.class);
-			clusterClient.run(prg, 1);
+			clusterClient.run(prg, 1, null);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -124,7 +125,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetRuntime.class);
-			clusterClient.run(prg, 1);
+			clusterClient.run(prg, 1, null);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -134,7 +135,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetJobID.class);
-			clusterClient.run(prg, 1);
+			clusterClient.run(prg, 1, null);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -144,7 +145,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetAccumulator.class);
-			clusterClient.run(prg, 1);
+			clusterClient.run(prg, 1, null);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -154,7 +155,7 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetAllAccumulator.class);
-			clusterClient.run(prg, 1);
+			clusterClient.run(prg, 1, null);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -170,9 +171,11 @@ public class ClientTest extends TestLogger {
 	public void shouldSubmitToJobClient() throws Exception {
 		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 		clusterClient.setDetached(true);
-		JobSubmissionResult result = clusterClient.run(program.getPlanWithJars(), 1);
+		JobID expectedJobID = new JobID();
+		JobSubmissionResult result = clusterClient.run(program.getPlanWithJars(), 1, expectedJobID);
 
 		assertNotNull(result);
+		assertEquals(expectedJobID.toString(), result.getJobID().toString());
 
 		program.deleteExtractedLibraries();
 	}
@@ -196,7 +199,7 @@ public class ClientTest extends TestLogger {
 		try {
 			final ClusterClient<?> client = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 			client.setDetached(true);
-			client.run(packagedProgramMock, 1);
+			client.run(packagedProgramMock, 1, null);
 			fail("Creating the local execution environment should not be possible");
 		}
 		catch (InvalidProgramException e) {

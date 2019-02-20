@@ -19,9 +19,12 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+
+import javax.annotation.Nullable;
 
 import java.net.URL;
 import java.util.List;
@@ -49,9 +52,12 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 
 	private SavepointRestoreSettings savepointSettings;
 
+	@Nullable
+	private final JobID jobID;
+
 	public ContextEnvironmentFactory(ClusterClient<?> client, List<URL> jarFilesToAttach,
 			List<URL> classpathsToAttach, ClassLoader userCodeClassLoader, int defaultParallelism,
-			boolean isDetached, SavepointRestoreSettings savepointSettings) {
+			boolean isDetached, SavepointRestoreSettings savepointSettings, @Nullable JobID jobID) {
 		this.client = client;
 		this.jarFilesToAttach = jarFilesToAttach;
 		this.classpathsToAttach = classpathsToAttach;
@@ -59,6 +65,7 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 		this.defaultParallelism = defaultParallelism;
 		this.isDetached = isDetached;
 		this.savepointSettings = savepointSettings;
+		this.jobID = jobID;
 	}
 
 	@Override
@@ -68,8 +75,8 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 		}
 
 		lastEnvCreated = isDetached
-			? new DetachedEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings)
-			: new ContextEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings);
+			? new DetachedEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings, jobID)
+			: new ContextEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings, jobID);
 		if (defaultParallelism > 0) {
 			lastEnvCreated.setParallelism(defaultParallelism);
 		}

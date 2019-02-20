@@ -53,7 +53,7 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 		JobExecutionResult expectedResult = new JobExecutionResult(null, 0, null);
 
 		RestClusterClient mockedClient = Mockito.mock(RestClusterClient.class);
-		when(mockedClient.run(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
+		when(mockedClient.run(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
 			.thenReturn(expectedResult);
 
 		PowerMockito.whenNew(RestClusterClient.class).withAnyArguments().thenAnswer((invocation) -> {
@@ -85,8 +85,8 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 		JobExecutionResult expectedResult = new JobExecutionResult(null, 0, null);
 
 		PowerMockito.whenNew(RestClusterClient.class).withAnyArguments().thenReturn(mockedClient);
-		when(mockedClient.run(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.eq(restoreSettings)))
-			.thenReturn(expectedResult);
+		when(mockedClient.run(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(),
+			Mockito.eq(restoreSettings), Mockito.any())).thenReturn(expectedResult);
 
 		JobExecutionResult actualResult = env.execute("fakeJobName");
 		Assert.assertEquals(expectedResult, actualResult);

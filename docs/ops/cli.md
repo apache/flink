@@ -71,6 +71,10 @@ available.
 
             ./bin/flink run -d ./examples/batch/WordCount.jar
 
+-   Run example program with a specific job id:
+
+            ./bin/flink run -jid <jobId> ./examples/batch/WordCount.jar
+
 -   Run example program on a specific JobManager:
 
         ./bin/flink run -m myJMHost:8081 \
@@ -263,6 +267,7 @@ Action "run" compiles and runs a program.
                                           shutdown when the CLI is terminated
                                           abruptly, e.g., in response to a user
                                           interrupt, such as typing Ctrl + C.
+     -jid,--jobid <jobId>                 Job ID of the job to run.
   Options for yarn-cluster mode:
      -d,--detached                        If present, runs the job in detached
                                           mode
