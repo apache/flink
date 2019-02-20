@@ -73,7 +73,8 @@ class ScalaEnumSerializerSnapshot[E <: Enumeration]
   }
 
   override def restoreSerializer(): TypeSerializer[E#Value] = {
-    enumClass.newInstance().asInstanceOf[TypeSerializer[E#Value]]
+    val enumObject = enumClass.getField("MODULE$").get(null).asInstanceOf[E]
+    new EnumValueSerializer(enumObject)
   }
 
   override def resolveSchemaCompatibility(
