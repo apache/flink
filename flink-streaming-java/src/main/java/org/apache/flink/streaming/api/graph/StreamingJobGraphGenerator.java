@@ -180,13 +180,7 @@ public class StreamingJobGraphGenerator {
 		for (StreamEdge edge : physicalEdgesInOrder) {
 			int target = edge.getTargetId();
 
-			List<StreamEdge> inEdges = physicalInEdgesInOrder.get(target);
-
-			// create if not set
-			if (inEdges == null) {
-				inEdges = new ArrayList<>();
-				physicalInEdgesInOrder.put(target, inEdges);
-			}
+			List<StreamEdge> inEdges = physicalInEdgesInOrder.computeIfAbsent(target, k -> new ArrayList<>());
 
 			inEdges.add(edge);
 		}
@@ -277,12 +271,8 @@ public class StreamingJobGraphGenerator {
 				config.setTransitiveChainedTaskConfigs(chainedConfigs.get(startNodeId));
 
 			} else {
+				chainedConfigs.computeIfAbsent(startNodeId, k -> new HashMap<Integer, StreamConfig>());
 
-				Map<Integer, StreamConfig> chainedConfs = chainedConfigs.get(startNodeId);
-
-				if (chainedConfs == null) {
-					chainedConfigs.put(startNodeId, new HashMap<Integer, StreamConfig>());
-				}
 				config.setChainIndex(chainIndex);
 				StreamNode node = streamGraph.getStreamNode(currentNodeId);
 				config.setOperatorName(node.getOperatorName());
@@ -477,9 +467,6 @@ public class StreamingJobGraphGenerator {
 			config.setIterationId(streamGraph.getBrokerID(vertexID));
 			config.setIterationWaitTime(streamGraph.getLoopTimeout(vertexID));
 		}
-
-		List<StreamEdge> allOutputs = new ArrayList<StreamEdge>(chainableOutputs);
-		allOutputs.addAll(nonChainableOutputs);
 
 		vertexConfigs.put(vertexID, config);
 	}
