@@ -225,6 +225,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 *
 	 * @param original The state backend to re-configure
 	 * @param configuration The configuration
+	 * @param classLoader The class loader
 	 */
 	private MemoryStateBackend(MemoryStateBackend original, Configuration configuration, ClassLoader classLoader) {
 		super(original.getCheckpointPath(), original.getSavepointPath(), configuration);
@@ -269,7 +270,8 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 * Creates a copy of this state backend that uses the values defined in the configuration
 	 * for fields where that were not specified in this state backend.
 	 *
-	 * @param config the configuration
+	 * @param config The configuration
+	 * @param classLoader The class loader
 	 * @return The re-configured variant of the state backend
 	 */
 	@Override
