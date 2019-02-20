@@ -187,7 +187,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		this.rpcServices = new ArrayList<>(1 + 2 + miniClusterConfiguration.getNumTaskManagers()); // common + JM + RM + TMs
 		this.dispatcherResourceManagerComponents = new ArrayList<>(1);
 
-		this.rpcTimeout = Time.seconds(10L);
+		this.rpcTimeout = miniClusterConfiguration.getRpcTimeout();
 		this.terminationFuture = CompletableFuture.completedFuture(null);
 		running = false;
 
