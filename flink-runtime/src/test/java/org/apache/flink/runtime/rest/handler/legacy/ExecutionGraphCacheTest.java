@@ -321,7 +321,7 @@ public class ExecutionGraphCacheTest extends TestLogger {
 
 			assertEquals(expectedExecutionGraph, executionGraphFuture.get());
 
-			assertThat(restfulGateway.getNumRequestJobCalls(), Matchers.equalTo(1));
+			assertThat(restfulGateway.getNumRequestJobCalls(), Matchers.equalTo(2));
 		}
 	}
 
