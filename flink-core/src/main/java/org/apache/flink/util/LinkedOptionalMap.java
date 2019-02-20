@@ -156,20 +156,6 @@ public final class LinkedOptionalMap<K, V> {
 			.collect(Collectors.toCollection(LinkedHashSet::new));
 	}
 
-	public Set<K> getKeysNoThrow() {
-		return underlyingMap.values()
-			.stream()
-			.map(KeyValue::getKey)
-			.collect(Collectors.toCollection(LinkedHashSet::new));
-	}
-
-	public Set<V> getValues() {
-		return underlyingMap.values()
-			.stream()
-			.map(KeyValue::getValue)
-			.collect(Collectors.toCollection(LinkedHashSet::new));
-	}
-
 	/**
 	 * assuming all the entries of this map are present (keys and values) this method would return
 	 * a map with these key and values, striped from their Optional wrappers.

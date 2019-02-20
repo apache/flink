@@ -126,11 +126,14 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 	@SuppressWarnings("unchecked")
 	public TypeSerializer<T> restoreSerializer() {
 		final int numFields = snapshotData.getFieldSerializerSnapshots().size();
-		final Field[] restoredFields = snapshotData.getFieldSerializerSnapshots().getKeysNoThrow().toArray(new Field[numFields]);
-		final TypeSerializer<Object>[] restoredFieldSerializers = snapshotData.getFieldSerializerSnapshots().getValues()
-			.stream()
-			.map(TypeSerializerSnapshot::restoreSerializer)
-			.toArray(TypeSerializer[]::new);
+
+		final ArrayList<Field> restoredFields = new ArrayList<>(numFields);
+		final ArrayList<TypeSerializer<?>> restoredFieldSerializers = new ArrayList<>(numFields);
+		snapshotData.getFieldSerializerSnapshots().forEach((fieldName, field, fieldSerializerSnapshot) -> {
+			restoredFields.add(field);
+			checkState(fieldSerializerSnapshot != null, "field serializer snapshots should be present.");
+			restoredFieldSerializers.add(fieldSerializerSnapshot.restoreSerializer());
+		});
 
 		final LinkedHashMap<Class<?>, TypeSerializer<?>> registeredSubclassSerializers = restoreSerializers(
 			snapshotData.getRegisteredSubclassSerializerSnapshots().unwrapOptionals());
@@ -142,8 +145,8 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 
 		return new PojoSerializer<>(
 			snapshotData.getPojoClass(),
-			restoredFields,
-			restoredFieldSerializers,
+			restoredFields.toArray(new Field[numFields]),
+			restoredFieldSerializers.toArray(new TypeSerializer[numFields]),
 			decomposedSubclassSerializerRegistry.f0,
 			decomposedSubclassSerializerRegistry.f1,
 			nonRegisteredSubclassSerializers,
