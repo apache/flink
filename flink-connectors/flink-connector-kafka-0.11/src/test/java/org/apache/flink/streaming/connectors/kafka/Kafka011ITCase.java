@@ -23,6 +23,8 @@ import org.apache.flink.api.common.serialization.TypeInformationSerializationSch
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -30,6 +32,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSink;
@@ -37,9 +40,16 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.serialization.KafkaDeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KafkaSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 
+import org.apache.flink.shaded.guava18.com.google.common.primitives.Longs;
+
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -47,7 +57,12 @@ import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * IT cases for Kafka 0.11 .
@@ -348,6 +363,152 @@ public class Kafka011ITCase extends KafkaConsumerTestBase {
 		@Override
 		public boolean isEndOfStream(Long nextElement) {
 			return cnt > 1110L;
+		}
+	}
+
+	/**
+	 * Kafka 0.11 specific test, ensuring Kafka Headers are properly written to and read from Kafka.
+	 */
+	@Test(timeout = 60000)
+	public void testHeaders() throws Exception {
+		final String topic = "headers-topic";
+		final long testSequenceLength = 127L;
+		createTestTopic(topic, 3, 1);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+		env.getConfig().disableSysoutLogging();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
+		DataStream<Long> testSequence = env.addSource(new SourceFunction<Long>() {
+			private static final long serialVersionUID = 1L;
+			boolean running = true;
+
+			@Override
+			public void run(SourceContext<Long> ctx) throws Exception {
+				long i = 0;
+				while (running) {
+					ctx.collectWithTimestamp(i, i * 2);
+					if (i++ == testSequenceLength) {
+						running = false;
+					}
+				}
+			}
+
+			@Override
+			public void cancel() {
+				running = false;
+			}
+		});
+
+		FlinkKafkaProducer011<Long> producer = new FlinkKafkaProducer011<>(
+			new TestHeadersKafkaSerializationSchema(topic), standardProps);
+		testSequence.addSink(producer).setParallelism(3);
+		env.execute("Produce some data");
+
+		// Now let's consume data and check that headers deserialized correctly
+		env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+		env.getConfig().disableSysoutLogging();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
+
+		FlinkKafkaConsumer011<TestHeadersElement> kafkaSource = new FlinkKafkaConsumer011<>(topic, new TestHeadersKafkaDeserializationSchema(testSequenceLength), standardProps);
+
+		env.addSource(kafkaSource).addSink(new DiscardingSink());
+		env.execute("Consume again");
+
+		deleteTestTopic(topic);
+	}
+
+	/**
+	 * Element consisting of key, value and headers represented as list of tuples: key, list of Bytes.
+	 */
+	public static class TestHeadersElement extends Tuple3<Long, Byte, List<Tuple2<String, List<Byte>>>> {
+
+	}
+
+	/**
+	 * Generate "headers" for given element.
+	 * @param element - sequence element
+	 * @return headers
+	 */
+	private static Headers headersFor(Long element) {
+		final long x = element;
+		return new RecordHeaders(Arrays.asList(
+			new RecordHeader("low", new byte[]{
+				(byte) ((x >>> 8) & 0xFF),
+				(byte) ((x) & 0xFF)
+			}),
+			new RecordHeader("low", new byte[]{
+				(byte) ((x >>> 24) & 0xFF),
+				(byte) ((x >>> 16) & 0xFF)
+			}),
+			new RecordHeader("high", new byte[]{
+				(byte) ((x >>> 40) & 0xFF),
+				(byte) ((x >>> 32) & 0xFF)
+			}),
+			new RecordHeader("high", new byte[]{
+				(byte) ((x >>> 56) & 0xFF),
+				(byte) ((x >>> 48) & 0xFF)
+			})
+		));
+	}
+
+	/**
+	 * Serialization schema, which serialize given element as value, lowest element byte as key,
+	 * low 32-bit integer is also stored as two "low" headers with 16-bit parts as headers values,
+	 * and similar high 32-bit integer is stored as two "high" headers, each 16-bit part is "high" header value.
+	 */
+	private static class TestHeadersKafkaSerializationSchema implements KafkaSerializationSchema<Long> {
+		private final String topic;
+
+		TestHeadersKafkaSerializationSchema(String topic) {
+			this.topic = Objects.requireNonNull(topic);
+		}
+
+		@Override
+		public ProducerRecord<byte[], byte[]> serialize(Long element, @Nullable Long timestamp, PartitionInfo partitionInfo) {
+			return new ProducerRecord<>(
+				topic,
+				null,
+				timestamp,
+				new byte[] { element.byteValue() },
+				Longs.toByteArray(element),
+				headersFor(element)
+			);
+		}
+	}
+
+	/**
+	 * Deserialization schema for TestHeadersElement elements.
+	 */
+	private static class TestHeadersKafkaDeserializationSchema implements KafkaDeserializationSchema<TestHeadersElement> {
+		private final long count;
+
+		TestHeadersKafkaDeserializationSchema(long count){
+			this.count = count;
+		}
+
+		@Override
+		public TypeInformation<TestHeadersElement> getProducedType() {
+			return TypeInformation.of(TestHeadersElement.class);
+		}
+
+		@Override
+		public boolean isEndOfStream(TestHeadersElement nextElement) {
+			return nextElement.f0 >= count;
+		}
+
+		@Override
+		public TestHeadersElement deserialize(ConsumerRecord<byte[], byte[]> record) {
+			final TestHeadersElement element = new TestHeadersElement();
+			element.f0 = Longs.fromByteArray(record.value());
+			element.f1 = record.key()[0];
+			final Headers expectedHeaders = headersFor(element.f0);
+			final Headers actualHeaders = record.headers();
+			assertEquals(expectedHeaders, actualHeaders);
+			return element;
 		}
 	}
 

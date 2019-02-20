@@ -23,6 +23,7 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartiti
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
+import org.apache.flink.streaming.util.serialization.KafkaSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 
@@ -188,6 +189,19 @@ public class FlinkKafkaProducer08<IN> extends FlinkKafkaProducerBase<IN>  {
 			@Nullable FlinkKafkaPartitioner<IN> customPartitioner) {
 
 		super(topicId, serializationSchema, producerConfig, customPartitioner);
+	}
+
+	/**
+	 * Creates a FlinkKafkaProducer for a given topic. The sink produces its input to
+	 * the topic. It accepts a keyed {@link KafkaSerializationSchema}.
+	 *
+	 * @param serializationSchema A serializable serialization schema for turning user objects into a kafka ProducerRecords
+	 * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is the only required argument.
+	 */
+	public FlinkKafkaProducer08(
+			KafkaSerializationSchema<IN> serializationSchema,
+			Properties producerConfig) {
+		super(serializationSchema, producerConfig);
 	}
 
 	// ------------------- Deprecated constructors ----------------------
