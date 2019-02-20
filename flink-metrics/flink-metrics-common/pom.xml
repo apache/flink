@@ -24,43 +24,36 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-parent</artifactId>
+		<artifactId>flink-metrics</artifactId>
 		<version>1.8-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-metrics</artifactId>
-	<name>flink-metrics</name>
-	<packaging>pom</packaging>
-
-	<modules>
-		<module>flink-metrics-core</module>
-		<module>flink-metrics-dropwizard</module>
-		<module>flink-metrics-graphite</module>
-		<module>flink-metrics-influxdb</module>
-		<module>flink-metrics-jmx</module>
-		<module>flink-metrics-prometheus</module>
-		<module>flink-metrics-statsd</module>
-		<module>flink-metrics-datadog</module>
-		<module>flink-metrics-slf4j</module>
-		<module>flink-metrics-common</module>
-	</modules>
-
-	<!-- override these root dependencies as 'provided', so they don't end up
-		in the jars-with-dependencies. They are already contained
-		in the flink-dist build -->
+	<artifactId>flink-metrics-common</artifactId>
+	<name>flink-metrics-common</name>
 
 	<dependencies>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>com.google.code.findbugs</groupId>
-			<artifactId>jsr305</artifactId>
-			<scope>provided</scope>
-		</dependency>
-	</dependencies>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-dropwizard</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<!-- test dependencies -->
+
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+	</dependencies>
 </project>
