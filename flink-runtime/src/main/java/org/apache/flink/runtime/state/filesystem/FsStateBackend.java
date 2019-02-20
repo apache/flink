@@ -87,7 +87,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * parameters from the Flink configuration. For example, if the backend if configured in the application
  * without a default savepoint directory, it will pick up a default savepoint directory specified in the
  * Flink configuration of the running job/cluster. That behavior is implemented via the
- * {@link #configure(Configuration)} method.
+ * {@link #configure(Configuration, ClassLoader)} method.
  */
 @PublicEvolving
 public class FsStateBackend extends AbstractFileStateBackend implements ConfigurableStateBackend {
@@ -334,7 +334,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	 * @param original The state backend to re-configure
 	 * @param configuration The configuration
 	 */
-	private FsStateBackend(FsStateBackend original, Configuration configuration) {
+	private FsStateBackend(FsStateBackend original, Configuration configuration, ClassLoader classLoader) {
 		super(original.getCheckpointPath(), original.getSavepointPath(), configuration);
 
 		// if asynchronous snapshots were configured, use that setting,
@@ -430,8 +430,8 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	 * @return The re-configured variant of the state backend
 	 */
 	@Override
-	public FsStateBackend configure(Configuration config) {
-		return new FsStateBackend(this, config);
+	public FsStateBackend configure(Configuration config, ClassLoader classLoader) {
+		return new FsStateBackend(this, config, classLoader);
 	}
 
 	// ------------------------------------------------------------------------
