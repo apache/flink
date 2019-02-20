@@ -16,21 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.typeutils
+package org.apache.flink.table.expressions;
+
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
-  * TypeInformation for row intervals.
-  */
-@SerialVersionUID(-1306179424364925258L)
-class RowIntervalTypeInfo extends InternalTypeInfo[Long](classOf[Long]) {
-
-  def canEqual(obj: Any): Boolean = obj.isInstanceOf[RowIntervalTypeInfo]
-
-  override def toString: String = s"RowIntervalTypeInfo"
-}
-
-object RowIntervalTypeInfo {
-
-  val INTERVAL_ROWS = new RowIntervalTypeInfo()
-
+ * The base interface for all table symbol, such as time interval unit, time point unit
+ * are all defined based on TableSymbol.
+ */
+@PublicEvolving
+public interface CommonTableSymbol {
 }
