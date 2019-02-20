@@ -79,32 +79,29 @@ class ScalaEnumSerializerSnapshot[E <: Enumeration]
 
   override def resolveSchemaCompatibility(
     newSerializer: TypeSerializer[E#Value]): TypeSerializerSchemaCompatibility[E#Value] = {
-    newSerializer match {
-      case newEnumSerializer: EnumValueSerializer[_] => {
-        if (enumClass.equals(newEnumSerializer.enum.getClass)) {
-          for ((previousEnumConstant, idx) <- previousEnumConstants) {
-            val enumValue = try {
-              newEnumSerializer.enum(idx)
-            } catch {
-              case _: NoSuchElementException =>
-                // couldn't find an enum value for the given index
-                return TypeSerializerSchemaCompatibility.incompatible()
-            }
 
-            if (!previousEnumConstant.equals(enumValue.toString)) {
-              // compatible only if new enum constants are only appended,
-              // and original constants must be in the exact same order
-              return TypeSerializerSchemaCompatibility.compatibleAfterMigration()
-            }
-          }
-
-          TypeSerializerSchemaCompatibility.compatibleAsIs()
-        } else {
-          TypeSerializerSchemaCompatibility.incompatible()
-        }
-      }
-      case _ => TypeSerializerSchemaCompatibility.incompatible()
+    if (!newSerializer.isInstanceOf[EnumValueSerializer[E]]) {
+      return TypeSerializerSchemaCompatibility.incompatible()
     }
+
+    val newEnumSerializer = newSerializer.asInstanceOf[EnumValueSerializer[E]]
+    if (!enumClass.equals(newEnumSerializer.enum.getClass)) {
+      return TypeSerializerSchemaCompatibility.incompatible()
+    }
+
+    for ((previousEnumName, index) <- previousEnumConstants) {
+      try {
+        val newEnumName = newEnumSerializer.enum(index).toString
+        if (previousEnumName != newEnumName) {
+          return TypeSerializerSchemaCompatibility.incompatible()
+        }
+      } catch {
+        case _: NoSuchElementException =>
+          return TypeSerializerSchemaCompatibility.incompatible()
+      }
+    }
+
+    TypeSerializerSchemaCompatibility.compatibleAsIs()
   }
 }
 

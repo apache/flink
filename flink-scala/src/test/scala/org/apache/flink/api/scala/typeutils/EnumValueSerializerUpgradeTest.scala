@@ -96,19 +96,19 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
   }
 
   /**
-    * Check that removing enum fields requires migration
+    * Check that removing enum fields makes the snapshot incompatible.
     */
   @Test
   def checkRemovedField(): Unit = {
-    assertTrue(checkCompatibility(enumA, enumC).isCompatibleAfterMigration)
+    assertTrue(checkCompatibility(enumA, enumC).isIncompatible)
   }
 
   /**
-    * Check that changing the enum field order requires migration
+    * Check that changing the enum field order makes the snapshot incompatible.
     */
   @Test
   def checkDifferentFieldOrder(): Unit = {
-    assertTrue(checkCompatibility(enumA, enumD).isCompatibleAfterMigration)
+    assertTrue(checkCompatibility(enumA, enumD).isIncompatible)
   }
 
   /**
