@@ -18,15 +18,16 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.SharedSlot;
-import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
 import org.junit.Test;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.*;
 
 /**
@@ -64,39 +65,21 @@ public class CoLocationConstraintTest {
 	}
 
 	@Test
-	public void testAssignSlotAndLockLocation() throws Exception {
-		JobID jid = new JobID();
-
+	public void testLockLocation() {
 		JobVertex vertex = new JobVertex("vertex");
 		vertex.setParallelism(1);
-
-		SlotSharingGroup sharingGroup = new SlotSharingGroup(vertex.getID());
-		SlotSharingGroupAssignment assignment = sharingGroup.getTaskAssignment();
 
 		CoLocationGroup constraintGroup = new CoLocationGroup(vertex);
 		CoLocationConstraint constraint = constraintGroup.getLocationConstraint(0);
 
 		// constraint is completely unassigned
-		assertFalse(constraint.isAssigned());
-		assertFalse(constraint.isAssignedAndAlive());
-
-		Instance instance1 = SchedulerTestUtils.getRandomInstance(2);
-		Instance instance2 = SchedulerTestUtils.getRandomInstance(2);
-
-		SharedSlot slot1_1 = instance1.allocateSharedSlot(assignment);
-		SharedSlot slot1_2 = instance1.allocateSharedSlot(assignment);
-		SharedSlot slot2_1 = instance2.allocateSharedSlot(assignment);
-		SharedSlot slot2_2 = instance2.allocateSharedSlot(assignment);
-
-		// constraint is still completely unassigned
-		assertFalse(constraint.isAssigned());
-		assertFalse(constraint.isAssignedAndAlive());
+		assertThat(constraint.getSlotRequestId(), is(nullValue()));
+		assertThat(constraint.isAssigned(), is(false));
 
 		// set the slot, but do not lock the location yet
-		constraint.setSharedSlot(slot1_1);
-
-		assertFalse(constraint.isAssigned());
-		assertFalse(constraint.isAssignedAndAlive());
+		SlotRequestId slotRequestId = new SlotRequestId();
+		constraint.setSlotRequestId(slotRequestId);
+		assertThat(constraint.isAssigned(), is(false));
 
 		// try to get the location
 		try {
@@ -108,54 +91,26 @@ public class CoLocationConstraintTest {
 			fail("wrong exception, should be IllegalStateException");
 		}
 
-		// check that we can reassign the slot as long as the location is not locked
-		constraint.setSharedSlot(slot2_1);
-
-		// the previous slot should have been released now
-		assertTrue(slot1_1.isReleased());
-
-		// still the location is not assigned
-		assertFalse(constraint.isAssigned());
-		assertFalse(constraint.isAssignedAndAlive());
-
-		// we can do an identity re-assign
-		constraint.setSharedSlot(slot2_1);
-		assertFalse(slot2_1.isReleased());
-
-		// still the location is not assigned
-		assertFalse(constraint.isAssigned());
-		assertFalse(constraint.isAssignedAndAlive());
-
-		constraint.lockLocation();
+		TaskManagerLocation location = new LocalTaskManagerLocation();
+		constraint.lockLocation(location);
 
 		// now, the location is assigned and we have a location
-		assertTrue(constraint.isAssigned());
-		assertTrue(constraint.isAssignedAndAlive());
-		assertEquals(instance2.getTaskManagerLocation(), constraint.getLocation());
+		assertThat(constraint.isAssigned(), is(true));
+		assertThat(constraint.getLocation(), is(location));
 
-		// release the slot
-		slot2_1.releaseSlot();
-
-		// we should still have a location
-		assertTrue(constraint.isAssigned());
-		assertFalse(constraint.isAssignedAndAlive());
-		assertEquals(instance2.getTaskManagerLocation(), constraint.getLocation());
-
-		// we can not assign a different location
+		// we can not lock a different location
 		try {
-			constraint.setSharedSlot(slot1_2);
-			fail("should throw an IllegalArgumentException");
-		} catch (IllegalArgumentException e) {
+			TaskManagerLocation anotherLocation = new LocalTaskManagerLocation();
+			constraint.lockLocation(anotherLocation);
+			fail("should throw an IllegalStateException");
+		} catch (IllegalStateException e) {
 			// as expected
 		} catch (Exception e) {
-			fail("wrong exception, should be IllegalArgumentException");
+			fail("wrong exception, should be IllegalStateException");
 		}
 
-		// assign a new slot with the same location
-		constraint.setSharedSlot(slot2_2);
-
-		assertTrue(constraint.isAssigned());
-		assertTrue(constraint.isAssignedAndAlive());
-		assertEquals(instance2.getTaskManagerLocation(), constraint.getLocation());
+		constraint.setSlotRequestId(null);
+		assertThat(constraint.isAssigned(), is(true));
+		assertThat(constraint.getLocation(), is(location));
 	}
 }
