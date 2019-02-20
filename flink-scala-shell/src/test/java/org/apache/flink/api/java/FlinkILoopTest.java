@@ -19,7 +19,6 @@
 package org.apache.flink.api.java;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
@@ -149,11 +148,6 @@ public class FlinkILoopTest extends TestLogger {
 		@Override
 		public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
 			return null;
-		}
-
-		@Override
-		public void endSession(JobID jobID) throws Exception {
-
 		}
 
 		public String getHost() {

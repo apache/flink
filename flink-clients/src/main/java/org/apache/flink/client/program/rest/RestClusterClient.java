@@ -35,13 +35,11 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
-import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.FileUpload;
@@ -90,8 +88,6 @@ import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rest.util.RestConstants;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
-import org.apache.flink.runtime.util.LeaderConnectionInfo;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
@@ -517,13 +513,6 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 	}
 
 	@Override
-	public LeaderConnectionInfo getClusterConnectionInfo() throws LeaderRetrievalException {
-		return LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
-			highAvailabilityServices.getDispatcherLeaderRetriever(),
-			timeout);
-	}
-
-	@Override
 	public CompletableFuture<Acknowledge> rescaleJob(JobID jobId, int newParallelism) {
 
 		final RescalingTriggerHeaders rescalingTriggerHeaders = RescalingTriggerHeaders.getInstance();
@@ -646,16 +635,6 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 	// ======================================
 
 	@Override
-	public boolean hasUserJarsInClassPath(List<URL> userJarFiles) {
-		return false;
-	}
-
-	@Override
-	public void waitForClusterToBeReady() {
-		// no op
-	}
-
-	@Override
 	public String getWebInterfaceURL() {
 		try {
 			return getWebMonitorBaseUrl().get().toString();
@@ -665,21 +644,6 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			log.warn("Could not retrieve the web interface URL for the cluster.", e);
 			return "Unknown address.";
 		}
-	}
-
-	@Override
-	public GetClusterStatusResponse getClusterStatus() {
-		return null;
-	}
-
-	@Override
-	public List<String> getNewMessages() {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public int getMaxSlots() {
-		return MAX_SLOTS_UNKNOWN;
 	}
 
 	//-------------------------------------------------------------------------
