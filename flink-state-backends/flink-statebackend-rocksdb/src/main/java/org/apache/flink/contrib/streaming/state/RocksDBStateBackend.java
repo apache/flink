@@ -282,12 +282,13 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 *
 	 * @param original The state backend to re-configure.
 	 * @param config The configuration.
+	 * @param classLoader The class loader.
 	 */
-	private RocksDBStateBackend(RocksDBStateBackend original, Configuration config) {
+	private RocksDBStateBackend(RocksDBStateBackend original, Configuration config, ClassLoader classLoader) {
 		// reconfigure the state backend backing the streams
 		final StateBackend originalStreamBackend = original.checkpointStreamBackend;
 		this.checkpointStreamBackend = originalStreamBackend instanceof ConfigurableStateBackend ?
-				((ConfigurableStateBackend) originalStreamBackend).configure(config) :
+				((ConfigurableStateBackend) originalStreamBackend).configure(config, classLoader) :
 				originalStreamBackend;
 
 		// configure incremental checkpoints
@@ -343,12 +344,13 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * Creates a copy of this state backend that uses the values defined in the configuration
 	 * for fields where that were not yet specified in this state backend.
 	 *
-	 * @param config the configuration
+	 * @param config The configuration.
+	 * @param classLoader The class loader.
 	 * @return The re-configured variant of the state backend
 	 */
 	@Override
-	public RocksDBStateBackend configure(Configuration config) {
-		return new RocksDBStateBackend(this, config);
+	public RocksDBStateBackend configure(Configuration config, ClassLoader classLoader) {
+		return new RocksDBStateBackend(this, config, classLoader);
 	}
 
 	// ------------------------------------------------------------------------
