@@ -33,7 +33,7 @@ import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, Val
 
 import scala.collection.JavaConversions._
 
-case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends Expression {
+case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends PlannerExpression {
 
   override private[flink] def children: Seq[Expression] = timeIntervalUnit :: temporal :: Nil
 
@@ -85,7 +85,7 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
 abstract class TemporalCeilFloor(
     timeIntervalUnit: Expression,
     temporal: Expression)
-  extends Expression {
+  extends PlannerExpression {
 
   override private[flink] def children: Seq[Expression] = timeIntervalUnit :: temporal :: Nil
 
@@ -231,7 +231,7 @@ case class TemporalOverlaps(
     leftTemporal: Expression,
     rightTimePoint: Expression,
     rightTemporal: Expression)
-  extends Expression {
+  extends PlannerExpression {
 
   override private[flink] def children: Seq[Expression] =
     Seq(leftTimePoint, leftTemporal, rightTimePoint, rightTemporal)
@@ -330,7 +330,7 @@ case class TemporalOverlaps(
   }
 }
 
-case class DateFormat(timestamp: Expression, format: Expression) extends Expression {
+case class DateFormat(timestamp: Expression, format: Expression) extends PlannerExpression {
   override private[flink] def children = timestamp :: format :: Nil
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder) =
@@ -345,7 +345,7 @@ case class TimestampDiff(
     timePointUnit: Expression,
     timePoint1: Expression,
     timePoint2: Expression)
-  extends Expression {
+  extends PlannerExpression {
 
   override private[flink] def children: Seq[Expression] =
     timePointUnit :: timePoint1 :: timePoint2 :: Nil

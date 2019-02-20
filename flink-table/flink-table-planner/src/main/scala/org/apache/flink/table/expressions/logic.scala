@@ -80,7 +80,7 @@ case class If(
     condition: Expression,
     ifTrue: Expression,
     ifFalse: Expression)
-  extends Expression {
+  extends PlannerExpression {
   private[flink] def children = Seq(condition, ifTrue, ifFalse)
 
   override private[flink] def resultType = ifTrue.resultType

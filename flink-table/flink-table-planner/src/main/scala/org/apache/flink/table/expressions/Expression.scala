@@ -72,17 +72,19 @@ abstract class Expression extends TreeNode[Expression] {
   }
 }
 
-abstract class BinaryExpression extends Expression {
+abstract class PlannerExpression extends Expression
+
+abstract class BinaryExpression extends PlannerExpression {
   private[flink] def left: Expression
   private[flink] def right: Expression
   private[flink] def children = Seq(left, right)
 }
 
-abstract class UnaryExpression extends Expression {
+abstract class UnaryExpression extends PlannerExpression {
   private[flink] def child: Expression
   private[flink] def children = Seq(child)
 }
 
-abstract class LeafExpression extends Expression {
+abstract class LeafExpression extends PlannerExpression {
   private[flink] val children = Nil
 }

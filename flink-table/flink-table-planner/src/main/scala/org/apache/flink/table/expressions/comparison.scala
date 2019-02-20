@@ -168,7 +168,7 @@ abstract class BetweenComparison(
     expr: Expression,
     lowerBound: Expression,
     upperBound: Expression)
-  extends Expression {
+  extends PlannerExpression {
 
   override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.BOOLEAN_TYPE_INFO
 

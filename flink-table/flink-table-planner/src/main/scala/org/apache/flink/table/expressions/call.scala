@@ -41,7 +41,7 @@ import _root_.scala.collection.JavaConverters._
   * General expression for unresolved function calls. The function can be a built-in
   * scalar function or a user-defined scalar function.
   */
-case class Call(functionName: String, args: Seq[Expression]) extends Expression {
+case class Call(functionName: String, args: Seq[Expression]) extends PlannerExpression {
 
   override private[flink] def children: Seq[Expression] = args
 
@@ -64,7 +64,7 @@ case class Call(functionName: String, args: Seq[Expression]) extends Expression 
   * @param agg The aggregation of the over call.
   * @param alias The alias of the referenced over window.
   */
-case class UnresolvedOverCall(agg: Expression, alias: Expression) extends Expression {
+case class UnresolvedOverCall(agg: Expression, alias: Expression) extends PlannerExpression {
 
   override private[flink] def validateInput() =
     ValidationFailure(s"Over window with alias $alias could not be resolved.")
@@ -88,7 +88,7 @@ case class OverCall(
     partitionBy: Seq[Expression],
     orderBy: Expression,
     preceding: Expression,
-    following: Expression) extends Expression {
+    following: Expression) extends PlannerExpression {
 
   override def toString: String = s"$agg OVER (" +
     s"PARTITION BY (${partitionBy.mkString(", ")}) " +
@@ -261,7 +261,7 @@ case class OverCall(
 case class ScalarFunctionCall(
     scalarFunction: ScalarFunction,
     parameters: Seq[Expression])
-  extends Expression {
+  extends PlannerExpression {
 
   private var foundSignature: Option[Array[Class[_]]] = None
 
@@ -314,7 +314,7 @@ case class TableFunctionCall(
     tableFunction: TableFunction[_],
     parameters: Seq[Expression],
     resultType: TypeInformation[_])
-  extends Expression {
+  extends PlannerExpression {
 
   private var aliases: Option[Seq[String]] = None
 

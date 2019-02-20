@@ -26,7 +26,7 @@ import org.apache.flink.table.validate._
 /**
   * Expressions that have strict data type specification on its inputs.
   */
-trait InputTypeSpec extends Expression {
+trait InputTypeSpec extends PlannerExpression {
 
   /**
     * Input type specification for each child.
