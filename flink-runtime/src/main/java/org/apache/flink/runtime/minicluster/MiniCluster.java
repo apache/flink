@@ -188,7 +188,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	public MiniCluster(MiniClusterConfiguration miniClusterConfiguration) {
 		this.miniClusterConfiguration = checkNotNull(miniClusterConfiguration, "config may not be null");
 
-		this.rpcTimeout = Time.seconds(10L);
+		this.rpcTimeout = miniClusterConfiguration.getRpcTimeout();
 		this.terminationFuture = CompletableFuture.completedFuture(null);
 		running = false;
 	}
