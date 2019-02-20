@@ -16,21 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.typeutils
+package org.apache.flink.table.expressions;
+
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.util.Preconditions;
+
+import static org.apache.flink.table.expressions.FunctionDefinition.Type.SCALAR_FUNCTION;
 
 /**
-  * TypeInformation for row intervals.
-  */
-@SerialVersionUID(-1306179424364925258L)
-class RowIntervalTypeInfo extends InternalTypeInfo[Long](classOf[Long]) {
+ * The function definition of an user-defined scalar function.
+ */
+@PublicEvolving
+public final class ScalarFunctionDefinition extends FunctionDefinition {
 
-  def canEqual(obj: Any): Boolean = obj.isInstanceOf[RowIntervalTypeInfo]
+	private final ScalarFunction scalarFunction;
 
-  override def toString: String = s"RowIntervalTypeInfo"
-}
+	public ScalarFunctionDefinition(ScalarFunction scalarFunction) {
+		super(scalarFunction.getClass().getName(), SCALAR_FUNCTION);
+		this.scalarFunction = Preconditions.checkNotNull(scalarFunction);
+	}
 
-object RowIntervalTypeInfo {
-
-  val INTERVAL_ROWS = new RowIntervalTypeInfo()
-
+	public ScalarFunction getScalarFunction() {
+		return scalarFunction;
+	}
 }
