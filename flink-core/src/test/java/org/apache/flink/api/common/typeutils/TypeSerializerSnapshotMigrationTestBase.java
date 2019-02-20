@@ -443,7 +443,7 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 	// Utilities
 	// --------------------------------------------------------------------------------------------------------------
 
-	private <T> Matcher<TypeSerializerSchemaCompatibility<T>> hasSameCompatibilityType(TypeSerializerSchemaCompatibility<T> expectedCompatibilty) {
+	private static <T> Matcher<TypeSerializerSchemaCompatibility<T>> hasSameCompatibilityType(TypeSerializerSchemaCompatibility<T> expectedCompatibilty) {
 		return new TypeSafeMatcher<TypeSerializerSchemaCompatibility<T>>() {
 
 			@Override
@@ -451,9 +451,9 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 				if (expectedCompatibilty.isCompatibleAsIs()) {
 					return testResultCompatibility.isCompatibleAsIs();
 				} else if (expectedCompatibilty.isIncompatible()) {
-					return testResultCompatibility.isCompatibleAfterMigration();
-				} else if (expectedCompatibilty.isIncompatible()) {
 					return testResultCompatibility.isIncompatible();
+				} else if (expectedCompatibilty.isCompatibleAfterMigration()) {
+					return testResultCompatibility.isCompatibleAfterMigration();
 				} else if (expectedCompatibilty.isCompatibleWithReconfiguredSerializer()) {
 					return testResultCompatibility.isCompatibleWithReconfiguredSerializer();
 				}
