@@ -957,7 +957,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 		TestingFlinkKafkaConsumer(final AbstractPartitionDiscoverer partitionDiscoverer, long discoveryIntervalMillis) {
 			super(Collections.singletonList("dummy-topic"),
 				null,
-				(KeyedDeserializationSchema < T >) mock(KeyedDeserializationSchema.class),
+				(KafkaDeserializationSchema < T >) mock(KafkaDeserializationSchema.class),
 				discoveryIntervalMillis,
 				false);
 			this.partitionDiscoverer = partitionDiscoverer;
