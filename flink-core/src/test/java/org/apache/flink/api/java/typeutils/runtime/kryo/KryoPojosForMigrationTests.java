@@ -18,6 +18,12 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+import java.io.Serializable;
 
 /**
  * POJOS needed for {@link KryoPojosForMigrationTests}.
@@ -87,6 +93,42 @@ public class KryoPojosForMigrationTests {
 
 		public Cat getCat() {
 			return cat;
+		}
+	}
+
+	/**
+	 * A Serializer to use in the tests.
+	 */
+	public static class ParrotKryoSerializer extends Serializer<Parrot> implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void write(Kryo kryo, Output output, Parrot object) {
+			output.writeString(object.getAccent());
+		}
+
+		@Override
+		public Parrot read(Kryo kryo, Input input, Class<Parrot> type) {
+			return new Parrot(input.readString());
+		}
+	}
+
+	/**
+	 * A Serializer to use in the tests.
+	 */
+	public static class DogKryoSerializer extends Serializer<Dog> implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void write(Kryo kryo, Output output, Dog object) {
+			output.writeString(object.getName());
+		}
+
+		@Override
+		public Dog read(Kryo kryo, Input input, Class<Dog> type) {
+			return new Dog(input.readString());
 		}
 	}
 }

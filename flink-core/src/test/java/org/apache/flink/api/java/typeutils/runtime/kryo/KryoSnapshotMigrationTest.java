@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTestBase;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Animal;
@@ -31,9 +32,12 @@ import com.esotericsoftware.kryo.serializers.DefaultSerializers.StringSerializer
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import java.util.function.Supplier;
 
+import static org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility.compatibleAsIs;
 import static org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer;
 
 /**
@@ -51,53 +55,90 @@ public class KryoSnapshotMigrationTest extends TypeSerializerSnapshotMigrationTe
 	@Parameterized.Parameters(name = "Test Specification = {0}")
 	public static Collection<Object[]> testSpecifications() {
 
-		final TestSpecification<Animal> genericCase = TestSpecification.<Animal>builder("1.6-kryo: empty config -> empty config", KryoSerializer.class, KryoSerializerSnapshot.class, MigrationVersion.v1_6)
-			.withNewSerializerProvider(() -> new KryoSerializer<>(Animal.class, new ExecutionConfig()))
-			.withSnapshotDataLocation("flink-1.6-kryo-type-serializer-empty-config-snapshot")
-			.withTestData("flink-1.6-kryo-type-serializer-empty-config-data", 2);
+		List<Object[]> specs = new ArrayList<>();
 
-		TypeSerializerSchemaCompatibility<Animal> compatibleWithReconfigured =
-			compatibleWithReconfiguredSerializer(new KryoSerializer<>(Animal.class, new ExecutionConfig()));
+		add(specs, "kryo-type-serializer-empty-config",
+			() -> new KryoSerializer<>(Animal.class, new ExecutionConfig()));
 
-		final TestSpecification<Animal> additionalClasses = TestSpecification.<Animal>builder("1.6-kryo: empty config -> new classes", KryoSerializer.class, KryoSerializerSnapshot.class, MigrationVersion.v1_6)
-			.withNewSerializerProvider(() -> {
-				ExecutionConfig executionConfig = new ExecutionConfig();
-				executionConfig.registerKryoType(DummyClassOne.class);
-				executionConfig.registerTypeWithKryoSerializer(DummyClassTwo.class, StringSerializer.class);
+		add(specs, "kryo-type-serializer-empty-config", () -> {
 
-				return new KryoSerializer<>(Animal.class, executionConfig);
-			}, compatibleWithReconfigured)
-			.withSnapshotDataLocation("flink-1.6-kryo-type-serializer-empty-config-snapshot")
-			.withTestData("flink-1.6-kryo-type-serializer-empty-config-data", 2);
+			ExecutionConfig executionConfig = new ExecutionConfig();
+			executionConfig.registerKryoType(DummyClassOne.class);
+			executionConfig.registerTypeWithKryoSerializer(DummyClassTwo.class, StringSerializer.class);
 
-		final TestSpecification<Animal> differentOrder = TestSpecification.<Animal>builder("1.6-kryo: registered classes in a different order", KryoSerializer.class, KryoSerializerSnapshot.class, MigrationVersion.v1_6)
-			.withNewSerializerProvider(() -> {
+			return new KryoSerializer<>(Animal.class, executionConfig);
+		}, COMPATIBLE_WITH_RECONFIGURED);
 
-				ExecutionConfig executionConfig = new ExecutionConfig();
-				executionConfig.registerKryoType(DummyClassOne.class);
-				executionConfig.registerKryoType(Dog.class);
-				executionConfig.registerKryoType(DummyClassTwo.class);
-				executionConfig.registerKryoType(Cat.class);
-				executionConfig.registerKryoType(Parrot.class);
+		add(specs, "kryo-type-serializer", () -> {
 
-				return new KryoSerializer<>(Animal.class, executionConfig);
-			}, compatibleWithReconfigured)
-			.withSnapshotDataLocation("flink-1.6-kryo-type-serializer-snapshot")
-			.withTestData("flink-1.6-kryo-type-serializer-data", 2);
+			ExecutionConfig executionConfig = new ExecutionConfig();
+			executionConfig.registerKryoType(DummyClassOne.class);
+			executionConfig.registerKryoType(Dog.class);
+			executionConfig.registerKryoType(DummyClassTwo.class);
+			executionConfig.registerKryoType(Cat.class);
+			executionConfig.registerKryoType(Parrot.class);
 
-		return Arrays.asList(
-			new Object[]{genericCase},
-			new Object[]{additionalClasses},
-			new Object[]{differentOrder}
-		);
+			return new KryoSerializer<>(Animal.class, executionConfig);
+		}, COMPATIBLE_WITH_RECONFIGURED);
+
+		add(specs, "kryo-type-serializer-custom", () -> {
+			ExecutionConfig executionConfig = new ExecutionConfig();
+			executionConfig.registerKryoType(DummyClassOne.class);
+			executionConfig.registerKryoType(Dog.class);
+			executionConfig.registerKryoType(DummyClassTwo.class);
+			executionConfig.registerKryoType(Cat.class);
+			executionConfig.registerKryoType(Parrot.class);
+
+			return new KryoSerializer<>(Animal.class, executionConfig);
+		}, COMPATIBLE_WITH_RECONFIGURED);
+
+		return specs;
 	}
 
+	private static void add(List<Object[]> all, String name, Supplier<TypeSerializer<Animal>> supplier) {
+		add(all, name, supplier, compatibleAsIs());
+	}
+
+	private static void add(List<Object[]> all,
+							String name, Supplier<TypeSerializer<Animal>> supplier,
+							TypeSerializerSchemaCompatibility<Animal> expected) {
+
+		TestSpecification<Animal> flink16 = TestSpecification.<Animal>builder(
+			name,
+			KryoSerializer.class,
+			KryoSerializerSnapshot.class,
+			MigrationVersion.v1_6)
+			.withNewSerializerProvider(supplier, expected)
+			.withSnapshotDataLocation("flink-1.6-" + name + "-snapshot")
+			.withTestData("flink-1.6-" + name + "-data", 2);
+
+		TestSpecification<Animal> flink17 = TestSpecification.<Animal>builder(
+			name,
+			KryoSerializer.class,
+			KryoSerializerSnapshot.class,
+			MigrationVersion.v1_7)
+			.withNewSerializerProvider(supplier, expected)
+			.withSnapshotDataLocation("flink-1.7-" + name + "-snapshot")
+			.withTestData("flink-1.7-" + name + "-data", 2);
+
+		all.add(new Object[]{flink16});
+		all.add(new Object[]{flink17});
+	}
+
+	/**
+	 * Dummy class to be registered in the tests.
+	 */
 	public static final class DummyClassOne {
 
 	}
 
+	/**
+	 * Dummy class to be registered in the tests.
+	 */
 	public static final class DummyClassTwo {
 
 	}
 
+	private static final TypeSerializerSchemaCompatibility<Animal> COMPATIBLE_WITH_RECONFIGURED =
+		compatibleWithReconfiguredSerializer(new KryoSerializer<>(Animal.class, new ExecutionConfig()));
 }
