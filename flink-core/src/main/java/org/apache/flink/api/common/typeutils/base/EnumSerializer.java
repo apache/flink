@@ -414,4 +414,12 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 	Map<T, Integer> getValueToOrdinal() {
 		return valueToOrdinal;
 	}
+
+	@Override
+	public String toString() {
+		return "EnumSerializer{" +
+				"enumClass=" + enumClass +
+				", values=" + Arrays.toString(values) +
+				'}';
+	}
 }
