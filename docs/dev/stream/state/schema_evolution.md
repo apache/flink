@@ -78,11 +78,25 @@ Further details about the migration process is out of the scope of this document
 
 ## Supported data types for schema evolution
 
-Currently, schema evolution is supported only for Avro. Therefore, if you care about schema evolution for
-state, it is currently recommended to always use Avro for state data types.
+Currently, schema evolution is supported only for POJO and Avro types. Therefore, if you care about schema evolution for
+state, it is currently recommended to always use either Pojo or Avro for state data types.
 
-There are plans to extend the support for more composite types, such as POJOs; for more details,
-please refer to [FLINK-10897](https://issues.apache.org/jira/browse/FLINK-10897).
+There are plans to extend the support for more composite types; for more details,
+please refer to [FLINK-10896](https://issues.apache.org/jira/browse/FLINK-10896).
+
+### POJO types
+
+Flink supports evolving schema of [POJO types]({{ site.baseurl }}/dev/types_serialization.html#rules-for-pojo-types), 
+based on the following set of rules:
+
+ 1. Fields can be removed. Once removed, the previous value for the removed field will be dropped in future checkpoints and savepoints.
+ 2. New fields can be added. The new field will be initialized to the default value for its type, as
+    [defined by Java](https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html).
+ 3. Declared fields types cannot change.
+ 4. Class name of the POJO type cannot change, including the namespace of the class.
+
+Note that the schema of POJO type state is only evolvable when restoring from a savepoint taken with Flink versions
+newer than 1.8.0. When restoring from savepoints of older versions, the schema cannot be changed.
 
 ### Avro types
 
