@@ -17,35 +17,38 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
-import java.io.IOException;
+import java.io.Serializable;
 
 /**
- * The deserialization schema describes how to turn the byte key / value messages delivered by certain
- * data sources (for example Apache Kafka) into data types (Java/Scala objects) that are
- * processed by Flink.
+ * The deserialization schema describes how to turn the Kafka ConsumerRecords
+ * into data types (Java/Scala objects) that are processed by Flink.
  *
  * @param <T> The type created by the keyed deserialization schema.
- *
- * @deprecated Use {@link KafkaDeserializationSchema}.
  */
-@Deprecated
-public interface KeyedDeserializationSchema<T> extends KafkaDeserializationSchema<T> {
+@PublicEvolving
+public interface KafkaDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
+
 	/**
-	 * Deserializes the byte message.
+	 * Method to decide whether the element signals the end of the stream. If
+	 * true is returned the element won't be emitted.
 	 *
-	 * @param messageKey the key as a byte array (null if no key has been set).
-	 * @param message The message, as a byte array (null if the message was empty or deleted).
-	 * @param partition The partition the message has originated from.
-	 * @param offset the offset of the message in the original source (for example the Kafka offset).
+	 * @param nextElement The element to test for the end-of-stream signal.
+	 *
+	 * @return True, if the element signals end of stream, false otherwise.
+	 */
+	boolean isEndOfStream(T nextElement);
+
+	/**
+	 * Deserializes the Kafka record.
+	 *
+	 * @param record Kafka record to be deserialized.
 	 *
 	 * @return The deserialized message as an object (null if the message cannot be deserialized).
 	 */
-	T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException;
-
-	@Override
-	default T deserialize(ConsumerRecord<byte[], byte[]> record) throws IOException {
-		return deserialize(record.key(), record.value(), record.topic(), record.partition(), record.offset());
-	}
+	T deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception;
 }
