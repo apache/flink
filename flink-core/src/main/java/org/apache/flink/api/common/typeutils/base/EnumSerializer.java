@@ -153,7 +153,8 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 		if (obj instanceof EnumSerializer) {
 			EnumSerializer<?> other = (EnumSerializer<?>) obj;
 
-			return other.enumClass == this.enumClass;
+			return other.enumClass == this.enumClass &&
+					Arrays.equals(values, other.values);
 		} else {
 			return false;
 		}
