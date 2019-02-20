@@ -19,8 +19,10 @@
 package org.apache.flink.table.sources.tsextractors
 
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{Types, ValidationException}
-import org.apache.flink.table.expressions.{Cast, Expression, ResolvedFieldReference}
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.FunctionDefinitions.CAST
 
 /**
   * Converts an existing [[Long]], [[java.sql.Timestamp]], or
@@ -52,18 +54,26 @@ final class ExistingField(val field: String) extends TimestampExtractor {
     * timestamp formatted [[java.lang.String]] field (e.g., "2018-05-28 12:34:56.000")
     * into a rowtime attribute.
     */
-  override def getExpression(fieldAccesses: Array[ResolvedFieldReference]): Expression = {
-    val fieldAccess: Expression = fieldAccesses(0)
+  override def getExpression(
+      fieldAccesses: Array[FieldReferenceExpression],
+      fieldTypes: Array[TypeInformation[_]]): Expression = {
+    val fieldAccess: FieldReferenceExpression = fieldAccesses(0)
+    val fieldType = fieldTypes(0)
 
-    fieldAccess.resultType match {
+    val fieldAccessWithType = new FieldReferenceExpression(fieldAccess.getName, Types.LONG)
+    fieldType match {
       case Types.LONG =>
         // access LONG field
-        fieldAccess
+        fieldAccessWithType
       case Types.SQL_TIMESTAMP =>
         // cast timestamp to long
-        Cast(fieldAccess, Types.LONG)
+        ExpressionUtils.call(CAST, Seq(fieldAccessWithType, Types.LONG))
       case Types.STRING =>
-        Cast(Cast(fieldAccess, SqlTimeTypeInfo.TIMESTAMP), Types.LONG)
+        ExpressionUtils.call(
+          CAST,
+          Seq(
+            ExpressionUtils.call(CAST, Seq(fieldAccessWithType, SqlTimeTypeInfo.TIMESTAMP)),
+            Types.LONG))
     }
   }
 

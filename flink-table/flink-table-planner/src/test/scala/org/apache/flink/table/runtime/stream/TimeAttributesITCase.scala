@@ -27,11 +27,11 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableSchema, Types}
-import org.apache.flink.table.expressions.{ExpressionParser, TimeIntervalUnit}
+import org.apache.flink.table.api.{Table, TableSchema, Types}
+import org.apache.flink.table.expressions.{Expression, ExpressionParser, TimeIntervalUnit}
 import org.apache.flink.table.plan.TimeIndicatorConversionTest.TableFunc
 import org.apache.flink.table.runtime.stream.TimeAttributesITCase.{AtomicTimestampWithEqualWatermark, TestPojo, TimestampWithEqualWatermark, TimestampWithEqualWatermarkPojo}
 import org.apache.flink.table.runtime.utils.JavaPojos.Pojo1
@@ -557,15 +557,26 @@ class TimeAttributesITCase extends AbstractTestBase {
 
     // Java expressions
 
+    val javaRegisterMethod = tEnv.getClass.getSuperclass.getDeclaredMethod(
+      "registerDataStreamInternal",
+      classOf[String],
+      classOf[org.apache.flink.streaming.api.datastream.DataStream[_]],
+      classOf[Array[Expression]]
+    )
+    javaRegisterMethod.setAccessible(true)
+    val createUniqueTableName = tEnv.getClass.getSuperclass.getDeclaredMethod(
+      "createUniqueTableName")
+    createUniqueTableName.setAccessible(true)
     // use aliases, swap all attributes, and skip b2
-    val table4 = stream.toTable(
-      tEnv,
-      ExpressionParser.parseExpressionList("b.rowtime as b, c as c, a as a"): _*)
+    def fromDataStream[T](dataStream: DataStream[T], fields: String): Table = {
+      val name = createUniqueTableName.invoke(tEnv).asInstanceOf[String]
+      javaRegisterMethod.invoke(tEnv, name, dataStream.javaStream,
+        ExpressionParser.parseExpressionList(fields).toArray)
+      tEnv.scan(name)
+    }
+    val table4 = fromDataStream(stream, "b.rowtime as b, c as c, a as a")
     // no aliases, no swapping
-    val table5 = stream.toTable(
-      tEnv,
-      ExpressionParser.parseExpressionList("a, b.rowtime, c"): _*)
-
+    val table5 = fromDataStream(stream, "a, b.rowtime, c")
     val t = table.select('b, 'c , 'a)
       .unionAll(table2.select('b, 'c, 'a))
       .unionAll(table3.select('b, 'c, 'a))

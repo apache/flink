@@ -21,89 +21,89 @@ package org.apache.flink.table.expressions
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInteger, Long => JLong, Short => JShort}
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
+import org.apache.flink.table.api.scala._
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.streaming.api.windowing.time.{Time => FlinkTime}
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 
+import scala.collection.JavaConverters._
+
 object ExpressionUtils {
-  /**
-    * Retrieve result type of given Expression.
-    *
-    * @param expr The expression which caller is interested about result type
-    * @return     The result type of Expression
-    */
-  def getResultType(expr: Expression): TypeInformation[_] = {
-    expr.resultType
+  private[flink] def call(func: FunctionDefinition, args: Seq[Expression]): CallExpression = {
+    new CallExpression(func, args.asJava)
   }
 
-  private[flink] def isTimeIntervalLiteral(expr: Expression): Boolean = expr match {
-    case Literal(_, TimeIntervalTypeInfo.INTERVAL_MILLIS) => true
-    case _ => false
+  private[flink] def aggCall(
+    func: FunctionDefinition, args: Seq[Expression]): AggregateCallExpression = {
+    new AggregateCallExpression(func, args.asJava)
   }
 
-  private[flink] def isRowCountLiteral(expr: Expression): Boolean = expr match {
-    case Literal(_, RowIntervalTypeInfo.INTERVAL_ROWS) => true
-    case _ => false
+  private[flink] def literal(l: Any): ValueLiteralExpression = {
+    new ValueLiteralExpression(l)
   }
 
-  private[flink] def isTimeAttribute(expr: Expression): Boolean = expr match {
-    case r: ResolvedFieldReference if FlinkTypeFactory.isTimeIndicatorType(r.resultType) => true
-    case _ => false
+  private[flink] def literal(l: Any, t: TypeInformation[_]): ValueLiteralExpression = {
+    new ValueLiteralExpression(l, t)
   }
 
-  private[flink] def isRowtimeAttribute(expr: Expression): Boolean = expr match {
-    case r: ResolvedFieldReference if FlinkTypeFactory.isRowtimeIndicatorType(r.resultType) => true
-    case _ => false
+  private[flink] def toMonthInterval(expr: Expression, multiplier: Int): Expression =
+    expr match {
+      case e: ValueLiteralExpression if e.getValue.isInstanceOf[Int] && !e.getType.isPresent =>
+        literal(e.getValue.asInstanceOf[Int] * multiplier,
+          TimeIntervalTypeInfo.INTERVAL_MONTHS)
+      case e: ValueLiteralExpression if e.getValue.isInstanceOf[Int] && e.getType.isPresent
+        && e.getType.get().equals(BasicTypeInfo.INT_TYPE_INFO) =>
+        literal(e.getValue.asInstanceOf[Int] * multiplier,
+          TimeIntervalTypeInfo.INTERVAL_MONTHS)
+      case _ =>
+        call(FunctionDefinitions.CAST, Seq(
+          call(FunctionDefinitions.TIMES, Seq(expr, literal(multiplier))),
+          TimeIntervalTypeInfo.INTERVAL_MONTHS))
   }
 
-  private[flink] def isProctimeAttribute(expr: Expression): Boolean = expr match {
-    case r: ResolvedFieldReference if FlinkTypeFactory.isProctimeIndicatorType(r.resultType) =>
-      true
-    case _ => false
-  }
+  private[flink] def toMilliInterval(expr: Expression, multiplier: Long): Expression =
+    expr match {
+      case e: ValueLiteralExpression if e.getValue.isInstanceOf[Int] && !e.getType.isPresent =>
+        literal(e.getValue.asInstanceOf[Int] * multiplier,
+          TimeIntervalTypeInfo.INTERVAL_MILLIS)
+      case e: ValueLiteralExpression if e.getValue.isInstanceOf[Int] && e.getType.isPresent
+        && e.getType.get().equals(BasicTypeInfo.INT_TYPE_INFO) =>
+        literal(e.getValue.asInstanceOf[Int] * multiplier,
+          TimeIntervalTypeInfo.INTERVAL_MILLIS)
+      case e: ValueLiteralExpression if e.getValue.isInstanceOf[Long] && !e.getType.isPresent =>
+        literal(e.getValue.asInstanceOf[Long] * multiplier,
+          TimeIntervalTypeInfo.INTERVAL_MILLIS)
+      case e: ValueLiteralExpression if e.getValue.isInstanceOf[Long] && e.getType.isPresent
+        && e.getType.get().equals(BasicTypeInfo.LONG_TYPE_INFO) =>
+        literal(e.getValue.asInstanceOf[Long] * multiplier,
+          TimeIntervalTypeInfo.INTERVAL_MILLIS)
+      case _ =>
+        call(FunctionDefinitions.CAST, Seq(
+          call(FunctionDefinitions.TIMES, Seq(expr, literal(multiplier))),
+          TimeIntervalTypeInfo.INTERVAL_MILLIS))
+    }
 
-  private[flink] def toTime(expr: Expression): FlinkTime = expr match {
-    case Literal(value: Long, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
-      FlinkTime.milliseconds(value)
-    case _ => throw new IllegalArgumentException()
-  }
-
-  private[flink] def toLong(expr: Expression): Long = expr match {
-    case Literal(value: Long, RowIntervalTypeInfo.INTERVAL_ROWS) => value
-    case _ => throw new IllegalArgumentException()
-  }
-
-  private[flink] def toMonthInterval(expr: Expression, multiplier: Int): Expression = expr match {
-    case Literal(value: Int, BasicTypeInfo.INT_TYPE_INFO) =>
-      Literal(value * multiplier, TimeIntervalTypeInfo.INTERVAL_MONTHS)
-    case _ =>
-      Cast(Mul(expr, Literal(multiplier)), TimeIntervalTypeInfo.INTERVAL_MONTHS)
-  }
-
-  private[flink] def toMilliInterval(expr: Expression, multiplier: Long): Expression = expr match {
-    case Literal(value: Int, BasicTypeInfo.INT_TYPE_INFO) =>
-      Literal(value * multiplier, TimeIntervalTypeInfo.INTERVAL_MILLIS)
-    case Literal(value: Long, BasicTypeInfo.LONG_TYPE_INFO) =>
-      Literal(value * multiplier, TimeIntervalTypeInfo.INTERVAL_MILLIS)
-    case _ =>
-      Cast(Mul(expr, Literal(multiplier)), TimeIntervalTypeInfo.INTERVAL_MILLIS)
-  }
-
-  private[flink] def toRowInterval(expr: Expression): Expression = expr match {
-    case Literal(value: Int, BasicTypeInfo.INT_TYPE_INFO) =>
-      Literal(value.toLong, RowIntervalTypeInfo.INTERVAL_ROWS)
-    case Literal(value: Long, BasicTypeInfo.LONG_TYPE_INFO) =>
-      Literal(value, RowIntervalTypeInfo.INTERVAL_ROWS)
-    case _ =>
-      throw new IllegalArgumentException("Invalid value for row interval literal.")
-  }
+  private[flink] def toRowInterval(expr: Expression): Expression =
+    expr match {
+      case e: ValueLiteralExpression if e.getValue.isInstanceOf[Int] && !e.getType.isPresent =>
+        literal(e.getValue.asInstanceOf[Int].toLong,
+          RowIntervalTypeInfo.INTERVAL_ROWS)
+      case e: ValueLiteralExpression if e.getValue.isInstanceOf[Int] && e.getType.isPresent
+        && e.getType.get().equals(BasicTypeInfo.INT_TYPE_INFO) =>
+        literal(e.getValue.asInstanceOf[Int].toLong,
+          RowIntervalTypeInfo.INTERVAL_ROWS)
+      case e: ValueLiteralExpression if e.getValue.isInstanceOf[Long] && !e.getType.isPresent =>
+        literal(e.getValue, RowIntervalTypeInfo.INTERVAL_ROWS)
+      case e: ValueLiteralExpression if e.getValue.isInstanceOf[Long] && e.getType.isPresent
+        && e.getType.get().equals(BasicTypeInfo.LONG_TYPE_INFO) =>
+        literal(e.getValue, RowIntervalTypeInfo.INTERVAL_ROWS)
+    }
 
   private[flink] def convertArray(array: Array[_]): Expression = {
     def createArray(): Expression = {
-      ArrayConstructor(array.map(Literal(_)))
+      call(FunctionDefinitions.ARRAY,
+        array.map(literal(_).asInstanceOf[Expression]))
     }
 
     array match {
@@ -131,15 +131,19 @@ object ExpressionUtils {
       case _: Array[Date] => createArray()
       case _: Array[Time] => createArray()
       case _: Array[Timestamp] => createArray()
-      case bda: Array[BigDecimal] => ArrayConstructor(bda.map { bd => Literal(bd.bigDecimal) })
+      case bda: Array[BigDecimal] =>
+        call(FunctionDefinitions.ARRAY,
+          bda.map { bd => literal(bd.bigDecimal)})
 
       case _ =>
         // nested
         if (array.length > 0 && array.head.isInstanceOf[Array[_]]) {
-          ArrayConstructor(array.map { na => convertArray(na.asInstanceOf[Array[_]]) })
+          call(FunctionDefinitions.ARRAY,
+            array.map { na => convertArray(na.asInstanceOf[Array[_]]) })
         } else {
           throw new ValidationException("Unsupported array type.")
         }
     }
   }
 }
+

@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.api.Types._
-import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.{FunctionDefinitions, _}
 import org.apache.flink.table.sources.{BatchTableSource, FilterableTableSource, StreamTableSource, TableSource}
 import org.apache.flink.types.Row
 
@@ -117,7 +117,10 @@ class TestFilterableTableSource(
 
   override def explainSource(): String = {
     if (filterPredicates.nonEmpty) {
-      s"filter=[${filterPredicates.reduce((l, r) => And(l, r)).toString}]"
+      s"filter=[${
+        filterPredicates
+          .reduce((l, r) => ExpressionUtils.call(FunctionDefinitions.AND, Seq(l, r))).toString
+      }]"
     } else {
       ""
     }
@@ -152,74 +155,87 @@ class TestFilterableTableSource(
 
   private def shouldPushDown(expr: Expression): Boolean = {
     expr match {
-      case binExpr: BinaryComparison => shouldPushDown(binExpr)
+      case call: CallExpression
+        if call.getFunctionDefinition.getFunctionType == FunctionType.BINARY_COMPARISON =>
+        shouldPushDown(call)
       case _ => false
     }
   }
 
-  private def shouldPushDown(expr: BinaryComparison): Boolean = {
-    (expr.left, expr.right) match {
-      case (f: ResolvedFieldReference, v: Literal) =>
-        filterableFields.contains(f.name)
-      case (v: Literal, f: ResolvedFieldReference) =>
-        filterableFields.contains(f.name)
-      case (f1: ResolvedFieldReference, f2: ResolvedFieldReference) =>
-        filterableFields.contains(f1.name) && filterableFields.contains(f2.name)
+  private def shouldPushDown(binaryComparison: CallExpression): Boolean = {
+    (binaryComparison.getChildren.get(0), binaryComparison.getChildren.get(1)) match {
+      case (f: FieldReferenceExpression, v: ValueLiteralExpression) =>
+        filterableFields.contains(f.getName)
+      case (v: ValueLiteralExpression, f: FieldReferenceExpression) =>
+        filterableFields.contains(f.getName)
+      case (f1: FieldReferenceExpression, f2: FieldReferenceExpression) =>
+        filterableFields.contains(f1.getName) && filterableFields.contains(f2.getName)
       case (_, _) => false
     }
   }
 
   private def shouldKeep(row: Row): Boolean = {
     filterPredicates.isEmpty || filterPredicates.forall {
-      case expr: BinaryComparison => binaryFilterApplies(expr, row)
+      case expr: CallExpression
+        if expr.getFunctionDefinition.getFunctionType == FunctionType.BINARY_COMPARISON =>
+        binaryFilterApplies(expr, row)
       case expr => throw new RuntimeException(expr + " not supported!")
     }
   }
 
-  private def binaryFilterApplies(expr: BinaryComparison, row: Row): Boolean = {
-    val (lhsValue, rhsValue) = extractValues(expr, row)
+  private def binaryFilterApplies(binaryComparison: CallExpression, row: Row): Boolean = {
+    val (lhsValue, rhsValue) = extractValues(binaryComparison, row)
+    val left = binaryComparison.getChildren.get(0)
+    val right = binaryComparison.getChildren.get(1)
 
-    expr match {
-      case _: GreaterThan =>
+    binaryComparison.getFunctionDefinition match {
+      case FunctionDefinitions.GREATER_THAN =>
         lhsValue.compareTo(rhsValue) > 0
-      case LessThan(l: ResolvedFieldReference, r: Literal) =>
+      case FunctionDefinitions.LESS_THAN if left.isInstanceOf[FieldReferenceExpression]
+          && right.isInstanceOf[ValueLiteralExpression] =>
         lhsValue.compareTo(rhsValue) < 0
-      case GreaterThanOrEqual(l: ResolvedFieldReference, r: Literal) =>
+      case FunctionDefinitions.GREATER_THAN_OR_EQUAL if left.isInstanceOf[FieldReferenceExpression]
+          && right.isInstanceOf[ValueLiteralExpression] =>
         lhsValue.compareTo(rhsValue) >= 0
-      case LessThanOrEqual(l: ResolvedFieldReference, r: Literal) =>
+      case FunctionDefinitions.LESS_THAN_OR_EQUAL if left.isInstanceOf[FieldReferenceExpression]
+          && right.isInstanceOf[ValueLiteralExpression] =>
         lhsValue.compareTo(rhsValue) <= 0
-      case EqualTo(l: ResolvedFieldReference, r: Literal) =>
+      case FunctionDefinitions.EQUALS if left.isInstanceOf[FieldReferenceExpression]
+          && right.isInstanceOf[ValueLiteralExpression] =>
         lhsValue.compareTo(rhsValue) == 0
-      case NotEqualTo(l: ResolvedFieldReference, r: Literal) =>
+      case FunctionDefinitions.NOT_EQUALS if left.isInstanceOf[FieldReferenceExpression]
+        && right.isInstanceOf[ValueLiteralExpression] =>
         lhsValue.compareTo(rhsValue) != 0
     }
   }
 
-  private def extractValues(expr: BinaryComparison, row: Row)
+  private def extractValues(binaryComparison: CallExpression, row: Row)
     : (Comparable[Any], Comparable[Any]) = {
+    val left = binaryComparison.getChildren.get(0)
+    val right = binaryComparison.getChildren.get(1)
 
-    (expr.left, expr.right) match {
-      case (l: ResolvedFieldReference, r: Literal) =>
-        val idx = rowTypeInfo.getFieldIndex(l.name)
+    (left, right) match {
+      case (l: FieldReferenceExpression, r: ValueLiteralExpression) =>
+        val idx = rowTypeInfo.getFieldIndex(l.getName)
         val lv = row.getField(idx).asInstanceOf[Comparable[Any]]
-        val rv = r.value.asInstanceOf[Comparable[Any]]
+        val rv = r.getValue.asInstanceOf[Comparable[Any]]
         (lv, rv)
-      case (l: Literal, r: ResolvedFieldReference) =>
-        val idx = rowTypeInfo.getFieldIndex(r.name)
-        val lv = l.value.asInstanceOf[Comparable[Any]]
+      case (l: ValueLiteralExpression, r: FieldReferenceExpression) =>
+        val idx = rowTypeInfo.getFieldIndex(r.getName)
+        val lv = l.getValue.asInstanceOf[Comparable[Any]]
         val rv = row.getField(idx).asInstanceOf[Comparable[Any]]
         (lv, rv)
-      case (l: Literal, r: Literal) =>
-        val lv = l.value.asInstanceOf[Comparable[Any]]
-        val rv = r.value.asInstanceOf[Comparable[Any]]
+      case (l: ValueLiteralExpression, r: ValueLiteralExpression) =>
+        val lv = l.getValue.asInstanceOf[Comparable[Any]]
+        val rv = r.getValue.asInstanceOf[Comparable[Any]]
         (lv, rv)
-      case (l: ResolvedFieldReference, r: ResolvedFieldReference) =>
-        val lidx = rowTypeInfo.getFieldIndex(l.name)
-        val ridx = rowTypeInfo.getFieldIndex(r.name)
+      case (l: FieldReferenceExpression, r: FieldReferenceExpression) =>
+        val lidx = rowTypeInfo.getFieldIndex(l.getName)
+        val ridx = rowTypeInfo.getFieldIndex(r.getName)
         val lv = row.getField(lidx).asInstanceOf[Comparable[Any]]
         val rv = row.getField(ridx).asInstanceOf[Comparable[Any]]
         (lv, rv)
-      case _ => throw new RuntimeException(expr + " not supported!")
+      case _ => throw new RuntimeException(binaryComparison + " not supported!")
     }
   }
 

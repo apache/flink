@@ -1,0 +1,64 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.table.sources;
+
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
+
+/**
+ * The {@link FieldComputer} interface returns an expression to compute the field of the table schema
+ * of a {@link TableSource} from one or more fields of the {@link TableSource}'s return type.
+ *
+ * @param <T> The result type of the provided expression.
+ */
+public abstract class FieldComputer<T> {
+
+	/**
+	 * Returns the names of all fields that the expression of the field computer accesses.
+	 *
+	 * @return An array with the names of all accessed fields.
+	 */
+	public abstract String[] getArgumentFields();
+
+	/**
+	 * Returns the result type of the expression.
+	 *
+	 * @return The result type of the expression.
+	 */
+	public abstract TypeInformation<T> getReturnType();
+
+	/**
+	 * Validates that the fields that the expression references have the correct types.
+	 *
+	 * @param argumentFieldTypes The types of the physical input fields.
+	 */
+	public abstract void validateArgumentFields(TypeInformation<?>[] argumentFieldTypes) throws ValidationException;
+
+	/**
+	 * Returns the {@link Expression} that computes the value of the field.
+	 *
+	 * @param fieldAccesses Field access expressions for the argument fields.
+	 * @return The expression to extract the timestamp from the {@link TableSource} return type.
+	 */
+	public abstract Expression getExpression(
+		FieldReferenceExpression[] fieldAccesses,
+		TypeInformation<?>[] fieldTypes);
+}

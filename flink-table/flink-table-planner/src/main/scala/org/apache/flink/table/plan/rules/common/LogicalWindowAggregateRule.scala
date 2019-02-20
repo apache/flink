@@ -146,6 +146,7 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
       windowExpression: RexCall): RexNode
 
   /** translate the group window expression in to a Flink Table window. */
-  private[table] def translateWindowExpression(windowExpr: RexCall, rowType: RelDataType): Window
+  private[table] def translateWindowExpression(
+    windowExpr: RexCall, rowType: RelDataType): PlannerWindow
 
 }

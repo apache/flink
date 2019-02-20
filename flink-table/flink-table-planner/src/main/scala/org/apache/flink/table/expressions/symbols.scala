@@ -23,112 +23,60 @@ import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlTrimFunction
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.TableException
 
 import scala.language.{existentials, implicitConversions}
 
 /**
   * General expression class to represent a symbol.
   */
-case class SymbolExpression(symbol: TableSymbol) extends LeafExpression {
+case class SymbolPlannerExpression(symbol: TableSymbol) extends LeafExpression {
 
   override private[flink] def resultType: TypeInformation[_] =
     throw new UnsupportedOperationException("This should not happen. A symbol has no result type.")
 
-  def toExpr: SymbolExpression = this // triggers implicit conversion
-
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    // dirty hack to pass Java enums to Java from Scala
-    val enum = symbol.enum.asInstanceOf[Enum[T] forSome { type T <: Enum[T] }]
-    relBuilder.getRexBuilder.makeFlag(enum)
+    relBuilder.getRexBuilder.makeFlag(mapToCalciteSymbol(symbol))
   }
 
-  override def toString: String = s"${symbol.symbols}.${symbol.name}"
+  def mapToCalciteSymbol(symbol: TableSymbol): Enum[_] = {
+    symbol match {
+      // TimeIntervalUnit
+      case TimeIntervalUnit.YEAR => TimeUnitRange.YEAR
+      case TimeIntervalUnit.YEAR_TO_MONTH => TimeUnitRange.YEAR_TO_MONTH
+      case TimeIntervalUnit.QUARTER => TimeUnitRange.QUARTER
+      case TimeIntervalUnit.MONTH => TimeUnitRange.MONTH
+      case TimeIntervalUnit.WEEK => TimeUnitRange.WEEK
+      case TimeIntervalUnit.DAY => TimeUnitRange.DAY
+      case TimeIntervalUnit.DAY_TO_HOUR => TimeUnitRange.DAY_TO_HOUR
+      case TimeIntervalUnit.DAY_TO_MINUTE => TimeUnitRange.DAY_TO_MINUTE
+      case TimeIntervalUnit.DAY_TO_SECOND => TimeUnitRange.DAY_TO_SECOND
+      case TimeIntervalUnit.HOUR => TimeUnitRange.HOUR
+      case TimeIntervalUnit.SECOND => TimeUnitRange.SECOND
+      case TimeIntervalUnit.HOUR_TO_MINUTE => TimeUnitRange.HOUR_TO_MINUTE
+      case TimeIntervalUnit.HOUR_TO_SECOND => TimeUnitRange.HOUR_TO_SECOND
+      case TimeIntervalUnit.MINUTE => TimeUnitRange.MINUTE
+      case TimeIntervalUnit.MINUTE_TO_SECOND => TimeUnitRange.MINUTE_TO_SECOND
 
-}
+      // TrimMode
+      case TrimMode.BOTH => SqlTrimFunction.Flag.BOTH
+      case TrimMode.LEADING => SqlTrimFunction.Flag.LEADING
+      case TrimMode.TRAILING => SqlTrimFunction.Flag.TRAILING
 
-/**
-  * Symbol that wraps a Calcite symbol in form of a Java enum.
-  */
-trait TableSymbol {
-  def symbols: TableSymbols
-  def name: String
-  def enum: Enum[_]
-}
-
-/**
-  * Enumeration of symbols.
-  */
-abstract class TableSymbols extends Enumeration {
-
-  class TableSymbolValue(e: Enum[_]) extends Val(e.name()) with TableSymbol {
-    override def symbols: TableSymbols = TableSymbols.this
-
-    override def enum: Enum[_] = e
-
-    override def name: String = toString()
+      // TimePointUnit
+      case TimePointUnit.YEAR => TimeUnit.YEAR
+      case TimePointUnit.MONTH => TimeUnit.MONTH
+      case TimePointUnit.DAY => TimeUnit.DAY
+      case TimePointUnit.HOUR => TimeUnit.HOUR
+      case TimePointUnit.MINUTE => TimeUnit.MINUTE
+      case TimePointUnit.SECOND => TimeUnit.SECOND
+      case TimePointUnit.QUARTER => TimeUnit.QUARTER
+      case TimePointUnit.WEEK => TimeUnit.WEEK
+      case TimePointUnit.MILLISECOND => TimeUnit.MILLISECOND
+      case TimePointUnit.MICROSECOND => TimeUnit.MICROSECOND
+      case _ => throw new TableException("Unsupported TableSymbol: " + symbol)
+    }
   }
 
-  protected final def Value(enum: Enum[_]): TableSymbolValue = new TableSymbolValue(enum)
-
-  implicit def symbolToExpression(symbol: TableSymbolValue): SymbolExpression =
-    SymbolExpression(symbol)
-
-}
-
-/**
-  * Units for working with time intervals.
-  */
-object TimeIntervalUnit extends TableSymbols {
-
-  type TimeIntervalUnit = TableSymbolValue
-
-  val YEAR = Value(TimeUnitRange.YEAR)
-  val YEAR_TO_MONTH = Value(TimeUnitRange.YEAR_TO_MONTH)
-  val QUARTER = Value(TimeUnitRange.QUARTER)
-  val MONTH = Value(TimeUnitRange.MONTH)
-  val WEEK = Value(TimeUnitRange.WEEK)
-  val DAY = Value(TimeUnitRange.DAY)
-  val DAY_TO_HOUR = Value(TimeUnitRange.DAY_TO_HOUR)
-  val DAY_TO_MINUTE = Value(TimeUnitRange.DAY_TO_MINUTE)
-  val DAY_TO_SECOND = Value(TimeUnitRange.DAY_TO_SECOND)
-  val HOUR = Value(TimeUnitRange.HOUR)
-  val HOUR_TO_MINUTE = Value(TimeUnitRange.HOUR_TO_MINUTE)
-  val HOUR_TO_SECOND = Value(TimeUnitRange.HOUR_TO_SECOND)
-  val MINUTE = Value(TimeUnitRange.MINUTE)
-  val MINUTE_TO_SECOND = Value(TimeUnitRange.MINUTE_TO_SECOND)
-  val SECOND = Value(TimeUnitRange.SECOND)
-
-}
-
-/**
-  * Units for working with time points.
-  */
-object TimePointUnit extends TableSymbols {
-
-  type TimePointUnit = TableSymbolValue
-
-  val YEAR = Value(TimeUnit.YEAR)
-  val MONTH = Value(TimeUnit.MONTH)
-  val DAY = Value(TimeUnit.DAY)
-  val HOUR = Value(TimeUnit.HOUR)
-  val MINUTE = Value(TimeUnit.MINUTE)
-  val SECOND = Value(TimeUnit.SECOND)
-  val QUARTER = Value(TimeUnit.QUARTER)
-  val WEEK = Value(TimeUnit.WEEK)
-  val MILLISECOND = Value(TimeUnit.MILLISECOND)
-  val MICROSECOND = Value(TimeUnit.MICROSECOND)
-
-}
-
-/**
-  * Modes for trimming strings.
-  */
-object TrimMode extends TableSymbols {
-
-  type TrimMode = TableSymbolValue
-
-  val BOTH = Value(SqlTrimFunction.Flag.BOTH)
-  val LEADING = Value(SqlTrimFunction.Flag.LEADING)
-  val TRAILING = Value(SqlTrimFunction.Flag.TRAILING)
-
+  override def toString: String = s"${symbol.getClass.getSimpleName}.${symbol.toString}"
 }

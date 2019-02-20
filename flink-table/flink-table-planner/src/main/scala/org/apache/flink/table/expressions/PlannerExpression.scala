@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.expressions
 
+import java.util
+
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 
@@ -24,7 +26,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.plan.TreeNode
 import org.apache.flink.table.validate.{ValidationResult, ValidationSuccess}
 
-abstract class Expression extends TreeNode[Expression] {
+import _root_.scala.collection.JavaConversions._
+
+abstract class PlannerExpression extends TreeNode[PlannerExpression] with Expression {
   /**
     * Returns the [[TypeInformation]] for evaluating this expression.
     * It is sometimes not available until the expression is valid.
@@ -54,13 +58,13 @@ abstract class Expression extends TreeNode[Expression] {
       s"${this.getClass.getName} cannot be transformed to RexNode"
     )
 
-  private[flink] def checkEquals(other: Expression): Boolean = {
+  private[flink] def checkEquals(other: PlannerExpression): Boolean = {
     if (this.getClass != other.getClass) {
       false
     } else {
       def checkEquality(elements1: Seq[Any], elements2: Seq[Any]): Boolean = {
         elements1.length == elements2.length && elements1.zip(elements2).forall {
-          case (e1: Expression, e2: Expression) => e1.checkEquals(e2)
+          case (e1: PlannerExpression, e2: PlannerExpression) => e1.checkEquals(e2)
           case (t1: Seq[_], t2: Seq[_]) => checkEquality(t1, t2)
           case (i1, i2) => i1 == i2
         }
@@ -70,19 +74,23 @@ abstract class Expression extends TreeNode[Expression] {
       checkEquality(elements1, elements2)
     }
   }
+
+  override def accept[R](visitor: ExpressionVisitor[R]): R = visitor.visit(this)
+
+  override def getChildren: util.List[Expression] = children
 }
 
-abstract class BinaryExpression extends Expression {
-  private[flink] def left: Expression
-  private[flink] def right: Expression
+abstract class BinaryExpression extends PlannerExpression {
+  private[flink] def left: PlannerExpression
+  private[flink] def right: PlannerExpression
   private[flink] def children = Seq(left, right)
 }
 
-abstract class UnaryExpression extends Expression {
-  private[flink] def child: Expression
+abstract class UnaryExpression extends PlannerExpression {
+  private[flink] def child: PlannerExpression
   private[flink] def children = Seq(child)
 }
 
-abstract class LeafExpression extends Expression {
+abstract class LeafExpression extends PlannerExpression {
   private[flink] val children = Nil
 }

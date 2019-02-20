@@ -52,7 +52,7 @@ abstract class BinaryArithmetic extends BinaryExpression {
   }
 }
 
-case class Plus(left: Expression, right: Expression) extends BinaryArithmetic {
+case class Plus(left: PlannerExpression, right: PlannerExpression) extends BinaryArithmetic {
   override def toString = s"($left + $right)"
 
   private[flink] val sqlOperator = SqlStdOperatorTable.PLUS
@@ -99,7 +99,7 @@ case class Plus(left: Expression, right: Expression) extends BinaryArithmetic {
   }
 }
 
-case class UnaryMinus(child: Expression) extends UnaryExpression {
+case class UnaryMinus(child: PlannerExpression) extends UnaryExpression {
   override def toString = s"-($child)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
@@ -120,7 +120,7 @@ case class UnaryMinus(child: Expression) extends UnaryExpression {
   }
 }
 
-case class Minus(left: Expression, right: Expression) extends BinaryArithmetic {
+case class Minus(left: PlannerExpression, right: PlannerExpression) extends BinaryArithmetic {
   override def toString = s"($left - $right)"
 
   private[flink] val sqlOperator = SqlStdOperatorTable.MINUS
@@ -143,19 +143,19 @@ case class Minus(left: Expression, right: Expression) extends BinaryArithmetic {
   }
 }
 
-case class Div(left: Expression, right: Expression) extends BinaryArithmetic {
+case class Div(left: PlannerExpression, right: PlannerExpression) extends BinaryArithmetic {
   override def toString = s"($left / $right)"
 
   private[flink] val sqlOperator = SqlStdOperatorTable.DIVIDE
 }
 
-case class Mul(left: Expression, right: Expression) extends BinaryArithmetic {
+case class Mul(left: PlannerExpression, right: PlannerExpression) extends BinaryArithmetic {
   override def toString = s"($left * $right)"
 
   private[flink] val sqlOperator = SqlStdOperatorTable.MULTIPLY
 }
 
-case class Mod(left: Expression, right: Expression) extends BinaryArithmetic {
+case class Mod(left: PlannerExpression, right: PlannerExpression) extends BinaryArithmetic {
   override def toString = s"($left % $right)"
 
   private[flink] val sqlOperator = SqlStdOperatorTable.MOD

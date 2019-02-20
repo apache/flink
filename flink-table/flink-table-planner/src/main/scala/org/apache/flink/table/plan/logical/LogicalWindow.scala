@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.logical
 
 import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.expressions.{Expression, WindowReference}
+import org.apache.flink.table.expressions.{PlannerExpression, WindowReference}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 /**
@@ -29,11 +29,11 @@ import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, Val
   * @param timeAttribute time field indicating event-time or processing-time
   */
 abstract class LogicalWindow(
-    val aliasAttribute: Expression,
-    val timeAttribute: Expression)
+    val aliasAttribute: PlannerExpression,
+    val timeAttribute: PlannerExpression)
   extends Resolvable[LogicalWindow] {
 
-  def resolveExpressions(resolver: (Expression) => Expression): LogicalWindow = this
+  def resolveExpressions(resolver: (PlannerExpression) => PlannerExpression): LogicalWindow = this
 
   def validate(tableEnv: TableEnvironment): ValidationResult = aliasAttribute match {
     case WindowReference(_, _) => ValidationSuccess

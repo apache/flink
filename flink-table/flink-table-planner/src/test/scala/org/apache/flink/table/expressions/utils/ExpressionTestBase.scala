@@ -41,7 +41,7 @@ import org.apache.flink.table.api.scala.BatchTableEnvironment
 import org.apache.flink.table.api.{TableConfig, TableEnvironment}
 import org.apache.flink.table.calcite.FlinkPlannerImpl
 import org.apache.flink.table.codegen.{Compiler, FunctionCodeGenerator, GeneratedFunction}
-import org.apache.flink.table.expressions.{Expression, ExpressionParser}
+import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.plan.nodes.dataset.{DataSetCalc, DataSetScan}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
@@ -216,7 +216,16 @@ abstract class ExpressionTestBase {
   }
 
   private def addTableApiTestExpr(tableApiString: String, expected: String): Unit = {
-    addTableApiTestExpr(ExpressionParser.parseExpression(tableApiString), expected)
+    // create RelNode from Table API expression
+    val env = context._2.asInstanceOf[BatchTableEnvironment]
+    val converted = env
+      .scan(tableName)
+      .select(tableApiString)
+      .getRelNode
+
+    val optimized = env.optimize(converted)
+
+    testExprs += ((tableApiString, extractRexNode(optimized), expected))
   }
 
   def testAllApis(

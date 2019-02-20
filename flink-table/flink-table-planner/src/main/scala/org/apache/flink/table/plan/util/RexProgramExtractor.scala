@@ -26,7 +26,7 @@ import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions.{And, Expression, Literal, Or, ResolvedFieldReference}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.util.Preconditions
 import java.sql.{Date, Time, Timestamp}
@@ -151,7 +151,7 @@ class RexNodeToExpressionConverter(
 
   override def visitInputRef(inputRef: RexInputRef): Option[Expression] = {
     Preconditions.checkArgument(inputRef.getIndex < inputNames.length)
-    Some(ResolvedFieldReference(
+    Some(new FieldReferenceExpression(
       inputNames(inputRef.getIndex),
       FlinkTypeFactory.toTypeInfo(inputRef.getType)
     ))
@@ -226,7 +226,7 @@ class RexNodeToExpressionConverter(
         return None
     }
 
-    Some(Literal(literalValue, literalType))
+    Some(new ValueLiteralExpression(literalValue, literalType))
   }
 
   override def visitCall(call: RexCall): Option[Expression] = {
@@ -240,9 +240,11 @@ class RexNodeToExpressionConverter(
     } else {
         call.getOperator match {
           case SqlStdOperatorTable.OR =>
-            Option(operands.reduceLeft(Or))
+            Option(operands.reduceLeft(
+              (first, second) => ExpressionUtils.call(FunctionDefinitions.OR, Seq(first, second))))
           case SqlStdOperatorTable.AND =>
-            Option(operands.reduceLeft(And))
+            Option(operands.reduceLeft(
+              (first, second) => ExpressionUtils.call(FunctionDefinitions.AND, Seq(first, second))))
           case function: SqlFunction =>
             lookupFunction(replace(function.getName), operands)
           case postfix: SqlPostfixOperator =>
@@ -263,7 +265,7 @@ class RexNodeToExpressionConverter(
 
   override def visitDynamicParam(dynamicParam: RexDynamicParam): Option[Expression] = None
 
-  override def visitOver(over: RexOver): Option[Expression] = None
+  override def visitOver(over: RexOver): Option[PlannerExpression] = None
 
   override def visitPatternFieldRef(fieldRef: RexPatternFieldRef): Option[Expression] = None
 

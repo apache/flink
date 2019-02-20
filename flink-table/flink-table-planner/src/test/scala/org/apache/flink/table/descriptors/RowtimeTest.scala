@@ -22,9 +22,10 @@ import java.util
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.descriptors.RowtimeTest.{CustomAssigner, CustomExtractor}
-import org.apache.flink.table.expressions.{Cast, Expression, ResolvedFieldReference}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.sources.tsextractors.TimestampExtractor
 import org.apache.flink.table.sources.wmstrategies.PunctuatedWatermarkAssigner
 import org.apache.flink.types.Row
@@ -91,15 +92,15 @@ class RowtimeTest extends DescriptorTestBase {
     )
 
     val props3 = Map(
-      "rowtime.timestamps.type" -> "custom",
       "rowtime.timestamps.class" -> ("org.apache.flink.table.descriptors." +
         "RowtimeTest$CustomExtractor"),
       "rowtime.timestamps.serialized" -> ("rO0ABXNyAD5vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmRlc2NyaXB0b3" +
-        "JzLlJvd3RpbWVUZXN0JEN1c3RvbUV4dHJhY3RvcoaChjMg55xwAgABTAAFZmllbGR0ABJMamF2YS9sYW5nL1N0cm" +
+        "JzLlJvd3RpbWVUZXN0JEN1c3RvbUV4dHJhY3RvcvhQPUL66Ob9AgABTAAFZmllbGR0ABJMamF2YS9sYW5nL1N0cm" +
         "luZzt4cgA-b3JnLmFwYWNoZS5mbGluay50YWJsZS5zb3VyY2VzLnRzZXh0cmFjdG9ycy5UaW1lc3RhbXBFeHRyYW" +
         "N0b3LU8E2thK4wMQIAAHhwdAAHdHNGaWVsZA"),
-      "rowtime.watermarks.type" -> "periodic-bounded",
-      "rowtime.watermarks.delay" -> "1000"
+      "rowtime.watermarks.delay" -> "1000",
+      "rowtime.timestamps.type" -> "custom",
+      "rowtime.watermarks.type" -> "periodic-bounded"
     )
 
     util.Arrays.asList(props1.asJava, props2.asJava, props3.asJava)
@@ -129,10 +130,13 @@ object RowtimeTest {
       }
     }
 
-    override def getExpression(fieldAccesses: Array[ResolvedFieldReference]): Expression = {
+    override def getExpression(
+        fieldAccesses: Array[FieldReferenceExpression],
+        fieldTypes: Array[TypeInformation[_]]): Expression = {
       val fieldAccess: Expression = fieldAccesses(0)
-      require(fieldAccess.resultType == Types.SQL_TIMESTAMP)
-      Cast(fieldAccess, Types.LONG)
+      val fieldType = fieldTypes(0)
+      require(fieldType == Types.SQL_TIMESTAMP)
+      ExpressionUtils.call(FunctionDefinitions.CAST, Seq(fieldAccess, Types.LONG))
     }
 
     override def equals(other: Any): Boolean = other match {

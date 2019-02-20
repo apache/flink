@@ -25,14 +25,14 @@ import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTabl
 import org.apache.calcite.sql._
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.{AggFunctionCall, PlannerExpression, ScalarFunctionCall, TableFunctionCall, _}
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.mutable
+import _root_.scala.reflect.{ClassTag, classTag}
 import _root_.scala.util.{Failure, Success, Try}
 
 /**
@@ -65,7 +65,7 @@ class FunctionCatalog {
   /**
     * Lookup and create an expression if we find a match.
     */
-  def lookupFunction(name: String, children: Seq[Expression]): Expression = {
+  def lookupFunction[T <: AnyRef : ClassTag](name: String, children: Seq[T]): T = {
     val funcClass = functionBuilders
       .getOrElse(name.toLowerCase, throw new ValidationException(s"Undefined function: $name"))
 
@@ -78,7 +78,18 @@ class FunctionCatalog {
           .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[ScalarSqlFunction])
           .getOrElse(throw new ValidationException(s"Undefined scalar function: $name"))
           .asInstanceOf[ScalarSqlFunction]
-        ScalarFunctionCall(scalarSqlFunction.getScalarFunction, children)
+
+        classTag[T] match {
+          case _: ClassTag[PlannerExpression] =>
+            ScalarFunctionCall(
+              scalarSqlFunction.getScalarFunction, children.asInstanceOf[Seq[PlannerExpression]])
+            .asInstanceOf[T]
+          case _: ClassTag[Expression] =>
+            new CallExpression(
+              new ScalarFunctionDefinition(scalarSqlFunction.getScalarFunction),
+              children.asInstanceOf[Seq[Expression]]).asInstanceOf[T]
+          case _ => throw new TableException("Unsupported type: " + classTag[T])
+        }
 
       // user-defined table function call
       case tf if classOf[TableFunction[_]].isAssignableFrom(tf) =>
@@ -88,7 +99,20 @@ class FunctionCatalog {
           .asInstanceOf[TableSqlFunction]
         val typeInfo = tableSqlFunction.getRowTypeInfo
         val function = tableSqlFunction.getTableFunction
-        TableFunctionCall(name, function, children, typeInfo)
+
+        classTag[T] match {
+          case _: ClassTag[PlannerExpression] =>
+            TableFunctionCall(
+              name,
+              function,
+              children.asInstanceOf[Seq[PlannerExpression]],
+              typeInfo).asInstanceOf[T]
+          case _: ClassTag[Expression] =>
+            new CallExpression(
+              new TableFunctionDefinition(
+                function, typeInfo), children.asInstanceOf[Seq[Expression]]).asInstanceOf[T]
+          case _ => throw new TableException("Unsupported type: " + classTag[T])
+        }
 
       // user-defined aggregate function call
       case af if classOf[AggregateFunction[_, _]].isAssignableFrom(af) =>
@@ -99,31 +123,46 @@ class FunctionCatalog {
         val function = aggregateFunction.getFunction
         val returnType = aggregateFunction.returnType
         val accType = aggregateFunction.accType
-        AggFunctionCall(function, returnType, accType, children)
+        classTag[T] match {
+          case _: ClassTag[PlannerExpression] =>
+            AggFunctionCall(
+              function,
+              returnType,
+              accType,
+              children.asInstanceOf[Seq[PlannerExpression]]).asInstanceOf[T]
+          case _: ClassTag[Expression] =>
+            new CallExpression(
+              new AggregateFunctionDefinition(function, returnType, accType),
+              children.asInstanceOf[Seq[Expression]]).asInstanceOf[T]
+          case _ => throw new TableException("Unsupported type: " + classTag[T])
+        }
 
       // general expression call
-      case expression if classOf[Expression].isAssignableFrom(expression) =>
+      case expression if classTag[T].runtimeClass.equals(classOf[PlannerExpression]) &&
+        classOf[PlannerExpression].isAssignableFrom(expression) =>
         // try to find a constructor accepts `Seq[Expression]`
         Try(funcClass.getDeclaredConstructor(classOf[Seq[_]])) match {
           case Success(seqCtor) =>
-            Try(seqCtor.newInstance(children).asInstanceOf[Expression]) match {
-              case Success(expr) => expr
+            Try(seqCtor.newInstance(children).asInstanceOf[PlannerExpression]) match {
+              case Success(expr) => expr.asInstanceOf[T]
               case Failure(e) => throw new ValidationException(e.getMessage)
             }
           case Failure(_) =>
-            Try(funcClass.getDeclaredConstructor(classOf[Expression], classOf[Seq[_]])) match {
+            Try(funcClass.getDeclaredConstructor(
+              classOf[PlannerExpression], classOf[Seq[_]])) match {
               case Success(ctor) =>
-                Try(ctor.newInstance(children.head, children.tail).asInstanceOf[Expression]) match {
-                  case Success(expr) => expr
+                Try(ctor.newInstance(
+                  children.head, children.tail).asInstanceOf[PlannerExpression]) match {
+                  case Success(expr) => expr.asInstanceOf[T]
                   case Failure(e) => throw new ValidationException(e.getMessage)
                 }
               case Failure(_) =>
-                val childrenClass = Seq.fill(children.length)(classOf[Expression])
+                val childrenClass = Seq.fill(children.length)(classOf[PlannerExpression])
                 // try to find a constructor matching the exact number of children
                 Try(funcClass.getDeclaredConstructor(childrenClass: _*)) match {
                   case Success(ctor) =>
-                    Try(ctor.newInstance(children: _*).asInstanceOf[Expression]) match {
-                      case Success(expr) => expr
+                    Try(ctor.newInstance(children: _*).asInstanceOf[PlannerExpression]) match {
+                      case Success(expr) => expr.asInstanceOf[T]
                       case Failure(exception) => throw new ValidationException(exception.getMessage)
                     }
                   case Failure(_) =>
@@ -132,6 +171,19 @@ class FunctionCatalog {
                 }
             }
         }
+
+      // general expression call for Expression
+      case _ if classTag[T].runtimeClass.equals(classOf[Expression]) =>
+        val functionDefinition = FunctionDefinitions.getDefinition(name)
+        if (functionDefinition != null) {
+          new CallExpression(
+            functionDefinition,
+            children.asInstanceOf[Seq[Expression]])
+            .asInstanceOf[T]
+        } else {
+          throw new ValidationException("Unsupported function.")
+        }
+
       case _ =>
         throw new ValidationException("Unsupported function.")
     }

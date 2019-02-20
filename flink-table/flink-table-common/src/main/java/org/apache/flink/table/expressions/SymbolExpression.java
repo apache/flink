@@ -16,21 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.typeutils
+package org.apache.flink.table.expressions;
+
+import org.apache.flink.annotation.PublicEvolving;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
-  * TypeInformation for row intervals.
-  */
-@SerialVersionUID(-1306179424364925258L)
-class RowIntervalTypeInfo extends InternalTypeInfo[Long](classOf[Long]) {
+ * The symbol expression.
+ */
+@PublicEvolving
+public final class SymbolExpression implements Expression {
 
-  def canEqual(obj: Any): Boolean = obj.isInstanceOf[RowIntervalTypeInfo]
+	private final TableSymbol symbol;
 
-  override def toString: String = s"RowIntervalTypeInfo"
-}
+	public SymbolExpression(TableSymbol symbol) {
+		this.symbol = symbol;
+	}
 
-object RowIntervalTypeInfo {
+	public TableSymbol getSymbol() {
+		return symbol;
+	}
 
-  val INTERVAL_ROWS = new RowIntervalTypeInfo()
+	@Override
+	public List<Expression> getChildren() {
+		return Collections.emptyList();
+	}
 
+	@Override
+	public <R> R accept(ExpressionVisitor<R> visitor) {
+		return visitor.visitSymbol(this);
+	}
 }

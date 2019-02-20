@@ -24,13 +24,13 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.AggFunctionCall
+import org.apache.flink.table.expressions.{AggFunctionCall, PlannerExpression}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.types.Row
 import org.junit.Assert.{assertEquals, assertTrue}
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 class AggregateTest extends TableTestBase {
 
@@ -66,7 +66,7 @@ class AggregateTest extends TableTestBase {
     val call = streamUtil
       .tableEnv
       .functionCatalog
-      .lookupFunction("udag", Seq())
+      .lookupFunction[PlannerExpression]("udag", Seq())
       .asInstanceOf[AggFunctionCall]
 
     val typeInfo = call.accTypeInfo
@@ -80,7 +80,7 @@ class AggregateTest extends TableTestBase {
     val call2 = streamUtil
       .tableEnv
       .functionCatalog
-      .lookupFunction("udag2", Seq())
+      .lookupFunction[PlannerExpression]("udag2", Seq())
       .asInstanceOf[AggFunctionCall]
 
     val typeInfo2 = call2.accTypeInfo

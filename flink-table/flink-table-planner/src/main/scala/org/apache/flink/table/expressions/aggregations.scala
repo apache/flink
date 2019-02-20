@@ -32,7 +32,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
-abstract sealed class Aggregation extends Expression {
+abstract sealed class Aggregation extends PlannerExpression {
 
   override def toString = s"Aggregate"
 
@@ -54,9 +54,9 @@ abstract sealed class Aggregation extends Expression {
 
 }
 
-case class DistinctAgg(child: Expression) extends Aggregation {
+case class DistinctAgg(child: PlannerExpression) extends Aggregation {
 
-  def distinct: Expression = DistinctAgg(child)
+  def distinct: PlannerExpression = DistinctAgg(child)
 
   override private[flink] def resultType: TypeInformation[_] = child.resultType
 
@@ -84,8 +84,8 @@ case class DistinctAgg(child: Expression) extends Aggregation {
   override private[flink] def children = Seq(child)
 }
 
-case class Sum(child: Expression) extends Aggregation {
-  override private[flink] def children: Seq[Expression] = Seq(child)
+case class Sum(child: PlannerExpression) extends Aggregation {
+  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
   override def toString = s"sum($child)"
 
   override private[flink] def toAggCall(
@@ -112,8 +112,8 @@ case class Sum(child: Expression) extends Aggregation {
   }
 }
 
-case class Sum0(child: Expression) extends Aggregation {
-  override private[flink] def children: Seq[Expression] = Seq(child)
+case class Sum0(child: PlannerExpression) extends Aggregation {
+  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
   override def toString = s"sum0($child)"
 
   override private[flink] def toAggCall(
@@ -136,8 +136,8 @@ case class Sum0(child: Expression) extends Aggregation {
     SqlStdOperatorTable.SUM0
 }
 
-case class Min(child: Expression) extends Aggregation {
-  override private[flink] def children: Seq[Expression] = Seq(child)
+case class Min(child: PlannerExpression) extends Aggregation {
+  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
   override def toString = s"min($child)"
 
   override private[flink] def toAggCall(
@@ -161,8 +161,8 @@ case class Min(child: Expression) extends Aggregation {
   }
 }
 
-case class Max(child: Expression) extends Aggregation {
-  override private[flink] def children: Seq[Expression] = Seq(child)
+case class Max(child: PlannerExpression) extends Aggregation {
+  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
   override def toString = s"max($child)"
 
   override private[flink] def toAggCall(
@@ -186,8 +186,8 @@ case class Max(child: Expression) extends Aggregation {
   }
 }
 
-case class Count(child: Expression) extends Aggregation {
-  override private[flink] def children: Seq[Expression] = Seq(child)
+case class Count(child: PlannerExpression) extends Aggregation {
+  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
   override def toString = s"count($child)"
 
   override private[flink] def toAggCall(
@@ -208,8 +208,8 @@ case class Count(child: Expression) extends Aggregation {
   }
 }
 
-case class Avg(child: Expression) extends Aggregation {
-  override private[flink] def children: Seq[Expression] = Seq(child)
+case class Avg(child: PlannerExpression) extends Aggregation {
+  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
   override def toString = s"avg($child)"
 
   override private[flink] def toAggCall(
@@ -236,9 +236,9 @@ case class Avg(child: Expression) extends Aggregation {
 /**
   * Returns a multiset aggregates.
   */
-case class Collect(child: Expression) extends Aggregation  {
+case class Collect(child: PlannerExpression) extends Aggregation  {
 
-  override private[flink] def children: Seq[Expression] = Seq(child)
+  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
 
   override private[flink] def resultType: TypeInformation[_] =
     MultisetTypeInfo.getInfoFor(child.resultType)
@@ -261,8 +261,8 @@ case class Collect(child: Expression) extends Aggregation  {
   }
 }
 
-case class StddevPop(child: Expression) extends Aggregation {
-  override private[flink] def children: Seq[Expression] = Seq(child)
+case class StddevPop(child: PlannerExpression) extends Aggregation {
+  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
   override def toString = s"stddev_pop($child)"
 
   override private[flink] def toAggCall(
@@ -285,8 +285,8 @@ case class StddevPop(child: Expression) extends Aggregation {
     SqlStdOperatorTable.STDDEV_POP
 }
 
-case class StddevSamp(child: Expression) extends Aggregation {
-  override private[flink] def children: Seq[Expression] = Seq(child)
+case class StddevSamp(child: PlannerExpression) extends Aggregation {
+  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
   override def toString = s"stddev_samp($child)"
 
   override private[flink] def toAggCall(
@@ -309,8 +309,8 @@ case class StddevSamp(child: Expression) extends Aggregation {
     SqlStdOperatorTable.STDDEV_SAMP
 }
 
-case class VarPop(child: Expression) extends Aggregation {
-  override private[flink] def children: Seq[Expression] = Seq(child)
+case class VarPop(child: PlannerExpression) extends Aggregation {
+  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
   override def toString = s"var_pop($child)"
 
   override private[flink] def toAggCall(
@@ -333,8 +333,8 @@ case class VarPop(child: Expression) extends Aggregation {
     SqlStdOperatorTable.VAR_POP
 }
 
-case class VarSamp(child: Expression) extends Aggregation {
-  override private[flink] def children: Seq[Expression] = Seq(child)
+case class VarSamp(child: PlannerExpression) extends Aggregation {
+  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
   override def toString = s"var_samp($child)"
 
   override private[flink] def toAggCall(
@@ -361,10 +361,10 @@ case class AggFunctionCall(
     aggregateFunction: AggregateFunction[_, _],
     resultTypeInfo: TypeInformation[_],
     accTypeInfo: TypeInformation[_],
-    args: Seq[Expression])
+    args: Seq[PlannerExpression])
   extends Aggregation {
 
-  override private[flink] def children: Seq[Expression] = args
+  override private[flink] def children: Seq[PlannerExpression] = args
 
   override def resultType: TypeInformation[_] = resultTypeInfo
 

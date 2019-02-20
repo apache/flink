@@ -55,11 +55,11 @@ class TableSourceTest extends TableTestBase {
       batchFilterableSourceTableNode(
         "table1",
         Array("name", "id", "amount", "price"),
-        "'amount > 2"),
+        "greaterThan(amount, 2)"),
       batchFilterableSourceTableNode(
         "table2",
         Array("name", "id", "amount", "price"),
-        "'amount > 2"),
+        "greaterThan(amount, 2)"),
       term("all", "true"),
       term("union", "name, id, amount, price")
     )
@@ -187,7 +187,7 @@ class TableSourceTest extends TableTestBase {
       batchFilterableSourceTableNode(
         tableName,
         Array("price", "name", "amount"),
-        "'amount > 2"),
+        "greaterThan(amount, 2)"),
       term("select", "price", "LOWER(name) AS _c1", "amount"),
       term("where", "<(*(price, 2), 32)")
     )
@@ -210,7 +210,7 @@ class TableSourceTest extends TableTestBase {
     val expected = batchFilterableSourceTableNode(
       tableName,
       Array("price", "id", "amount"),
-      "'amount > 2 && 'amount < 32")
+      "and(greaterThan(amount, 2), lessThan(amount, 32))")
     util.verifyTable(result, expected)
   }
 
@@ -233,7 +233,7 @@ class TableSourceTest extends TableTestBase {
       batchFilterableSourceTableNode(
         tableName,
         Array("price", "id", "amount"),
-        "'amount > 2"),
+        "greaterThan(amount, 2)"),
       term("select", "price", "id", "amount"),
       term("where", "AND(<(id, 1.2E0), OR(<(amount, 32), >(CAST(amount), 10)))")
     )
@@ -260,7 +260,7 @@ class TableSourceTest extends TableTestBase {
       batchFilterableSourceTableNode(
         tableName,
         Array("price", "id", "amount"),
-        "'amount > 2"),
+        "greaterThan(amount, 2)"),
       term("select", "price", "id", "amount"),
       term("where", s"<(${Func0.getClass.getSimpleName}(amount), 32)")
     )
@@ -343,7 +343,7 @@ class TableSourceTest extends TableTestBase {
       streamFilterableSourceTableNode(
         tableName,
         Array("price", "id", "amount"),
-        "'amount > 2"),
+        "greaterThan(amount, 2)"),
       term("select", "price", "id", "amount"),
       term("where", "<(*(price, 2), 32)")
     )
@@ -439,9 +439,9 @@ class TableSourceTest extends TableTestBase {
     val result = tableEnv.sqlQuery(sqlQuery)
 
     val expectedFilter =
-        "'tv > 14:25:02.toTime && " +
-        "'dv > 2017-02-03.toDate && " +
-        "'tsv > 2017-02-03 14:25:02.0.toTimestamp"
+        "and(and(greaterThan(tv, 14:25:02.toTime), " +
+        "greaterThan(dv, 2017-02-03.toDate)), " +
+        "greaterThan(tsv, 2017-02-03 14:25:02.0.toTimestamp))"
     val expected = batchFilterableSourceTableNode(
       tableName,
       Array("id"),

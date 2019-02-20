@@ -20,7 +20,7 @@ package org.apache.flink.table.sources.tsextractors
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.expressions.{Expression, ResolvedFieldReference}
+import org.apache.flink.table.expressions.{Expression, FieldReferenceExpression}
 
 /**
   * Extracts the timestamp of a StreamRecord into a rowtime attribute.
@@ -39,7 +39,9 @@ final class StreamRecordTimestamp extends TimestampExtractor {
   /**
     * Returns an [[Expression]] that extracts the timestamp of a StreamRecord.
     */
-  override def getExpression(fieldAccesses: Array[ResolvedFieldReference]): Expression = {
+  override def getExpression(
+      fieldAccesses: Array[FieldReferenceExpression],
+      fieldTypes: Array[TypeInformation[_]]): Expression = {
     org.apache.flink.table.expressions.StreamRecordTimestamp()
   }
 

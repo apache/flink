@@ -41,9 +41,9 @@ import _root_.scala.collection.JavaConverters._
   * General expression for unresolved function calls. The function can be a built-in
   * scalar function or a user-defined scalar function.
   */
-case class Call(functionName: String, args: Seq[Expression]) extends Expression {
+case class Call(functionName: String, args: Seq[PlannerExpression]) extends PlannerExpression {
 
-  override private[flink] def children: Seq[Expression] = args
+  override private[flink] def children: Seq[PlannerExpression] = args
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     throw UnresolvedException(s"trying to convert UnresolvedFunction $functionName to RexNode")
@@ -64,7 +64,8 @@ case class Call(functionName: String, args: Seq[Expression]) extends Expression 
   * @param agg The aggregation of the over call.
   * @param alias The alias of the referenced over window.
   */
-case class UnresolvedOverCall(agg: Expression, alias: Expression) extends Expression {
+case class UnresolvedOverCall(agg: PlannerExpression, alias: PlannerExpression)
+  extends PlannerExpression {
 
   override private[flink] def validateInput() =
     ValidationFailure(s"Over window with alias $alias could not be resolved.")
@@ -84,11 +85,11 @@ case class UnresolvedOverCall(agg: Expression, alias: Expression) extends Expres
   * @param following      The upper bound of the window
   */
 case class OverCall(
-    agg: Expression,
-    partitionBy: Seq[Expression],
-    orderBy: Expression,
-    preceding: Expression,
-    following: Expression) extends Expression {
+    agg: PlannerExpression,
+    partitionBy: Seq[PlannerExpression],
+    orderBy: PlannerExpression,
+    preceding: PlannerExpression,
+    following: PlannerExpression) extends PlannerExpression {
 
   override def toString: String = s"$agg OVER (" +
     s"PARTITION BY (${partitionBy.mkString(", ")}) " +
@@ -139,7 +140,7 @@ case class OverCall(
 
   private def createBound(
     relBuilder: RelBuilder,
-    bound: Expression,
+    bound: PlannerExpression,
     sqlKind: SqlKind): RexWindowBound = {
 
     bound match {
@@ -176,7 +177,7 @@ case class OverCall(
     }
   }
 
-  override private[flink] def children: Seq[Expression] =
+  override private[flink] def children: Seq[PlannerExpression] =
     Seq(agg) ++ Seq(orderBy) ++ partitionBy ++ Seq(preceding) ++ Seq(following)
 
   override private[flink] def resultType = agg.resultType
@@ -237,14 +238,14 @@ case class OverCall(
 
     // check that preceding and following are of same type
     (preceding, following) match {
-      case (p: Expression, f: Expression) if p.resultType == f.resultType =>
+      case (p: PlannerExpression, f: PlannerExpression) if p.resultType == f.resultType =>
         ValidationSuccess
       case _ =>
         return ValidationFailure("Preceding and following must be of same interval type.")
     }
 
     // check time field
-    if (!ExpressionUtils.isTimeAttribute(orderBy)) {
+    if (!PlannerExpressionUtils.isTimeAttribute(orderBy)) {
       return ValidationFailure("Ordering must be defined on a time attribute.")
     }
 
@@ -260,12 +261,12 @@ case class OverCall(
   */
 case class ScalarFunctionCall(
     scalarFunction: ScalarFunction,
-    parameters: Seq[Expression])
-  extends Expression {
+    parameters: Seq[PlannerExpression])
+  extends PlannerExpression {
 
   private var foundSignature: Option[Array[Class[_]]] = None
 
-  override private[flink] def children: Seq[Expression] = parameters
+  override private[flink] def children: Seq[PlannerExpression] = parameters
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
@@ -312,13 +313,13 @@ case class ScalarFunctionCall(
 case class TableFunctionCall(
     functionName: String,
     tableFunction: TableFunction[_],
-    parameters: Seq[Expression],
+    parameters: Seq[PlannerExpression],
     resultType: TypeInformation[_])
-  extends Expression {
+  extends PlannerExpression {
 
   private var aliases: Option[Seq[String]] = None
 
-  override private[flink] def children: Seq[Expression] = parameters
+  override private[flink] def children: Seq[PlannerExpression] = parameters
 
   /**
     * Assigns an alias for this table function's returned fields that the following operator
@@ -346,6 +347,8 @@ case class TableFunctionCall(
     this.aliases = Some(name.name +: extraNames.map(_.name))
     this
   }
+
+  def alias(): Option[Seq[String]] = aliases
 
   /**
     * Converts an API class to a logical node for planning.

@@ -21,7 +21,7 @@ package org.apache.flink.table.expressions
 import java.sql.Date
 
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.scala.{Null => ENull, _}
 import org.apache.flink.table.expressions.utils.ArrayTypeTestBase
 import org.junit.Test
 
@@ -54,13 +54,13 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       "[2, 9]")
 
     testAllApis(
-      array(Null(Types.INT), 1),
+      array(ENull(Types.INT), 1),
       "array(Null(INT), 1)",
       "ARRAY[NULLIF(1,1), 1]",
       "[null, 1]")
 
     testAllApis(
-      array(array(Null(Types.INT), 1)),
+      array(array(ENull(Types.INT), 1)),
       "array(array(Null(INT), 1))",
       "ARRAY[ARRAY[NULLIF(1,1), 1]]",
       "[[null, 1]]")

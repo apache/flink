@@ -21,7 +21,7 @@ package org.apache.flink.table.expressions
 import java.sql.Date
 
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.scala.{Null => ENull, _}
 import org.apache.flink.table.expressions.utils.MapTypeTestBase
 import org.junit.Test
 
@@ -54,7 +54,7 @@ class MapTypeTest extends MapTypeTestBase {
       "{2=2, 3=9}")
 
     testAllApis(
-      map(1, Null(Types.INT)),
+      map(1, ENull(Types.INT)),
       "map(1, Null(INT))",
       "map[1, NULLIF(1,1)]",
       "{1=null}")

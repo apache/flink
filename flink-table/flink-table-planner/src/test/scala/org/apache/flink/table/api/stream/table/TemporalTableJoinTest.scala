@@ -132,33 +132,24 @@ class TemporalTableJoinTest extends TableTestBase {
     expectedException.expectMessage(startsWith("Unsupported argument"))
 
     val result = orders
-      .join(rates(
+      .joinLateral(rates(
         java.sql.Timestamp.valueOf("2016-06-27 10:10:42.123")),
-        "o_currency = currency")
+        'o_currency === 'currency)
       .select("o_amount * rate")
 
     util.printTable(result)
   }
 
   @Test
-  def testTemporalTableFunctionScan(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Cannot translate a query with an unbounded table function call")
-
-    val result = rates(java.sql.Timestamp.valueOf("2016-06-27 10:10:42.123"))
-    util.printTable(result)
-  }
-
-  @Test
   def testProcessingTimeIndicatorVersion(): Unit = {
-    assertRatesFunction(proctimeRatesHistory.getSchema, proctimeRates, true)
+    assertRatesFunction(proctimeRatesHistory.getSchema,
+      proctimeRates.asInstanceOf[TemporalTableFunction], true)
   }
 
   @Test
   def testValidStringFieldReference(): Unit = {
     val rates = ratesHistory.createTemporalTableFunction("rowtime", "currency")
-    assertRatesFunction(ratesHistory.getSchema, rates)
+    assertRatesFunction(ratesHistory.getSchema, rates.asInstanceOf[TemporalTableFunction])
   }
 
   private def assertRatesFunction(

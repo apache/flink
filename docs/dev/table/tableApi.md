@@ -832,7 +832,7 @@ val rates = ratesHistory.createTemporalTableFunction('r_proctime, 'r_currency)
 // join with "Orders" based on the time attribute and key
 val orders = tableEnv.scan("Orders")
 val result = orders
-    .join(rates('o_rowtime), 'r_currency === 'o_currency)
+    .joinLateral(rates('o_rowtime), 'r_currency === 'o_currency)
 {% endhighlight %}
         <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">temporal tables concept description</a>.</p>
       </td>

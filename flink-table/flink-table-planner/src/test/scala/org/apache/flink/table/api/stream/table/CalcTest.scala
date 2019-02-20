@@ -20,7 +20,7 @@ package org.apache.flink.table.api.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.{Upper, WindowReference}
+import org.apache.flink.table.expressions.WindowReference
 import org.apache.flink.table.plan.logical.TumblingGroupWindow
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.TableTestBase
@@ -41,7 +41,7 @@ class CalcTest extends TableTestBase {
     val resultTable = sourceTable
         .window(Tumble over 5.millis on 'rowtime as 'w)
         .groupBy('w)
-        .select(Upper('c).count, 'a.sum)
+        .select('c.upperCase().count, 'a.sum)
 
     val expected =
       unaryNode(
@@ -70,7 +70,7 @@ class CalcTest extends TableTestBase {
     val resultTable = sourceTable
         .window(Tumble over 5.millis on 'rowtime as 'w)
         .groupBy('w, 'b)
-        .select(Upper('c).count, 'a.sum, 'b)
+        .select('c.upperCase().count, 'a.sum, 'b)
 
     val expected = unaryNode(
         "DataStreamCalc",

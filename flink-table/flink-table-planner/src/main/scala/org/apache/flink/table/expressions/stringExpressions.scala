@@ -22,7 +22,6 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.table.expressions.TrimMode.TrimMode
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.validate._
 
@@ -31,7 +30,7 @@ import scala.collection.JavaConversions._
 /**
   * Returns the length of this `str`.
   */
-case class CharLength(child: Expression) extends UnaryExpression {
+case class CharLength(child: PlannerExpression) extends UnaryExpression {
   override private[flink] def resultType: TypeInformation[_] = INT_TYPE_INFO
 
   override private[flink] def validateInput(): ValidationResult = {
@@ -54,7 +53,7 @@ case class CharLength(child: Expression) extends UnaryExpression {
   * Returns str with the first letter of each word in uppercase.
   * All other letters are in lowercase. Words are delimited by white space.
   */
-case class InitCap(child: Expression) extends UnaryExpression {
+case class InitCap(child: PlannerExpression) extends UnaryExpression {
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
   override private[flink] def validateInput(): ValidationResult = {
@@ -76,9 +75,10 @@ case class InitCap(child: Expression) extends UnaryExpression {
 /**
   * Returns true if `str` matches `pattern`.
   */
-case class Like(str: Expression, pattern: Expression) extends BinaryExpression {
-  private[flink] def left: Expression = str
-  private[flink] def right: Expression = pattern
+case class Like(str: PlannerExpression, pattern: PlannerExpression)
+  extends BinaryExpression {
+  private[flink] def left: PlannerExpression = str
+  private[flink] def right: PlannerExpression = pattern
 
   override private[flink] def resultType: TypeInformation[_] = BOOLEAN_TYPE_INFO
 
@@ -101,7 +101,7 @@ case class Like(str: Expression, pattern: Expression) extends BinaryExpression {
 /**
   * Returns str with all characters changed to lowercase.
   */
-case class Lower(child: Expression) extends UnaryExpression {
+case class Lower(child: PlannerExpression) extends UnaryExpression {
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
   override private[flink] def validateInput(): ValidationResult = {
@@ -123,9 +123,10 @@ case class Lower(child: Expression) extends UnaryExpression {
 /**
   * Returns true if `str` is similar to `pattern`.
   */
-case class Similar(str: Expression, pattern: Expression) extends BinaryExpression {
-  private[flink] def left: Expression = str
-  private[flink] def right: Expression = pattern
+case class Similar(str: PlannerExpression, pattern: PlannerExpression)
+  extends BinaryExpression {
+  private[flink] def left: PlannerExpression = str
+  private[flink] def right: PlannerExpression = pattern
 
   override private[flink] def resultType: TypeInformation[_] = BOOLEAN_TYPE_INFO
 
@@ -149,13 +150,13 @@ case class Similar(str: Expression, pattern: Expression) extends BinaryExpressio
   * Returns substring of `str` from `begin`(inclusive) for `length`.
   */
 case class Substring(
-    str: Expression,
-    begin: Expression,
-    length: Expression) extends Expression with InputTypeSpec {
+    str: PlannerExpression,
+    begin: PlannerExpression,
+    length: PlannerExpression) extends PlannerExpression with InputTypeSpec {
 
-  def this(str: Expression, begin: Expression) = this(str, begin, CharLength(str))
+  def this(str: PlannerExpression, begin: PlannerExpression) = this(str, begin, CharLength(str))
 
-  override private[flink] def children: Seq[Expression] = str :: begin :: length :: Nil
+  override private[flink] def children: Seq[PlannerExpression] = str :: begin :: length :: Nil
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
@@ -173,17 +174,18 @@ case class Substring(
   * Trim `trimString` from `str` according to `trimMode`.
   */
 case class Trim(
-    trimMode: Expression,
-    trimString: Expression,
-    str: Expression) extends Expression {
+    trimMode: PlannerExpression,
+    trimString: PlannerExpression,
+    str: PlannerExpression) extends PlannerExpression {
 
-  override private[flink] def children: Seq[Expression] = trimMode :: trimString :: str :: Nil
+  override private[flink] def children: Seq[PlannerExpression] =
+    trimMode :: trimString :: str :: Nil
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
   override private[flink] def validateInput(): ValidationResult = {
     trimMode match {
-      case SymbolExpression(_: TrimMode) =>
+      case SymbolPlannerExpression(_: TrimMode) =>
         if (trimString.resultType != STRING_TYPE_INFO) {
           ValidationFailure(s"String expected for trimString, get ${trimString.resultType}")
         } else if (str.resultType != STRING_TYPE_INFO) {
@@ -212,7 +214,7 @@ object TrimConstants {
 /**
   * Returns str with all characters changed to uppercase.
   */
-case class Upper(child: Expression) extends UnaryExpression with InputTypeSpec {
+case class Upper(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
@@ -229,10 +231,10 @@ case class Upper(child: Expression) extends UnaryExpression with InputTypeSpec {
 /**
   * Returns the position of string needle in string haystack.
   */
-case class Position(needle: Expression, haystack: Expression)
-    extends Expression with InputTypeSpec {
+case class Position(needle: PlannerExpression, haystack: PlannerExpression)
+    extends PlannerExpression with InputTypeSpec {
 
-  override private[flink] def children: Seq[Expression] = Seq(needle, haystack)
+  override private[flink] def children: Seq[PlannerExpression] = Seq(needle, haystack)
 
   override private[flink] def resultType: TypeInformation[_] = INT_TYPE_INFO
 
@@ -251,16 +253,16 @@ case class Position(needle: Expression, haystack: Expression)
   * Starting at a position for a given length.
   */
 case class Overlay(
-    str: Expression,
-    replacement: Expression,
-    starting: Expression,
-    position: Expression)
-  extends Expression with InputTypeSpec {
+    str: PlannerExpression,
+    replacement: PlannerExpression,
+    starting: PlannerExpression,
+    position: PlannerExpression)
+  extends PlannerExpression with InputTypeSpec {
 
-  def this(str: Expression, replacement: Expression, starting: Expression) =
+  def this(str: PlannerExpression, replacement: PlannerExpression, starting: PlannerExpression) =
     this(str, replacement, starting, CharLength(replacement))
 
-  override private[flink] def children: Seq[Expression] =
+  override private[flink] def children: Seq[PlannerExpression] =
     Seq(str, replacement, starting, position)
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
@@ -284,9 +286,9 @@ case class Overlay(
   * Returns the string that results from concatenating the arguments.
   * Returns NULL if any argument is NULL.
   */
-case class Concat(strings: Seq[Expression]) extends Expression with InputTypeSpec {
+case class Concat(strings: Seq[PlannerExpression]) extends PlannerExpression with InputTypeSpec {
 
-  override private[flink] def children: Seq[Expression] = strings
+  override private[flink] def children: Seq[PlannerExpression] = strings
 
   override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
 
@@ -307,10 +309,10 @@ case class Concat(strings: Seq[Expression]) extends Expression with InputTypeSpe
   * Note: this user-defined function does not skip empty strings. However, it does skip any NULL
   * values after the separator argument.
   **/
-case class ConcatWs(separator: Expression, strings: Seq[Expression])
-  extends Expression with InputTypeSpec {
+case class ConcatWs(separator: PlannerExpression, strings: Seq[PlannerExpression])
+  extends PlannerExpression with InputTypeSpec {
 
-  override private[flink] def children: Seq[Expression] = Seq(separator) ++ strings
+  override private[flink] def children: Seq[PlannerExpression] = Seq(separator) ++ strings
 
   override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
 
@@ -324,10 +326,10 @@ case class ConcatWs(separator: Expression, strings: Seq[Expression])
   }
 }
 
-case class Lpad(text: Expression, len: Expression, pad: Expression)
-  extends Expression with InputTypeSpec {
+case class Lpad(text: PlannerExpression, len: PlannerExpression, pad: PlannerExpression)
+  extends PlannerExpression with InputTypeSpec {
 
-  override private[flink] def children: Seq[Expression] = Seq(text, len, pad)
+  override private[flink] def children: Seq[PlannerExpression] = Seq(text, len, pad)
 
   override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
 
@@ -341,10 +343,10 @@ case class Lpad(text: Expression, len: Expression, pad: Expression)
   }
 }
 
-case class Rpad(text: Expression, len: Expression, pad: Expression)
-  extends Expression with InputTypeSpec {
+case class Rpad(text: PlannerExpression, len: PlannerExpression, pad: PlannerExpression)
+  extends PlannerExpression with InputTypeSpec {
 
-  override private[flink] def children: Seq[Expression] = Seq(text, len, pad)
+  override private[flink] def children: Seq[PlannerExpression] = Seq(text, len, pad)
 
   override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
 
@@ -362,8 +364,11 @@ case class Rpad(text: Expression, len: Expression, pad: Expression)
   * Returns a string with all substrings that match the regular expression consecutively
   * being replaced.
   */
-case class RegexpReplace(str: Expression, regex: Expression, replacement: Expression)
-  extends Expression with InputTypeSpec {
+case class RegexpReplace(
+    str: PlannerExpression,
+    regex: PlannerExpression,
+    replacement: PlannerExpression)
+  extends PlannerExpression with InputTypeSpec {
 
   override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
 
@@ -373,7 +378,7 @@ case class RegexpReplace(str: Expression, regex: Expression, replacement: Expres
       BasicTypeInfo.STRING_TYPE_INFO,
       BasicTypeInfo.STRING_TYPE_INFO)
 
-  override private[flink] def children: Seq[Expression] = Seq(str, regex, replacement)
+  override private[flink] def children: Seq[PlannerExpression] = Seq(str, regex, replacement)
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(ScalarSqlFunctions.REGEXP_REPLACE, children.map(_.toRexNode))
@@ -385,9 +390,12 @@ case class RegexpReplace(str: Expression, regex: Expression, replacement: Expres
 /**
   * Returns a string extracted with a specified regular expression and a regex match group index.
   */
-case class RegexpExtract(str: Expression, regex: Expression, extractIndex: Expression)
-  extends Expression with InputTypeSpec {
-  def this(str: Expression, regex: Expression) = this(str, regex, null)
+case class RegexpExtract(
+    str: PlannerExpression,
+    regex: PlannerExpression,
+    extractIndex: PlannerExpression)
+  extends PlannerExpression with InputTypeSpec {
+  def this(str: PlannerExpression, regex: PlannerExpression) = this(str, regex, null)
 
   override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
 
@@ -402,7 +410,7 @@ case class RegexpExtract(str: Expression, regex: Expression, extractIndex: Expre
     }
   }
 
-  override private[flink] def children: Seq[Expression] = {
+  override private[flink] def children: Seq[PlannerExpression] = {
     if (extractIndex == null) {
       Seq(str, regex)
     } else {
@@ -418,14 +426,15 @@ case class RegexpExtract(str: Expression, regex: Expression, extractIndex: Expre
 }
 
 object RegexpExtract {
-  def apply(str: Expression, regex: Expression): RegexpExtract = RegexpExtract(str, regex, null)
+  def apply(str: PlannerExpression, regex: PlannerExpression): RegexpExtract =
+    RegexpExtract(str, regex, null)
 }
 
 /**
   * Returns the base string decoded with base64.
   * Returns NULL If the input string is NULL.
   */
-case class FromBase64(child: Expression) extends UnaryExpression with InputTypeSpec {
+case class FromBase64(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
 
   override private[flink] def expectedTypes: Seq[TypeInformation[_]] = Seq(STRING_TYPE_INFO)
 
@@ -451,7 +460,7 @@ case class FromBase64(child: Expression) extends UnaryExpression with InputTypeS
 /**
   * Returns the base64-encoded result of the input string.
   */
-case class ToBase64(child: Expression) extends UnaryExpression with InputTypeSpec {
+case class ToBase64(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
 
   override private[flink] def expectedTypes: Seq[TypeInformation[_]] = Seq(STRING_TYPE_INFO)
 
@@ -477,7 +486,7 @@ case class ToBase64(child: Expression) extends UnaryExpression with InputTypeSpe
 /**
   * Returns a string that removes the left whitespaces from the given string.
   */
-case class LTrim(child: Expression) extends UnaryExpression with InputTypeSpec {
+case class LTrim(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
   override private[flink] def expectedTypes: Seq[TypeInformation[_]] = Seq(STRING_TYPE_INFO)
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
@@ -501,7 +510,7 @@ case class LTrim(child: Expression) extends UnaryExpression with InputTypeSpec {
 /**
   * Returns a string that removes the right whitespaces from the given string.
   */
-case class RTrim(child: Expression) extends UnaryExpression with InputTypeSpec {
+case class RTrim(child: PlannerExpression) extends UnaryExpression with InputTypeSpec {
 
   override private[flink] def expectedTypes: Seq[TypeInformation[_]] = Seq(STRING_TYPE_INFO)
 
@@ -526,14 +535,15 @@ case class RTrim(child: Expression) extends UnaryExpression with InputTypeSpec {
 /**
   * Returns a string that repeats the base str n times.
   */
-case class Repeat(str: Expression, n: Expression) extends Expression with InputTypeSpec {
+case class Repeat(str: PlannerExpression, n: PlannerExpression)
+  extends PlannerExpression with InputTypeSpec {
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
   override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
     Seq(STRING_TYPE_INFO, INT_TYPE_INFO)
 
-  override private[flink] def children: Seq[Expression] = Seq(str, n)
+  override private[flink] def children: Seq[PlannerExpression] = Seq(str, n)
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(ScalarSqlFunctions.REPEAT, str.toRexNode, n.toRexNode)
@@ -555,13 +565,14 @@ case class Repeat(str: Expression, n: Expression) extends Expression with InputT
   * Returns a new string which replaces all the occurrences of the search target
   * with the replacement string (non-overlapping).
   */
-case class Replace(str: Expression,
-  search: Expression,
-  replacement: Expression) extends Expression with InputTypeSpec {
+case class Replace(
+    str: PlannerExpression,
+    search: PlannerExpression,
+    replacement: PlannerExpression) extends PlannerExpression with InputTypeSpec {
 
-  def this(str: Expression, begin: Expression) = this(str, begin, CharLength(str))
+  def this(str: PlannerExpression, begin: PlannerExpression) = this(str, begin, CharLength(str))
 
-  override private[flink] def children: Seq[Expression] = str :: search :: replacement :: Nil
+  override private[flink] def children: Seq[PlannerExpression] = str :: search :: replacement :: Nil
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 

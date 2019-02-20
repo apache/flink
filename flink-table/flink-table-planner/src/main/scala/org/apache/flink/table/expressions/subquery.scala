@@ -24,21 +24,22 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.api.Table
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
-case class In(expression: Expression, elements: Seq[Expression]) extends Expression  {
+case class In(expression: PlannerExpression, elements: Seq[PlannerExpression])
+  extends PlannerExpression  {
 
   override def toString = s"$expression.in(${elements.mkString(", ")})"
 
-  override private[flink] def children: Seq[Expression] = expression +: elements.distinct
+  override private[flink] def children: Seq[PlannerExpression] = expression +: elements.distinct
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     // check if this is a sub-query expression or an element list
     elements.head match {
 
-      case TableReference(name, table) =>
+      case TableReference(_, table: Table) =>
         RexSubQuery.in(table.getRelNode, ImmutableList.of(expression.toRexNode))
 
       case _ =>
@@ -50,7 +51,7 @@ case class In(expression: Expression, elements: Seq[Expression]) extends Express
     // check if this is a sub-query expression or an element list
     elements.head match {
 
-      case TableReference(name, table) =>
+      case TableReference(name, table: Table) =>
         if (elements.length != 1) {
           return ValidationFailure("IN operator supports only one table reference.")
         }
