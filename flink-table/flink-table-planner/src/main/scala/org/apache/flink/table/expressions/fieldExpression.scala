@@ -27,7 +27,7 @@ import org.apache.flink.table.functions.sql.StreamRecordTimestampSqlFunction
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
-trait NamedExpression extends Expression {
+trait NamedExpression extends PlannerExpression {
   private[flink] def name: String
   private[flink] def toAttribute: Attribute
 }

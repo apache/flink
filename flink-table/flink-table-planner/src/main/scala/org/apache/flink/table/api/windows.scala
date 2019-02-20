@@ -33,7 +33,7 @@ case class OverWindow(
     private[flink] val preceding: Expression,
     private[flink] val following: Expression)
 
-case class CurrentRow() extends Expression {
+case class CurrentRow() extends PlannerExpression {
   override private[flink] def resultType = RowIntervalTypeInfo.INTERVAL_ROWS
 
   override private[flink] def children = Seq()
@@ -41,7 +41,7 @@ case class CurrentRow() extends Expression {
   override def toString = "CURRENT ROW"
 }
 
-case class CurrentRange() extends Expression {
+case class CurrentRange() extends PlannerExpression {
   override private[flink] def resultType = TimeIntervalTypeInfo.INTERVAL_MILLIS
 
   override private[flink] def children = Seq()
@@ -49,7 +49,7 @@ case class CurrentRange() extends Expression {
   override def toString = "CURRENT RANGE"
 }
 
-case class UnboundedRow() extends Expression {
+case class UnboundedRow() extends PlannerExpression {
   override private[flink] def resultType = RowIntervalTypeInfo.INTERVAL_ROWS
 
   override private[flink] def children = Seq()
@@ -57,7 +57,7 @@ case class UnboundedRow() extends Expression {
   override def toString = "UNBOUNDED ROW"
 }
 
-case class UnboundedRange() extends Expression {
+case class UnboundedRange() extends PlannerExpression {
   override private[flink] def resultType = TimeIntervalTypeInfo.INTERVAL_MILLIS
 
   override private[flink] def children = Seq()

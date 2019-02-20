@@ -30,7 +30,7 @@ import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, Val
 
 import scala.collection.JavaConverters._
 
-case class RowConstructor(elements: Seq[Expression]) extends Expression {
+case class RowConstructor(elements: Seq[Expression]) extends PlannerExpression {
 
   override private[flink] def children: Seq[Expression] = elements
 
@@ -59,7 +59,7 @@ case class RowConstructor(elements: Seq[Expression]) extends Expression {
   }
 }
 
-case class ArrayConstructor(elements: Seq[Expression]) extends Expression {
+case class ArrayConstructor(elements: Seq[Expression]) extends PlannerExpression {
 
   override private[flink] def children: Seq[Expression] = elements
 
@@ -91,7 +91,7 @@ case class ArrayConstructor(elements: Seq[Expression]) extends Expression {
   }
 }
 
-case class MapConstructor(elements: Seq[Expression]) extends Expression {
+case class MapConstructor(elements: Seq[Expression]) extends PlannerExpression {
   override private[flink] def children: Seq[Expression] = elements
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
@@ -132,7 +132,7 @@ case class MapConstructor(elements: Seq[Expression]) extends Expression {
   }
 }
 
-case class ArrayElement(array: Expression) extends Expression {
+case class ArrayElement(array: Expression) extends PlannerExpression {
 
   override private[flink] def children: Seq[Expression] = Seq(array)
 
@@ -158,7 +158,7 @@ case class ArrayElement(array: Expression) extends Expression {
   }
 }
 
-case class Cardinality(container: Expression) extends Expression {
+case class Cardinality(container: Expression) extends PlannerExpression {
 
   override private[flink] def children: Seq[Expression] = Seq(container)
 
@@ -181,7 +181,7 @@ case class Cardinality(container: Expression) extends Expression {
   }
 }
 
-case class ItemAt(container: Expression, key: Expression) extends Expression {
+case class ItemAt(container: Expression, key: Expression) extends PlannerExpression {
 
   override private[flink] def children: Seq[Expression] = Seq(container, key)
 

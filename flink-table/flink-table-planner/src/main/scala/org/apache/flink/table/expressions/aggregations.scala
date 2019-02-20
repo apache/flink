@@ -32,7 +32,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
-abstract sealed class Aggregation extends Expression {
+abstract sealed class Aggregation extends PlannerExpression {
 
   override def toString = s"Aggregate"
 

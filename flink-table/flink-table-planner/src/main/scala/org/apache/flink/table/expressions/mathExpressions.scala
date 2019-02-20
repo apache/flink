@@ -118,7 +118,8 @@ case class Cosh(child: Expression) extends UnaryExpression {
   override def toString = s"cosh($child)"
 }
 
-case class Log(base: Expression, antilogarithm: Expression) extends Expression with InputTypeSpec {
+case class Log(base: Expression, antilogarithm: Expression)
+  extends PlannerExpression with InputTypeSpec {
   def this(antilogarithm: Expression) = this(null, antilogarithm)
 
   override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
@@ -394,7 +395,7 @@ case class E() extends LeafExpression {
   }
 }
 
-case class Rand(seed: Expression) extends Expression with InputTypeSpec {
+case class Rand(seed: Expression) extends PlannerExpression with InputTypeSpec {
 
   def this() = this(null)
 
@@ -423,7 +424,8 @@ case class Rand(seed: Expression) extends Expression with InputTypeSpec {
   }
 }
 
-case class RandInteger(seed: Expression, bound: Expression) extends Expression with InputTypeSpec {
+case class RandInteger(seed: Expression, bound: Expression)
+  extends PlannerExpression with InputTypeSpec {
 
   def this(bound: Expression) = this(null, bound)
 
@@ -494,7 +496,8 @@ case class UUID() extends LeafExpression {
   }
 }
 
-case class Truncate(base: Expression, num: Expression) extends Expression with InputTypeSpec {
+case class Truncate(base: Expression, num: Expression)
+  extends PlannerExpression with InputTypeSpec {
   def this(base: Expression) = this(base, null)
 
   override private[flink] def resultType: TypeInformation[_] = base.resultType
