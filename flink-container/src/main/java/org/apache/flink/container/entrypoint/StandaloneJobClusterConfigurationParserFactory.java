@@ -20,6 +20,7 @@ package org.apache.flink.container.entrypoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.CliFrontendParser;
+import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.entrypoint.parser.ParserResultFactory;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
@@ -75,11 +76,10 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 	}
 
 	@Override
-	public StandaloneJobClusterConfiguration createResult(@Nonnull CommandLine commandLine) {
+	public StandaloneJobClusterConfiguration createResult(@Nonnull CommandLine commandLine) throws FlinkParseException {
 		final String configDir = commandLine.getOptionValue(CONFIG_DIR_OPTION.getOpt());
 		final Properties dynamicProperties = commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
-		final String restPortString = commandLine.getOptionValue(REST_PORT_OPTION.getOpt(), "-1");
-		final int restPort = Integer.parseInt(restPortString);
+		final int restPort = getRestPort(commandLine);
 		final String hostname = commandLine.getOptionValue(HOST_OPTION.getOpt());
 		final String jobClassName = commandLine.getOptionValue(JOB_CLASS_NAME_OPTION.getOpt());
 		final SavepointRestoreSettings savepointRestoreSettings = CliFrontendParser.createSavepointRestoreSettings(commandLine);
@@ -96,11 +96,28 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 			jobId);
 	}
 
-	private static JobID getJobId(CommandLine commandLine) {
+	private int getRestPort(CommandLine commandLine) throws FlinkParseException {
+		final String restPortString = commandLine.getOptionValue(REST_PORT_OPTION.getOpt(), "-1");
+		try {
+			return Integer.parseInt(restPortString);
+		} catch (NumberFormatException e) {
+			throw flinkParseException(REST_PORT_OPTION, e);
+		}
+	}
+
+	private static JobID getJobId(CommandLine commandLine) throws FlinkParseException {
 		String jobId = commandLine.getOptionValue(JOB_ID_OPTION.getOpt());
 		if (jobId == null) {
 			return DEFAULT_JOB_ID;
 		}
-		return JobID.fromHexString(jobId);
+		try {
+			return JobID.fromHexString(jobId);
+		} catch (IllegalArgumentException e) {
+			throw flinkParseException(JOB_ID_OPTION, e);
+		}
+	}
+
+	private static FlinkParseException flinkParseException(Option option, Exception cause) {
+		return new FlinkParseException(String.format("Failed to parse '--%s' option", option.getLongOpt()), cause);
 	}
 }
