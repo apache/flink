@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerUtils;
@@ -129,6 +130,20 @@ final class PojoSerializerSnapshotData<T> {
 			optionalMapOf(existingFieldSerializerSnapshots, Field::getName),
 			optionalMapOf(existingRegisteredSubclassSerializerSnapshots, Class::getName),
 			optionalMapOf(existingNonRegisteredSubclassSerializerSnapshots, Class::getName));
+	}
+
+	@VisibleForTesting
+	static <T> PojoSerializerSnapshotData<T> createFrom(
+		Class<T> pojoClass,
+		LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> optionalFieldSerializerSnapshots,
+		LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>> optionalRegisteredSubclassSerializerSnapshots,
+		LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>> optionalNonRegisteredSubclassSerializerSnapshots) {
+
+		return new PojoSerializerSnapshotData<>(
+			pojoClass,
+			optionalFieldSerializerSnapshots,
+			optionalRegisteredSubclassSerializerSnapshots,
+			optionalNonRegisteredSubclassSerializerSnapshots);
 	}
 
 	private Class<T> pojoClass;

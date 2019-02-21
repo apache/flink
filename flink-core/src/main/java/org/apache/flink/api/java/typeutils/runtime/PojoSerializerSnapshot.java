@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -40,6 +41,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -105,6 +107,11 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 			existingFieldSerializerSnapshots,
 			existingRegisteredSubclassSerializerSnapshots,
 			existingNonRegisteredSubclassSerializerSnapshots);
+	}
+
+	@VisibleForTesting
+	PojoSerializerSnapshot(PojoSerializerSnapshotData<T> snapshotData) {
+		this.snapshotData = checkNotNull(snapshotData);
 	}
 
 	@Override
