@@ -96,7 +96,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<String> HOST_BIND_POLICY =
 		key("taskmanager.host.bind-policy")
-		.defaultValue("hostname")
+		.defaultValue("auto-detect-hostname")
 		.withDescription(Description.builder()
 			.text("The automatic address binding policy used by the TaskManager if \"" + HOST.key() + "\" is not set." +
 				" The value should be one of the following:\n")
