@@ -29,8 +29,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,9 +41,6 @@ import static org.junit.Assert.assertTrue;
  * Test of the PubSub SINK with the Google PubSub emulator.
  */
 public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
-
-	private static final Logger LOG = LoggerFactory.getLogger(EmulatedPubSubSinkTest.class);
-
 	private static final String PROJECT_NAME = "FLProject";
 	private static final String TOPIC_NAME = "FLTopic";
 	private static final String SUBSCRIPTION_NAME = "FLSubscription";

@@ -24,14 +24,13 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.pubsub.emulator.GCloudUnitTestBase;
 import org.apache.flink.streaming.connectors.pubsub.emulator.PubsubHelper;
 
+import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,9 +44,6 @@ import static org.junit.Assert.assertTrue;
  * Test of the PubSub SOURCE with the Google PubSub emulator.
  */
 public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
-
-	private static final Logger LOG = LoggerFactory.getLogger(EmulatedPubSubSourceTest.class);
-
 	private static final String PROJECT_NAME = "FLProject";
 	private static final String TOPIC_NAME = "FLTopic";
 	private static final String SUBSCRIPTION_NAME = "FLSubscription";
@@ -80,8 +76,7 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
 		messagesToSend.forEach(s -> {
 			try {
 				publisher
-					.publish(PubsubMessage
-						.newBuilder()
+					.publish(PubsubMessage.newBuilder()
 						.setData(ByteString.copyFromUtf8(s))
 						.build())
 					.get();
@@ -96,10 +91,8 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
 
 		DataStream<String> fromPubSub = env
 			.addSource(PubSubSource.newBuilder(new BoundedStringDeserializer(10), PROJECT_NAME, SUBSCRIPTION_NAME)
-				// Specific for emulator
-				.withHostAndPort(getPubSubHostPort())
-				.withBackpressureParameters(100, 1000)
-				.build())
+								   .withPubSubSubscriberFactory(new PubSubSubscriberFactoryForEmulator(getPubSubHostPort()))
+					               .build())
 			.name("PubSub source");
 
 		List<String> output = new ArrayList<>();

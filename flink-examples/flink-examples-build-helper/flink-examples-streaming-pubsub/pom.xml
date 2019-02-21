@@ -35,12 +35,12 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-pubsub_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-pubsub_${scala.binary.version}</artifactId>
+			<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>

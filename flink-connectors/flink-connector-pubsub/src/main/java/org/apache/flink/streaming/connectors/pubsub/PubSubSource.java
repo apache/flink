@@ -21,7 +21,6 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.MultipleIdsMessageAcknowledgingSourceBase;
@@ -31,10 +30,13 @@ import org.apache.flink.streaming.connectors.pubsub.common.PubSubSubscriberFacto
 import org.apache.flink.util.Preconditions;
 
 import com.google.auth.Credentials;
-import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.Subscriber;
+import com.google.cloud.pubsub.v1.stub.SubscriberStub;
+import com.google.pubsub.v1.AcknowledgeRequest;
 import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PubsubMessage;
+import com.google.pubsub.v1.PullRequest;
+import com.google.pubsub.v1.ReceivedMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,33 +49,47 @@ import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCreden
  * PubSub Source, this Source will consume PubSub messages from a subscription and Acknowledge them on the next checkpoint.
  * This ensures every message will get acknowledged at least once.
  */
-public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OUT, String, AckReplyConsumer>
+public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OUT, String, String>
 		implements ResultTypeQueryable<OUT>, ParallelSourceFunction<OUT>, StoppableFunction {
 	private static final Logger LOG = LoggerFactory.getLogger(PubSubSource.class);
-	protected DeserializationSchema<OUT> deserializationSchema;
-	protected SubscriberWrapper subscriberWrapper;
+	protected final DeserializationSchema<OUT> deserializationSchema;
+	protected final PubSubSubscriberFactory pubSubSubscriberFactory;
+	protected final Credentials credentials;
+	protected final String projectSubscriptionName;
+	protected final int maxMessagesPerPull;
 
 	protected transient boolean deduplicateMessages;
+	protected transient SubscriberStub subscriber;
+	protected transient boolean isRunning;
+	protected transient PullRequest pullRequest;
 
-	PubSubSource(DeserializationSchema<OUT> deserializationSchema, SubscriberWrapper subscriberWrapper) {
+	PubSubSource(DeserializationSchema<OUT> deserializationSchema, PubSubSubscriberFactory pubSubSubscriberFactory, Credentials credentials, String projectSubscriptionName, int maxMessagesPerPull) {
 		super(String.class);
 		this.deserializationSchema = deserializationSchema;
-		this.subscriberWrapper = subscriberWrapper;
+		this.pubSubSubscriberFactory = pubSubSubscriberFactory;
+		this.credentials = credentials;
+		this.projectSubscriptionName = projectSubscriptionName;
+		this.maxMessagesPerPull = maxMessagesPerPull;
 	}
 
 	@Override
 	public void open(Configuration configuration) throws Exception {
 		super.open(configuration);
-		subscriberWrapper.initialize();
 		if (hasNoCheckpointingEnabled(getRuntimeContext())) {
 			throw new IllegalArgumentException("The PubSubSource REQUIRES Checkpointing to be enabled and " +
 				"the checkpointing frequency must be MUCH lower than the PubSub timeout for it to retry a message.");
 		}
 
 		getRuntimeContext().getMetricGroup().gauge("PubSubMessagesProcessedNotAcked", this::getOutstandingMessagesToAck);
-		getRuntimeContext().getMetricGroup().gauge("PubSubMessagesReceivedNotProcessed", subscriberWrapper::amountOfMessagesInBuffer);
 
-		deduplicateMessages = getRuntimeContext().getNumberOfParallelSubtasks() == 1;
+		this.subscriber = pubSubSubscriberFactory.getSubscriber(credentials);
+		this.deduplicateMessages = getRuntimeContext().getNumberOfParallelSubtasks() == 1;
+		this.isRunning = true;
+		this.pullRequest = PullRequest.newBuilder()
+										.setMaxMessages(100)
+										.setReturnImmediately(false)
+										.setSubscription(projectSubscriptionName)
+										.build();
 	}
 
 	private boolean hasNoCheckpointingEnabled(RuntimeContext runtimeContext) {
@@ -81,50 +97,47 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	}
 
 	@Override
-	protected void acknowledgeSessionIDs(List<AckReplyConsumer> ackReplyConsumers) {
-		ackReplyConsumers.forEach(AckReplyConsumer::ack);
+	protected void acknowledgeSessionIDs(List<String> acknowledgementIds) {
+		if (acknowledgementIds.isEmpty()) {
+			return;
+		}
+
+		AcknowledgeRequest acknowledgeRequest =
+			AcknowledgeRequest.newBuilder()
+								.setSubscription(projectSubscriptionName)
+								.addAllAckIds(acknowledgementIds)
+								.build();
+		subscriber.acknowledgeCallable().call(acknowledgeRequest);
 	}
 
 	@Override
 	public void run(SourceContext<OUT> sourceContext) throws Exception {
-		subscriberWrapper.start();
-
-		while (subscriberWrapper.isRunning()) {
-			try {
-				Tuple2<PubsubMessage, AckReplyConsumer> newMessage = subscriberWrapper.take();
-				if (newMessage != null) {
-					processMessage(sourceContext, newMessage);
-				}
-			} catch (InterruptedException e) {
-				LOG.debug("Interrupted - stop or cancel called?");
-			}
+		while (isRunning) {
+				List<ReceivedMessage> messages = subscriber.pullCallable().call(pullRequest).getReceivedMessagesList();
+				processMessage(sourceContext, messages);
 		}
-
-		nackOutstandingMessages();
-
-		LOG.debug("Waiting for PubSubSubscriber to terminate.");
-		subscriberWrapper.awaitTerminated();
 	}
 
-	void processMessage(SourceContext<OUT> sourceContext, Tuple2<PubsubMessage, AckReplyConsumer> input) throws IOException {
-		PubsubMessage message = input.f0;
-		AckReplyConsumer ackReplyConsumer = input.f1;
-
+	void processMessage(SourceContext<OUT> sourceContext, List<ReceivedMessage> messages) throws IOException {
 		synchronized (sourceContext.getCheckpointLock()) {
-			sessionIds.add(ackReplyConsumer);
+			for (ReceivedMessage message : messages) {
+				sessionIds.add(message.getAckId());
 
-			if (deduplicateMessages && !addId(message.getMessageId())) {
-				// message is duplicate so just ignore it
-				return;
+				PubsubMessage pubsubMessage = message.getMessage();
+				if (deduplicateMessages && !addId(pubsubMessage.getMessageId())) {
+					// message is duplicate so just ignore it
+					return;
+				}
+
+				OUT deserializedMessage = deserializeMessage(pubsubMessage);
+				if (deserializationSchema.isEndOfStream(deserializedMessage)) {
+					stop();
+					return;
+				}
+
+				sourceContext.collect(deserializedMessage);
 			}
 
-			OUT deserializedMessage = deserializeMessage(message);
-			if (deserializationSchema.isEndOfStream(deserializedMessage)) {
-				stop();
-				return;
-			}
-
-			sourceContext.collect(deserializedMessage);
 		}
 	}
 
@@ -135,23 +148,14 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 				.sum() + this.sessionIds.size();
 	}
 
-	private void nackOutstandingMessages() {
-		LOG.debug("Going to nack {} processed but not checkpointed pubsub messages.", getOutstandingMessagesToAck());
-		this.sessionIdsPerSnapshot.stream()
-			.flatMap(tuple -> tuple.f1.stream())
-			.forEach(AckReplyConsumer::nack);
-		this.sessionIds.forEach(AckReplyConsumer::nack);
-		LOG.debug("Finished nacking pubsub messages.");
-	}
-
 	@Override
 	public void cancel() {
-		subscriberWrapper.stop();
+		isRunning = false;
 	}
 
 	@Override
 	public void stop() {
-		subscriberWrapper.stopAsync();
+		isRunning = false;
 	}
 
 	private OUT deserializeMessage(PubsubMessage message) throws IOException {
@@ -173,19 +177,16 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	/**
 	 * Builder to create PubSubSource.
 	 *
-	 * @param <OUT>     The type of objects which will be read
+	 * @param <OUT> The type of objects which will be read
 	 */
-	@SuppressWarnings("unchecked")
 	public static class PubSubSourceBuilder<OUT> {
-		private DeserializationSchema<OUT> deserializationSchema;
-		private String projectName;
-		private String subscriptionName;
+		private final DeserializationSchema<OUT> deserializationSchema;
+		private final String projectName;
+		private final String subscriptionName;
 
 		private PubSubSubscriberFactory pubSubSubscriberFactory;
-		private Long maxMessagesReceivedNotProcessed;
-		private Long maxBytesReceivedNotProcessed;
 		private Credentials credentials;
-		private String hostAndPort;
+		private int maxMessagesPerPull = 100;
 
 		protected PubSubSourceBuilder(DeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {
 			this.deserializationSchema = deserializationSchema;
@@ -206,41 +207,9 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		}
 
 		/**
-		 * @param deserializationSchema Instance of a DeserializationSchema that converts the OUT into a byte[]
-		 * @return The current PubSubSourceBuilder instance
-		 */
-		public PubSubSourceBuilder<OUT> withDeserializationSchema(DeserializationSchema<OUT> deserializationSchema) {
-			this.deserializationSchema = deserializationSchema;
-			return this;
-		}
-
-		/**
-		 * @param projectName      The name of the project in GoogleCloudPlatform
-		 * @param subscriptionName The name of the subscription in PubSub
-		 * @return The current PubSubSourceBuilder instance
-		 */
-		public PubSubSourceBuilder<OUT> withProjectSubscriptionName(String projectName, String subscriptionName) {
-			this.projectName = projectName;
-			this.subscriptionName = subscriptionName;
-			return this;
-		}
-
-		/**
-		 * Set the custom hostname/port combination of PubSub.
-		 * The ONLY reason to use this is during tests with the emulator provided by Google.
-		 *
-		 * @param hostAndPort The combination of hostname and port to connect to ("hostname:1234")
-		 * @return The current PubSubSourceBuilder instance
-		 */
-		public PubSubSourceBuilder<OUT> withHostAndPort(String hostAndPort) {
-			this.hostAndPort = hostAndPort;
-			return this;
-		}
-
-		/**
 		 * Set a PubSubSubscriberFactory
 		 * This allows for custom Subscriber options to be set.
-		 * Cannot be used in combination with withHostAndPortForEmulator().
+		 * {@link DefaultPubSubSubscriberFactory} is the default.
 		 *
 		 * @param pubSubSubscriberFactory A factory to create a {@link Subscriber}
 		 * @return The current PubSubSourceBuilder instance
@@ -251,14 +220,14 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		}
 
 		/**
-		 * Tune how many messages the connector will buffer when the Flink pipeline cannot keep up (backpressure).
+		 * The source function uses Grpc calls to get new messages.
+		 * This parameter limited the maximum amount of messages to retrieve per pull. Default value is 100.
 		 *
-		 * @param maxMessagesReceivedNotProcessed This indicates how many messages will be read and buffered until when the flink pipeline can't handle the messages fast enough.
-		 * @param maxBytesReceivedNotProcessed This indicates how many bytes will be read and buffered. A good pick would be: maxBytesReceivedNotProcessed = maxMessagesReceivedNotProcessed * averageBytesSizePerMessage
+		 * @param maxMessagesPerPull
+		 * @return The current PubSubSourceBuilder instance
 		 */
-		public PubSubSourceBuilder<OUT> withBackpressureParameters(long maxMessagesReceivedNotProcessed, long maxBytesReceivedNotProcessed) {
-			this.maxMessagesReceivedNotProcessed = maxMessagesReceivedNotProcessed;
-			this.maxBytesReceivedNotProcessed = maxBytesReceivedNotProcessed;
+		public PubSubSourceBuilder<OUT> withMaxMessagesPerPull(int maxMessagesPerPull) {
+			this.maxMessagesPerPull = maxMessagesPerPull;
 			return this;
 		}
 
@@ -266,7 +235,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 		 * Actually build the desired instance of the PubSubSourceBuilder.
 		 *
 		 * @return a brand new SourceFunction
-		 * @throws IOException              in case of a problem getting the credentials
+		 * @throws IOException	          in case of a problem getting the credentials
 		 * @throws IllegalArgumentException in case required fields were not specified.
 		 */
 		public PubSubSource<OUT> build() throws IOException {
@@ -274,20 +243,11 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 				credentials = defaultCredentialsProviderBuilder().build().getCredentials();
 			}
 
-			if (pubSubSubscriberFactory != null && hostAndPort != null) {
-				throw new IllegalArgumentException(("withPubSubSubscriberFactory() and withHostAndPortForEmulator() both called, only one may be called."));
-			}
-
-			if (pubSubSubscriberFactory != null && maxMessagesReceivedNotProcessed != null) {
-				throw new IllegalArgumentException(("withPubSubSubscriberFactory() and withBackpressureParameters() both called, only one may be called."));
-			}
-
 			if (pubSubSubscriberFactory == null) {
-				pubSubSubscriberFactory = new DefaultPubSubSubscriberFactory(hostAndPort, maxMessagesReceivedNotProcessed, maxBytesReceivedNotProcessed);
+				pubSubSubscriberFactory = new DefaultPubSubSubscriberFactory();
 			}
 
-			SubscriberWrapper subscriberWrapper = new SubscriberWrapper(credentials, ProjectSubscriptionName.of(projectName, subscriptionName), pubSubSubscriberFactory);
-			return new PubSubSource<>(deserializationSchema, subscriberWrapper);
+			return new PubSubSource<>(deserializationSchema, pubSubSubscriberFactory, credentials, ProjectSubscriptionName.format(projectName, subscriptionName), maxMessagesPerPull);
 		}
 	}
 }

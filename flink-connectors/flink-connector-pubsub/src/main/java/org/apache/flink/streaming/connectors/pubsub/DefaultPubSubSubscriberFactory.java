@@ -20,54 +20,21 @@ package org.apache.flink.streaming.connectors.pubsub;
 
 import org.apache.flink.streaming.connectors.pubsub.common.PubSubSubscriberFactory;
 
-import com.google.api.gax.batching.FlowControlSettings;
-import com.google.api.gax.batching.FlowController;
 import com.google.api.gax.core.FixedCredentialsProvider;
-import com.google.api.gax.core.NoCredentialsProvider;
-import com.google.api.gax.grpc.GrpcTransportChannel;
-import com.google.api.gax.rpc.FixedTransportChannelProvider;
-import com.google.api.gax.rpc.TransportChannel;
 import com.google.auth.Credentials;
-import com.google.cloud.pubsub.v1.MessageReceiver;
-import com.google.cloud.pubsub.v1.Subscriber;
-import com.google.pubsub.v1.ProjectSubscriptionName;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+import com.google.cloud.pubsub.v1.stub.GrpcSubscriberStub;
+import com.google.cloud.pubsub.v1.stub.SubscriberStub;
+import com.google.cloud.pubsub.v1.stub.SubscriberStubSettings;
+
+import java.io.IOException;
 
 class DefaultPubSubSubscriberFactory implements PubSubSubscriberFactory {
-	private final long maxOutstandingElementCount;
-	private final long maxOutstandingRequestBytes;
-	private final String hostAndPort;
-
-	DefaultPubSubSubscriberFactory(String hostAndPort, long maxOutstandingElementCount, long maxOutstandingRequestBytes) {
-		this.hostAndPort = hostAndPort;
-		this.maxOutstandingElementCount = maxOutstandingElementCount;
-		this.maxOutstandingRequestBytes = maxOutstandingRequestBytes;
-	}
-
 	@Override
-	public Subscriber getSubscriber(Credentials credentials, ProjectSubscriptionName projectSubscriptionName, MessageReceiver messageReceiver) {
-		FlowControlSettings flowControlSettings = FlowControlSettings.newBuilder()
-			.setMaxOutstandingElementCount(maxOutstandingElementCount)
-			.setMaxOutstandingRequestBytes(maxOutstandingRequestBytes)
-			.setLimitExceededBehavior(FlowController.LimitExceededBehavior.Block)
-			.build();
+	public SubscriberStub getSubscriber(Credentials credentials) throws IOException {
+		SubscriberStubSettings settings = SubscriberStubSettings.newBuilder()
+																.setCredentialsProvider(FixedCredentialsProvider.create(credentials))
+																.build();
 
-		Subscriber.Builder builder = Subscriber
-				.newBuilder(ProjectSubscriptionName.of(projectSubscriptionName.getProject(), projectSubscriptionName.getSubscription()), messageReceiver)
-				.setFlowControlSettings(flowControlSettings)
-				.setCredentialsProvider(FixedCredentialsProvider.create(credentials));
-
-		if (hostAndPort != null) {
-			ManagedChannel managedChannel = ManagedChannelBuilder
-				.forTarget(hostAndPort)
-				.usePlaintext() // This is 'Ok' because this is ONLY used for testing.
-				.build();
-			TransportChannel transportChannel = GrpcTransportChannel.newBuilder().setManagedChannel(managedChannel).build();
-			builder.setChannelProvider(FixedTransportChannelProvider.create(transportChannel))
-					.setCredentialsProvider(NoCredentialsProvider.create());
-		}
-
-		return builder.build();
+		return GrpcSubscriberStub.create(settings);
 	}
 }

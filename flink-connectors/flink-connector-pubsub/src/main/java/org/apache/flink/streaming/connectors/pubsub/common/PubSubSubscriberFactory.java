@@ -19,10 +19,10 @@
 package org.apache.flink.streaming.connectors.pubsub.common;
 
 import com.google.auth.Credentials;
-import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Subscriber;
-import com.google.pubsub.v1.ProjectSubscriptionName;
+import com.google.cloud.pubsub.v1.stub.SubscriberStub;
 
+import java.io.IOException;
 import java.io.Serializable;
 
 /**
@@ -31,5 +31,5 @@ import java.io.Serializable;
  * Note: this class needs to be serializable.
  */
 public interface PubSubSubscriberFactory extends Serializable {
-	Subscriber getSubscriber(Credentials credentials, ProjectSubscriptionName projectSubscriptionName, MessageReceiver messageReceiver);
+	SubscriberStub getSubscriber(Credentials credentials) throws IOException;
 }
