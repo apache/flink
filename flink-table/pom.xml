@@ -44,4 +44,9 @@ under the License.
 		<module>flink-table-uber</module>
 		<module>flink-sql-client</module>
 	</modules>
+
+	<properties>
+		<!-- When updating Janino, make sure that Calcite supports it as well. -->
+		<janino.version>3.0.7</janino.version>
+	</properties>
 </project>
