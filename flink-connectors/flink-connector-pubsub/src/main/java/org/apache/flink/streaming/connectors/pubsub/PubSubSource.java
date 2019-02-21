@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.pubsub.common.PubSubSubscriberFactory;
 import org.apache.flink.util.Preconditions;
 
+import com.google.api.core.ApiFuture;
 import com.google.auth.Credentials;
 import com.google.cloud.pubsub.v1.Subscriber;
 import com.google.cloud.pubsub.v1.stub.SubscriberStub;
@@ -36,12 +37,15 @@ import com.google.pubsub.v1.AcknowledgeRequest;
 import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.PullRequest;
+import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.ReceivedMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.TimeUnit;
 
 import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCredentialsProviderBuilder;
 
@@ -60,8 +64,10 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 
 	protected transient boolean deduplicateMessages;
 	protected transient SubscriberStub subscriber;
-	protected transient boolean isRunning;
 	protected transient PullRequest pullRequest;
+
+	protected transient volatile boolean isRunning;
+	protected transient volatile ApiFuture<PullResponse> messagesFuture;
 
 	PubSubSource(DeserializationSchema<OUT> deserializationSchema, PubSubSubscriberFactory pubSubSubscriberFactory, Credentials credentials, String projectSubscriptionName, int maxMessagesPerPull) {
 		super(String.class);
@@ -113,9 +119,16 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	@Override
 	public void run(SourceContext<OUT> sourceContext) throws Exception {
 		while (isRunning) {
-				List<ReceivedMessage> messages = subscriber.pullCallable().call(pullRequest).getReceivedMessagesList();
-				processMessage(sourceContext, messages);
+			messagesFuture = subscriber.pullCallable().futureCall(pullRequest);
+			try {
+				processMessage(sourceContext, messagesFuture.get().getReceivedMessagesList());
+			} catch (InterruptedException | CancellationException e) {
+				awaitSubscriberTermination();
+				return;
+			}
 		}
+
+		awaitSubscriberTermination();
 	}
 
 	void processMessage(SourceContext<OUT> sourceContext, List<ReceivedMessage> messages) throws IOException {
@@ -151,11 +164,23 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	@Override
 	public void cancel() {
 		isRunning = false;
+		if (messagesFuture != null) {
+			messagesFuture.cancel(true);
+		}
+		if (subscriber != null) {
+			subscriber.shutdownNow();
+		}
 	}
 
 	@Override
 	public void stop() {
 		isRunning = false;
+		if (messagesFuture != null) {
+			messagesFuture.cancel(true);
+		}
+		if (subscriber != null) {
+			subscriber.shutdown();
+		}
 	}
 
 	private OUT deserializeMessage(PubsubMessage message) throws IOException {
@@ -165,6 +190,22 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	@Override
 	public TypeInformation<OUT> getProducedType() {
 		return deserializationSchema.getProducedType();
+	}
+
+	/*
+	 * If we don't wait for the subscriber to terminate all background threads
+	 * ClassNotFoundExceptions will be thrown when Flink starts unloading classes.
+	 */
+	private void awaitSubscriberTermination() {
+		//Wait for the subscriber to terminate, to prevent leaking threads
+		while (!subscriber.isTerminated()) {
+			try {
+				subscriber.awaitTermination(60, TimeUnit.SECONDS);
+				Thread.sleep(2500);
+			} catch (InterruptedException e) {
+				LOG.error("Still waiting for subscriber to terminate.", e);
+			}
+		}
 	}
 
 	public static <OUT> PubSubSourceBuilder<OUT> newBuilder(DeserializationSchema<OUT> deserializationSchema, String projectName, String subscriptionName) {

@@ -241,8 +241,8 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 		 * Actually builder the desired instance of the PubSubSink.
 		 *
 		 * @return a brand new PubSubSink
-		 * @throws IOException              incase of a problem getting the credentials
-		 * @throws IllegalArgumentException incase required fields were not specified.
+		 * @throws IOException              in case of a problem getting the credentials
+		 * @throws IllegalArgumentException in case required fields were not specified.
 		 */
 		public PubSubSink<IN> build() throws IOException {
 			if (credentials == null) {
