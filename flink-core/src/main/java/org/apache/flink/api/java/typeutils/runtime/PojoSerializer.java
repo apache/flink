@@ -38,8 +38,6 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -116,6 +114,9 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	private transient ClassLoader cl;
 
+	/**
+	 * Constructor to create a new {@link PojoSerializer}.
+	 */
 	@SuppressWarnings("unchecked")
 	public PojoSerializer(
 			Class<T> clazz,
@@ -145,6 +146,10 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		this.subclassSerializerCache = new HashMap<>();
 	}
 
+	/**
+	 * Constructor to create a restore serializer or a reconfigured serializer
+	 * from a {@link PojoSerializerSnapshot}.
+	 */
 	PojoSerializer(
 			Class<T> clazz,
 			Field[] fields,
@@ -152,7 +157,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			LinkedHashMap<Class<?>, Integer> registeredClasses,
 			TypeSerializer<?>[] registeredSerializers,
 			HashMap<Class<?>, TypeSerializer<?>> subclassSerializerCache,
-			@Nullable ExecutionConfig executionConfig) {
+			ExecutionConfig executionConfig) {
 
 		this.clazz = checkNotNull(clazz);
 		this.fields = checkNotNull(fields);
@@ -161,8 +166,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		this.registeredClasses = checkNotNull(registeredClasses);
 		this.registeredSerializers = checkNotNull(registeredSerializers);
 		this.subclassSerializerCache = checkNotNull(subclassSerializerCache);
-
-		this.executionConfig = executionConfig;
+		this.executionConfig = checkNotNull(executionConfig);
 	}
 	
 	@Override

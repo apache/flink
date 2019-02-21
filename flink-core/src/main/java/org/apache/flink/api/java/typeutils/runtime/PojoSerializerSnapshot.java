@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
@@ -113,13 +114,13 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 
 	@Override
 	public void writeSnapshot(DataOutputView out) throws IOException {
-		this.snapshotData.writeSnapshotData(out);
+		snapshotData.writeSnapshotData(out);
 	}
 
 	@Override
 	public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
 		checkArgument(readVersion == 2, "unrecognized read version %d", readVersion);
-		this.snapshotData = PojoSerializerSnapshotData.createFrom(in, userCodeClassLoader);
+		snapshotData = PojoSerializerSnapshotData.createFrom(in, userCodeClassLoader);
 	}
 
 	@Override
@@ -150,7 +151,7 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 			decomposedSubclassSerializerRegistry.f0,
 			decomposedSubclassSerializerRegistry.f1,
 			nonRegisteredSubclassSerializers,
-			null);
+			new ExecutionConfig());
 	}
 
 	@Override
@@ -170,44 +171,54 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 
-		if (!registeredSubclassSerializerSnapshots.absentKeysOrValues().isEmpty()) {
+		if (registeredSubclassSerializerSnapshots.hasAbsentKeysOrValues()) {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 
-		if (!nonRegisteredSubclassSerializerSnapshots.absentKeysOrValues().isEmpty()) {
+		if (nonRegisteredSubclassSerializerSnapshots.hasAbsentKeysOrValues()) {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 
-		final CompositeTypeSerializerUtil.IntermediateCompatibilityResult<T> fieldSerializerCompatibility =
+		final CompositeTypeSerializerUtil.IntermediateCompatibilityResult<T> preExistingFieldSerializersCompatibility =
 			getCompatibilityOfPreExistingFields(newPojoSerializer, fieldSerializerSnapshots);
+
+		if (preExistingFieldSerializersCompatibility.isIncompatible()) {
+			return TypeSerializerSchemaCompatibility.incompatible();
+		}
 
 		final CompositeTypeSerializerUtil.IntermediateCompatibilityResult<T> preExistingRegistrationsCompatibility =
 			getCompatibilityOfPreExistingRegisteredSubclasses(newPojoSerializer, registeredSubclassSerializerSnapshots);
 
-		if (fieldSerializerCompatibility.isIncompatible() || preExistingRegistrationsCompatibility.isIncompatible()) {
+		if (preExistingRegistrationsCompatibility.isIncompatible()) {
 			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 
-		if (newPojoHasNewOrRemovedFields(fieldSerializerSnapshots, newPojoSerializer)
-				|| fieldSerializerCompatibility.isCompatibleAfterMigration()
-				|| preExistingRegistrationsCompatibility.isCompatibleAfterMigration()) {
+		if (newPojoSerializerIsCompatibleAfterMigration(
+				newPojoSerializer,
+				preExistingFieldSerializersCompatibility,
+				preExistingRegistrationsCompatibility,
+				fieldSerializerSnapshots)) {
 
 			return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
-		} else if (newPojoHasDifferentSubclassRegistrationOrder(registeredSubclassSerializerSnapshots, newPojoSerializer)
-				|| previousSerializerHasNonRegisteredSubclasses(nonRegisteredSubclassSerializerSnapshots)
-				|| fieldSerializerCompatibility.isCompatibleWithReconfiguredSerializer()
-				|| preExistingRegistrationsCompatibility.isCompatibleWithReconfiguredSerializer()) {
+		}
+
+		if (newPojoSerializerIsCompatibleWithReconfiguredSerializer(
+				newPojoSerializer,
+				preExistingFieldSerializersCompatibility,
+				preExistingRegistrationsCompatibility,
+				registeredSubclassSerializerSnapshots,
+				nonRegisteredSubclassSerializerSnapshots)) {
 
 			return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
 				constructReconfiguredPojoSerializer(
 					newPojoSerializer,
-					fieldSerializerCompatibility,
+					preExistingFieldSerializersCompatibility,
 					registeredSubclassSerializerSnapshots,
 					preExistingRegistrationsCompatibility,
 					nonRegisteredSubclassSerializerSnapshots));
-		} else {
-			return TypeSerializerSchemaCompatibility.compatibleAsIs();
 		}
+
+		return TypeSerializerSchemaCompatibility.compatibleAsIs();
 	}
 
 	// ---------------------------------------------------------------------------------------------
@@ -304,6 +315,34 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 		return CompositeTypeSerializerUtil.constructIntermediateCompatibilityResult(
 			associatedNewSubclassSerializers.toArray(new TypeSerializer<?>[associatedNewSubclassSerializers.size()]),
 			associatedSubclassSerializerSnapshots.toArray(new TypeSerializerSnapshot<?>[associatedSubclassSerializerSnapshots.size()]));
+	}
+
+	/**
+	 * Checks if the new {@link PojoSerializer} is compatible after migration.
+	 */
+	private static <T> boolean newPojoSerializerIsCompatibleAfterMigration(
+			PojoSerializer<T> newPojoSerializer,
+			CompositeTypeSerializerUtil.IntermediateCompatibilityResult<T> fieldSerializerCompatibility,
+			CompositeTypeSerializerUtil.IntermediateCompatibilityResult<T> preExistingRegistrationsCompatibility,
+			LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> fieldSerializerSnapshots) {
+		return newPojoHasNewOrRemovedFields(fieldSerializerSnapshots, newPojoSerializer)
+			|| fieldSerializerCompatibility.isCompatibleAfterMigration()
+			|| preExistingRegistrationsCompatibility.isCompatibleAfterMigration();
+	}
+
+	/**
+	 * Checks if the new {@link PojoSerializer} is compatible with a reconfigured instance.
+	 */
+	private static <T> boolean newPojoSerializerIsCompatibleWithReconfiguredSerializer(
+			PojoSerializer<T> newPojoSerializer,
+			CompositeTypeSerializerUtil.IntermediateCompatibilityResult<T> fieldSerializerCompatibility,
+			CompositeTypeSerializerUtil.IntermediateCompatibilityResult<T> preExistingRegistrationsCompatibility,
+			LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>> registeredSubclassSerializerSnapshots,
+			LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>> nonRegisteredSubclassSerializerSnapshots) {
+		return newPojoHasDifferentSubclassRegistrationOrder(registeredSubclassSerializerSnapshots, newPojoSerializer)
+			|| previousSerializerHasNonRegisteredSubclasses(nonRegisteredSubclassSerializerSnapshots)
+			|| fieldSerializerCompatibility.isCompatibleWithReconfiguredSerializer()
+			|| preExistingRegistrationsCompatibility.isCompatibleWithReconfiguredSerializer();
 	}
 
 	/**

@@ -134,6 +134,18 @@ public final class LinkedOptionalMap<K, V> {
 	}
 
 	/**
+	 * Checks whether there are entries with absent keys or values.
+	 */
+	public boolean hasAbsentKeysOrValues() {
+		for (Entry<String, KeyValue<K, V>> entry : underlyingMap.entrySet()) {
+			if (keyOrValueIsAbsent(entry)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * A {@link java.util.function.Consumer} that throws exceptions.
 	 */
 	@FunctionalInterface
