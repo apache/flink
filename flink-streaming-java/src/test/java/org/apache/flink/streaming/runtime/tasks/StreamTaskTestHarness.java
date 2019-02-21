@@ -202,8 +202,8 @@ public class StreamTaskTestHarness<OUT> {
 	 * Task thread to finish running.
 	 *
 	 */
-	public void invoke() throws Exception {
-		invoke(createEnvironment());
+	public Thread invoke() throws Exception {
+		return invoke(createEnvironment());
 	}
 
 	/**
@@ -212,7 +212,7 @@ public class StreamTaskTestHarness<OUT> {
 	 * Task thread to finish running.
 	 *
 	 */
-	public void invoke(StreamMockEnvironment mockEnv) throws Exception {
+	public Thread invoke(StreamMockEnvironment mockEnv) throws Exception {
 		this.mockEnv = checkNotNull(mockEnv);
 
 		initializeInputs();
@@ -222,6 +222,7 @@ public class StreamTaskTestHarness<OUT> {
 
 		taskThread = new TaskThread(task);
 		taskThread.start();
+		return taskThread;
 	}
 
 	/**

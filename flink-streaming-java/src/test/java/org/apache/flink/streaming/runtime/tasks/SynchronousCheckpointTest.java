@@ -109,7 +109,8 @@ public class SynchronousCheckpointTest {
 			try {
 				streamTaskUnderTest.triggerCheckpoint(
 						new CheckpointMetaData(42, System.currentTimeMillis()),
-						new CheckpointOptions(CheckpointType.SYNC_SAVEPOINT, CheckpointStorageLocationReference.getDefault())
+						new CheckpointOptions(CheckpointType.SYNC_SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
+						false
 				);
 			} catch (Exception e) {
 				error.set(e);

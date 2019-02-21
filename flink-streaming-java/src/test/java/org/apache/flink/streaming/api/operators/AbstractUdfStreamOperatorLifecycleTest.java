@@ -251,7 +251,8 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 							runStarted.await();
 							if (getContainingTask().isCanceled() || getContainingTask().triggerCheckpoint(
 									new CheckpointMetaData(0, System.currentTimeMillis()),
-									CheckpointOptions.forCheckpointWithDefaultLocation())) {
+									CheckpointOptions.forCheckpointWithDefaultLocation(),
+									false)) {
 								LifecycleTrackingStreamSource.runFinish.trigger();
 							}
 						} catch (Exception e) {
