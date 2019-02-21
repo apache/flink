@@ -43,7 +43,6 @@ import org.mockito.runners.MockitoJUnitRunner;
 
 import java.util.List;
 
-
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.hamcrest.MatcherAssert.assertThat;
