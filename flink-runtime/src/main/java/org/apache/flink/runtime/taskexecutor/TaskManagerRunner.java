@@ -406,15 +406,15 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		checkNotNull(configuration);
 		checkNotNull(haServices);
 
-		final String taskManagerHostname = determineTaskManagerHostname(configuration, haServices);
+		final String taskManagerAddress = determineTaskManagerBindAddress(configuration, haServices);
 		final String portRangeDefinition = configuration.getString(TaskManagerOptions.RPC_PORT);
 
-		return AkkaRpcServiceUtils.createRpcService(taskManagerHostname, portRangeDefinition, configuration);
+		return AkkaRpcServiceUtils.createRpcService(taskManagerAddress, portRangeDefinition, configuration);
 	}
 
-	private static String determineTaskManagerHostname(
+	private static String determineTaskManagerBindAddress(
 			final Configuration configuration,
-			final HighAvailabilityServices haServices) throws LeaderRetrievalException {
+			final HighAvailabilityServices haServices) throws Exception {
 
 		final String configuredTaskManagerHostname = configuration.getString(TaskManagerOptions.HOST);
 
@@ -422,7 +422,17 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			LOG.info("Using configured hostname/address for TaskManager: {}.", configuredTaskManagerHostname);
 			return configuredTaskManagerHostname;
 		} else {
-			return determineTaskManagerHostnameByConnectingToResourceManager(configuration, haServices);
+			HostBindPolicy bindPolicy = HostBindPolicy.fromString(configuration.getString(TaskManagerOptions.HOST_BIND_POLICY));
+			switch (bindPolicy) {
+				case HOSTNAME:
+					return InetAddress.getLocalHost().getHostName();
+				case IP:
+					return InetAddress.getLocalHost().getHostAddress();
+				case AUTO_DETECT_HOSTNAME:
+					return determineTaskManagerHostnameByConnectingToResourceManager(configuration, haServices);
+				default:
+					throw new IllegalArgumentException("Unknown " + TaskManagerOptions.HOST_BIND_POLICY.key() + ": " + bindPolicy);
+			}
 		}
 	}
 
