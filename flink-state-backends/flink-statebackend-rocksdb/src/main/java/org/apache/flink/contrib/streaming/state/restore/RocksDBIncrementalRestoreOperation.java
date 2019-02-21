@@ -27,6 +27,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBOperationUtils;
 import org.apache.flink.contrib.streaming.state.RocksDBStateDownloader;
 import org.apache.flink.contrib.streaming.state.RocksDBWriteBatchWrapper;
 import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
+import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileStatus;
@@ -46,6 +47,7 @@ import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
 
 import org.rocksdb.ColumnFamilyDescriptor;
@@ -101,7 +103,9 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 		ColumnFamilyOptions columnOptions,
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
-		@Nonnull Collection<KeyedStateHandle> restoreStateHandles) {
+		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
+		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+		TtlTimeProvider ttlTimeProvider) {
 		super(keyGroupRange,
 			keyGroupPrefixBytes,
 			numberOfTransferringThreads,
@@ -115,7 +119,9 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 			columnOptions,
 			nativeMetricOptions,
 			metricGroup,
-			restoreStateHandles);
+			restoreStateHandles,
+			ttlCompactFiltersManager,
+			ttlTimeProvider);
 		this.operatorIdentifier = operatorIdentifier;
 		this.restoredSstFiles = new TreeMap<>();
 		this.lastCompletedCheckpointId = -1L;
@@ -234,7 +240,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 
 				serializationProxy = readMetaData(restoreStateHandle.getMetaStateHandle());
 				stateMetaInfoSnapshots = serializationProxy.getStateMetaInfoSnapshots();
-				columnFamilyDescriptors = createAndRegisterColumnFamilyDescriptors(stateMetaInfoSnapshots);
+				columnFamilyDescriptors = createAndRegisterColumnFamilyDescriptors(stateMetaInfoSnapshots, true);
 
 				// since we transferred all remote state to a local directory, we can use the same code as for
 				// local recovery.
@@ -250,7 +256,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 				localKeyedStateHandle = (IncrementalLocalKeyedStateHandle) rawStateHandle;
 				serializationProxy = readMetaData(localKeyedStateHandle.getMetaDataState());
 				stateMetaInfoSnapshots = serializationProxy.getStateMetaInfoSnapshots();
-				columnFamilyDescriptors = createAndRegisterColumnFamilyDescriptors(stateMetaInfoSnapshots);
+				columnFamilyDescriptors = createAndRegisterColumnFamilyDescriptors(stateMetaInfoSnapshots, true);
 			} else {
 				throw new IllegalStateException("Unexpected state handle type, " +
 					"expected " + IncrementalKeyedStateHandle.class + " or " + IncrementalLocalKeyedStateHandle.class +
@@ -422,7 +428,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 		List<StateMetaInfoSnapshot> stateMetaInfoSnapshots = serializationProxy.getStateMetaInfoSnapshots();
 
 		List<ColumnFamilyDescriptor> columnFamilyDescriptors =
-			createAndRegisterColumnFamilyDescriptors(stateMetaInfoSnapshots);
+			createAndRegisterColumnFamilyDescriptors(stateMetaInfoSnapshots, false);
 
 		List<ColumnFamilyHandle> columnFamilyHandles =
 			new ArrayList<>(stateMetaInfoSnapshots.size() + 1);
@@ -441,13 +447,17 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 	 * This method recreates and registers all {@link ColumnFamilyDescriptor} from Flink's state meta data snapshot.
 	 */
 	private List<ColumnFamilyDescriptor> createAndRegisterColumnFamilyDescriptors(
-		List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) {
+		List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
+		boolean registerTtlCompactFilter) {
 
 		List<ColumnFamilyDescriptor> columnFamilyDescriptors =
 			new ArrayList<>(stateMetaInfoSnapshots.size());
 
 		for (StateMetaInfoSnapshot stateMetaInfoSnapshot : stateMetaInfoSnapshots) {
-
+			if (registerTtlCompactFilter) {
+				ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(ttlTimeProvider,
+					stateMetaInfoSnapshot, columnOptions);
+			}
 			ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(
 				stateMetaInfoSnapshot.getName().getBytes(ConfigConstants.DEFAULT_CHARSET),
 				columnOptions);

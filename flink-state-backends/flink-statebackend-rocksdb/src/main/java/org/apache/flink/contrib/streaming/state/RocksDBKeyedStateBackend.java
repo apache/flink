@@ -369,8 +369,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private static void addColumnFamilyToCloseLater(
 		List<ColumnFamilyOptions> columnFamilyOptions, ColumnFamilyHandle columnFamilyHandle) {
-
 		try {
+			if (columnFamilyHandle == null || columnFamilyHandle.getDescriptor() == null) {
+				return;
+			}
 			columnFamilyOptions.add(columnFamilyHandle.getDescriptor().getOptions());
 		} catch (RocksDBException e) {
 			// ignore
@@ -516,7 +518,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateSerializer,
 				StateSnapshotTransformFactory.noTransform());
 
-			newRocksStateInfo = createStateInfo(newMetaInfo);
+			ColumnFamilyOptions options = columnFamilyOptionsFactory.apply(newMetaInfo.getName())
+				.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
+			newRocksStateInfo = RocksDBOperationUtils.createStateInfo(newMetaInfo, ttlCompactFiltersManager,
+				ttlTimeProvider, db, null, options);
 			RocksDBOperationUtils.registerKvStateInformation(this.kvStateInformation, this.nativeMetricMonitor,
 				stateDesc.getName(), newRocksStateInfo);
 		}
@@ -623,20 +628,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			db.releaseSnapshot(rocksDBSnapshot);
 			rocksDBSnapshot.close();
 		}
-	}
-
-	/**
-	 * Creates a state info from a new meta info to use with a k/v state.
-	 */
-	private RocksDbKvStateInfo createStateInfo(RegisteredStateMetaInfoBase metaInfoBase) {
-		ColumnFamilyOptions options = createColumnFamilyOptions(metaInfoBase.getName());
-		ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(ttlTimeProvider, metaInfoBase, options);
-		String name = metaInfoBase.getName();
-		return new RocksDbKvStateInfo(RocksDBOperationUtils.createColumnFamily(name, options, db), metaInfoBase);
-	}
-
-	private ColumnFamilyOptions createColumnFamilyOptions(String stateName) {
-		return columnFamilyOptionsFactory.apply(stateName).setMergeOperatorName(MERGE_OPERATOR_NAME);
 	}
 
 	@Override

@@ -23,6 +23,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDb
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricMonitor;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBOperationUtils;
+import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.metrics.MetricGroup;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
 
@@ -75,6 +77,8 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 	protected final RocksDBNativeMetricOptions nativeMetricOptions;
 	protected final MetricGroup metricGroup;
 	protected final Collection<KeyedStateHandle> restoreStateHandles;
+	protected final RocksDbTtlCompactFiltersManager ttlCompactFiltersManager;
+	protected final TtlTimeProvider ttlTimeProvider;
 
 	protected RocksDB db;
 	protected ColumnFamilyHandle defaultColumnFamilyHandle;
@@ -95,7 +99,9 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 		ColumnFamilyOptions columnOptions,
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
-		@Nonnull Collection<KeyedStateHandle> stateHandles) {
+		@Nonnull Collection<KeyedStateHandle> stateHandles,
+		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+		TtlTimeProvider ttlTimeProvider) {
 		this.keyGroupRange = keyGroupRange;
 		this.keyGroupPrefixBytes = keyGroupPrefixBytes;
 		this.numberOfTransferringThreads = numberOfTransferringThreads;
@@ -111,6 +117,8 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 		this.nativeMetricOptions = nativeMetricOptions;
 		this.metricGroup = metricGroup;
 		this.restoreStateHandles = stateHandles;
+		this.ttlCompactFiltersManager = ttlCompactFiltersManager;
+		this.ttlTimeProvider = ttlTimeProvider;
 		this.columnFamilyHandles = new ArrayList<>(1);
 		this.columnFamilyDescriptors = Collections.emptyList();
 	}
@@ -142,9 +150,12 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 			// this allows us to retain the state in future snapshots even if it wasn't accessed
 			RegisteredStateMetaInfoBase stateMetaInfo =
 				RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
-			registeredStateMetaInfoEntry = new RocksDbKvStateInfo(
-				columnFamilyHandle != null ? columnFamilyHandle
-					: db.createColumnFamily(columnFamilyDescriptor), stateMetaInfo);
+			if (columnFamilyHandle == null) {
+				registeredStateMetaInfoEntry = RocksDBOperationUtils.createStateInfo(stateMetaInfo,
+					ttlCompactFiltersManager, ttlTimeProvider, db, columnFamilyDescriptor, columnOptions);
+			} else {
+				registeredStateMetaInfoEntry = new RocksDbKvStateInfo(columnFamilyHandle, stateMetaInfo);
+			}
 
 			RocksDBOperationUtils.registerKvStateInformation(
 				kvStateInformation,

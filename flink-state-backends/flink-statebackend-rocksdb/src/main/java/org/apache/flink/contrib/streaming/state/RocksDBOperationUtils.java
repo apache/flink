@@ -18,6 +18,9 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
+import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
@@ -70,16 +73,15 @@ public class RocksDBOperationUtils {
 		return dbRef;
 	}
 
-	/**
-	 * Creates a column family handle for use with a k/v state.
-	 */
-	public static ColumnFamilyHandle createColumnFamily(String stateName, ColumnFamilyOptions columnOptions, RocksDB db) {
+	public static ColumnFamilyDescriptor createColumnFamilyDescriptor(String stateName, ColumnFamilyOptions columnOptions) {
 		byte[] nameBytes = stateName.getBytes(ConfigConstants.DEFAULT_CHARSET);
 		Preconditions.checkState(!Arrays.equals(RocksDB.DEFAULT_COLUMN_FAMILY, nameBytes),
 			"The chosen state name 'default' collides with the name of the default column family!");
 
-		ColumnFamilyDescriptor columnDescriptor = new ColumnFamilyDescriptor(nameBytes, columnOptions);
+		return new ColumnFamilyDescriptor(nameBytes, columnOptions);
+	}
 
+	public static ColumnFamilyHandle createColumnFamily(ColumnFamilyDescriptor columnDescriptor, RocksDB db) {
 		try {
 			return db.createColumnFamily(columnDescriptor);
 		} catch (RocksDBException e) {
@@ -107,5 +109,22 @@ public class RocksDBOperationUtils {
 		if (nativeMetricMonitor != null) {
 			nativeMetricMonitor.registerColumnFamily(columnFamilyName, registeredColumn.columnFamilyHandle);
 		}
+	}
+
+	/**
+	 * Creates a state info from a new meta info to use with a k/v state.
+	 */
+	public static RocksDBKeyedStateBackend.RocksDbKvStateInfo createStateInfo(
+		RegisteredStateMetaInfoBase metaInfoBase,
+		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+		TtlTimeProvider ttlTimeProvider,
+		RocksDB db,
+		ColumnFamilyDescriptor columnFamilyDescriptor,
+		ColumnFamilyOptions options) {
+		if (columnFamilyDescriptor == null) {
+			columnFamilyDescriptor = createColumnFamilyDescriptor(metaInfoBase.getName(), options);
+		}
+		ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(ttlTimeProvider, metaInfoBase, options);
+		return new RocksDBKeyedStateBackend.RocksDbKvStateInfo(createColumnFamily(columnFamilyDescriptor, db), metaInfoBase);
 	}
 }

@@ -261,7 +261,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			} else {
 				prepareDirectories();
 				restoreOperation = getRocksDBRestoreOperation(
-					keyGroupPrefixBytes, cancelStreamRegistry, kvStateInformation);
+					keyGroupPrefixBytes, cancelStreamRegistry, kvStateInformation, ttlCompactFiltersManager);
 				RocksDBRestoreResult restoreResult = restoreOperation.restore();
 				db = restoreResult.getDb();
 				defaultColumnFamilyHandle = restoreResult.getDefaultColumnFamilyHandle();
@@ -285,8 +285,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			snapshotStrategy = initializeSavepointAndCheckpointStrategies(cancelStreamRegistry, rocksDBResourceGuard,
 				kvStateInformation, keyGroupPrefixBytes, db, backendUID, materializedSstFiles, lastCompletedCheckpointId);
 			// init priority queue factory
-			priorityQueueFactory = initPriorityQueueFactory(
-				keyGroupPrefixBytes, kvStateInformation, db, writeBatchWrapper, nativeMetricMonitor);
+			priorityQueueFactory = initPriorityQueueFactory(keyGroupPrefixBytes, kvStateInformation, db,
+				writeBatchWrapper, nativeMetricMonitor, ttlCompactFiltersManager);
 		} catch (Throwable e) {
 			// Do clean up
 			IOUtils.closeQuietly(cancelStreamRegistry);
@@ -348,7 +348,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 	private AbstractRocksDBRestoreOperation<K> getRocksDBRestoreOperation(
 		int keyGroupPrefixBytes,
 		CloseableRegistry cancelStreamRegistry,
-		LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation) {
+		LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation,
+		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
 		if (restoreStateHandles.isEmpty()) {
 			return new RocksDBNoneRestoreOperation<>(
 				keyGroupRange,
@@ -364,7 +365,9 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				columnFamilyOptions,
 				nativeMetricOptions,
 				metricGroup,
-				restoreStateHandles);
+				restoreStateHandles,
+				ttlCompactFiltersManager,
+				ttlTimeProvider);
 		}
 		KeyedStateHandle firstStateHandle = restoreStateHandles.iterator().next();
 		boolean isIncrementalStateHandle = (firstStateHandle instanceof IncrementalKeyedStateHandle)
@@ -385,7 +388,9 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				columnFamilyOptions,
 				nativeMetricOptions,
 				metricGroup,
-				restoreStateHandles);
+				restoreStateHandles,
+				ttlCompactFiltersManager,
+				ttlTimeProvider);
 		} else {
 			return new RocksDBFullRestoreOperation<>(
 				keyGroupRange,
@@ -401,7 +406,9 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				columnFamilyOptions,
 				nativeMetricOptions,
 				metricGroup,
-				restoreStateHandles);
+				restoreStateHandles,
+				ttlCompactFiltersManager,
+				ttlTimeProvider);
 		}
 	}
 
@@ -452,7 +459,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		Map<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation,
 		RocksDB db,
 		RocksDBWriteBatchWrapper writeBatchWrapper,
-		RocksDBNativeMetricMonitor nativeMetricMonitor) {
+		RocksDBNativeMetricMonitor nativeMetricMonitor,
+		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
 		PriorityQueueSetFactory priorityQueueFactory;
 		switch (priorityQueueStateType) {
 			case HEAP:
@@ -467,7 +475,9 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 					db,
 					writeBatchWrapper,
 					nativeMetricMonitor,
-					columnFamilyOptions);
+					columnFamilyOptions,
+					ttlCompactFiltersManager,
+					ttlTimeProvider);
 				break;
 			default:
 				throw new IllegalArgumentException("Unknown priority queue state type: " + priorityQueueStateType);

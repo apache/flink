@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBWriteBatchWrapper;
+import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputView;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
@@ -101,7 +103,9 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 		ColumnFamilyOptions columnOptions,
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
-		@Nonnull Collection<KeyedStateHandle> restoreStateHandles) {
+		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
+		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+		TtlTimeProvider ttlTimeProvider) {
 		super(
 			keyGroupRange,
 			keyGroupPrefixBytes,
@@ -116,7 +120,9 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 			columnOptions,
 			nativeMetricOptions,
 			metricGroup,
-			restoreStateHandles);
+			restoreStateHandles,
+			ttlCompactFiltersManager,
+			ttlTimeProvider);
 	}
 
 	/**

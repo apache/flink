@@ -20,11 +20,13 @@ package org.apache.flink.contrib.streaming.state.restore;
 
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
+import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.StateSerializerProvider;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
@@ -53,7 +55,9 @@ public class RocksDBNoneRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 		ColumnFamilyOptions columnOptions,
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
-		@Nonnull Collection<KeyedStateHandle> restoreStateHandles
+		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
+		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+		TtlTimeProvider ttlTimeProvider
 	) {
 		super(keyGroupRange,
 			keyGroupPrefixBytes,
@@ -68,7 +72,9 @@ public class RocksDBNoneRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 			columnOptions,
 			nativeMetricOptions,
 			metricGroup,
-			restoreStateHandles);
+			restoreStateHandles,
+			ttlCompactFiltersManager,
+			ttlTimeProvider);
 	}
 
 	@Override
