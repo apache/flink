@@ -46,6 +46,9 @@ class ScalaEnumSerializerSnapshot[E <: Enumeration]
   override def getCurrentVersion: Int = ScalaEnumSerializerSnapshot.VERSION
 
   override def writeSnapshot(out: DataOutputView): Unit = {
+    Preconditions.checkState(enumClass != null)
+    Preconditions.checkState(previousEnumConstants != null)
+    
     out.writeUTF(enumClass.getName)
 
     out.writeInt(previousEnumConstants.length)
@@ -73,12 +76,16 @@ class ScalaEnumSerializerSnapshot[E <: Enumeration]
   }
 
   override def restoreSerializer(): TypeSerializer[E#Value] = {
+    Preconditions.checkState(enumClass != null)
     val enumObject = enumClass.getField("MODULE$").get(null).asInstanceOf[E]
     new EnumValueSerializer(enumObject)
   }
 
   override def resolveSchemaCompatibility(
     newSerializer: TypeSerializer[E#Value]): TypeSerializerSchemaCompatibility[E#Value] = {
+
+    Preconditions.checkState(enumClass != null)
+    Preconditions.checkState(previousEnumConstants != null)
 
     if (!newSerializer.isInstanceOf[EnumValueSerializer[E]]) {
       return TypeSerializerSchemaCompatibility.incompatible()
