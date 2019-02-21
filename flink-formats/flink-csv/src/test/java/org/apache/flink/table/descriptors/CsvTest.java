@@ -43,6 +43,20 @@ public class CsvTest extends DescriptorTestBase {
 		)}
 	);
 
+	private static final Descriptor DESCRIPTOR_1 = new Csv()
+		.schema(SCHEMA)
+		.fieldDelimiter(';')
+		.lineDelimiter("\r\n")
+		.quoteCharacter('\'')
+		.allowComments()
+		.ignoreParseErrors()
+		.arrayElementDelimiter("|")
+		.escapeCharacter('\\')
+		.nullLiteral("n/a");
+
+	private static final Descriptor DESCRIPTOR_2 = new Csv()
+		.deriveSchema();
+
 	@Test(expected = ValidationException.class)
 	public void testInvalidAllowComments() {
 		addPropertyAndVerify(descriptors().get(0), "format.allow-comments", "DDD");
@@ -56,27 +70,17 @@ public class CsvTest extends DescriptorTestBase {
 	@Test(expected = ValidationException.class)
 	public void testDuplicateSchema() {
 		// we add an additional schema
-		addPropertyAndVerify(descriptors().get(1), "format.schema", "DDD");
+		addPropertyAndVerify(
+			descriptors().get(1),
+			"format.schema",
+			"ROW<a VARCHAR, b INT, c ROW<a VARCHAR, b INT, c BOOLEAN>>");
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public List<Descriptor> descriptors() {
-		final Descriptor desc1 = new Csv()
-				.schema(SCHEMA)
-				.fieldDelimiter(';')
-				.lineDelimiter("\r\n")
-				.quoteCharacter('\'')
-				.allowComments()
-				.ignoreParseErrors()
-				.arrayElementDelimiter("|")
-				.escapeCharacter('\\')
-				.nullLiteral("n/a");
-
-		final Descriptor desc2 = new Csv().deriveSchema();
-
-		return Arrays.asList(desc1, desc2);
+		return Arrays.asList(DESCRIPTOR_1, DESCRIPTOR_2);
 	}
 
 	@Override

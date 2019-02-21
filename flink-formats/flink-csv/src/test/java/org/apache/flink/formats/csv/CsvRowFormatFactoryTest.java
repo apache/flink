@@ -65,14 +65,15 @@ public class CsvRowFormatFactoryTest extends TestLogger {
 				.nullLiteral("n/a")
 				.toProperties();
 
-		final CsvRowDeserializationSchema expectedDeser = new CsvRowDeserializationSchema(SCHEMA);
-		expectedDeser.setFieldDelimiter(';');
-		expectedDeser.setQuoteCharacter('\'');
-		expectedDeser.setAllowComments(true);
-		expectedDeser.setIgnoreParseErrors(true);
-		expectedDeser.setArrayElementDelimiter("|");
-		expectedDeser.setEscapeCharacter('\\');
-		expectedDeser.setNullLiteral("n/a");
+		final CsvRowDeserializationSchema expectedDeser = new CsvRowDeserializationSchema.Builder(SCHEMA)
+			.setFieldDelimiter(';')
+			.setQuoteCharacter('\'')
+			.setAllowComments(true)
+			.setIgnoreParseErrors(true)
+			.setArrayElementDelimiter("|")
+			.setEscapeCharacter('\\')
+			.setNullLiteral("n/a")
+			.build();
 
 		final DeserializationSchema<?> actualDeser = TableFactoryService
 			.find(DeserializationSchemaFactory.class, properties)
@@ -80,13 +81,14 @@ public class CsvRowFormatFactoryTest extends TestLogger {
 
 		assertEquals(expectedDeser, actualDeser);
 
-		final CsvRowSerializationSchema expectedSer = new CsvRowSerializationSchema(SCHEMA);
-		expectedSer.setFieldDelimiter(';');
-		expectedSer.setLineDelimiter("\r\n");
-		expectedSer.setQuoteCharacter('\'');
-		expectedSer.setArrayElementDelimiter("|");
-		expectedSer.setEscapeCharacter('\\');
-		expectedSer.setNullLiteral("n/a");
+		final CsvRowSerializationSchema expectedSer = new CsvRowSerializationSchema.Builder(SCHEMA)
+			.setFieldDelimiter(';')
+			.setLineDelimiter("\r\n")
+			.setQuoteCharacter('\'')
+			.setArrayElementDelimiter("|")
+			.setEscapeCharacter('\\')
+			.setNullLiteral("n/a")
+			.build();
 
 		final SerializationSchema<?> actualSer = TableFactoryService
 			.find(SerializationSchemaFactory.class, properties)
@@ -101,8 +103,8 @@ public class CsvRowFormatFactoryTest extends TestLogger {
 		properties.putAll(new Schema().schema(TableSchema.fromTypeInfo(SCHEMA)).toProperties());
 		properties.putAll(new Csv().deriveSchema().toProperties());
 
-		final CsvRowSerializationSchema expectedSer = new CsvRowSerializationSchema(SCHEMA);
-		final CsvRowDeserializationSchema expectedDeser = new CsvRowDeserializationSchema(SCHEMA);
+		final CsvRowSerializationSchema expectedSer = new CsvRowSerializationSchema.Builder(SCHEMA).build();
+		final CsvRowDeserializationSchema expectedDeser = new CsvRowDeserializationSchema.Builder(SCHEMA).build();
 
 		final SerializationSchema<?> actualSer = TableFactoryService
 			.find(SerializationSchemaFactory.class, properties)

@@ -62,27 +62,92 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
 	private final TypeInformation<Row> typeInfo;
 
 	/** Schema describing the input CSV data. */
-	private CsvSchema csvSchema;
+	private final CsvSchema csvSchema;
 
 	/** Object reader used to read rows. It is configured by {@link CsvSchema}. */
-	private ObjectReader objectReader;
+	private final ObjectReader objectReader;
 
 	/** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
-	private boolean ignoreParseErrors;
+	private final boolean ignoreParseErrors;
+
+	private CsvRowDeserializationSchema(
+			TypeInformation<Row> typeInfo,
+			CsvSchema csvSchema,
+			boolean ignoreParseErrors) {
+		this.typeInfo = typeInfo;
+		this.csvSchema = csvSchema;
+		this.objectReader = new CsvMapper().readerFor(JsonNode.class).with(csvSchema);
+		this.ignoreParseErrors = ignoreParseErrors;
+	}
 
 	/**
-	 * Create a CSV deserialization schema for the given {@link TypeInformation}.
+	 * A builder for creating a {@link CsvRowDeserializationSchema}.
 	 */
-	public CsvRowDeserializationSchema(TypeInformation<Row> typeInfo) {
-		Preconditions.checkNotNull(typeInfo, "Type information must not be null.");
-		this.typeInfo = typeInfo;
+	@PublicEvolving
+	public static class Builder {
 
-		if (!(typeInfo instanceof RowTypeInfo)) {
-			throw new IllegalArgumentException("Row type information expected.");
+		private final TypeInformation<Row> typeInfo;
+		private CsvSchema csvSchema;
+		private boolean ignoreParseErrors;
+
+		/**
+		 * Creates a CSV deserialization schema for the given {@link TypeInformation} with
+		 * optional parameters.
+		 */
+		public Builder(TypeInformation<Row> typeInfo) {
+			Preconditions.checkNotNull(typeInfo, "Type information must not be null.");
+
+			if (!(typeInfo instanceof RowTypeInfo)) {
+				throw new IllegalArgumentException("Row type information expected.");
+			}
+
+			this.typeInfo = typeInfo;
+			this.csvSchema = CsvRowSchemaConverter.convert((RowTypeInfo) typeInfo);
 		}
 
-		this.csvSchema = CsvRowSchemaConverter.convert((RowTypeInfo) typeInfo);
-		this.objectReader = new CsvMapper().readerFor(JsonNode.class).with(csvSchema);
+		public Builder setFieldDelimiter(char delimiter) {
+			this.csvSchema = this.csvSchema.rebuild().setColumnSeparator(delimiter).build();
+			return this;
+		}
+
+		public Builder setAllowComments(boolean allowComments) {
+			this.csvSchema = this.csvSchema.rebuild().setAllowComments(allowComments).build();
+			return this;
+		}
+
+		public Builder setArrayElementDelimiter(String delimiter) {
+			Preconditions.checkNotNull(delimiter, "Array element delimiter must not be null.");
+			this.csvSchema = this.csvSchema.rebuild().setArrayElementSeparator(delimiter).build();
+			return this;
+		}
+
+		public Builder setQuoteCharacter(char c) {
+			this.csvSchema = this.csvSchema.rebuild().setQuoteChar(c).build();
+			return this;
+		}
+
+		public Builder setEscapeCharacter(char c) {
+			this.csvSchema = this.csvSchema.rebuild().setEscapeChar(c).build();
+			return this;
+		}
+
+		public Builder setNullLiteral(String nullLiteral) {
+			Preconditions.checkNotNull(nullLiteral, "Null literal must not be null.");
+			this.csvSchema = this.csvSchema.rebuild().setNullValue(nullLiteral).build();
+			return this;
+		}
+
+		public Builder setIgnoreParseErrors(boolean ignoreParseErrors) {
+			this.ignoreParseErrors = ignoreParseErrors;
+			return this;
+		}
+
+		public CsvRowDeserializationSchema build() {
+			return new CsvRowDeserializationSchema(
+				typeInfo,
+				csvSchema,
+				ignoreParseErrors);
+		}
 	}
 
 	@Override
@@ -106,40 +171,6 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
 	@Override
 	public TypeInformation<Row> getProducedType() {
 		return typeInfo;
-	}
-
-	public void setFieldDelimiter(char c) {
-		this.csvSchema = this.csvSchema.rebuild().setColumnSeparator(c).build();
-		this.objectReader = objectReader.with(csvSchema);
-	}
-
-	public void setAllowComments(boolean allowComments) {
-		this.csvSchema = this.csvSchema.rebuild().setAllowComments(allowComments).build();
-		this.objectReader = objectReader.with(csvSchema);
-	}
-
-	public void setArrayElementDelimiter(String s) {
-		this.csvSchema = this.csvSchema.rebuild().setArrayElementSeparator(s).build();
-		this.objectReader = objectReader.with(csvSchema);
-	}
-
-	public void setQuoteCharacter(char c) {
-		this.csvSchema = this.csvSchema.rebuild().setQuoteChar(c).build();
-		this.objectReader = objectReader.with(csvSchema);
-	}
-
-	public void setEscapeCharacter(char c) {
-		this.csvSchema = this.csvSchema.rebuild().setEscapeChar(c).build();
-		this.objectReader = objectReader.with(csvSchema);
-	}
-
-	public void setNullLiteral(String s) {
-		this.csvSchema = this.csvSchema.rebuild().setNullValue(s).build();
-		this.objectReader = objectReader.with(csvSchema);
-	}
-
-	public void setIgnoreParseErrors(boolean ignoreParseErrors) {
-		this.ignoreParseErrors = ignoreParseErrors;
 	}
 
 	@Override

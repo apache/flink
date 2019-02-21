@@ -96,7 +96,8 @@ public class Csv extends FormatDescriptor {
 	}
 
 	/**
-	 * Ignores comment lines that start with '#' (disabled by default).
+	 * Ignores comment lines that start with '#' (disabled by default). If enabled, make sure to
+	 * also ignore parse errors to allow empty rows.
 	 */
 	public Csv allowComments() {
 		internalProperties.putBoolean(FORMAT_ALLOW_COMMENTS, true);
@@ -161,7 +162,7 @@ public class Csv extends FormatDescriptor {
 	 *
 	 * <p>This allows for defining schema information only once.
 	 *
-	 * <p>The names, types, and field order of the format are determined by the table's
+	 * <p>The names, types, and fields' order of the format are determined by the table's
 	 * schema. Time attributes are ignored if their origin is not a field. A "from" definition
 	 * is interpreted as a field renaming in the format.
 	 */

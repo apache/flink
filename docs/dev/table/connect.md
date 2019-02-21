@@ -719,7 +719,7 @@ The format allows to read and write CSV data that corresponds to a given format 
 defined either as a Flink type or derived from the desired table schema.
 
 If the format schema is equal to the table schema, the schema can also be automatically derived. This allows for
-defining schema information only once. The names, types, and field order of the format are determined by the
+defining schema information only once. The names, types, and fields' order of the format are determined by the
 table's schema. Time attributes are ignored if their origin is not a field. A `from` definition in the table
 schema is interpreted as a field renaming in the format.
 
@@ -741,7 +741,8 @@ The CSV format can be used as follows:
     .lineDelimiter("\r\n")       // optional: line delimiter ("\n" by default;
                                  //   otherwise "\r" or "\r\n" are allowed)
     .quoteCharacter('\'')        // optional: quote character for enclosing field values ('"' by default)
-    .allowComments()             // optional: ignores comment lines that start with '#' (disabled by default)
+    .allowComments()             // optional: ignores comment lines that start with '#' (disabled by default);
+                                 //   if enabled, make sure to also ignore parse errors to allow empty rows
     .ignoreParseErrors()         // optional: skip fields and rows with parse errors instead of failing;
                                  //   fields are set to null in case of errors
     .arrayElementDelimiter("|")  // optional: the array element delimiter string for separating
@@ -767,7 +768,8 @@ format:
   field-delimiter: ";"         # optional: field delimiter character (',' by default)
   line-delimiter: "\r\n"       # optional: line delimiter ("\n" by default; otherwise "\r" or "\r\n" are allowed)
   quote-character: "'"         # optional: quote character for enclosing field values ('"' by default)
-  allow-comments: true         # optional: ignores comment lines that start with "#" (disabled by default)
+  allow-comments: true         # optional: ignores comment lines that start with "#" (disabled by default);
+                               #   if enabled, make sure to also ignore parse errors to allow empty rows
   ignore-parse-errors: true    # optional: skip fields and rows with parse errors instead of failing;
                                #   fields are set to null in case of errors
   array-element-delimiter: "|" # optional: the array element delimiter string for separating
@@ -799,9 +801,11 @@ The following table lists supported types that can be read and written:
 
 **Numeric types:** Value should be a number but the literal `"null"` can also be understood. An empty string is
 considered `null`. Values are also trimmed (leading/trailing white space). Numbers are parsed using
-Java's `valueOf` semantics. Other non-numeric strings may cause parsing exception.
+Java's `valueOf` semantics. Other non-numeric strings may cause a parsing exception.
 
-**String and time types:** Value is not trimmed. The literal `"null"` can also be understood.
+**String and time types:** Value is not trimmed. The literal `"null"` can also be understood. Time types
+must be formatted according to the Java SQL time format with millisecond precision. For example:
+`2018-01-01` for date, `20:43:59` for time, and `2018-01-01 20:43:59.999` for timestamp.
 
 **Boolean type:** Value is expected to be a boolean (`"true"`, `"false"`) string or `"null"`. Empty strings are
 interpreted as `false`. Values are trimmed (leading/trailing white space). Other values result in an exception.
@@ -832,7 +836,7 @@ Make sure to add the CSV format as a dependency.
 
 The JSON format allows to read and write JSON data that corresponds to a given format schema. The format schema can be defined either as a Flink type, as a JSON schema, or derived from the desired table schema. A Flink type enables a more SQL-like definition and mapping to the corresponding SQL data types. The JSON schema allows for more complex and nested structures.
 
-If the format schema is equal to the table schema, the schema can also be automatically derived. This allows for defining schema information only once. The names, types, and field order of the format are determined by the table's schema. Time attributes are ignored if their origin is not a field. A `from` definition in the table schema is interpreted as a field renaming in the format.
+If the format schema is equal to the table schema, the schema can also be automatically derived. This allows for defining schema information only once. The names, types, and fields' order of the format are determined by the table's schema. Time attributes are ignored if their origin is not a field. A `from` definition in the table schema is interpreted as a field renaming in the format.
 
 The JSON format can be used as follows:
 

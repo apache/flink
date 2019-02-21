@@ -90,20 +90,20 @@ public class CsvRowDeSerializationSchemaTest {
 	}
 
 	@Test
-	public void testCustomizedProperties() throws IOException {
+	public void testSerializeDeserializeCustomizedProperties() throws IOException {
 
-		final Consumer<CsvRowSerializationSchema> serConfig = (serSchema) -> {
-			serSchema.setEscapeCharacter('*');
-			serSchema.setQuoteCharacter('\'');
-			serSchema.setArrayElementDelimiter(":");
-			serSchema.setFieldDelimiter(';');
+		final Consumer<CsvRowSerializationSchema.Builder> serConfig = (serSchemaBuilder) -> {
+			serSchemaBuilder.setEscapeCharacter('*');
+			serSchemaBuilder.setQuoteCharacter('\'');
+			serSchemaBuilder.setArrayElementDelimiter(":");
+			serSchemaBuilder.setFieldDelimiter(';');
 		};
 
-		final Consumer<CsvRowDeserializationSchema> deserConfig = (deserSchema) -> {
-			deserSchema.setEscapeCharacter('*');
-			deserSchema.setQuoteCharacter('\'');
-			deserSchema.setArrayElementDelimiter(":");
-			deserSchema.setFieldDelimiter(';');
+		final Consumer<CsvRowDeserializationSchema.Builder> deserConfig = (deserSchemaBuilder) -> {
+			deserSchemaBuilder.setEscapeCharacter('*');
+			deserSchemaBuilder.setQuoteCharacter('\'');
+			deserSchemaBuilder.setArrayElementDelimiter(":");
+			deserSchemaBuilder.setFieldDelimiter(';');
 		};
 
 		testField(Types.STRING, "123*'4**", "123'4*", deserConfig, ";");
@@ -119,43 +119,51 @@ public class CsvRowDeSerializationSchemaTest {
 	}
 
 	@Test
-	public void testDeserializationProperties() throws IOException {
-		final TypeInformation<Row> rowInfo = Types.ROW(Types.STRING, Types.INT, Types.STRING);
-		final CsvRowDeserializationSchema deserializationSchema = new CsvRowDeserializationSchema(rowInfo);
-
+	public void testDeserializeParseError() {
 		try {
-			deserializationSchema.deserialize("Test,null,Test".getBytes()); // null not supported
+			testDeserialization(false, false, "Test,null,Test"); // null not supported
 			fail("Missing field should cause failure.");
 		} catch (IOException e) {
 			// valid exception
 		}
+	}
 
-		deserializationSchema.setIgnoreParseErrors(true);
-
+	@Test
+	public void testDeserializeUnsupportedNull() throws IOException {
 		// unsupported null for integer
-		assertEquals(Row.of("Test", null, "Test"), deserializationSchema.deserialize("Test,null,Test".getBytes()));
+		assertEquals(Row.of("Test", null, "Test"), testDeserialization(true, false, "Test,null,Test"));
+	}
 
-		// last columns are missing
-		assertEquals(Row.of("Test", null, null), deserializationSchema.deserialize("Test".getBytes()));
+	@Test
+	public void testDeserializeIncompleteRow() throws IOException {
+		// last two columns are missing
+		assertEquals(Row.of("Test", null, null), testDeserialization(true, false, "Test"));
+	}
 
-		// more columns than expected
-		assertNull(deserializationSchema.deserialize("Test,12,Test,Test".getBytes()));
+	@Test
+	public void testDeserializeMoreColumnsThanExpected() throws IOException {
+		// one additional string column
+		assertNull(testDeserialization(true, false, "Test,12,Test,Test"));
+	}
 
-		// comment part of first row
-		deserializationSchema.setAllowComments(false);
-		assertEquals(Row.of("#Test", 12, "Test"), deserializationSchema.deserialize("#Test,12,Test".getBytes()));
+	@Test
+	public void testDeserializeIgnoreComment() throws IOException {
+		// # is part of the string
+		assertEquals(Row.of("#Test", 12, "Test"), testDeserialization(false, false, "#Test,12,Test"));
+	}
 
-		// comment ignored
-		deserializationSchema.setAllowComments(true);
-		assertNull(deserializationSchema.deserialize("#Test,12,Test".getBytes()));
+	@Test
+	public void testDeserializeAllowComment() throws IOException {
+		// entire row is ignored
+		assertNull(testDeserialization(true, true, "#Test,12,Test"));
 	}
 
 	@Test
 	public void testSerializationProperties() {
 		final TypeInformation<Row> rowInfo = Types.ROW(Types.STRING, Types.INT, Types.STRING);
-		final CsvRowSerializationSchema serializationSchema = new CsvRowSerializationSchema(rowInfo);
-
-		serializationSchema.setLineDelimiter("\r");
+		final CsvRowSerializationSchema serializationSchema = new CsvRowSerializationSchema.Builder(rowInfo)
+			.setLineDelimiter("\r")
+			.build();
 
 		assertArrayEquals("Test,12,Hello\r".getBytes(), serializationSchema.serialize(Row.of("Test", 12, "Hello")));
 	}
@@ -184,23 +192,27 @@ public class CsvRowDeSerializationSchemaTest {
 			TypeInformation<T> fieldInfo,
 			String csvValue,
 			T value,
-			Consumer<CsvRowSerializationSchema> serializationConfig,
-			Consumer<CsvRowDeserializationSchema> deserializationConfig,
+			Consumer<CsvRowSerializationSchema.Builder> serializationConfig,
+			Consumer<CsvRowDeserializationSchema.Builder> deserializationConfig,
 			String fieldDelimiter) throws IOException {
 		final TypeInformation<Row> rowInfo = Types.ROW(Types.STRING, fieldInfo, Types.STRING);
 		final String expectedCsv = "BEGIN" + fieldDelimiter + csvValue + fieldDelimiter + "END\n";
 		final Row expectedRow = Row.of("BEGIN", value, "END");
 
 		// serialization
-		final CsvRowSerializationSchema serializationSchema = new CsvRowSerializationSchema(rowInfo);
-		serializationConfig.accept(serializationSchema);
-		final byte[] serializedRow = serializationSchema.serialize(expectedRow);
+		final CsvRowSerializationSchema.Builder serSchemaBuilder = new CsvRowSerializationSchema.Builder(rowInfo);
+		serializationConfig.accept(serSchemaBuilder);
+		final byte[] serializedRow = serSchemaBuilder
+			.build()
+			.serialize(expectedRow);
 		assertEquals(expectedCsv, new String(serializedRow));
 
 		// deserialization
-		final CsvRowDeserializationSchema deserializationSchema = new CsvRowDeserializationSchema(rowInfo);
-		deserializationConfig.accept(deserializationSchema);
-		final Row deserializedRow = deserializationSchema.deserialize(expectedCsv.getBytes());
+		final CsvRowDeserializationSchema.Builder deserSchemaBuilder = new CsvRowDeserializationSchema.Builder(rowInfo);
+		deserializationConfig.accept(deserSchemaBuilder);
+		final Row deserializedRow = deserSchemaBuilder
+			.build()
+			.deserialize(expectedCsv.getBytes());
 		assertEquals(expectedRow, deserializedRow);
 	}
 
@@ -208,16 +220,30 @@ public class CsvRowDeSerializationSchemaTest {
 			TypeInformation<T> fieldInfo,
 			String csvValue,
 			T value,
-			Consumer<CsvRowDeserializationSchema> deserializationConfig,
+			Consumer<CsvRowDeserializationSchema.Builder> deserializationConfig,
 			String fieldDelimiter) throws IOException {
 		final TypeInformation<Row> rowInfo = Types.ROW(Types.STRING, fieldInfo, Types.STRING);
 		final String csv = "BEGIN" + fieldDelimiter + csvValue + fieldDelimiter + "END\n";
 		final Row expectedRow = Row.of("BEGIN", value, "END");
 
 		// deserialization
-		final CsvRowDeserializationSchema deserializationSchema = new CsvRowDeserializationSchema(rowInfo);
-		deserializationConfig.accept(deserializationSchema);
-		final Row deserializedRow = deserializationSchema.deserialize(csv.getBytes());
+		final CsvRowDeserializationSchema.Builder deserSchemaBuilder = new CsvRowDeserializationSchema.Builder(rowInfo);
+		deserializationConfig.accept(deserSchemaBuilder);
+		final Row deserializedRow = deserSchemaBuilder
+			.build()
+			.deserialize(csv.getBytes());
 		assertEquals(expectedRow, deserializedRow);
+	}
+
+	private Row testDeserialization(
+			boolean allowParsingErrors,
+			boolean allowComments,
+			String string) throws IOException {
+		final TypeInformation<Row> rowInfo = Types.ROW(Types.STRING, Types.INT, Types.STRING);
+		final CsvRowDeserializationSchema deserializationSchema = new CsvRowDeserializationSchema.Builder(rowInfo)
+			.setIgnoreParseErrors(allowParsingErrors)
+			.setAllowComments(allowComments)
+			.build();
+		return deserializationSchema.deserialize(string.getBytes());
 	}
 }
