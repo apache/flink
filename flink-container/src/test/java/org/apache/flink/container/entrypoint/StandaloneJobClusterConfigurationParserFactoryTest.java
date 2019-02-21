@@ -22,10 +22,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.Optional;
 import java.util.Properties;
 
 import static org.apache.flink.container.entrypoint.StandaloneJobClusterConfigurationParserFactory.DEFAULT_JOB_ID;
@@ -35,6 +37,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -115,15 +118,17 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 	}
 
 	@Test
-	public void testInvalidJobIdThrows() throws FlinkParseException {
+	public void testInvalidJobIdThrows() {
 		final String invalidJobId = "0xINVALID";
 		final String[] args = {"--configDir", "/foo/bar", "--job-classname", "foobar", "--job-id", invalidJobId};
 
 		try {
 			commandLineParser.parse(args);
 			fail("Did not throw expected FlinkParseException");
-		} catch (IllegalArgumentException e) {
-			assertThat(e.getMessage(), containsString(invalidJobId));
+		} catch (FlinkParseException e) {
+			Optional<IllegalArgumentException> cause = ExceptionUtils.findThrowable(e, IllegalArgumentException.class);
+			assertTrue(cause.isPresent());
+			assertThat(cause.get().getMessage(), containsString(invalidJobId));
 		}
 	}
 
