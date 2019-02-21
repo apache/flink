@@ -119,7 +119,7 @@ final class OptionalMap<K, V> {
 	}
 
 	/**
-	 * returns the key names of any keys or values that are absent.
+	 * Returns the key names of any keys or values that are absent.
 	 */
 	Set<String> absentKeysOrValues() {
 		return underlyingMap.entrySet()
@@ -130,8 +130,8 @@ final class OptionalMap<K, V> {
 	}
 
 	/**
-	 * assuming all the entries of this map are present (keys and values) this method would return
-	 * a map with these key and values, striped from their Optional wrappers.
+	 * Assuming all the entries of this map are present (keys and values) this method would return
+	 * a map with these key and values, stripped from their Optional wrappers.
 	 * NOTE: please note that if any of the key or values are absent this method would throw an {@link IllegalStateException}.
 	 */
 	LinkedHashMap<K, V> unwrapOptionals() {
@@ -153,7 +153,7 @@ final class OptionalMap<K, V> {
 	}
 
 	/**
-	 * returns the key names added to this map.
+	 * Returns the key names added to this map.
 	 */
 	Set<String> keyNames() {
 		return underlyingMap.keySet();
@@ -168,7 +168,8 @@ final class OptionalMap<K, V> {
 		return kv.key == null || kv.value == null;
 	}
 
-	@VisibleForTesting static <K, V> boolean isLeftPrefixOfRight(OptionalMap<K, V> left, OptionalMap<K, V> right) {
+	@VisibleForTesting
+	static <K, V> boolean isLeftPrefixOfRight(OptionalMap<K, V> left, OptionalMap<K, V> right) {
 		Iterator<String> rightKeys = right.keyNames().iterator();
 
 		for (String leftKey : left.keyNames()) {
@@ -238,7 +239,7 @@ final class OptionalMap<K, V> {
 		}
 
 		/**
-		 * returns {@code true} if keyNames present at @left, appearing in prefix order at @right.
+		 * Returns {@code true} if keyNames present at @left, appearing in prefix order at @right.
 		 */
 		boolean isOrderedSubset() {
 			return isOrderedSubset;
