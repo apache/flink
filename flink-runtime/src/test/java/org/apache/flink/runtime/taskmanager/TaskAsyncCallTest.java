@@ -92,7 +92,7 @@ public class TaskAsyncCallTest extends TestLogger {
 	private static OneShotLatch awaitLatch;
 
 	/**
-	 * Triggered when {@link CheckpointsInOrderInvokable#triggerCheckpoint(CheckpointMetaData, CheckpointOptions)}
+	 * Triggered when {@link CheckpointsInOrderInvokable#triggerCheckpoint(CheckpointMetaData, CheckpointOptions, boolean)}
 	 * was called {@link #numCalls} times.
 	 */
 	private static OneShotLatch triggerLatch;
@@ -139,7 +139,7 @@ public class TaskAsyncCallTest extends TestLogger {
 			awaitLatch.await();
 
 			for (int i = 1; i <= numCalls; i++) {
-				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpointWithDefaultLocation());
+				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
 			}
 
 			triggerLatch.await();
@@ -165,7 +165,7 @@ public class TaskAsyncCallTest extends TestLogger {
 			awaitLatch.await();
 
 			for (int i = 1; i <= numCalls; i++) {
-				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpointWithDefaultLocation());
+				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
 				task.notifyCheckpointComplete(i);
 			}
 
@@ -195,7 +195,7 @@ public class TaskAsyncCallTest extends TestLogger {
 	}
 
 	/**
-	 * Asserts that {@link AbstractInvokable#triggerCheckpoint(CheckpointMetaData, CheckpointOptions)},
+	 * Asserts that {@link AbstractInvokable#triggerCheckpoint(CheckpointMetaData, CheckpointOptions, boolean)},
 	 * {@link AbstractInvokable#notifyCheckpointComplete(long)}, and {@link StoppableTask#stop()} are
 	 * invoked by a thread whose context class loader is set to the user code class loader.
 	 */
@@ -209,7 +209,7 @@ public class TaskAsyncCallTest extends TestLogger {
 
 			awaitLatch.await();
 
-			task.triggerCheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation());
+			task.triggerCheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
 			triggerLatch.await();
 
 			task.notifyCheckpointComplete(1);
@@ -319,7 +319,7 @@ public class TaskAsyncCallTest extends TestLogger {
 		}
 
 		@Override
-		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
+		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
 			lastCheckpointId++;
 			if (checkpointMetaData.getCheckpointId() == lastCheckpointId) {
 				if (lastCheckpointId == numCalls) {
@@ -371,10 +371,10 @@ public class TaskAsyncCallTest extends TestLogger {
 		}
 
 		@Override
-		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
+		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
 			classLoaders.add(Thread.currentThread().getContextClassLoader());
 
-			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions);
+			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
 		}
 
 		@Override

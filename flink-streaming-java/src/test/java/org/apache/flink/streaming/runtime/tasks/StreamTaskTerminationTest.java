@@ -195,7 +195,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 		RUN_LATCH.await();
 
 		// trigger a checkpoint
-		task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, CheckpointOptions.forCheckpointWithDefaultLocation());
+		task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
 
 		// wait until the task has completed execution
 		taskRun.get();

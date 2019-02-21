@@ -709,7 +709,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		final Task task = taskSlotTable.getTask(executionAttemptID);
 
 		if (task != null) {
-			task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, checkpointOptions);
+			task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, checkpointOptions, false);
 
 			return CompletableFuture.completedFuture(Acknowledge.get());
 		} else {
