@@ -44,6 +44,7 @@ import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitStream;
@@ -82,6 +83,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.commons.collections.IteratorUtils;
 import org.hamcrest.core.StringStartsWith;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -91,8 +93,11 @@ import org.junit.rules.ExpectedException;
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -1307,6 +1312,40 @@ public class DataStreamTest extends TestLogger {
 		expectedException.expect(InvalidProgramException.class);
 
 		input.keyBy(keySelector);
+	}
+
+	@Test
+	public void testTupleNestedArrayValueSum() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<Tuple2<Long, Integer[]>> src = env.fromCollection(Arrays.asList(
+			new Tuple2<>(1L, new Integer[]{2, 4}),
+			new Tuple2<>(1L, new Integer[]{3, 6}),
+			new Tuple2<>(1L, new Integer[]{4, 8}),
+			new Tuple2<>(2L, new Integer[]{2, 4}),
+			new Tuple2<>(2L, new Integer[]{3, 6}),
+			new Tuple2<>(2L, new Integer[]{4, 8})
+		));
+		List<Tuple2<Long, Integer[]>> expectResult = Arrays.asList(
+			new Tuple2<>(1L, new Integer[]{2, 4}),
+			new Tuple2<>(1L, new Integer[]{5, 10}),
+			new Tuple2<>(1L, new Integer[]{9, 18}),
+			new Tuple2<>(2L, new Integer[]{2, 4}),
+			new Tuple2<>(2L, new Integer[]{5, 10}),
+			new Tuple2<>(2L, new Integer[]{9, 18})
+		);
+
+		try {
+			Iterator<Tuple2<Long, Integer[]>> result = DataStreamUtils.collect(src.keyBy(0).sum(1).setParallelism(1));
+			List<Tuple2<Long, Integer[]>> resultList = IteratorUtils.toList(result);
+			// check the size of the result list
+			assertEquals(expectResult.size(), resultList.size());
+			for (int index = 0; index < expectResult.size(); index++) {
+				assertEquals(expectResult.get(index).f0, resultList.get(index).f0);
+				assertArrayEquals(expectResult.get(index).f1, resultList.get(index).f1);
+			}
+		} catch (Exception e) {
+			assertTrue(false);
+		}
 	}
 
 	////////////////			Composite Key Tests : Tuples			////////////////

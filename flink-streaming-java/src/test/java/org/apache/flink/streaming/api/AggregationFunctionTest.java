@@ -42,12 +42,63 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for {@link AggregationFunction}.
  */
 public class AggregationFunctionTest {
+	@Test
+	public void groupSumIntegerArrayTest() throws Exception {
+		// preparing expected outputs
+		List<Tuple2<Integer, Integer[]>> expectedGroupSumList = new ArrayList<>();
+
+		int groupedSum0 = 0;
+		int groupedSum1 = 0;
+		int groupedSum2 = 0;
+
+		for (int i = 0; i < 9; i++) {
+			int groupedSum;
+			switch (i % 3) {
+				case 0:
+					groupedSum = groupedSum0 += i;
+					break;
+				case 1:
+					groupedSum = groupedSum1 += i;
+					break;
+				default:
+					groupedSum = groupedSum2 += i;
+					break;
+			}
+
+			expectedGroupSumList.add(new Tuple2<>(i % 3, new Integer[]{groupedSum}));
+		}
+
+		// some necessary boiler plate
+		TypeInformation<Tuple2<Integer, Integer[]>> typeInfo = TypeExtractor.getForObject(new Tuple2<>(0, new Integer[]{0}));
+
+		ExecutionConfig config = new ExecutionConfig();
+
+		KeySelector<Tuple2<Integer, Integer[]>, Tuple> keySelector = KeySelectorUtil.getSelectorForKeys(
+			new Keys.ExpressionKeys<>(new int[]{0}, typeInfo),
+			typeInfo, config);
+		TypeInformation<Tuple> keyType = TypeExtractor.getKeySelectorTypes(keySelector, typeInfo);
+
+		// aggregations tested
+		ReduceFunction<Tuple2<Integer, Integer[]>> sumFunction =
+			new SumAggregator<>(1, typeInfo, config);
+
+		List<Tuple2<Integer, Integer[]>> groupedSumList = MockContext.createAndExecuteForKeyedStream(
+			new StreamGroupedReduce<>(sumFunction, typeInfo.createSerializer(config)),
+			getInputArrayList(),
+			keySelector, keyType);
+		assertEquals(expectedGroupSumList.size(), groupedSumList.size());
+		for (int index = 0; index < expectedGroupSumList.size(); index++) {
+			assertEquals(expectedGroupSumList.get(index).f0, groupedSumList.get(index).f0);
+			assertArrayEquals(expectedGroupSumList.get(index).f1, groupedSumList.get(index).f1);
+		}
+	}
 
 	@Test
 	public void groupSumIntegerTest() throws Exception {
@@ -322,6 +373,14 @@ public class AggregationFunctionTest {
 	// *************************************************************************
 	//     UTILS
 	// *************************************************************************
+
+	private List<Tuple2<Integer, Integer[]>> getInputArrayList() {
+		ArrayList<Tuple2<Integer, Integer[]>> inputList = new ArrayList<>();
+		for (int i = 0; i < 9; i++) {
+			inputList.add(Tuple2.of(i % 3, new Integer[]{i}));
+		}
+		return inputList;
+	}
 
 	private List<Tuple2<Integer, Integer>> getInputList() {
 		ArrayList<Tuple2<Integer, Integer>> inputList = new ArrayList<>();

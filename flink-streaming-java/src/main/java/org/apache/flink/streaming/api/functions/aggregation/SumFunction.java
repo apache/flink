@@ -45,6 +45,8 @@ public abstract class SumFunction implements Serializable {
 			return new FloatSum();
 		} else if (clazz == Byte.class) {
 			return new ByteSum();
+		} else if (clazz.isArray()) {
+			return new ArraySum(clazz.getComponentType());
 		} else {
 			throw new RuntimeException("DataStream cannot be summed because the class "
 					+ clazz.getSimpleName() + " does not support the + operator.");
@@ -105,4 +107,28 @@ public abstract class SumFunction implements Serializable {
 			return (byte) ((Byte) value1 + (Byte) value2);
 		}
 	}
+
+	static class ArraySum extends SumFunction {
+		private static final long serialVersionUID = 1L;
+
+		private SumFunction adder;
+
+		public ArraySum(Class<?> innerType) {
+			super();
+			adder = getForClass(innerType);
+		}
+
+		@Override
+		public Object add(Object value1, Object value2) {
+			Object[] arr1 = (Object[]) value1;
+			Object[] arr2 = (Object[]) value2;
+			Object[] result = new Object[arr1.length];
+
+			for (int index = 0; index < arr1.length; index++) {
+				result[index] = adder.add(arr1[index], arr2[index]);
+			}
+			return result;
+		}
+	}
+
 }
