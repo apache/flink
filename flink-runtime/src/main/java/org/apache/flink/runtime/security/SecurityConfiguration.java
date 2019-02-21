@@ -27,8 +27,12 @@ import org.apache.flink.runtime.security.modules.SecurityModuleFactory;
 import org.apache.flink.runtime.security.modules.ZookeeperModuleFactory;
 
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -63,6 +67,8 @@ public class SecurityConfiguration {
 
 	private final String zkLoginContextName;
 
+	private static final Logger LOG = LoggerFactory.getLogger(SecurityConfiguration.class);
+
 	/**
 	 * Create a security configuration from the global configuration.
 	 * @param flinkConf the Flink global configuration.
@@ -80,13 +86,21 @@ public class SecurityConfiguration {
 			List<SecurityModuleFactory> securityModuleFactories) {
 		this.isZkSaslDisable = flinkConf.getBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
 		this.keytab = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
-		this.principal = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
 		this.useTicketCache = flinkConf.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
 		this.loginContextNames = parseList(flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS));
 		this.zkServiceName = flinkConf.getString(SecurityOptions.ZOOKEEPER_SASL_SERVICE_NAME);
 		this.zkLoginContextName = flinkConf.getString(SecurityOptions.ZOOKEEPER_SASL_LOGIN_CONTEXT_NAME);
 		this.securityModuleFactories = Collections.unmodifiableList(securityModuleFactories);
 		this.flinkConfig = checkNotNull(flinkConf);
+		String rawPrincipal = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
+		if (rawPrincipal != null) {
+			try {
+				rawPrincipal = rawPrincipal.replace("HOSTNAME", InetAddress.getLocalHost().getCanonicalHostName());
+			} catch (UnknownHostException e) {
+				LOG.error("Failed to replace HOSTNAME with localhost because {}", e);
+			}
+		}
+		this.principal = rawPrincipal;
 		validate();
 	}
 
