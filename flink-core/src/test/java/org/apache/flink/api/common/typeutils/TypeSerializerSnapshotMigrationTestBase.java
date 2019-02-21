@@ -87,13 +87,21 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 		TypeSerializerSnapshot<ElementT> snapshot = snapshotUnderTest();
 		TypeSerializer<ElementT> serializer = snapshot.restoreSerializer();
 
-		DataInputView input = dataUnderTest();
+		assertSerializerIsAbleToReadOldData(serializer);
+	}
 
-		final Matcher<ElementT> matcher = testSpecification.testDataElementMatcher;
-		for (int i = 0; i < testSpecification.testDataCount; i++) {
-			final ElementT result = serializer.deserialize(input);
-			assertThat(result, matcher);
+	@Test
+	public void reconfiguredSerializerIsAbleToDeserializePreviousData() throws IOException {
+		TypeSerializerSnapshot<ElementT> snapshot = snapshotUnderTest();
+		TypeSerializerSchemaCompatibility<ElementT> compatibility = snapshot.resolveSchemaCompatibility(testSpecification.createSerializer());
+
+		if (!compatibility.isCompatibleWithReconfiguredSerializer()) {
+			// this test only applies for reconfigured serializers.
+			return;
 		}
+
+		TypeSerializer<ElementT> serializer = compatibility.getReconfiguredSerializer();
+		assertSerializerIsAbleToReadOldData(serializer);
 	}
 
 	@SuppressWarnings("deprecation")
@@ -111,6 +119,31 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 			notNullValue(),
 			not(instanceOf(TypeSerializerConfigSnapshot.class))
 		));
+	}
+
+	@SuppressWarnings("deprecation")
+	@Test
+	public void newSerializerIsAbleToReadOldData() throws IOException {
+		TypeSerializer<ElementT> newSerializer = testSpecification.createSerializer();
+
+		TypeSerializerSchemaCompatibility<ElementT> compatibility =
+			snapshotUnderTest().resolveSchemaCompatibility(newSerializer);
+
+		final TypeSerializer<ElementT> nextSerializer;
+		if (compatibility.isCompatibleWithReconfiguredSerializer()) {
+			nextSerializer = compatibility.getReconfiguredSerializer();
+		}
+		else if (compatibility.isCompatibleAsIs()) {
+			nextSerializer = newSerializer;
+		}
+		else {
+			// this test does not apply.
+			return;
+		}
+
+		TypeSerializerSnapshot<ElementT> nextSnapshot = nextSerializer.snapshotConfiguration();
+
+		assertSerializerIsAbleToReadOldData(nextSnapshot.restoreSerializer());
 	}
 
 	// --------------------------------------------------------------------------------------------------------------
@@ -159,6 +192,16 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 
 	private DataInputView dataUnderTest() {
 		return contentsOf(testSpecification.getTestDataLocation());
+	}
+
+	private void assertSerializerIsAbleToReadOldData(TypeSerializer<ElementT> serializer) throws IOException {
+		DataInputView input = dataUnderTest();
+
+		final Matcher<ElementT> matcher = testSpecification.testDataElementMatcher;
+		for (int i = 0; i < testSpecification.testDataCount; i++) {
+			final ElementT result = serializer.deserialize(input);
+			assertThat(result, matcher);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------------------------
