@@ -81,9 +81,9 @@ public class RocksDBOptions {
 	 */
 	public static final ConfigOption<String> OPTIONS_FACTORY = ConfigOptions
 		.key("state.backend.rocksdb.options-factory")
-		.defaultValue(ConfigurableOptionsFactory.class.getName())
+		.defaultValue(DefaultConfigurableOptionsFactory.class.getName())
 		.withDescription(String.format("The options factory class for RocksDB to create DBOptions and ColumnFamilyOptions. " +
 				"The default options factory is %s, and it would read the configured options which provided in 'RocksDBConfigurableOptions'.",
-				ConfigurableOptionsFactory.class.getName()));
+				DefaultConfigurableOptionsFactory.class.getName()));
 
 }

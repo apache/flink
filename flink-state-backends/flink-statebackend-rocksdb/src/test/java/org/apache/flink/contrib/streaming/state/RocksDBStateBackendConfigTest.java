@@ -387,8 +387,17 @@ public class RocksDBStateBackendConfigTest {
 		String checkpointPath = tempFolder.newFolder().toURI().toString();
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
 
+		// verify that we would use PredefinedOptions.DEFAULT by default.
 		assertEquals(PredefinedOptions.DEFAULT, rocksDbBackend.getPredefinedOptions());
 
+		// verify that user could configure predefined options via flink-conf.yaml
+		Configuration configuration = new Configuration();
+		configuration.setString(RocksDBOptions.PREDEFINED_OPTIONS, PredefinedOptions.FLASH_SSD_OPTIMIZED.name());
+		rocksDbBackend = new RocksDBStateBackend(checkpointPath);
+		rocksDbBackend = rocksDbBackend.configure(configuration, getClass().getClassLoader());
+		assertEquals(PredefinedOptions.FLASH_SSD_OPTIMIZED, rocksDbBackend.getPredefinedOptions());
+
+		// verify that predefined options could be set programmatically and override pre-configured one.
 		rocksDbBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED);
 		assertEquals(PredefinedOptions.SPINNING_DISK_OPTIMIZED, rocksDbBackend.getPredefinedOptions());
 
@@ -404,7 +413,7 @@ public class RocksDBStateBackendConfigTest {
 
 		assertNull(rocksDbBackend.getOptions());
 
-		ConfigurableOptionsFactory customizedOptions = new ConfigurableOptionsFactory()
+		DefaultConfigurableOptionsFactory customizedOptions = new DefaultConfigurableOptionsFactory()
 			.setMaxBackgroundThreads(4)
 			.setMaxOpenFiles(-1)
 			.setCompactionStyle(CompactionStyle.LEVEL)
@@ -440,7 +449,8 @@ public class RocksDBStateBackendConfigTest {
 	@Test
 	public void testConfigurableOptionsFromConfig() throws IOException {
 		Configuration configuration = new Configuration();
-		assertTrue(ConfigurableOptionsFactory.fromConfig(configuration).getConfiguredOptions().isEmpty());
+		DefaultConfigurableOptionsFactory defaultOptionsFactory = new DefaultConfigurableOptionsFactory();
+		assertTrue(defaultOptionsFactory.configure(configuration).getConfiguredOptions().isEmpty());
 
 		// verify illegal configuration
 		{
@@ -472,10 +482,11 @@ public class RocksDBStateBackendConfigTest {
 			configuration.setString(RocksDBConfigurableOptions.BLOCK_SIZE, "4 kb");
 			configuration.setString(RocksDBConfigurableOptions.BLOCK_CACHE_SIZE, "512 mb");
 
-			ConfigurableOptionsFactory customizedOptions = ConfigurableOptionsFactory.fromConfig(configuration);
+			DefaultConfigurableOptionsFactory optionsFactory = new DefaultConfigurableOptionsFactory();
+			optionsFactory.configure(configuration);
 			String checkpointPath = tempFolder.newFolder().toURI().toString();
 			RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
-			rocksDbBackend.setOptions(customizedOptions);
+			rocksDbBackend.setOptions(optionsFactory);
 
 			try (DBOptions dbOptions = rocksDbBackend.getDbOptions()) {
 				assertEquals(-1, dbOptions.maxOpenFiles());
@@ -497,55 +508,20 @@ public class RocksDBStateBackendConfigTest {
 		}
 	}
 
-	/**
-	 * This test verify configurations from flink-conf.yaml would be overrode by programmatically configured.
-	 */
-	@Test
-	public void testConfigOptions() throws Exception  {
-		Configuration configuration = new Configuration();
-		configuration.setString(RocksDBOptions.PREDEFINED_OPTIONS, PredefinedOptions.SPINNING_DISK_OPTIMIZED.name());
-		configuration.setString(RocksDBConfigurableOptions.MAX_WRITE_BUFFER_NUMBER, "4");
-
-		String checkpointPath = tempFolder.newFolder().toURI().toString();
-		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
-
-		// we re-configured predefined options as 'PredefinedOptions.DEFAULT' programmatically.
-		rocksDbBackend.setPredefinedOptions(PredefinedOptions.DEFAULT);
-
-		ConfigurableOptionsFactory optionsFactory = new ConfigurableOptionsFactory().setMaxWriteBufferNumber(3);
-		// we re-configured max write-buffer number as '3' programmatically.
-		rocksDbBackend.setOptions(optionsFactory);
-
-		rocksDbBackend = rocksDbBackend.configure(configuration);
-
-		assertEquals(PredefinedOptions.DEFAULT, rocksDbBackend.getPredefinedOptions());
-
-		try (ColumnFamilyOptions columnFamilyOptions = rocksDbBackend.getColumnOptions()){
-			assertEquals(3, columnFamilyOptions.maxWriteBufferNumber());
-		}
-	}
-
 	@Test
 	public void testOptionsFactory() throws Exception {
 		String checkpointPath = tempFolder.newFolder().toURI().toString();
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
 
-		// 1. verify configure user-defined options factory through flink-conf.yaml
+		// verify that user-defined options factory could be configured via flink-conf.yaml
 		Configuration config = new Configuration();
 		config.setString(RocksDBOptions.OPTIONS_FACTORY.key(), TestOptionsFactory.class.getName());
 
-		rocksDbBackend = rocksDbBackend.configure(config);
+		rocksDbBackend = rocksDbBackend.configure(config, getClass().getClassLoader());
 
-		final Environment env = getMockEnvironment(tempFolder.newFolder());
-		// call createKeyedStateBackend to instantiate the user-defined options factory.
-		createKeyedStateBackend(rocksDbBackend, env);
+		assertTrue(rocksDbBackend.getOptions() instanceof TestOptionsFactory);
 
-		assertNotNull(rocksDbBackend.getOptions());
-		try (ColumnFamilyOptions colCreated = rocksDbBackend.getColumnOptions()) {
-			assertEquals(CompactionStyle.UNIVERSAL, colCreated.compactionStyle());
-		}
-
-		// 2. verify set user-defined options factory
+		// verify that user-defined options factory could be set programmatically and override pre-configured one.
 		rocksDbBackend.setOptions(new OptionsFactory() {
 			@Override
 			public DBOptions createDBOptions(DBOptions currentOptions) {
@@ -692,11 +668,15 @@ public class RocksDBStateBackendConfigTest {
 		return env;
 	}
 
-	private void verifyIllegalArgument(ConfigOption<String> configOption, String configValue) {
+	private void verifyIllegalArgument(
+			ConfigOption<String> configOption,
+			String configValue) {
 		Configuration configuration = new Configuration();
 		configuration.setString(configOption, configValue);
+
+		DefaultConfigurableOptionsFactory optionsFactory = new DefaultConfigurableOptionsFactory();
 		try {
-			ConfigurableOptionsFactory.fromConfig(configuration);
+			optionsFactory.configure(configuration);
 			fail("Not throwing expected IllegalArgumentException.");
 		} catch (IllegalArgumentException e) {
 			// ignored

@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.DynamicCodeLoadingException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TernaryBoolean;
 
@@ -345,8 +346,13 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			PredefinedOptions.valueOf(config.getString(RocksDBOptions.PREDEFINED_OPTIONS)) : original.predefinedOptions;
 
 		// configure RocksDB options factory
-		this.optionsFactory = original.optionsFactory == null ?
-			loadOptionsFactory(config.getString(RocksDBOptions.OPTIONS_FACTORY), config) : original.optionsFactory;
+		try {
+			this.optionsFactory = original.optionsFactory == null ?
+				loadOptionsFactory(config.getString(RocksDBOptions.OPTIONS_FACTORY), config, classLoader) :
+				original.optionsFactory;
+		} catch (DynamicCodeLoadingException e) {
+			throw new FlinkRuntimeException(e);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -483,23 +489,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		LocalRecoveryConfig localRecoveryConfig =
 			env.getTaskStateManager().createLocalRecoveryConfig();
 
-		ClassLoader userClassLoader = env.getUserClassLoader();
-
-		if (optionsFactory instanceof UserConfiguredOptionsFactory) {
-			UserConfiguredOptionsFactory userConfiguredOptionsFactory = (UserConfiguredOptionsFactory) this.optionsFactory;
-			try {
-				userConfiguredOptionsFactory.instantiateOptionsFactory(userClassLoader);
-			} catch (DynamicCodeLoadingException e) {
-				throw new IOException("Fail to instantiate the user configured optionsFactory: '" +
-					userConfiguredOptionsFactory.getClassName() + "'.", e);
-			}
-		}
-
 		ExecutionConfig executionConfig = env.getExecutionConfig();
 		StreamCompressionDecorator keyGroupCompressionDecorator = getCompressionDecorator(executionConfig);
 		RocksDBKeyedStateBackendBuilder<K> builder = new RocksDBKeyedStateBackendBuilder<>(
 			operatorIdentifier,
-			userClassLoader,
+			env.getUserClassLoader(),
 			instanceBasePath,
 			getDbOptions(),
 			stateName -> getColumnOptions(),
@@ -542,11 +536,34 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				asyncSnapshots);
 	}
 
-	private OptionsFactory loadOptionsFactory(String factoryClassName, Configuration config) {
-		if (factoryClassName.equalsIgnoreCase(ConfigurableOptionsFactory.class.getName())) {
-			return ConfigurableOptionsFactory.fromConfig(config);
+	private OptionsFactory loadOptionsFactory(
+			String factoryClassName,
+			Configuration config,
+			ClassLoader classLoader) throws DynamicCodeLoadingException {
+		// if using DefaultConfigurableOptionsFactory by default, we could avoid reflection to speed up.
+		if (factoryClassName.equalsIgnoreCase(DefaultConfigurableOptionsFactory.class.getName())) {
+			DefaultConfigurableOptionsFactory optionsFactory = new DefaultConfigurableOptionsFactory();
+			return optionsFactory.configure(config);
 		} else {
-			return new UserConfiguredOptionsFactory(factoryClassName);
+			try {
+				@SuppressWarnings("rawtypes")
+				Class<? extends OptionsFactory> clazz =
+					Class.forName(factoryClassName, false, classLoader)
+						.asSubclass(OptionsFactory.class);
+
+				OptionsFactory optionsFactory = clazz.newInstance();
+				if (optionsFactory instanceof ConfigurableOptionsFactory) {
+					((ConfigurableOptionsFactory) optionsFactory).configure(config);
+				}
+				return optionsFactory;
+			} catch (ClassNotFoundException e) {
+				throw new DynamicCodeLoadingException(
+					"Cannot find configured options factory class: " + factoryClassName, e);
+			} catch (ClassCastException | InstantiationException | IllegalAccessException e) {
+				throw new DynamicCodeLoadingException("The class configured under '" +
+					RocksDBOptions.OPTIONS_FACTORY.key() + "' is not a valid options factory (" +
+					factoryClassName + ')', e);
+			}
 		}
 	}
 
