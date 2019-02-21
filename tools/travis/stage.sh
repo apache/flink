@@ -53,6 +53,8 @@ flink-table/flink-table-api-scala,\
 flink-table/flink-table-api-java-bridge,\
 flink-table/flink-table-api-scala-bridge,\
 flink-table/flink-table-planner,\
+flink-table/flink-table-planner-blink,\
+flink-table/flink-table-runtime-blink,\
 flink-table/flink-sql-client,\
 flink-queryable-state/flink-queryable-state-runtime,\
 flink-queryable-state/flink-queryable-state-client-java"
