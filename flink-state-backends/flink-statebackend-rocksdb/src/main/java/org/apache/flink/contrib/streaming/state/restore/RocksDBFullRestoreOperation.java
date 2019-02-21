@@ -20,7 +20,6 @@ package org.apache.flink.contrib.streaming.state.restore;
 
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBWriteBatchWrapper;
@@ -44,7 +43,6 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
-import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
@@ -181,12 +179,8 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 		currentStateHandleKVStateColumnFamilies = new ArrayList<>(restoredMetaInfos.size());
 
 		for (StateMetaInfoSnapshot restoredMetaInfo : restoredMetaInfos) {
-			byte[] nameBytes = restoredMetaInfo.getName().getBytes(ConfigConstants.DEFAULT_CHARSET);
-			ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(
-				nameBytes,
-				columnOptions);
 			RocksDbKvStateInfo registeredStateCFHandle =
-				getOrRegisterStateColumnFamilyHandle(columnFamilyDescriptor, null, restoredMetaInfo);
+				getOrRegisterStateColumnFamilyHandle(null, null, restoredMetaInfo);
 			currentStateHandleKVStateColumnFamilies.add(registeredStateCFHandle.columnFamilyHandle);
 		}
 	}

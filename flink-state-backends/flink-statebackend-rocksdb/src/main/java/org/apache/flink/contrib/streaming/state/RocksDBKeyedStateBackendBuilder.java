@@ -286,7 +286,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				kvStateInformation, keyGroupPrefixBytes, db, backendUID, materializedSstFiles, lastCompletedCheckpointId);
 			// init priority queue factory
 			priorityQueueFactory = initPriorityQueueFactory(keyGroupPrefixBytes, kvStateInformation, db,
-				writeBatchWrapper, nativeMetricMonitor, ttlCompactFiltersManager);
+				writeBatchWrapper, nativeMetricMonitor);
 		} catch (Throwable e) {
 			// Do clean up
 			IOUtils.closeQuietly(cancelStreamRegistry);
@@ -459,8 +459,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		Map<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation,
 		RocksDB db,
 		RocksDBWriteBatchWrapper writeBatchWrapper,
-		RocksDBNativeMetricMonitor nativeMetricMonitor,
-		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
+		RocksDBNativeMetricMonitor nativeMetricMonitor) {
 		PriorityQueueSetFactory priorityQueueFactory;
 		switch (priorityQueueStateType) {
 			case HEAP:
@@ -475,9 +474,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 					db,
 					writeBatchWrapper,
 					nativeMetricMonitor,
-					columnFamilyOptions,
-					ttlCompactFiltersManager,
-					ttlTimeProvider);
+					columnFamilyOptions
+				);
 				break;
 			default:
 				throw new IllegalArgumentException("Unknown priority queue state type: " + priorityQueueStateType);

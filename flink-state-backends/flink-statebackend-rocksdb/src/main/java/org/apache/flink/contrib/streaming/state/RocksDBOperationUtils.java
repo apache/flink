@@ -89,6 +89,10 @@ public class RocksDBOperationUtils {
 		}
 	}
 
+	public static ColumnFamilyHandle createColumnFamily(String stateName, ColumnFamilyOptions columnOptions, RocksDB db) {
+		return createColumnFamily(createColumnFamilyDescriptor(stateName, columnOptions), db);
+	}
+
 	public static RocksIteratorWrapper getRocksIterator(RocksDB db) {
 		return new RocksIteratorWrapper(db.newIterator());
 	}
@@ -122,9 +126,12 @@ public class RocksDBOperationUtils {
 		ColumnFamilyDescriptor columnFamilyDescriptor,
 		ColumnFamilyOptions options) {
 		if (columnFamilyDescriptor == null) {
+			ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(ttlTimeProvider, metaInfoBase, options);
 			columnFamilyDescriptor = createColumnFamilyDescriptor(metaInfoBase.getName(), options);
+		} else {
+			ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(ttlTimeProvider, metaInfoBase,
+				columnFamilyDescriptor.getOptions());
 		}
-		ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(ttlTimeProvider, metaInfoBase, options);
 		return new RocksDBKeyedStateBackend.RocksDbKvStateInfo(createColumnFamily(columnFamilyDescriptor, db), metaInfoBase);
 	}
 }

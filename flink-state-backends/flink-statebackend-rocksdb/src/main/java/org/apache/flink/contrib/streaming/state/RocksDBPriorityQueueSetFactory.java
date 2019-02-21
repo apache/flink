@@ -19,7 +19,6 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
-import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.state.KeyExtractorFunction;
@@ -32,7 +31,6 @@ import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.KeyGroupPartitionedPriorityQueue;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.StateMigrationException;
 
@@ -75,8 +73,6 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 	private final RocksDBWriteBatchWrapper writeBatchWrapper;
 	private final RocksDBNativeMetricMonitor nativeMetricMonitor;
 	private final ColumnFamilyOptions columnOptions;
-	private final RocksDbTtlCompactFiltersManager ttlCompactFiltersManager;
-	private final TtlTimeProvider ttlTimeProvider;
 
 	RocksDBPriorityQueueSetFactory(
 		KeyGroupRange keyGroupRange,
@@ -86,9 +82,7 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 		RocksDB db,
 		RocksDBWriteBatchWrapper writeBatchWrapper,
 		RocksDBNativeMetricMonitor nativeMetricMonitor,
-		ColumnFamilyOptions columnOptions,
-		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-		TtlTimeProvider ttlTimeProvider) {
+		ColumnFamilyOptions columnOptions) {
 		this.keyGroupRange = keyGroupRange;
 		this.keyGroupPrefixBytes = keyGroupPrefixBytes;
 		this.numberOfKeyGroups = numberOfKeyGroups;
@@ -99,8 +93,6 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 		this.columnOptions = columnOptions;
 		this.sharedElementOutView = new DataOutputSerializer(128);
 		this.sharedElementInView = new DataInputDeserializer();
-		this.ttlCompactFiltersManager = ttlCompactFiltersManager;
-		this.ttlTimeProvider = ttlTimeProvider;
 	}
 
 	@Nonnull
@@ -150,11 +142,14 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 		RocksDBKeyedStateBackend.RocksDbKvStateInfo stateInfo = kvStateInformation.get(stateName);
 
 		if (stateInfo == null) {
+			// Currently this class is for timer service and TTL feature is not applicable here,
+			// so no need to register compact filter when creating column family
+			final ColumnFamilyHandle columnFamilyHandle =
+				RocksDBOperationUtils.createColumnFamily(stateName, this.columnOptions, this.db);
 			RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo =
 				new RegisteredPriorityQueueStateBackendMetaInfo<>(stateName, byteOrderedElementSerializer);
 
-			stateInfo = RocksDBOperationUtils.createStateInfo(metaInfo, ttlCompactFiltersManager,
-				ttlTimeProvider, db, null, columnOptions);
+			stateInfo = new RocksDBKeyedStateBackend.RocksDbKvStateInfo(columnFamilyHandle, metaInfo);
 			RocksDBOperationUtils.registerKvStateInformation(kvStateInformation, nativeMetricMonitor, stateName, stateInfo);
 		} else {
 			// TODO we implement the simple way of supporting the current functionality, mimicking keyed state
