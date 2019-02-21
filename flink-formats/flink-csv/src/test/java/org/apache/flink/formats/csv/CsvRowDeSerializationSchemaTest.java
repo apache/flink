@@ -92,19 +92,17 @@ public class CsvRowDeSerializationSchemaTest {
 	@Test
 	public void testSerializeDeserializeCustomizedProperties() throws IOException {
 
-		final Consumer<CsvRowSerializationSchema.Builder> serConfig = (serSchemaBuilder) -> {
-			serSchemaBuilder.setEscapeCharacter('*');
-			serSchemaBuilder.setQuoteCharacter('\'');
-			serSchemaBuilder.setArrayElementDelimiter(":");
-			serSchemaBuilder.setFieldDelimiter(';');
-		};
+		final Consumer<CsvRowSerializationSchema.Builder> serConfig = (serSchemaBuilder) -> serSchemaBuilder
+			.setEscapeCharacter('*')
+			.setQuoteCharacter('\'')
+			.setArrayElementDelimiter(":")
+			.setFieldDelimiter(';');
 
-		final Consumer<CsvRowDeserializationSchema.Builder> deserConfig = (deserSchemaBuilder) -> {
-			deserSchemaBuilder.setEscapeCharacter('*');
-			deserSchemaBuilder.setQuoteCharacter('\'');
-			deserSchemaBuilder.setArrayElementDelimiter(":");
-			deserSchemaBuilder.setFieldDelimiter(';');
-		};
+		final Consumer<CsvRowDeserializationSchema.Builder> deserConfig = (deserSchemaBuilder) -> deserSchemaBuilder
+			.setEscapeCharacter('*')
+			.setQuoteCharacter('\'')
+			.setArrayElementDelimiter(":")
+			.setFieldDelimiter(';');
 
 		testField(Types.STRING, "123*'4**", "123'4*", deserConfig, ";");
 		testField(Types.STRING, "'123''4**'", "123'4*", serConfig, deserConfig, ";");

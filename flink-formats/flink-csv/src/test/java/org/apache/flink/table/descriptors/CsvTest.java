@@ -43,7 +43,7 @@ public class CsvTest extends DescriptorTestBase {
 		)}
 	);
 
-	private static final Descriptor DESCRIPTOR_1 = new Csv()
+	private static final Descriptor CUSTOM_DESCRIPTOR_WITH_SCHEMA = new Csv()
 		.schema(SCHEMA)
 		.fieldDelimiter(';')
 		.lineDelimiter("\r\n")
@@ -54,24 +54,24 @@ public class CsvTest extends DescriptorTestBase {
 		.escapeCharacter('\\')
 		.nullLiteral("n/a");
 
-	private static final Descriptor DESCRIPTOR_2 = new Csv()
+	private static final Descriptor MINIMAL_DESCRIPTOR_WITH_DERIVED_SCHEMA = new Csv()
 		.deriveSchema();
 
 	@Test(expected = ValidationException.class)
 	public void testInvalidAllowComments() {
-		addPropertyAndVerify(descriptors().get(0), "format.allow-comments", "DDD");
+		addPropertyAndVerify(CUSTOM_DESCRIPTOR_WITH_SCHEMA, "format.allow-comments", "DDD");
 	}
 
 	@Test(expected = ValidationException.class)
 	public void testMissingSchema() {
-		removePropertyAndVerify(descriptors().get(0), "format.schema");
+		removePropertyAndVerify(CUSTOM_DESCRIPTOR_WITH_SCHEMA, "format.schema");
 	}
 
 	@Test(expected = ValidationException.class)
 	public void testDuplicateSchema() {
 		// we add an additional schema
 		addPropertyAndVerify(
-			descriptors().get(1),
+			MINIMAL_DESCRIPTOR_WITH_DERIVED_SCHEMA,
 			"format.schema",
 			"ROW<a VARCHAR, b INT, c ROW<a VARCHAR, b INT, c BOOLEAN>>");
 	}
@@ -80,7 +80,7 @@ public class CsvTest extends DescriptorTestBase {
 
 	@Override
 	public List<Descriptor> descriptors() {
-		return Arrays.asList(DESCRIPTOR_1, DESCRIPTOR_2);
+		return Arrays.asList(CUSTOM_DESCRIPTOR_WITH_SCHEMA, MINIMAL_DESCRIPTOR_WITH_DERIVED_SCHEMA);
 	}
 
 	@Override

@@ -153,7 +153,7 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 			root = csvMapper.createObjectNode();
 		}
 		try {
-			convertNestedRow(root, row, (RowTypeInfo) typeInfo);
+			convertRow(root, row, (RowTypeInfo) typeInfo);
 			return objectWriter.writeValueAsBytes(root);
 		} catch (Throwable t) {
 			throw new RuntimeException("Could not serialize row '" + row + "'.", t);
@@ -194,12 +194,10 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 
 	// --------------------------------------------------------------------------------------------
 
-	private void convertNestedRow(ObjectNode reuse, Row row, RowTypeInfo rowTypeInfo) {
+	private void convertRow(ObjectNode reuse, Row row, RowTypeInfo rowTypeInfo) {
 		final TypeInformation[] types = rowTypeInfo.getFieldTypes();
-		if (row.getArity() != types.length) {
-			throw new RuntimeException("Row length mismatch. " + types.length +
-				" fields expected but was " + row.getArity() + ".");
-		}
+
+		validateArity(types.length, row.getArity());
 
 		final String[] fields = rowTypeInfo.getFieldNames();
 		for (int i = 0; i < types.length; i++) {
@@ -263,10 +261,9 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 	private ArrayNode convertNestedRow(Row row, RowTypeInfo rowTypeInfo) {
 		final ArrayNode arrayNode = csvMapper.createArrayNode();
 		final TypeInformation[] types = rowTypeInfo.getFieldTypes();
-		if (row.getArity() != types.length) {
-			throw new RuntimeException("Row length mismatch. " + types.length +
-				" fields expected but was " + row.getArity() + ".");
-		}
+
+		validateArity(types.length, row.getArity());
+
 		for (int i = 0; i < types.length; i++) {
 			arrayNode.add(convert(arrayNode, row.getField(i), types[i]));
 		}
@@ -279,5 +276,12 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 			arrayNode.add(convert(arrayNode, element, elementInfo));
 		}
 		return arrayNode;
+	}
+
+	private void validateArity(int expected, int actual) {
+		if (expected != actual) {
+			throw new RuntimeException("Row length mismatch. " + expected +
+				" fields expected but was " + actual + ".");
+		}
 	}
 }
