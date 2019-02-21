@@ -266,7 +266,7 @@ public class DispatcherTest extends TestLogger {
 
 		assertTrue(
 			"jobManagerRunner was not started",
-			dispatcherLeaderElectionService.isStarted());
+			dispatcherLeaderElectionService.getStartFuture().isDone());
 	}
 
 	/**
