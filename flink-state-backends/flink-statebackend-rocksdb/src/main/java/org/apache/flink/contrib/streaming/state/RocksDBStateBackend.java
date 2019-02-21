@@ -347,9 +347,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 		// configure RocksDB options factory
 		try {
-			this.optionsFactory = original.optionsFactory == null ?
-				loadOptionsFactory(config.getString(RocksDBOptions.OPTIONS_FACTORY), config, classLoader) :
-				original.optionsFactory;
+			this.optionsFactory = configureOptionsFactory(
+				original.optionsFactory,
+				config.getString(RocksDBOptions.OPTIONS_FACTORY),
+				config,
+				classLoader);
 		} catch (DynamicCodeLoadingException e) {
 			throw new FlinkRuntimeException(e);
 		}
@@ -536,10 +538,19 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				asyncSnapshots);
 	}
 
-	private OptionsFactory loadOptionsFactory(
+	private OptionsFactory configureOptionsFactory(
+			@Nullable OptionsFactory originalOptionsFactory,
 			String factoryClassName,
 			Configuration config,
 			ClassLoader classLoader) throws DynamicCodeLoadingException {
+
+		if (originalOptionsFactory != null) {
+			if (originalOptionsFactory instanceof ConfigurableOptionsFactory) {
+				return ((ConfigurableOptionsFactory) originalOptionsFactory).configure(config);
+			}
+			return originalOptionsFactory;
+		}
+
 		// if using DefaultConfigurableOptionsFactory by default, we could avoid reflection to speed up.
 		if (factoryClassName.equalsIgnoreCase(DefaultConfigurableOptionsFactory.class.getName())) {
 			DefaultConfigurableOptionsFactory optionsFactory = new DefaultConfigurableOptionsFactory();

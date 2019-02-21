@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 /**
  * An interface for options factory that pick up additional parameters from a configuration.
  */
-public interface ConfigurableOptionsFactory {
+public interface ConfigurableOptionsFactory extends OptionsFactory {
 
 	/**
 	 * Creates a variant of the options factory that applies additional configuration parameters.

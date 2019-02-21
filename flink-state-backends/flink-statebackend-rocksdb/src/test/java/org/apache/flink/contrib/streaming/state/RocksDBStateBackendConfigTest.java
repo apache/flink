@@ -690,7 +690,7 @@ public class RocksDBStateBackendConfigTest {
 	/**
 	 * An implementation of options factory for testing.
 	 */
-	public static class TestOptionsFactory implements OptionsFactory, ConfigurableOptionsFactory {
+	public static class TestOptionsFactory implements ConfigurableOptionsFactory {
 		public static final String BACKGROUND_JOBS_OPTION = "my.custom.rocksdb.backgroundJobs";
 
 		private static final int DEFAULT_BACKGROUND_JOBS = 2;

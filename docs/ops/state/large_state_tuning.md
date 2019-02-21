@@ -176,7 +176,7 @@ There existed two ways to pass options factory to RocksDB in Flink:
 
     {% highlight java %}
 
-    public class MyOptionsFactory implements OptionsFactory, ConfigurableOptionsFactory {
+    public class MyOptionsFactory implements ConfigurableOptionsFactory {
 
         private static final long DEFAULT_SIZE = 256 * 1024 * 1024;  // 256 MB
         private long blockCacheSize = DEFAULT_SIZE;
