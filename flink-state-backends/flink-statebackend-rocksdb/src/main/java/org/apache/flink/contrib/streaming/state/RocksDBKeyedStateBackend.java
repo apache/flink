@@ -370,9 +370,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private static void addColumnFamilyToCloseLater(
 		List<ColumnFamilyOptions> columnFamilyOptions, ColumnFamilyHandle columnFamilyHandle) {
 		try {
-			if (columnFamilyHandle == null || columnFamilyHandle.getDescriptor() == null) {
-				return;
-			}
 			columnFamilyOptions.add(columnFamilyHandle.getDescriptor().getOptions());
 		} catch (RocksDBException e) {
 			// ignore

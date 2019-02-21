@@ -34,7 +34,6 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.internal.InternalKvState;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -84,8 +83,13 @@ public abstract class StateBackendTestContext {
 	}
 
 	void createAndRestoreKeyedStateBackend(int numberOfKeyGroups, KeyedStateHandle snapshot) {
-		Collection<KeyedStateHandle> stateHandles = snapshot == null ?
-			Collections.emptyList() : Lists.newArrayList(snapshot);
+		Collection<KeyedStateHandle> stateHandles;
+		if (snapshot == null) {
+			stateHandles = Collections.emptyList();
+		} else {
+			stateHandles = new ArrayList<>(1);
+			stateHandles.add(snapshot);
+		}
 		Environment env = new DummyEnvironment();
 		try {
 			disposeKeyedStateBackend();

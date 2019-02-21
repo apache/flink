@@ -268,7 +268,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
 	@Test
 	public void testCorrectMergeOperatorSet() throws Exception {
-
+		prepareRocksDB();
 		final ColumnFamilyOptions columnFamilyOptions = spy(new ColumnFamilyOptions());
 		RocksDBKeyedStateBackend<Integer> test = null;
 		try (DBOptions options = new DBOptions().setCreateIfMissing(true)) {
@@ -290,8 +290,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				new UnregisteredMetricsGroup(),
 				Collections.emptyList(),
 				RocksDBStateBackend.getCompressionDecorator(executionConfig),
-				mock(RocksDB.class),
-				mock(ColumnFamilyHandle.class)
+				db,
+				defaultCFHandle
 			).build();
 			ValueStateDescriptor<String> stubState =
 				new ValueStateDescriptor<>("StubState", StringSerializer.INSTANCE);
