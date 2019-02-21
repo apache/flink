@@ -25,7 +25,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotMigrationTest
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Animal;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Cat;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Dog;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.DogV2KryoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Parrot;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.ParrotKryoSerializer;
 import org.apache.flink.testutils.migration.MigrationVersion;
 
 import com.esotericsoftware.kryo.serializers.DefaultSerializers.StringSerializer;
@@ -84,10 +86,10 @@ public class KryoSnapshotMigrationTest extends TypeSerializerSnapshotMigrationTe
 		add(specs, "kryo-type-serializer-custom", () -> {
 			ExecutionConfig executionConfig = new ExecutionConfig();
 			executionConfig.registerKryoType(DummyClassOne.class);
-			executionConfig.registerKryoType(Dog.class);
+			executionConfig.registerTypeWithKryoSerializer(Dog.class, DogV2KryoSerializer.class);
 			executionConfig.registerKryoType(DummyClassTwo.class);
 			executionConfig.registerKryoType(Cat.class);
-			executionConfig.registerKryoType(Parrot.class);
+			executionConfig.registerTypeWithKryoSerializer(Parrot.class, ParrotKryoSerializer.class);
 
 			return new KryoSerializer<>(Animal.class, executionConfig);
 		}, COMPATIBLE_WITH_RECONFIGURED);
@@ -104,7 +106,7 @@ public class KryoSnapshotMigrationTest extends TypeSerializerSnapshotMigrationTe
 							TypeSerializerSchemaCompatibility<Animal> expected) {
 
 		TestSpecification<Animal> flink16 = TestSpecification.<Animal>builder(
-			name,
+			MigrationVersion.v1_6 + " " + name,
 			KryoSerializer.class,
 			KryoSerializerSnapshot.class,
 			MigrationVersion.v1_6)
@@ -113,7 +115,7 @@ public class KryoSnapshotMigrationTest extends TypeSerializerSnapshotMigrationTe
 			.withTestData("flink-1.6-" + name + "-data", 2);
 
 		TestSpecification<Animal> flink17 = TestSpecification.<Animal>builder(
-			name,
+			MigrationVersion.v1_7 + " " + name,
 			KryoSerializer.class,
 			KryoSerializerSnapshot.class,
 			MigrationVersion.v1_7)

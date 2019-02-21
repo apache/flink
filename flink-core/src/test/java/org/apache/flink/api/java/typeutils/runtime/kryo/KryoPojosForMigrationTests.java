@@ -97,7 +97,7 @@ public class KryoPojosForMigrationTests {
 	}
 
 	/**
-	 * A Serializer to use in the tests.
+	 * A Serializer that was registered during test data generation.
 	 */
 	public static class ParrotKryoSerializer extends Serializer<Parrot> implements Serializable {
 
@@ -115,7 +115,7 @@ public class KryoPojosForMigrationTests {
 	}
 
 	/**
-	 * A Serializer to use in the tests.
+	 * A Serializer that was registered during test data generation.
 	 */
 	public static class DogKryoSerializer extends Serializer<Dog> implements Serializable {
 
@@ -131,4 +131,24 @@ public class KryoPojosForMigrationTests {
 			return new Dog(input.readString());
 		}
 	}
+
+	/**
+	 * A Serializer that is registered in migration tests.
+	 */
+	public static class DogV2KryoSerializer extends Serializer<Dog> implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void write(Kryo kryo, Output output, Dog object) {
+			output.writeString(object.getName());
+		}
+
+		@Override
+		public Dog read(Kryo kryo, Input input, Class<Dog> type) {
+			return new Dog(input.readString());
+		}
+	}
+
+
 }
