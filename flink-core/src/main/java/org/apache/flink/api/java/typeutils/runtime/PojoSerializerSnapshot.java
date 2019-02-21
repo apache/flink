@@ -273,8 +273,9 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 		final ArrayList<TypeSerializerSnapshot<?>> associatedFieldSerializerSnapshots = new ArrayList<>(presentFieldSnapshots.size());
 		final ArrayList<TypeSerializer<?>> associatedNewFieldSerializers = new ArrayList<>(presentFieldSnapshots.size());
 
+		final Map<Field, TypeSerializer<?>> newFieldSerializersIndex = buildNewFieldSerializersIndex(newPojoSerializer);
 		for (LinkedOptionalMap.KeyValue<Field, TypeSerializerSnapshot<?>> presentFieldEntry : presentFieldSnapshots) {
-			TypeSerializer<?> associatedNewFieldSerializer = newPojoSerializer.getFieldSerializer(presentFieldEntry.getKey());
+			TypeSerializer<?> associatedNewFieldSerializer = newFieldSerializersIndex.get(presentFieldEntry.getKey());
 			checkState(
 				associatedNewFieldSerializer != null,
 				"a present field should have its associated new field serializer available.");
@@ -286,6 +287,25 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 		return CompositeTypeSerializerUtil.constructIntermediateCompatibilityResult(
 			associatedNewFieldSerializers.toArray(new TypeSerializer<?>[associatedNewFieldSerializers.size()]),
 			associatedFieldSerializerSnapshots.toArray(new TypeSerializerSnapshot<?>[associatedFieldSerializerSnapshots.size()]));
+	}
+
+	/**
+	 * Builds an index of fields to their corresponding serializers for the
+	 * new {@link PojoSerializer} for faster field serializer lookups.
+	 */
+	private static <T> Map<Field, TypeSerializer<?>> buildNewFieldSerializersIndex(PojoSerializer<T> newPojoSerializer) {
+		final Field[] newFields = newPojoSerializer.getFields();
+		final TypeSerializer<?>[] newFieldSerializers = newPojoSerializer.getFieldSerializers();
+
+		checkState(newFields.length == newFieldSerializers.length);
+
+		int numFields = newFields.length;
+		final Map<Field, TypeSerializer<?>> index = new HashMap<>(numFields);
+		for (int i = 0; i < numFields; i++) {
+			index.put(newFields[i], newFieldSerializers[i]);
+		}
+
+		return index;
 	}
 
 	/**
