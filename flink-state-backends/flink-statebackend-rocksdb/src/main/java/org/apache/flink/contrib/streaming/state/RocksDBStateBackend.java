@@ -553,7 +553,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 				OptionsFactory optionsFactory = clazz.newInstance();
 				if (optionsFactory instanceof ConfigurableOptionsFactory) {
-					((ConfigurableOptionsFactory) optionsFactory).configure(config);
+					optionsFactory = ((ConfigurableOptionsFactory) optionsFactory).configure(config);
 				}
 				return optionsFactory;
 			} catch (ClassNotFoundException e) {

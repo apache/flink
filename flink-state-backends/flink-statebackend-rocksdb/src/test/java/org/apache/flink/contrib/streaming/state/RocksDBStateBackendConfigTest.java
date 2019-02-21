@@ -516,10 +516,14 @@ public class RocksDBStateBackendConfigTest {
 		// verify that user-defined options factory could be configured via flink-conf.yaml
 		Configuration config = new Configuration();
 		config.setString(RocksDBOptions.OPTIONS_FACTORY.key(), TestOptionsFactory.class.getName());
+		config.setInteger(TestOptionsFactory.BACKGROUND_JOBS_OPTION, 4);
 
 		rocksDbBackend = rocksDbBackend.configure(config, getClass().getClassLoader());
 
 		assertTrue(rocksDbBackend.getOptions() instanceof TestOptionsFactory);
+		try (DBOptions dbOptions = rocksDbBackend.getDbOptions()) {
+			assertEquals(4, dbOptions.maxBackgroundJobs());
+		}
 
 		// verify that user-defined options factory could be set programmatically and override pre-configured one.
 		rocksDbBackend.setOptions(new OptionsFactory() {
@@ -686,16 +690,26 @@ public class RocksDBStateBackendConfigTest {
 	/**
 	 * An implementation of options factory for testing.
 	 */
-	public static class TestOptionsFactory implements OptionsFactory {
+	public static class TestOptionsFactory implements OptionsFactory, ConfigurableOptionsFactory {
+		public static final String BACKGROUND_JOBS_OPTION = "my.custom.rocksdb.backgroundJobs";
+
+		private static final int DEFAULT_BACKGROUND_JOBS = 2;
+		private int backgroundJobs = DEFAULT_BACKGROUND_JOBS;
 
 		@Override
 		public DBOptions createDBOptions(DBOptions currentOptions) {
-			return currentOptions;
+			return currentOptions.setMaxBackgroundJobs(backgroundJobs);
 		}
 
 		@Override
 		public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
 			return currentOptions.setCompactionStyle(CompactionStyle.UNIVERSAL);
+		}
+
+		@Override
+		public OptionsFactory configure(Configuration configuration) {
+			this.backgroundJobs = configuration.getInteger(BACKGROUND_JOBS_OPTION, DEFAULT_BACKGROUND_JOBS);
+			return this;
 		}
 	}
 }
