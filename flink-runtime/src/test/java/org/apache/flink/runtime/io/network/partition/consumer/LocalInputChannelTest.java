@@ -339,7 +339,7 @@ public class LocalInputChannelTest {
 			@Override
 			public void run() {
 				try {
-					gate.releaseAllResources();
+					gate.close();
 				} catch (IOException ignored) {
 				}
 			}
@@ -557,7 +557,7 @@ public class LocalInputChannelTest {
 				}
 			}
 			finally {
-				inputGate.releaseAllResources();
+				inputGate.close();
 			}
 
 			return null;

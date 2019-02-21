@@ -134,7 +134,7 @@ public class NetworkEnvironmentTest {
 			rp.release();
 		}
 		for (SingleInputGate ig : inputGates) {
-			ig.releaseAllResources();
+			ig.close();
 		}
 		network.shutdown();
 	}
@@ -258,7 +258,7 @@ public class NetworkEnvironmentTest {
 			rp.release();
 		}
 		for (SingleInputGate ig : inputGates) {
-			ig.releaseAllResources();
+			ig.close();
 		}
 		network.shutdown();
 	}

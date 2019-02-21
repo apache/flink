@@ -150,7 +150,7 @@ public class PartitionRequestClientHandlerTest {
 			assertEquals(1, inputChannel.getNumberOfQueuedBuffers());
 		} finally {
 			// Release all the buffer resources
-			inputGate.releaseAllResources();
+			inputGate.close();
 
 			networkBufferPool.destroyAllBufferPools();
 			networkBufferPool.destroy();

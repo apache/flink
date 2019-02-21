@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Maps;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
@@ -262,6 +263,23 @@ public class UnionInputGate implements InputGate, InputGateListener {
 			}
 		}
 		return pageSize;
+	}
+
+	@Override
+	public void close() throws IOException {
+		Throwable throwable = null;
+
+		for (InputGate gate : inputGates) {
+			try {
+				gate.close();
+			} catch (Throwable t) {
+				throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
+			}
+		}
+
+		if (throwable != null) {
+			ExceptionUtils.rethrowIOException(throwable);
+		}
 	}
 
 	@Override
