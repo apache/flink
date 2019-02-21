@@ -79,7 +79,7 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 			Field[] fields,
 			TypeSerializer<?>[] fieldSerializers,
 			LinkedHashMap<Class<?>, TypeSerializer<?>> registeredSubclassSerializers,
-			HashMap<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializers) {
+			Map<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializers) {
 
 		this.snapshotData = PojoSerializerSnapshotData.createFrom(
 			pojoClass,

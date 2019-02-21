@@ -92,7 +92,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	/**
 	 * Cache of non-registered subclasses to their serializers, created on-the-fly.
 	 */
-	private transient HashMap<Class<?>, TypeSerializer<?>> subclassSerializerCache;
+	private transient Map<Class<?>, TypeSerializer<?>> subclassSerializerCache;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -145,7 +145,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			TypeSerializer<Object>[] fieldSerializers,
 			LinkedHashMap<Class<?>, Integer> registeredClasses,
 			TypeSerializer<?>[] registeredSerializers,
-			HashMap<Class<?>, TypeSerializer<?>> subclassSerializerCache,
+			Map<Class<?>, TypeSerializer<?>> subclassSerializerCache,
 			ExecutionConfig executionConfig) {
 
 		this.clazz = checkNotNull(clazz);
@@ -987,7 +987,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		return result;
 	}
 
-	HashMap<Class<?>, TypeSerializer<?>> getSubclassSerializerCache() {
+	Map<Class<?>, TypeSerializer<?>> getSubclassSerializerCache() {
 		return subclassSerializerCache;
 	}
 
@@ -1110,7 +1110,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			TypeSerializer<?>[] registeredSubclassSerializers,
 			Field[] fields,
 			TypeSerializer<?>[] fieldSerializers,
-			HashMap<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializerCache) {
+			Map<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializerCache) {
 
 		final LinkedHashMap<Class<?>, TypeSerializer<?>> subclassRegistry = new LinkedHashMap<>(registeredSubclassesToTags.size());
 
