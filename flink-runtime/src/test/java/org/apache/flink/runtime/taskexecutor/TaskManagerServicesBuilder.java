@@ -41,6 +41,7 @@ public class TaskManagerServicesBuilder {
 	private MemoryManager memoryManager;
 	private IOManager ioManager;
 	private NetworkEnvironment networkEnvironment;
+	private KvStateService kvStateService;
 	private BroadcastVariableManager broadcastVariableManager;
 	private TaskSlotTable taskSlotTable;
 	private JobManagerTable jobManagerTable;
@@ -57,6 +58,7 @@ public class TaskManagerServicesBuilder {
 			false);
 		ioManager = mock(IOManager.class);
 		networkEnvironment = mock(NetworkEnvironment.class);
+		kvStateService = KvStateService.build();
 		broadcastVariableManager = new BroadcastVariableManager();
 		taskSlotTable = mock(TaskSlotTable.class);
 		jobManagerTable = new JobManagerTable();
@@ -81,6 +83,11 @@ public class TaskManagerServicesBuilder {
 
 	public TaskManagerServicesBuilder setNetworkEnvironment(NetworkEnvironment networkEnvironment) {
 		this.networkEnvironment = networkEnvironment;
+		return this;
+	}
+
+	public TaskManagerServicesBuilder setKvStateService(KvStateService kvStateService) {
+		this.kvStateService = kvStateService;
 		return this;
 	}
 
@@ -115,6 +122,7 @@ public class TaskManagerServicesBuilder {
 			memoryManager,
 			ioManager,
 			networkEnvironment,
+			kvStateService,
 			broadcastVariableManager,
 			taskSlotTable,
 			jobManagerTable,

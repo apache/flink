@@ -69,6 +69,7 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
+import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -220,6 +221,9 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	/** The gateway to the network stack, which handles inputs and produced results. */
 	private final NetworkEnvironment network;
 
+	/** The service for kvState registration of this task. */
+	private final KvStateService kvStateService;
+
 	/** The registry of this task which enables live reporting of accumulators. */
 	private final AccumulatorRegistry accumulatorRegistry;
 
@@ -287,6 +291,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		MemoryManager memManager,
 		IOManager ioManager,
 		NetworkEnvironment networkEnvironment,
+		KvStateService kvStateService,
 		BroadcastVariableManager bcVarManager,
 		TaskStateManager taskStateManager,
 		TaskManagerActions taskManagerActions,
@@ -348,6 +353,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		this.libraryCache = Preconditions.checkNotNull(libraryCache);
 		this.fileCache = Preconditions.checkNotNull(fileCache);
 		this.network = Preconditions.checkNotNull(networkEnvironment);
+		this.kvStateService = Preconditions.checkNotNull(kvStateService);
 		this.taskManagerConfig = Preconditions.checkNotNull(taskManagerConfig);
 
 		this.metrics = metricGroup;
@@ -658,7 +664,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			//  call the user code initialization methods
 			// ----------------------------------------------------------------
 
-			TaskKvStateRegistry kvStateRegistry = network.createKvStateTaskRegistry(jobId, getJobVertexId());
+			TaskKvStateRegistry kvStateRegistry = kvStateService.createKvStateTaskRegistry(jobId, getJobVertexId());
 
 			Environment env = new RuntimeEnvironment(
 				jobId,

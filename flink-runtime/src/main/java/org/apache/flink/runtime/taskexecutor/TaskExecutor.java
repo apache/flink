@@ -173,6 +173,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	/** The network component in the task manager. */
 	private final NetworkEnvironment networkEnvironment;
 
+	/** The kvState registration service in the task manager. */
+	private final KvStateService kvStateService;
+
 	// --------- job manager connections -----------
 
 	private final Map<ResourceID, JobManagerConnection> jobManagerConnections;
@@ -238,6 +241,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.taskManagerLocation = taskExecutorServices.getTaskManagerLocation();
 		this.localStateStoresManager = taskExecutorServices.getTaskManagerStateStore();
 		this.networkEnvironment = taskExecutorServices.getNetworkEnvironment();
+		this.kvStateService = taskExecutorServices.getKvStateService();
 		this.resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
 
 		this.jobManagerConnections = new HashMap<>(4);
@@ -526,6 +530,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				taskExecutorServices.getMemoryManager(),
 				taskExecutorServices.getIOManager(),
 				taskExecutorServices.getNetworkEnvironment(),
+				taskExecutorServices.getKvStateService(),
 				taskExecutorServices.getBroadcastVariableManager(),
 				taskStateManager,
 				taskManagerActions,
@@ -1261,13 +1266,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	private void disassociateFromJobManager(JobManagerConnection jobManagerConnection, Exception cause) throws IOException {
 		checkNotNull(jobManagerConnection);
 
-		final KvStateRegistry kvStateRegistry = networkEnvironment.getKvStateRegistry();
+		final KvStateRegistry kvStateRegistry = kvStateService.getKvStateRegistry();
 
 		if (kvStateRegistry != null) {
 			kvStateRegistry.unregisterListener(jobManagerConnection.getJobID());
 		}
 
-		final KvStateClientProxy kvStateClientProxy = networkEnvironment.getKvStateProxy();
+		final KvStateClientProxy kvStateClientProxy = kvStateService.getKvStateClientProxy();
 
 		if (kvStateClientProxy != null) {
 			kvStateClientProxy.updateKvStateLocationOracle(jobManagerConnection.getJobID(), null);
@@ -1279,8 +1284,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	}
 
 	private void registerQueryableState(JobID jobId, JobMasterGateway jobMasterGateway) {
-		final KvStateServer kvStateServer = networkEnvironment.getKvStateServer();
-		final KvStateRegistry kvStateRegistry = networkEnvironment.getKvStateRegistry();
+		final KvStateServer kvStateServer = kvStateService.getKvStateServer();
+		final KvStateRegistry kvStateRegistry = kvStateService.getKvStateRegistry();
 
 		if (kvStateServer != null && kvStateRegistry != null) {
 			kvStateRegistry.registerListener(
@@ -1290,7 +1295,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 					kvStateServer.getServerAddress()));
 		}
 
-		final KvStateClientProxy kvStateProxy = networkEnvironment.getKvStateProxy();
+		final KvStateClientProxy kvStateProxy = kvStateService.getKvStateClientProxy();
 
 		if (kvStateProxy != null) {
 			kvStateProxy.updateKvStateLocationOracle(jobId, jobMasterGateway);
