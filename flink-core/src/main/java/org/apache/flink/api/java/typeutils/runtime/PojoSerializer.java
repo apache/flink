@@ -99,7 +99,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	 * <p>This cache is persisted and will be repopulated with reconfigured serializers
 	 * in {@link #ensureCompatibility(TypeSerializerConfigSnapshot)}.
 	 */
-	private transient HashMap<Class<?>, TypeSerializer<?>> subclassSerializerCache;
+	private transient Map<Class<?>, TypeSerializer<?>> subclassSerializerCache;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -156,7 +156,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			TypeSerializer<Object>[] fieldSerializers,
 			LinkedHashMap<Class<?>, Integer> registeredClasses,
 			TypeSerializer<?>[] registeredSerializers,
-			HashMap<Class<?>, TypeSerializer<?>> subclassSerializerCache,
+			Map<Class<?>, TypeSerializer<?>> subclassSerializerCache,
 			ExecutionConfig executionConfig) {
 
 		this.clazz = checkNotNull(clazz);
@@ -1000,7 +1000,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		return result;
 	}
 
-	HashMap<Class<?>, TypeSerializer<?>> getSubclassSerializerCache() {
+	Map<Class<?>, TypeSerializer<?>> getSubclassSerializerCache() {
 		return subclassSerializerCache;
 	}
 
@@ -1123,7 +1123,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			TypeSerializer<?>[] registeredSubclassSerializers,
 			Field[] fields,
 			TypeSerializer<?>[] fieldSerializers,
-			HashMap<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializerCache) {
+			Map<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializerCache) {
 
 		final LinkedHashMap<Field, TypeSerializer<?>> fieldToSerializers = new LinkedHashMap<>(fields.length);
 

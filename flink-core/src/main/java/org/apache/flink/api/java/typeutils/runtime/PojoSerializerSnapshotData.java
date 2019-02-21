@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static org.apache.flink.util.LinkedOptionalMap.optionalMapOf;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -83,7 +84,7 @@ final class PojoSerializerSnapshotData<T> {
 			Class<T> pojoClass,
 			LinkedHashMap<Field, TypeSerializer<?>> fieldSerializers,
 			LinkedHashMap<Class<?>, TypeSerializer<?>> registeredSubclassSerializers,
-			HashMap<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializers) {
+			Map<Class<?>, TypeSerializer<?>> nonRegisteredSubclassSerializers) {
 
 		LinkedHashMap<Field, TypeSerializerSnapshot<?>> fieldSerializerSnapshots = new LinkedHashMap<>(fieldSerializers.size());
 		fieldSerializers.forEach((k, v) -> fieldSerializerSnapshots.put(k, TypeSerializerUtils.snapshotBackwardsCompatible(v)));
@@ -91,7 +92,7 @@ final class PojoSerializerSnapshotData<T> {
 		LinkedHashMap<Class<?>, TypeSerializerSnapshot<?>> registeredSubclassSerializerSnapshots = new LinkedHashMap<>(registeredSubclassSerializers.size());
 		registeredSubclassSerializers.forEach((k, v) -> registeredSubclassSerializerSnapshots.put(k, TypeSerializerUtils.snapshotBackwardsCompatible(v)));
 
-		HashMap<Class<?>, TypeSerializerSnapshot<?>> nonRegisteredSubclassSerializerSnapshots = new HashMap<>(nonRegisteredSubclassSerializers.size());
+		Map<Class<?>, TypeSerializerSnapshot<?>> nonRegisteredSubclassSerializerSnapshots = new HashMap<>(nonRegisteredSubclassSerializers.size());
 		nonRegisteredSubclassSerializers.forEach((k, v) -> nonRegisteredSubclassSerializerSnapshots.put(k, TypeSerializerUtils.snapshotBackwardsCompatible(v)));
 
 		return new PojoSerializerSnapshotData<>(

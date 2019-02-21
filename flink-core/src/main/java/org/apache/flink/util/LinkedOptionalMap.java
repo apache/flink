@@ -24,10 +24,10 @@ import org.apache.flink.annotation.VisibleForTesting;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
@@ -59,7 +59,7 @@ public final class LinkedOptionalMap<K, V> {
 	 * @param <V>           value type
 	 * @return an {@code LinkedOptionalMap} with optional named keys, and optional values.
 	 */
-	public static <K, V> LinkedOptionalMap<K, V> optionalMapOf(HashMap<K, V> sourceMap, Function<K, String> keyNameGetter) {
+	public static <K, V> LinkedOptionalMap<K, V> optionalMapOf(Map<K, V> sourceMap, Function<K, String> keyNameGetter) {
 
 		LinkedHashMap<String, KeyValue<K, V>> underlyingMap = new LinkedHashMap<>(sourceMap.size());
 
