@@ -510,7 +510,7 @@ class TaskManager(
 
         val task = runningTasks.get(taskExecutionId)
         if (task != null) {
-          task.triggerCheckpointBarrier(checkpointId, timestamp, checkpointOptions)
+          task.triggerCheckpointBarrier(checkpointId, timestamp, checkpointOptions, false)
         } else {
           log.debug(s"TaskManager received a checkpoint request for unknown task $taskExecutionId.")
         }

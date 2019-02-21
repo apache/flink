@@ -228,6 +228,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	protected abstract void cancelTask() throws Exception;
 
+	protected void advanceToEndOfTime() throws Exception {
+
+	}
+
+	protected void finishTask() throws Exception {
+
+	}
+
 	// ------------------------------------------------------------------------
 	//  Core work methods of the Stream Task
 	// ------------------------------------------------------------------------
@@ -564,14 +572,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 
 	@Override
-	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) throws Exception {
+	public boolean triggerCheckpoint(
+			CheckpointMetaData checkpointMetaData,
+			CheckpointOptions checkpointOptions,
+			boolean advanceToEndOfTime) throws Exception {
+
 		try {
 			// No alignment if we inject a checkpoint
 			CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
 					.setBytesBufferedInAlignment(0L)
 					.setAlignmentDurationNanos(0L);
 
-			return performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics);
+			return performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics, advanceToEndOfTime);
 		}
 		catch (Exception e) {
 			// propagate exceptions only if the task is still in "running" state
@@ -593,7 +605,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			CheckpointMetrics checkpointMetrics) throws Exception {
 
 		try {
-			performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics);
+			performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics, false);
 		}
 		catch (CancelTaskException e) {
 			LOG.info("Operator {} was cancelled while performing checkpoint {}.",
@@ -622,7 +634,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	private boolean performCheckpoint(
 			CheckpointMetaData checkpointMetaData,
 			CheckpointOptions checkpointOptions,
-			CheckpointMetrics checkpointMetrics) throws Exception {
+			CheckpointMetrics checkpointMetrics,
+			boolean advanceToEndOfTime) throws Exception {
 
 		LOG.debug("Starting checkpoint ({}) {} on task {}",
 			checkpointMetaData.getCheckpointId(), checkpointOptions.getCheckpointType(), getName());
@@ -635,6 +648,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				if (checkpointOptions.getCheckpointType().isSynchronous()) {
 					syncSavepointLatch.setCheckpointId(checkpointId);
+
+					if (advanceToEndOfTime) {
+						advanceToEndOfTime();
+					}
 				}
 
 				// All of the following steps happen as an atomic step from the perspective of barriers and
@@ -686,7 +703,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 
 		if (isRunning && syncSavepointLatch.isSet()) {
-			syncSavepointLatch.blockUntilCheckpointIsAcknowledged();
+
+			final boolean checkpointWasAcked =
+					syncSavepointLatch.blockUntilCheckpointIsAcknowledged();
+
+			if (checkpointWasAcked) {
+				finishTask();
+			}
 		}
 
 		return result;

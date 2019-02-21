@@ -1143,11 +1143,14 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	 * @param checkpointID The ID identifying the checkpoint.
 	 * @param checkpointTimestamp The timestamp associated with the checkpoint.
 	 * @param checkpointOptions Options for performing this checkpoint.
+	 * @param advanceToEndOfTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
+	 *                           to fire any registered event-time timers.
 	 */
 	public void triggerCheckpointBarrier(
 			final long checkpointID,
 			final long checkpointTimestamp,
-			final CheckpointOptions checkpointOptions) {
+			final CheckpointOptions checkpointOptions,
+			final boolean advanceToEndOfTime) {
 
 		final AbstractInvokable invokable = this.invokable;
 		final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointID, checkpointTimestamp);
@@ -1167,7 +1170,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 					FileSystemSafetyNet.setSafetyNetCloseableRegistryForThread(safetyNetCloseableRegistry);
 
 					try {
-						boolean success = invokable.triggerCheckpoint(checkpointMetaData, checkpointOptions);
+						boolean success = invokable.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfTime);
 						if (!success) {
 							checkpointResponder.declineCheckpoint(
 									getJobID(), getExecutionId(), checkpointID,
