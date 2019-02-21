@@ -260,7 +260,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 
 	protected String getHostname(RpcService rpcService) {
 		final String rpcServiceAddress = rpcService.getAddress();
-		return rpcServiceAddress == "" ? "localhost" : rpcServiceAddress;
+		return "".equals(rpcServiceAddress) ? "localhost" : rpcServiceAddress;
 	}
 
 	protected abstract DispatcherResourceManagerComponent<T> createDispatcherResourceManagerComponent(
