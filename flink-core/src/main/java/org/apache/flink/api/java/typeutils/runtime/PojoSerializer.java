@@ -77,27 +77,20 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	 * <p>The fields are kept as a separate transient member, with their serialization
 	 * handled with the {@link #readObject(ObjectInputStream)} and {@link #writeObject(ObjectOutputStream)}
 	 * methods.
-	 *
-	 * <p>These may be reconfigured in {@link #ensureCompatibility(TypeSerializerConfigSnapshot)}.
 	 */
 	private transient Field[] fields;
-	private TypeSerializer<Object>[] fieldSerializers;
+	private final TypeSerializer<Object>[] fieldSerializers;
 	private final int numFields;
 
 	/**
 	 * Registered subclasses and their serializers.
 	 * Each subclass to their registered class tag is maintained as a separate map ordered by the class tag.
-	 *
-	 * <p>These may be reconfigured in {@link #ensureCompatibility(TypeSerializerConfigSnapshot)}.
 	 */
-	private LinkedHashMap<Class<?>, Integer> registeredClasses;
-	private TypeSerializer<?>[] registeredSerializers;
+	private final LinkedHashMap<Class<?>, Integer> registeredClasses;
+	private final TypeSerializer<?>[] registeredSerializers;
 
 	/**
 	 * Cache of non-registered subclasses to their serializers, created on-the-fly.
-	 *
-	 * <p>This cache is persisted and will be repopulated with reconfigured serializers
-	 * in {@link #ensureCompatibility(TypeSerializerConfigSnapshot)}.
 	 */
 	private transient Map<Class<?>, TypeSerializer<?>> subclassSerializerCache;
 
@@ -105,10 +98,6 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	/**
 	 * Configuration of the current execution.
-	 *
-	 * <p>Nested serializers created using this will have the most up-to-date configuration,
-	 * and can be resolved for backwards compatibility with previous configuration
-	 * snapshots in {@link #ensureCompatibility(TypeSerializerConfigSnapshot)}.
 	 */
 	private final ExecutionConfig executionConfig;
 
