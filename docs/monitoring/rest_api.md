@@ -61,8 +61,6 @@ If no version is specified Flink will default to the *oldest* version supporting
 
 Querying unsupported/non-existing versions will return a 404 error.
 
-<span class="label label-danger">Attention</span> REST API versioning is *not* active if the cluster runs in [legacy mode](../ops/config.html#mode). For this case please refer to the legacy API below.
-
 <div class="codetabs" markdown="1">
 
 <div data-lang="v1" markdown="1">

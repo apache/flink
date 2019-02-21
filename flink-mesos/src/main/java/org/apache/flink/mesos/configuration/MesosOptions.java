@@ -33,6 +33,7 @@ public class MesosOptions {
 	/**
 	 * The initial number of Mesos tasks to allocate.
 	 */
+	@Deprecated
 	public static final ConfigOption<Integer> INITIAL_TASKS =
 		key("mesos.initial-tasks")
 			.defaultValue(0)
@@ -47,6 +48,7 @@ public class MesosOptions {
 	 *
 	 * <p>By default, we take the number of initially requested tasks.
 	 */
+	@Deprecated
 	public static final ConfigOption<Integer> MAX_FAILED_TASKS =
 		key("mesos.maximum-failed-tasks")
 			.defaultValue(-1)
