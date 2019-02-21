@@ -516,9 +516,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			final SlotRequestId slotRequestId = new SlotRequestId();
 
-			final ComponentMainThreadExecutor mainThreadExecutor =
-				vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
-
 			final CompletableFuture<LogicalSlot> logicalSlotFuture =
 				preferredLocationsFuture.thenCompose(
 					(Collection<TaskManagerLocation> preferredLocations) ->
