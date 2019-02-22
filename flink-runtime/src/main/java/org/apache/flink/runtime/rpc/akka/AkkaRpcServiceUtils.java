@@ -74,7 +74,7 @@ public class AkkaRpcServiceUtils {
 	 * @param portRangeDefinition   The port range to start ActorSystem on.
 	 * @param configuration         The configuration for the AkkaRpcService.
 	 * @return                      The rpc service which is used to start and connect to the RpcEndpoint.
-	 * @throws IOException          Thrown if the actor system can not bind to address.
+	 * @throws IOException          Thrown if the actor system can not bind to the address.
 	 * @throws Exception            Thrown if some other error occurs while creating akka actor system.
 	 */
 	public static RpcService createRpcService(
