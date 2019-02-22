@@ -8,12 +8,6 @@
     </thead>
     <tbody>
         <tr>
-            <td><h5>network.taskmanager.bind-policy</h5></td>
-            <td style="word-wrap: break-word;">"ip"</td>
-            <td>The automatic address binding policy used by the TaskManager if "taskmanager.host" is not set. The value should be one of the following:
-<ul><li>"name" - uses hostname as binding address</li><li>"ip" - uses host's ip address as binding address</li></ul></td>
-        </tr>
-        <tr>
             <td><h5>task.cancellation.interval</h5></td>
             <td style="word-wrap: break-word;">30000</td>
             <td>Time interval between two successive task cancellation attempts in milliseconds.</td>
@@ -97,6 +91,12 @@
             <td><h5>taskmanager.memory.size</h5></td>
             <td style="word-wrap: break-word;">"0"</td>
             <td>Amount of memory to be allocated by the task manager's memory manager. If not set, a relative fraction will be allocated.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.bind-policy</h5></td>
+            <td style="word-wrap: break-word;">"ip"</td>
+            <td>The automatic address binding policy used by the TaskManager if "taskmanager.host" is not set. The value should be one of the following:
+<ul><li>"name" - uses hostname as binding address</li><li>"ip" - uses host's ip address as binding address</li></ul></td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.detailed-metrics</h5></td>

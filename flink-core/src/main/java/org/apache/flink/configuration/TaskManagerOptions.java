@@ -81,6 +81,7 @@ public class TaskManagerOptions {
 
 	/**
 	 * The config parameter defining the task manager's hostname.
+	 * Overrides {@link #HOST_BIND_POLICY} automatic address binding.
 	 */
 	public static final ConfigOption<String> HOST =
 		key("taskmanager.host")
@@ -89,21 +90,6 @@ public class TaskManagerOptions {
 				" This option can be used to define explicitly a binding address. Because" +
 				" different TaskManagers need different values for this option, usually it is specified in an" +
 				" additional non-shared TaskManager-specific config file.");
-
-	/**
-	 * The config parameter for automatically defining the TaskManager's binding address,
-	 * if {@link #HOST} configuration option is not set.
-	 */
-	public static final ConfigOption<String> HOST_BIND_POLICY =
-		key("network.taskmanager.bind-policy")
-		.defaultValue("ip")
-		.withDescription(Description.builder()
-			.text("The automatic address binding policy used by the TaskManager if \"" + HOST.key() + "\" is not set." +
-				" The value should be one of the following:\n")
-			.list(
-				text("\"name\" - uses hostname as binding address"),
-				text("\"ip\" - uses host's ip address as binding address"))
-			.build());
 
 	/**
 	 * The default network port range the task manager expects incoming IPC connections. The {@code "0"} means that
@@ -258,6 +244,22 @@ public class TaskManagerOptions {
 	// ------------------------------------------------------------------------
 	//  Network Options
 	// ------------------------------------------------------------------------
+
+	/**
+	 * The config parameter for automatically defining the TaskManager's binding address,
+	 * if {@link #HOST} configuration option is not set.
+	 */
+	public static final ConfigOption<String> HOST_BIND_POLICY =
+		key("taskmanager.network.bind-policy")
+			.defaultValue("ip")
+			.withDescription(Description.builder()
+				.text("The automatic address binding policy used by the TaskManager if \"" + HOST.key() + "\" is not set." +
+					" The value should be one of the following:\n")
+				.list(
+					text("\"name\" - uses hostname as binding address"),
+					text("\"ip\" - uses host's ip address as binding address"))
+				.build());
+
 
 	/**
 	 * Number of buffers used in the network stack. This defines the number of possible tasks and
