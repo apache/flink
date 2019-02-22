@@ -476,10 +476,6 @@ public class ExecutionGraphTestUtils {
 	//  utility mocking methods
 	// ------------------------------------------------------------------------
 
-	public static Instance getInstance(final TaskManagerGateway gateway) throws Exception {
-		return getInstance(gateway, 1);
-	}
-
 	public static Instance getInstance(final TaskManagerGateway gateway, final int numberOfSlots) throws Exception {
 		ResourceID resourceID = ResourceID.generate();
 		HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
