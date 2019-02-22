@@ -122,7 +122,7 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 	 *
 	 * @throws Exception indicating that something went wrong while starting the RPC endpoint
 	 */
-	public void start() {
+	public final void start() {
 		rpcServer.start();
 	}
 
