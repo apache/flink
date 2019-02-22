@@ -76,6 +76,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
@@ -631,12 +632,13 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			final ComponentMainThreadExecutor jobMasterMainThreadExecutor =
 				vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
 
-			executor.execute(() -> {
-				// We run the submission in the future executor so that the serialization of large TDDs does not block
-				// the main thread and sync back to the main thread once submission is completed.
-				taskManagerGateway
-					.submitTask(deployment, rpcTimeout)
-					.whenCompleteAsync((ack, failure) -> {
+
+			// We run the submission in the future executor so that the serialization of large TDDs does not block
+			// the main thread and sync back to the main thread once submission is completed.
+			CompletableFuture.supplyAsync(() -> taskManagerGateway.submitTask(deployment, rpcTimeout), executor)
+				.thenCompose(Function.identity())
+				.whenCompleteAsync(
+					(ack, failure) -> {
 						// only respond to the failure case
 						if (failure != null) {
 							if (failure instanceof TimeoutException) {
@@ -649,8 +651,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 								markFailed(failure);
 							}
 						}
-					}, jobMasterMainThreadExecutor);
-			});
+					},
+					jobMasterMainThreadExecutor);
+
 		}
 		catch (Throwable t) {
 			markFailed(t);
