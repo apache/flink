@@ -115,7 +115,8 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 			JobID jobId,
 			long checkpointId,
 			long timestamp,
-			CheckpointOptions checkpointOptions) {}
+			CheckpointOptions checkpointOptions,
+			boolean advanceToEndOfEventTime) {}
 
 	@Override
 	public CompletableFuture<Acknowledge> freeSlot(AllocationID allocationId, Throwable cause, Time timeout) {
