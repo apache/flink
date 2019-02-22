@@ -37,6 +37,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Arrays;
@@ -56,7 +57,10 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 	private static final long serialVersionUID = 2098447220136965L;
 
 	/** Type information describing the input CSV data. */
-	private final TypeInformation<Row> typeInfo;
+	private final RowTypeInfo typeInfo;
+
+	/** Runtime instance that performs the actual work. */
+	private final RuntimeConverter runtimeConverter;
 
 	/** CsvMapper used to write {@link JsonNode} into bytes. */
 	private final CsvMapper csvMapper;
@@ -71,9 +75,10 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 	private transient ObjectNode root;
 
 	private CsvRowSerializationSchema(
-			TypeInformation<Row> typeInfo,
+			RowTypeInfo typeInfo,
 			CsvSchema csvSchema) {
 		this.typeInfo = typeInfo;
+		this.runtimeConverter = createRowRuntimeConverter(typeInfo, true);
 		this.csvMapper = new CsvMapper();
 		this.csvSchema = csvSchema;
 		this.objectWriter = csvMapper.writer(csvSchema);
@@ -85,7 +90,7 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 	@PublicEvolving
 	public static class Builder {
 
-		private final TypeInformation<Row> typeInfo;
+		private final RowTypeInfo typeInfo;
 		private CsvSchema csvSchema;
 
 		/**
@@ -95,12 +100,12 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 		 */
 		public Builder(TypeInformation<Row> typeInfo) {
 			Preconditions.checkNotNull(typeInfo, "Type information must not be null.");
-			this.typeInfo = typeInfo;
 
 			if (!(typeInfo instanceof RowTypeInfo)) {
 				throw new IllegalArgumentException("Row type information expected.");
 			}
 
+			this.typeInfo = (RowTypeInfo) typeInfo;
 			this.csvSchema = CsvRowSchemaConverter.convert((RowTypeInfo) typeInfo);
 		}
 
@@ -153,7 +158,7 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 			root = csvMapper.createObjectNode();
 		}
 		try {
-			convertRow(root, row, (RowTypeInfo) typeInfo);
+			runtimeConverter.convert(csvMapper, root, row);
 			return objectWriter.writeValueAsBytes(root);
 		} catch (Throwable t) {
 			throw new RuntimeException("Could not serialize row '" + row + "'.", t);
@@ -194,91 +199,121 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 
 	// --------------------------------------------------------------------------------------------
 
-	private void convertRow(ObjectNode reuse, Row row, RowTypeInfo rowTypeInfo) {
-		final TypeInformation[] types = rowTypeInfo.getFieldTypes();
+	private interface RuntimeConverter extends Serializable {
+		JsonNode convert(CsvMapper csvMapper, ContainerNode<?> container, Object obj);
+	}
 
-		validateArity(types.length, row.getArity());
+	private static RuntimeConverter createRowRuntimeConverter(RowTypeInfo rowTypeInfo, boolean isTopLevel) {
+		final int rowArity = rowTypeInfo.getArity();
+		final TypeInformation[] fieldTypes = rowTypeInfo.getFieldTypes();
+		final String[] fieldNames = rowTypeInfo.getFieldNames();
 
-		final String[] fields = rowTypeInfo.getFieldNames();
-		for (int i = 0; i < types.length; i++) {
-			final String columnName = fields[i];
-			final Object obj = row.getField(i);
-			reuse.set(columnName, convert(reuse, obj, types[i]));
+		final RuntimeConverter[] fieldConverters = new RuntimeConverter[fieldTypes.length];
+		for (int i = 0; i < fieldTypes.length; i++) {
+			fieldConverters[i] = createNullableRuntimeConverter(fieldTypes[i]);
+		}
+
+		// top level reuses the object node container
+		if (isTopLevel) {
+			return (csvMapper, container, obj) -> {
+				final Row row = (Row) obj;
+
+				validateArity(rowArity, row.getArity());
+
+				final ObjectNode objectNode = (ObjectNode) container;
+				for (int i = 0; i < rowArity; i++) {
+					objectNode.set(
+						fieldNames[i],
+						fieldConverters[i].convert(csvMapper, container, row.getField(i)));
+				}
+				return objectNode;
+			};
+		} else {
+			return (csvMapper, container, obj) -> {
+				final Row row = (Row) obj;
+
+				validateArity(rowArity, row.getArity());
+
+				final ArrayNode arrayNode = csvMapper.createArrayNode();
+				for (int i = 0; i < rowArity; i++) {
+					arrayNode.add(fieldConverters[i].convert(csvMapper, arrayNode, row.getField(i)));
+				}
+				return arrayNode;
+			};
 		}
 	}
 
-	/**
-	 * Converts an object to a JsonNode.
-	 *
-	 * @param container {@link ContainerNode} that creates {@link JsonNode}.
-	 * @param obj Object to be converted to {@link JsonNode}.
-	 * @param info Type information that decides the type of {@link JsonNode}.
-	 * @return result after converting.
-	 */
-	private JsonNode convert(ContainerNode<?> container, Object obj, TypeInformation<?> info) {
-		if (info == Types.VOID || obj == null) {
-			return container.nullNode();
-		} else if (info == Types.STRING) {
-			return container.textNode((String) obj);
-		} else if (info == Types.BOOLEAN) {
-			return container.booleanNode((Boolean) obj);
-		} else if (info == Types.BYTE) {
-			return container.numberNode((Byte) obj);
-		} else if (info == Types.SHORT) {
-			return container.numberNode((Short) obj);
-		} else if (info == Types.INT) {
-			return container.numberNode((Integer) obj);
-		} else if (info == Types.LONG) {
-			return container.numberNode((Long) obj);
-		} else if (info == Types.FLOAT) {
-			return container.numberNode((Float) obj);
-		} else if (info == Types.DOUBLE) {
-			return container.numberNode((Double) obj);
-		} else if (info == Types.BIG_DEC) {
-			return container.numberNode((BigDecimal) obj);
-		} else if (info == Types.BIG_INT) {
-			return container.numberNode((BigInteger) obj);
-		} else if (info == Types.SQL_DATE) {
-			return container.textNode(obj.toString());
-		} else if (info == Types.SQL_TIME) {
-			return container.textNode(obj.toString());
-		} else if (info == Types.SQL_TIMESTAMP) {
-			return container.textNode(obj.toString());
+	private static RuntimeConverter createNullableRuntimeConverter(TypeInformation<?> info) {
+		final RuntimeConverter valueConverter = createRuntimeConverter(info);
+		return (csvMapper, container, obj) -> {
+			if (obj == null) {
+				return container.nullNode();
+			}
+			return valueConverter.convert(csvMapper, container, obj);
+		};
+	}
+
+	private static RuntimeConverter createRuntimeConverter(TypeInformation<?> info) {
+		if (info.equals(Types.VOID)) {
+			return (csvMapper, container, obj) -> container.nullNode();
+		} else if (info.equals(Types.STRING)) {
+			return (csvMapper, container, obj) -> container.textNode((String) obj);
+		} else if (info.equals(Types.BOOLEAN)) {
+			return (csvMapper, container, obj) -> container.booleanNode((Boolean) obj);
+		} else if (info.equals(Types.BYTE)) {
+			return (csvMapper, container, obj) -> container.numberNode((Byte) obj);
+		} else if (info.equals(Types.SHORT)) {
+			return (csvMapper, container, obj) -> container.numberNode((Short) obj);
+		} else if (info.equals(Types.INT)) {
+			return (csvMapper, container, obj) -> container.numberNode((Integer) obj);
+		} else if (info.equals(Types.LONG)) {
+			return (csvMapper, container, obj) -> container.numberNode((Long) obj);
+		} else if (info.equals(Types.FLOAT)) {
+			return (csvMapper, container, obj) -> container.numberNode((Float) obj);
+		} else if (info.equals(Types.DOUBLE)) {
+			return (csvMapper, container, obj) -> container.numberNode((Double) obj);
+		} else if (info.equals(Types.BIG_DEC)) {
+			return (csvMapper, container, obj) -> container.numberNode((BigDecimal) obj);
+		} else if (info.equals(Types.BIG_INT)) {
+			return (csvMapper, container, obj) -> container.numberNode((BigInteger) obj);
+		} else if (info.equals(Types.SQL_DATE)) {
+			return (csvMapper, container, obj) -> container.textNode(obj.toString());
+		} else if (info.equals(Types.SQL_TIME)) {
+			return (csvMapper, container, obj) -> container.textNode(obj.toString());
+		} else if (info.equals(Types.SQL_TIMESTAMP)) {
+			return (csvMapper, container, obj) -> container.textNode(obj.toString());
 		} else if (info instanceof RowTypeInfo){
-			return convertNestedRow((Row) obj, (RowTypeInfo) info);
+			return createRowRuntimeConverter((RowTypeInfo) info, false);
 		} else if (info instanceof BasicArrayTypeInfo) {
-			return convertObjectArray((Object[]) obj, ((BasicArrayTypeInfo) info).getComponentInfo());
+			return createObjectArrayRuntimeConverter(((BasicArrayTypeInfo) info).getComponentInfo());
 		} else if (info instanceof ObjectArrayTypeInfo) {
-			return convertObjectArray((Object[]) obj, ((ObjectArrayTypeInfo) info).getComponentInfo());
+			return createObjectArrayRuntimeConverter(((ObjectArrayTypeInfo) info).getComponentInfo());
 		} else if (info instanceof PrimitiveArrayTypeInfo &&
 				((PrimitiveArrayTypeInfo) info).getComponentType() == Types.BYTE) {
-			return container.binaryNode((byte[]) obj);
-		} else {
-			throw new RuntimeException("Unsupported type information '" + info + "' for object: " + obj);
+			return createByteArrayRuntimeConverter();
+		}
+		else {
+			throw new RuntimeException("Unsupported type information '" + info + "'.");
 		}
 	}
 
-	private ArrayNode convertNestedRow(Row row, RowTypeInfo rowTypeInfo) {
-		final ArrayNode arrayNode = csvMapper.createArrayNode();
-		final TypeInformation[] types = rowTypeInfo.getFieldTypes();
-
-		validateArity(types.length, row.getArity());
-
-		for (int i = 0; i < types.length; i++) {
-			arrayNode.add(convert(arrayNode, row.getField(i), types[i]));
-		}
-		return arrayNode;
+	private static RuntimeConverter createObjectArrayRuntimeConverter(TypeInformation<?> elementType) {
+		final RuntimeConverter elementConverter = createNullableRuntimeConverter(elementType);
+		return (csvMapper, container, obj) -> {
+			final Object[] array = (Object[]) obj;
+			final ArrayNode arrayNode = csvMapper.createArrayNode();
+			for (Object element : array) {
+				arrayNode.add(elementConverter.convert(csvMapper, arrayNode, element));
+			}
+			return arrayNode;
+		};
 	}
 
-	private ArrayNode convertObjectArray(Object[] array, TypeInformation<?> elementInfo) {
-		final ArrayNode arrayNode = csvMapper.createArrayNode();
-		for (Object element : array) {
-			arrayNode.add(convert(arrayNode, element, elementInfo));
-		}
-		return arrayNode;
+	private static RuntimeConverter createByteArrayRuntimeConverter() {
+		return (csvMapper, container, obj) -> container.binaryNode((byte[]) obj);
 	}
 
-	private void validateArity(int expected, int actual) {
+	private static void validateArity(int expected, int actual) {
 		if (expected != actual) {
 			throw new RuntimeException("Row length mismatch. " + expected +
 				" fields expected but was " + actual + ".");
