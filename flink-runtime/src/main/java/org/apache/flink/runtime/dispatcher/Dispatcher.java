@@ -183,6 +183,38 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	//------------------------------------------------------
 
 	@Override
+	public void onStart() throws Exception {
+		try {
+			startDispatcherServices();
+		} catch (Exception e) {
+			final DispatcherException exception = new DispatcherException(String.format("Could not start the Dispatcher %s", getAddress()), e);
+			onFatalError(exception);
+			throw exception;
+		}
+	}
+
+	private void startDispatcherServices() throws Exception {
+		try {
+			submittedJobGraphStore.start(this);
+			leaderElectionService.start(this);
+
+			registerDispatcherMetrics(jobManagerMetricGroup);
+		} catch (Exception e) {
+			handleStartDispatcherServicesException(e);
+		}
+	}
+
+	private void handleStartDispatcherServicesException(Exception e) throws Exception {
+		try {
+			stopDispatcherServices();
+		} catch (Exception exception) {
+			e.addSuppressed(exception);
+		}
+
+		throw e;
+	}
+
+	@Override
 	public CompletableFuture<Void> onStop() {
 		log.info("Stopping dispatcher {}.", getAddress());
 
@@ -191,43 +223,35 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		return FutureUtils.runAfterwards(
 			allJobManagerRunnersTerminationFuture,
 			() -> {
-				Exception exception = null;
-				try {
-					jobManagerSharedServices.shutdown();
-				} catch (Exception e) {
-					exception = ExceptionUtils.firstOrSuppressed(e, exception);
-				}
+				stopDispatcherServices();
 
-				try {
-					submittedJobGraphStore.stop();
-				} catch (Exception e) {
-					exception = ExceptionUtils.firstOrSuppressed(e, exception);
-				}
-
-				try {
-					leaderElectionService.stop();
-				} catch (Exception e) {
-					exception = ExceptionUtils.firstOrSuppressed(e, exception);
-				}
-
-				jobManagerMetricGroup.close();
-
-				if (exception != null) {
-					throw exception;
-				} else {
-					log.info("Stopped dispatcher {}.", getAddress());
-				}
+				log.info("Stopped dispatcher {}.", getAddress());
 			});
 	}
 
-	@Override
-	public void start() throws Exception {
-		super.start();
+	private void stopDispatcherServices() throws Exception {
+		Exception exception = null;
+		try {
+			jobManagerSharedServices.shutdown();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
 
-		submittedJobGraphStore.start(this);
-		leaderElectionService.start(this);
+		try {
+			submittedJobGraphStore.stop();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
 
-		registerDispatcherMetrics(jobManagerMetricGroup);
+		try {
+			leaderElectionService.stop();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		jobManagerMetricGroup.close();
+
+		ExceptionUtils.tryRethrowException(exception);
 	}
 
 	//------------------------------------------------------

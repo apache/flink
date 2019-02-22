@@ -42,6 +42,8 @@ import java.util.function.Function;
  */
 class TestingDispatcher extends Dispatcher {
 
+	private final CompletableFuture<Void> startFuture;
+
 	TestingDispatcher(
 		RpcService rpcService,
 		String endpointId,
@@ -70,6 +72,20 @@ class TestingDispatcher extends Dispatcher {
 			jobManagerRunnerFactory,
 			fatalErrorHandler,
 			VoidHistoryServerArchivist.INSTANCE);
+
+		this.startFuture = new CompletableFuture<>();
+	}
+
+	@Override
+	public void onStart() throws Exception {
+		try {
+			super.onStart();
+		} catch (Exception e) {
+			startFuture.completeExceptionally(e);
+			throw e;
+		}
+
+		startFuture.complete(null);
 	}
 
 	void completeJobExecution(ArchivedExecutionGraph archivedExecutionGraph) {
@@ -93,5 +109,9 @@ class TestingDispatcher extends Dispatcher {
 		return callAsyncWithoutFencing(
 			() -> listJobs(timeout).get().size(),
 			timeout);
+	}
+
+	void waitUntilStarted() {
+		startFuture.join();
 	}
 }
