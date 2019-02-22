@@ -21,8 +21,6 @@ package org.apache.flink.runtime.io.network;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -74,8 +72,6 @@ public class NetworkEnvironment {
 	/** Registry for {@link InternalKvState} instances. */
 	private final KvStateRegistry kvStateRegistry;
 
-	private final IOManager.IOMode defaultIOMode;
-
 	private final int partitionRequestInitialBackoff;
 
 	private final int partitionRequestMaxBackoff;
@@ -106,7 +102,6 @@ public class NetworkEnvironment {
 			new KvStateRegistry(),
 			null,
 			null,
-			IOManager.IOMode.SYNC,
 			partitionRequestInitialBackoff,
 			partitionRequestMaxBackoff,
 			networkBuffersPerChannel,
@@ -122,7 +117,6 @@ public class NetworkEnvironment {
 		KvStateRegistry kvStateRegistry,
 		KvStateServer kvStateServer,
 		KvStateClientProxy kvStateClientProxy,
-		IOMode defaultIOMode,
 		int partitionRequestInitialBackoff,
 		int partitionRequestMaxBackoff,
 		int networkBuffersPerChannel,
@@ -137,8 +131,6 @@ public class NetworkEnvironment {
 
 		this.kvStateServer = kvStateServer;
 		this.kvStateProxy = kvStateClientProxy;
-
-		this.defaultIOMode = defaultIOMode;
 
 		this.partitionRequestInitialBackoff = partitionRequestInitialBackoff;
 		this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
@@ -168,10 +160,6 @@ public class NetworkEnvironment {
 
 	public NetworkBufferPool getNetworkBufferPool() {
 		return networkBufferPool;
-	}
-
-	public IOMode getDefaultIOMode() {
-		return defaultIOMode;
 	}
 
 	public int getPartitionRequestInitialBackoff() {

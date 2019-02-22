@@ -460,7 +460,6 @@ public class TaskManagerServices {
 			kvStateRegistry,
 			kvStateServer,
 			kvClientProxy,
-			networkEnvironmentConfiguration.ioMode(),
 			networkEnvironmentConfiguration.partitionRequestInitialBackoff(),
 			networkEnvironmentConfiguration.partitionRequestMaxBackoff(),
 			networkEnvironmentConfiguration.networkBuffersPerChannel(),

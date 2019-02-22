@@ -55,7 +55,6 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TestTaskStateManager;
-import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.SerializedValue;
@@ -225,7 +224,6 @@ public class TaskAsyncCallTest extends TestLogger {
 		TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 		NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
 		when(networkEnvironment.getResultPartitionManager()).thenReturn(partitionManager);
-		when(networkEnvironment.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 				.thenReturn(mock(TaskKvStateRegistry.class));
 		when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);

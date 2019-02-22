@@ -29,7 +29,6 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
@@ -222,7 +221,6 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			new KvStateRegistry(),
 			null,
 			null,
-			IOMode.SYNC,
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL.defaultValue(),
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX.defaultValue(),
 			TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue(),
