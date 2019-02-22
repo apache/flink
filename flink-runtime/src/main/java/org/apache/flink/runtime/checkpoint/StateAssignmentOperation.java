@@ -330,10 +330,11 @@ public class StateAssignmentOperation {
 		checkState(newOperatorIDs.size() == oldOperatorStates.size(),
 			"This method still depends on the order of the new and old operators");
 
+		// The nested list wraps as the level of operator -> subtask -> state object collection
 		List<List<List<OperatorStateHandle>>> oldManagedOperatorStates = new ArrayList<>(oldOperatorStates.size());
 		List<List<List<OperatorStateHandle>>> oldRawOperatorStates = new ArrayList<>(oldOperatorStates.size());
 
-		collectPartitionableStates(oldOperatorStates, oldManagedOperatorStates, oldRawOperatorStates);
+		splitManagedAndRawOperatorStates(oldOperatorStates, oldManagedOperatorStates, oldRawOperatorStates);
 		OperatorStateRepartitioner opStateRepartitioner = RoundRobinOperatorStateRepartitioner.INSTANCE;
 
 		for (int operatorIndex = 0; operatorIndex < newOperatorIDs.size(); operatorIndex++) {
@@ -358,7 +359,7 @@ public class StateAssignmentOperation {
 		}
 	}
 
-	private static void collectPartitionableStates(
+	private static void splitManagedAndRawOperatorStates(
 		List<OperatorState> operatorStates,
 		List<List<List<OperatorStateHandle>>> managedOperatorStates,
 		List<List<List<OperatorStateHandle>>> rawOperatorStates) {
@@ -366,24 +367,24 @@ public class StateAssignmentOperation {
 		for (OperatorState operatorState : operatorStates) {
 
 			final int parallelism = operatorState.getParallelism();
-			List<List<OperatorStateHandle>> managedOpState = new ArrayList<>(parallelism);
-			List<List<OperatorStateHandle>> rawOpState = new ArrayList<>(parallelism);
+			List<List<OperatorStateHandle>> managedOpStatePerSubtasks = new ArrayList<>(parallelism);
+			List<List<OperatorStateHandle>> rawOpStatePerSubtasks = new ArrayList<>(parallelism);
 
 			for (int subTaskIndex = 0; subTaskIndex < parallelism; subTaskIndex++) {
 				OperatorSubtaskState operatorSubtaskState = operatorState.getState(subTaskIndex);
 				if (operatorSubtaskState == null) {
-					managedOpState.add(Collections.emptyList());
-					rawOpState.add(Collections.emptyList());
+					managedOpStatePerSubtasks.add(Collections.emptyList());
+					rawOpStatePerSubtasks.add(Collections.emptyList());
 				} else {
 					StateObjectCollection<OperatorStateHandle> managed = operatorSubtaskState.getManagedOperatorState();
 					StateObjectCollection<OperatorStateHandle> raw = operatorSubtaskState.getRawOperatorState();
 
-					managedOpState.add(new ArrayList<>(managed));
-					rawOpState.add(new ArrayList<>(raw));
+					managedOpStatePerSubtasks.add(managed.asList());
+					rawOpStatePerSubtasks.add(raw.asList());
 				}
 			}
-			managedOperatorStates.add(managedOpState);
-			rawOperatorStates.add(rawOpState);
+			managedOperatorStates.add(managedOpStatePerSubtasks);
+			rawOperatorStates.add(rawOpStatePerSubtasks);
 		}
 	}
 
