@@ -38,7 +38,6 @@ import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
@@ -103,8 +102,7 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
-		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-		TtlTimeProvider ttlTimeProvider) {
+		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
 		super(
 			keyGroupRange,
 			keyGroupPrefixBytes,
@@ -120,8 +118,7 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 			nativeMetricOptions,
 			metricGroup,
 			restoreStateHandles,
-			ttlCompactFiltersManager,
-			ttlTimeProvider);
+			ttlCompactFiltersManager);
 	}
 
 	/**
@@ -169,7 +166,7 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 	/**
 	 * Restore the KV-state / ColumnFamily meta data for all key-groups referenced by the current state handle.
 	 */
-	private void restoreKVStateMetaData() throws IOException, StateMigrationException, RocksDBException {
+	private void restoreKVStateMetaData() throws IOException, StateMigrationException {
 		KeyedBackendSerializationProxy<K> serializationProxy = readMetaData(currentStateHandleInView);
 
 		this.keygroupStreamCompressionDecorator = serializationProxy.isUsingKeyGroupCompression() ?

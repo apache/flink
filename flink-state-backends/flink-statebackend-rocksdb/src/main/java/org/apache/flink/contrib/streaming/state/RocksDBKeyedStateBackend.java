@@ -127,9 +127,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			RocksDBKeyedStateBackend<K> backend) throws Exception;
 	}
 
-	/** String that identifies the operator that owns this backend. */
-	private final String operatorIdentifier;
-
 	/** Factory function to create column family options from state name. */
 	private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
 
@@ -158,9 +155,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	/** Number of bytes required to prefix the key groups. */
 	private final int keyGroupPrefixBytes;
-
-	/** Thread number used to transfer state files while restoring/snapshotting. */
-	private final int numberOfTransferingThreads;
 
 	/**
 	 * We are not using the default column family for Flink state ops, but we still need to remember this handle so that
@@ -202,7 +196,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private final RocksDbTtlCompactFiltersManager ttlCompactFiltersManager;
 
 	public RocksDBKeyedStateBackend(
-		String operatorIdentifier,
 		ClassLoader userCodeClassLoader,
 		File instanceBasePath,
 		DBOptions dbOptions,
@@ -212,7 +205,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		int numberOfKeyGroups,
 		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
-		int numberOfTransferingThreads,
 		TtlTimeProvider ttlTimeProvider,
 		RocksDB db,
 		LinkedHashMap<String, RocksDbKvStateInfo> kvStateInformation,
@@ -233,10 +225,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			keyGroupRange, executionConfig, ttlTimeProvider, cancelStreamRegistry, keyGroupCompressionDecorator);
 
 		this.ttlCompactFiltersManager = ttlCompactFiltersManager;
-
-		this.operatorIdentifier = Preconditions.checkNotNull(operatorIdentifier);
-
-		this.numberOfTransferingThreads = numberOfTransferingThreads;
 
 		// ensure that we use the right merge operator, because other code relies on this
 		this.columnFamilyOptionsFactory = Preconditions.checkNotNull(columnFamilyOptionsFactory);
@@ -506,8 +494,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateSerializer,
 				StateSnapshotTransformFactory.noTransform());
 
-			newRocksStateInfo = RocksDBOperationUtils.createStateInfo(newMetaInfo, ttlCompactFiltersManager,
-				ttlTimeProvider, db, columnFamilyOptionsFactory);
+			newRocksStateInfo = RocksDBOperationUtils.createStateInfo(
+				newMetaInfo, db, columnFamilyOptionsFactory, ttlCompactFiltersManager);
 			RocksDBOperationUtils.registerKvStateInformation(this.kvStateInformation, this.nativeMetricMonitor,
 				stateDesc.getName(), newRocksStateInfo);
 		}
