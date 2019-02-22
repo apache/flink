@@ -51,6 +51,8 @@ import java.util.Map;
  */
 public class TestUtils {
 
+	static final int MAX_PARALLELISM = 10;
+
 	static OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> createRescalingTestSink(
 			File outDir,
 			int totalParallelism,
@@ -102,7 +104,7 @@ public class TestUtils {
 				.withBucketFactory(bucketFactory)
 				.build();
 
-		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), 10, totalParallelism, taskIdx);
+		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), MAX_PARALLELISM, totalParallelism, taskIdx);
 	}
 
 	static OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> createTestSinkWithBulkEncoder(
@@ -121,7 +123,7 @@ public class TestUtils {
 				.withBucketFactory(bucketFactory)
 				.build();
 
-		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), 10, totalParallelism, taskIdx);
+		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), MAX_PARALLELISM, totalParallelism, taskIdx);
 	}
 
 	static void checkLocalFs(File outDir, int expectedInProgress, int expectedCompleted) {
