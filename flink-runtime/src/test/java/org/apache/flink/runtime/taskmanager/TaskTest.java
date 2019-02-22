@@ -258,7 +258,6 @@ public class TaskTest extends TestLogger {
 
 		final NetworkEnvironment network = mock(NetworkEnvironment.class);
 		when(network.getResultPartitionManager()).thenReturn(partitionManager);
-		when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 		when(network.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 		doThrow(new RuntimeException("buffers")).when(network).registerTask(any(Task.class));
 
@@ -576,7 +575,6 @@ public class TaskTest extends TestLogger {
 		final ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 		final NetworkEnvironment network = mock(NetworkEnvironment.class);
 		when(network.getResultPartitionManager()).thenReturn(mock(ResultPartitionManager.class));
-		when(network.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 		when(network.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 			.thenReturn(mock(TaskKvStateRegistry.class));
 		when(network.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
@@ -950,7 +948,6 @@ public class TaskTest extends TestLogger {
 			final TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 			networkEnvironment = mock(NetworkEnvironment.class);
 			when(networkEnvironment.getResultPartitionManager()).thenReturn(partitionManager);
-			when(networkEnvironment.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 			when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 				.thenReturn(mock(TaskKvStateRegistry.class));
 			when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
