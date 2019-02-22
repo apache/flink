@@ -68,14 +68,14 @@ public class AkkaRpcServiceUtils {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Utility method to create RPC service from configuration and hostname, port.
+	 * Utility method to create RPC service from configuration and hostname, port range.
 	 *
-	 * @param hostname   The hostname/address that describes the TaskManager's data location.
-	 * @param portRangeDefinition   The port range to start TaskManager on.
-	 * @param configuration                 The configuration for the TaskManager.
-	 * @return   The rpc service which is used to start and connect to the TaskManager RpcEndpoint .
-	 * @throws IOException      Thrown, if the actor system can not bind to the address
-	 * @throws Exception      Thrown is some other error occurs while creating akka actor system
+	 * @param hostname              The hostname/address that describes the Akka ActorSystem's location.
+	 * @param portRangeDefinition   The port range to start ActorSystem on.
+	 * @param configuration         The configuration for the AkkaRpcService.
+	 * @return                      The rpc service which is used to start and connect to the RpcEndpoint.
+	 * @throws IOException          Thrown if the actor system can not bind to address.
+	 * @throws Exception            Thrown if some other error occurs while creating akka actor system.
 	 */
 	public static RpcService createRpcService(
 			String hostname,
@@ -88,12 +88,12 @@ public class AkkaRpcServiceUtils {
 	/**
 	 * Utility method to create RPC service from configuration and hostname, port.
 	 *
-	 * @param hostname   The hostname/address that describes the TaskManager's data location.
-	 * @param port           If true, the TaskManager will not initiate the TCP network stack.
-	 * @param configuration                 The configuration for the TaskManager.
-	 * @return   The rpc service which is used to start and connect to the TaskManager RpcEndpoint .
-	 * @throws IOException      Thrown, if the actor system can not bind to the address
-	 * @throws Exception      Thrown is some other error occurs while creating akka actor system
+	 * @param hostname      The hostname/address that describes the Akka ActorSystem's location.
+	 * @param port          The port to start ActorSystem on.
+	 * @param configuration The configuration for the AkkaRpcService.
+	 * @return              The rpc service which is used to start and connect to the RpcEndpoint.
+	 * @throws IOException  Thrown if the actor system can not bind to the address.
+	 * @throws Exception    Thrown if some other error occurs while creating akka actor system.
 	 */
 	public static RpcService createRpcService(
 			String hostname,
