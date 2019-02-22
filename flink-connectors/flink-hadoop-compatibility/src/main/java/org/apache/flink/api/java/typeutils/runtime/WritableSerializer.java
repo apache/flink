@@ -21,8 +21,11 @@ package org.apache.flink.api.java.typeutils.runtime;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.GenericTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
@@ -146,15 +149,10 @@ public final class WritableSerializer<T extends Writable> extends TypeSerializer
 		if (obj instanceof WritableSerializer) {
 			WritableSerializer<?> other = (WritableSerializer<?>) obj;
 
-			return other.canEqual(this) && typeClass == other.typeClass;
+			return typeClass == other.typeClass;
 		} else {
 			return false;
 		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof WritableSerializer;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -162,8 +160,8 @@ public final class WritableSerializer<T extends Writable> extends TypeSerializer
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public WritableSerializerConfigSnapshot<T> snapshotConfiguration() {
-		return new WritableSerializerConfigSnapshot<>(typeClass);
+	public TypeSerializerSnapshot<T> snapshotConfiguration() {
+		return new WritableSerializerSnapshot<>(typeClass);
 	}
 
 	@Override
@@ -181,6 +179,7 @@ public final class WritableSerializer<T extends Writable> extends TypeSerializer
 	 * The config snapshot for this serializer.
 	 * @param <T>
 	 */
+	@Deprecated
 	public static final class WritableSerializerConfigSnapshot<T extends Writable>
 			extends GenericTypeSerializerConfigSnapshot<T> {
 
@@ -197,5 +196,43 @@ public final class WritableSerializer<T extends Writable> extends TypeSerializer
 		public int getVersion() {
 			return VERSION;
 		}
+
+		@Override
+		public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
+			return new WritableSerializerSnapshot<>(getTypeClass())
+				.resolveSchemaCompatibility(newSerializer);
+		}
 	}
+
+	/**
+	 * {@link WritableSerializer} snapshot class.
+	 */
+	public static final class WritableSerializerSnapshot<T extends Writable>
+		extends GenericTypeSerializerSnapshot<T, WritableSerializer> {
+
+		@SuppressWarnings("unused")
+		public WritableSerializerSnapshot() {
+		}
+
+		WritableSerializerSnapshot(Class<T> typeClass) {
+			super(typeClass);
+		}
+
+		@Override
+		protected TypeSerializer<T> createSerializer(Class<T> typeClass) {
+			return new WritableSerializer<>(typeClass);
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		protected Class<T> getTypeClass(WritableSerializer serializer) {
+			return serializer.typeClass;
+		}
+
+		@Override
+		protected Class<?> serializerClass() {
+			return WritableSerializer.class;
+		}
+	}
+
 }

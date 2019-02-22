@@ -124,11 +124,6 @@ public class SharedBufferNode {
 			edgesSerializer.copy(source, target);
 		}
 
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj.getClass().equals(SharedBufferNodeSerializer.class);
-		}
-
 		// -----------------------------------------------------------------------------------
 
 		@Override

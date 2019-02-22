@@ -81,11 +81,6 @@ public final class FloatValueArraySerializer extends TypeSerializerSingleton<Flo
 		FloatValueArray.copyInternal(source, target);
 	}
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof FloatValueArraySerializer;
-	}
-
 	// -----------------------------------------------------------------------------------
 
 	@Override

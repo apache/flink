@@ -322,7 +322,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		}
 
 		@Override
-		public SyncFailureInducingStateBackend configure(Configuration config) {
+		public SyncFailureInducingStateBackend configure(Configuration config, ClassLoader classLoader) {
 			// retain this instance, no re-configuration!
 			return this;
 		}
@@ -354,7 +354,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		}
 
 		@Override
-		public AsyncFailureInducingStateBackend configure(Configuration config) {
+		public AsyncFailureInducingStateBackend configure(Configuration config, ClassLoader classLoader) {
 			// retain this instance, no re-configuration!
 			return this;
 		}

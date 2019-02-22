@@ -287,7 +287,7 @@ public class CompositeTypeSerializerSnapshotTest {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (canEqual(obj)) {
+			if (obj instanceof TestCompositeTypeSerializer) {
 				return Arrays.equals(nestedSerializers, ((TestCompositeTypeSerializer) obj).getNestedSerializers());
 			}
 			return false;
@@ -296,11 +296,6 @@ public class CompositeTypeSerializerSnapshotTest {
 		@Override
 		public int hashCode() {
 			return Arrays.hashCode(nestedSerializers);
-		}
-
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof TestCompositeTypeSerializer;
 		}
 	}
 
@@ -438,20 +433,12 @@ public class CompositeTypeSerializerSnapshotTest {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (canEqual(obj)) {
-				return targetCompatibility == ((NestedSerializer) obj).targetCompatibility;
-			}
-			return false;
+			return targetCompatibility == ((NestedSerializer) obj).targetCompatibility;
 		}
 
 		@Override
 		public int hashCode() {
 			return targetCompatibility.hashCode();
-		}
-
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof NestedSerializer;
 		}
 	}
 

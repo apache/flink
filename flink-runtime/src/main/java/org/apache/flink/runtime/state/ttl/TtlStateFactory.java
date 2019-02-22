@@ -31,7 +31,9 @@ import org.apache.flink.api.common.typeutils.CompositeSerializer;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
@@ -188,6 +190,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 	private <OIS extends State, TTLS extends State, V, TTLV> TtlStateContext<OIS, V>
 		createTtlStateContext(StateDescriptor<TTLS, TTLV> ttlDescriptor) throws Exception {
 
+		ttlDescriptor.enableTimeToLive(stateDesc.getTtlConfig()); // also used by RocksDB backend for TTL compaction filter config
 		OIS originalState = (OIS) stateBackend.createInternalState(
 			namespaceSerializer, ttlDescriptor, getSnapshotTransformFactory());
 		return new TtlStateContext<>(
@@ -288,6 +291,15 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 		@Override
 		public TypeSerializerSnapshot<TtlValue<T>> snapshotConfiguration() {
 			return new TtlSerializerSnapshot<>(this);
+		}
+
+		public static boolean isTtlStateSerializer(TypeSerializer<?> typeSerializer) {
+			boolean ttlSerializer = typeSerializer instanceof TtlStateFactory.TtlSerializer;
+			boolean ttlListSerializer = typeSerializer instanceof ListSerializer &&
+				((ListSerializer) typeSerializer).getElementSerializer() instanceof TtlStateFactory.TtlSerializer;
+			boolean ttlMapSerializer = typeSerializer instanceof MapSerializer &&
+				((MapSerializer) typeSerializer).getValueSerializer() instanceof TtlStateFactory.TtlSerializer;
+			return ttlSerializer || ttlListSerializer || ttlMapSerializer;
 		}
 	}
 

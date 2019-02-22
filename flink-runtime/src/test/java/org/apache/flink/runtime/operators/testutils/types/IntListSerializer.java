@@ -111,17 +111,6 @@ public class IntListSerializer extends TypeSerializer<IntList> {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof IntListSerializer) {
-			IntListSerializer other = (IntListSerializer) obj;
-
-			return other.canEqual(this);
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
 		return obj instanceof IntListSerializer;
 	}
 

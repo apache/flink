@@ -86,11 +86,6 @@ public final class StringSerializer extends TypeSerializerSingleton<String> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof StringSerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<String> snapshotConfiguration() {
 		return new StringSerializerSnapshot();
 	}

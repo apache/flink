@@ -51,7 +51,6 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -904,7 +903,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 			super(
 					Collections.singletonList("dummy-topic"),
 					null,
-					(KeyedDeserializationSchema < T >) mock(KeyedDeserializationSchema.class),
+					(KafkaDeserializationSchema< T >) mock(KafkaDeserializationSchema.class),
 					discoveryIntervalMillis,
 					false);
 
@@ -957,7 +956,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 		TestingFlinkKafkaConsumer(final AbstractPartitionDiscoverer partitionDiscoverer, long discoveryIntervalMillis) {
 			super(Collections.singletonList("dummy-topic"),
 				null,
-				(KeyedDeserializationSchema < T >) mock(KeyedDeserializationSchema.class),
+				(KafkaDeserializationSchema < T >) mock(KafkaDeserializationSchema.class),
 				discoveryIntervalMillis,
 				false);
 			this.partitionDiscoverer = partitionDiscoverer;

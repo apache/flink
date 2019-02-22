@@ -200,11 +200,6 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof TimerSerializer;
-	}
-
-	@Override
 	public TimerSerializerSnapshot<K, N> snapshotConfiguration() {
 		return new TimerSerializerSnapshot<>(this);
 	}

@@ -106,11 +106,6 @@ public final class BooleanPrimitiveArraySerializer extends TypeSerializerSinglet
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof BooleanPrimitiveArraySerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<boolean[]> snapshotConfiguration() {
 		return new BooleanPrimitiveArraySerializerSnapshot();
 	}

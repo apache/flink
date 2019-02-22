@@ -103,18 +103,12 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 		if (obj instanceof TupleSerializerBase) {
 			TupleSerializerBase<?> other = (TupleSerializerBase<?>) obj;
 
-			return other.canEqual(this) &&
-				tupleClass == other.tupleClass &&
+			return tupleClass == other.tupleClass &&
 				Arrays.equals(fieldSerializers, other.fieldSerializers) &&
 				arity == other.arity;
 		} else {
 			return false;
 		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof TupleSerializerBase;
 	}
 
 	@VisibleForTesting

@@ -111,17 +111,6 @@ public class Tuple0Serializer extends TupleSerializer<Tuple0> implements SelfRes
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof Tuple0Serializer) {
-			Tuple0Serializer other = (Tuple0Serializer) obj;
-
-			return other.canEqual(this);
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
 		return obj instanceof Tuple0Serializer;
 	}
 

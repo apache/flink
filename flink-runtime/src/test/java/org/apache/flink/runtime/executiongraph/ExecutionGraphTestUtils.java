@@ -25,12 +25,10 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -49,6 +47,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -60,7 +59,6 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.SerializedValue;
 
-import akka.actor.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -270,7 +268,7 @@ public class ExecutionGraphTestUtils {
 		assertEquals(JobStatus.FAILING, executionGraph.getState());
 
 		for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
-			vertex.getCurrentExecutionAttempt().cancelingComplete();
+			vertex.getCurrentExecutionAttempt().completeCancelling();
 		}
 	}
 
@@ -290,7 +288,7 @@ public class ExecutionGraphTestUtils {
 	 */
 	public static void completeCancellingForAllVertices(ExecutionGraph eg) {
 		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
-			vertex.getCurrentExecutionAttempt().cancelingComplete();
+			vertex.getCurrentExecutionAttempt().completeCancelling();
 		}
 	}
 
@@ -340,7 +338,7 @@ public class ExecutionGraphTestUtils {
 		}
 	}
 	
-	public static void setVertexResource(ExecutionVertex vertex, SimpleSlot slot) {
+	public static void setVertexResource(ExecutionVertex vertex, LogicalSlot slot) {
 		Execution exec = vertex.getCurrentExecutionAttempt();
 
 		if(!exec.tryAssignResource(slot)) {
@@ -515,56 +513,6 @@ public class ExecutionGraphTestUtils {
 				return Acknowledge.get();
 			} else if(message instanceof FailIntermediateResultPartitions) {
 				return new Object();
-			} else {
-				return null;
-			}
-		}
-	}
-
-	@SuppressWarnings("serial")
-	public static class SimpleActorGatewayWithTDD extends SimpleActorGateway {
-
-		public TaskDeploymentDescriptor lastTDD;
-		private final PermanentBlobService blobCache;
-
-		public SimpleActorGatewayWithTDD(ExecutionContext executionContext, PermanentBlobService blobCache) {
-			super(executionContext);
-			this.blobCache = blobCache;
-		}
-
-		@Override
-		public Object handleMessage(Object message) {
-			if(message instanceof SubmitTask) {
-				SubmitTask submitTask = (SubmitTask) message;
-				lastTDD = submitTask.tasks();
-				try {
-					lastTDD.loadBigData(blobCache);
-					return Acknowledge.get();
-				} catch (Exception e) {
-					e.printStackTrace();
-					return new Status.Failure(e);
-				}
-			} else {
-				return super.handleMessage(message);
-			}
-		}
-	}
-
-	@SuppressWarnings("serial")
-	public static class SimpleFailingActorGateway extends BaseTestingActorGateway {
-
-		public SimpleFailingActorGateway(ExecutionContext executionContext) {
-			super(executionContext);
-		}
-
-		@Override
-		public Object handleMessage(Object message) throws Exception {
-			if(message instanceof SubmitTask) {
-				throw new Exception(ERROR_MESSAGE);
-			} else if (message instanceof CancelTask) {
-				CancelTask cancelTask = (CancelTask) message;
-
-				return Acknowledge.get();
 			} else {
 				return null;
 			}

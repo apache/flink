@@ -85,11 +85,6 @@ public final class IntSerializer extends TypeSerializerSingleton<Integer> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof IntSerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<Integer> snapshotConfiguration() {
 		return new IntSerializerSnapshot();
 	}

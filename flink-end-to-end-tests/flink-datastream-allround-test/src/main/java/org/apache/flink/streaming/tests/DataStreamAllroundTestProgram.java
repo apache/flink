@@ -183,7 +183,7 @@ public class DataStreamAllroundTestProgram {
 			.name(SLIDING_WINDOW_AGG_NAME)
 			.uid("009");
 
-		eventStream4.keyBy(events-> events.f0)
+		eventStream4.keyBy(events -> events.f0)
 			.flatMap(createSlidingWindowCheckMapper(pt))
 			.uid("010")
 			.name(SLIDING_WINDOW_CHECK_MAPPER_NAME)

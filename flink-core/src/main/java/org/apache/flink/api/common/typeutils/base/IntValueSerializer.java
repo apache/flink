@@ -82,11 +82,6 @@ public final class IntValueSerializer extends TypeSerializerSingleton<IntValue> 
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof IntValueSerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<IntValue> snapshotConfiguration() {
 		return new IntValueSerializerSnapshot();
 	}

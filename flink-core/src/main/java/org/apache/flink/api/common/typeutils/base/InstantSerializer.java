@@ -32,6 +32,9 @@ import java.time.Instant;
  */
 @Internal
 public final class InstantSerializer extends TypeSerializerSingleton<Instant> {
+
+	private static final long serialVersionUID = -4131715684999061277L;
+
 	static final int SECONDS_BYTES = Long.BYTES;
 	static final int NANOS_BYTES = Integer.BYTES;
 
@@ -98,11 +101,6 @@ public final class InstantSerializer extends TypeSerializerSingleton<Instant> {
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.writeLong(source.readLong());
 		target.writeInt(source.readInt());
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof InstantSerializer;
 	}
 
 	@Override

@@ -141,11 +141,6 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return true;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<NFAState> snapshotConfiguration() {
 		return new NFAStateSerializerSnapshot(this);
 	}

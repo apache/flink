@@ -420,11 +420,6 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			return IntSerializer.INSTANCE.canEqual(obj);
-		}
-
-		@Override
 		public boolean equals(Object obj) {
 			return IntSerializer.INSTANCE.equals(obj);
 		}

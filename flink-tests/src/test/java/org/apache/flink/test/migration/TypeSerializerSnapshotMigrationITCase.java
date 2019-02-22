@@ -252,11 +252,6 @@ public class TypeSerializerSnapshotMigrationITCase extends SavepointMigrationTes
 		public boolean equals(Object obj) {
 			return obj instanceof TestSerializer;
 		}
-
-		@Override
-		public boolean canEqual(Object obj) {
-			return true;
-		}
 	}
 
 	/**

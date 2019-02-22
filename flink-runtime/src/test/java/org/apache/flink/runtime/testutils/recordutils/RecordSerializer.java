@@ -126,16 +126,6 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof RecordSerializer) {
-			RecordSerializer other = (RecordSerializer) obj;
-			return other.canEqual(this);
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
 		return obj instanceof RecordSerializer;
 	}
 

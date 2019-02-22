@@ -85,7 +85,7 @@ public class GlobalModVersionTest extends TestLogger {
 		// all cancellations are done now
 		for (ExecutionVertex v : graph.getVerticesTopologically().iterator().next().getTaskVertices()) {
 			final Execution exec = v.getCurrentExecutionAttempt();
-			exec.cancelingComplete();
+			exec.completeCancelling();
 		}
 
 		assertEquals(JobStatus.CANCELED, graph.getTerminationFuture().get());
@@ -139,7 +139,7 @@ public class GlobalModVersionTest extends TestLogger {
 		// all cancellations are done now
 		for (ExecutionVertex v : graph.getVerticesTopologically().iterator().next().getTaskVertices()) {
 			final Execution exec = v.getCurrentExecutionAttempt();
-			exec.cancelingComplete();
+			exec.completeCancelling();
 		}
 
 		assertEquals(JobStatus.RESTARTING, graph.getState());

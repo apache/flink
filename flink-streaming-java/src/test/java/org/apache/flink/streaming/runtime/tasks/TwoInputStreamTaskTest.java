@@ -103,11 +103,13 @@ public class TwoInputStreamTaskTest {
 
 		expectedOutput.add(new StreamRecord<String>("1337", initialTime + 2));
 
+		testHarness.waitForInputProcessing();
+
 		testHarness.endInput();
 
 		testHarness.waitForTaskCompletion();
 
-		Assert.assertTrue("RichFunction methods where not called.", TestOpenCloseMapFunction.closeCalled);
+		Assert.assertTrue("RichFunction methods were not called.", TestOpenCloseMapFunction.closeCalled);
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 	}
@@ -435,6 +437,9 @@ public class TwoInputStreamTaskTest {
 
 		assertEquals(numRecords1 + numRecords2, numRecordsInCounter.getCount());
 		assertEquals((numRecords1 + numRecords2) * 2 * 2 * 2, numRecordsOutCounter.getCount());
+
+		testHarness.endInput();
+		testHarness.waitForTaskCompletion();
 	}
 
 	static class DuplicatingOperator extends AbstractStreamOperator<String> implements TwoInputStreamOperator<String, String, String> {
@@ -561,6 +566,11 @@ public class TwoInputStreamTaskTest {
 
 		public static boolean openCalled = false;
 		public static boolean closeCalled = false;
+
+		TestOpenCloseMapFunction() {
+			openCalled = false;
+			closeCalled = false;
+		}
 
 		@Override
 		public void open(Configuration parameters) throws Exception {

@@ -115,8 +115,10 @@ public class RocksDBRocksStateKeysIteratorTest {
 
 			byte[] nameSpaceBytes = outputStream.getCopyOfBuffer();
 
+			// already created with the state, should be closed with the backend
+			ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);
+
 			try (
-				ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);
 				RocksIteratorWrapper iterator = RocksDBKeyedStateBackend.getRocksIterator(keyedStateBackend.db, handle);
 				RocksStateKeysIterator<K> iteratorWrapper =
 					new RocksStateKeysIterator<>(

@@ -78,11 +78,6 @@ public final class NullValueSerializer extends TypeSerializerSingleton<NullValue
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof NullValueSerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<NullValue> snapshotConfiguration() {
 		return new NullValueSerializerSnapshot();
 	}
