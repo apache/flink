@@ -96,14 +96,13 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<String> HOST_BIND_POLICY =
 		key("taskmanager.host.bind-policy")
-		.defaultValue("auto-detect-hostname")
+		.defaultValue("ip")
 		.withDescription(Description.builder()
 			.text("The automatic address binding policy used by the TaskManager if \"" + HOST.key() + "\" is not set." +
 				" The value should be one of the following:\n")
 			.list(
-				text("\"hostname\" - uses host's hostname as binding address"),
-				text("\"ip\" - uses host's ip address as binding address"),
-				text("\"auto-detect-hostname\" - searches for network interfaces that can connect to the JobManager"))
+				text("\"name\" - uses hostname as binding address"),
+				text("\"ip\" - uses host's ip address as binding address"))
 			.build());
 
 	/**

@@ -22,25 +22,19 @@ package org.apache.flink.runtime.taskexecutor;
  * A host binding address mechanism policy.
  */
 enum HostBindPolicy {
-	HOSTNAME,
-	IP,
-	AUTO_DETECT_HOSTNAME;
+	NAME,
+	IP;
 
 	@Override
 	public String toString() {
-		return name().toLowerCase().replace('_', '-');
+		return name().toLowerCase();
 	}
 
 	public static HostBindPolicy fromString(String configValue) {
-		switch (configValue) {
-			case "hostname":
-				return HOSTNAME;
-			case "ip":
-				return IP;
-			case "auto-detect-hostname":
-				return AUTO_DETECT_HOSTNAME;
-			default:
-				throw new IllegalArgumentException("Unknown host bind policy: " + configValue);
+		try {
+			return HostBindPolicy.valueOf(configValue.toUpperCase());
+		} catch (IllegalArgumentException ex) {
+			throw new IllegalArgumentException("Unknown host bind policy: " + configValue);
 		}
 	}
 }

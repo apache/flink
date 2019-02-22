@@ -94,8 +94,8 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
 	}
 
 	@Test
-	public void testTaskManagerRpcServiceShouldBindToHostname() throws Exception {
-		final Configuration config = createFlinkConfigWithHostBindPolicy(HostBindPolicy.HOSTNAME);
+	public void testTaskManagerRpcServiceShouldBindToHostnameAddress() throws Exception {
+		final Configuration config = createFlinkConfigWithHostBindPolicy(HostBindPolicy.NAME);
 		final HighAvailabilityServices highAvailabilityServices = createHighAvailabilityServices(config);
 
 		RpcService taskManagerRpcService = null;
@@ -109,22 +109,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
 	}
 
 	@Test
-	public void testTaskManagerRpcServiceShouldBindToIp() throws Exception {
-		final Configuration config = createFlinkConfigWithHostBindPolicy(HostBindPolicy.IP);
-		final HighAvailabilityServices highAvailabilityServices = createHighAvailabilityServices(config);
-
-		RpcService taskManagerRpcService = null;
-		try {
-			taskManagerRpcService = TaskManagerRunner.createRpcService(config, highAvailabilityServices);
-			assertThat(taskManagerRpcService.getAddress(), isIpAddress());
-		} finally {
-			maybeCloseRpcService(taskManagerRpcService);
-			highAvailabilityServices.closeAndCleanupAllData();
-		}
-	}
-
-	@Test
-	public void testTaskManagerRpcServiceShouldBindToAddressDeterminedByConnectingToResourceManager() throws Exception {
+	public void testTaskManagerRpcServiceShouldBindToIpAddressDeterminedByConnectingToResourceManager() throws Exception {
 		final ServerSocket testJobManagerSocket = openServerSocket();
 		final Configuration config = createFlinkConfigWithJobManagerPort(testJobManagerSocket.getLocalPort());
 		final HighAvailabilityServices highAvailabilityServices = createHighAvailabilityServices(config);
@@ -132,7 +117,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
 		RpcService taskManagerRpcService = null;
 		try {
 			taskManagerRpcService = TaskManagerRunner.createRpcService(config, highAvailabilityServices);
-			assertThat(taskManagerRpcService.getAddress(), not(isEmptyOrNullString()));
+			assertThat(taskManagerRpcService.getAddress(), is(ipAddress()));
 		} finally {
 			maybeCloseRpcService(taskManagerRpcService);
 			highAvailabilityServices.closeAndCleanupAllData();
@@ -225,7 +210,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
 		}
 	}
 
-	private static TypeSafeMatcher<String> isIpAddress() {
+	private static TypeSafeMatcher<String> ipAddress() {
 		return new TypeSafeMatcher<String>() {
 			@Override
 			protected boolean matchesSafely(String value) {

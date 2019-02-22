@@ -422,21 +422,11 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			LOG.info("Using configured hostname/address for TaskManager: {}.", configuredTaskManagerHostname);
 			return configuredTaskManagerHostname;
 		} else {
-			HostBindPolicy bindPolicy = HostBindPolicy.fromString(configuration.getString(TaskManagerOptions.HOST_BIND_POLICY));
-			switch (bindPolicy) {
-				case HOSTNAME:
-					return InetAddress.getLocalHost().getHostName();
-				case IP:
-					return InetAddress.getLocalHost().getHostAddress();
-				case AUTO_DETECT_HOSTNAME:
-					return determineTaskManagerHostnameByConnectingToResourceManager(configuration, haServices);
-				default:
-					throw new IllegalArgumentException("Unknown " + TaskManagerOptions.HOST_BIND_POLICY.key() + ": " + bindPolicy);
-			}
+			return determineTaskManagerBindAddressByConnectingToResourceManager(configuration, haServices);
 		}
 	}
 
-	private static String determineTaskManagerHostnameByConnectingToResourceManager(
+	private static String determineTaskManagerBindAddressByConnectingToResourceManager(
 			final Configuration configuration,
 			final HighAvailabilityServices haServices) throws LeaderRetrievalException {
 
@@ -449,6 +439,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		LOG.info("TaskManager will use hostname/address '{}' ({}) for communication.",
 			taskManagerAddress.getHostName(), taskManagerAddress.getHostAddress());
 
-		return taskManagerAddress.getHostName();
+		HostBindPolicy bindPolicy = HostBindPolicy.fromString(configuration.getString(TaskManagerOptions.HOST_BIND_POLICY));
+		return bindPolicy == HostBindPolicy.IP ? taskManagerAddress.getHostAddress() : taskManagerAddress.getHostName();
 	}
 }
