@@ -625,8 +625,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	/**
 	 * Disables auto-generated UIDs. Forces users to manually specify UIDs
-	 * on their datastreams using {@code DataStream#uid} or {@code DataStream#setUidHash}
-	 * if migrating a job with existing state that did not have UIDs previously set.
+	 * on DataStream applications.
 	 *
 	 * <p>It is highly recommended that users specify UIDs before deploying to
 	 * production since they are used to match state in savepoints to operators
