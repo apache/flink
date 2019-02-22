@@ -877,6 +877,10 @@ DataSet<Person>> csvInput = env.readCsvFile("hdfs:///the/CSV/file")
 // read a file from the specified path of type SequenceFileInputFormat
 DataSet<Tuple2<IntWritable, Text>> tuples =
  env.createInput(HadoopInputs.readSequenceFile(IntWritable.class, Text.class, "hdfs://nnHost:nnPort/path/to/file"));
+ 
+// read a file from the specified path of type org.apache.hadoop.mapred.TextInputFormat
+DataSet<Tuple2<LongWritable, Text>> tuples =
+ env.createInput(HadoopInputs.readMapRedTextFile("hdfs://nnHost:nnPort/path/to/file")); 
 
 // creates a set from some given elements
 DataSet<String> value = env.fromElements("Foo", "bar", "foobar", "fubar");
@@ -967,6 +971,9 @@ File-based:
 
 - `readSequenceFile(Key, Value, path)` / `SequenceFileInputFormat` - Creates a JobConf and reads file from the specified path with
    type SequenceFileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.
+     
+- `readMapRedTextFile(path)` / `TextInputFormat` - Creates a JobConf and reads file from the specified path with
+   type org.apache.hadoop.mapred.TextInputFormat, and returns as Tuple2<LongWritable, Text>.
 
 Collection-based:
 
@@ -1030,6 +1037,9 @@ val numbers = env.generateSequence(1, 10000000)
 // read a file from the specified path of type SequenceFileInputFormat
 val tuples = env.createInput(HadoopInputs.readSequenceFile(classOf[IntWritable], classOf[Text],
  "hdfs://nnHost:nnPort/path/to/file"))
+ 
+// read a file from the specified path of type org.apache.hadoop.mapred.TextInputFormat
+val tuples = env.createInput(HadoopInputs.readMapRedTextFile("hdfs://nnHost:nnPort/path/to/file"))
 
 {% endhighlight %}
 

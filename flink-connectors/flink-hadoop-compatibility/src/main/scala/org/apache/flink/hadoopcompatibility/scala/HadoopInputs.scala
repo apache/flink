@@ -21,6 +21,7 @@ package org.apache.flink.hadoopcompatibility.scala
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.hadoop.{mapred, mapreduce}
 import org.apache.hadoop.fs.{Path => HadoopPath}
+import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.hadoop.mapred.{JobConf, FileInputFormat => MapredFileInputFormat, InputFormat => MapredInputFormat}
 import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => MapreduceFileInputFormat}
 import org.apache.hadoop.mapreduce.{Job, InputFormat => MapreduceInputFormat}
@@ -82,6 +83,23 @@ object HadoopInputs {
       value,
       inputPath
    )
+  }
+
+  /**
+    * Creates a Flink [[org.apache.flink.api.common.io.InputFormat]] that reads a Hadoop Text
+    * file with the given inputPath.
+    *
+    * @return A Flink InputFormat that wraps a Hadoop [[org.apache.hadoop.mapred.TextInputFormat]]
+    */
+  def readMapRedTextFile(inputPath: String)(implicit tpe: TypeInformation[(LongWritable, Text)]):
+  mapred.HadoopInputFormat[LongWritable, Text] = {
+
+    readHadoopFile(
+      new org.apache.hadoop.mapred.TextInputFormat,
+      classOf[LongWritable],
+      classOf[Text],
+      inputPath
+    )
   }
 
   /**

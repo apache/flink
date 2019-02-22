@@ -21,6 +21,8 @@ package org.apache.flink.hadoopcompatibility;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
 
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.Job;
 
@@ -70,6 +72,16 @@ public final class HadoopInputs {
 	 */
 	public static <K, V> HadoopInputFormat<K, V> readSequenceFile(Class<K> key, Class<V> value, String inputPath) throws IOException {
 		return readHadoopFile(new org.apache.hadoop.mapred.SequenceFileInputFormat<K, V>(), key, value, inputPath);
+	}
+
+	/**
+	 * Creates a Flink {@link InputFormat} to read a Hadoop Text file for the given inputPath.
+	 *
+	 * @return A Flink InputFormat that wraps a Hadoop {@link org.apache.hadoop.mapred.TextInputFormat}.
+	 */
+	public static HadoopInputFormat<LongWritable, Text> readMapRedTextFile(String inputPath) throws IOException {
+		return readHadoopFile(new org.apache.hadoop.mapred.TextInputFormat(), LongWritable.class,
+			Text.class, inputPath);
 	}
 
 	/**
