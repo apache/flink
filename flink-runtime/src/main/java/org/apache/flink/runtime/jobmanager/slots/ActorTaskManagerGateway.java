@@ -174,7 +174,10 @@ public class ActorTaskManagerGateway implements TaskManagerGateway {
 			JobID jobId,
 			long checkpointId,
 			long timestamp,
-			CheckpointOptions checkpointOptions) {
+			CheckpointOptions checkpointOptions,
+			boolean advanceToEndOfTime) {
+
+		// we ignore the `advanceToEndOfTime` because this is dead code.
 
 		Preconditions.checkNotNull(executionAttemptID);
 		Preconditions.checkNotNull(jobId);

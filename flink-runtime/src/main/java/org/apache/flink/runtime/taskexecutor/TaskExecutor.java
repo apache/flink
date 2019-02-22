@@ -26,6 +26,7 @@ import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -691,13 +692,19 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			ExecutionAttemptID executionAttemptID,
 			long checkpointId,
 			long checkpointTimestamp,
-			CheckpointOptions checkpointOptions) {
+			CheckpointOptions checkpointOptions,
+			boolean advanceToEndOfTime) {
 		log.debug("Trigger checkpoint {}@{} for {}.", checkpointId, checkpointTimestamp, executionAttemptID);
+
+		final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
+		if (advanceToEndOfTime && !(checkpointType.isSynchronous() && checkpointType.isSavepoint())) {
+			throw new IllegalArgumentException("Only synchronous savepoints are allowed to advance the watermark to MAX.");
+		}
 
 		final Task task = taskSlotTable.getTask(executionAttemptID);
 
 		if (task != null) {
-			task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, checkpointOptions, false);
+			task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, checkpointOptions, advanceToEndOfTime);
 
 			return CompletableFuture.completedFuture(Acknowledge.get());
 		} else {
