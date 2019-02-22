@@ -62,8 +62,10 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
@@ -287,17 +289,24 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				writeBatchWrapper, nativeMetricMonitor);
 		} catch (Throwable e) {
 			// Do clean up
+			List<ColumnFamilyOptions> columnFamilyOptions = new ArrayList<>(kvStateInformation.values().size());
 			IOUtils.closeQuietly(cancelStreamRegistry);
 			IOUtils.closeQuietly(writeBatchWrapper);
+			RocksDBOperationUtils.addColumnFamilyOptionsToCloseLater(columnFamilyOptions, defaultColumnFamilyHandle);
 			IOUtils.closeQuietly(defaultColumnFamilyHandle);
 			IOUtils.closeQuietly(nativeMetricMonitor);
-			IOUtils.closeAllQuietly(kvStateInformation.values());
+			for (RocksDBKeyedStateBackend.RocksDbKvStateInfo kvStateInfo : kvStateInformation.values()) {
+				RocksDBOperationUtils.addColumnFamilyOptionsToCloseLater(columnFamilyOptions, kvStateInfo.columnFamilyHandle);
+				IOUtils.closeQuietly(kvStateInfo.columnFamilyHandle);
+			}
 			IOUtils.closeQuietly(db);
 			// it's possible that db has been initialized but later restore steps failed
 			IOUtils.closeQuietly(restoreOperation);
+			IOUtils.closeAllQuietly(columnFamilyOptions);
 			IOUtils.closeQuietly(dbOptions);
 			IOUtils.closeQuietly(writeOptions);
 			ttlCompactFiltersManager.disposeAndClearRegisteredCompactionFactories();
+			kvStateInformation.clear();
 			try {
 				FileUtils.deleteDirectory(instanceBasePath);
 			} catch (Exception ex) {

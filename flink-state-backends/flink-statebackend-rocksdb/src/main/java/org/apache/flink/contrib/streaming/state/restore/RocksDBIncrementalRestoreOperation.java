@@ -404,9 +404,13 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 
 		@Override
 		public void close() {
+			List<ColumnFamilyOptions> columnFamilyOptions = new ArrayList<>(columnFamilyDescriptors.size() + 1);
+			columnFamilyDescriptors.forEach((cfd) -> columnFamilyOptions.add(cfd.getOptions()));
+			RocksDBOperationUtils.addColumnFamilyOptionsToCloseLater(columnFamilyOptions, defaultColumnFamilyHandle);
 			IOUtils.closeQuietly(defaultColumnFamilyHandle);
 			IOUtils.closeAllQuietly(columnFamilyHandles);
 			IOUtils.closeQuietly(db);
+			IOUtils.closeAllQuietly(columnFamilyOptions);
 		}
 	}
 

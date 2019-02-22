@@ -341,12 +341,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			// DB is closed. See:
 			// https://github.com/facebook/rocksdb/wiki/RocksJava-Basics#opening-a-database-with-column-families
 			// Start with default CF ...
-			addColumnFamilyToCloseLater(columnFamilyOptions, defaultColumnFamily);
+			RocksDBOperationUtils.addColumnFamilyOptionsToCloseLater(columnFamilyOptions, defaultColumnFamily);
 			IOUtils.closeQuietly(defaultColumnFamily);
 
 			// ... continue with the ones created by Flink...
 			for (RocksDbKvStateInfo kvStateInfo : kvStateInformation.values()) {
-				addColumnFamilyToCloseLater(columnFamilyOptions, kvStateInfo.columnFamilyHandle);
+				RocksDBOperationUtils.addColumnFamilyOptionsToCloseLater(columnFamilyOptions, kvStateInfo.columnFamilyHandle);
 				IOUtils.closeQuietly(kvStateInfo.columnFamilyHandle);
 			}
 
@@ -365,15 +365,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			cleanInstanceBasePath();
 		}
 		this.disposed = true;
-	}
-
-	private static void addColumnFamilyToCloseLater(
-		List<ColumnFamilyOptions> columnFamilyOptions, ColumnFamilyHandle columnFamilyHandle) {
-		try {
-			columnFamilyOptions.add(columnFamilyHandle.getDescriptor().getOptions());
-		} catch (RocksDBException e) {
-			// ignore
-		}
 	}
 
 	@Nonnull
@@ -515,10 +506,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateSerializer,
 				StateSnapshotTransformFactory.noTransform());
 
-			ColumnFamilyOptions options = RocksDBOperationUtils.createColumnFamilyOptions(
-				columnFamilyOptionsFactory, newMetaInfo.getName());
 			newRocksStateInfo = RocksDBOperationUtils.createStateInfo(newMetaInfo, ttlCompactFiltersManager,
-				ttlTimeProvider, db, options);
+				ttlTimeProvider, db, columnFamilyOptionsFactory);
 			RocksDBOperationUtils.registerKvStateInformation(this.kvStateInformation, this.nativeMetricMonitor,
 				stateDesc.getName(), newRocksStateInfo);
 		}

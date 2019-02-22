@@ -22,6 +22,7 @@ import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersMana
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyDescriptor;
@@ -67,6 +68,8 @@ public class RocksDBOperationUtils {
 				columnFamilyDescriptors,
 				stateColumnFamilyHandles);
 		} catch (RocksDBException e) {
+			IOUtils.closeQuietly(columnFamilyOptions);
+			columnFamilyDescriptors.forEach((cfd) -> IOUtils.closeQuietly(cfd.getOptions()));
 			throw new IOException("Error while opening RocksDB instance.", e);
 		}
 
@@ -88,6 +91,7 @@ public class RocksDBOperationUtils {
 		try {
 			return db.createColumnFamily(columnDescriptor);
 		} catch (RocksDBException e) {
+			IOUtils.closeQuietly(columnDescriptor.getOptions());
 			throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", e);
 		}
 	}
@@ -130,7 +134,8 @@ public class RocksDBOperationUtils {
 		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
 		TtlTimeProvider ttlTimeProvider,
 		RocksDB db,
-		ColumnFamilyOptions options) {
+		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory) {
+		ColumnFamilyOptions options = createColumnFamilyOptions(columnFamilyOptionsFactory, metaInfoBase.getName());
 		ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(ttlTimeProvider, metaInfoBase, options);
 		ColumnFamilyDescriptor columnFamilyDescriptor = createColumnFamilyDescriptor(metaInfoBase.getName(), options);
 		return new RocksDBKeyedStateBackend.RocksDbKvStateInfo(createColumnFamily(columnFamilyDescriptor, db), metaInfoBase);
@@ -141,5 +146,16 @@ public class RocksDBOperationUtils {
 		String stateName) {
 		// ensure that we use the right merge operator, because other code relies on this
 		return columnFamilyOptionsFactory.apply(stateName).setMergeOperatorName(MERGE_OPERATOR_NAME);
+	}
+
+	public static void addColumnFamilyOptionsToCloseLater(
+		List<ColumnFamilyOptions> columnFamilyOptions, ColumnFamilyHandle columnFamilyHandle) {
+		try {
+			if (columnFamilyHandle != null && columnFamilyHandle.getDescriptor() != null) {
+				columnFamilyOptions.add(columnFamilyHandle.getDescriptor().getOptions());
+			}
+		} catch (RocksDBException e) {
+			// ignore
+		}
 	}
 }

@@ -88,7 +88,6 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 	//   - data ingestion after db open: #getOrRegisterStateColumnFamilyHandle before creating column family
 	protected final RocksDbTtlCompactFiltersManager ttlCompactFiltersManager;
 	protected final TtlTimeProvider ttlTimeProvider;
-	private final List<ColumnFamilyOptions> columnFamilyOptionsToClose;
 
 	protected RocksDB db;
 	protected ColumnFamilyHandle defaultColumnFamilyHandle;
@@ -131,15 +130,15 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 		this.ttlTimeProvider = ttlTimeProvider;
 		this.columnFamilyHandles = new ArrayList<>(1);
 		this.columnFamilyDescriptors = Collections.emptyList();
-		columnFamilyOptionsToClose = new ArrayList<>(kvStateInformation.values().size());
 	}
 
 	public void openDB() throws IOException {
-		ColumnFamilyOptions options =
-			RocksDBOperationUtils.createColumnFamilyOptions(columnFamilyOptionsFactory, "default");
-		columnFamilyOptionsToClose.add(options);
-		db = RocksDBOperationUtils.openDB(dbPath, columnFamilyDescriptors,
-			columnFamilyHandles, options, dbOptions);
+		db = RocksDBOperationUtils.openDB(
+			dbPath,
+			columnFamilyDescriptors,
+			columnFamilyHandles,
+			RocksDBOperationUtils.createColumnFamilyOptions(columnFamilyOptionsFactory, "default"),
+			dbOptions);
 		// remove the default column family which is located at the first index
 		defaultColumnFamilyHandle = columnFamilyHandles.remove(0);
 		// init native metrics monitor if configured
@@ -164,11 +163,8 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 			RegisteredStateMetaInfoBase stateMetaInfo =
 				RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
 			if (columnFamilyHandle == null) {
-				ColumnFamilyOptions options =
-					RocksDBOperationUtils.createColumnFamilyOptions(columnFamilyOptionsFactory, stateMetaInfo.getName());
-				columnFamilyOptionsToClose.add(options);
 				registeredStateMetaInfoEntry = RocksDBOperationUtils.createStateInfo(stateMetaInfo,
-					ttlCompactFiltersManager, ttlTimeProvider, db, options);
+					ttlCompactFiltersManager, ttlTimeProvider, db, columnFamilyOptionsFactory);
 			} else {
 				registeredStateMetaInfoEntry = new RocksDbKvStateInfo(columnFamilyHandle, stateMetaInfo);
 			}
@@ -217,7 +213,8 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 		IOUtils.closeQuietly(defaultColumnFamilyHandle);
 		IOUtils.closeQuietly(nativeMetricMonitor);
 		IOUtils.closeQuietly(db);
-		IOUtils.closeAllQuietly(columnFamilyOptionsToClose);
+		// Making sure the already created column family options will be closed
+		columnFamilyDescriptors.forEach((cfd) -> IOUtils.closeQuietly(cfd.getOptions()));
 	}
 
 	@Override
