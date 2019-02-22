@@ -396,11 +396,6 @@ public class KvStateRegistryTest extends TestLogger {
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			return true;
-		}
-
-		@Override
 		public int hashCode() {
 			return 0;
 		}

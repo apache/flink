@@ -1591,7 +1591,7 @@ val result: SingleOutputStreamOperator[ComplexEvent] = patternStream.flatSelect(
         out.collect(ComplexEvent())
 }
 
-val timeoutResult: DataStream<TimeoutEvent> = result.getSideOutput(outputTag)
+val timeoutResult: DataStream[TimeoutEvent] = result.getSideOutput(outputTag)
 {% endhighlight %}
 
 </div>
@@ -1643,7 +1643,7 @@ val result: SingleOutputStreamOperator[ComplexEvent] = patternStream
           pattern: Map[String, Iterable[ComplexEvent]] => ComplexEvent()
       }
 
-val lateData: DataStream<String> = result.getSideOutput(lateDataOutputTag)
+val lateData: DataStream[String] = result.getSideOutput(lateDataOutputTag)
 
 {% endhighlight %}
 
@@ -1744,7 +1744,7 @@ val pattern = Pattern.begin[Event]("start")
 
 val patternStream = CEP.pattern(partitionedInput, pattern)
 
-val alerts = patternStream.select(createAlert(_)))
+val alerts = patternStream.select(createAlert(_))
 {% endhighlight %}
 </div>
 </div>

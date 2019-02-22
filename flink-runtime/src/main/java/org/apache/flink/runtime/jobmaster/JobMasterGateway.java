@@ -18,6 +18,10 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
+import javax.annotation.Nullable;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -43,11 +47,6 @@ import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-
-import javax.annotation.Nullable;
-
-import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * {@link JobMaster} rpc gateway interface.
@@ -268,8 +267,7 @@ public interface JobMasterGateway extends
 	 * Requests the statistics on operator back pressure.
 	 *
 	 * @param jobVertexId JobVertex for which the stats are requested.
-	 * @return A Future to the {@link OperatorBackPressureStatsResponse} or {@code null} if the stats are
-	 * not available (yet).
+	 * @return A Future to the {@link OperatorBackPressureStatsResponse}.
 	 */
 	CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(JobVertexID jobVertexId);
 
@@ -280,4 +278,15 @@ public interface JobMasterGateway extends
 	 * @param cause the reason that the allocation failed
 	 */
 	void notifyAllocationFailure(AllocationID allocationID, Exception cause);
+
+	/**
+	 * Update the aggregate and return the new value.
+	 *
+	 * @param aggregateName The name of the aggregate to update
+	 * @param aggregand The value to add to the aggregate
+	 * @param serializedAggregationFunction The function to apply to the current aggregate and aggregand to
+	 * obtain the new aggregate value, this should be of type {@link AggregateFunction}
+	 * @return The updated aggregate
+	 */
+	CompletableFuture<Object> updateGlobalAggregate(String aggregateName, Object aggregand, byte[] serializedAggregationFunction);
 }

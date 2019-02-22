@@ -29,19 +29,14 @@ import grizzled.slf4j.Logger
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration._
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.concurrent.{ScheduledExecutor, ScheduledExecutorServiceAdapter}
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
-import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist}
-import org.apache.flink.runtime.jobmaster.JobMaster
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
 import org.apache.flink.runtime.messages.TaskManagerMessages.{NotifyWhenRegisteredAtJobManager, RegisteredAtJobManager}
 import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl}
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.testutils.TestingResourceManager
-import org.apache.flink.runtime.util.LeaderRetrievalUtils
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 
 import scala.concurrent.duration.{TimeUnit, _}
@@ -82,21 +77,6 @@ object TestingUtils {
 
   def infiniteTime: Time = {
     Time.milliseconds(Integer.MAX_VALUE);
-  }
-  
-
-  def startTestingCluster(numSlots: Int, numTMs: Int = 1,
-                          timeout: String = DEFAULT_AKKA_ASK_TIMEOUT): TestingCluster = {
-    val config = new Configuration()
-    config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlots)
-    config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs)
-    config.setString(AkkaOptions.ASK_TIMEOUT, timeout)
-
-    val cluster = new TestingCluster(config)
-
-    cluster.start()
-
-    cluster
   }
 
   /** 
@@ -365,143 +345,6 @@ object TestingUtils {
     stopActorGatewaysGracefully(actorGateways.asScala: _*)
   }
 
-  /** Creates a testing JobManager using the default recovery mode (standalone)
-    *
-    * @param actorSystem The ActorSystem to use
-    * @param futureExecutor to run the JobManager's futures
-    * @param ioExecutor to run blocking io operations
-    * @param configuration The Flink configuration
-    * @return
-    */
-  def createJobManager(
-      actorSystem: ActorSystem,
-      futureExecutor: ScheduledExecutorService,
-      ioExecutor: Executor,
-      configuration: Configuration,
-      highAvailabilityServices: HighAvailabilityServices)
-    : ActorGateway = {
-    createJobManager(
-      actorSystem,
-      futureExecutor,
-      ioExecutor,
-      configuration,
-      highAvailabilityServices,
-      classOf[TestingJobManager],
-      ""
-    )
-  }
-
-  /** Creates a testing JobManager using the default recovery mode (standalone).
-    * Additional prefix can be supplied for the Actor system names
-    *
-    * @param actorSystem The ActorSystem to use
-    * @param futureExecutor to run the JobManager's futures
-    * @param ioExecutor to run blocking io operations
-    * @param configuration The Flink configuration
-    * @param prefix The prefix for the actor names
-    * @return
-    */
-  def createJobManager(
-      actorSystem: ActorSystem,
-      futureExecutor: ScheduledExecutorService,
-      ioExecutor: Executor,
-      configuration: Configuration,
-      highAvailabilityServices: HighAvailabilityServices,
-      prefix: String)
-    : ActorGateway = {
-    createJobManager(
-      actorSystem,
-      futureExecutor,
-      ioExecutor,
-      configuration,
-      highAvailabilityServices,
-      classOf[TestingJobManager],
-      prefix
-    )
-  }
-
-  /**
-    * Creates a JobManager of the given class using the default recovery mode (standalone)
-    *
-    * @param actorSystem ActorSystem to use
-    * @param futureExecutor to run the JobManager's futures
-    * @param ioExecutor to run blocking io operations
-    * @param configuration Configuration to use
-    * @param highAvailabilityServices Service factory for high availability
-    * @param jobManagerClass JobManager class to instantiate
-    * @return
-    */
-  def createJobManager(
-      actorSystem: ActorSystem,
-      futureExecutor: ScheduledExecutorService,
-      ioExecutor: Executor,
-      configuration: Configuration,
-      highAvailabilityServices: HighAvailabilityServices,
-      jobManagerClass: Class[_ <: JobManager])
-    : ActorGateway = {
-
-    createJobManager(
-      actorSystem,
-      futureExecutor,
-      ioExecutor,
-      configuration,
-      highAvailabilityServices,
-      jobManagerClass,
-      "")
-  }
-
-  /**
-    * Creates a JobManager of the given class using the default recovery mode (standalone).
-    * Additional prefix for the Actor names can be added.
-    *
-    * @param actorSystem ActorSystem to use
-    * @param futureExecutor to run the JobManager's futures
-    * @param ioExecutor to run blocking io operations
-    * @param configuration Configuration to use
-    * @param highAvailabilityServices Service factory for high availability
-    * @param jobManagerClass JobManager class to instantiate
-    * @param prefix The prefix to use for the Actor names
-   * @return
-    */
-  def createJobManager(
-      actorSystem: ActorSystem,
-      futureExecutor: ScheduledExecutorService,
-      ioExecutor: Executor,
-      configuration: Configuration,
-      highAvailabilityServices: HighAvailabilityServices,
-      jobManagerClass: Class[_ <: JobManager],
-      prefix: String)
-    : ActorGateway = {
-
-    configuration.setString(
-      HighAvailabilityOptions.HA_MODE,
-      ConfigConstants.DEFAULT_HA_MODE)
-
-    val metricRegistry = new MetricRegistryImpl(
-      MetricRegistryConfiguration.fromConfiguration(configuration))
-
-      val (actor, _) = JobManager.startJobManagerActors(
-        configuration,
-        actorSystem,
-        futureExecutor,
-        ioExecutor,
-        highAvailabilityServices,
-        metricRegistry,
-        None,
-        Some(prefix + JobMaster.JOB_MANAGER_NAME),
-        Some(prefix + JobMaster.ARCHIVE_NAME),
-        jobManagerClass,
-        classOf[MemoryArchivist])
-
-
-    val leaderId = LeaderRetrievalUtils.retrieveLeaderSessionId(
-        highAvailabilityServices.getJobManagerLeaderRetriever(
-          HighAvailabilityServices.DEFAULT_JOB_ID),
-        TestingUtils.TESTING_TIMEOUT)
-
-    new AkkaActorGateway(actor, leaderId)
-  }
-
   /** Creates a forwarding JobManager which sends all received message to the forwarding target.
     *
     * @param actorSystem The actor system to start the actor in.
@@ -536,34 +379,6 @@ object TestingUtils {
     }
 
     new AkkaActorGateway(actor, leaderId)
-  }
-
-  /** Creates a testing JobManager using the given configuration and high availability services.
-    *
-    * @param actorSystem The actor system to start the actor
-    * @param configuration The configuration
-    * @param highAvailabilityServices The high availability services to use
-    * @return
-    */
-  def createResourceManager(
-      actorSystem: ActorSystem,
-      configuration: Configuration,
-      highAvailabilityServices: HighAvailabilityServices)
-  : ActorGateway = {
-
-    val resourceManager = FlinkResourceManager.startResourceManagerActors(
-      configuration,
-      actorSystem,
-      highAvailabilityServices.getJobManagerLeaderRetriever(
-        HighAvailabilityServices.DEFAULT_JOB_ID),
-      classOf[TestingResourceManager])
-
-    val leaderId = LeaderRetrievalUtils.retrieveLeaderSessionId(
-      highAvailabilityServices.getJobManagerLeaderRetriever(
-        HighAvailabilityServices.DEFAULT_JOB_ID),
-      TestingUtils.TESTING_TIMEOUT)
-
-    new AkkaActorGateway(resourceManager, leaderId)
   }
 
   class ForwardingActor(val target: ActorRef, val leaderSessionID: Option[UUID])

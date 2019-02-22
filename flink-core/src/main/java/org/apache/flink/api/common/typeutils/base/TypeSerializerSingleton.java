@@ -43,13 +43,7 @@ public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof TypeSerializerSingleton) {
-			TypeSerializerSingleton<?> other = (TypeSerializerSingleton<?>) obj;
-
-			return other.canEqual(this);
-		} else {
-			return false;
-		}
+		return obj.getClass().equals(this.getClass());
 	}
 
 	/**

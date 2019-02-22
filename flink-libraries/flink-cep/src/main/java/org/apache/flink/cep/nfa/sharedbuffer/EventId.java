@@ -143,11 +143,6 @@ public class EventId implements Comparable<EventId> {
 			target.writeLong(source.readLong());
 		}
 
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj.getClass().equals(EventIdSerializer.class);
-		}
-
 		// -----------------------------------------------------------------------------------
 
 		@Override

@@ -75,7 +75,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 				ClassLoader.getSystemClassLoader(),
 				temporaryFolder.getRoot(),
 				dbOptions,
-				columnFamilyOptions,
+				stateName -> columnFamilyOptions,
 				mock(TaskKvStateRegistry.class),
 				LongSerializer.INSTANCE,
 				1,
@@ -86,6 +86,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 				TestLocalRecoveryConfig.disabled(),
 				RocksDBStateBackend.PriorityQueueStateType.HEAP,
 				TtlTimeProvider.DEFAULT,
+				false,
 				new RocksDBNativeMetricOptions(),
 				new UnregisteredMetricsGroup()
 			);
@@ -115,12 +116,12 @@ public final class KVStateRequestSerializerRocksDBTest {
 		dbOptions.setCreateIfMissing(true);
 		ColumnFamilyOptions columnFamilyOptions = PredefinedOptions.DEFAULT.createColumnOptions();
 		final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend =
-			new RocksDBKeyedStateBackend<>(
+			new RocksDBKeyedStateBackend<Long>(
 				"no-op",
 				ClassLoader.getSystemClassLoader(),
 				temporaryFolder.getRoot(),
 				dbOptions,
-				columnFamilyOptions,
+				stateName -> columnFamilyOptions,
 				mock(TaskKvStateRegistry.class),
 				LongSerializer.INSTANCE,
 				1,
@@ -131,6 +132,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 				TestLocalRecoveryConfig.disabled(),
 				RocksDBStateBackend.PriorityQueueStateType.HEAP,
 				TtlTimeProvider.DEFAULT,
+				false,
 				new RocksDBNativeMetricOptions(),
 				new UnregisteredMetricsGroup()
 			);

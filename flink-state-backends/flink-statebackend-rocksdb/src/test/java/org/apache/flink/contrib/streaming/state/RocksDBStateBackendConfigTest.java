@@ -158,7 +158,7 @@ public class RocksDBStateBackendConfigTest {
 			RocksDBOptions.TIMER_SERVICE_FACTORY,
 			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
 
-		rocksDbBackend = rocksDbBackend.configure(conf);
+		rocksDbBackend = rocksDbBackend.configure(conf, Thread.currentThread().getContextClassLoader());
 		keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
 		keyedBackend.restore(Collections.emptyList());
 		Assert.assertEquals(
@@ -478,7 +478,7 @@ public class RocksDBStateBackendConfigTest {
 				tempFolder.newFolder().getAbsolutePath(), tempFolder.newFolder().getAbsolutePath() };
 		original.setDbStoragePaths(localDirs);
 
-		RocksDBStateBackend copy = original.configure(new Configuration());
+		RocksDBStateBackend copy = original.configure(new Configuration(), Thread.currentThread().getContextClassLoader());
 
 		assertEquals(original.isIncrementalCheckpointsEnabled(), copy.isIncrementalCheckpointsEnabled());
 		assertArrayEquals(original.getDbStoragePaths(), copy.getDbStoragePaths());

@@ -131,11 +131,6 @@ public class StatefulComplexPayloadSerializer extends TypeSerializer<ComplexPayl
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return getClass().equals(obj.getClass());
-	}
-
-	@Override
 	public int hashCode() {
 		return 42;
 	}

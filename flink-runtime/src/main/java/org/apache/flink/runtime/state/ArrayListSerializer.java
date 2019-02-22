@@ -132,11 +132,6 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return true;
-	}
-
-	@Override
 	public int hashCode() {
 		return elementSerializer.hashCode();
 	}

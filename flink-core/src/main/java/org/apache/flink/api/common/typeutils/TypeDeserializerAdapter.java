@@ -88,10 +88,6 @@ public final class TypeDeserializerAdapter<T> extends TypeSerializer<T> implemen
 		return (deserializer != null) ? deserializer.equals(obj) : serializer.equals(obj);
 	}
 
-	public boolean canEqual(Object obj) {
-		return (deserializer != null) ? deserializer.canEqual(obj) : serializer.canEqual(obj);
-	}
-
 	public int hashCode() {
 		return (deserializer != null) ? deserializer.hashCode() : serializer.hashCode();
 	}

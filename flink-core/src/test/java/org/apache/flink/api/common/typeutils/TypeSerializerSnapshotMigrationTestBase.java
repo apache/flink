@@ -79,7 +79,7 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 
 		TypeSerializerSchemaCompatibility<ElementT> result = snapshot.resolveSchemaCompatibility(testSpecification.createSerializer());
 
-		assertThat(result, hasSameCompatibilityType(testSpecification.expectedCompatibilityResult));
+		assertThat(result, testSpecification.schemaCompatibilityMatcher);
 	}
 
 	@Test
@@ -197,14 +197,13 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 	/**
 	 * Test Specification.
 	 */
-	@SuppressWarnings("WeakerAccess")
-	protected static final class TestSpecification<T> {
+	public static final class TestSpecification<T> {
 		private final Class<? extends TypeSerializer<T>> serializerType;
 		private final Class<? extends TypeSerializerSnapshot<T>> snapshotClass;
 		private final String name;
 		private final MigrationVersion testMigrationVersion;
 		private Supplier<? extends TypeSerializer<T>> serializerProvider;
-		private TypeSerializerSchemaCompatibility<T> expectedCompatibilityResult;
+		private Matcher<TypeSerializerSchemaCompatibility<T>> schemaCompatibilityMatcher;
 		private String snapshotDataLocation;
 		private String testDataLocation;
 		private int testDataCount;
@@ -246,7 +245,13 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 				Supplier<? extends TypeSerializer<T>> serializerProvider,
 				TypeSerializerSchemaCompatibility<T> expectedCompatibilityResult) {
 			this.serializerProvider = serializerProvider;
-			this.expectedCompatibilityResult = expectedCompatibilityResult;
+			this.schemaCompatibilityMatcher = hasSameCompatibilityType(expectedCompatibilityResult);
+			return this;
+		}
+
+		public TestSpecification<T> withSchemaCompatibilityMatcher(
+				Matcher<TypeSerializerSchemaCompatibility<T>> schemaCompatibilityMatcher) {
+			this.schemaCompatibilityMatcher = schemaCompatibilityMatcher;
 			return this;
 		}
 
@@ -298,7 +303,7 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 	 * multiple test migration versions. For each test specification added,
 	 * an entry will be added for each specified migration version.
 	 */
-	protected static final class TestSpecifications {
+	public static final class TestSpecifications {
 
 		private static final int DEFAULT_TEST_DATA_COUNT = 10;
 		private static final String DEFAULT_SNAPSHOT_FILENAME_FORMAT = "flink-%s-%s-snapshot";
@@ -346,6 +351,39 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 						.withTestData(
 							String.format(DEFAULT_TEST_DATA_FILENAME_FORMAT, testVersion, name),
 							DEFAULT_TEST_DATA_COUNT)
+				);
+			}
+		}
+
+		/**
+		 * Adds a test specification to be tested for all specified test versions.
+		 *
+		 * <p>This method adds the specification with pre-defined snapshot and data filenames,
+		 * with the format "flink-&lt;testVersion&gt;-&lt;specName&gt;-&lt;data/snapshot&gt;",
+		 * and each specification's test data count is assumed to always be 10.
+		 *
+		 * @param <T> type of the test data.
+		 */
+		public <T> void addWithCompatibilityMatcher(
+				String name,
+				Class<? extends TypeSerializer> serializerClass,
+				Class<? extends TypeSerializerSnapshot> snapshotClass,
+				Supplier<? extends TypeSerializer<T>> serializerProvider,
+				Matcher<TypeSerializerSchemaCompatibility<T>> schemaCompatibilityMatcher) {
+			for (MigrationVersion testVersion : testVersions) {
+				testSpecifications.add(
+						TestSpecification.<T>builder(
+								getSpecNameForVersion(name, testVersion),
+								serializerClass,
+								snapshotClass,
+								testVersion)
+								.withNewSerializerProvider(serializerProvider)
+								.withSchemaCompatibilityMatcher(schemaCompatibilityMatcher)
+								.withSnapshotDataLocation(
+										String.format(DEFAULT_SNAPSHOT_FILENAME_FORMAT, testVersion, name))
+								.withTestData(
+										String.format(DEFAULT_TEST_DATA_FILENAME_FORMAT, testVersion, name),
+										DEFAULT_TEST_DATA_COUNT)
 				);
 			}
 		}
@@ -444,7 +482,7 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 	// Utilities
 	// --------------------------------------------------------------------------------------------------------------
 
-	private <T> Matcher<TypeSerializerSchemaCompatibility<T>> hasSameCompatibilityType(TypeSerializerSchemaCompatibility<T> expectedCompatibilty) {
+	private static <T> Matcher<TypeSerializerSchemaCompatibility<T>> hasSameCompatibilityType(TypeSerializerSchemaCompatibility<T> expectedCompatibilty) {
 		return new TypeSafeMatcher<TypeSerializerSchemaCompatibility<T>>() {
 
 			@Override
@@ -452,9 +490,9 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 				if (expectedCompatibilty.isCompatibleAsIs()) {
 					return testResultCompatibility.isCompatibleAsIs();
 				} else if (expectedCompatibilty.isIncompatible()) {
-					return testResultCompatibility.isCompatibleAfterMigration();
-				} else if (expectedCompatibilty.isIncompatible()) {
 					return testResultCompatibility.isIncompatible();
+				} else if (expectedCompatibilty.isCompatibleAfterMigration()) {
+					return testResultCompatibility.isCompatibleAfterMigration();
 				} else if (expectedCompatibilty.isCompatibleWithReconfiguredSerializer()) {
 					return testResultCompatibility.isCompatibleWithReconfiguredSerializer();
 				}

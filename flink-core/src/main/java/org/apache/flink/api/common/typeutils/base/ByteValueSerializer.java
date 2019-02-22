@@ -82,11 +82,6 @@ public final class ByteValueSerializer extends TypeSerializerSingleton<ByteValue
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof ByteValueSerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<ByteValue> snapshotConfiguration() {
 		return new ByteValueSerializerSnapshot();
 	}

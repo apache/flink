@@ -263,7 +263,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		@Override
 		public void registerSharedStates(SharedStateRegistry stateRegistry) {
-			throw new UnsupportedOperationException();
+
 		}
 
 		@Override

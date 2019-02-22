@@ -28,6 +28,8 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 @Internal
 public class RestOptions {
 
+	private static final String REST_PORT_KEY = "rest.port";
+
 	/**
 	 * The address that the server binds itself to.
 	 */
@@ -36,6 +38,19 @@ public class RestOptions {
 			.noDefaultValue()
 			.withDeprecatedKeys(WebOptions.ADDRESS.key(), ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS.key())
 			.withDescription("The address that the server binds itself.");
+
+	/**
+	 * The port range that the server could bind itself to.
+	 */
+	public static final ConfigOption<String> BIND_PORT =
+		key("rest.bind-port")
+			.defaultValue("8081")
+			.withFallbackKeys(REST_PORT_KEY)
+			.withDeprecatedKeys(WebOptions.PORT.key(), ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)
+			.withDescription("The port that the server binds itself. Accepts a list of ports (“50100,50101”), ranges" +
+				" (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid" +
+				" collisions when multiple Rest servers are running on the same machine.");
+
 
 	/**
 	 * The address that should be used by clients to connect to the server.
@@ -47,13 +62,13 @@ public class RestOptions {
 			.withDescription("The address that should be used by clients to connect to the server.");
 
 	/**
-	 * The port that the server listens on / the client connects to.
+	 * The port that the client connects to.
 	 */
 	public static final ConfigOption<Integer> PORT =
-		key("rest.port")
+		key(REST_PORT_KEY)
 			.defaultValue(8081)
-			.withDeprecatedKeys("web.port")
-			.withDescription("The port that the server listens on / the client connects to.");
+			.withDeprecatedKeys(WebOptions.PORT.key())
+			.withDescription("The port that the client connects to.");
 
 	/**
 	 * The time in ms that the client waits for the leader address, e.g., Dispatcher or

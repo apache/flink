@@ -23,7 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -67,14 +67,14 @@ public interface RestfulGateway extends RpcGateway {
 	CompletableFuture<Acknowledge> stopJob(JobID jobId, @RpcTimeout Time timeout);
 
 	/**
-	 * Requests the {@link AccessExecutionGraph} for the given jobId. If there is no such graph, then
+	 * Requests the {@link ArchivedExecutionGraph} for the given jobId. If there is no such graph, then
 	 * the future is completed with a {@link FlinkJobNotFoundException}.
 	 *
-	 * @param jobId identifying the job whose AccessExecutionGraph is requested
+	 * @param jobId identifying the job whose {@link ArchivedExecutionGraph} is requested
 	 * @param timeout for the asynchronous operation
-	 * @return Future containing the AccessExecutionGraph for the given jobId, otherwise {@link FlinkJobNotFoundException}
+	 * @return Future containing the {@link ArchivedExecutionGraph} for the given jobId, otherwise {@link FlinkJobNotFoundException}
 	 */
-	CompletableFuture<? extends AccessExecutionGraph> requestJob(JobID jobId, @RpcTimeout Time timeout);
+	CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, @RpcTimeout Time timeout);
 
 	/**
 	 * Requests the {@link JobResult} of a job specified by the given jobId.
@@ -166,8 +166,7 @@ public interface RestfulGateway extends RpcGateway {
 	 *
 	 * @param jobId       Job for which the stats are requested.
 	 * @param jobVertexId JobVertex for which the stats are requested.
-	 * @return A Future to the {@link OperatorBackPressureStatsResponse} or {@code null} if the stats are
-	 * not available (yet).
+	 * @return A Future to the {@link OperatorBackPressureStatsResponse}.
 	 */
 	default CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(
 			JobID jobId,

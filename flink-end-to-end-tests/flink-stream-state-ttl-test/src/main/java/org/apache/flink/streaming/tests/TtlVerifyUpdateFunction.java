@@ -70,7 +70,6 @@ class TtlVerifyUpdateFunction extends RichFlatMapFunction<TtlStateUpdate, String
 
 	@Nonnull
 	private final StateTtlConfig ttlConfig;
-	private final MonotonicTTLTimeProvider ttlTimeProvider;
 	private final UpdateStat stat;
 
 	private transient Map<String, State> states;
@@ -78,10 +77,8 @@ class TtlVerifyUpdateFunction extends RichFlatMapFunction<TtlStateUpdate, String
 
 	TtlVerifyUpdateFunction(
 			@Nonnull StateTtlConfig ttlConfig,
-			MonotonicTTLTimeProvider ttlTimeProvider,
 			long reportStatAfterUpdatesNum) {
 		this.ttlConfig = ttlConfig;
-		this.ttlTimeProvider = checkNotNull(ttlTimeProvider);
 		this.stat = new UpdateStat(reportStatAfterUpdatesNum);
 	}
 
@@ -117,12 +114,12 @@ class TtlVerifyUpdateFunction extends RichFlatMapFunction<TtlStateUpdate, String
 			TtlStateVerifier<?, ?> verifier,
 			Object update) throws Exception {
 
-		final long timestampBeforeUpdate = ttlTimeProvider.currentTimestamp();
+		final long timestampBeforeUpdate = MonotonicTTLTimeProvider.freeze();
 		State state = states.get(verifier.getId());
 		Object valueBeforeUpdate = verifier.get(state);
 		verifier.update(state, update);
 		Object updatedValue = verifier.get(state);
-		final long timestampAfterUpdate = ttlTimeProvider.unfreezeTime();
+		final long timestampAfterUpdate = MonotonicTTLTimeProvider.unfreezeTime();
 
 		checkState(
 				timestampAfterUpdate == timestampBeforeUpdate,

@@ -228,11 +228,6 @@ public class CheckpointingCustomKvStateProgram {
 			target.writeInt(source.readInt());
 		}
 
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof CustomIntSerializer;
-		}
-
 		// -----------------------------------------------------------------------------------
 
 		@Override

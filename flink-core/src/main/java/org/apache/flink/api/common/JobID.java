@@ -108,7 +108,8 @@ public final class JobID extends AbstractID {
 		try {
 			return new JobID(StringUtils.hexStringToByte(hexString));
 		} catch (Exception e) {
-			throw new IllegalArgumentException("Cannot parse JobID from \"" + hexString + "\".", e);
+			throw new IllegalArgumentException("Cannot parse JobID from \"" + hexString + "\". The expected format is " +
+				"[0-9a-fA-F]{32}, e.g. fd72014d4c864993a2e5a9287b4a9c5d.", e);
 		}
 	}
 }

@@ -38,7 +38,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 
 import akka.actor.ActorRef;
-import akka.actor.Kill;
 import akka.actor.Status;
 import akka.actor.UntypedActor;
 import akka.pattern.Patterns;
@@ -363,23 +362,12 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 	 * @param callAsync Call async message
 	 */
 	private void handleCallAsync(CallAsync callAsync) {
-		if (callAsync.getCallable() == null) {
-			final String result = "Received a " + callAsync.getClass().getName() + " message with an empty " +
-				"callable field. This indicates that this message has been serialized " +
-				"prior to sending the message. The " + callAsync.getClass().getName() +
-				" is only supported with local communication.";
+		try {
+			Object result = callAsync.getCallable().call();
 
-			log.warn(result);
-
-			getSender().tell(new Status.Failure(new AkkaRpcException(result)), getSelf());
-		} else {
-			try {
-				Object result = callAsync.getCallable().call();
-
-				getSender().tell(new Status.Success(result), getSelf());
-			} catch (Throwable e) {
-				getSender().tell(new Status.Failure(e), getSelf());
-			}
+			getSender().tell(new Status.Success(result), getSelf());
+		} catch (Throwable e) {
+			getSender().tell(new Status.Failure(e), getSelf());
 		}
 	}
 
@@ -390,36 +378,27 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 	 * @param runAsync Run async message
 	 */
 	private void handleRunAsync(RunAsync runAsync) {
-		if (runAsync.getRunnable() == null) {
-			log.warn("Received a {} message with an empty runnable field. This indicates " +
-				"that this message has been serialized prior to sending the message. The " +
-				"{} is only supported with local communication.",
-				runAsync.getClass().getName(),
-				runAsync.getClass().getName());
+		final long timeToRun = runAsync.getTimeNanos();
+		final long delayNanos;
+
+		if (timeToRun == 0 || (delayNanos = timeToRun - System.nanoTime()) <= 0) {
+			// run immediately
+			try {
+				runAsync.getRunnable().run();
+			} catch (Throwable t) {
+				log.error("Caught exception while executing runnable in main thread.", t);
+				ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+			}
 		}
 		else {
-			final long timeToRun = runAsync.getTimeNanos();
-			final long delayNanos;
+			// schedule for later. send a new message after the delay, which will then be immediately executed
+			FiniteDuration delay = new FiniteDuration(delayNanos, TimeUnit.NANOSECONDS);
+			RunAsync message = new RunAsync(runAsync.getRunnable(), timeToRun);
 
-			if (timeToRun == 0 || (delayNanos = timeToRun - System.nanoTime()) <= 0) {
-				// run immediately
-				try {
-					runAsync.getRunnable().run();
-				} catch (Throwable t) {
-					log.error("Caught exception while executing runnable in main thread.", t);
-					ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-				}
-			}
-			else {
-				// schedule for later. send a new message after the delay, which will then be immediately executed
-				FiniteDuration delay = new FiniteDuration(delayNanos, TimeUnit.NANOSECONDS);
-				RunAsync message = new RunAsync(runAsync.getRunnable(), timeToRun);
+			final Object envelopedSelfMessage = envelopeSelfMessage(message);
 
-				final Object envelopedSelfMessage = envelopeSelfMessage(message);
-
-				getContext().system().scheduler().scheduleOnce(delay, getSelf(), envelopedSelfMessage,
-						getContext().dispatcher(), ActorRef.noSender());
-			}
+			getContext().system().scheduler().scheduleOnce(delay, getSelf(), envelopedSelfMessage,
+					getContext().dispatcher(), ActorRef.noSender());
 		}
 	}
 
@@ -455,6 +434,13 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 	 */
 	protected Object envelopeSelfMessage(Object message) {
 		return message;
+	}
+
+	/**
+	 * Stop the actor immediately.
+	 */
+	private void stop() {
+		getContext().stop(getSelf());
 	}
 
 	// ---------------------------------------------------------------------------
@@ -521,7 +507,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 			// future.
 			// Complete the termination future so that others know that we've stopped.
 
-			akkaRpcActor.rpcEndpointTerminationFuture.whenComplete((ignored, throwable) -> akkaRpcActor.getSelf().tell(Kill.getInstance(), ActorRef.noSender()));
+			akkaRpcActor.rpcEndpointTerminationFuture.whenComplete((ignored, throwable) -> akkaRpcActor.stop());
 
 			return TerminatingState.INSTANCE;
 		}
@@ -549,7 +535,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 		@Override
 		public State terminate(AkkaRpcActor<?> akkaRpcActor) {
 			akkaRpcActor.rpcEndpointTerminationFuture = CompletableFuture.completedFuture(null);
-			akkaRpcActor.getSelf().tell(Kill.getInstance(), ActorRef.noSender());
+			akkaRpcActor.stop();
 
 			return TerminatingState.INSTANCE;
 		}

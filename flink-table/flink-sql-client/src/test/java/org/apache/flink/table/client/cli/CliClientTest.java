@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
@@ -35,8 +36,10 @@ import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.ParsedLine;
 import org.jline.reader.Parser;
+import org.jline.terminal.Terminal;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -70,7 +73,7 @@ public class CliClientTest extends TestLogger {
 	}
 
 	@Test
-	public void testSqlCompletion() {
+	public void testSqlCompletion() throws IOException {
 		verifySqlCompletion("", 0, Arrays.asList("SELECT", "QUIT;", "RESET;"), Collections.emptyList());
 		verifySqlCompletion("SELEC", 5, Collections.singletonList("SELECT"), Collections.singletonList("QUIT;"));
 		verifySqlCompletion("SELE", 0, Collections.singletonList("SELECT"), Collections.singletonList("QUIT;"));
@@ -88,41 +91,51 @@ public class CliClientTest extends TestLogger {
 
 		final MockExecutor mockExecutor = new MockExecutor();
 		mockExecutor.failExecution = failExecution;
-		final CliClient client = new CliClient(context, mockExecutor);
 
-		if (testFailure) {
-			assertFalse(client.submitUpdate(statement));
-		} else {
-			assertTrue(client.submitUpdate(statement));
-			assertEquals(statement, mockExecutor.receivedStatement);
-			assertEquals(context, mockExecutor.receivedContext);
+		CliClient cli = null;
+		try {
+			cli = new CliClient(TerminalUtils.createDummyTerminal(), context, mockExecutor);
+			if (testFailure) {
+				assertFalse(cli.submitUpdate(statement));
+			} else {
+				assertTrue(cli.submitUpdate(statement));
+				assertEquals(statement, mockExecutor.receivedStatement);
+				assertEquals(context, mockExecutor.receivedContext);
+			}
+		} finally {
+			if (cli != null) {
+				cli.close();
+			}
 		}
 	}
 
-	private void verifySqlCompletion(String statement, int position, List<String> expectedHints, List<String> notExpectedHints) {
+	private void verifySqlCompletion(String statement, int position, List<String> expectedHints, List<String> notExpectedHints) throws IOException {
 		final SessionContext context = new SessionContext("test-session", new Environment());
 		final MockExecutor mockExecutor = new MockExecutor();
 
 		final SqlCompleter completer = new SqlCompleter(context, mockExecutor);
 		final SqlMultiLineParser parser = new SqlMultiLineParser();
-		final LineReader reader = LineReaderBuilder.builder().build();
 
-		final ParsedLine parsedLine = parser.parse(statement, position, Parser.ParseContext.COMPLETE);
-		final List<Candidate> candidates = new ArrayList<>();
-		final List<String> results = new ArrayList<>();
-		completer.complete(reader, parsedLine, candidates);
-		candidates.forEach(item -> results.add(item.value()));
+		try (Terminal terminal = TerminalUtils.createDummyTerminal()) {
+			final LineReader reader = LineReaderBuilder.builder().terminal(terminal).build();
 
-		assertTrue(results.containsAll(expectedHints));
+			final ParsedLine parsedLine = parser.parse(statement, position, Parser.ParseContext.COMPLETE);
+			final List<Candidate> candidates = new ArrayList<>();
+			final List<String> results = new ArrayList<>();
+			completer.complete(reader, parsedLine, candidates);
+			candidates.forEach(item -> results.add(item.value()));
 
-		assertEquals(statement, mockExecutor.receivedStatement);
-		assertEquals(context, mockExecutor.receivedContext);
-		assertEquals(position, mockExecutor.receivedPosition);
-		assertTrue(results.contains("HintA"));
-		assertTrue(results.contains("Hint B"));
+			assertTrue(results.containsAll(expectedHints));
 
-		results.retainAll(notExpectedHints);
-		assertEquals(0, results.size());
+			assertEquals(statement, mockExecutor.receivedStatement);
+			assertEquals(context, mockExecutor.receivedContext);
+			assertEquals(position, mockExecutor.receivedPosition);
+			assertTrue(results.contains("HintA"));
+			assertTrue(results.contains("Hint B"));
+
+			results.retainAll(notExpectedHints);
+			assertEquals(0, results.size());
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

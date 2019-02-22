@@ -565,8 +565,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		if (obj instanceof PojoSerializer) {
 			PojoSerializer<?> other = (PojoSerializer<?>) obj;
 
-			return other.canEqual(this) &&
-				clazz == other.clazz &&
+			return clazz == other.clazz &&
 				Arrays.equals(fieldSerializers, other.fieldSerializers) &&
 				Arrays.equals(registeredSerializers, other.registeredSerializers) &&
 				numFields == other.numFields &&
@@ -574,11 +573,6 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		} else {
 			return false;
 		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof PojoSerializer;
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -374,19 +374,13 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		if (obj instanceof KryoSerializer) {
 			KryoSerializer<?> other = (KryoSerializer<?>) obj;
 
-			return other.canEqual(this) &&
-				type == other.type &&
+			return type == other.type &&
 				Objects.equals(kryoRegistrations, other.kryoRegistrations) &&
 				Objects.equals(defaultSerializerClasses, other.defaultSerializerClasses) &&
 				Objects.equals(defaultSerializers, other.defaultSerializers);
 		} else {
 			return false;
 		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof KryoSerializer;
 	}
 
 	// --------------------------------------------------------------------------------------------

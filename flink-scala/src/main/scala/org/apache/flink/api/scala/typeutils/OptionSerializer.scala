@@ -84,13 +84,9 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
   override def equals(obj: Any): Boolean = {
     obj match {
       case optionSerializer: OptionSerializer[_] =>
-        optionSerializer.canEqual(this) && elemSerializer.equals(optionSerializer.elemSerializer)
+        elemSerializer.equals(optionSerializer.elemSerializer)
       case _ => false
     }
-  }
-
-  override def canEqual(obj: scala.Any): Boolean = {
-    obj.isInstanceOf[OptionSerializer[_]]
   }
 
   override def hashCode(): Int = {

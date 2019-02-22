@@ -487,11 +487,6 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			return false;
-		}
-
-		@Override
 		public int hashCode() {
 			return 4711;
 		}

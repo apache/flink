@@ -20,11 +20,11 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
-import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
@@ -167,7 +167,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	@Test
 	public void perJobYarnCluster() throws IOException {
 		LOG.info("Starting perJobYarnCluster()");
-		addTestAppender(JobClient.class, Level.INFO);
+		addTestAppender(CliFrontend.class, Level.INFO);
 		File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
 		runWithArgs(new String[]{"run", "-m", "yarn-cluster",
 				"-yj", flinkUberjar.getAbsolutePath(),
@@ -197,7 +197,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	@Test
 	public void perJobYarnClusterOffHeap() throws IOException {
 		LOG.info("Starting perJobYarnCluster()");
-		addTestAppender(JobClient.class, Level.INFO);
+		addTestAppender(CliFrontend.class, Level.INFO);
 		File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
 
 		// set memory constraints (otherwise this is the same test as perJobYarnCluster() above)
@@ -424,7 +424,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		LOG.info("Starting perJobYarnClusterWithParallelism()");
 		// write log messages to stdout as well, so that the runWithArgs() method
 		// is catching the log output
-		addTestAppender(JobClient.class, Level.INFO);
+		addTestAppender(CliFrontend.class, Level.INFO);
 		File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
 		runWithArgs(new String[]{"run",
 				"-p", "2", //test that the job is executed with a DOP of 2

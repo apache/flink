@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
@@ -77,21 +78,19 @@ public class CliClient {
 
 	private static final int SOURCE_MAX_SIZE = 50_000;
 
-	public CliClient(SessionContext context, Executor executor) {
+	/**
+	 * Creates a CLI instance with a custom terminal. Make sure to close the CLI instance
+	 * afterwards using {@link #close()}.
+	 */
+	@VisibleForTesting
+	public CliClient(Terminal terminal, SessionContext context, Executor executor) {
+		this.terminal = terminal;
 		this.context = context;
 		this.executor = executor;
 
-		try {
-			// initialize terminal
-			terminal = TerminalBuilder.builder()
-				.name(CliStrings.CLI_NAME)
-				.build();
-			// make space from previous output and test the writer
-			terminal.writer().println();
-			terminal.writer().flush();
-		} catch (IOException e) {
-			throw new SqlClientException("Error opening command line interface.", e);
-		}
+		// make space from previous output and test the writer
+		terminal.writer().println();
+		terminal.writer().flush();
 
 		// initialize line lineReader
 		lineReader = LineReaderBuilder.builder()
@@ -115,6 +114,14 @@ public class CliClient {
 			.style(AttributedStyle.DEFAULT)
 			.append("> ")
 			.toAnsi();
+	}
+
+	/**
+	 * Creates a CLI instance with a prepared terminal. Make sure to close the CLI instance
+	 * afterwards using {@link #close()}.
+	 */
+	public CliClient(SessionContext context, Executor executor) {
+		this(createDefaultTerminal(), context, executor);
 	}
 
 	public Terminal getTerminal() {
@@ -191,6 +198,17 @@ public class CliClient {
 			}
 			final Optional<SqlCommandCall> cmdCall = parseCommand(line);
 			cmdCall.ifPresent(this::callCommand);
+		}
+	}
+
+	/**
+	 * Closes the CLI instance.
+	 */
+	public void close() {
+		try {
+			terminal.close();
+		} catch (IOException e) {
+			throw new SqlClientException("Unable to close terminal.", e);
 		}
 	}
 
@@ -529,5 +547,17 @@ public class CliClient {
 	private void printInfo(String message) {
 		terminal.writer().println(CliStrings.messageInfo(message).toAnsi());
 		terminal.flush();
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static Terminal createDefaultTerminal() {
+		try {
+			return TerminalBuilder.builder()
+				.name(CliStrings.CLI_NAME)
+				.build();
+		} catch (IOException e) {
+			throw new SqlClientException("Error opening command line interface.", e);
+		}
 	}
 }

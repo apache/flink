@@ -80,23 +80,6 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 			String targetName,
 			Class<G> targetType,
 			String targetAddress,
-			F fencingToken) {
-		this(
-			log,
-			rpcService,
-			targetName,
-			targetType,
-			targetAddress,
-			fencingToken,
-			RetryingRegistrationConfiguration.defaultConfiguration());
-	}
-
-	public RetryingRegistration(
-			Logger log,
-			RpcService rpcService,
-			String targetName,
-			Class<G> targetType,
-			String targetAddress,
 			F fencingToken,
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration) {
 
@@ -154,28 +137,28 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 		}
 
 		try {
-			// trigger resolution of the resource manager address to a callable gateway
-			final CompletableFuture<G> resourceManagerFuture;
+			// trigger resolution of the target address to a callable gateway
+			final CompletableFuture<G> rpcGatewayFuture;
 
 			if (FencedRpcGateway.class.isAssignableFrom(targetType)) {
-				resourceManagerFuture = (CompletableFuture<G>) rpcService.connect(
+				rpcGatewayFuture = (CompletableFuture<G>) rpcService.connect(
 					targetAddress,
 					fencingToken,
 					targetType.asSubclass(FencedRpcGateway.class));
 			} else {
-				resourceManagerFuture = rpcService.connect(targetAddress, targetType);
+				rpcGatewayFuture = rpcService.connect(targetAddress, targetType);
 			}
 
 			// upon success, start the registration attempts
-			CompletableFuture<Void> resourceManagerAcceptFuture = resourceManagerFuture.thenAcceptAsync(
-				(G result) -> {
+			CompletableFuture<Void> rpcGatewayAcceptFuture = rpcGatewayFuture.thenAcceptAsync(
+				(G rpcGateway) -> {
 					log.info("Resolved {} address, beginning registration", targetName);
-					register(result, 1, retryingRegistrationConfiguration.getInitialRegistrationTimeoutMillis());
+					register(rpcGateway, 1, retryingRegistrationConfiguration.getInitialRegistrationTimeoutMillis());
 				},
 				rpcService.getExecutor());
 
 			// upon failure, retry, unless this is cancelled
-			resourceManagerAcceptFuture.whenCompleteAsync(
+			rpcGatewayAcceptFuture.whenCompleteAsync(
 				(Void v, Throwable failure) -> {
 					if (failure != null && !canceled) {
 						final Throwable strippedFailure = ExceptionUtils.stripCompletionException(failure);

@@ -80,11 +80,6 @@ public final class NullValueArraySerializer extends TypeSerializerSingleton<Null
 		target.write(source, getLength());
 	}
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof NullValueArraySerializer;
-	}
-
 	// -----------------------------------------------------------------------------------
 
 	@Override

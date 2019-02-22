@@ -271,13 +271,6 @@ class StateSnapshotTransformerTest {
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			singleThreadAccessChecker.checkSingleThreadAccess();
-			return (obj != null && obj.getClass() == getClass() &&
-				StringSerializer.INSTANCE.canEqual(obj));
-		}
-
-		@Override
 		public int hashCode() {
 			singleThreadAccessChecker.checkSingleThreadAccess();
 			return StringSerializer.INSTANCE.hashCode();

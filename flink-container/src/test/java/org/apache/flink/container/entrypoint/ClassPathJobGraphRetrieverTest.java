@@ -18,6 +18,7 @@
 
 package org.apache.flink.container.entrypoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -37,16 +38,18 @@ import static org.junit.Assert.assertThat;
  */
 public class ClassPathJobGraphRetrieverTest extends TestLogger {
 
-	public static final String[] PROGRAM_ARGUMENTS = {"--arg", "suffix"};
+	private static final String[] PROGRAM_ARGUMENTS = {"--arg", "suffix"};
 
 	@Test
 	public void testJobGraphRetrieval() throws FlinkException {
 		final int parallelism = 42;
 		final Configuration configuration = new Configuration();
 		configuration.setInteger(CoreOptions.DEFAULT_PARALLELISM, parallelism);
+		final JobID jobId = new JobID();
 
 		final ClassPathJobGraphRetriever classPathJobGraphRetriever = new ClassPathJobGraphRetriever(
 			TestJob.class.getCanonicalName(),
+			jobId,
 			SavepointRestoreSettings.none(),
 			PROGRAM_ARGUMENTS);
 
@@ -54,22 +57,24 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 
 		assertThat(jobGraph.getName(), is(equalTo(TestJob.class.getCanonicalName() + "-suffix")));
 		assertThat(jobGraph.getMaximumParallelism(), is(parallelism));
-		assertEquals(jobGraph.getJobID(), ClassPathJobGraphRetriever.FIXED_JOB_ID);
+		assertEquals(jobGraph.getJobID(), jobId);
 	}
 
 	@Test
 	public void testSavepointRestoreSettings() throws FlinkException {
 		final Configuration configuration = new Configuration();
 		final SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.forPath("foobar", true);
+		final JobID jobId = new JobID();
 
 		final ClassPathJobGraphRetriever classPathJobGraphRetriever = new ClassPathJobGraphRetriever(
 			TestJob.class.getCanonicalName(),
+			jobId,
 			savepointRestoreSettings,
 			PROGRAM_ARGUMENTS);
 
 		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(configuration);
 
 		assertThat(jobGraph.getSavepointRestoreSettings(), is(equalTo(savepointRestoreSettings)));
-		assertEquals(jobGraph.getJobID(), ClassPathJobGraphRetriever.FIXED_JOB_ID);
+		assertEquals(jobGraph.getJobID(), jobId);
 	}
 }

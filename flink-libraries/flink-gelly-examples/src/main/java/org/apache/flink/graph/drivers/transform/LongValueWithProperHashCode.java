@@ -216,11 +216,6 @@ extends LongValue {
 			target.writeLong(source.readLong());
 		}
 
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof LongValueWithProperHashCodeSerializer;
-		}
-
 		// -----------------------------------------------------------------------------------
 
 		@Override

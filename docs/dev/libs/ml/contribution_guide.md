@@ -55,7 +55,7 @@ The rest are considered unit tests and should only test behavior which is local 
 
 An integration test is a test which requires the full Flink system to be started.
 In order to do that properly, all integration test cases have to mix in the trait `FlinkTestBase`.
-This trait will set the right `ExecutionEnvironment` so that the test will be executed on a special `FlinkMiniCluster` designated for testing purposes.
+This trait will set the right `ExecutionEnvironment` so that the test will be executed on Flink's `MiniCluster`.
 Thus, an integration test could look the following:
 
 {% highlight scala %}

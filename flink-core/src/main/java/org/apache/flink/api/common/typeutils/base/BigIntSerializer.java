@@ -82,11 +82,6 @@ public final class BigIntSerializer extends TypeSerializerSingleton<BigInteger> 
 		copyBigInteger(source, target);
 	}
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof BigIntSerializer;
-	}
-
 	// --------------------------------------------------------------------------------------------
 	//                           Static Helpers for BigInteger Serialization
 	// --------------------------------------------------------------------------------------------

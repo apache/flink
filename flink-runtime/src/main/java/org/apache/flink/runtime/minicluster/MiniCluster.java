@@ -242,7 +242,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	 */
 	public void start() throws Exception {
 		synchronized (lock) {
-			checkState(!running, "FlinkMiniCluster is already running");
+			checkState(!running, "MiniCluster is already running");
 
 			LOG.info("Starting Flink Mini Cluster");
 			LOG.debug("Using configuration {}", miniClusterConfiguration);
@@ -652,7 +652,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		return runDispatcherCommand(dispatcherGateway -> dispatcherGateway.requestClusterOverview(RpcUtils.INF_TIMEOUT));
 	}
 
-	private CompletableFuture<DispatcherGateway> getDispatcherGatewayFuture() {
+	@VisibleForTesting
+	protected CompletableFuture<DispatcherGateway> getDispatcherGatewayFuture() {
 		synchronized (lock) {
 			checkState(running, "MiniCluster is not yet running.");
 			return dispatcherGatewayRetriever.getFuture();

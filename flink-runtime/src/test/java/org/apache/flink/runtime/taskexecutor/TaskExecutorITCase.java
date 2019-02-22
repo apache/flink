@@ -18,15 +18,21 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -37,6 +43,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -78,22 +85,14 @@ public class TaskExecutorITCase extends TestLogger {
 	}
 
 	/**
-	 * Tests that a job will be re-executed if a new TaskExecutor joins the cluster.
+	 * Tests that a job can be re-executed after the job has failed due
+	 * to a TaskExecutor termination.
 	 */
 	@Test
-	public void testNewTaskExecutorJoinsCluster() throws Exception {
+	public void testJobReExecutionAfterTaskExecutorTermination() throws Exception {
 		final JobGraph jobGraph = createJobGraph(PARALLELISM);
 
-		miniCluster.submitJob(jobGraph).get();
-
-		final CompletableFuture<JobResult> jobResultFuture = miniCluster.requestJobResult(jobGraph.getJobID());
-
-		assertThat(jobResultFuture.isDone(), is(false));
-
-		CommonTestUtils.waitUntilCondition(
-			jobIsRunning(() -> miniCluster.getExecutionGraph(jobGraph.getJobID())),
-			Deadline.fromNow(TESTING_TIMEOUT),
-			20L);
+		final CompletableFuture<JobResult> jobResultFuture = submitJobAndWaitUntilRunning(jobGraph);
 
 		// kill one TaskExecutor which should fail the job execution
 		miniCluster.terminateTaskExecutor(0);
@@ -111,8 +110,43 @@ public class TaskExecutorITCase extends TestLogger {
 		miniCluster.requestJobResult(jobGraph.getJobID()).get();
 	}
 
+	/**
+	 * Tests that the job can recover from a failing {@link TaskExecutor}.
+	 */
+	@Test
+	public void testJobRecoveryWithFailingTaskExecutor() throws Exception {
+		final JobGraph jobGraph = createJobGraphWithRestartStrategy(PARALLELISM);
+
+		final CompletableFuture<JobResult> jobResultFuture = submitJobAndWaitUntilRunning(jobGraph);
+
+		// start an additional TaskExecutor
+		miniCluster.startTaskExecutor();
+
+		miniCluster.terminateTaskExecutor(0).get(); // this should fail the job
+
+		BlockingOperator.unblock();
+
+		assertThat(jobResultFuture.get().isSuccess(), is(true));
+	}
+
+	private CompletableFuture<JobResult> submitJobAndWaitUntilRunning(JobGraph jobGraph) throws Exception {
+		miniCluster.submitJob(jobGraph).get();
+
+		final CompletableFuture<JobResult> jobResultFuture = miniCluster.requestJobResult(jobGraph.getJobID());
+
+		assertThat(jobResultFuture.isDone(), is(false));
+
+		CommonTestUtils.waitUntilCondition(
+			jobIsRunning(() -> miniCluster.getExecutionGraph(jobGraph.getJobID())),
+			Deadline.fromNow(TESTING_TIMEOUT),
+			50L);
+
+		return jobResultFuture;
+	}
+
 	private SupplierWithException<Boolean, Exception> jobIsRunning(Supplier<CompletableFuture<? extends AccessExecutionGraph>> executionGraphFutureSupplier) {
-		final Predicate<AccessExecutionGraph> allExecutionsRunning = ExecutionGraphTestUtils.allExecutionsPredicate(ExecutionGraphTestUtils.isInExecutionState(ExecutionState.RUNNING));
+		final Predicate<AccessExecution> runningOrFinished = ExecutionGraphTestUtils.isInExecutionState(ExecutionState.RUNNING).or(ExecutionGraphTestUtils.isInExecutionState(ExecutionState.FINISHED));
+		final Predicate<AccessExecutionGraph> allExecutionsRunning = ExecutionGraphTestUtils.allExecutionsPredicate(runningOrFinished);
 
 		return () -> {
 			final AccessExecutionGraph executionGraph = executionGraphFutureSupplier.get().join();
@@ -120,20 +154,38 @@ public class TaskExecutorITCase extends TestLogger {
 		};
 	}
 
-	private JobGraph createJobGraph(int parallelism) {
-		final JobVertex vertex = new JobVertex("blocking operator");
-		vertex.setParallelism(parallelism);
-		vertex.setInvokableClass(BlockingOperator.class);
+	private JobGraph createJobGraphWithRestartStrategy(int parallelism) throws IOException {
+		final JobGraph jobGraph = createJobGraph(parallelism);
+		final ExecutionConfig executionConfig = new ExecutionConfig();
+		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+		jobGraph.setExecutionConfig(executionConfig);
 
+		return jobGraph;
+	}
+
+	private JobGraph createJobGraph(int parallelism) {
+		final JobVertex sender = new JobVertex("Sender");
+		sender.setParallelism(parallelism);
+		sender.setInvokableClass(TestingAbstractInvokables.Sender.class);
+
+		final JobVertex receiver = new JobVertex("Blocking receiver");
+		receiver.setParallelism(parallelism);
+		receiver.setInvokableClass(BlockingOperator.class);
 		BlockingOperator.reset();
 
-		return new JobGraph("Blocking test job", vertex);
+		receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+
+		final SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+		sender.setSlotSharingGroup(slotSharingGroup);
+		receiver.setSlotSharingGroup(slotSharingGroup);
+
+		return new JobGraph("Blocking test job with slot sharing", sender, receiver);
 	}
 
 	/**
 	 * Blocking invokable which is controlled by a static field.
 	 */
-	public static class BlockingOperator extends AbstractInvokable {
+	public static class BlockingOperator extends TestingAbstractInvokables.Receiver {
 		private static CountDownLatch countDownLatch = new CountDownLatch(1);
 
 		public BlockingOperator(Environment environment) {
@@ -143,6 +195,7 @@ public class TaskExecutorITCase extends TestLogger {
 		@Override
 		public void invoke() throws Exception {
 			countDownLatch.await();
+			super.invoke();
 		}
 
 		public static void unblock() {

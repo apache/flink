@@ -34,18 +34,26 @@ public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
 
 	private final int numberDispatcherResourceManagerComponents;
 
+	private final boolean localCommunication;
+
 	public TestingMiniClusterConfiguration(
 			Configuration configuration,
 			int numTaskManagers,
 			RpcServiceSharing rpcServiceSharing,
 			@Nullable String commonBindAddress,
-			int numberDispatcherResourceManagerComponents) {
+			int numberDispatcherResourceManagerComponents,
+			boolean localCommunication) {
 		super(configuration, numTaskManagers, rpcServiceSharing, commonBindAddress);
 		this.numberDispatcherResourceManagerComponents = numberDispatcherResourceManagerComponents;
+		this.localCommunication = localCommunication;
 	}
 
 	public int getNumberDispatcherResourceManagerComponents() {
 		return numberDispatcherResourceManagerComponents;
+	}
+
+	public boolean isLocalCommunication() {
+		return localCommunication;
 	}
 
 	/**
@@ -57,6 +65,7 @@ public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
 		private int numSlotsPerTaskManager = 1;
 		private RpcServiceSharing rpcServiceSharing = SHARED;
 		private int numberDispatcherResourceManagerComponents = 1;
+		private boolean localCommunication = false;
 
 		@Nullable
 		private String commonBindAddress = null;
@@ -91,6 +100,11 @@ public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
 			return this;
 		}
 
+		public Builder setLocalCommunication(boolean localCommunication) {
+			this.localCommunication = localCommunication;
+			return this;
+		}
+
 		public TestingMiniClusterConfiguration build() {
 			final Configuration modifiedConfiguration = new Configuration(configuration);
 			modifiedConfiguration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlotsPerTaskManager);
@@ -106,7 +120,8 @@ public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
 				numTaskManagers,
 				rpcServiceSharing,
 				commonBindAddress,
-				numberDispatcherResourceManagerComponents);
+				numberDispatcherResourceManagerComponents,
+				localCommunication);
 		}
 	}
 }

@@ -81,11 +81,6 @@ public final class CharValueArraySerializer extends TypeSerializerSingleton<Char
 		CharValueArray.copyInternal(source, target);
 	}
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof CharValueArraySerializer;
-	}
-
 	// -----------------------------------------------------------------------------------
 
 	@Override

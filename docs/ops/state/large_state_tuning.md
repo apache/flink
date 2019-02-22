@@ -332,6 +332,4 @@ if a task manager is no longer available, a task that cannot return to its previ
 that the previous slot can only disappear when a task manager is no longer available, and in this case *some* tasks have to request a new slot anyways. With our scheduling strategy
 we give the maximum number of tasks a chance to recover from their local state and avoid the cascading effect of tasks stealing their previous slots from one another.
 
-Allocation-preserving scheduling does not work with Flink's legacy mode.
-
 {% top %}

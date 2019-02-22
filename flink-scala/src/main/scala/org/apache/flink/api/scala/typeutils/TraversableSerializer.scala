@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.scala.typeutils
 
-import java.io.ObjectInputStream
+import java.io.{ObjectInputStream, ObjectOutputStream}
 
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils._
@@ -30,13 +30,30 @@ import scala.collection.generic.CanBuildFrom
  */
 @Internal
 @SerialVersionUID(7522917416391312410L)
-abstract class TraversableSerializer[T <: TraversableOnce[E], E](
-    var elementSerializer: TypeSerializer[E])
+class TraversableSerializer[T <: TraversableOnce[E], E](
+    var elementSerializer: TypeSerializer[E],
+    var cbfCode: String)
   extends TypeSerializer[T] with Cloneable {
 
-  def getCbf: CanBuildFrom[T, E, T]
+  @transient var cbf: CanBuildFrom[T, E, T] = compileCbf(cbfCode)
 
-  @transient var cbf: CanBuildFrom[T, E, T] = getCbf
+  // this is needed for compatibility with pre-1.8 versions of this. Serialized instances
+  // of this in savepoints don't have the cbfCode field, therefore we override it in the
+  // Macro that generates a specific TraversableSerializer and use it in readObject()
+  // if needed.
+  protected def legacyCbfCode: String = null
+
+  def compileCbf(code: String): CanBuildFrom[T, E, T] = {
+
+    import scala.reflect.runtime.universe._
+    import scala.tools.reflect.ToolBox
+
+    val tb = runtimeMirror(Thread.currentThread().getContextClassLoader).mkToolBox()
+    val tree = tb.parse(code)
+    val compiled = tb.compile(tree)
+    val cbf = compiled()
+    cbf.asInstanceOf[CanBuildFrom[T, E, T]]
+  }
 
   override def duplicate = {
     val duplicateElementSerializer = elementSerializer.duplicate()
@@ -52,7 +69,11 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
 
   private def readObject(in: ObjectInputStream): Unit = {
     in.defaultReadObject()
-    cbf = getCbf
+    if (cbfCode == null) {
+      cbfCode = legacyCbfCode
+    }
+    require(cbfCode != null)
+    cbf = compileCbf(cbfCode)
   }
 
   override def createInstance: T = {
@@ -139,7 +160,7 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
   override def equals(obj: Any): Boolean = {
     obj match {
       case other: TraversableSerializer[_, _] =>
-        other.canEqual(this) && elementSerializer.equals(other.elementSerializer)
+        elementSerializer.equals(other.elementSerializer)
       case _ => false
     }
   }
@@ -148,34 +169,7 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
     elementSerializer.hashCode()
   }
 
-  override def canEqual(obj: Any): Boolean = {
-    obj.isInstanceOf[TraversableSerializer[_, _]]
-  }
-
-  override def snapshotConfiguration(): TraversableSerializerConfigSnapshot[T, E] = {
-    new TraversableSerializerConfigSnapshot[T, E](elementSerializer)
-  }
-
-  override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[T] = {
-
-    configSnapshot match {
-      case traversableSerializerConfigSnapshot
-          : TraversableSerializerConfigSnapshot[T, E] =>
-
-        val elemCompatRes = CompatibilityUtil.resolveCompatibilityResult(
-          traversableSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f0,
-          classOf[UnloadableDummyTypeSerializer[_]],
-          traversableSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f1,
-          elementSerializer)
-
-        if (elemCompatRes.isRequiresMigration) {
-          CompatibilityResult.requiresMigration()
-        } else {
-          CompatibilityResult.compatible()
-        }
-
-      case _ => CompatibilityResult.requiresMigration()
-    }
+  override def snapshotConfiguration(): TraversableSerializerSnapshot[T, E] = {
+    new TraversableSerializerSnapshot[T, E](this)
   }
 }

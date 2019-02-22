@@ -91,11 +91,6 @@ public final class VoidNamespaceSerializer extends TypeSerializerSingleton<VoidN
 		target.write(source.readByte());
 	}
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof VoidNamespaceSerializer;
-	}
-
 	// ------------------------------------------------------------------------
 
 	@Override

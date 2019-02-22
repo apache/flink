@@ -236,12 +236,6 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return (obj != null && obj.getClass() == getClass() &&
-			originalSerializer.canEqual(((NullableSerializer) obj).originalSerializer));
-	}
-
-	@Override
 	public int hashCode() {
 		return originalSerializer.hashCode();
 	}

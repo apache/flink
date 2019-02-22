@@ -63,16 +63,9 @@ class CRowSerializer(val rowSerializer: TypeSerializer[Row]) extends TypeSeriali
     target.writeBoolean(source.readBoolean())
   }
 
-  override def canEqual(obj: Any): Boolean = obj.isInstanceOf[CRowSerializer]
-
   override def equals(obj: Any): Boolean = {
-
-    if (canEqual(obj)) {
-      val other = obj.asInstanceOf[CRowSerializer]
-      rowSerializer.equals(other.rowSerializer)
-    } else {
-      false
-    }
+    val other = obj.asInstanceOf[CRowSerializer]
+    rowSerializer.equals(other.rowSerializer)
   }
 
   override def hashCode: Int = rowSerializer.hashCode() * 13

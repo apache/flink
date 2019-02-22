@@ -378,15 +378,10 @@ public class CollectionInputFormatTest {
 			if (obj instanceof TestSerializer) {
 				TestSerializer other = (TestSerializer) obj;
 
-				return other.canEqual(this) && failOnRead == other.failOnRead && failOnWrite == other.failOnWrite;
+				return failOnRead == other.failOnRead && failOnWrite == other.failOnWrite;
 			} else {
 				return false;
 			}
-		}
-
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof TestSerializer;
 		}
 
 		@Override

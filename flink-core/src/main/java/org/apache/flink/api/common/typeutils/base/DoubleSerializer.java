@@ -85,11 +85,6 @@ public final class DoubleSerializer extends TypeSerializerSingleton<Double> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof DoubleSerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<Double> snapshotConfiguration() {
 		return new DoubleSerializerSnapshot();
 	}

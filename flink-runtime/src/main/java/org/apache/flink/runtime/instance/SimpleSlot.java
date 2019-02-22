@@ -224,7 +224,7 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 
 			if (payload != null) {
 				// trigger the failure of the slot payload
-				payload.failSync(cause != null ? cause : new FlinkException("TaskManager was lost/killed: " + getTaskManagerLocation()));
+				payload.fail(cause != null ? cause : new FlinkException("TaskManager was lost/killed: " + getTaskManagerLocation()));
 
 				// wait for the termination of the payload before releasing the slot
 				terminationFuture = payload.getTerminalStateFuture();
@@ -239,14 +239,12 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 					if (getParent() == null) {
 						// we have to give back the slot to the owning instance
 						if (markCancelled()) {
-							getOwner().returnAllocatedSlot(this).whenComplete(
-								(value, t) -> {
-									if (t != null) {
-										releaseFuture.completeExceptionally(t);
-									} else {
-										releaseFuture.complete(null);
-									}
-								});
+							try {
+								getOwner().returnLogicalSlot(this);
+								releaseFuture.complete(null);
+							} catch (Exception e) {
+								releaseFuture.completeExceptionally(e);
+							}
 						}
 					} else {
 						// we have to ask our parent to dispose us

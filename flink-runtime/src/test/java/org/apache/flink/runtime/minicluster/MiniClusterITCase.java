@@ -38,11 +38,11 @@ import org.apache.flink.runtime.jobmanager.Tasks.ExceptionReceiver;
 import org.apache.flink.runtime.jobmanager.Tasks.ExceptionSender;
 import org.apache.flink.runtime.jobmanager.Tasks.Forwarder;
 import org.apache.flink.runtime.jobmanager.Tasks.InstantiationErrorSender;
-import org.apache.flink.runtime.jobmanager.Tasks.Receiver;
-import org.apache.flink.runtime.jobmanager.Tasks.Sender;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Receiver;
+import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Sender;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testtasks.WaitingNoOpInvokable;
@@ -571,7 +571,7 @@ public class MiniClusterITCase extends TestLogger {
 
 	private Configuration getDefaultConfiguration() {
 		final Configuration configuration = new Configuration();
-		configuration.setInteger(RestOptions.PORT, 0);
+		configuration.setString(RestOptions.BIND_PORT, "0");
 
 		return configuration;
 	}
