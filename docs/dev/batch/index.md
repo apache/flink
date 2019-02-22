@@ -1028,8 +1028,8 @@ val values = env.fromElements("Foo", "bar", "foobar", "fubar")
 val numbers = env.generateSequence(1, 10000000)
 
 // read a file from the specified path of type SequenceFileInputFormat
-val tuples = env.readSequenceFile(classOf[IntWritable], classOf[Text],
- "hdfs://nnHost:nnPort/path/to/file")
+val tuples = env.createInput(HadoopInputs.readSequenceFile(classOf[IntWritable], classOf[Text],
+ "hdfs://nnHost:nnPort/path/to/file"))
 
 {% endhighlight %}
 
