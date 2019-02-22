@@ -183,7 +183,7 @@ The wrappers take a `DataSet<Tuple2<KEYIN,VALUEIN>>` as input and produce a `Dat
 Flink's function wrappers are
 
 - `org.apache.flink.hadoopcompatibility.mapred.HadoopMapFunction`,
-- `org.apache.flink.hadoopcompatibility.mapred.HadoopReduceFunction`, and
+- `org.apache.flink.hadoopcompatibility.mapred.HadoopReduceFunction`,
 - `org.apache.flink.hadoopcompatibility.mapred.HadoopReduceCombineFunction`.
 
 and can be used as regular Flink [FlatMapFunctions](dataset_transformations.html#flatmap) or [GroupReduceFunctions](dataset_transformations.html#groupreduce-on-grouped-dataset).
