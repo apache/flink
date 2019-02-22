@@ -40,7 +40,6 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 
 import java.util.Collections;
@@ -70,7 +69,6 @@ public final class KVStateRequestSerializerRocksDBTest {
 		// objects for RocksDB state list serialisation
 		DBOptions dbOptions = PredefinedOptions.DEFAULT.createDBOptions();
 		dbOptions.setCreateIfMissing(true);
-		ColumnFamilyOptions columnFamilyOptions = PredefinedOptions.DEFAULT.createColumnOptions();
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend =
 			new RocksDBKeyedStateBackendBuilder<>(
@@ -78,7 +76,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 				ClassLoader.getSystemClassLoader(),
 				temporaryFolder.getRoot(),
 				dbOptions,
-				columnFamilyOptions,
+				stateName -> PredefinedOptions.DEFAULT.createColumnOptions(),
 				mock(TaskKvStateRegistry.class),
 				LongSerializer.INSTANCE,
 				1,
@@ -114,7 +112,6 @@ public final class KVStateRequestSerializerRocksDBTest {
 		// objects for RocksDB state list serialisation
 		DBOptions dbOptions = PredefinedOptions.DEFAULT.createDBOptions();
 		dbOptions.setCreateIfMissing(true);
-		ColumnFamilyOptions columnFamilyOptions = PredefinedOptions.DEFAULT.createColumnOptions();
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend =
 			new RocksDBKeyedStateBackendBuilder<>(
@@ -122,7 +119,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 				ClassLoader.getSystemClassLoader(),
 				temporaryFolder.getRoot(),
 				dbOptions,
-				columnFamilyOptions,
+				stateName -> PredefinedOptions.DEFAULT.createColumnOptions(),
 				mock(TaskKvStateRegistry.class),
 				LongSerializer.INSTANCE,
 				1,
