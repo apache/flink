@@ -81,13 +81,29 @@ class TableConfig {
 
   /**
     * Returns the current configuration of Calcite for Table API and SQL queries.
+    *
+    * @deprecated This method will be removed temporarily while the API is uncoupled
+    *             from Calcite. An alternative might be provided in the future. See FLINK-11728
+    *             for more information.
     */
+  @Deprecated
+  @deprecated(
+    "This method will be removed temporarily while the API is uncoupled from Calcite.",
+    "1.8.0")
   def getCalciteConfig: CalciteConfig = calciteConfig
 
   /**
     * Sets the configuration of Calcite for Table API and SQL queries.
     * Changing the configuration has no effect after the first query has been defined.
+    *
+    * @deprecated This method will be removed temporarily while the API is uncoupled
+    *             from Calcite. An alternative might be provided in the future. See FLINK-11728
+    *             for more information.
     */
+  @Deprecated
+  @deprecated(
+    "This method will be removed temporarily while the API is uncoupled from Calcite.",
+    "1.8.0")
   def setCalciteConfig(calciteConfig: CalciteConfig): Unit = {
     this.calciteConfig = calciteConfig
   }
