@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
-import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
+import org.apache.flink.runtime.executiongraph.utils.TestingLogicalSlotProvider;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
@@ -289,7 +289,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 		vertex.setInvokableClass(NoOpInvokable.class);
 		vertex.setParallelism(parallelism);
 
-		final SlotProvider slotProvider = new SimpleSlotProvider(jobId, parallelism, gateway);
+		final SlotProvider slotProvider = new TestingLogicalSlotProvider(jobId, parallelism, gateway);
 
 		ExecutionGraph simpleTestGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
 			jobId,

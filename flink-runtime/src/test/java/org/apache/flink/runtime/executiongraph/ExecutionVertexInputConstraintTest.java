@@ -23,7 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
-import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
+import org.apache.flink.runtime.executiongraph.utils.TestingLogicalSlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -192,7 +192,7 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
-		final SlotProvider slotProvider = new SimpleSlotProvider(jobId, 20);
+		final SlotProvider slotProvider = new TestingLogicalSlotProvider(jobId, 20);
 
 		for (JobVertex vertex : orderedVertices) {
 			vertex.setInputDependencyConstraint(inputDependencyConstraint);

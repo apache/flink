@@ -37,7 +37,7 @@ import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy.Factory
 import org.apache.flink.runtime.executiongraph.failover.RestartIndividualStrategy;
 import org.apache.flink.runtime.executiongraph.failover.RestartPipelinedRegionStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
-import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
+import org.apache.flink.runtime.executiongraph.utils.TestingLogicalSlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -105,7 +105,7 @@ public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = 2;
 
-		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
+		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(jid, parallelism);
 
 		final ExecutionGraph graph = createSampleGraph(
 			jid,
@@ -174,7 +174,7 @@ public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = 2;
 
-		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
+		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(jid, parallelism);
 
 		final ExecutionGraph graph = createSampleGraph(
 			jid,
@@ -242,7 +242,7 @@ public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = 2;
 
-		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
+		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(jid, parallelism);
 
 		final ExecutionGraph graph = createSampleGraph(
 			jid,
@@ -353,7 +353,7 @@ public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
 		when(taskManagerGateway.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 		when(taskManagerGateway.cancelTask(any(ExecutionAttemptID.class), any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 
-		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism, taskManagerGateway);
+		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(jid, parallelism, taskManagerGateway);
 
 		final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration = new CheckpointCoordinatorConfiguration(
 			10L,

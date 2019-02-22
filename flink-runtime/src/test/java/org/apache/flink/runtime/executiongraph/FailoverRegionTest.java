@@ -28,7 +28,7 @@ import org.apache.flink.runtime.executiongraph.failover.RestartPipelinedRegionSt
 import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
-import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
+import org.apache.flink.runtime.executiongraph.utils.TestingLogicalSlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -98,7 +98,7 @@ public class FailoverRegionTest extends TestLogger {
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
 
-		final SlotProvider slotProvider = new SimpleSlotProvider(jobId, 20);
+		final SlotProvider slotProvider = new TestingLogicalSlotProvider(jobId, 20);
 				
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
@@ -215,7 +215,7 @@ public class FailoverRegionTest extends TestLogger {
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
 
-		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jobId, 16);
+		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(jobId, 16);
 
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
@@ -290,7 +290,7 @@ public class FailoverRegionTest extends TestLogger {
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
 
-		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jobId, 14);
+		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(jobId, 14);
 
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
@@ -388,7 +388,7 @@ public class FailoverRegionTest extends TestLogger {
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
 
-		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jobId, 14);
+		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(jobId, 14);
 
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
