@@ -28,14 +28,19 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionWithException;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Random;
 import java.util.UUID;
 
@@ -51,10 +56,23 @@ import static org.mockito.Mockito.verify;
 /**
  * Abstract base class for tests against checkpointing streams.
  */
-public abstract class AbstractCheckpointStateOutputStreamTestBase extends TestLogger {
+@RunWith(Parameterized.class)
+public class CheckpointStateOutputStreamTest extends TestLogger {
 
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
+
+	public enum CheckpointStateOutputStreamType {
+		FileBasedState, FsCheckpointMetaData
+	}
+
+	@Parameterized.Parameters
+	public static Collection<CheckpointStateOutputStreamType> getCheckpointStateOutputStreamType() {
+		return Arrays.asList(CheckpointStateOutputStreamType.values());
+	}
+
+	@Parameterized.Parameter
+	public CheckpointStateOutputStreamType stateOutputStreamType;
 
 	// ------------------------------------------------------------------------
 	//  Tests
@@ -220,15 +238,34 @@ public abstract class AbstractCheckpointStateOutputStreamTestBase extends TestLo
 	/**
 	 * Creates a new test stream instance.
 	 */
-	protected abstract FSDataOutputStream createTestStream(
+	private FSDataOutputStream createTestStream(
 		FileSystem fs,
 		Path dir,
-		String fileName) throws IOException;
+		String fileName) throws IOException {
+		switch (stateOutputStreamType) {
+			case FileBasedState:
+				return new FileBasedStateOutputStream(fs, new Path(dir, fileName));
+			case FsCheckpointMetaData:
+				Path fullPath = new Path(dir, fileName);
+				return new FsCheckpointMetadataOutputStream(fs, fullPath, dir);
+			default:
+				throw new IllegalStateException("Unsupported checkpoint stream output type.");
+		}
+	}
 
 	/**
 	 * Closes the stream successfully and returns a FileStateHandle to the result.
 	 */
-	protected abstract FileStateHandle closeAndGetResult(FSDataOutputStream stream) throws IOException;
+	private FileStateHandle closeAndGetResult(FSDataOutputStream stream) throws IOException {
+		switch (stateOutputStreamType) {
+			case FileBasedState:
+				return ((FileBasedStateOutputStream) stream).closeAndGetHandle();
+			case FsCheckpointMetaData:
+				return ((FsCheckpointMetadataOutputStream) stream).closeAndFinalizeCheckpoint().getMetadataHandle();
+			default:
+				throw new IllegalStateException("Unsupported checkpoint stream output type.");
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	//  utilities
