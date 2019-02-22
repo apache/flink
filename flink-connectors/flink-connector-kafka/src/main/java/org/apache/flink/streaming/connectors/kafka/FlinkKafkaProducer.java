@@ -216,11 +216,20 @@ public class FlinkKafkaProducer<IN>
 	 * (Serializable) SerializationSchema for turning objects used with Flink into.
 	 * byte[] for Kafka.
 	 */
-	private final KeyedSerializationSchema<IN> schema;
+	@Nullable
+	private final KeyedSerializationSchema<IN> keyedSchema;
+
+	/**
+	 * (Serializable) serialization schema for serializing records to
+	 * {@link ProducerRecord ProducerRecords}.
+	 */
+	@Nullable
+	private final KafkaSerializationSchema<IN> kafkaSchema;
 
 	/**
 	 * User-provided partitioner for assigning an object to a Kafka partition for each topic.
 	 */
+	@Nullable
 	private final FlinkKafkaPartitioner<IN> flinkKafkaPartitioner;
 
 	/**
@@ -404,9 +413,6 @@ public class FlinkKafkaProducer<IN>
 	 * partition (i.e. all records received by a sink subtask will end up in the same
 	 * Kafka partition).
 	 *
-	 * <p>To use a custom partitioner, please use
-	 * {@link #FlinkKafkaProducer(String, KeyedSerializationSchema, Properties, Optional, FlinkKafkaProducer.Semantic, int)} instead.
-	 *
 	 * @param topicId
 	 * 			ID of the Kafka topic.
 	 * @param serializationSchema
@@ -483,24 +489,134 @@ public class FlinkKafkaProducer<IN>
 	 * @param kafkaProducersPoolSize Overwrite default KafkaProducers pool size (see {@link FlinkKafkaProducer.Semantic#EXACTLY_ONCE}).
 	 */
 	public FlinkKafkaProducer(
-		String defaultTopicId,
-		KeyedSerializationSchema<IN> serializationSchema,
+			String defaultTopicId,
+			KeyedSerializationSchema<IN> serializationSchema,
+			Properties producerConfig,
+			Optional<FlinkKafkaPartitioner<IN>> customPartitioner,
+			FlinkKafkaProducer.Semantic semantic,
+			int kafkaProducersPoolSize) {
+		this(
+				defaultTopicId,
+				serializationSchema,
+				customPartitioner.orElse(null),
+				null, /* kafka serialization schema */
+				producerConfig,
+				semantic,
+				kafkaProducersPoolSize);
+	}
+
+	/**
+	 * Creates a {@link FlinkKafkaProducer} for a given topic. The sink produces its input to
+	 * the topic. It accepts a {@link KafkaSerializationSchema} for serializing records to
+	 * a {@link ProducerRecord}, including partitioning information.
+	 *
+	 * @param defaultTopic The default topic to write data to
+	 * @param serializationSchema A serializable serialization schema for turning user objects into a kafka-consumable byte[] supporting key/value messages
+	 * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is the only required argument.
+	 * @param semantic Defines semantic that will be used by this producer (see {@link FlinkKafkaProducer.Semantic}).
+	 */
+	public FlinkKafkaProducer(
+			String defaultTopic,
+			KafkaSerializationSchema<IN> serializationSchema,
+			Properties producerConfig,
+			FlinkKafkaProducer.Semantic semantic) {
+		this(
+				defaultTopic,
+				serializationSchema,
+				producerConfig,
+				semantic,
+				DEFAULT_KAFKA_PRODUCERS_POOL_SIZE);
+	}
+
+	/**
+	 * Creates a FlinkKafkaProducer for a given topic. The sink produces its input to
+	 * the topic. It accepts a {@link KafkaSerializationSchema} and possibly a custom {@link FlinkKafkaPartitioner}.
+	 *
+	 * @param defaultTopic The default topic to write data to
+	 * @param serializationSchema A serializable serialization schema for turning user objects into a kafka-consumable byte[] supporting key/value messages
+	 * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is the only required argument.
+	 * @param semantic Defines semantic that will be used by this producer (see {@link FlinkKafkaProducer.Semantic}).
+	 * @param kafkaProducersPoolSize Overwrite default KafkaProducers pool size (see {@link FlinkKafkaProducer.Semantic#EXACTLY_ONCE}).
+	 */
+	public FlinkKafkaProducer(
+		String defaultTopic,
+		KafkaSerializationSchema<IN> serializationSchema,
 		Properties producerConfig,
-		Optional<FlinkKafkaPartitioner<IN>> customPartitioner,
 		FlinkKafkaProducer.Semantic semantic,
 		int kafkaProducersPoolSize) {
+		this(
+				defaultTopic,
+				null, null, /* keyed schema and FlinkKafkaPartitioner */
+				serializationSchema,
+				producerConfig,
+				semantic,
+				kafkaProducersPoolSize);
+	}
+
+	/**
+	 * Creates a FlinkKafkaProducer for a given topic. The sink produces its input to
+	 * the topic. It accepts a {@link KafkaSerializationSchema} and possibly a custom {@link FlinkKafkaPartitioner}.
+	 *
+	 * <p>If a partitioner is not provided, written records will be partitioned by the attached key of each
+	 * record (as determined by {@link KeyedSerializationSchema#serializeKey(Object)}). If written records do not
+	 * have a key (i.e., {@link KeyedSerializationSchema#serializeKey(Object)} returns {@code null}), they
+	 * will be distributed to Kafka partitions in a round-robin fashion.
+	 *
+	 * @param defaultTopic The default topic to write data to
+	 * @param keyedSchema A serializable serialization schema for turning user objects into a kafka-consumable byte[] supporting key/value messages
+	 * @param customPartitioner A serializable partitioner for assigning messages to Kafka partitions.
+	 *                          If a partitioner is not provided, records will be partitioned by the key of each record
+	 *                          (determined by {@link KeyedSerializationSchema#serializeKey(Object)}). If the keys
+	 *                          are {@code null}, then records will be distributed to Kafka partitions in a
+	 *                          round-robin fashion.
+	 * @param kafkaSchema A serializable serialization schema for turning user objects into a kafka-consumable byte[] supporting key/value messages
+	 * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is the only required argument.
+	 * @param semantic Defines semantic that will be used by this producer (see {@link FlinkKafkaProducer.Semantic}).
+	 * @param kafkaProducersPoolSize Overwrite default KafkaProducers pool size (see {@link FlinkKafkaProducer.Semantic#EXACTLY_ONCE}).
+	 */
+	private FlinkKafkaProducer(
+			String defaultTopic,
+			KeyedSerializationSchema<IN> keyedSchema,
+			FlinkKafkaPartitioner<IN> customPartitioner,
+			KafkaSerializationSchema<IN> kafkaSchema,
+			Properties producerConfig,
+			FlinkKafkaProducer.Semantic semantic,
+			int kafkaProducersPoolSize) {
 		super(new FlinkKafkaProducer.TransactionStateSerializer(), new FlinkKafkaProducer.ContextStateSerializer());
 
-		this.defaultTopicId = checkNotNull(defaultTopicId, "defaultTopicId is null");
-		this.schema = checkNotNull(serializationSchema, "serializationSchema is null");
+		this.defaultTopicId = checkNotNull(defaultTopic, "defaultTopic is null");
+
+		if (kafkaSchema != null) {
+			this.keyedSchema = null;
+			this.kafkaSchema = kafkaSchema;
+			this.flinkKafkaPartitioner = null;
+			ClosureCleaner.clean(
+					this.kafkaSchema, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+
+			if (customPartitioner != null) {
+				throw new IllegalArgumentException("Customer partitioner can only be used when" +
+						"using a KeyedSerializationSchema or SerializationSchema.");
+			}
+		} else if (keyedSchema != null) {
+			this.kafkaSchema = null;
+			this.keyedSchema = keyedSchema;
+			this.flinkKafkaPartitioner = customPartitioner;
+			ClosureCleaner.clean(
+					this.flinkKafkaPartitioner,
+					ExecutionConfig.ClosureCleanerLevel.RECURSIVE,
+					true);
+			ClosureCleaner.clean(
+					this.keyedSchema, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		} else {
+			throw new IllegalArgumentException(
+					"You must provide either a KafkaSerializationSchema or a" +
+							"KeyedSerializationSchema.");
+		}
+
 		this.producerConfig = checkNotNull(producerConfig, "producerConfig is null");
-		this.flinkKafkaPartitioner = checkNotNull(customPartitioner, "customPartitioner is null").orElse(null);
 		this.semantic = checkNotNull(semantic, "semantic is null");
 		this.kafkaProducersPoolSize = kafkaProducersPoolSize;
 		checkState(kafkaProducersPoolSize > 0, "kafkaProducersPoolSize must be non empty");
-
-		ClosureCleaner.clean(this.flinkKafkaPartitioner, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
-		ClosureCleaner.ensureSerializable(serializationSchema);
 
 		// set the producer configuration properties for kafka record key value serializers.
 		if (!producerConfig.containsKey(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG)) {
@@ -539,7 +655,7 @@ public class FlinkKafkaProducer<IN>
 				transactionTimeout = ((Number) object).longValue();
 			} else {
 				throw new IllegalArgumentException(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG
-					+ " must be numeric, was " + object);
+						+ " must be numeric, was " + object);
 			}
 			super.setTransactionTimeout(transactionTimeout);
 			super.enableTransactionTimeoutWarnings(0.8);
@@ -625,34 +741,39 @@ public class FlinkKafkaProducer<IN>
 	public void invoke(FlinkKafkaProducer.KafkaTransactionState transaction, IN next, Context context) throws FlinkKafkaException {
 		checkErroneous();
 
-		byte[] serializedKey = schema.serializeKey(next);
-		byte[] serializedValue = schema.serializeValue(next);
-		String targetTopic = schema.getTargetTopic(next);
-		if (targetTopic == null) {
-			targetTopic = defaultTopicId;
-		}
-
-		Long timestamp = null;
-		if (this.writeTimestampToKafka) {
-			timestamp = context.timestamp();
-		}
-
 		ProducerRecord<byte[], byte[]> record;
-		int[] partitions = topicPartitionsMap.get(targetTopic);
-		if (null == partitions) {
-			partitions = getPartitionsByTopic(targetTopic, transaction.producer);
-			topicPartitionsMap.put(targetTopic, partitions);
-		}
-		if (flinkKafkaPartitioner != null) {
-			record = new ProducerRecord<>(
-				targetTopic,
-				flinkKafkaPartitioner.partition(next, serializedKey, serializedValue, targetTopic, partitions),
-				timestamp,
-				serializedKey,
-				serializedValue);
+		if (keyedSchema != null) {
+			byte[] serializedKey = keyedSchema.serializeKey(next);
+			byte[] serializedValue = keyedSchema.serializeValue(next);
+			String targetTopic = keyedSchema.getTargetTopic(next);
+			if (targetTopic == null) {
+				targetTopic = defaultTopicId;
+			}
+
+			Long timestamp = null;
+			if (this.writeTimestampToKafka) {
+				timestamp = context.timestamp();
+			}
+
+			int[] partitions = topicPartitionsMap.get(targetTopic);
+			if (null == partitions) {
+				partitions = getPartitionsByTopic(targetTopic, transaction.producer);
+				topicPartitionsMap.put(targetTopic, partitions);
+			}
+			if (flinkKafkaPartitioner != null) {
+				record = new ProducerRecord<>(
+						targetTopic,
+						flinkKafkaPartitioner.partition(next, serializedKey, serializedValue, targetTopic, partitions),
+						timestamp,
+						serializedKey,
+						serializedValue);
+			} else {
+				record = new ProducerRecord<>(targetTopic, null, timestamp, serializedKey, serializedValue);
+			}
 		} else {
-			record = new ProducerRecord<>(targetTopic, null, timestamp, serializedKey, serializedValue);
+			record = kafkaSchema.serialize(next, context.timestamp());
 		}
+
 		pendingRecords.incrementAndGet();
 		transaction.producer.send(record, callback);
 	}

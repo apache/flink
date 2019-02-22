@@ -154,6 +154,11 @@ public abstract class KafkaTestEnvironment {
 														KeyedSerializationSchema<T> serSchema, Properties props,
 														FlinkKafkaPartitioner<T> partitioner);
 
+	public <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic,
+			KafkaSerializationSchema<T> serSchema, Properties props) {
+		throw new RuntimeException("KafkaSerializationSchema is only supported on the modern Kafka Connector.");
+	}
+
 	// -- offset handlers
 
 	/**
