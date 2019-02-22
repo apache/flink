@@ -221,54 +221,46 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
 			RowTypeInfo rowTypeInfo,
 			boolean ignoreParseErrors,
 			boolean isTopLevel) {
-		final int rowArity = rowTypeInfo.getArity();
 		final TypeInformation<?>[] fieldTypes = rowTypeInfo.getFieldTypes();
 		final String[] fieldNames = rowTypeInfo.getFieldNames();
 
+		final RuntimeConverter[] fieldConverters =
+			createFieldRuntimeConverters(ignoreParseErrors, fieldTypes);
+
+		return assembleRowRuntimeConverter(ignoreParseErrors, isTopLevel, fieldNames, fieldConverters);
+	}
+
+	private static RuntimeConverter[] createFieldRuntimeConverters(boolean ignoreParseErrors, TypeInformation<?>[] fieldTypes) {
 		final RuntimeConverter[] fieldConverters = new RuntimeConverter[fieldTypes.length];
 		for (int i = 0; i < fieldTypes.length; i++) {
-			final TypeInformation<?> fieldType = fieldTypes[i];
-			final RuntimeConverter fieldConverter =
-				createNullableRuntimeConverter(fieldType, ignoreParseErrors);
-
-			fieldConverters[i] = (node) -> {
-				try {
-					return fieldConverter.convert(node);
-				} catch (Throwable t) {
-					if (!ignoreParseErrors) {
-						throw t;
-					}
-					return null;
-				}
-			};
+			fieldConverters[i] = createNullableRuntimeConverter(fieldTypes[i], ignoreParseErrors);
 		}
+		return fieldConverters;
+	}
 
-		// Jackson only supports mapping by name in the first level
-		if (isTopLevel) {
-			return (node) -> {
-				final int nodeSize = node.size();
+	private static RuntimeConverter assembleRowRuntimeConverter(
+			boolean ignoreParseErrors,
+			boolean isTopLevel,
+			String[] fieldNames,
+			RuntimeConverter[] fieldConverters) {
+		final int rowArity = fieldNames.length;
 
-				validateArity(rowArity, nodeSize, ignoreParseErrors);
+		return (node) -> {
+			final int nodeSize = node.size();
 
-				final Row row = new Row(rowArity);
-				for (int i = 0; i < Math.min(rowArity, nodeSize); i++) {
+			validateArity(rowArity, nodeSize, ignoreParseErrors);
+
+			final Row row = new Row(rowArity);
+			for (int i = 0; i < Math.min(rowArity, nodeSize); i++) {
+				// Jackson only supports mapping by name in the first level
+				if (isTopLevel) {
 					row.setField(i, fieldConverters[i].convert(node.get(fieldNames[i])));
-				}
-				return row;
-			};
-		} else {
-			return (node) -> {
-				final int nodeSize = node.size();
-
-				validateArity(rowArity, nodeSize, ignoreParseErrors);
-
-				final Row row = new Row(rowArity);
-				for (int i = 0; i < Math.min(rowArity, nodeSize); i++) {
+				} else {
 					row.setField(i, fieldConverters[i].convert(node.get(i)));
 				}
-				return row;
-			};
-		}
+			}
+			return row;
+		};
 	}
 
 	private static RuntimeConverter createNullableRuntimeConverter(
@@ -279,7 +271,14 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
 			if (node.isNull()) {
 				return null;
 			}
-			return valueConverter.convert(node);
+			try {
+				return valueConverter.convert(node);
+			} catch (Throwable t) {
+				if (!ignoreParseErrors) {
+					throw t;
+				}
+				return null;
+			}
 		};
 	}
 

@@ -204,15 +204,27 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 	}
 
 	private static RuntimeConverter createRowRuntimeConverter(RowTypeInfo rowTypeInfo, boolean isTopLevel) {
-		final int rowArity = rowTypeInfo.getArity();
 		final TypeInformation[] fieldTypes = rowTypeInfo.getFieldTypes();
 		final String[] fieldNames = rowTypeInfo.getFieldNames();
 
+		final RuntimeConverter[] fieldConverters = createFieldRuntimeConverters(fieldTypes);
+
+		return assembleRowRuntimeConverter(isTopLevel, fieldNames, fieldConverters);
+	}
+
+	private static RuntimeConverter[] createFieldRuntimeConverters(TypeInformation<?>[] fieldTypes) {
 		final RuntimeConverter[] fieldConverters = new RuntimeConverter[fieldTypes.length];
 		for (int i = 0; i < fieldTypes.length; i++) {
 			fieldConverters[i] = createNullableRuntimeConverter(fieldTypes[i]);
 		}
+		return fieldConverters;
+	}
 
+	private static RuntimeConverter assembleRowRuntimeConverter(
+			boolean isTopLevel,
+			String[] fieldNames,
+			RuntimeConverter[] fieldConverters) {
+		final int rowArity = fieldNames.length;
 		// top level reuses the object node container
 		if (isTopLevel) {
 			return (csvMapper, container, obj) -> {
