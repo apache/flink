@@ -128,7 +128,7 @@ public abstract class TtlStateTestBase {
 
 	protected <S extends State> StateDescriptor<S, Object> initTest(StateTtlConfig ttlConfig) throws Exception {
 		this.ttlConfig = ttlConfig;
-		sbetc.createAndRestoreKeyedStateBackend();
+		sbetc.createAndRestoreKeyedStateBackend(null);
 		sbetc.restoreSnapshot(null);
 		sbetc.setCurrentKey("defaultKey");
 		StateDescriptor<S, Object> stateDesc = createState();
@@ -154,7 +154,7 @@ public abstract class TtlStateTestBase {
 	}
 
 	private void restoreSnapshot(KeyedStateHandle snapshot, int numberOfKeyGroups) throws Exception {
-		sbetc.createAndRestoreKeyedStateBackend(numberOfKeyGroups);
+		sbetc.createAndRestoreKeyedStateBackend(numberOfKeyGroups, snapshot);
 		sbetc.restoreSnapshot(snapshot);
 		sbetc.setCurrentKey("defaultKey");
 		createState();
@@ -433,7 +433,7 @@ public abstract class TtlStateTestBase {
 		ctx().update(ctx().updateEmpty);
 
 		KeyedStateHandle snapshot = sbetc.takeSnapshot();
-		sbetc.createAndRestoreKeyedStateBackend();
+		sbetc.createAndRestoreKeyedStateBackend(snapshot);
 
 		sbetc.restoreSnapshot(snapshot);
 		sbetc.setCurrentKey("defaultKey");

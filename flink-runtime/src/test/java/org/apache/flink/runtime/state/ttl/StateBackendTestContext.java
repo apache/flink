@@ -42,6 +42,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.RunnableFuture;
 
@@ -77,17 +78,24 @@ public abstract class StateBackendTestContext {
 		}
 	}
 
-	void createAndRestoreKeyedStateBackend() {
-		createAndRestoreKeyedStateBackend(NUMBER_OF_KEY_GROUPS);
+	void createAndRestoreKeyedStateBackend(KeyedStateHandle snapshot) {
+		createAndRestoreKeyedStateBackend(NUMBER_OF_KEY_GROUPS, snapshot);
 	}
 
-	void createAndRestoreKeyedStateBackend(int numberOfKeyGroups) {
+	void createAndRestoreKeyedStateBackend(int numberOfKeyGroups, KeyedStateHandle snapshot) {
+		Collection<KeyedStateHandle> stateHandles;
+		if (snapshot == null) {
+			stateHandles = Collections.emptyList();
+		} else {
+			stateHandles = new ArrayList<>(1);
+			stateHandles.add(snapshot);
+		}
 		Environment env = new DummyEnvironment();
 		try {
 			disposeKeyedStateBackend();
 			keyedStateBackend = stateBackend.createKeyedStateBackend(
 				env, new JobID(), "test", StringSerializer.INSTANCE, numberOfKeyGroups,
-				new KeyGroupRange(0, numberOfKeyGroups - 1), env.getTaskKvStateRegistry(), timeProvider);
+				new KeyGroupRange(0, numberOfKeyGroups - 1), env.getTaskKvStateRegistry(), timeProvider, stateHandles);
 		} catch (Exception e) {
 			throw new RuntimeException("unexpected", e);
 		}

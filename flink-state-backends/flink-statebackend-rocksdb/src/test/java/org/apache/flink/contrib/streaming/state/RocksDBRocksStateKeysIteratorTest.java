@@ -93,7 +93,6 @@ public class RocksDBRocksStateKeysIteratorTest {
 			mock(TaskKvStateRegistry.class));
 
 		try {
-			keyedStateBackend.restore(null);
 			ValueState<String> testState = keyedStateBackend.getPartitionedState(
 				namespace,
 				namespaceSerializer,
@@ -119,7 +118,7 @@ public class RocksDBRocksStateKeysIteratorTest {
 			ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);
 
 			try (
-				RocksIteratorWrapper iterator = RocksDBKeyedStateBackend.getRocksIterator(keyedStateBackend.db, handle);
+				RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(keyedStateBackend.db, handle);
 				RocksStateKeysIterator<K> iteratorWrapper =
 					new RocksStateKeysIterator<>(
 						iterator,

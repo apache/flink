@@ -53,10 +53,10 @@ public class RocksDBNativeMetricMonitor implements Closeable {
 	@GuardedBy("lock")
 	private RocksDB rocksDB;
 
-	RocksDBNativeMetricMonitor(
-		RocksDB rocksDB,
+	public RocksDBNativeMetricMonitor(
 		@Nonnull RocksDBNativeMetricOptions options,
-		@Nonnull MetricGroup metricGroup
+		@Nonnull MetricGroup metricGroup,
+		@Nonnull RocksDB rocksDB
 	) {
 		this.options = options;
 		this.metricGroup = metricGroup;

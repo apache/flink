@@ -57,7 +57,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	CheckpointListener {
 
 	/** {@link StateSerializerProvider} for our key serializer. */
-	private final StateSerializerProvider<K> keySerializerProvider;
+	protected final StateSerializerProvider<K> keySerializerProvider;
 
 	/** The currently active key. */
 	private K currentKey;
@@ -105,25 +105,48 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		int numberOfKeyGroups,
 		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
-		TtlTimeProvider ttlTimeProvider) {
+		TtlTimeProvider ttlTimeProvider,
+		CloseableRegistry cancelStreamRegistry) {
+		this(
+			kvStateRegistry,
+			StateSerializerProvider.fromNewRegisteredSerializer(keySerializer),
+			userCodeClassLoader,
+			numberOfKeyGroups,
+			keyGroupRange,
+			executionConfig,
+			ttlTimeProvider,
+			cancelStreamRegistry,
+			determineStreamCompression(executionConfig)
+		);
+	}
 
+	public AbstractKeyedStateBackend(
+		TaskKvStateRegistry kvStateRegistry,
+		StateSerializerProvider<K> keySerializerProvider,
+		ClassLoader userCodeClassLoader,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		ExecutionConfig executionConfig,
+		TtlTimeProvider ttlTimeProvider,
+		CloseableRegistry cancelStreamRegistry,
+		StreamCompressionDecorator keyGroupCompressionDecorator) {
 		Preconditions.checkArgument(numberOfKeyGroups >= 1, "NumberOfKeyGroups must be a positive number");
 		Preconditions.checkArgument(numberOfKeyGroups >= keyGroupRange.getNumberOfKeyGroups(), "The total number of key groups must be at least the number in the key group range assigned to this backend");
 
 		this.kvStateRegistry = kvStateRegistry;
-		this.keySerializerProvider = StateSerializerProvider.fromNewRegisteredSerializer(keySerializer);
+		this.keySerializerProvider = keySerializerProvider;
 		this.numberOfKeyGroups = numberOfKeyGroups;
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 		this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
-		this.cancelStreamRegistry = new CloseableRegistry();
+		this.cancelStreamRegistry = cancelStreamRegistry;
 		this.keyValueStatesByName = new HashMap<>();
 		this.executionConfig = executionConfig;
-		this.keyGroupCompressionDecorator = determineStreamCompression(executionConfig);
+		this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
 		this.ttlTimeProvider = Preconditions.checkNotNull(ttlTimeProvider);
 		this.keySelectionListeners = new HashSet<>();
 	}
 
-	private StreamCompressionDecorator determineStreamCompression(ExecutionConfig executionConfig) {
+	private static StreamCompressionDecorator determineStreamCompression(ExecutionConfig executionConfig) {
 		if (executionConfig != null && executionConfig.isUseSnapshotCompression()) {
 			return SnappyStreamCompressionDecorator.INSTANCE;
 		} else {
@@ -337,7 +360,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	}
 
 	@VisibleForTesting
-	StreamCompressionDecorator getKeyGroupCompressionDecorator() {
+	public StreamCompressionDecorator getKeyGroupCompressionDecorator() {
 		return keyGroupCompressionDecorator;
 	}
 
