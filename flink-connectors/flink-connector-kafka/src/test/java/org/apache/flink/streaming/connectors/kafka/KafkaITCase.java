@@ -122,8 +122,13 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 	}
 
 	@Test(timeout = 60000)
-	public void testMultipleTopics() throws Exception {
-		runProduceConsumeMultipleTopics();
+	public void testMultipleTopicsWithLegacySerializer() throws Exception {
+		runProduceConsumeMultipleTopics(true);
+	}
+
+	@Test(timeout = 60000)
+	public void testMultipleTopicsWithKafkaSerializer() throws Exception {
+		runProduceConsumeMultipleTopics(false);
 	}
 
 	@Test(timeout = 60000)

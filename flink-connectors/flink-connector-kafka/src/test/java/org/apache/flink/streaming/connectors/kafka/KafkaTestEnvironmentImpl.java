@@ -21,7 +21,6 @@ import org.apache.flink.networking.NetworkFailuresProxy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.NetUtils;
@@ -271,6 +270,15 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 			Optional.ofNullable(partitioner),
 			producerSemantic,
 			FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
+	}
+
+	@Override
+	public <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic, KafkaSerializationSchema<T> serSchema, Properties props) {
+		return stream.addSink(new FlinkKafkaProducer<T>(
+				topic,
+				serSchema,
+				props,
+				producerSemantic));
 	}
 
 	@Override
