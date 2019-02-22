@@ -156,6 +156,12 @@ public class TestingLogicalSlot implements LogicalSlot {
 			slotOwner.returnLogicalSlot(this);
 		}
 
+		Payload payload = payloadReference.get();
+
+		if (payload != null) {
+			payload.fail(cause);
+		}
+
 		if (customReleaseFuture != null) {
 			return customReleaseFuture;
 		} else {

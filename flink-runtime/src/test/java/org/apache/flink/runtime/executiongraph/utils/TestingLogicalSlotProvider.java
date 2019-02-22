@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph.utils;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -43,11 +42,12 @@ import javax.annotation.Nullable;
 
 import java.net.InetAddress;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A testing utility slot provider that simply has a predefined pool of slots.
@@ -58,14 +58,13 @@ public class TestingLogicalSlotProvider implements SlotProvider, SlotOwner {
 
 	private final ArrayDeque<SlotContext> slots;
 
-	private final HashMap<SlotRequestId, SlotContext> allocatedSlots;
+	private final HashMap<SlotRequestId, TestingLogicalSlot> allocatedSlots;
 
-	public TestingLogicalSlotProvider(JobID jobId, int numSlots) {
-		this(jobId, numSlots, new SimpleAckingTaskManagerGateway());
+	public TestingLogicalSlotProvider(int numSlots) {
+		this(numSlots, new SimpleAckingTaskManagerGateway());
 	}
 
-	public TestingLogicalSlotProvider(JobID jobId, int numSlots, TaskManagerGateway taskManagerGateway) {
-		checkNotNull(jobId, "jobId");
+	public TestingLogicalSlotProvider(int numSlots, TaskManagerGateway taskManagerGateway) {
 		checkArgument(numSlots >= 0, "numSlots must be >= 0");
 
 		this.slots = new ArrayDeque<>(numSlots);
@@ -108,7 +107,7 @@ public class TestingLogicalSlotProvider implements SlotProvider, SlotOwner {
 					new SlotSharingGroupId(),
 					null,
 					this);
-				allocatedSlots.put(slotRequestId, slot);
+				allocatedSlots.put(slotRequestId, result);
 				return CompletableFuture.completedFuture(result);
 			}
 			else {
@@ -120,10 +119,11 @@ public class TestingLogicalSlotProvider implements SlotProvider, SlotOwner {
 	@Override
 	public void cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
 		synchronized (lock) {
-			final SlotContext slotContext = allocatedSlots.remove(slotRequestId);
+			final TestingLogicalSlot logicalSlot = allocatedSlots.remove(slotRequestId);
 
-			if (slotContext != null) {
-				slots.add(slotContext);
+			if (logicalSlot != null) {
+				SlotContext as = getSlotContext(logicalSlot);
+				slots.add(as);
 			} else {
 				throw new FlinkRuntimeException("Unknown slot request id " + slotRequestId + '.');
 			}
@@ -133,15 +133,10 @@ public class TestingLogicalSlotProvider implements SlotProvider, SlotOwner {
 	@Override
 	public void returnLogicalSlot(LogicalSlot logicalSlot) {
 		synchronized (lock) {
-			AllocatedSlot as = new AllocatedSlot(
-				logicalSlot.getAllocationId(),
-				logicalSlot.getTaskManagerLocation(),
-				logicalSlot.getPhysicalSlotNumber(),
-				ResourceProfile.UNKNOWN,
-				logicalSlot.getTaskManagerGateway());
-
-			slots.add(as);
 			allocatedSlots.remove(logicalSlot.getSlotRequestId());
+
+			SlotContext as = getSlotContext(logicalSlot);
+			slots.add(as);
 		}
 	}
 
@@ -149,5 +144,24 @@ public class TestingLogicalSlotProvider implements SlotProvider, SlotOwner {
 		synchronized (lock) {
 			return slots.size();
 		}
+	}
+
+	public void releaseAllocatedSlots() {
+		synchronized (lock) {
+			List<TestingLogicalSlot> slots = new ArrayList<>(allocatedSlots.values());
+
+			for (TestingLogicalSlot slot : slots) {
+				slot.releaseSlot(new Exception("Test Exception"));
+			}
+		}
+	}
+
+	private SlotContext getSlotContext(LogicalSlot logicalSlot) {
+		return new AllocatedSlot(
+			logicalSlot.getAllocationId(),
+			logicalSlot.getTaskManagerLocation(),
+			logicalSlot.getPhysicalSlotNumber(),
+			ResourceProfile.UNKNOWN,
+			logicalSlot.getTaskManagerGateway());
 	}
 }

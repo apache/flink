@@ -288,7 +288,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 		vertex.setInvokableClass(NoOpInvokable.class);
 		vertex.setParallelism(parallelism);
 
-		final SlotProvider slotProvider = new TestingLogicalSlotProvider(jobId, parallelism, gateway);
+		final SlotProvider slotProvider = new TestingLogicalSlotProvider(parallelism, gateway);
 
 		ExecutionGraph simpleTestGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
 			jobId,

@@ -105,7 +105,7 @@ public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = 2;
 
-		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(jid, parallelism);
+		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(parallelism);
 
 		final ExecutionGraph graph = createSampleGraph(
 			jid,
@@ -174,7 +174,7 @@ public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = 2;
 
-		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(jid, parallelism);
+		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(parallelism);
 
 		final ExecutionGraph graph = createSampleGraph(
 			jid,
@@ -242,7 +242,7 @@ public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = 2;
 
-		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(jid, parallelism);
+		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(parallelism);
 
 		final ExecutionGraph graph = createSampleGraph(
 			jid,
@@ -353,7 +353,7 @@ public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
 		when(taskManagerGateway.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 		when(taskManagerGateway.cancelTask(any(ExecutionAttemptID.class), any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 
-		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(jid, parallelism, taskManagerGateway);
+		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(parallelism, taskManagerGateway);
 
 		final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration = new CheckpointCoordinatorConfiguration(
 			10L,

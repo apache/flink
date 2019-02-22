@@ -157,7 +157,7 @@ public class GlobalModVersionTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = new Random().nextInt(10) + 1;
 
-		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(jid, parallelism);
+		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(parallelism);
 
 		// build a simple execution graph with on job vertex, parallelism 2
 		final ExecutionGraph graph = new ExecutionGraph(

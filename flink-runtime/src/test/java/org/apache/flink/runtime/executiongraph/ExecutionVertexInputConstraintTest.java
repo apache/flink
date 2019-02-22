@@ -192,7 +192,7 @@ public class ExecutionVertexInputConstraintTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
-		final SlotProvider slotProvider = new TestingLogicalSlotProvider(jobId, 20);
+		final SlotProvider slotProvider = new TestingLogicalSlotProvider(20);
 
 		for (JobVertex vertex : orderedVertices) {
 			vertex.setInputDependencyConstraint(inputDependencyConstraint);

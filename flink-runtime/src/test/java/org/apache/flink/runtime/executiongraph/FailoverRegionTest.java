@@ -98,7 +98,7 @@ public class FailoverRegionTest extends TestLogger {
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
 
-		final SlotProvider slotProvider = new TestingLogicalSlotProvider(jobId, 20);
+		final SlotProvider slotProvider = new TestingLogicalSlotProvider(20);
 				
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
@@ -215,7 +215,7 @@ public class FailoverRegionTest extends TestLogger {
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
 
-		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(jobId, 16);
+		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(16);
 
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
@@ -290,7 +290,7 @@ public class FailoverRegionTest extends TestLogger {
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
 
-		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(jobId, 14);
+		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(14);
 
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
@@ -388,7 +388,7 @@ public class FailoverRegionTest extends TestLogger {
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
 
-		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(jobId, 14);
+		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(14);
 
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
