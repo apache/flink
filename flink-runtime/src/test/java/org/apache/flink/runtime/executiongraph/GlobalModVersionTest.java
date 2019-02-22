@@ -24,7 +24,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy.Factory;
 import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
-import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
+import org.apache.flink.runtime.executiongraph.utils.TestingLogicalSlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -157,7 +157,7 @@ public class GlobalModVersionTest extends TestLogger {
 		final JobID jid = new JobID();
 		final int parallelism = new Random().nextInt(10) + 1;
 
-		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
+		final TestingLogicalSlotProvider slotProvider = new TestingLogicalSlotProvider(jid, parallelism);
 
 		// build a simple execution graph with on job vertex, parallelism 2
 		final ExecutionGraph graph = new ExecutionGraph(

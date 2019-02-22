@@ -34,7 +34,7 @@ import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
+import org.apache.flink.runtime.executiongraph.utils.TestingLogicalSlotProvider;
 import org.apache.flink.runtime.instance.BaseTestingActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
@@ -410,7 +410,7 @@ public class ExecutionGraphTestUtils {
 			numSlotsNeeded += vertex.getParallelism();
 		}
 
-		SlotProvider slotProvider = new SimpleSlotProvider(jid, numSlotsNeeded, taskManagerGateway);
+		SlotProvider slotProvider = new TestingLogicalSlotProvider(jid, numSlotsNeeded, taskManagerGateway);
 
 		return createSimpleTestGraph(jid, slotProvider, restartStrategy, vertices);
 	}
