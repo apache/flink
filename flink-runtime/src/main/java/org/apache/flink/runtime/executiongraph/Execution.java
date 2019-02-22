@@ -27,6 +27,7 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -965,15 +966,37 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param checkpointOptions of the checkpoint to trigger
 	 */
 	public void triggerCheckpoint(long checkpointId, long timestamp, CheckpointOptions checkpointOptions) {
+		triggerCheckpointHelper(checkpointId, timestamp, checkpointOptions, false);
+	}
+
+	/**
+	 * Trigger a new checkpoint on the task of this execution.
+	 *
+	 * @param checkpointId of th checkpoint to trigger
+	 * @param timestamp of the checkpoint to trigger
+	 * @param checkpointOptions of the checkpoint to trigger
+	 * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
+	 *                              to fire any registered event-time timers
+	 */
+	public void triggerSynchronousSavepoint(long checkpointId, long timestamp, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
+		triggerCheckpointHelper(checkpointId, timestamp, checkpointOptions, advanceToEndOfEventTime);
+	}
+
+	private void triggerCheckpointHelper(long checkpointId, long timestamp, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
+
+		final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
+		if (advanceToEndOfEventTime && !(checkpointType.isSynchronous() && checkpointType.isSavepoint())) {
+			throw new IllegalArgumentException("Only synchronous savepoints are allowed to advance the watermark to MAX.");
+		}
+
 		final LogicalSlot slot = assignedResource;
 
 		if (slot != null) {
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
-			taskManagerGateway.triggerCheckpoint(attemptId, getVertex().getJobId(), checkpointId, timestamp, checkpointOptions);
+			taskManagerGateway.triggerCheckpoint(attemptId, getVertex().getJobId(), checkpointId, timestamp, checkpointOptions, advanceToEndOfEventTime);
 		} else {
-			LOG.debug("The execution has no slot assigned. This indicates that the execution is " +
-				"no longer running.");
+			LOG.debug("The execution has no slot assigned. This indicates that the execution is no longer running.");
 		}
 	}
 

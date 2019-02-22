@@ -3143,7 +3143,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				System.currentTimeMillis(),
 				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 				null,
-				true);
+				true,
+				false);
 
 		assertTrue(triggerResult.isFailure());
 		assertEquals(CheckpointDeclineReason.PERIODIC_SCHEDULER_SHUTDOWN, triggerResult.getFailureReason());
@@ -3153,6 +3154,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				System.currentTimeMillis(),
 				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 				null,
+				false,
 				false);
 
 		assertFalse(triggerResult.isFailure());

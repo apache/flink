@@ -582,6 +582,19 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	@Override
+	public CompletableFuture<String> stopWithSavepoint(
+			final JobID jobId,
+			final String targetDirectory,
+			final boolean advanceToEndOfEventTime,
+			final Time timeout) {
+		final CompletableFuture<JobMasterGateway> jobMasterGatewayFuture = getJobMasterGatewayFuture(jobId);
+
+		return jobMasterGatewayFuture.thenCompose(
+				(JobMasterGateway jobMasterGateway) ->
+						jobMasterGateway.stopWithSavepoint(targetDirectory, advanceToEndOfEventTime, timeout));
+	}
+
+	@Override
 	public CompletableFuture<Acknowledge> shutDownCluster() {
 		closeAsync();
 		return CompletableFuture.completedFuture(Acknowledge.get());

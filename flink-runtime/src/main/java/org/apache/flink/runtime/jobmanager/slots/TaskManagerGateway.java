@@ -137,13 +137,16 @@ public interface TaskManagerGateway {
 	 * @param checkpointId of the checkpoint to trigger
 	 * @param timestamp of the checkpoint to trigger
 	 * @param checkpointOptions of the checkpoint to trigger
+	 * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
+	 *                              to fire any registered event-time timers
 	 */
 	void triggerCheckpoint(
 		ExecutionAttemptID executionAttemptID,
 		JobID jobId,
 		long checkpointId,
 		long timestamp,
-		CheckpointOptions checkpointOptions);
+		CheckpointOptions checkpointOptions,
+		boolean advanceToEndOfEventTime);
 
 	/**
 	 * Frees the slot with the given allocation ID.

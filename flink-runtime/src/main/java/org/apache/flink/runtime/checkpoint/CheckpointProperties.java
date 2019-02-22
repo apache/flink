@@ -179,6 +179,15 @@ public class CheckpointProperties implements Serializable {
 		return checkpointType.isSavepoint();
 	}
 
+	/**
+	 * Returns whether the checkpoint properties describe a synchronous savepoint/checkpoint.
+	 *
+	 * @return <code>true</code> if the properties describe a synchronous operation, <code>false</code> otherwise.
+	 */
+	public boolean isSynchronous() {
+		return checkpointType.isSynchronous();
+	}
+
 	// ------------------------------------------------------------------------
 
 	@Override

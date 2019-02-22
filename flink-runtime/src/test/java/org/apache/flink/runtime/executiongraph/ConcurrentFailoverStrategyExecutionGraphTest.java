@@ -425,14 +425,16 @@ public class ConcurrentFailoverStrategyExecutionGraphTest extends TestLogger {
 			any(JobID.class),
 			anyLong(),
 			anyLong(),
-			any(CheckpointOptions.class));
+			any(CheckpointOptions.class),
+			any(Boolean.class));
 
 		verify(taskManagerGateway, timeout(verifyTimeout).times(3)).triggerCheckpoint(
 			eq(vertex2.getCurrentExecutionAttempt().getAttemptId()),
 			any(JobID.class),
 			anyLong(),
 			anyLong(),
-			any(CheckpointOptions.class));
+			any(CheckpointOptions.class),
+			any(Boolean.class));
 
 		assertEquals(3, checkpointCoordinator.getNumberOfPendingCheckpoints());
 
