@@ -515,10 +515,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateSerializer,
 				StateSnapshotTransformFactory.noTransform());
 
-			ColumnFamilyOptions options = columnFamilyOptionsFactory.apply(newMetaInfo.getName())
-				.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
+			ColumnFamilyOptions options = RocksDBOperationUtils.createColumnFamilyOptions(
+				columnFamilyOptionsFactory, newMetaInfo.getName());
 			newRocksStateInfo = RocksDBOperationUtils.createStateInfo(newMetaInfo, ttlCompactFiltersManager,
-				ttlTimeProvider, db, null, options);
+				ttlTimeProvider, db, options);
 			RocksDBOperationUtils.registerKvStateInformation(this.kvStateInformation, this.nativeMetricMonitor,
 				stateDesc.getName(), newRocksStateInfo);
 		}

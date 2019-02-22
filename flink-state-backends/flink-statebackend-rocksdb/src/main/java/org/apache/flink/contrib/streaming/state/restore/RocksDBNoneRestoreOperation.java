@@ -36,6 +36,7 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.util.Collection;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Encapsulates the process of initiating a RocksDB instance without restore.
@@ -52,7 +53,7 @@ public class RocksDBNoneRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 		File instanceBasePath,
 		File instanceRocksDBPath,
 		DBOptions dbOptions,
-		ColumnFamilyOptions columnOptions,
+		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
@@ -69,7 +70,7 @@ public class RocksDBNoneRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 			instanceBasePath,
 			instanceRocksDBPath,
 			dbOptions,
-			columnOptions,
+			columnFamilyOptionsFactory,
 			nativeMetricOptions,
 			metricGroup,
 			restoreStateHandles,

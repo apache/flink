@@ -201,7 +201,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 			Thread.currentThread().getContextClassLoader(),
 			instanceBasePath,
 			dbOptions,
-			columnOptions,
+			stateName -> PredefinedOptions.DEFAULT.createColumnOptions(),
 			mock(TaskKvStateRegistry.class),
 			IntSerializer.INSTANCE,
 			2,
@@ -278,7 +278,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				Thread.currentThread().getContextClassLoader(),
 				tempFolder.newFolder(),
 				options,
-				columnFamilyOptions,
+				stateName -> columnFamilyOptions,
 				mock(TaskKvStateRegistry.class),
 				IntSerializer.INSTANCE,
 				1,
@@ -293,11 +293,14 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				db,
 				defaultCFHandle
 			).build();
-			ValueStateDescriptor<String> stubState =
-				new ValueStateDescriptor<>("StubState", StringSerializer.INSTANCE);
-			test.createInternalState(StringSerializer.INSTANCE, stubState);
+			ValueStateDescriptor<String> stubState1 =
+				new ValueStateDescriptor<>("StubState-1", StringSerializer.INSTANCE);
+			test.createInternalState(StringSerializer.INSTANCE, stubState1);
+			ValueStateDescriptor<String> stubState2 =
+				new ValueStateDescriptor<>("StubState-2", StringSerializer.INSTANCE);
+			test.createInternalState(StringSerializer.INSTANCE, stubState2);
 
-			// 1 time for default CF and 1 for StubState
+			// The default CF is pre-created so sum up to 2 times (once for each stub state)
 			verify(columnFamilyOptions, Mockito.times(2))
 				.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
 		} finally {

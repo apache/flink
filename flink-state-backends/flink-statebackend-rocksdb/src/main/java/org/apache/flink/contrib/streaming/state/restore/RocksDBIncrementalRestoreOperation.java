@@ -74,6 +74,7 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.function.Function;
 
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.SST_FILE_SUFFIX;
 
@@ -100,7 +101,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 		File instanceBasePath,
 		File instanceRocksDBPath,
 		DBOptions dbOptions,
-		ColumnFamilyOptions columnOptions,
+		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
@@ -116,7 +117,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 			instanceBasePath,
 			instanceRocksDBPath,
 			dbOptions,
-			columnOptions,
+			columnFamilyOptionsFactory,
 			nativeMetricOptions,
 			metricGroup,
 			restoreStateHandles,
@@ -208,7 +209,6 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 		for (int i = 0; i < metaInfoSnapshots.size(); ++i) {
 			try {
 				getOrRegisterStateColumnFamilyHandle(
-					columnFamilyDescriptors.get(i),
 					columnFamilyHandles.get(i),
 					metaInfoSnapshots.get(i));
 			} catch (RocksDBException e) {
@@ -309,10 +309,9 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 				// iterating only the requested descriptors automatically skips the default column family handle
 				for (int i = 0; i < tmpColumnFamilyDescriptors.size(); ++i) {
 					ColumnFamilyHandle tmpColumnFamilyHandle = tmpColumnFamilyHandles.get(i);
-					ColumnFamilyDescriptor tmpColumnFamilyDescriptor = tmpColumnFamilyDescriptors.get(i);
 
 					ColumnFamilyHandle targetColumnFamilyHandle = getOrRegisterStateColumnFamilyHandle(
-						tmpColumnFamilyDescriptor, null, tmpRestoreDBInfo.stateMetaInfoSnapshots.get(i))
+						null, tmpRestoreDBInfo.stateMetaInfoSnapshots.get(i))
 						.columnFamilyHandle;
 
 					try (RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(tmpRestoreDBInfo.db, tmpColumnFamilyHandle)) {
@@ -437,7 +436,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 			temporaryRestoreInstancePath.getPath(),
 			columnFamilyDescriptors,
 			columnFamilyHandles,
-			columnOptions,
+			RocksDBOperationUtils.createColumnFamilyOptions(columnFamilyOptionsFactory, "default"),
 			dbOptions);
 
 		return new RestoredDBInstance(restoreDb, columnFamilyHandles, columnFamilyDescriptors, stateMetaInfoSnapshots);
@@ -454,13 +453,15 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 			new ArrayList<>(stateMetaInfoSnapshots.size());
 
 		for (StateMetaInfoSnapshot stateMetaInfoSnapshot : stateMetaInfoSnapshots) {
+			ColumnFamilyOptions options = RocksDBOperationUtils.createColumnFamilyOptions(
+				columnFamilyOptionsFactory, stateMetaInfoSnapshot.getName());
 			if (registerTtlCompactFilter) {
 				ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(ttlTimeProvider,
-					stateMetaInfoSnapshot, columnOptions);
+					stateMetaInfoSnapshot, options);
 			}
 			ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(
 				stateMetaInfoSnapshot.getName().getBytes(ConfigConstants.DEFAULT_CHARSET),
-				columnOptions);
+				options);
 
 			columnFamilyDescriptors.add(columnFamilyDescriptor);
 		}

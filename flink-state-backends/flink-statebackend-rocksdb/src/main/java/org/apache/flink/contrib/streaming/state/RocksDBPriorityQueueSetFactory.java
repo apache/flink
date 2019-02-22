@@ -41,6 +41,7 @@ import org.rocksdb.RocksDB;
 import javax.annotation.Nonnull;
 
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Encapsulates the logic and resources in connection with creating priority
@@ -72,7 +73,7 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 	private final RocksDB db;
 	private final RocksDBWriteBatchWrapper writeBatchWrapper;
 	private final RocksDBNativeMetricMonitor nativeMetricMonitor;
-	private final ColumnFamilyOptions columnOptions;
+	private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
 
 	RocksDBPriorityQueueSetFactory(
 		KeyGroupRange keyGroupRange,
@@ -82,7 +83,7 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 		RocksDB db,
 		RocksDBWriteBatchWrapper writeBatchWrapper,
 		RocksDBNativeMetricMonitor nativeMetricMonitor,
-		ColumnFamilyOptions columnOptions) {
+		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory) {
 		this.keyGroupRange = keyGroupRange;
 		this.keyGroupPrefixBytes = keyGroupPrefixBytes;
 		this.numberOfKeyGroups = numberOfKeyGroups;
@@ -90,7 +91,7 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 		this.db = db;
 		this.writeBatchWrapper = writeBatchWrapper;
 		this.nativeMetricMonitor = nativeMetricMonitor;
-		this.columnOptions = columnOptions;
+		this.columnFamilyOptionsFactory = columnFamilyOptionsFactory;
 		this.sharedElementOutView = new DataOutputSerializer(128);
 		this.sharedElementInView = new DataInputDeserializer();
 	}
@@ -145,7 +146,7 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 			// Currently this class is for timer service and TTL feature is not applicable here,
 			// so no need to register compact filter when creating column family
 			final ColumnFamilyHandle columnFamilyHandle =
-				RocksDBOperationUtils.createColumnFamily(stateName, this.columnOptions, this.db);
+				RocksDBOperationUtils.createColumnFamily(stateName, columnFamilyOptionsFactory, this.db);
 			RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo =
 				new RegisteredPriorityQueueStateBackendMetaInfo<>(stateName, byteOrderedElementSerializer);
 

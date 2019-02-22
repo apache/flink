@@ -57,6 +57,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.END_OF_KEY_GROUP_MARK;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.clearMetaDataFollowsFlag;
@@ -98,7 +99,7 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 		File instanceBasePath,
 		File instanceRocksDBPath,
 		DBOptions dbOptions,
-		ColumnFamilyOptions columnOptions,
+		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
@@ -115,7 +116,7 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 			instanceBasePath,
 			instanceRocksDBPath,
 			dbOptions,
-			columnOptions,
+			columnFamilyOptionsFactory,
 			nativeMetricOptions,
 			metricGroup,
 			restoreStateHandles,
@@ -180,7 +181,7 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 
 		for (StateMetaInfoSnapshot restoredMetaInfo : restoredMetaInfos) {
 			RocksDbKvStateInfo registeredStateCFHandle =
-				getOrRegisterStateColumnFamilyHandle(null, null, restoredMetaInfo);
+				getOrRegisterStateColumnFamilyHandle(null, restoredMetaInfo);
 			currentStateHandleKVStateColumnFamilies.add(registeredStateCFHandle.columnFamilyHandle);
 		}
 	}

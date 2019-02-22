@@ -69,8 +69,7 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
-
-import static org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME;
+import java.util.function.Function;
 
 /**
  * Builder class for {@link RocksDBKeyedStateBackend} which handles all necessary initializations and clean ups.
@@ -88,8 +87,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 	/** The configuration of local recovery. */
 	private final LocalRecoveryConfig localRecoveryConfig;
 
-	/** The column family options from the options factory. */
-	private final ColumnFamilyOptions columnFamilyOptions;
+	/** Factory function to create column family options from state name. */
+	private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
 
 	/** The DB options from the options factory. */
 	private final DBOptions dbOptions;
@@ -117,7 +116,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		ClassLoader userCodeClassLoader,
 		File instanceBasePath,
 		DBOptions dbOptions,
-		ColumnFamilyOptions columnFamilyOptions,
+		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
 		TaskKvStateRegistry kvStateRegistry,
 		TypeSerializer<K> keySerializer,
 		int numberOfKeyGroups,
@@ -146,8 +145,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		this.priorityQueueStateType = priorityQueueStateType;
 		this.localRecoveryConfig = localRecoveryConfig;
 		// ensure that we use the right merge operator, because other code relies on this
-		this.columnFamilyOptions = Preconditions.checkNotNull(columnFamilyOptions)
-			.setMergeOperatorName(MERGE_OPERATOR_NAME);
+		this.columnFamilyOptionsFactory = Preconditions.checkNotNull(columnFamilyOptionsFactory);
 		this.dbOptions = dbOptions;
 		this.instanceBasePath = instanceBasePath;
 		this.instanceRocksDBPath = new File(instanceBasePath, DB_INSTANCE_DIR_STRING);
@@ -163,7 +161,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		ClassLoader userCodeClassLoader,
 		File instanceBasePath,
 		DBOptions dbOptions,
-		ColumnFamilyOptions columnFamilyOptions,
+		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
 		TaskKvStateRegistry kvStateRegistry,
 		TypeSerializer<K> keySerializer,
 		int numberOfKeyGroups,
@@ -182,7 +180,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			userCodeClassLoader,
 			instanceBasePath,
 			dbOptions,
-			columnFamilyOptions,
+			columnFamilyOptionsFactory,
 			kvStateRegistry,
 			keySerializer,
 			numberOfKeyGroups,
@@ -297,7 +295,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			IOUtils.closeQuietly(db);
 			// it's possible that db has been initialized but later restore steps failed
 			IOUtils.closeQuietly(restoreOperation);
-			IOUtils.closeQuietly(columnFamilyOptions);
 			IOUtils.closeQuietly(dbOptions);
 			IOUtils.closeQuietly(writeOptions);
 			ttlCompactFiltersManager.disposeAndClearRegisteredCompactionFactories();
@@ -320,7 +317,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			this.userCodeClassLoader,
 			this.instanceBasePath,
 			this.dbOptions,
-			stateName -> this.columnFamilyOptions,
+			columnFamilyOptionsFactory,
 			this.kvStateRegistry,
 			this.keySerializerProvider,
 			this.numberOfKeyGroups,
@@ -362,7 +359,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				instanceBasePath,
 				instanceRocksDBPath,
 				dbOptions,
-				columnFamilyOptions,
+				columnFamilyOptionsFactory,
 				nativeMetricOptions,
 				metricGroup,
 				restoreStateHandles,
@@ -385,7 +382,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				instanceBasePath,
 				instanceRocksDBPath,
 				dbOptions,
-				columnFamilyOptions,
+				columnFamilyOptionsFactory,
 				nativeMetricOptions,
 				metricGroup,
 				restoreStateHandles,
@@ -403,7 +400,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				instanceBasePath,
 				instanceRocksDBPath,
 				dbOptions,
-				columnFamilyOptions,
+				columnFamilyOptionsFactory,
 				nativeMetricOptions,
 				metricGroup,
 				restoreStateHandles,
@@ -474,7 +471,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 					db,
 					writeBatchWrapper,
 					nativeMetricMonitor,
-					columnFamilyOptions
+					columnFamilyOptionsFactory
 				);
 				break;
 			default:

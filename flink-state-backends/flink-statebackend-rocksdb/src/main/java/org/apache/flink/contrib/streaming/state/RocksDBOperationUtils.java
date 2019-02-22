@@ -36,6 +36,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+
+import static org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME;
 
 /**
  * Utils for RocksDB Operations.
@@ -89,8 +92,12 @@ public class RocksDBOperationUtils {
 		}
 	}
 
-	public static ColumnFamilyHandle createColumnFamily(String stateName, ColumnFamilyOptions columnOptions, RocksDB db) {
-		return createColumnFamily(createColumnFamilyDescriptor(stateName, columnOptions), db);
+	public static ColumnFamilyHandle createColumnFamily(
+		String stateName,
+		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
+		RocksDB db) {
+		ColumnFamilyOptions options = createColumnFamilyOptions(columnFamilyOptionsFactory, stateName);
+		return createColumnFamily(createColumnFamilyDescriptor(stateName, options), db);
 	}
 
 	public static RocksIteratorWrapper getRocksIterator(RocksDB db) {
@@ -123,15 +130,16 @@ public class RocksDBOperationUtils {
 		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
 		TtlTimeProvider ttlTimeProvider,
 		RocksDB db,
-		ColumnFamilyDescriptor columnFamilyDescriptor,
 		ColumnFamilyOptions options) {
-		if (columnFamilyDescriptor == null) {
-			ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(ttlTimeProvider, metaInfoBase, options);
-			columnFamilyDescriptor = createColumnFamilyDescriptor(metaInfoBase.getName(), options);
-		} else {
-			ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(ttlTimeProvider, metaInfoBase,
-				columnFamilyDescriptor.getOptions());
-		}
+		ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(ttlTimeProvider, metaInfoBase, options);
+		ColumnFamilyDescriptor columnFamilyDescriptor = createColumnFamilyDescriptor(metaInfoBase.getName(), options);
 		return new RocksDBKeyedStateBackend.RocksDbKvStateInfo(createColumnFamily(columnFamilyDescriptor, db), metaInfoBase);
+	}
+
+	public static ColumnFamilyOptions createColumnFamilyOptions(
+		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
+		String stateName) {
+		// ensure that we use the right merge operator, because other code relies on this
+		return columnFamilyOptionsFactory.apply(stateName).setMergeOperatorName(MERGE_OPERATOR_NAME);
 	}
 }
