@@ -95,7 +95,7 @@ public class TaskManagerOptions {
 	 * if {@link #HOST} configuration option is not set.
 	 */
 	public static final ConfigOption<String> HOST_BIND_POLICY =
-		key("taskmanager.host.bind-policy")
+		key("network.taskmanager.bind-policy")
 		.defaultValue("ip")
 		.withDescription(Description.builder()
 			.text("The automatic address binding policy used by the TaskManager if \"" + HOST.key() + "\" is not set." +
