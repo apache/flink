@@ -39,6 +39,7 @@ class EnumValueSerializerTest extends TestLogger with JUnitSuiteLike {
   }
 }
 
+@SerialVersionUID(-3883456191213905962L)
 object Letters extends Enumeration {
   val A, B, C = Value
 }
