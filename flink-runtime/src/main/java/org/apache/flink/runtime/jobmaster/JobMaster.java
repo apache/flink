@@ -309,11 +309,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	// Lifecycle management
 	//----------------------------------------------------------------------------------------------
 
-	@Override
-	public void start() {
-		throw new UnsupportedOperationException("Should never call start() without leader ID");
-	}
-
 	/**
 	 * Start the rpc service and begin to run the job.
 	 *
@@ -322,7 +317,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	 */
 	public CompletableFuture<Acknowledge> start(final JobMasterId newJobMasterId) throws Exception {
 		// make sure we receive RPC and async calls
-		super.start();
+		start();
 
 		return callAsyncWithoutFencing(() -> startJobExecution(newJobMasterId), RpcUtils.INF_TIMEOUT);
 	}
