@@ -76,6 +76,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
@@ -516,9 +517,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			final SlotRequestId slotRequestId = new SlotRequestId();
 
-			final ComponentMainThreadExecutor mainThreadExecutor =
-				vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
-
 			final CompletableFuture<LogicalSlot> logicalSlotFuture =
 				preferredLocationsFuture.thenCompose(
 					(Collection<TaskManagerLocation> preferredLocations) ->
@@ -631,27 +629,31 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
-			final CompletableFuture<Acknowledge> submitResultFuture = taskManagerGateway.submitTask(deployment, rpcTimeout);
-			ComponentMainThreadExecutor jobMasterMainThreadExecutor =
+			final ComponentMainThreadExecutor jobMasterMainThreadExecutor =
 				vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
 
-			FutureUtils.whenCompleteAsyncIfNotDone(
-				submitResultFuture,
-				jobMasterMainThreadExecutor,
-				(ack, failure) -> {
-					// only respond to the failure case
-					if (failure != null) {
-						if (failure instanceof TimeoutException) {
-							String taskname = vertex.getTaskNameWithSubtaskIndex() + " (" + attemptId + ')';
 
-							markFailed(new Exception(
-								"Cannot deploy task " + taskname + " - TaskManager (" + getAssignedResourceLocation()
-									+ ") not responding after a rpcTimeout of " + rpcTimeout, failure));
-						} else {
-							markFailed(failure);
+			// We run the submission in the future executor so that the serialization of large TDDs does not block
+			// the main thread and sync back to the main thread once submission is completed.
+			CompletableFuture.supplyAsync(() -> taskManagerGateway.submitTask(deployment, rpcTimeout), executor)
+				.thenCompose(Function.identity())
+				.whenCompleteAsync(
+					(ack, failure) -> {
+						// only respond to the failure case
+						if (failure != null) {
+							if (failure instanceof TimeoutException) {
+								String taskname = vertex.getTaskNameWithSubtaskIndex() + " (" + attemptId + ')';
+
+								markFailed(new Exception(
+									"Cannot deploy task " + taskname + " - TaskManager (" + getAssignedResourceLocation()
+										+ ") not responding after a rpcTimeout of " + rpcTimeout, failure));
+							} else {
+								markFailed(failure);
+							}
 						}
-					}
-				});
+					},
+					jobMasterMainThreadExecutor);
+
 		}
 		catch (Throwable t) {
 			markFailed(t);
