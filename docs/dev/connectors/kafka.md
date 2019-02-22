@@ -159,7 +159,7 @@ or just `FlinkKafkaConsumer` for Kafka >= 1.0.0 versions). It provides access to
 The constructor accepts the following arguments:
 
 1. The topic name / list of topic names
-2. A DeserializationSchema / KeyedDeserializationSchema for deserializing the data from Kafka
+2. A DeserializationSchema / KafkaDeserializationSchema for deserializing the data from Kafka
 3. Properties for the Kafka consumer.
   The following properties are required:
   - "bootstrap.servers" (comma separated list of Kafka brokers)
@@ -204,8 +204,8 @@ It is usually helpful to start from the `AbstractDeserializationSchema`, which t
 produced Java/Scala type to Flink's type system. Users that implement a vanilla `DeserializationSchema` need
 to implement the `getProducedType(...)` method themselves.
 
-For accessing both the key and value of the Kafka message, the `KeyedDeserializationSchema` has
-the following deserialize method `T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset)`.
+For accessing the key, value and metadata of the Kafka message, the `KafkaDeserializationSchema` has
+the following deserialize method `T deserialize(ConsumerRecord<byte[], byte[]> record)`.
 
 For convenience, Flink provides the following schemas:
 
