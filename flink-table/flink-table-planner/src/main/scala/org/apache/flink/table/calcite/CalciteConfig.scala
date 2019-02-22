@@ -33,7 +33,15 @@ import scala.collection.JavaConverters._
 
 /**
   * Builder for creating a Calcite configuration.
+  *
+  * @deprecated This class will be removed temporarily while the API is uncoupled
+  *             from Calcite. An alternative might be provided in the future. See FLINK-11728
+  *             for more information.
   */
+@Deprecated
+@deprecated(
+  "This method will be removed temporarily while the API is uncoupled from Calcite.",
+  "1.8.0")
 class CalciteConfigBuilder {
 
   /**
@@ -255,7 +263,15 @@ class CalciteConfigBuilder {
 
 /**
   * Calcite configuration for defining a custom Calcite configuration for Table and SQL API.
+  *
+  * @deprecated This class will be removed temporarily while the API is uncoupled
+  *             from Calcite. An alternative might be provided in the future. See FLINK-11728
+  *             for more information.
   */
+@Deprecated
+@deprecated(
+  "This method will be removed temporarily while the API is uncoupled from Calcite.",
+  "1.8.0")
 trait CalciteConfig {
 
   /**
