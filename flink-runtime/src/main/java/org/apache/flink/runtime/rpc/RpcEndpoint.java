@@ -120,14 +120,24 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 	 * Starts the rpc endpoint. This tells the underlying rpc server that the rpc endpoint is ready
 	 * to process remote procedure calls.
 	 *
-	 * <p>IMPORTANT: Whenever you override this method, call the parent implementation to enable
-	 * rpc processing. It is advised to make the parent call last.
-	 *
 	 * @throws Exception indicating that something went wrong while starting the RPC endpoint
 	 */
-	public void start() throws Exception {
+	public void start() {
 		rpcServer.start();
 	}
+
+	/**
+	 * User overridable callback.
+	 *
+	 * <p>This method is called when the RpcEndpoint is being started. The method is guaranteed
+	 * to be executed in the main thread context and can be used to start the rpc endpoint in the
+	 * context of the rpc endpoint's main thread.
+	 *
+	 * <p>IMPORTANT: This method should never be called directly by the user.
+	 * @throws Exception indicating that the rpc endpoint could not be started. If an exception occurs,
+	 * then the rpc endpoint will automatically terminate.
+	 */
+	public void onStart() throws Exception {}
 
 	/**
 	 * Stops the rpc endpoint. This tells the underlying rpc server that the rpc endpoint is

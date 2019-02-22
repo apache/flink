@@ -35,6 +35,7 @@ import org.apache.flink.runtime.rpc.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RunAsync;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
 import akka.actor.ActorRef;
@@ -53,6 +54,7 @@ import java.lang.reflect.Method;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import scala.concurrent.duration.FiniteDuration;
 import scala.concurrent.impl.Promise;
@@ -93,11 +95,12 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 
 	private final long maximumFramesize;
 
+	private final AtomicBoolean rpcEndpointStopped;
+
+	private volatile RpcEndpointTerminationResult rpcEndpointTerminationResult;
+
 	@Nonnull
 	private State state;
-
-	@Nullable
-	private CompletableFuture<Void> rpcEndpointTerminationFuture;
 
 	AkkaRpcActor(
 			final T rpcEndpoint,
@@ -111,27 +114,21 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 		this.terminationFuture = checkNotNull(terminationFuture);
 		this.version = version;
 		this.maximumFramesize = maximumFramesize;
+		this.rpcEndpointStopped = new AtomicBoolean(false);
+		this.rpcEndpointTerminationResult = RpcEndpointTerminationResult.failure(
+			new AkkaRpcException(
+				String.format("RpcEndpoint %s has not been properly stopped.", rpcEndpoint.getEndpointId())));
 		this.state = StoppedState.INSTANCE;
-		this.rpcEndpointTerminationFuture = null;
 	}
 
 	@Override
 	public void postStop() throws Exception {
 		super.postStop();
 
-		if (rpcEndpointTerminationFuture != null && rpcEndpointTerminationFuture.isDone()) {
-			rpcEndpointTerminationFuture.whenComplete(
-				(Void value, Throwable throwable) -> {
-					if (throwable != null) {
-						terminationFuture.completeExceptionally(throwable);
-					} else {
-						terminationFuture.complete(null);
-					}
-				});
+		if (rpcEndpointTerminationResult.isSuccess()) {
+			terminationFuture.complete(null);
 		} else {
-			terminationFuture.completeExceptionally(
-				new AkkaRpcException(
-					String.format("RpcEndpoint %s has not been properly stopped.", rpcEndpoint.getEndpointId())));
+			terminationFuture.completeExceptionally(rpcEndpointTerminationResult.getFailureCause());
 		}
 
 		state = state.finishTermination();
@@ -164,7 +161,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 	private void handleControlMessage(ControlMessages controlMessage) {
 		switch (controlMessage) {
 			case START:
-				state = state.start();
+				state = state.start(this);
 				break;
 			case STOP:
 				state = state.stop();
@@ -439,8 +436,11 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 	/**
 	 * Stop the actor immediately.
 	 */
-	private void stop() {
-		getContext().stop(getSelf());
+	private void stop(RpcEndpointTerminationResult rpcEndpointTerminationResult) {
+		if (rpcEndpointStopped.compareAndSet(false, true)) {
+			this.rpcEndpointTerminationResult = rpcEndpointTerminationResult;
+			getContext().stop(getSelf());
+		}
 	}
 
 	// ---------------------------------------------------------------------------
@@ -448,7 +448,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 	// ---------------------------------------------------------------------------
 
 	interface State {
-		default State start() {
+		default State start(AkkaRpcActor<?> akkaRpcActor) {
 			throw new AkkaRpcInvalidStateException(invalidStateTransitionMessage(StartedState.INSTANCE));
 		}
 
@@ -478,7 +478,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 		INSTANCE;
 
 		@Override
-		public State start() {
+		public State start(AkkaRpcActor<?> akkaRpcActor) {
 			return INSTANCE;
 		}
 
@@ -491,10 +491,11 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 		public State terminate(AkkaRpcActor<?> akkaRpcActor) {
 			akkaRpcActor.mainThreadValidator.enterMainThread();
 
+			CompletableFuture<Void> terminationFuture;
 			try {
-				akkaRpcActor.rpcEndpointTerminationFuture = akkaRpcActor.rpcEndpoint.onStop();
+				terminationFuture = akkaRpcActor.rpcEndpoint.onStop();
 			} catch (Throwable t) {
-				akkaRpcActor.rpcEndpointTerminationFuture = FutureUtils.completedExceptionally(
+				terminationFuture = FutureUtils.completedExceptionally(
 					new AkkaRpcException(
 						String.format("Failure while stopping RpcEndpoint %s.", akkaRpcActor.rpcEndpoint.getEndpointId()),
 						t));
@@ -507,7 +508,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 			// future.
 			// Complete the termination future so that others know that we've stopped.
 
-			akkaRpcActor.rpcEndpointTerminationFuture.whenComplete((ignored, throwable) -> akkaRpcActor.stop());
+			terminationFuture.whenComplete((ignored, throwable) -> akkaRpcActor.stop(RpcEndpointTerminationResult.of(throwable)));
 
 			return TerminatingState.INSTANCE;
 		}
@@ -523,7 +524,21 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 		INSTANCE;
 
 		@Override
-		public State start() {
+		public State start(AkkaRpcActor<?> akkaRpcActor) {
+			akkaRpcActor.mainThreadValidator.enterMainThread();
+
+			try {
+				akkaRpcActor.rpcEndpoint.onStart();
+			} catch (Throwable throwable) {
+				akkaRpcActor.stop(
+					RpcEndpointTerminationResult.failure(
+						new AkkaRpcException(
+							String.format("Could not start RpcEndpoint %s.", akkaRpcActor.rpcEndpoint.getEndpointId()),
+							throwable)));
+			} finally {
+				akkaRpcActor.mainThreadValidator.exitMainThread();
+			}
+
 			return StartedState.INSTANCE;
 		}
 
@@ -534,8 +549,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 
 		@Override
 		public State terminate(AkkaRpcActor<?> akkaRpcActor) {
-			akkaRpcActor.rpcEndpointTerminationFuture = CompletableFuture.completedFuture(null);
-			akkaRpcActor.stop();
+			akkaRpcActor.stop(RpcEndpointTerminationResult.success());
 
 			return TerminatingState.INSTANCE;
 		}
@@ -553,5 +567,42 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 
 	enum TerminatedState implements State {
 		INSTANCE
+	}
+
+	private static final class RpcEndpointTerminationResult {
+
+		private static final RpcEndpointTerminationResult SUCCESS = new RpcEndpointTerminationResult(null);
+
+		@Nullable
+		private final Throwable failureCause;
+
+		private RpcEndpointTerminationResult(@Nullable Throwable failureCause) {
+			this.failureCause = failureCause;
+		}
+
+		public boolean isSuccess() {
+			return failureCause == null;
+		}
+
+		public Throwable getFailureCause() {
+			Preconditions.checkState(failureCause != null);
+			return failureCause;
+		}
+
+		private static RpcEndpointTerminationResult success() {
+			return SUCCESS;
+		}
+
+		private static RpcEndpointTerminationResult failure(Throwable failureCause) {
+			return new RpcEndpointTerminationResult(failureCause);
+		}
+
+		private static RpcEndpointTerminationResult of(@Nullable Throwable failureCause) {
+			if (failureCause == null) {
+				return success();
+			} else {
+				return failure(failureCause);
+			}
+		}
 	}
 }
