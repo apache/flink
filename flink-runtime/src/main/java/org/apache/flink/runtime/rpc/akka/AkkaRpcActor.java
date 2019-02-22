@@ -281,45 +281,13 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 						return;
 					}
 
-					final boolean isRemoteSender = isRemoteSender();
 					final String methodName = rpcMethod.getName();
 
 					if (result instanceof CompletableFuture) {
-						final CompletableFuture<?> future = (CompletableFuture<?>) result;
-						Promise.DefaultPromise<Object> promise = new Promise.DefaultPromise<>();
-
-						future.whenComplete(
-							(value, throwable) -> {
-								if (throwable != null) {
-									promise.failure(throwable);
-								} else {
-									if (isRemoteSender) {
-										Either<SerializedValue<?>, AkkaRpcException> serializedResult = serializeRemoteResultAndVerifySize(value, methodName);
-
-										if (serializedResult.isLeft()) {
-											promise.success(serializedResult.left());
-										} else {
-											promise.failure(serializedResult.right());
-										}
-									} else {
-										promise.success(value);
-									}
-								}
-							});
-
-						Patterns.pipe(promise.future(), getContext().dispatcher()).to(getSender());
+						final CompletableFuture<?> responseFuture = (CompletableFuture<?>) result;
+						sendAsyncResponse(responseFuture, methodName);
 					} else {
-						if (isRemoteSender) {
-							Either<SerializedValue<?>, AkkaRpcException> serializedResult = serializeRemoteResultAndVerifySize(result, methodName);
-
-							if (serializedResult.isLeft()) {
-								getSender().tell(new Status.Success(serializedResult.left()), getSelf());
-							} else {
-								getSender().tell(new Status.Failure(serializedResult.right()), getSelf());
-							}
-						} else {
-							getSender().tell(new Status.Success(result), getSelf());
-						}
+						sendSyncResponse(result, methodName);
 					}
 				}
 			} catch (Throwable e) {
@@ -330,8 +298,48 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 		}
 	}
 
-	private boolean isRemoteSender() {
-		return !getSender().path().address().hasLocalScope();
+	private void sendSyncResponse(Object response, String methodName) {
+		if (isRemoteSender(getSender())) {
+			Either<SerializedValue<?>, AkkaRpcException> serializedResult = serializeRemoteResultAndVerifySize(response, methodName);
+
+			if (serializedResult.isLeft()) {
+				getSender().tell(new Status.Success(serializedResult.left()), getSelf());
+			} else {
+				getSender().tell(new Status.Failure(serializedResult.right()), getSelf());
+			}
+		} else {
+			getSender().tell(new Status.Success(response), getSelf());
+		}
+	}
+
+	private void sendAsyncResponse(CompletableFuture<?> asyncResponse, String methodName) {
+		final ActorRef sender = getSender();
+		Promise.DefaultPromise<Object> promise = new Promise.DefaultPromise<>();
+
+		asyncResponse.whenComplete(
+			(value, throwable) -> {
+				if (throwable != null) {
+					promise.failure(throwable);
+				} else {
+					if (isRemoteSender(sender)) {
+						Either<SerializedValue<?>, AkkaRpcException> serializedResult = serializeRemoteResultAndVerifySize(value, methodName);
+
+						if (serializedResult.isLeft()) {
+							promise.success(serializedResult.left());
+						} else {
+							promise.failure(serializedResult.right());
+						}
+					} else {
+						promise.success(value);
+					}
+				}
+			});
+
+		Patterns.pipe(promise.future(), getContext().dispatcher()).to(sender);
+	}
+
+	private boolean isRemoteSender(ActorRef sender) {
+		return !sender.path().address().hasLocalScope();
 	}
 
 	private Either<SerializedValue<?>, AkkaRpcException> serializeRemoteResultAndVerifySize(Object result, String methodName) {
