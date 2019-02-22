@@ -342,7 +342,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final TaskExecutor taskManager = new TaskExecutor(
+		final TestingTaskExecutor taskManager = new TestingTaskExecutor(
 			rpc,
 			taskManagerConfiguration,
 			haServices,
@@ -355,6 +355,7 @@ public class TaskExecutorTest extends TestLogger {
 
 		try {
 			taskManager.start();
+			taskManager.waitUntilStarted();
 
 			rpc.registerGateway(jobMasterAddress, jobMasterGateway);
 
@@ -1034,7 +1035,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final TaskExecutor taskManager = new TaskExecutor(
+		final TestingTaskExecutor taskManager = new TestingTaskExecutor(
 			rpc,
 			taskManagerConfiguration,
 			haServices,
@@ -1047,6 +1048,7 @@ public class TaskExecutorTest extends TestLogger {
 
 		try {
 			taskManager.start();
+			taskManager.waitUntilStarted();
 
 			final TaskExecutorGateway tmGateway = taskManager.getSelfGateway(TaskExecutorGateway.class);
 
@@ -1260,7 +1262,7 @@ public class TaskExecutorTest extends TestLogger {
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
-		final TaskExecutor taskExecutor = new TaskExecutor(
+		final TestingTaskExecutor taskExecutor = new TestingTaskExecutor(
 			rpc,
 			taskManagerConfiguration,
 			haServices,
@@ -1292,6 +1294,7 @@ public class TaskExecutorTest extends TestLogger {
 			haServices.setJobMasterLeaderRetriever(jobId, jobMasterLeaderRetriever);
 
 			taskExecutor.start();
+			taskExecutor.waitUntilStarted();
 
 			final TaskExecutorGateway taskExecutorGateway = taskExecutor.getSelfGateway(TaskExecutorGateway.class);
 
