@@ -90,8 +90,8 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
 
 		DataStream<String> fromPubSub = env
 			.addSource(PubSubSource.newBuilder(new BoundedStringDeserializer(10), PROJECT_NAME, SUBSCRIPTION_NAME)
-								   .withPubSubSubscriberFactory(new PubSubSubscriberFactoryForEmulator(getPubSubHostPort()))
-					               .build())
+									.withPubSubSubscriberFactory(new PubSubSubscriberFactoryForEmulator(getPubSubHostPort()))
+									.build())
 			.name("PubSub source");
 
 		List<String> output = new ArrayList<>();
