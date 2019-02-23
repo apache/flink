@@ -163,8 +163,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "(Hello World,1,7,2)", "(Hello World,2,15,4)", "(Hello World,3,35,6)",
-      "(Hello,1,1,2)", "(Hello,2,3,4)", "(Hello,3,6,6)", "(Hello,4,10,8)", "(Hello,5,15,10)", "(Hello,6,21,12)")
+      "(Hello World,1,7,2)", "(Hello World,2,15,4)", "(Hello World,3,35,6)", "(Hello,1,1,2)",
+      "(Hello,2,3,4)", "(Hello,3,6,6)", "(Hello,4,10,8)", "(Hello,5,15,10)", "(Hello,6,21,12)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -455,8 +455,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "(Hello,5,2,9)",
       "(Hello,6,2,11)", "(Hello,65,2,12)",
       "(Hello,9,2,12)", "(Hello,9,2,12)", "(Hello,18,3,18)",
-      "(Hello World,7,4,25)", "(Hello World,17,3,21)", "(Hello World,77,3,21)", "(Hello World,18,1,7)",
-      "(Hello World,8,2,15)",
+      "(Hello World,7,4,25)", "(Hello World,17,3,21)", "(Hello World,77,3,21)",
+      "(Hello World,18,1,7)", "(Hello World,8,2,15)",
       "(Hello World,20,1,20)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }

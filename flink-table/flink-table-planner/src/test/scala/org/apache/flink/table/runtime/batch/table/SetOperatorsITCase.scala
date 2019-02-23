@@ -49,7 +49,8 @@ class SetOperatorsITCase(
     val unionDs = ds1.unionAll(ds2).select('c)
 
     val results = unionDs.toDataSet[Row].collect()
-    val expected = "(Hi)\n" + "(Hello)\n" + "(Hello world)\n" + "(Hi)\n" + "(Hello)\n" + "(Hello world)\n"
+    val expected = "(Hi)\n" + "(Hello)\n" + "(Hello world)\n" + "(Hi)\n" +
+      "(Hello)\n" + "(Hello world)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 

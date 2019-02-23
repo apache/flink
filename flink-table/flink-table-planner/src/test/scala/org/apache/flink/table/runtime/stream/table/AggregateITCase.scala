@@ -111,7 +111,11 @@ class AggregateITCase extends StreamingWithStateTestBase {
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
-    val expected = mutable.MutableList("(A,2,5,1,1,1)", "(B,3,12,4,2,3)", "(C,2,9,4,3,4)", "(D,1,9,9,4,9)")
+    val expected = mutable.MutableList(
+      "(A,2,5,1,1,1)",
+      "(B,3,12,4,2,3)",
+      "(C,2,9,4,3,4)",
+      "(D,1,9,9,4,9)")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
@@ -148,7 +152,8 @@ class AggregateITCase extends StreamingWithStateTestBase {
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
-    val expected = mutable.MutableList("(1,null)", "(2,null)", "(3,null)", "(4,null)", "(5,null)", "(6,null)")
+    val expected = mutable.MutableList("(1,null)", "(2,null)", "(3,null)",
+      "(4,null)", "(5,null)", "(6,null)")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
@@ -224,7 +229,12 @@ class AggregateITCase extends StreamingWithStateTestBase {
 
     results.addSink(new RetractingSink)
     env.execute()
-    val expected = List("(1,1,1,1)", "(2,1,2,2)", "(3,1,3,3)", "(4,1,4,4)", "(5,1,5,5)", "(6,1,6,6)")
+    val expected = List("(1,1,1,1)",
+      "(2,1,2,2)",
+      "(3,1,3,3)",
+      "(4,1,4,4)",
+      "(5,1,5,5)",
+      "(6,1,6,6)")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 

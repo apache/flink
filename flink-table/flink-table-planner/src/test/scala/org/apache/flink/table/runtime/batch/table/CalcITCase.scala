@@ -90,9 +90,10 @@ class CalcITCase(
       .select('_1 as 'a, '_2 as 'b, '_1 as 'c)
       .select('a, 'b)
 
-    val expected = "(1,1)\n" + "(2,2)\n" + "(3,2)\n" + "(4,3)\n" + "(5,3)\n" + "(6,3)\n" + "(7,4)\n" +
-      "(8,4)\n" + "(9,4)\n" + "(10,4)\n" + "(11,5)\n" + "(12,5)\n" + "(13,5)\n" + "(14,5)\n" + "(15,5)\n" +
-      "(16,6)\n" + "(17,6)\n" + "(18,6)\n" + "(19,6)\n" + "(20,6)\n" + "(21,6)\n"
+    val expected = "(1,1)\n" + "(2,2)\n" + "(3,2)\n" + "(4,3)\n" + "(5,3)\n" +
+      "(6,3)\n" + "(7,4)\n" + "(8,4)\n" + "(9,4)\n" + "(10,4)\n" + "(11,5)\n" +
+      "(12,5)\n" + "(13,5)\n" + "(14,5)\n" + "(15,5)\n" + "(16,6)\n" + "(17,6)\n" +
+      "(18,6)\n" + "(19,6)\n" + "(20,6)\n" + "(21,6)\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -106,9 +107,10 @@ class CalcITCase(
       .select('_1 as 'a, '_2 as 'b, '_3 as 'c)
       .select('a, 'b)
 
-    val expected = "(1,1)\n" + "(2,2)\n" + "(3,2)\n" + "(4,3)\n" + "(5,3)\n" + "(6,3)\n" + "(7,4)\n" +
-      "(8,4)\n" + "(9,4)\n" + "(10,4)\n" + "(11,5)\n" + "(12,5)\n" + "(13,5)\n" + "(14,5)\n" + "(15,5)\n" +
-      "(16,6)\n" + "(17,6)\n" + "(18,6)\n" + "(19,6)\n" + "(20,6)\n" + "(21,6)\n"
+    val expected = "(1,1)\n" + "(2,2)\n" + "(3,2)\n" + "(4,3)\n" + "(5,3)\n" +
+      "(6,3)\n" + "(7,4)\n" + "(8,4)\n" + "(9,4)\n" + "(10,4)\n" + "(11,5)\n" +
+      "(12,5)\n" + "(13,5)\n" + "(14,5)\n" + "(15,5)\n" + "(16,6)\n" + "(17,6)\n" +
+      "(18,6)\n" + "(19,6)\n" + "(20,6)\n" + "(21,6)\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -148,12 +150,12 @@ class CalcITCase(
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
     val filterDs = ds.filter( Literal(true) )
-    val expected = "(1,1,Hi)\n" + "(2,2,Hello)\n" + "(3,2,Hello world)\n" + "(4,3,Hello world, " +
-      "how are you?)\n" + "(5,3,I am fine.)\n" + "(6,3,Luke Skywalker)\n" + "(7,4," +
-      "Comment#1)\n" + "(8,4,Comment#2)\n" + "(9,4,Comment#3)\n" + "(10,4,Comment#4)\n" + "(11,5," +
-      "Comment#5)\n" + "(12,5,Comment#6)\n" + "(13,5,Comment#7)\n" + "(14,5,Comment#8)\n" + "(15,5," +
-      "Comment#9)\n" + "(16,6,Comment#10)\n" + "(17,6,Comment#11)\n" + "(18,6,Comment#12)\n" + "(19," +
-      "6,Comment#13)\n" + "(20,6,Comment#14)\n" + "(21,6,Comment#15)\n"
+    val expected = "(1,1,Hi)\n" + "(2,2,Hello)\n" + "(3,2,Hello world)\n" +
+      "(4,3,Hello world, how are you?)\n" + "(5,3,I am fine.)\n" + "(6,3,Luke Skywalker)\n" +
+      "(7,4,Comment#1)\n" + "(8,4,Comment#2)\n" + "(9,4,Comment#3)\n" + "(10,4,Comment#4)\n" +
+      "(11,5,Comment#5)\n" + "(12,5,Comment#6)\n" + "(13,5,Comment#7)\n" + "(14,5,Comment#8)\n" +
+      "(15,5,Comment#9)\n" + "(16,6,Comment#10)\n" + "(17,6,Comment#11)\n" + "(18,6,Comment#12)\n" +
+      "(19,6,Comment#13)\n" + "(20,6,Comment#14)\n" + "(21,6,Comment#15)\n"
     val results = filterDs.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -255,7 +257,9 @@ class CalcITCase(
     val filterDs = ds.toTable(tEnv, 'myInt as 'i, 'myLong as 'l, 'myString as 's)
       .filter( 's.like("%a%") )
 
-    val expected = "(3,3,Hello world, how are you?)\n" + "(3,4,I am fine.)\n" + "(3,5,Luke Skywalker)\n"
+    val expected = "(3,3,Hello world, how are you?)\n" + "" +
+      "(3,4,I am fine.)\n" +
+      "(3,5,Luke Skywalker)\n"
     val results = filterDs.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

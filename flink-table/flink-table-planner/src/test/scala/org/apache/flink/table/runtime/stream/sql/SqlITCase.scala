@@ -94,9 +94,9 @@ class SqlITCase extends StreamingWithStateTestBase {
 
     val expected = Seq(
       "(Hello World,1,9,1,1,1970-01-01 00:00:00.014)", // window starts at [9L] till {14L}
-      "(Hello,1,16,1,1,1970-01-01 00:00:00.021)",    // window starts at [16L] till {21L}, not merged
-      "(Hello,3,6,3,3,1970-01-01 00:00:00.015)"      // window starts at [1L,2L],
-                                                   // merged with [8L,10L], by [4L], till {15L}
+      "(Hello,1,16,1,1,1970-01-01 00:00:00.021)", // window starts at [16L] till {21L}, not merged
+      "(Hello,3,6,3,3,1970-01-01 00:00:00.015)" // window starts at [1L,2L],
+                                                // merged with [8L,10L], by [4L], till {15L}
     )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
@@ -160,7 +160,8 @@ class SqlITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = List("(Hello World,2,2,2)", "(Hello World,1,1,1)", "(Hello,4,4,3)", "(Hello,2,2,1)")
+    val expected = List("(Hello World,2,2,2)", "(Hello World,1,1,1)",
+      "(Hello,4,4,3)", "(Hello,2,2,1)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -265,7 +266,8 @@ class SqlITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
-    val expected = List("(1,0,1,1)", "(2,1,1,2)", "(3,3,3,3)", "(4,5,1,4)", "(5,12,1,5)", "(6,18,1,6)")
+    val expected = List("(1,0,1,1)", "(2,1,1,2)", "(3,3,3,3)",
+      "(4,5,1,4)", "(5,12,1,5)", "(6,18,1,6)")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 

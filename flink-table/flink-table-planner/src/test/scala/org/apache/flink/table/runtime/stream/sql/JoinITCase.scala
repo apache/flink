@@ -1063,8 +1063,8 @@ class JoinITCase extends StreamingWithStateTestBase {
     val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = Seq(
-      "(Hi,Hallo)", "(Hello,Hallo Welt)", "(Hello world,Hallo Welt wie gehts?)", "(Hello world,ABC)",
-      "(I am fine.,HIJ)", "(I am fine.,IJK)")
+      "(Hi,Hallo)", "(Hello,Hallo Welt)", "(Hello world,Hallo Welt wie gehts?)",
+      "(Hello world,ABC)", "(I am fine.,HIJ)", "(I am fine.,IJK)")
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -1191,8 +1191,8 @@ class JoinITCase extends StreamingWithStateTestBase {
     val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = Seq(
-      "(1,null)", "(2,null)", "(2,null)", "(3,3)", "(3,3)", "(3,3)", "(4,null)", "(4,null)", "(4,null)",
-      "(4,null)", "(5,null)", "(5,null)", "(5,null)", "(5,null)", "(5,null)")
+      "(1,null)", "(2,null)", "(2,null)", "(3,3)", "(3,3)", "(3,3)", "(4,null)", "(4,null)",
+      "(4,null)", "(4,null)", "(5,null)", "(5,null)", "(5,null)", "(5,null)", "(5,null)")
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
