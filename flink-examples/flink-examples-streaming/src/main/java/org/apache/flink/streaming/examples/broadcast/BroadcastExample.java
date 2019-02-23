@@ -35,7 +35,6 @@ import java.util.List;
  * Example illustrating broadcast.
  */
 public class BroadcastExample {
-	
 	public static void main(String[] args) throws Exception {
 		
 		final List<Tuple2<String, String>> rule = new ArrayList<>();
@@ -49,25 +48,25 @@ public class BroadcastExample {
 		keyedInput.add(new Tuple2<>("20190222", "5"));
 		keyedInput.add(new Tuple2<>("20190223", "20"));
 		
-		
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		
 		DataStream<Tuple2<String, String>> elementStream = env.fromCollection(keyedInput).rebalance();
-		
 		MapStateDescriptor<String, String> mapStateDescriptor = new MapStateDescriptor<>(
-			"rulesBroadcastState", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
+			"rulesBroadcastState",
+			BasicTypeInfo.STRING_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO
 		);
-		BroadcastStream<Tuple2<String, String>> broadcastStream = env.fromCollection(rule).broadcast(mapStateDescriptor);
 		
+		BroadcastStream<Tuple2<String, String>> broadcastStream = env.fromCollection(rule).broadcast(mapStateDescriptor);
 		DataStream<Tuple2<String, String>> output = elementStream
 			.connect(broadcastStream)
 			.process(new BroadcastProcessFunction<Tuple2<String, String>, Tuple2<String, String>, Tuple2<String, String>>() {
-				
-				private final MapStateDescriptor<String, String> broadcastStateDescriptor =
-					new MapStateDescriptor<>("rulesBroadcastState", BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
-				
+				private final MapStateDescriptor<String, String> broadcastStateDescriptor = new MapStateDescriptor<>(
+					"rulesBroadcastState",
+					BasicTypeInfo.STRING_TYPE_INFO,
+					BasicTypeInfo.STRING_TYPE_INFO
+				);
 				private Tuple2<String, String> tuple2 = new Tuple2<>();
-				
 				@Override
 				public void processElement(Tuple2<String, String> value, ReadOnlyContext ctx, Collector<Tuple2<String, String>> out) throws Exception {
 					ReadOnlyBroadcastState<String, String> broadcastState = ctx.getBroadcastState(broadcastStateDescriptor);
@@ -83,7 +82,6 @@ public class BroadcastExample {
 				
 				@Override
 				public void processBroadcastElement(Tuple2<String, String> value, Context ctx, Collector<Tuple2<String, String>> out) throws Exception {
-					System.out.println(value.f0 + "=========>" + value.f1);
 					ctx.getBroadcastState(broadcastStateDescriptor).put(value.f0, value.f1);
 				}
 			});
