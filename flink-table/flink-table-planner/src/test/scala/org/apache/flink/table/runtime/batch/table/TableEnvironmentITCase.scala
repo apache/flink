@@ -51,12 +51,12 @@ class TableEnvironmentITCase(
     tEnv.registerDataSet(tableName, ds)
     val t = tEnv.scan(tableName).select('_1, '_2, '_3)
 
-    val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
-      "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
-      "7,4,Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" +
-      "11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" +
-      "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" +
-      "19,6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
+    val expected = "(1,1,Hi)\n" + "(2,2,Hello)\n" + "(3,2,Hello world)\n" +
+      "(4,3,Hello world, how are you?)\n" + "(5,3,I am fine.)\n" + "(6,3,Luke Skywalker)\n" +
+      "(7,4,Comment#1)\n" + "(8,4,Comment#2)\n" + "(9,4,Comment#3)\n" + "(10,4,Comment#4)\n" +
+      "(11,5,Comment#5)\n" + "(12,5,Comment#6)\n" + "(13,5,Comment#7)\n" + "(14,5,Comment#8)\n" +
+      "(15,5,Comment#9)\n" + "(16,6,Comment#10)\n" + "(17,6,Comment#11)\n" + "(18,6,Comment#12)\n" +
+      "(19,6,Comment#13)\n" + "(20,6,Comment#14)\n" + "(21,6,Comment#15)\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -72,9 +72,9 @@ class TableEnvironmentITCase(
     tEnv.registerDataSet(tableName, ds, 'a, 'b, 'c) // new alias
     val t = tEnv.scan(tableName).select('a, 'b)
 
-    val expected = "1,1\n" + "2,2\n" + "3,2\n" + "4,3\n" + "5,3\n" + "6,3\n" +
-      "7,4\n" + "8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" + "13,5\n" + "14,5\n" +
-      "15,5\n" + "16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n"
+    val expected = "(1,1)\n" + "(2,2)\n" + "(3,2)\n" + "(4,3)\n" + "(5,3)\n" + "(6,3)\n" +
+      "(7,4)\n" + "(8,4)\n" + "(9,4)\n" + "(10,4)\n" + "(11,5)\n" + "(12,5)\n" + "(13,5)\n" + "(14,5)\n" +
+      "(15,5)\n" + "(16,6)\n" + "(17,6)\n" + "(18,6)\n" + "(19,6)\n" + "(20,6)\n" + "(21,6)\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -90,9 +90,9 @@ class TableEnvironmentITCase(
     tEnv.registerDataSet(tableName, ds, '_3, '_1, '_2) // new order
     val t = tEnv.scan(tableName).select('_1, '_2)
 
-    val expected = "1,1\n" + "2,2\n" + "3,2\n" + "4,3\n" + "5,3\n" + "6,3\n" +
-      "7,4\n" + "8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" + "13,5\n" + "14,5\n" +
-      "15,5\n" + "16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n"
+    val expected = "(1,1)\n" + "(2,2)\n" + "(3,2)\n" + "(4,3)\n" + "(5,3)\n" + "(6,3)\n" +
+      "(7,4)\n" + "(8,4)\n" + "(9,4)\n" + "(10,4)\n" + "(11,5)\n" + "(12,5)\n" + "(13,5)\n" + "(14,5)\n" +
+      "(15,5)\n" + "(16,6)\n" + "(17,6)\n" + "(18,6)\n" + "(19,6)\n" + "(20,6)\n" + "(21,6)\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -109,10 +109,10 @@ class TableEnvironmentITCase(
 
     val regT = tEnv.scan(tableName).select('a, 'b).filter('a > 8)
 
-    val expected = "9,4\n" + "10,4\n" +
-      "11,5\n" + "12,5\n" + "13,5\n" + "14,5\n" +
-      "15,5\n" + "16,6\n" + "17,6\n" + "18,6\n" +
-      "19,6\n" + "20,6\n" + "21,6\n"
+    val expected = "(9,4)\n" + "(10,4)\n" +
+      "(11,5)\n" + "(12,5)\n" + "(13,5)\n" + "(14,5)\n" +
+      "(15,5)\n" + "(16,6)\n" + "(17,6)\n" + "(18,6)\n" +
+      "(19,6)\n" + "(20,6)\n" + "(21,6)\n"
 
     val results = regT.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
@@ -127,12 +127,12 @@ class TableEnvironmentITCase(
       .toTable(tEnv, 'a, 'b, 'c)
       .select('a, 'b, 'c)
 
-    val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
-      "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
-      "7,4,Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" +
-      "11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" +
-      "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" +
-      "19,6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
+    val expected = "(1,1,Hi)\n" + "(2,2,Hello)\n" + "(3,2,Hello world)\n" +
+      "(4,3,Hello world, how are you?)\n" + "(5,3,I am fine.)\n" + "(6,3,Luke Skywalker)\n" +
+      "(7,4,Comment#1)\n" + "(8,4,Comment#2)\n" + "(9,4,Comment#3)\n" + "(10,4,Comment#4)\n" +
+      "(11,5,Comment#5)\n" + "(12,5,Comment#6)\n" + "(13,5,Comment#7)\n" + "(14,5,Comment#8)\n" +
+      "(15,5,Comment#9)\n" + "(16,6,Comment#10)\n" + "(17,6,Comment#11)\n" + "(18,6,Comment#12)\n" +
+      "(19,6,Comment#13)\n" + "(20,6,Comment#14)\n" + "(21,6,Comment#15)\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -152,9 +152,9 @@ class TableEnvironmentITCase(
       .select('a, 'b, 'c, 'd)
 
     val expected: String =
-      "Peter,28,4000.0,Sales\n" +
-      "Anna,56,10000.0,Engineering\n" +
-      "Lucy,42,6000.0,HR\n"
+      "(Peter,28,4000.0,Sales)\n" +
+      "(Anna,56,10000.0,Engineering)\n" +
+      "(Lucy,42,6000.0,HR)\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -200,7 +200,7 @@ class TableEnvironmentITCase(
       .insertInto("targetTable")
     env.execute()
 
-    val expected = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
+    val expected = List("(1,1,Hi)", "(2,2,Hello)", "(3,2,Hello world)")
     assertEquals(expected.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
   }
 }

@@ -58,14 +58,14 @@ public class JavaTableSourceITCase extends TableProgramsCollectionTestBase {
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
 
-		String expected = "1,Mike,Smith,12.3\n" +
-			"2,Bob,Taylor,45.6\n" +
-			"3,Sam,Miller,7.89\n" +
-			"4,Peter,Smith,0.12\n" +
-			"5,Liz,Williams,34.5\n" +
-			"6,Sally,Miller,6.78\n" +
-			"7,Alice,Smith,90.1\n" +
-			"8,Kelly,Williams,2.34\n";
+		String expected = "(1,Mike,Smith,12.3)\n" +
+			"(2,Bob,Taylor,45.6)\n" +
+			"(3,Sam,Miller,7.89)\n" +
+			"(4,Peter,Smith,0.12)\n" +
+			"(5,Liz,Williams,34.5)\n" +
+			"(6,Sally,Miller,6.78)\n" +
+			"(7,Alice,Smith,90.1)\n" +
+			"(8,Kelly,Williams,2.34)\n";
 
 		compareResultAsText(results, expected);
 	}
@@ -84,11 +84,11 @@ public class JavaTableSourceITCase extends TableProgramsCollectionTestBase {
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
 
-		String expected = "Smith,1,24.6\n" +
-			"Miller,3,15.78\n" +
-			"Smith,4,0.24\n" +
-			"Miller,6,13.56\n" +
-			"Williams,8,4.68\n";
+		String expected = "(Smith,1,24.6)\n" +
+			"(Miller,3,15.78)\n" +
+			"(Smith,4,0.24)\n" +
+			"(Miller,6,13.56)\n" +
+			"(Williams,8,4.68)\n";
 
 		compareResultAsText(results, expected);
 	}

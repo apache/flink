@@ -52,6 +52,5 @@ object SortTestUtils {
       .sorted(ordering)
       .slice(start, end)
       .mkString("\n")
-      .replaceAll("[\\(\\)]", "")
   }
 }

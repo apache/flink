@@ -93,9 +93,9 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = Seq(
-      "Hello World,1,9,1,1,1970-01-01 00:00:00.014", // window starts at [9L] till {14L}
-      "Hello,1,16,1,1,1970-01-01 00:00:00.021",    // window starts at [16L] till {21L}, not merged
-      "Hello,3,6,3,3,1970-01-01 00:00:00.015"      // window starts at [1L,2L],
+      "(Hello World,1,9,1,1,1970-01-01 00:00:00.014)", // window starts at [9L] till {14L}
+      "(Hello,1,16,1,1,1970-01-01 00:00:00.021)",    // window starts at [16L] till {21L}, not merged
+      "(Hello,3,6,3,3,1970-01-01 00:00:00.015)"      // window starts at [1L,2L],
                                                    // merged with [8L,10L], by [4L], till {15L}
     )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
@@ -127,11 +127,11 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "1,1,1,1",
-      "2,3,1,2",
-      "3,5,2,2",
-      "4,3,1,2",
-      "5,6,1,3")
+      "(1,1,1,1)",
+      "(2,3,1,2)",
+      "(3,5,2,2)",
+      "(4,3,1,2)",
+      "(5,6,1,3)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -160,7 +160,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = List("Hello World,2,2,2", "Hello World,1,1,1", "Hello,4,4,3", "Hello,2,2,1")
+    val expected = List("(Hello World,2,2,2)", "(Hello World,1,1,1)", "(Hello,4,4,3)", "(Hello,2,2,1)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -185,7 +185,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.RetractingSink)
     env.execute()
 
-    val expected = List("Hello World,3,3,3", "Hello,6,6,4")
+    val expected = List("(Hello World,3,3,3)", "(Hello,6,6,4)")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
@@ -218,7 +218,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = List("Hello,Worlds,1","Hello again,Worlds,2")
+    val expected = List("(Hello,Worlds,1)","(Hello again,Worlds,2)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
     
@@ -239,7 +239,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
-    val expected = List("1,1", "2,2", "3,3", "4,4", "5,5", "6,6")
+    val expected = List("(1,1)", "(2,2)", "(3,3)", "(4,4)", "(5,5)", "(6,6)")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
@@ -265,7 +265,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
-    val expected = List("1,0,1,1", "2,1,1,2", "3,3,3,3", "4,5,1,4", "5,12,1,5", "6,18,1,6")
+    val expected = List("(1,0,1,1)", "(2,1,1,2)", "(3,3,3,3)", "(4,5,1,4)", "(5,12,1,5)", "(6,18,1,6)")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
@@ -302,7 +302,7 @@ class SqlITCase extends StreamingWithStateTestBase {
 
     env.execute()
 
-    val expected = List("1,3")
+    val expected = List("(1,3)")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
@@ -324,12 +324,12 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "1,{1=1}",
-      "2,{2=1, 3=1}",
-      "3,{4=1, 5=1, 6=1}",
-      "4,{7=1, 8=1, 9=1, 10=1}",
-      "5,{11=1, 12=1, 13=1, 14=1, 15=1}",
-      "6,{16=1, 17=1, 18=1, 19=1, 20=1, 21=1}")
+      "(1,{1=1})",
+      "(2,{2=1, 3=1})",
+      "(3,{4=1, 5=1, 6=1})",
+      "(4,{7=1, 8=1, 9=1, 10=1})",
+      "(5,{11=1, 12=1, 13=1, 14=1, 15=1})",
+      "(6,{16=1, 17=1, 18=1, 19=1, 20=1, 21=1})")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
@@ -359,9 +359,9 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "1,{(12,45.6)=1}",
-      "2,{(13,41.6)=1, (12,45.612)=1}",
-      "3,{(18,42.6)=1, (14,45.2136)=1}")
+      "(1,{(12,45.6)=1})",
+      "(2,{(13,41.6)=1, (12,45.612)=1})",
+      "(3,{(18,42.6)=1, (14,45.2136)=1})")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
@@ -382,7 +382,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = List("(1,1),one", "(2,2),two", "(3,3),three")
+    val expected = List("((1,1),one)", "((2,2),two)", "((3,3),three)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -403,7 +403,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = List("2,0", "4,1", "6,1")
+    val expected = List("(2,0)", "(4,1)", "(6,1)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -424,7 +424,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = List("2,0", "4,1", "6,1")
+    val expected = List("(2,0)", "(4,1)", "(6,1)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -445,7 +445,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = List("3,2,Hello world")
+    val expected = List("(3,2,Hello world)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -466,7 +466,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = List("3,2,Hello world")
+    val expected = List("(3,2,Hello world)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -491,9 +491,9 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "1,1,Hi", "1,1,Hi",
-      "2,2,Hello", "2,2,Hello",
-      "3,2,Hello world", "3,2,Hello world")
+      "(1,1,Hi)", "(1,1,Hi)",
+      "(2,2,Hello)", "(2,2,Hello)",
+      "(3,2,Hello world)", "(3,2,Hello world)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -518,8 +518,8 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "2,2,Hello",
-      "3,2,Hello world")
+      "(2,2,Hello)",
+      "(3,2,Hello world)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -543,7 +543,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = List("Hello", "Hello world")
+    val expected = List("(Hello)", "(Hello world)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -568,12 +568,12 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "1,[12, 45],12",
-      "1,[12, 45],45",
-      "2,[41, 5],41",
-      "2,[41, 5],5",
-      "3,[18, 42],18",
-      "3,[18, 42],42"
+      "(1,[12, 45],12)",
+      "(1,[12, 45],45)",
+      "(2,[41, 5],41)",
+      "(2,[41, 5],5)",
+      "(3,[18, 42],18)",
+      "(3,[18, 42],42)"
     )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
@@ -599,11 +599,11 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "1,[12, 45]",
-      "2,[18]",
-      "2,[87]",
-      "3,[1]",
-      "3,[45]")
+      "(1,[12, 45])",
+      "(2,[18])",
+      "(2,[87])",
+      "(3,[1])",
+      "(3,[45])")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -628,8 +628,8 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "2,[(13,41.6), (14,45.2136)],14,45.2136",
-      "3,[(18,42.6)],18,42.6")
+      "(2,[(13,41.6), (14,45.2136)],14,45.2136)",
+      "(3,[(18,42.6)],18,42.6)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -658,9 +658,9 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "1,12,45.6",
-      "2,12,45.612",
-      "2,13,41.6")
+      "(1,12,45.6)",
+      "(2,12,45.612)",
+      "(2,13,41.6)")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
@@ -695,11 +695,11 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "1,1",
-      "1,2",
-      "2,2",
-      "3,null",
-      "4,4"
+      "(1,1)",
+      "(1,2)",
+      "(2,2)",
+      "(3,null)",
+      "(4,4)"
     )
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
@@ -750,7 +750,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "Hello,2,1970-01-01 03:53:00.0,1970-01-01 03:54:00.0"
+      "(Hello,2,1970-01-01 03:53:00.0,1970-01-01 03:54:00.0)"
     )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
@@ -787,9 +787,9 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "1,1,Hi,1970-01-01 00:00:00.001",
-      "2,2,Hello,1970-01-01 00:00:00.002",
-      "3,2,Hello world,1970-01-01 00:00:00.002")
+      "(1,1,Hi,1970-01-01 00:00:00.001)",
+      "(2,2,Hello,1970-01-01 00:00:00.002)",
+      "(3,2,Hello world,1970-01-01 00:00:00.002)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -812,9 +812,9 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "Hi300",
-      "Hello300",
-      "Hello world300")
+      "(Hi300)",
+      "(Hello300)",
+      "(Hello world300)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -838,9 +838,9 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "1,600",
-      "2,1500",
-      "3,3300")
+      "(1,600)",
+      "(2,1500)",
+      "(3,3300)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -857,12 +857,14 @@ class SqlITCase extends StreamingWithStateTestBase {
     val sqlQuery = new StringBuilder
     sqlQuery.append("SELECT ")
     val expected = new StringBuilder
+    expected.append("(")
     for (i <- 0 until 500) {
       sqlQuery.append(s"a + b + $i, ")
       expected.append((1 + 42L + i).toString + ",")
     }
     sqlQuery.append("c FROM MyTable")
     expected.append("Hi")
+    expected.append(")")
 
     val result = tEnv.sqlQuery(sqlQuery.toString()).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])

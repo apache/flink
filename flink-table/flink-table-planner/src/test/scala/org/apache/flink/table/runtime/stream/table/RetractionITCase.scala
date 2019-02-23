@@ -65,7 +65,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
 
-    val expected = Seq("1,2", "2,1", "6,1")
+    val expected = Seq("(1,2)", "(2,1)", "(6,1)")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
@@ -89,7 +89,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
-    val expected = Seq("10")
+    val expected = Seq("(10)")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
@@ -113,7 +113,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
 
-    val expected = Seq("10,1")
+    val expected = Seq("(10,1)")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
@@ -156,8 +156,8 @@ class RetractionITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = Seq(
-      "+1,1", "+2,1", "+3,1", "-3,1", "+6,1", "-1,1", "+1,2", "-1,2", "+1,3", "-6,1", "+6,2",
-      "-6,2", "+6,1", "+12,1", "-12,1", "+18,1", "+8,1")
+      "+(1,1)", "+(2,1)", "+(3,1)", "-(3,1)", "+(6,1)", "-(1,1)", "+(1,2)", "-(1,2)", "+(1,3)", "-(6,1)", "+(6,2)",
+      "-(6,2)", "+(6,1)", "+(12,1)", "-(12,1)", "+(18,1)", "+(8,1)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -184,7 +184,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
 
-    val expected = Seq("1,2", "2,1", "6,1")
+    val expected = Seq("(1,2)", "(2,1)", "(6,1)")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 }

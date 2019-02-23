@@ -67,7 +67,7 @@ class SetOperatorsITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = Seq(
-      "2,2,Hello", "3,3,Hello World"
+      "(2,2,Hello)", "(3,3,Hello World)"
     )
 
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
@@ -119,7 +119,7 @@ class SetOperatorsITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = Seq(
-      "1,1,Hello", "2,2,Hello"
+      "(1,1,Hello)", "(2,2,Hello)"
     )
 
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
@@ -161,7 +161,7 @@ class SetOperatorsITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = Seq(
-      "3,3,Hello World"
+      "(3,3,Hello World)"
     )
 
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)

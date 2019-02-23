@@ -180,12 +180,12 @@ class JoinITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
     val expected = new java.util.ArrayList[String]
-    expected.add("A,RIGHT6,LEFT1")
-    expected.add("A,RIGHT6,LEFT2")
-    expected.add("A,RIGHT6,LEFT3")
-    expected.add("A,RIGHT6,LEFT5")
-    expected.add("A,RIGHT6,LEFT6")
-    expected.add("B,RIGHT7,LEFT4")
+    expected.add("(A,RIGHT6,LEFT1)")
+    expected.add("(A,RIGHT6,LEFT2)")
+    expected.add("(A,RIGHT6,LEFT3)")
+    expected.add("(A,RIGHT6,LEFT5)")
+    expected.add("(A,RIGHT6,LEFT6)")
+    expected.add("(B,RIGHT7,LEFT4)")
     StreamITCase.compareWithList(expected)
   }
 
@@ -231,8 +231,8 @@ class JoinITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
     val expected = new java.util.ArrayList[String]
-    expected.add("A,R-5,5")
-    expected.add("B,R-6,6")
+    expected.add("(A,R-5,5)")
+    expected.add("(B,R-6,6)")
     StreamITCase.compareWithList(expected)
   }
 
@@ -292,10 +292,10 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     // There may be two expected results according to the process order.
     val expected = new util.ArrayList[String]
-    expected.add("1,LEFT3,RIGHT6")
-    expected.add("1,LEFT1.1,RIGHT6")
-    expected.add("2,LEFT4,RIGHT7")
-    expected.add("1,LEFT4.9,RIGHT6")
+    expected.add("(1,LEFT3,RIGHT6)")
+    expected.add("(1,LEFT1.1,RIGHT6)")
+    expected.add("(2,LEFT4,RIGHT7)")
+    expected.add("(1,LEFT4.9,RIGHT6)")
     StreamITCase.compareWithList(expected)
   }
 
@@ -347,10 +347,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = new java.util.ArrayList[String]
-    expected.add("1,LEFT3,RIGHT6")
-    expected.add("1,LEFT5,RIGHT6")
-    expected.add("1,LEFT5,RIGHT8")
-    expected.add("1,LEFT6,RIGHT8")
+    expected.add("(1,LEFT3,RIGHT6)")
+    expected.add("(1,LEFT5,RIGHT6)")
+    expected.add("(1,LEFT5,RIGHT8)")
+    expected.add("(1,LEFT6,RIGHT8)")
     StreamITCase.compareWithList(expected)
   }
 
@@ -402,10 +402,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
     val expected = new java.util.ArrayList[String]
-    expected.add("A,1970-01-01 00:00:04.0,3")
-    expected.add("A,1970-01-01 00:00:12.0,2")
-    expected.add("A,1970-01-01 00:00:16.0,1")
-    expected.add("B,1970-01-01 00:00:08.0,1")
+    expected.add("(A,1970-01-01 00:00:04.0,3)")
+    expected.add("(A,1970-01-01 00:00:12.0,2)")
+    expected.add("(A,1970-01-01 00:00:16.0,1)")
+    expected.add("(B,1970-01-01 00:00:08.0,1)")
     StreamITCase.compareWithList(expected)
   }
 
@@ -457,9 +457,9 @@ class JoinITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
     val expected = new java.util.ArrayList[String]
-    expected.add("A,1970-01-01 00:00:08.0,3")
-    expected.add("A,1970-01-01 00:00:12.0,3")
-    expected.add("B,1970-01-01 00:00:08.0,1")
+    expected.add("(A,1970-01-01 00:00:08.0,3)")
+    expected.add("(A,1970-01-01 00:00:12.0,3)")
+    expected.add("(B,1970-01-01 00:00:08.0,1)")
     StreamITCase.compareWithList(expected)
   }
 
@@ -554,18 +554,18 @@ class JoinITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
     val expected = new java.util.ArrayList[String]
-    expected.add("A,R-6,L-1")
-    expected.add("A,R-6,L-2")
-    expected.add("A,R-6,L-6")
-    expected.add("A,R-6,L-10")
-    expected.add("A,R-6,L-12")
-    expected.add("B,R-7,L-4")
-    expected.add("A,R-11,L-6")
-    expected.add("A,R-11,L-10")
-    expected.add("A,R-11,L-12")
-    expected.add("B,null,L-5")
-    expected.add("C,null,L-7")
-    expected.add("A,null,L-20")
+    expected.add("(A,R-6,L-1)")
+    expected.add("(A,R-6,L-2)")
+    expected.add("(A,R-6,L-6)")
+    expected.add("(A,R-6,L-10)")
+    expected.add("(A,R-6,L-12)")
+    expected.add("(B,R-7,L-4)")
+    expected.add("(A,R-11,L-6)")
+    expected.add("(A,R-11,L-10)")
+    expected.add("(A,R-11,L-12)")
+    expected.add("(B,null,L-5)")
+    expected.add("(C,null,L-7)")
+    expected.add("(A,null,L-20)")
     StreamITCase.compareWithList(expected)
   }
 
@@ -611,9 +611,9 @@ class JoinITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
     val expected = new java.util.ArrayList[String]
-    expected.add("null,null,L-1")
-    expected.add("null,null,L-4")
-    expected.add("null,null,L-7")
+    expected.add("(null,null,L-1)")
+    expected.add("(null,null,L-4)")
+    expected.add("(null,null,L-7)")
     StreamITCase.compareWithList(expected)
   }
 
@@ -707,15 +707,15 @@ class JoinITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
     val expected = new java.util.ArrayList[String]
-    expected.add("A,R-5,null")
-    expected.add("A,R-6,L-1")
-    expected.add("A,R-6,L-2")
-    expected.add("A,R-6,L-6")
-    expected.add("A,R-6,L-10")
-    expected.add("A,R-6,L-12")
-    expected.add("A,R-20,null")
-    expected.add("B,R-7,L-4")
-    expected.add("D,R-8,null")
+    expected.add("(A,R-5,null)")
+    expected.add("(A,R-6,L-1)")
+    expected.add("(A,R-6,L-2)")
+    expected.add("(A,R-6,L-6)")
+    expected.add("(A,R-6,L-10)")
+    expected.add("(A,R-6,L-12)")
+    expected.add("(A,R-20,null)")
+    expected.add("(B,R-7,L-4)")
+    expected.add("(D,R-8,null)")
     StreamITCase.compareWithList(expected)
   }
 
@@ -761,9 +761,9 @@ class JoinITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
     val expected = new java.util.ArrayList[String]
-    expected.add("A,R-6,null")
-    expected.add("B,R-7,null")
-    expected.add("D,R-8,null")
+    expected.add("(A,R-6,null)")
+    expected.add("(B,R-7,null)")
+    expected.add("(D,R-8,null)")
     StreamITCase.compareWithList(expected)
   }
 
@@ -858,17 +858,17 @@ class JoinITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
     val expected = new java.util.ArrayList[String]
-    expected.add("A,R-6,L-1")
-    expected.add("A,R-6,L-2")
-    expected.add("A,R-6,L-6")
-    expected.add("A,R-6,L-10")
-    expected.add("A,R-6,L-12")
-    expected.add("B,R-7,L-4")
-    expected.add("A,R-5,null")
-    expected.add("D,R-8,null")
-    expected.add("null,null,L-5")
-    expected.add("null,null,L-7")
-    expected.add("null,null,L-20")
+    expected.add("(A,R-6,L-1)")
+    expected.add("(A,R-6,L-2)")
+    expected.add("(A,R-6,L-6)")
+    expected.add("(A,R-6,L-10)")
+    expected.add("(A,R-6,L-12)")
+    expected.add("(B,R-7,L-4)")
+    expected.add("(A,R-5,null)")
+    expected.add("(D,R-8,null)")
+    expected.add("(null,null,L-5)")
+    expected.add("(null,null,L-7)")
+    expected.add("(null,null,L-20)")
     StreamITCase.compareWithList(expected)
   }
 
@@ -914,12 +914,12 @@ class JoinITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
     val expected = new java.util.ArrayList[String]
-    expected.add("null,null,L-1")
-    expected.add("null,null,L-4")
-    expected.add("null,null,L-7")
-    expected.add("A,R-6,null")
-    expected.add("B,R-7,null")
-    expected.add("D,R-8,null")
+    expected.add("(null,null,L-1)")
+    expected.add("(null,null,L-4)")
+    expected.add("(null,null,L-7)")
+    expected.add("(A,R-6,null)")
+    expected.add("(B,R-7,null)")
+    expected.add("(D,R-8,null)")
     StreamITCase.compareWithList(expected)
   }
 
@@ -967,13 +967,13 @@ class JoinITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = mutable.MutableList(
-      "1,HiHi,Hi2",
-      "1,HiHi,Hi2",
-      "1,HiHi,Hi3",
-      "1,HiHi,Hi6",
-      "1,HiHi,Hi8",
-      "2,HeHe,Hi5",
-      "null,HeHe,Hi9")
+      "(1,HiHi,Hi2)",
+      "(1,HiHi,Hi2)",
+      "(1,HiHi,Hi3)",
+      "(1,HiHi,Hi6)",
+      "(1,HiHi,Hi8)",
+      "(2,HeHe,Hi5)",
+      "(null,HeHe,Hi9)")
 
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
@@ -993,7 +993,7 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = Seq("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt")
+    val expected = Seq("(Hi,Hallo)", "(Hello,Hallo Welt)", "(Hello world,Hallo Welt)")
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -1016,7 +1016,7 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = Seq("Hi,Hallo")
+    val expected = Seq("(Hi,Hallo)")
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -1039,7 +1039,7 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = Seq("Hello world, how are you?,Hallo Welt wie", "I am fine.,Hallo Welt wie")
+    val expected = Seq("(Hello world, how are you?,Hallo Welt wie)", "(I am fine.,Hallo Welt wie)")
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -1063,8 +1063,8 @@ class JoinITCase extends StreamingWithStateTestBase {
     val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = Seq(
-      "Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt wie gehts?", "Hello world,ABC",
-      "I am fine.,HIJ", "I am fine.,IJK")
+      "(Hi,Hallo)", "(Hello,Hallo Welt)", "(Hello world,Hallo Welt wie gehts?)", "(Hello world,ABC)",
+      "(I am fine.,HIJ)", "(I am fine.,IJK)")
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -1089,8 +1089,8 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = Seq("1,Hi", "2,Hello", "1,Hello",
-      "2,Hello world", "2,Hello world", "3,Hello world")
+    val expected = Seq("(1,Hi)", "(2,Hello)", "(1,Hello)",
+      "(2,Hello world)", "(2,Hello world)", "(3,Hello world)")
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -1114,7 +1114,7 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = Seq("6,6")
+    val expected = Seq("(6,6)")
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -1137,10 +1137,10 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = Seq("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt",
-      "null,Hallo Welt wie", "null,Hallo Welt wie gehts?", "null,ABC", "null,BCD",
-      "null,CDE", "null,DEF", "null,EFG", "null,FGH", "null,GHI", "null,HIJ",
-      "null,IJK", "null,JKL", "null,KLM")
+    val expected = Seq("(Hi,Hallo)", "(Hello,Hallo Welt)", "(Hello world,Hallo Welt)",
+      "(null,Hallo Welt wie)", "(null,Hallo Welt wie gehts?)", "(null,ABC)", "(null,BCD)",
+      "(null,CDE)", "(null,DEF)", "(null,EFG)", "(null,FGH)", "(null,GHI)", "(null,HIJ)",
+      "(null,IJK)", "(null,JKL)", "(null,KLM)")
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -1163,10 +1163,10 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = Seq("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt",
-      "null,Hallo Welt wie", "null,Hallo Welt wie gehts?", "null,ABC", "null,BCD",
-      "null,CDE", "null,DEF", "null,EFG", "null,FGH", "null,GHI", "null,HIJ",
-      "null,IJK", "null,JKL", "null,KLM")
+    val expected = Seq("(Hi,Hallo)", "(Hello,Hallo Welt)", "(Hello world,Hallo Welt)",
+      "(null,Hallo Welt wie)", "(null,Hallo Welt wie gehts?)", "(null,ABC)", "(null,BCD)",
+      "(null,CDE)", "(null,DEF)", "(null,EFG)", "(null,FGH)", "(null,GHI)", "(null,HIJ)",
+      "(null,IJK)", "(null,JKL)", "(null,KLM)")
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -1191,8 +1191,8 @@ class JoinITCase extends StreamingWithStateTestBase {
     val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = Seq(
-      "1,null", "2,null", "2,null", "3,3", "3,3", "3,3", "4,null", "4,null", "4," +
-      "null", "4,null", "5,null", "5,null", "5,null", "5,null", "5,null")
+      "(1,null)", "(2,null)", "(2,null)", "(3,3)", "(3,3)", "(3,3)", "(4,null)", "(4,null)", "(4,null)",
+      "(4,null)", "(5,null)", "(5,null)", "(5,null)", "(5,null)", "(5,null)")
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -1215,10 +1215,10 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = Seq("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt",
-      "null,Hallo Welt wie", "null,Hallo Welt wie gehts?", "null,ABC", "null,BCD",
-      "null,CDE", "null,DEF", "null,EFG", "null,FGH", "null,GHI", "null,HIJ",
-      "null,IJK", "null,JKL", "null,KLM")
+    val expected = Seq("(Hi,Hallo)", "(Hello,Hallo Welt)", "(Hello world,Hallo Welt)",
+      "(null,Hallo Welt wie)", "(null,Hallo Welt wie gehts?)", "(null,ABC)", "(null,BCD)",
+      "(null,CDE)", "(null,DEF)", "(null,EFG)", "(null,FGH)", "(null,GHI)", "(null,HIJ)",
+      "(null,IJK)", "(null,JKL)", "(null,KLM)")
     val results = result.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()

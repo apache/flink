@@ -48,7 +48,7 @@ class SetOperatorsITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList(
-        "Hi", "Hello", "Hello world", "Hi", "Hello", "Hello world")
+        "(Hi)", "(Hello)", "(Hello world)", "(Hi)", "(Hello)", "(Hello world)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -67,7 +67,7 @@ class SetOperatorsITCase extends AbstractTestBase {
     results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = mutable.MutableList("Hi", "Hallo")
+    val expected = mutable.MutableList("(Hi)", "(Hallo)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -84,7 +84,7 @@ class SetOperatorsITCase extends AbstractTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = mutable.MutableList("1,{}", "2,{}", "3,{}", "4,{}")
+    val expected = mutable.MutableList("(1,{})", "(2,{})", "(3,{})", "(4,{})")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -103,7 +103,7 @@ class SetOperatorsITCase extends AbstractTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = mutable.MutableList("1,(1,a)", "2,(2,b)", "3,(3,c)", "4,(4,d)")
+    val expected = mutable.MutableList("(1,(1,a))", "(2,(2,b))", "(3,(3,c))", "(4,(4,d))")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -137,7 +137,7 @@ class SetOperatorsITCase extends AbstractTestBase {
     env.execute()
 
     val expected = Seq(
-      "1,1,Hello", "2,2,Hello", "4,4,Hello"
+      "(1,1,Hello)", "(2,2,Hello)", "(4,4,Hello)"
     )
 
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
@@ -177,7 +177,7 @@ class SetOperatorsITCase extends AbstractTestBase {
     env.execute()
 
     val expected = Seq(
-      "2,2,Hello", "3,3,Hello World"
+      "(2,2,Hello)", "(3,3,Hello World)"
     )
 
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
@@ -222,7 +222,7 @@ class SetOperatorsITCase extends AbstractTestBase {
     env.execute()
 
     val expected = Seq(
-      "1,1,Hello", "2,2,Hello"
+      "(1,1,Hello)", "(2,2,Hello)"
     )
 
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)

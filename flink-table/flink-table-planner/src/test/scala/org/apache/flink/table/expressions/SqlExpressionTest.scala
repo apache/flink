@@ -221,9 +221,9 @@ class SqlExpressionTest extends ExpressionTestBase {
 
   @Test
   def testValueConstructorFunctions(): Unit = {
-    testSqlApi("ROW('hello world', 12)", "hello world,12")
-    testSqlApi("('hello world', 12)", "hello world,12")
-    testSqlApi("('foo', ('bar', 12))", "foo,bar,12")
+    testSqlApi("ROW('hello world', 12)", "(hello world,12)")
+    testSqlApi("('hello world', 12)", "(hello world,12)")
+    testSqlApi("('foo', ('bar', 12))", "(foo,(bar,12))")
     testSqlApi("ARRAY[TRUE, TRUE]", "[true, true]")
     testSqlApi("MAP['k1', CAST(true AS VARCHAR(256)), 'k2', 'foo']", "{k1=true, k2=foo}")
   }

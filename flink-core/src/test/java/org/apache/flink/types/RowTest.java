@@ -33,7 +33,7 @@ public class RowTest {
 		row.setField(3, new Tuple2<>(2, "hi"));
 		row.setField(4, "hello world");
 
-		assertEquals("1,hello,null,(2,hi),hello world", row.toString());
+		assertEquals("(1,hello,null,(2,hi),hello world)", row.toString());
 	}
 
 	@Test

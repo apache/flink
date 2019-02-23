@@ -74,9 +74,9 @@ public class JavaSqlITCase extends AbstractTestBase {
 		env.execute();
 
 		List<String> expected = new ArrayList<>();
-		expected.add("1,Hi");
-		expected.add("2,Hello");
-		expected.add("3,Hello world");
+		expected.add("(1,Hi)");
+		expected.add("(2,Hello)");
+		expected.add("(3,Hello world)");
 
 		StreamITCase.compareWithList(expected);
 	}
@@ -99,9 +99,9 @@ public class JavaSqlITCase extends AbstractTestBase {
 		env.execute();
 
 		List<String> expected = new ArrayList<>();
-		expected.add("1,1,Hi");
-		expected.add("2,2,Hello");
-		expected.add("3,2,Hello world");
+		expected.add("(1,1,Hi)");
+		expected.add("(2,2,Hello)");
+		expected.add("(3,2,Hello world)");
 
 		StreamITCase.compareWithList(expected);
 	}
@@ -123,10 +123,10 @@ public class JavaSqlITCase extends AbstractTestBase {
 		env.execute();
 
 		List<String> expected = new ArrayList<>();
-		expected.add("1,1,1");
-		expected.add("2,2,2");
-		expected.add("2,3,1");
-		expected.add("3,4,2");
+		expected.add("(1,1,1)");
+		expected.add("(2,2,2)");
+		expected.add("(2,3,1)");
+		expected.add("(3,4,2)");
 
 		StreamITCase.compareWithList(expected);
 	}
@@ -154,12 +154,12 @@ public class JavaSqlITCase extends AbstractTestBase {
 		env.execute();
 
 		List<String> expected = new ArrayList<>();
-		expected.add("1,1,Hi");
-		expected.add("2,2,Hello");
-		expected.add("3,2,Hello world");
-		expected.add("1,1,Hallo");
-		expected.add("2,2,Hallo Welt");
-		expected.add("2,3,Hallo Welt wie");
+		expected.add("(1,1,Hi)");
+		expected.add("(2,2,Hello)");
+		expected.add("(3,2,Hello world)");
+		expected.add("(1,1,Hallo)");
+		expected.add("(2,2,Hallo Welt)");
+		expected.add("(2,3,Hallo Welt wie)");
 
 		StreamITCase.compareWithList(expected);
 	}

@@ -132,9 +132,9 @@ class SortITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "1,1,Hi,1970-01-01 00:00:00.001",
-      "3,2,Hello world,1970-01-01 00:00:00.002",
-      "2,2,Hello,1970-01-01 00:00:00.002")
+      "(1,1,Hi,1970-01-01 00:00:00.001)",
+      "(3,2,Hello world,1970-01-01 00:00:00.002)",
+      "(2,2,Hello,1970-01-01 00:00:00.002)")
     assertEquals(expected, MemoryTableSourceSinkUtil.tableDataStrings)
   }
 }

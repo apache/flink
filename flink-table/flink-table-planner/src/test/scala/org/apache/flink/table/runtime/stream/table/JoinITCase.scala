@@ -102,7 +102,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val results = RowCollector.getAndClearValues
     val retracted = RowCollector.upsertResults(results, Array(0, 1))
 
-    val expected = Seq("0,1,1", "1,2,3", "2,1,1", "3,1,1", "4,1,1", "5,2,3", "6,0,1")
+    val expected = Seq("(0,1,1)", "(1,2,3)", "(2,1,1)", "(3,1,1)", "(4,1,1)", "(5,2,3)", "(6,0,1)")
     assertEquals(expected.sorted, retracted.sorted)
   }
 
@@ -161,8 +161,8 @@ class JoinITCase extends StreamingWithStateTestBase {
     env.execute()
     val results = RowCollector.getAndClearValues
     val retracted = RowCollector.retractResults(results)
-    val expected = Seq("1,1,1,1", "1,1,1,1", "1,1,1,1", "1,1,1,1", "2,2,2,2", "3,3,3,3",
-                       "5,5,5,5", "5,5,5,5")
+    val expected = Seq("(1,1,1,1)", "(1,1,1,1)", "(1,1,1,1)", "(1,1,1,1)", "(2,2,2,2)", "(3,3,3,3)",
+                       "(5,5,5,5)", "(5,5,5,5)")
     assertEquals(expected.sorted, retracted.sorted)
   }
 
@@ -233,7 +233,7 @@ class JoinITCase extends StreamingWithStateTestBase {
       .where(testOpenCall('a + 'd))
       .select('c, 'g)
 
-    val expected = Seq("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt")
+    val expected = Seq("(Hi,Hallo)", "(Hello,Hallo Welt)", "(Hello world,Hallo Welt)")
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -252,7 +252,7 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     val joinT = ds1.join(ds2).where('b === 'e && 'b < 2).select('c, 'g)
 
-    val expected = Seq("Hi,Hallo")
+    val expected = Seq("(Hi,Hallo)")
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -272,8 +272,8 @@ class JoinITCase extends StreamingWithStateTestBase {
     val joinT = ds1.join(ds2).where('b === 'e && 'a < 6).select('c, 'g)
 
     val expected = Seq(
-      "Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt",
-      "Hello world, how are you?,Hallo Welt wie", "I am fine.,Hallo Welt wie")
+      "(Hi,Hallo)", "(Hello,Hallo Welt)", "(Hello world,Hallo Welt)",
+      "(Hello world, how are you?,Hallo Welt wie)", "(I am fine.,Hallo Welt wie)")
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -292,7 +292,7 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     val joinT = ds1.join(ds2).where('b === 'e && 'a < 6 && 'h < 'b).select('c, 'g)
 
-    val expected = Seq("Hello world, how are you?,Hallo Welt wie", "I am fine.,Hallo Welt wie")
+    val expected = Seq("(Hello world, how are you?,Hallo Welt wie)", "(I am fine.,Hallo Welt wie)")
 
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
@@ -313,8 +313,8 @@ class JoinITCase extends StreamingWithStateTestBase {
     val joinT = ds1.join(ds2).filter('a === 'd && 'b === 'h).select('c, 'g)
 
     val expected = Seq(
-      "Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt wie gehts?", "Hello world,ABC",
-      "I am fine.,HIJ", "I am fine.,IJK")
+      "(Hi,Hallo)", "(Hello,Hallo Welt)", "(Hello world,Hallo Welt wie gehts?)", "(Hello world,ABC)",
+      "(I am fine.,HIJ)", "(I am fine.,IJK)")
 
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
@@ -335,7 +335,7 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     val joinT = ds1.join(ds2).where('a === 'd).select('g.count)
 
-    val expected = Seq("6")
+    val expected = Seq("(6)")
 
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
@@ -359,7 +359,7 @@ class JoinITCase extends StreamingWithStateTestBase {
       .groupBy('a, 'd)
       .select('b.sum, 'g.count)
 
-    val expected = Seq("6,3", "4,2", "1,1")
+    val expected = Seq("(6,3)", "(4,2)", "(1,1)")
 
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
@@ -384,7 +384,7 @@ class JoinITCase extends StreamingWithStateTestBase {
       .where('a === 'd && 'e === 'k)
       .select('a, 'f, 'l)
 
-    val expected = Seq("2,1,Hello", "2,1,Hello world", "1,0,Hi")
+    val expected = Seq("(2,1,Hello)", "(2,1,Hello world)", "(1,0,Hi)")
 
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
@@ -404,7 +404,7 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     val joinT = ds1.join(ds2).filter('a === 'd && ('b === 'e || 'b === 'e - 10)).select('c, 'g)
 
-    val expected = Seq("Hi,Hallo", "Hello,Hallo Welt", "I am fine.,IJK")
+    val expected = Seq("(Hi,Hallo)", "(Hello,Hallo Welt)", "(I am fine.,IJK)")
 
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
@@ -424,8 +424,8 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     val joinT = ds1.join(ds2).filter('b === 'h + 1 && 'a - 1 === 'd + 2).select('c, 'g)
 
-    val expected = Seq("I am fine.,Hallo Welt", "Luke Skywalker,Hallo Welt wie gehts?",
-      "Luke Skywalker,ABC", "Comment#2,HIJ", "Comment#2,IJK")
+    val expected = Seq("(I am fine.,Hallo Welt)", "(Luke Skywalker,Hallo Welt wie gehts?)",
+      "(Luke Skywalker,ABC)", "(Comment#2,HIJ)", "(Comment#2,IJK)")
 
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
@@ -448,13 +448,13 @@ class JoinITCase extends StreamingWithStateTestBase {
     val joinT = ds1.leftOuterJoin(ds2, 'a === 'd && 'b === 'h).select('c, 'g)
 
     val expected = Seq(
-      "Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt wie gehts?", "Hello world,ABC",
-      "Hello world, how are you?,null", "I am fine.,HIJ",
-      "I am fine.,IJK", "Luke Skywalker,null", "Comment#1,null", "Comment#2,null",
-      "Comment#3,null", "Comment#4,null", "Comment#5,null", "Comment#6,null",
-      "Comment#7,null", "Comment#8,null", "Comment#9,null", "Comment#10,null",
-      "Comment#11,null", "Comment#12,null", "Comment#13,null", "Comment#14,null",
-      "Comment#15,null")
+      "(Hi,Hallo)", "(Hello,Hallo Welt)", "(Hello world,Hallo Welt wie gehts?)", "(Hello world,ABC)",
+      "(Hello world, how are you?,null)", "(I am fine.,HIJ)",
+      "(I am fine.,IJK)", "(Luke Skywalker,null)", "(Comment#1,null)", "(Comment#2,null)",
+      "(Comment#3,null)", "(Comment#4,null)", "(Comment#5,null)", "(Comment#6,null)",
+      "(Comment#7,null)", "(Comment#8,null)", "(Comment#9,null)", "(Comment#10,null)",
+      "(Comment#11,null)", "(Comment#12,null)", "(Comment#13,null)", "(Comment#14,null)",
+      "(Comment#15,null)")
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -474,12 +474,12 @@ class JoinITCase extends StreamingWithStateTestBase {
     val joinT = ds1.leftOuterJoin(ds2, 'a === 'd && 'b <= 'h).select('c, 'g)
 
     val expected = Seq(
-      "Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt wie gehts?", "Hello world,ABC",
-      "Hello world,BCD", "I am fine.,HIJ", "I am fine.,IJK",
-      "Hello world, how are you?,null", "Luke Skywalker,null", "Comment#1,null", "Comment#2,null",
-      "Comment#3,null", "Comment#4,null", "Comment#5,null", "Comment#6,null", "Comment#7,null",
-      "Comment#8,null", "Comment#9,null", "Comment#10,null", "Comment#11,null", "Comment#12,null",
-      "Comment#13,null", "Comment#14,null", "Comment#15,null")
+      "(Hi,Hallo)", "(Hello,Hallo Welt)", "(Hello world,Hallo Welt wie gehts?)", "(Hello world,ABC)",
+      "(Hello world,BCD)", "(I am fine.,HIJ)", "(I am fine.,IJK)",
+      "(Hello world, how are you?,null)", "(Luke Skywalker,null)", "(Comment#1,null)", "(Comment#2,null)",
+      "(Comment#3,null)", "(Comment#4,null)", "(Comment#5,null)", "(Comment#6,null)", "(Comment#7,null)",
+      "(Comment#8,null)", "(Comment#9,null)", "(Comment#10,null)", "(Comment#11,null)", "(Comment#12,null)",
+      "(Comment#13,null)", "(Comment#14,null)", "(Comment#15,null)")
 
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
@@ -500,12 +500,12 @@ class JoinITCase extends StreamingWithStateTestBase {
     val joinT = ds1.leftOuterJoin(ds2, 'a === 'd && 'b === 2).select('c, 'g)
 
     val expected = Seq(
-      "Hello,Hallo Welt", "Hello,Hallo Welt wie",
-      "Hello world,Hallo Welt wie gehts?", "Hello world,ABC", "Hello world,BCD",
-      "Hi,null", "Hello world, how are you?,null", "I am fine.,null", "Luke Skywalker,null",
-      "Comment#1,null", "Comment#2,null", "Comment#3,null", "Comment#4,null", "Comment#5,null",
-      "Comment#6,null", "Comment#7,null", "Comment#8,null", "Comment#9,null", "Comment#10,null",
-      "Comment#11,null", "Comment#12,null", "Comment#13,null", "Comment#14,null", "Comment#15,null")
+      "(Hello,Hallo Welt)", "(Hello,Hallo Welt wie)",
+      "(Hello world,Hallo Welt wie gehts?)", "(Hello world,ABC)", "(Hello world,BCD)",
+      "(Hi,null)", "(Hello world, how are you?,null)", "(I am fine.,null)", "(Luke Skywalker,null)",
+      "(Comment#1,null)", "(Comment#2,null)", "(Comment#3,null)", "(Comment#4,null)", "(Comment#5,null)",
+      "(Comment#6,null)", "(Comment#7,null)", "(Comment#8,null)", "(Comment#9,null)", "(Comment#10,null)",
+      "(Comment#11,null)", "(Comment#12,null)", "(Comment#13,null)", "(Comment#14,null)", "(Comment#15,null)")
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -526,8 +526,8 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     val joinT = leftT.leftOuterJoin(rightT, 'b === 'e).select('e, 'd, 'a)
     val expected = Seq(
-      "1,1,1", "2,1,2", "3,1,3", "4,1,4", "5,1,5", "6,1,6", "7,1,null", "8,1,null", "9,1,null",
-      "10,1,null", "11,1,null", "12,1,null", "13,1,null", "14,1,null", "15,1,null")
+      "(1,1,1)", "(2,1,2)", "(3,1,3)", "(4,1,4)", "(5,1,5)", "(6,1,6)", "(7,1,null)", "(8,1,null)", "(9,1,null)",
+      "(10,1,null)", "(11,1,null)", "(12,1,null)", "(13,1,null)", "(14,1,null)", "(15,1,null)")
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -547,10 +547,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     val joinT = ds1.rightOuterJoin(ds2, 'a === 'd && 'b === 'h).select('c, 'g)
 
     val expected = Seq(
-      "Hi,Hallo", "Hello,Hallo Welt", "null,Hallo Welt wie",
-      "Hello world,Hallo Welt wie gehts?", "Hello world,ABC", "null,BCD", "null,CDE",
-      "null,DEF", "null,EFG", "null,FGH", "null,GHI", "I am fine.,HIJ",
-      "I am fine.,IJK", "null,JKL", "null,KLM")
+      "(Hi,Hallo)", "(Hello,Hallo Welt)", "(null,Hallo Welt wie)",
+      "(Hello world,Hallo Welt wie gehts?)", "(Hello world,ABC)", "(null,BCD)", "(null,CDE)",
+      "(null,DEF)", "(null,EFG)", "(null,FGH)", "(null,GHI)", "(I am fine.,HIJ)",
+      "(I am fine.,IJK)", "(null,JKL)", "(null,KLM)")
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -570,12 +570,12 @@ class JoinITCase extends StreamingWithStateTestBase {
     val joinT = ds1.rightOuterJoin(ds2, 'a === 'd && 'b <= 'h).select('c, 'g)
 
     val expected = Seq(
-      "Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt wie gehts?", "Hello world,ABC",
-      "Hello world,BCD", "I am fine.,HIJ", "I am fine.,IJK",
-      "Hello world, how are you?,null", "Luke Skywalker,null", "Comment#1,null", "Comment#2,null",
-      "Comment#3,null", "Comment#4,null", "Comment#5,null", "Comment#6,null", "Comment#7,null",
-      "Comment#8,null", "Comment#9,null", "Comment#10,null", "Comment#11,null", "Comment#12,null",
-      "Comment#13,null", "Comment#14,null", "Comment#15,null")
+      "(Hi,Hallo)", "(Hello,Hallo Welt)", "(Hello world,Hallo Welt wie gehts?)", "(Hello world,ABC)",
+      "(Hello world,BCD)", "(I am fine.,HIJ)", "(I am fine.,IJK)",
+      "(Hello world, how are you?,null)", "(Luke Skywalker,null)", "(Comment#1,null)", "(Comment#2,null)",
+      "(Comment#3,null)", "(Comment#4,null)", "(Comment#5,null)", "(Comment#6,null)", "(Comment#7,null)",
+      "(Comment#8,null)", "(Comment#9,null)", "(Comment#10,null)", "(Comment#11,null)", "(Comment#12,null)",
+      "(Comment#13,null)", "(Comment#14,null)", "(Comment#15,null)")
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -595,12 +595,12 @@ class JoinITCase extends StreamingWithStateTestBase {
     val joinT = ds1.rightOuterJoin(ds2, 'a === 'd && 'b === 2).select('c, 'g)
 
     val expected = Seq(
-      "Hello,Hallo Welt", "Hello,Hallo Welt wie",
-      "Hello world,Hallo Welt wie gehts?", "Hello world,ABC", "Hello world,BCD",
-      "Hi,null", "Hello world, how are you?,null", "I am fine.,null", "Luke Skywalker,null",
-      "Comment#1,null", "Comment#2,null", "Comment#3,null", "Comment#4,null", "Comment#5,null",
-      "Comment#6,null", "Comment#7,null", "Comment#8,null", "Comment#9,null", "Comment#10,null",
-      "Comment#11,null", "Comment#12,null", "Comment#13,null", "Comment#14,null", "Comment#15,null")
+      "(Hello,Hallo Welt)", "(Hello,Hallo Welt wie)",
+      "(Hello world,Hallo Welt wie gehts?)", "(Hello world,ABC)", "(Hello world,BCD)",
+      "(Hi,null)", "(Hello world, how are you?,null)", "(I am fine.,null)", "(Luke Skywalker,null)",
+      "(Comment#1,null)", "(Comment#2,null)", "(Comment#3,null)", "(Comment#4,null)", "(Comment#5,null)",
+      "(Comment#6,null)", "(Comment#7,null)", "(Comment#8,null)", "(Comment#9,null)", "(Comment#10,null)",
+      "(Comment#11,null)", "(Comment#12,null)", "(Comment#13,null)", "(Comment#14,null)", "(Comment#15,null)")
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -620,15 +620,15 @@ class JoinITCase extends StreamingWithStateTestBase {
     val joinT = ds1.fullOuterJoin(ds2, 'a === 'd && 'b === 'h).select('c, 'g)
 
     val expected = Seq(
-      "Hi,Hallo", "Hello,Hallo Welt", "null,Hallo Welt wie",
-      "Hello world,Hallo Welt wie gehts?", "Hello world,ABC", "null,BCD", "null,CDE",
-      "null,DEF", "null,EFG", "null,FGH", "null,GHI", "I am fine.,HIJ",
-      "I am fine.,IJK", "null,JKL", "null,KLM", "Luke Skywalker,null",
-      "Comment#1,null", "Comment#2,null", "Comment#3,null", "Comment#4,null",
-      "Comment#5,null", "Comment#6,null", "Comment#7,null", "Comment#8,null",
-      "Comment#9,null", "Comment#10,null", "Comment#11,null", "Comment#12,null",
-      "Comment#13,null", "Comment#14,null", "Comment#15,null",
-      "Hello world, how are you?,null")
+      "(Hi,Hallo)", "(Hello,Hallo Welt)", "(null,Hallo Welt wie)",
+      "(Hello world,Hallo Welt wie gehts?)", "(Hello world,ABC)", "(null,BCD)", "(null,CDE)",
+      "(null,DEF)", "(null,EFG)", "(null,FGH)", "(null,GHI)", "(I am fine.,HIJ)",
+      "(I am fine.,IJK)", "(null,JKL)", "(null,KLM)", "(Luke Skywalker,null)",
+      "(Comment#1,null)", "(Comment#2,null)", "(Comment#3,null)", "(Comment#4,null)",
+      "(Comment#5,null)", "(Comment#6,null)", "(Comment#7,null)", "(Comment#8,null)",
+      "(Comment#9,null)", "(Comment#10,null)", "(Comment#11,null)", "(Comment#12,null)",
+      "(Comment#13,null)", "(Comment#14,null)", "(Comment#15,null)",
+      "(Hello world, how are you?,null)")
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -649,16 +649,16 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     val expected = Seq(
       // join matches
-      "Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt wie gehts?", "Hello world,ABC",
-      "Hello world,BCD", "I am fine.,HIJ", "I am fine.,IJK",
+      "(Hi,Hallo)", "(Hello,Hallo Welt)", "(Hello world,Hallo Welt wie gehts?)", "(Hello world,ABC)",
+      "(Hello world,BCD)", "(I am fine.,HIJ)", "(I am fine.,IJK)",
       // preserved left
-      "Hello world, how are you?,null", "Luke Skywalker,null", "Comment#1,null", "Comment#2,null",
-      "Comment#3,null", "Comment#4,null", "Comment#5,null", "Comment#6,null", "Comment#7,null",
-      "Comment#8,null", "Comment#9,null", "Comment#10,null", "Comment#11,null", "Comment#12,null",
-      "Comment#13,null", "Comment#14,null", "Comment#15,null",
+      "(Hello world, how are you?,null)", "(Luke Skywalker,null)", "(Comment#1,null)", "(Comment#2,null)",
+      "(Comment#3,null)", "(Comment#4,null)", "(Comment#5,null)", "(Comment#6,null)", "(Comment#7,null)",
+      "(Comment#8,null)", "(Comment#9,null)", "(Comment#10,null)", "(Comment#11,null)", "(Comment#12,null)",
+      "(Comment#13,null)", "(Comment#14,null)", "(Comment#15,null)",
       // preserved right
-      "null,Hallo Welt wie", "null,CDE", "null,DEF", "null,EFG", "null,FGH", "null,GHI", "null,JKL",
-      "null,KLM")
+      "(null,Hallo Welt wie)", "(null,CDE)", "(null,DEF)", "(null,EFG)", "(null,FGH)", "(null,GHI)", "(null,JKL)",
+      "(null,KLM)")
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
@@ -679,16 +679,16 @@ class JoinITCase extends StreamingWithStateTestBase {
 
     val expected = Seq(
       // join matches
-      "Hello,Hallo Welt wie", "Hello world, how are you?,DEF", "Hello world, how are you?,EFG",
-      "I am fine.,GHI",
+      "(Hello,Hallo Welt wie)", "(Hello world, how are you?,DEF)", "(Hello world, how are you?,EFG)",
+      "(I am fine.,GHI)",
       // preserved left
-      "Hi,null", "Hello world,null", "Luke Skywalker,null",
-      "Comment#1,null", "Comment#2,null", "Comment#3,null", "Comment#4,null", "Comment#5,null",
-      "Comment#6,null", "Comment#7,null", "Comment#8,null", "Comment#9,null", "Comment#10,null",
-      "Comment#11,null", "Comment#12,null", "Comment#13,null", "Comment#14,null", "Comment#15,null",
+      "(Hi,null)", "(Hello world,null)", "(Luke Skywalker,null)",
+      "(Comment#1,null)", "(Comment#2,null)", "(Comment#3,null)", "(Comment#4,null)", "(Comment#5,null)",
+      "(Comment#6,null)", "(Comment#7,null)", "(Comment#8,null)", "(Comment#9,null)", "(Comment#10,null)",
+      "(Comment#11,null)", "(Comment#12,null)", "(Comment#13,null)", "(Comment#14,null)", "(Comment#15,null)",
       // preserved right
-      "null,Hallo", "null,Hallo Welt", "null,Hallo Welt wie gehts?", "null,ABC", "null,BCD",
-      "null,CDE", "null,FGH", "null,HIJ", "null,IJK", "null,JKL", "null,KLM")
+      "(null,Hallo)", "(null,Hallo Welt)", "(null,Hallo Welt wie gehts?)", "(null,ABC)", "(null,BCD)",
+      "(null,CDE)", "(null,FGH)", "(null,HIJ)", "(null,IJK)", "(null,JKL)", "(null,KLM)")
     val results = joinT.toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()

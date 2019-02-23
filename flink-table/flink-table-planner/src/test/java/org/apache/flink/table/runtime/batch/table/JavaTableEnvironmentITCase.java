@@ -84,9 +84,9 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
-		String expected = "1,1\n" + "2,2\n" + "3,2\n" + "4,3\n" + "5,3\n" + "6,3\n" + "7,4\n" +
-				"8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" + "13,5\n" + "14,5\n" + "15,5\n" +
-				"16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n";
+		String expected = "(1,1)\n" + "(2,2)\n" + "(3,2)\n" + "(4,3)\n" + "(5,3)\n" + "(6,3)\n" + "(7,4)\n" +
+				"(8,4)\n" + "(9,4)\n" + "(10,4)\n" + "(11,5)\n" + "(12,5)\n" + "(13,5)\n" + "(14,5)\n" + "(15,5)\n" +
+				"(16,6)\n" + "(17,6)\n" + "(18,6)\n" + "(19,6)\n" + "(20,6)\n" + "(21,6)\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -104,13 +104,13 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
-		String expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
-				"4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
-				"7,4,Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" +
-				"11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" +
-				"14,5,Comment#8\n" + "15,5,Comment#9\n" + "16,6,Comment#10\n" +
-				"17,6,Comment#11\n" + "18,6,Comment#12\n" + "19,6,Comment#13\n" +
-				"20,6,Comment#14\n" + "21,6,Comment#15\n";
+		String expected = "(1,1,Hi)\n" + "(2,2,Hello)\n" + "(3,2,Hello world)\n" +
+				"(4,3,Hello world, how are you?)\n" + "(5,3,I am fine.)\n" + "(6,3,Luke Skywalker)\n" +
+				"(7,4,Comment#1)\n" + "(8,4,Comment#2)\n" + "(9,4,Comment#3)\n" + "(10,4,Comment#4)\n" +
+				"(11,5,Comment#5)\n" + "(12,5,Comment#6)\n" + "(13,5,Comment#7)\n" +
+				"(14,5,Comment#8)\n" + "(15,5,Comment#9)\n" + "(16,6,Comment#10)\n" +
+				"(17,6,Comment#11)\n" + "(18,6,Comment#12)\n" + "(19,6,Comment#13)\n" +
+				"(20,6,Comment#14)\n" + "(21,6,Comment#15)\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -149,9 +149,9 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
-		String expected = "8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" +
-				"13,5\n" + "14,5\n" + "15,5\n" +
-				"16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n";
+		String expected = "(8,4)\n" + "(9,4)\n" + "(10,4)\n" + "(11,5)\n" + "(12,5)\n" +
+				"(13,5)\n" + "(14,5)\n" + "(15,5)\n" +
+				"(16,6)\n" + "(17,6)\n" + "(18,6)\n" + "(19,6)\n" + "(20,6)\n" + "(21,6)\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -188,13 +188,13 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
-		String expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
-			"4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
-			"7,4,Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" +
-			"11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" +
-			"14,5,Comment#8\n" + "15,5,Comment#9\n" + "16,6,Comment#10\n" +
-			"17,6,Comment#11\n" + "18,6,Comment#12\n" + "19,6,Comment#13\n" +
-			"20,6,Comment#14\n" + "21,6,Comment#15\n";
+		String expected = "(1,1,Hi)\n" + "(2,2,Hello)\n" + "(3,2,Hello world)\n" +
+			"(4,3,Hello world, how are you?)\n" + "(5,3,I am fine.)\n" + "(6,3,Luke Skywalker)\n" +
+			"(7,4,Comment#1)\n" + "(8,4,Comment#2)\n" + "(9,4,Comment#3)\n" + "(10,4,Comment#4)\n" +
+			"(11,5,Comment#5)\n" + "(12,5,Comment#6)\n" + "(13,5,Comment#7)\n" +
+			"(14,5,Comment#8)\n" + "(15,5,Comment#9)\n" + "(16,6,Comment#10)\n" +
+			"(17,6,Comment#11)\n" + "(18,6,Comment#12)\n" + "(19,6,Comment#13)\n" +
+			"(20,6,Comment#14)\n" + "(21,6,Comment#15)\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -207,13 +207,13 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
-		String expected = "Hi\n" + "Hello\n" + "Hello world\n" +
-			"Hello world, how are you?\n" + "I am fine.\n" + "Luke Skywalker\n" +
-			"Comment#1\n" + "Comment#2\n" + "Comment#3\n" + "Comment#4\n" +
-			"Comment#5\n" + "Comment#6\n" + "Comment#7\n" +
-			"Comment#8\n" + "Comment#9\n" + "Comment#10\n" +
-			"Comment#11\n" + "Comment#12\n" + "Comment#13\n" +
-			"Comment#14\n" + "Comment#15\n";
+		String expected = "(Hi)\n" + "(Hello)\n" + "(Hello world)\n" +
+			"(Hello world, how are you?)\n" + "(I am fine.)\n" + "(Luke Skywalker)\n" +
+			"(Comment#1)\n" + "(Comment#2)\n" + "(Comment#3)\n" + "(Comment#4)\n" +
+			"(Comment#5)\n" + "(Comment#6)\n" + "(Comment#7)\n" +
+			"(Comment#8)\n" + "(Comment#9)\n" + "(Comment#10)\n" +
+			"(Comment#11)\n" + "(Comment#12)\n" + "(Comment#13)\n" +
+			"(Comment#14)\n" + "(Comment#15)\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -260,7 +260,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
 		DataSet<SmallPojo2> ds = tableEnv.toDataSet(table, SmallPojo2.class);
 		List<SmallPojo2> results = ds.collect();
-		String expected = "Rofl,1,1.0,Hi\n" + "lol,2,1.0,Hi\n" + "Test me,4,3.33,Hello world\n";
+		String expected = "(Rofl,1,1.0,Hi)\n" + "(lol,2,1.0,Hi)\n" + "(Test me,4,3.33,Hello world)\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -286,9 +286,9 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
 		String expected =
-			"Sales,28,4000.0,Peter,[42]\n" +
-			"Engineering,56,10000.0,Anna,[]\n" +
-			"HR,42,6000.0,Lucy,[1, 2, 3]\n";
+			"(Sales,28,4000.0,Peter,[42])\n" +
+			"(Engineering,56,10000.0,Anna,[])\n" +
+			"(HR,42,6000.0,Lucy,[1, 2, 3])\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -314,9 +314,9 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
 		String expected =
-			"Left(Hello)\n" +
-			"Left(World)\n" +
-			"Right(42)\n";
+			"(Left(Hello))\n" +
+			"(Left(World))\n" +
+			"(Right(42))\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -337,9 +337,9 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
 		String expected =
-			"Peter\n" +
-			"Anna\n" +
-			"Lucy\n";
+			"(Peter)\n" +
+			"(Anna)\n" +
+			"(Lucy)\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -364,9 +364,9 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
 		String expected =
-			"Sales,28,4000.0,Peter\n" +
-			"Engineering,56,10000.0,Anna\n" +
-			"HR,42,6000.0,Lucy\n";
+			"(Sales,28,4000.0,Peter)\n" +
+			"(Engineering,56,10000.0,Anna)\n" +
+			"(HR,42,6000.0,Lucy)\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -451,9 +451,9 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
 		String expected =
-			"Peter,28,{},true,[]\n" +
-			"Anna,56,{test1=test1},true,[]\n" +
-			"Lucy,42,{abc=cde},true,[]\n";
+			"(Peter,28,{},true,[])\n" +
+			"(Anna,56,{test1=test1},true,[])\n" +
+			"(Lucy,42,{abc=cde},true,[])\n";
 		compareResultAsText(results, expected);
 	}
 

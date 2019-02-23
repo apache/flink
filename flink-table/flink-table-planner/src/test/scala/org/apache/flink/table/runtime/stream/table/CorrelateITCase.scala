@@ -60,7 +60,7 @@ class CorrelateITCase extends AbstractTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = mutable.MutableList("Jack#22,Jack,22", "Anna#44,Anna,44")
+    val expected = mutable.MutableList("(Jack#22,Jack,22)", "(Anna#44,Anna,44)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -78,8 +78,8 @@ class CorrelateITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList(
-      "nosharp,null,null", "Jack#22,Jack,22",
-      "John#19,John,19", "Anna#44,Anna,44")
+      "(nosharp,null,null)", "(Jack#22,Jack,22)",
+      "(John#19,John,19)", "(Anna#44,Anna,44)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -99,8 +99,8 @@ class CorrelateITCase extends AbstractTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = "John#19,null,null\n" + "John#22,null,null\n" + "Anna44,null,null\n" +
-      "nosharp,null,null"
+    val expected = "(John#19,null,null)\n" + "(John#22,null,null)\n" + "(Anna44,null,null)\n" +
+      "(nosharp,null,null)"
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -118,7 +118,7 @@ class CorrelateITCase extends AbstractTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = mutable.MutableList("Jack#22,Jack,22", "John#19,John,19")
+    val expected = mutable.MutableList("(Jack#22,Jack,22)", "(John#19,John,19)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -138,7 +138,7 @@ class CorrelateITCase extends AbstractTestBase {
     results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = mutable.MutableList("3,Hello", "3,world")
+    val expected = mutable.MutableList("(3,Hello)", "(3,world)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -163,12 +163,12 @@ class CorrelateITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList(
-      "1,Hi",
-      "1,test",
-      "2,Hello",
-      "2,test",
-      "3,Hello world",
-      "3,test")
+      "(1,Hi)",
+      "(1,test)",
+      "(2,Hello)",
+      "(2,test)",
+      "(3,Hello world)",
+      "(3,test)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -193,12 +193,12 @@ class CorrelateITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList(
-      "Anna#44,Anna,OneConf_Anna,TwoConf__key=key1_value=value1_Anna,44,44,44",
-      "Anna#44,Anna,OneConf_Anna,TwoConf__key=key2_value=value2_Anna,44,44,44",
-      "Jack#22,Jack,OneConf_Jack,TwoConf__key=key1_value=value1_Jack,22,22,22",
-      "Jack#22,Jack,OneConf_Jack,TwoConf__key=key2_value=value2_Jack,22,22,22",
-      "John#19,John,OneConf_John,TwoConf__key=key1_value=value1_John,19,19,19",
-      "John#19,John,OneConf_John,TwoConf__key=key2_value=value2_John,19,19,19"
+      "(Anna#44,Anna,OneConf_Anna,TwoConf__key=key1_value=value1_Anna,44,44,44)",
+      "(Anna#44,Anna,OneConf_Anna,TwoConf__key=key2_value=value2_Anna,44,44,44)",
+      "(Jack#22,Jack,OneConf_Jack,TwoConf__key=key1_value=value1_Jack,22,22,22)",
+      "(Jack#22,Jack,OneConf_Jack,TwoConf__key=key2_value=value2_Jack,22,22,22)",
+      "(John#19,John,OneConf_John,TwoConf__key=key1_value=value1_John,19,19,19)",
+      "(John#19,John,OneConf_John,TwoConf__key=key2_value=value2_John,19,19,19)"
     )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
@@ -217,18 +217,18 @@ class CorrelateITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList(
-      "Anna#44,1",
-      "Anna#44,2",
-      "Anna#44,Anna#44",
-      "Jack#22,1",
-      "Jack#22,2",
-      "Jack#22,Jack#22",
-      "John#19,1",
-      "John#19,2",
-      "John#19,John#19",
-      "nosharp,1",
-      "nosharp,2",
-      "nosharp,nosharp")
+      "(Anna#44,1)",
+      "(Anna#44,2)",
+      "(Anna#44,Anna#44)",
+      "(Jack#22,1)",
+      "(Jack#22,2)",
+      "(Jack#22,Jack#22)",
+      "(John#19,1)",
+      "(John#19,2)",
+      "(John#19,John#19)",
+      "(nosharp,1)",
+      "(nosharp,2)",
+      "(nosharp,nosharp)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -252,8 +252,8 @@ class CorrelateITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList(
-      "1,2,3,3",
-      "1,2,3,3")
+      "((1,2,3),3)",
+      "((1,2,3),3)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -273,9 +273,9 @@ class CorrelateITCase extends AbstractTestBase {
     env.execute()
 
     val expected = Seq (
-      "Jack#22,Jack,22",
-      "John#19,John,19",
-      "Anna#44,Anna,44"
+      "(Jack#22,Jack,22)",
+      "(John#19,John,19)",
+      "(Anna#44,Anna,44)"
     )
 
     assertEquals(

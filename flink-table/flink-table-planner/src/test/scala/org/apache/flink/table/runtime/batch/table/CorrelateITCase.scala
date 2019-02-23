@@ -55,15 +55,15 @@ class CorrelateITCase(
     val func1 = new TableFunc1
     val result = in.joinLateral(func1('c) as 's).select('c, 's).toDataSet[Row]
     val results = result.collect()
-    val expected = "Jack#22,Jack\n" + "Jack#22,22\n" + "John#19,John\n" + "John#19,19\n" +
-      "Anna#44,Anna\n" + "Anna#44,44\n"
+    val expected = "(Jack#22,Jack)\n" + "(Jack#22,22)\n" + "(John#19,John)\n" + "(John#19,19)\n" +
+      "(Anna#44,Anna)\n" + "(Anna#44,44)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
 
     // with overloading
     val result2 = in.joinLateral(func1('c, "$") as 's).select('c, 's).toDataSet[Row]
     val results2 = result2.collect()
-    val expected2 = "Jack#22,$Jack\n" + "Jack#22,$22\n" + "John#19,$John\n" +
-      "John#19,$19\n" + "Anna#44,$Anna\n" + "Anna#44,$44\n"
+    val expected2 = "(Jack#22,$Jack)\n" + "(Jack#22,$22)\n" + "(John#19,$John)\n" +
+      "(John#19,$19)\n" + "(Anna#44,$Anna)\n" + "(Anna#44,$44)\n"
     TestBaseUtils.compareResultAsText(results2.asJava, expected2)
   }
 
@@ -76,8 +76,8 @@ class CorrelateITCase(
     val func2 = new TableFunc2
     val result = in.leftOuterJoinLateral(func2('c) as ('s, 'l)).select('c, 's, 'l).toDataSet[Row]
     val results = result.collect()
-    val expected = "Jack#22,Jack,4\n" + "Jack#22,22,2\n" + "John#19,John,4\n" +
-      "John#19,19,2\n" + "Anna#44,Anna,4\n" + "Anna#44,44,2\n" + "nosharp,null,null"
+    val expected = "(Jack#22,Jack,4)\n" + "(Jack#22,22,2)\n" + "(John#19,John,4)\n" +
+      "(John#19,19,2)\n" + "(Anna#44,Anna,4)\n" + "(Anna#44,44,2)\n" + "(nosharp,null,null)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -91,8 +91,8 @@ class CorrelateITCase(
     val func2 = new TableFunc2
     val result = in.leftOuterJoinLateral(func2('c) as ('s, 'l)).select('c, 's, 'l).toDataSet[Row]
     val results = result.collect()
-    val expected = "Jack#22,Jack,4\n" + "Jack#22,22,2\n" + "John#19,John,4\n" +
-      "John#19,19,2\n" + "Anna#44,Anna,4\n" + "Anna#44,44,2\n" + "nosharp,null,null"
+    val expected = "(Jack#22,Jack,4)\n" + "(Jack#22,22,2)\n" + "(John#19,John,4)\n" +
+      "(John#19,19,2)\n" + "(Anna#44,Anna,4)\n" + "(Anna#44,44,2)\n" + "(nosharp,null,null)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -111,7 +111,7 @@ class CorrelateITCase(
       .select('c, 's, 'l)
       .toDataSet[Row]
     val results = result.collect()
-    val expected = "John#19,19,2\n" + "nosharp,null,null"
+    val expected = "(John#19,19,2)\n" + "(nosharp,null,null)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -129,7 +129,7 @@ class CorrelateITCase(
       .toDataSet[Row]
 
     val results = result.collect()
-    val expected = "Jack#22,Jack,22\n" + "Anna#44,Anna,44\n"
+    val expected = "(Jack#22,Jack,22)\n" + "(Anna#44,Anna,44)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -146,8 +146,8 @@ class CorrelateITCase(
       .toDataSet[Row]
 
     val results = result.collect()
-    val expected = "Jack#22,Jack,4\n" + "Jack#22,22,2\n" + "John#19,John,4\n" +
-      "John#19,19,2\n" + "Anna#44,Anna,4\n" + "Anna#44,44,2\n"
+    val expected = "(Jack#22,Jack,4)\n" + "(Jack#22,22,2)\n" + "(John#19,John,4)\n" +
+      "(John#19,19,2)\n" + "(Anna#44,Anna,4)\n" + "(Anna#44,44,2)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -164,8 +164,8 @@ class CorrelateITCase(
       .toDataSet[Row]
 
     val results = result.collect()
-    val expected = "Jack#22,Jack,true,22\n" + "John#19,John,false,19\n" +
-      "Anna#44,Anna,true,44\n"
+    val expected = "(Jack#22,Jack,true,22)\n" + "(John#19,John,false,19)\n" +
+      "(Anna#44,Anna,true,44)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -183,7 +183,7 @@ class CorrelateITCase(
       .toDataSet[Row]
 
     val results = result.collect()
-    val expected = "Jack#22,Jack,22\n" + "Anna#44,Anna,44\n"
+    val expected = "(Jack#22,Jack,22)\n" + "(Anna#44,Anna,44)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -200,8 +200,8 @@ class CorrelateITCase(
       .toDataSet[Row]
 
     val results = result.collect()
-    val expected = "Jack#22,ack\n" + "Jack#22,22\n" + "John#19,ohn\n" + "John#19,19\n" +
-      "Anna#44,nna\n" + "Anna#44,44\n"
+    val expected = "(Jack#22,ack)\n" + "(Jack#22,22)\n" + "(John#19,ohn)\n" + "(John#19,19)\n" +
+      "(Anna#44,nna)\n" + "(Anna#44,44)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -219,7 +219,7 @@ class CorrelateITCase(
       .toDataSet[Row]
 
     val results = result.collect()
-    val expected = "Jack#22,Jack,22"
+    val expected = "(Jack#22,Jack,22)"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -240,7 +240,7 @@ class CorrelateITCase(
         .toDataSet[Row]
 
     val results = result.collect()
-    val expected = "1000\n" + "655906210000\n" + "7591\n"
+    val expected = "(1000)\n" + "(655906210000)\n" + "(7591)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -258,10 +258,10 @@ class CorrelateITCase(
 
     val results = result.collect()
     val expected = Seq(
-      "1,1,1.0,Byte=1,Short=1,Float=1.0",
-      "2,2,2.0,Byte=2,Short=2,Float=2.0",
-      "3,3,2.0,Byte=3,Short=3,Float=2.0",
-      "4,4,3.0,Byte=4,Short=4,Float=3.0").mkString("\n")
+      "(1,1,1.0,Byte=1,Short=1,Float=1.0)",
+      "(2,2,2.0,Byte=2,Short=2,Float=2.0)",
+      "(3,3,2.0,Byte=3,Short=3,Float=2.0)",
+      "(4,4,3.0,Byte=4,Short=4,Float=3.0)").mkString("\n")
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -278,7 +278,7 @@ class CorrelateITCase(
       .joinLateral(richTableFunc1('c) as 's)
       .select('a, 's)
 
-    val expected = "1,Jack\n" + "1,22\n" + "2,John\n" + "2,19\n" + "3,Anna\n" + "3,44"
+    val expected = "(1,Jack)\n" + "(1,22)\n" + "(2,John)\n" + "(2,19)\n" + "(3,Anna)\n" + "(3,44)\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -300,7 +300,7 @@ class CorrelateITCase(
       .joinLateral(richTableFunc1(richFunc2('c)) as 's)
       .select('a, 's)
 
-    val expected = "1,Hi\n1,test\n2,Hello\n2,test\n3,Hello world\n3,test"
+    val expected = "(1,Hi)\n(1,test)\n(2,Hello)\n(2,test)\n(3,Hello world)\n(3,test)\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -325,9 +325,9 @@ class CorrelateITCase(
 
     val results = result.collect()
 
-    val expected = "Anna#44,Anna,OneConf_Anna,TwoConf_Anna,44,44,44\n" +
-      "Jack#22,Jack,OneConf_Jack,TwoConf_Jack,22,22,22\n" +
-      "John#19,John,OneConf_John,TwoConf_John,19,19,19\n"
+    val expected = "(Anna#44,Anna,OneConf_Anna,TwoConf_Anna,44,44,44)\n" +
+      "(Jack#22,Jack,OneConf_Jack,TwoConf_Jack,22,22,22)\n" +
+      "(John#19,John,OneConf_John,TwoConf_John,19,19,19)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -343,18 +343,18 @@ class CorrelateITCase(
       .select('c)
       .joinLateral(varArgsFunc0("1", "2", 'c))
 
-    val expected = "Anna#44,1\n" +
-      "Anna#44,2\n" +
-      "Anna#44,Anna#44\n" +
-      "Jack#22,1\n" +
-      "Jack#22,2\n" +
-      "Jack#22,Jack#22\n" +
-      "John#19,1\n" +
-      "John#19,2\n" +
-      "John#19,John#19\n" +
-      "nosharp,1\n" +
-      "nosharp,2\n" +
-      "nosharp,nosharp"
+    val expected = "(Anna#44,1)\n" +
+      "(Anna#44,2)\n" +
+      "(Anna#44,Anna#44)\n" +
+      "(Jack#22,1)\n" +
+      "(Jack#22,2)\n" +
+      "(Jack#22,Jack#22)\n" +
+      "(John#19,1)\n" +
+      "(John#19,2)\n" +
+      "(John#19,John#19)\n" +
+      "(nosharp,1)\n" +
+      "(nosharp,2)\n" +
+      "(nosharp,nosharp)\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
 
@@ -383,9 +383,9 @@ class CorrelateITCase(
     val results = result.toDataSet[Row].collect()
 
     val expected = Seq (
-      "Jack#22,Jack,22",
-      "John#19,John,19",
-      "Anna#44,Anna,44"
+      "(Jack#22,Jack,22)",
+      "(John#19,John,19)",
+      "(Anna#44,Anna,44)"
     )
 
     TestBaseUtils.compareResultAsText(

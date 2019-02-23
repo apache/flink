@@ -47,14 +47,14 @@ class TableSourceITCase(
       "SELECT id, `first`, `last`, score FROM csvTable").collect()
 
     val expected = Seq(
-      "1,Mike,Smith,12.3",
-      "2,Bob,Taylor,45.6",
-      "3,Sam,Miller,7.89",
-      "4,Peter,Smith,0.12",
-      "5,Liz,Williams,34.5",
-      "6,Sally,Miller,6.78",
-      "7,Alice,Smith,90.1",
-      "8,Kelly,Williams,2.34").mkString("\n")
+      "(1,Mike,Smith,12.3)",
+      "(2,Bob,Taylor,45.6)",
+      "(3,Sam,Miller,7.89)",
+      "(4,Peter,Smith,0.12)",
+      "(5,Liz,Williams,34.5)",
+      "(6,Sally,Miller,6.78)",
+      "(7,Alice,Smith,90.1)",
+      "(8,Kelly,Williams,2.34)").mkString("\n")
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -71,7 +71,7 @@ class TableSourceITCase(
         "FROM NestedPersons " +
         "WHERE NestedPersons.address.city LIKE 'Dublin'").collect()
 
-    val expected = "Bob,Taylor,Pearse Street,Dublin"
+    val expected = "(Bob,Taylor,Pearse Street,Dublin)"
 
     TestBaseUtils.compareResultAsText(result.asJava, expected)
   }

@@ -53,7 +53,7 @@ class SetOperatorsITCase(
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n"
+    val expected = "(Hi)\n" + "(Hello)\n" + "(Hello world)\n" + "(Hi)\n" + "(Hello)\n" + "(Hello world)\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -73,7 +73,7 @@ class SetOperatorsITCase(
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = "Hi\n" + "Hello\n" + "Hello world\n"
+    val expected = "(Hi)\n" + "(Hello)\n" + "(Hello world)\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -95,7 +95,7 @@ class SetOperatorsITCase(
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = "Hi\n" + "Hallo\n"
+    val expected = "(Hi)\n" + "(Hallo)\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -116,7 +116,7 @@ class SetOperatorsITCase(
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = "18"
+    val expected = "(18)"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -133,7 +133,7 @@ class SetOperatorsITCase(
     val result = tEnv.sqlQuery(sqlQuery)
     val results = result.toDataSet[Row].collect()
 
-    val expected = "1,1\n2,2\n3,3"
+    val expected = "(1,1)\n(2,2)\n(3,3)"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -152,7 +152,7 @@ class SetOperatorsITCase(
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = "Hello\n" + "Hello world\n"
+    val expected = "(Hello)\n" + "(Hello world)\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -200,7 +200,7 @@ class SetOperatorsITCase(
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = "Hi\n"
+    val expected = "(Hi)\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -225,7 +225,7 @@ class SetOperatorsITCase(
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = "Hi\n" + "Hello\n"
+    val expected = "(Hi)\n" + "(Hello)\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -251,7 +251,7 @@ class SetOperatorsITCase(
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = "1\n2\n2"
+    val expected = "(1)\n(2)\n(2)\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -271,7 +271,7 @@ class SetOperatorsITCase(
 
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val expected = "Hello\n" + "Hello world\n"
+    val expected = "(Hello)\n" + "(Hello world)\n"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -288,7 +288,7 @@ class SetOperatorsITCase(
 
     val result = tEnv.sqlQuery("SELECT d FROM Table5 WHERE d IN (SELECT a FROM Table3)")
 
-    val expected = Seq("1", "2", "2", "3", "3", "3").mkString("\n")
+    val expected = Seq("(1)", "(2)", "(2)", "(3)", "(3)", "(3)").mkString("\n")
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -305,8 +305,8 @@ class SetOperatorsITCase(
 
     val result = tEnv.sqlQuery("SELECT d IN (SELECT a FROM Table3) FROM Table5")
 
-    val expected = Seq("false", "false", "false", "false", "false", "false", "false",
-      "false", "false", "true", "true", "true", "true", "true", "true").mkString("\n")
+    val expected = Seq("(false)", "(false)", "(false)", "(false)", "(false)", "(false)", "(false)",
+      "(false)", "(false)", "(true)", "(true)", "(true)", "(true)", "(true)", "(true)").mkString("\n")
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

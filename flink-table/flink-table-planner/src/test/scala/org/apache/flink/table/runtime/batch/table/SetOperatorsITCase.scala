@@ -49,7 +49,7 @@ class SetOperatorsITCase(
     val unionDs = ds1.unionAll(ds2).select('c)
 
     val results = unionDs.toDataSet[Row].collect()
-    val expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n"
+    val expected = "(Hi)\n" + "(Hello)\n" + "(Hello world)\n" + "(Hi)\n" + "(Hello)\n" + "(Hello world)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -64,7 +64,7 @@ class SetOperatorsITCase(
     val unionDs = ds1.union(ds2).select('c)
 
     val results = unionDs.toDataSet[Row].collect()
-    val expected = "Hi\n" + "Hello\n" + "Hello world\n"
+    val expected = "(Hi)\n" + "(Hello)\n" + "(Hello world)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -80,9 +80,9 @@ class SetOperatorsITCase(
     val unionDs = ds1.unionAll(ds2).unionAll(ds3).select('c)
 
     val results = unionDs.toDataSet[Row].collect()
-    val expected = "Hi\n" + "Hello\n" + "Hello world\n" +
-      "Hi\n" + "Hello\n" + "Hello world\n" +
-      "Hi\n" + "Hello\n" + "Hello world\n"
+    val expected = "(Hi)\n" + "(Hello)\n" + "(Hello world)\n" +
+      "(Hi)\n" + "(Hello)\n" + "(Hello world)\n" +
+      "(Hi)\n" + "(Hello)\n" + "(Hello world)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -98,7 +98,7 @@ class SetOperatorsITCase(
     val unionDs = ds1.union(ds2).union(ds3).select('c)
 
     val results = unionDs.toDataSet[Row].collect()
-    val expected = "Hi\n" + "Hello\n" + "Hello world\n"
+    val expected = "(Hi)\n" + "(Hello)\n" + "(Hello world)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -114,10 +114,10 @@ class SetOperatorsITCase(
       .minusAll(ds2.unionAll(ds2)).select('c)
 
     val results = minusDs.toDataSet[Row].collect()
-    val expected = "Hi\n" +
-      "Hello\n" + "Hello world\n" +
-      "Hello\n" + "Hello world\n" +
-      "Hello\n" + "Hello world\n"
+    val expected = "(Hi)\n" +
+      "(Hello)\n" + "(Hello world)\n" +
+      "(Hello)\n" + "(Hello world)\n" +
+      "(Hello)\n" + "(Hello world)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -133,7 +133,7 @@ class SetOperatorsITCase(
       .minus(ds2.unionAll(ds2)).select('c)
 
     val results = minusDs.toDataSet[Row].collect()
-    val expected = "Hello\n" + "Hello world\n"
+    val expected = "(Hello)\n" + "(Hello world)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -149,7 +149,7 @@ class SetOperatorsITCase(
       .minus(ds2.unionAll(ds2)).select('c)
 
     val results = minusDs.toDataSet[Row].collect()
-    val expected = "Hello\n" + "Hello world\n"
+    val expected = "(Hello)\n" + "(Hello world)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -170,7 +170,7 @@ class SetOperatorsITCase(
 
     val results = intersectDS.collect()
 
-    val expected = "Hi\n" + "Hello\n"
+    val expected = "(Hi)\n" + "(Hello)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -188,7 +188,7 @@ class SetOperatorsITCase(
 
     val intersectDS = ds1.intersectAll(ds2).select('c).toDataSet[Row]
 
-    val expected = "1\n2\n2"
+    val expected = "(1)\n(2)\n(2)\n"
     val results = intersectDS.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -204,7 +204,7 @@ class SetOperatorsITCase(
     val intersectDs = ds1.intersect(ds2).select('c)
 
     val results = intersectDs.toDataSet[Row].collect()
-    val expected = "Hi\n" + "Hello\n" + "Hello world\n"
+    val expected = "(Hi)\n" + "(Hello)\n" + "(Hello world)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -221,7 +221,7 @@ class SetOperatorsITCase(
     val intersectDs = ds1.intersect(ds2)
 
     val results = intersectDs.toDataSet[Row].collect()
-    val expected = "2,1,Hi\n" + "3,2,Hello\n" + "4,2,Hello world\n"
+    val expected = "(2,1,Hi)\n" + "(3,2,Hello)\n" + "(4,2,Hello world)\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 }

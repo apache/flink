@@ -50,9 +50,9 @@ class TableSourceITCase extends AbstractTestBase {
     env.execute()
 
     val expected = mutable.MutableList(
-      "1,Mike,Smith,12.3",
-      "2,Bob,Taylor,45.6",
-      "3,Sam,Miller,7.89")
+      "(1,Mike,Smith,12.3)",
+      "(2,Bob,Taylor,45.6)",
+      "(3,Sam,Miller,7.89)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

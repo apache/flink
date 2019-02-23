@@ -79,9 +79,9 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = Seq(
-      "Hello World,1,7,1", "Hello World,2,7,2", "Hello World,3,7,2", "Hello World,4,13,3",
-      "Hello,1,1,1", "Hello,2,1,2", "Hello,3,2,3", "Hello,4,3,4", "Hello,5,3,5", "Hello,6,4,6",
-      "null,1,20,1")
+      "(Hello World,1,7,1)", "(Hello World,2,7,2)", "(Hello World,3,7,2)", "(Hello World,4,13,3)",
+      "(Hello,1,1,1)", "(Hello,2,1,2)", "(Hello,3,2,3)", "(Hello,4,3,4)", "(Hello,5,3,5)", "(Hello,6,4,6)",
+      "(null,1,20,1)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -119,8 +119,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = Seq(
-      "Hello World,12", "Hello World,9", "Hello World,9", "Hello World,9", "Hello,3",
-      "Hello,3", "Hello,4", "Hello,4", "Hello,5", "Hello,5")
+      "(Hello World,12)", "(Hello World,9)", "(Hello World,9)", "(Hello World,9)", "(Hello,3)",
+      "(Hello,3)", "(Hello,4)", "(Hello,4)", "(Hello,5)", "(Hello,5)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -182,19 +182,19 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = mutable.MutableList(
-      "1,1,Hello,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2,2",
-      "1,2,Hello,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2,2",
-      "1,3,Hello world,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2,2",
-      "1,1,Hi,7,SUM:7,4,5,5,[1, 3],1,3,1,1,1,3",
-      "2,1,Hello,1,SUM:1,1,2,2,[1, 1],1,1,1,1,1,1",
-      "2,2,Hello world,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2,2",
-      "2,3,Hello world,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2,2",
-      "1,4,Hello world,11,SUM:11,5,6,6,[2, 4],2,4,1,1,2,3",
-      "1,5,Hello world,29,SUM:29,8,9,9,[3, 7],3,7,1,1,3,3",
-      "1,6,Hello world,29,SUM:29,8,9,9,[3, 7],3,7,1,1,3,3",
-      "1,7,Hello world,29,SUM:29,8,9,9,[3, 7],3,7,1,1,3,3",
-      "2,4,Hello world,15,SUM:15,5,6,6,[3, 5],3,5,1,1,3,2",
-      "2,5,Hello world,15,SUM:15,5,6,6,[3, 5],3,5,1,1,3,2"
+      "(1,1,Hello,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2,2)",
+      "(1,2,Hello,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2,2)",
+      "(1,3,Hello world,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2,2)",
+      "(1,1,Hi,7,SUM:7,4,5,5,[1, 3],1,3,1,1,1,3)",
+      "(2,1,Hello,1,SUM:1,1,2,2,[1, 1],1,1,1,1,1,1)",
+      "(2,2,Hello world,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2,2)",
+      "(2,3,Hello world,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2,2)",
+      "(1,4,Hello world,11,SUM:11,5,6,6,[2, 4],2,4,1,1,2,3)",
+      "(1,5,Hello world,29,SUM:29,8,9,9,[3, 7],3,7,1,1,3,3)",
+      "(1,6,Hello world,29,SUM:29,8,9,9,[3, 7],3,7,1,1,3,3)",
+      "(1,7,Hello world,29,SUM:29,8,9,9,[3, 7],3,7,1,1,3,3)",
+      "(2,4,Hello world,15,SUM:15,5,6,6,[3, 5],3,5,1,1,3,2)",
+      "(2,5,Hello world,15,SUM:15,5,6,6,[3, 5],3,5,1,1,3,2)"
     )
 
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
@@ -238,21 +238,21 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = mutable.MutableList(
-      "1,0,0,1",
-      "2,1,1,1",
-      "2,3,1,2",
-      "3,3,3,1",
-      "3,7,3,1",
-      "3,12,3,2",
-      "4,6,6,1",
-      "4,13,6,2",
-      "4,21,6,2",
-      "4,30,6,2",
-      "5,10,10,1",
-      "5,21,10,2",
-      "5,33,10,2",
-      "5,46,10,3",
-      "5,60,10,3")
+      "(1,0,0,1)",
+      "(2,1,1,1)",
+      "(2,3,1,2)",
+      "(3,3,3,1)",
+      "(3,7,3,1)",
+      "(3,12,3,2)",
+      "(4,6,6,1)",
+      "(4,13,6,2)",
+      "(4,21,6,2)",
+      "(4,30,6,2)",
+      "(5,10,10,1)",
+      "(5,21,10,2)",
+      "(5,33,10,2)",
+      "(5,46,10,3)",
+      "(5,60,10,3)")
 
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
@@ -302,12 +302,12 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = mutable.MutableList(
-      "Hello,1,1,1,1", "Hello,1,2,2,1", "Hello,1,3,3,1",
-      "Hello,2,3,4,2", "Hello,2,3,5,2", "Hello,2,3,6,1",
-      "Hello,3,3,7,2", "Hello,4,3,9,3", "Hello,5,3,12,3",
-      "Hello,6,3,15,3",
-      "Hello World,7,1,7,1", "Hello World,7,2,14,1", "Hello World,7,3,21,1",
-      "Hello World,7,3,21,1", "Hello World,8,3,22,2", "Hello World,20,3,35,3")
+      "(Hello,1,1,1,1)", "(Hello,1,2,2,1)", "(Hello,1,3,3,1)",
+      "(Hello,2,3,4,2)", "(Hello,2,3,5,2)", "(Hello,2,3,6,1)",
+      "(Hello,3,3,7,2)", "(Hello,4,3,9,3)", "(Hello,5,3,12,3)",
+      "(Hello,6,3,15,3)",
+      "(Hello World,7,1,7,1)", "(Hello World,7,2,14,1)", "(Hello World,7,3,21,1)",
+      "(Hello World,7,3,21,1)", "(Hello World,8,3,22,2)", "(Hello World,20,3,35,3)")
 
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
@@ -367,17 +367,17 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = mutable.MutableList(
-      "Hello,1,1,1,1", "Hello,15,2,2,1", "Hello,16,3,3,1",
-      "Hello,2,6,9,2", "Hello,3,6,9,2", "Hello,2,6,9,2",
-      "Hello,3,4,9,2",
-      "Hello,4,2,7,2",
-      "Hello,5,2,9,2",
-      "Hello,6,2,11,2", "Hello,65,2,12,1",
-      "Hello,9,2,12,1", "Hello,9,2,12,1", "Hello,18,3,18,1",
-      "Hello World,7,1,7,1", "Hello World,17,3,21,1",
-      "Hello World,77,3,21,1", "Hello World,18,1,7,1",
-      "Hello World,8,2,15,2",
-      "Hello World,20,1,20,1")
+      "(Hello,1,1,1,1)", "(Hello,15,2,2,1)", "(Hello,16,3,3,1)",
+      "(Hello,2,6,9,2)", "(Hello,3,6,9,2)", "(Hello,2,6,9,2)",
+      "(Hello,3,4,9,2)",
+      "(Hello,4,2,7,2)",
+      "(Hello,5,2,9,2)",
+      "(Hello,6,2,11,2)", "(Hello,65,2,12,1)",
+      "(Hello,9,2,12,1)", "(Hello,9,2,12,1)", "(Hello,18,3,18,1)",
+      "(Hello World,7,1,7,1)", "(Hello World,17,3,21,1)",
+      "(Hello World,77,3,21,1)", "(Hello World,18,1,7,1)",
+      "(Hello World,8,2,15,2)",
+      "(Hello World,20,1,20,1)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }

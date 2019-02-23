@@ -125,8 +125,8 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
     ratesHistoryData.+=(("Euro", 119L, new Timestamp(7L)))
 
     var expectedOutput = new mutable.HashSet[String]()
-    expectedOutput += (2 * 114).toString
-    expectedOutput += (3 * 116).toString
+    expectedOutput += "(" + (2 * 114).toString + ")"
+    expectedOutput += "(" + (3 * 116).toString + ")"
 
     val orders = env
       .fromCollection(ordersData)

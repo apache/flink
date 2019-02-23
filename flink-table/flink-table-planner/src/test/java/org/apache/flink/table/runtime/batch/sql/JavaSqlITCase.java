@@ -65,10 +65,10 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 
 		List<Row> results = resultSet.collect();
-		String expected = "3,World,false,1944-12-24,12.5444444500000000\n" +
-			"2,Hello,true,1944-02-24,12.6666666650000000\n" +
+		String expected = "(3,World,false,1944-12-24,12.5444444500000000)\n" +
+			"(2,Hello,true,1944-02-24,12.6666666650000000)\n" +
 			// Calcite converts to decimals and strings with equal length
-			"1,Test ,true,1944-02-24,12.4444444444444445\n";
+			"(1,Test ,true,1944-02-24,12.4444444444444445)\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -86,13 +86,13 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
-		String expected = "1,Hi\n" + "2,Hello\n" + "3,Hello world\n" +
-			"4,Hello world, how are you?\n" + "5,I am fine.\n" + "6,Luke Skywalker\n" +
-			"7,Comment#1\n" + "8,Comment#2\n" + "9,Comment#3\n" + "10,Comment#4\n" +
-			"11,Comment#5\n" + "12,Comment#6\n" + "13,Comment#7\n" +
-			"14,Comment#8\n" + "15,Comment#9\n" + "16,Comment#10\n" +
-			"17,Comment#11\n" + "18,Comment#12\n" + "19,Comment#13\n" +
-			"20,Comment#14\n" + "21,Comment#15\n";
+		String expected = "(1,Hi)\n" + "(2,Hello)\n" + "(3,Hello world)\n" +
+			"(4,Hello world, how are you?)\n" + "(5,I am fine.)\n" + "(6,Luke Skywalker)\n" +
+			"(7,Comment#1)\n" + "(8,Comment#2)\n" + "(9,Comment#3)\n" + "(10,Comment#4)\n" +
+			"(11,Comment#5)\n" + "(12,Comment#6)\n" + "(13,Comment#7)\n" +
+			"(14,Comment#8)\n" + "(15,Comment#9)\n" + "(16,Comment#10)\n" +
+			"(17,Comment#11)\n" + "(18,Comment#12)\n" + "(19,Comment#13)\n" +
+			"(20,Comment#14)\n" + "(21,Comment#15)\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -109,7 +109,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
-		String expected = "2\n" + "3\n" + "4";
+		String expected = "(2)\n" + "(3)\n" + "(4)\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -126,7 +126,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
-		String expected = "231,1,21,21,11";
+		String expected = "(231,1,21,21,11)";
 		compareResultAsText(results, expected);
 	}
 
@@ -146,7 +146,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
-		String expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n";
+		String expected = "(Hi,Hallo)\n" + "(Hello,Hallo Welt)\n" + "(Hello world,Hallo Welt)\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -171,7 +171,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
-		String expected = "bar\n" + "spam\n";
+		String expected = "(bar)\n" + "(spam)\n";
 		compareResultAsText(results, expected);
 	}
 }
