@@ -344,6 +344,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		// configure RocksDB predefined options
 		this.predefinedOptions = original.predefinedOptions == null ?
 			PredefinedOptions.valueOf(config.getString(RocksDBOptions.PREDEFINED_OPTIONS)) : original.predefinedOptions;
+		LOG.info("Using predefined options: {}.", predefinedOptions.name());
 
 		// configure RocksDB options factory
 		try {
@@ -546,15 +547,20 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 		if (originalOptionsFactory != null) {
 			if (originalOptionsFactory instanceof ConfigurableOptionsFactory) {
-				return ((ConfigurableOptionsFactory) originalOptionsFactory).configure(config);
+				originalOptionsFactory = ((ConfigurableOptionsFactory) originalOptionsFactory).configure(config);
 			}
+			LOG.info("Using application-defined options factory: {}.", originalOptionsFactory);
+
 			return originalOptionsFactory;
 		}
 
 		// if using DefaultConfigurableOptionsFactory by default, we could avoid reflection to speed up.
 		if (factoryClassName.equalsIgnoreCase(DefaultConfigurableOptionsFactory.class.getName())) {
 			DefaultConfigurableOptionsFactory optionsFactory = new DefaultConfigurableOptionsFactory();
-			return optionsFactory.configure(config);
+			optionsFactory.configure(config);
+			LOG.info("Using default options factory: {}.", optionsFactory);
+
+			return optionsFactory;
 		} else {
 			try {
 				@SuppressWarnings("rawtypes")
@@ -566,6 +572,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				if (optionsFactory instanceof ConfigurableOptionsFactory) {
 					optionsFactory = ((ConfigurableOptionsFactory) optionsFactory).configure(config);
 				}
+				LOG.info("Using configured options factory: {}.", optionsFactory);
+
 				return optionsFactory;
 			} catch (ClassNotFoundException e) {
 				throw new DynamicCodeLoadingException(
