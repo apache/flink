@@ -156,20 +156,20 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 
 		List<Row> results = tEnv.toDataSet(result, Row.class).collect();
 		String expected =
-			"black,null,Whatever,[true],[hello],true,java.nio.HeapByteBuffer[pos=0 lim=10 cap=10]," +
+			"(black,null,Whatever,[true],[hello],true,java.nio.HeapByteBuffer[pos=0 lim=10 cap=10]," +
 			"2014-03-01,java.nio.HeapByteBuffer[pos=0 lim=2 cap=2],[7, -48],0.0,GREEN," +
 			"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],42,{},null,null,null,123456," +
-			"12:12:12.000,123456,2014-03-01T12:12:12.321Z,null\n" +
-			"blue,null,Charlie,[],[],false,java.nio.HeapByteBuffer[pos=0 lim=10 cap=10],2014-03-01," +
+			"12:12:12.000,123456,2014-03-01T12:12:12.321Z,null)\n" +
+			"(blue,null,Charlie,[],[],false,java.nio.HeapByteBuffer[pos=0 lim=10 cap=10],2014-03-01," +
 			"java.nio.HeapByteBuffer[pos=0 lim=2 cap=2],[7, -48],1.337,RED,null,1337,{}," +
 			"{\"num\": 42, \"street\": \"Bakerstreet\", \"city\": \"Berlin\", \"state\": " +
 			"\"Berlin\", \"zip\": \"12049\"},null,null,123456,12:12:12.000,123456," +
-			"2014-03-01T12:12:12.321Z,null\n" +
-			"yellow,null,Terminator,[false],[world],false," +
+			"2014-03-01T12:12:12.321Z,null)\n" +
+			"(yellow,null,Terminator,[false],[world],false," +
 			"java.nio.HeapByteBuffer[pos=0 lim=10 cap=10],2014-03-01," +
 			"java.nio.HeapByteBuffer[pos=0 lim=2 cap=2],[7, -48],0.0,GREEN," +
 			"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],1,{},null,null,null,123456," +
-			"12:12:12.000,123456,2014-03-01T12:12:12.321Z,null";
+			"12:12:12.000,123456,2014-03-01T12:12:12.321Z,null)";
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
 

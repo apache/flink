@@ -268,12 +268,12 @@ public class LocalExecutorITCase extends TestLogger {
 					retrieveChangelogResult(executor, session, desc.getResultId());
 
 			final List<String> expectedResults = new ArrayList<>();
-			expectedResults.add("(true,47,Hello World)");
-			expectedResults.add("(true,27,Hello World)");
-			expectedResults.add("(true,37,Hello World)");
-			expectedResults.add("(true,37,Hello World)");
-			expectedResults.add("(true,47,Hello World)");
-			expectedResults.add("(true,57,Hello World!!!!)");
+			expectedResults.add("(true,(47,Hello World))");
+			expectedResults.add("(true,(27,Hello World))");
+			expectedResults.add("(true,(37,Hello World))");
+			expectedResults.add("(true,(37,Hello World))");
+			expectedResults.add("(true,(47,Hello World))");
+			expectedResults.add("(true,(57,Hello World!!!!))");
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 		} finally {
@@ -296,12 +296,12 @@ public class LocalExecutorITCase extends TestLogger {
 		final String query = "SELECT scalarUDF(IntegerField1), StringField1 FROM TableNumber1";
 
 		final List<String> expectedResults = new ArrayList<>();
-		expectedResults.add("47,Hello World");
-		expectedResults.add("27,Hello World");
-		expectedResults.add("37,Hello World");
-		expectedResults.add("37,Hello World");
-		expectedResults.add("47,Hello World");
-		expectedResults.add("57,Hello World!!!!");
+		expectedResults.add("(47,Hello World)");
+		expectedResults.add("(27,Hello World)");
+		expectedResults.add("(37,Hello World)");
+		expectedResults.add("(37,Hello World)");
+		expectedResults.add("(47,Hello World)");
+		expectedResults.add("(57,Hello World!!!!)");
 
 		executeStreamQueryTable(replaceVars, query, expectedResults);
 	}
@@ -321,7 +321,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final String query = "SELECT COUNT(*), StringField1 FROM TableNumber1 GROUP BY StringField1";
 
 		final List<String> expectedResults = new ArrayList<>();
-		expectedResults.add("1,Hello World!!!!");
+		expectedResults.add("(1,Hello World!!!!)");
 
 		executeStreamQueryTable(replaceVars, query, expectedResults);
 	}
@@ -348,12 +348,12 @@ public class LocalExecutorITCase extends TestLogger {
 			final List<String> actualResults = retrieveTableResult(executor, session, desc.getResultId());
 
 			final List<String> expectedResults = new ArrayList<>();
-			expectedResults.add("47");
-			expectedResults.add("27");
-			expectedResults.add("37");
-			expectedResults.add("37");
-			expectedResults.add("47");
-			expectedResults.add("57");
+			expectedResults.add("(47)");
+			expectedResults.add("(27)");
+			expectedResults.add("(37)");
+			expectedResults.add("(37)");
+			expectedResults.add("(47)");
+			expectedResults.add("(57)");
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 		} finally {

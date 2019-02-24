@@ -168,14 +168,14 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 		List<Row> results = resultSet.collect();
 
 		String expected =
-			"10,Hello-1,100,1.01,false,Welt-1\n" +
-			"20,Hello-2,200,2.02,true,Welt-2\n" +
-			"30,Hello-3,300,3.03,false,Welt-3\n" +
-			"40,null,400,4.04,true,Welt-4\n" +
-			"50,Hello-5,500,5.05,false,Welt-5\n" +
-			"60,Hello-6,600,6.06,true,Welt-6\n" +
-			"70,Hello-7,700,7.07,false,Welt-7\n" +
-			"80,null,800,8.08,true,Welt-8\n";
+			"(10,Hello-1,100,1.01,false,Welt-1)\n" +
+			"(20,Hello-2,200,2.02,true,Welt-2)\n" +
+			"(30,Hello-3,300,3.03,false,Welt-3)\n" +
+			"(40,null,400,4.04,true,Welt-4)\n" +
+			"(50,Hello-5,500,5.05,false,Welt-5)\n" +
+			"(60,Hello-6,600,6.06,true,Welt-6)\n" +
+			"(70,Hello-7,700,7.07,false,Welt-7)\n" +
+			"(80,null,800,8.08,true,Welt-8)\n";
 
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
@@ -207,14 +207,14 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 		List<Row> results = resultSet.collect();
 
 		String expected =
-			"10,1.01,false,Welt-1\n" +
-			"20,2.02,true,Welt-2\n" +
-			"30,3.03,false,Welt-3\n" +
-			"40,4.04,true,Welt-4\n" +
-			"50,5.05,false,Welt-5\n" +
-			"60,6.06,true,Welt-6\n" +
-			"70,7.07,false,Welt-7\n" +
-			"80,8.08,true,Welt-8\n";
+			"(10,1.01,false,Welt-1)\n" +
+			"(20,2.02,true,Welt-2)\n" +
+			"(30,3.03,false,Welt-3)\n" +
+			"(40,4.04,true,Welt-4)\n" +
+			"(50,5.05,false,Welt-5)\n" +
+			"(60,6.06,true,Welt-6)\n" +
+			"(70,7.07,false,Welt-7)\n" +
+			"(80,8.08,true,Welt-8)\n";
 
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
@@ -242,14 +242,14 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 		List<Row> results = resultSet.collect();
 
 		String expected =
-			"Hello-1,100,1.01,false,Welt-1,10\n" +
-			"Hello-2,200,2.02,true,Welt-2,20\n" +
-			"Hello-3,300,3.03,false,Welt-3,30\n" +
-			"null,400,4.04,true,Welt-4,40\n" +
-			"Hello-5,500,5.05,false,Welt-5,50\n" +
-			"Hello-6,600,6.06,true,Welt-6,60\n" +
-			"Hello-7,700,7.07,false,Welt-7,70\n" +
-			"null,800,8.08,true,Welt-8,80\n";
+			"((Hello-1,100),(1.01,false,Welt-1),(10))\n" +
+			"((Hello-2,200),(2.02,true,Welt-2),(20))\n" +
+			"((Hello-3,300),(3.03,false,Welt-3),(30))\n" +
+			"((null,400),(4.04,true,Welt-4),(40))\n" +
+			"((Hello-5,500),(5.05,false,Welt-5),(50))\n" +
+			"((Hello-6,600),(6.06,true,Welt-6),(60))\n" +
+			"((Hello-7,700),(7.07,false,Welt-7),(70))\n" +
+			"((null,800),(8.08,true,Welt-8),(80))\n";
 
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
@@ -279,14 +279,14 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 		List<Row> results = resultSet.collect();
 
 		String expected =
-			"Hello-1,100\n" +
-			"Hello-2,200\n" +
-			"Hello-3,300\n" +
-			"null,400\n" +
-			"Hello-5,500\n" +
-			"Hello-6,600\n" +
-			"Hello-7,700\n" +
-			"null,800\n";
+			"(Hello-1,100)\n" +
+			"(Hello-2,200)\n" +
+			"(Hello-3,300)\n" +
+			"(null,400)\n" +
+			"(Hello-5,500)\n" +
+			"(Hello-6,600)\n" +
+			"(Hello-7,700)\n" +
+			"(null,800)\n";
 
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
