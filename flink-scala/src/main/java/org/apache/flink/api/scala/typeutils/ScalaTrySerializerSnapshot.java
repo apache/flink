@@ -38,7 +38,7 @@ public class ScalaTrySerializerSnapshot<E> extends CompositeTypeSerializerSnapsh
 	/** This empty nullary constructor is required for deserializing the configuration. */
 	@SuppressWarnings("unused")
 	public ScalaTrySerializerSnapshot() {
-		super(correspondingSerializerClass());
+		super(TrySerializer.class);
 	}
 
 	public ScalaTrySerializerSnapshot(TrySerializer<E> trySerializer) {
@@ -62,10 +62,5 @@ public class ScalaTrySerializerSnapshot<E> extends CompositeTypeSerializerSnapsh
 		TypeSerializer<Throwable> valueSerializer = (TypeSerializer<Throwable>) nestedSerializers[1];
 
 		return new TrySerializer<>(elementSerializer, valueSerializer);
-	}
-
-	@SuppressWarnings("unchecked")
-	private static <E> Class<TrySerializer<E>> correspondingSerializerClass() {
-		return (Class<TrySerializer<E>>) (Class<?>) TrySerializer.class;
 	}
 }

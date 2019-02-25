@@ -31,7 +31,7 @@ import java.util.Map;
  * @param <K> the key type of the map entries.
  * @param <V> the value type of the map entries.
  */
-public class MapViewSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot<MapView<K, V>, MapViewSerializer> {
+public class MapViewSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot<MapView<K, V>, MapViewSerializer<K, V>> {
 
 	private static final int CURRENT_VERSION = 1;
 
@@ -55,14 +55,14 @@ public class MapViewSerializerSnapshot<K, V> extends CompositeTypeSerializerSnap
 	}
 
 	@Override
-	protected MapViewSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+	protected MapViewSerializer<K, V> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
 		@SuppressWarnings("unchecked")
 		TypeSerializer<Map<K, V>> mapSerializer = (TypeSerializer<Map<K, V>>) nestedSerializers[0];
 		return new MapViewSerializer<>(mapSerializer);
 	}
 
 	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(MapViewSerializer outerSerializer) {
+	protected TypeSerializer<?>[] getNestedSerializers(MapViewSerializer<K, V> outerSerializer) {
 		return new TypeSerializer<?>[] { outerSerializer.getMapSerializer() };
 	}
 }

@@ -312,7 +312,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 
 		@SuppressWarnings({"WeakerAccess", "unused"})
 		public TtlSerializerSnapshot() {
-			super(correspondingSerializerClass());
+			super(TtlSerializer.class);
 		}
 
 		TtlSerializerSnapshot(TtlSerializer<T> serializerInstance) {
@@ -336,11 +336,6 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 			TypeSerializer<T> valueSerializer = (TypeSerializer<T>) nestedSerializers[1];
 
 			return new TtlSerializer<>(timestampSerializer, valueSerializer);
-		}
-
-		@SuppressWarnings("unchecked")
-		private static <T> Class<TtlSerializer<T>> correspondingSerializerClass() {
-			return (Class<TtlSerializer<T>>) (Class<?>) TtlSerializer.class;
 		}
 	}
 }

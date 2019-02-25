@@ -844,7 +844,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 
 		@SuppressWarnings("WeakerAccess")
 		public StateSerializerSnapshot() {
-			super(correspondingSerializerClass());
+			super(StateSerializer.class);
 		}
 
 		StateSerializerSnapshot(StateSerializer<TXN, CONTEXT> serializerInstance) {
@@ -870,11 +870,6 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 		@Override
 		protected TypeSerializer<?>[] getNestedSerializers(StateSerializer<TXN, CONTEXT> outerSerializer) {
 			return new TypeSerializer<?>[] { outerSerializer.transactionSerializer, outerSerializer.contextSerializer };
-		}
-
-		@SuppressWarnings("unchecked")
-		private static <TXN, CONTEXT> Class<StateSerializer<TXN, CONTEXT>> correspondingSerializerClass() {
-			return (Class<StateSerializer<TXN, CONTEXT>>) (Class<?>) StateSerializer.class;
 		}
 	}
 }

@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 
 @Internal
-public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
+public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 8766687317209282373L;
 

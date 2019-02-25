@@ -33,7 +33,7 @@ public final class ScalaOptionSerializerSnapshot<E> extends CompositeTypeSeriali
 
 	@SuppressWarnings("WeakerAccess")
 	public ScalaOptionSerializerSnapshot() {
-		super(underlyingClass());
+		super(OptionSerializer.class);
 	}
 
 	public ScalaOptionSerializerSnapshot(OptionSerializer<E> serializerInstance) {
@@ -54,10 +54,5 @@ public final class ScalaOptionSerializerSnapshot<E> extends CompositeTypeSeriali
 	protected OptionSerializer<E> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
 		@SuppressWarnings("unchecked") TypeSerializer<E> nestedSerializer = (TypeSerializer<E>) nestedSerializers[0];
 		return new OptionSerializer<>(nestedSerializer);
-	}
-
-	@SuppressWarnings("unchecked")
-	private static <E> Class<OptionSerializer<E>> underlyingClass() {
-		return (Class<OptionSerializer<E>>) (Class<?>) OptionSerializer.class;
 	}
 }

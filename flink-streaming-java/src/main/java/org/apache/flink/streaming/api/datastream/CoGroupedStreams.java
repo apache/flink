@@ -669,7 +669,7 @@ public class CoGroupedStreams<T1, T2> {
 
 		@SuppressWarnings("WeakerAccess")
 		public UnionSerializerSnapshot() {
-			super(correspondingSerializerClass());
+			super(UnionSerializer.class);
 		}
 
 		UnionSerializerSnapshot(UnionSerializer<T1, T2> serializerInstance) {
@@ -690,11 +690,6 @@ public class CoGroupedStreams<T1, T2> {
 		@Override
 		protected UnionSerializer<T1, T2> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
 			return new UnionSerializer<>((TypeSerializer<T1>) nestedSerializers[0], (TypeSerializer<T2>) nestedSerializers[1]);
-		}
-
-		@SuppressWarnings("unchecked")
-		private static <T1, T2> Class<UnionSerializer<T1, T2>> correspondingSerializerClass() {
-			return (Class<UnionSerializer<T1, T2>>) (Class<?>) UnionSerializer.class;
 		}
 	}
 
