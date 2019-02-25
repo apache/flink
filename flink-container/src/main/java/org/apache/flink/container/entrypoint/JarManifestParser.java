@@ -96,7 +96,7 @@ class JarManifestParser {
 	 * <li>{@link PackagedProgram#MANIFEST_ATTRIBUTE_MAIN_CLASS}</li>
 	 * </ol>
 	 *
-	 * @param jarFileZO JAR file to parse
+	 * @param jarFile JAR file to parse
 	 * @return Optional holding entry class
 	 * @throws IOException If there is an error accessing the JAR
 	 */
