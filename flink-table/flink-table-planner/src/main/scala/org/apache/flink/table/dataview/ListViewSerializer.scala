@@ -19,7 +19,7 @@
 package org.apache.flink.table.dataview
 
 import org.apache.flink.api.common.typeutils._
-import org.apache.flink.api.common.typeutils.base.{CollectionSerializerConfigSnapshot, ListSerializer}
+import org.apache.flink.api.common.typeutils.base.{CollectionSerializerConfigSnapshot, ListSerializerSnapshot}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 import org.apache.flink.table.api.dataview.ListView
 
@@ -35,7 +35,8 @@ import org.apache.flink.table.api.dataview.ListView
   */
 @SerialVersionUID(-2030398712359267867L)
 class ListViewSerializer[T](val listSerializer: TypeSerializer[java.util.List[T]])
-  extends TypeSerializer[ListView[T]] {
+  extends TypeSerializer[ListView[T]]
+  with LegacySerializerSnapshotTransformer[ListView[T]] {
 
   override def isImmutableType: Boolean = false
 
@@ -77,33 +78,38 @@ class ListViewSerializer[T](val listSerializer: TypeSerializer[java.util.List[T]
   override def snapshotConfiguration(): ListViewSerializerSnapshot[T] =
     new ListViewSerializerSnapshot[T](this)
 
-  override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[ListView[T]] = {
+  /**
+    * We need to override this as a [[LegacySerializerSnapshotTransformer]]
+    * because in Flink 1.6.x and below, this serializer was incorrectly returning
+    * directly the snapshot of the nested list serializer as its own snapshot.
+    *
+    * <p>This method transforms the incorrect list serializer snapshot
+    * to be a proper [[ListViewSerializerSnapshot]].
+    */
+  override def transformLegacySerializerSnapshot[U](
+      legacySnapshot: TypeSerializerSnapshot[U]
+  ): TypeSerializerSnapshot[ListView[T]] = {
 
-    configSnapshot match {
-      // backwards compatibility path;
-      // Flink versions older or equal to 1.6.x returns a
-      // CollectionSerializerConfigSnapshot as the snapshot
+    legacySnapshot match {
+      case correctSnapshot: ListViewSerializerSnapshot[T] =>
+        correctSnapshot
+
       case legacySnapshot: CollectionSerializerConfigSnapshot[java.util.List[T], T] =>
-        val previousListSerializerAndConfig =
-          legacySnapshot.getSingleNestedSerializerAndConfig
+        // first, transform the incorrect list serializer's snapshot
+        // into a proper ListSerializerSnapshot
+        val transformedNestedListSerializerSnapshot = new ListSerializerSnapshot[T]
+        CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
+          transformedNestedListSerializerSnapshot,
+          legacySnapshot.getSingleNestedSerializerAndConfig.f1)
 
-        // in older versions, the nested list serializer was always
-        // specifically a ListSerializer, so this cast is safe
-        val castedSer = listSerializer.asInstanceOf[ListSerializer[T]]
-        val compatResult = CompatibilityUtil.resolveCompatibilityResult(
-          previousListSerializerAndConfig.f0,
-          classOf[UnloadableDummyTypeSerializer[_]],
-          previousListSerializerAndConfig.f1,
-          castedSer.getElementSerializer)
+        // then, wrap the transformed ListSerializerSnapshot
+        // as a nested snapshot in the final resulting ListViewSerializerSnapshot
+        val transformedListViewSerializerSnapshot = new ListViewSerializerSnapshot[T]()
+        CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
+          transformedListViewSerializerSnapshot,
+          transformedNestedListSerializerSnapshot)
 
-        if (!compatResult.isRequiresMigration) {
-          CompatibilityResult.compatible[ListView[T]]
-        } else {
-          CompatibilityResult.requiresMigration[ListView[T]]
-        }
-
-      case _ => CompatibilityResult.requiresMigration[ListView[T]]
+        transformedListViewSerializerSnapshot
     }
   }
 
