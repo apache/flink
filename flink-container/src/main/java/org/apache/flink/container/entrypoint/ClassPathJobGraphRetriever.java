@@ -29,7 +29,11 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.FlinkException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static java.util.Objects.requireNonNull;
 
@@ -39,8 +43,10 @@ import static java.util.Objects.requireNonNull;
  */
 class ClassPathJobGraphRetriever implements JobGraphRetriever {
 
-	@Nonnull
-	private final String jobClassName;
+	private static final Logger LOG = LoggerFactory.getLogger(ClassPathJobGraphRetriever.class);
+	private static final String JAVA_CLASS_PATH = "java.class.path";
+	private static final String PATH_SEPARATOR = "path.separator";
+	private static final String DEFAULT_PATH_SEPARATOR = ":";
 
 	@Nonnull
 	private final JobID jobId;
@@ -51,15 +57,18 @@ class ClassPathJobGraphRetriever implements JobGraphRetriever {
 	@Nonnull
 	private final String[] programArguments;
 
+	@Nullable
+	private final String jobClassName;
+
 	ClassPathJobGraphRetriever(
-			@Nonnull String jobClassName,
 			@Nonnull JobID jobId,
 			@Nonnull SavepointRestoreSettings savepointRestoreSettings,
-			@Nonnull String[] programArguments) {
-		this.jobClassName = requireNonNull(jobClassName, "jobClassName");
+			@Nonnull String[] programArguments,
+			@Nullable String jobClassName) {
 		this.jobId = requireNonNull(jobId, "jobId");
 		this.savepointRestoreSettings = requireNonNull(savepointRestoreSettings, "savepointRestoreSettings");
 		this.programArguments = requireNonNull(programArguments, "programArguments");
+		this.jobClassName = jobClassName;
 	}
 
 	@Override
@@ -89,4 +98,5 @@ class ClassPathJobGraphRetriever implements JobGraphRetriever {
 			throw new FlinkException("Could not load the provided entrypoint class.", e);
 		}
 	}
+
 }
