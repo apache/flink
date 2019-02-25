@@ -48,10 +48,10 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 		final JobID jobId = new JobID();
 
 		final ClassPathJobGraphRetriever classPathJobGraphRetriever = new ClassPathJobGraphRetriever(
-			TestJob.class.getCanonicalName(),
 			jobId,
 			SavepointRestoreSettings.none(),
-			PROGRAM_ARGUMENTS);
+			PROGRAM_ARGUMENTS,
+			TestJob.class.getCanonicalName());
 
 		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(configuration);
 
@@ -67,10 +67,10 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 		final JobID jobId = new JobID();
 
 		final ClassPathJobGraphRetriever classPathJobGraphRetriever = new ClassPathJobGraphRetriever(
-			TestJob.class.getCanonicalName(),
 			jobId,
 			savepointRestoreSettings,
-			PROGRAM_ARGUMENTS);
+			PROGRAM_ARGUMENTS,
+			TestJob.class.getCanonicalName());
 
 		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(configuration);
 

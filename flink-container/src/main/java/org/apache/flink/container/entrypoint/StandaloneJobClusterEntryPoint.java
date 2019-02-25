@@ -32,6 +32,7 @@ import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static java.util.Objects.requireNonNull;
 
@@ -42,9 +43,6 @@ import static java.util.Objects.requireNonNull;
 public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 
 	@Nonnull
-	private final String jobClassName;
-
-	@Nonnull
 	private final JobID jobId;
 
 	@Nonnull
@@ -53,24 +51,27 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 	@Nonnull
 	private final String[] programArguments;
 
+	@Nullable
+	private final String jobClassName;
+
 	private StandaloneJobClusterEntryPoint(
 			Configuration configuration,
-			@Nonnull String jobClassName,
 			@Nonnull JobID jobId,
 			@Nonnull SavepointRestoreSettings savepointRestoreSettings,
-			@Nonnull String[] programArguments) {
+			@Nonnull String[] programArguments,
+			@Nullable String jobClassName) {
 		super(configuration);
-		this.jobClassName = requireNonNull(jobClassName, "jobClassName");
 		this.jobId = requireNonNull(jobId, "jobId");
 		this.savepointRestoreSettings = requireNonNull(savepointRestoreSettings, "savepointRestoreSettings");
 		this.programArguments = requireNonNull(programArguments, "programArguments");
+		this.jobClassName = jobClassName;
 	}
 
 	@Override
 	protected DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration) {
 		return new JobDispatcherResourceManagerComponentFactory(
 			StandaloneResourceManagerFactory.INSTANCE,
-			new ClassPathJobGraphRetriever(jobClassName, jobId, savepointRestoreSettings, programArguments));
+			new ClassPathJobGraphRetriever(jobId, savepointRestoreSettings, programArguments, jobClassName));
 	}
 
 	public static void main(String[] args) {
@@ -96,10 +97,10 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 
 		StandaloneJobClusterEntryPoint entrypoint = new StandaloneJobClusterEntryPoint(
 			configuration,
-			clusterConfiguration.getJobClassName(),
 			clusterConfiguration.getJobId(),
 			clusterConfiguration.getSavepointRestoreSettings(),
-			clusterConfiguration.getArgs());
+			clusterConfiguration.getArgs(),
+			clusterConfiguration.getJobClassName());
 
 		ClusterEntrypoint.runClusterEntrypoint(entrypoint);
 	}
