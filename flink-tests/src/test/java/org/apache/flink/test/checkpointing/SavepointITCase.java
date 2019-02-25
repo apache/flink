@@ -192,7 +192,7 @@ public class SavepointITCase extends TestLogger {
 
 			StatefulCounter.getProgressLatch().await();
 
-			return client.triggerSavepoint(jobId, null).get();
+			return client.cancelWithSavepoint(jobId, null);
 		} finally {
 			cluster.after();
 			StatefulCounter.resetForTest(parallelism);
