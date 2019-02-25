@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
@@ -28,7 +27,6 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.List;
 
 /**
  * Base class for composite serializers.
@@ -193,53 +191,6 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 		CompositeSerializer<?> other = (CompositeSerializer<?>) obj;
 		return precomputed.immutable == other.precomputed.immutable
 			&& Arrays.equals(fieldSerializers, other.fieldSerializers);
-	}
-
-	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-		// We can not remove this method, as long as we support restoring into CompositeTypeSerializerConfigSnapshot.
-		// Previously (pre 1.8), multiple composite serializers were using this class directly as their snapshot class.
-		if (configSnapshot instanceof ConfigSnapshot) {
-			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs =
-				((CompositeTypeSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
-			if (previousSerializersAndConfigs.size() == fieldSerializers.length) {
-				return ensureFieldCompatibility(previousSerializersAndConfigs);
-			}
-		}
-		return CompatibilityResult.requiresMigration();
-	}
-
-	@SuppressWarnings("unchecked")
-	private CompatibilityResult<T> ensureFieldCompatibility(
-		List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs) {
-		TypeSerializer<Object>[] convertSerializers = new TypeSerializer[fieldSerializers.length];
-		boolean requiresMigration = false;
-		for (int index = 0; index < previousSerializersAndConfigs.size(); index++) {
-			CompatibilityResult<Object> compatResult =
-				resolveFieldCompatibility(previousSerializersAndConfigs, index);
-			if (compatResult.isRequiresMigration()) {
-				requiresMigration = true;
-				if (compatResult.getConvertDeserializer() != null) {
-					convertSerializers[index] = new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer());
-				} else {
-					return CompatibilityResult.requiresMigration();
-				}
-			}
-		}
-		return requiresMigration ? createMigrationCompatResult(convertSerializers) : CompatibilityResult.compatible();
-	}
-
-	private CompatibilityResult<Object> resolveFieldCompatibility(
-		List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs, int index) {
-		return CompatibilityUtil.resolveCompatibilityResult(
-			previousSerializersAndConfigs.get(index).f0, UnloadableDummyTypeSerializer.class,
-			previousSerializersAndConfigs.get(index).f1, fieldSerializers[index]);
-	}
-
-	private CompatibilityResult<T> createMigrationCompatResult(TypeSerializer<Object>[] convertSerializers) {
-		PrecomputedParameters precomputed =
-			PrecomputedParameters.precompute(this.precomputed.immutableTargetType, convertSerializers);
-		return CompatibilityResult.requiresMigration(createSerializerInstance(precomputed, convertSerializers));
 	}
 
 	/** This class holds composite serializer parameters which can be precomputed in advanced for better performance. */
