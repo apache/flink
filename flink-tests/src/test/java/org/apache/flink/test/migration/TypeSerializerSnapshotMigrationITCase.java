@@ -179,16 +179,6 @@ public class TypeSerializerSnapshotMigrationITCase extends SavepointMigrationTes
 			return new TestSerializerSnapshot(configPayload);
 		}
 
-		/*
-		@Override
-		public CompatibilityResult<Long> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-			return (configSnapshot instanceof TestSerializerSnapshot
-				&& ((TestSerializerSnapshot) configSnapshot).configPayload.equals(configPayload))
-				? CompatibilityResult.compatible()
-				: CompatibilityResult.requiresMigration();
-		}
-		*/
-
 		@Override
 		public TypeSerializer<Long> duplicate() {
 			return this;

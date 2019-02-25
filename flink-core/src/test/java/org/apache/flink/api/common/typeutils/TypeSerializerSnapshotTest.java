@@ -180,11 +180,6 @@ public class TypeSerializerSnapshotTest {
 		public TypeSerializerSnapshot<Object> snapshotConfiguration() {
 			return new TestSerializerConfigSnapshot();
 		}
-
-		@Override
-		public CompatibilityResult<Object> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-			return compatible ? CompatibilityResult.compatible() : CompatibilityResult.requiresMigration();
-		}
 	}
 
 	public static class TestSerializerConfigSnapshot extends TypeSerializerConfigSnapshot<Object> {
