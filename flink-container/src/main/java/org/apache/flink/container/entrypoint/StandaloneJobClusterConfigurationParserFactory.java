@@ -47,7 +47,7 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 
 	private static final Option JOB_CLASS_NAME_OPTION = Option.builder("j")
 		.longOpt("job-classname")
-		.required(true)
+		.required(false)
 		.hasArg(true)
 		.argName("job class name")
 		.desc("Class name of the job to run.")
@@ -81,9 +81,9 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 		final Properties dynamicProperties = commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
 		final int restPort = getRestPort(commandLine);
 		final String hostname = commandLine.getOptionValue(HOST_OPTION.getOpt());
-		final String jobClassName = commandLine.getOptionValue(JOB_CLASS_NAME_OPTION.getOpt());
 		final SavepointRestoreSettings savepointRestoreSettings = CliFrontendParser.createSavepointRestoreSettings(commandLine);
 		final JobID jobId = getJobId(commandLine);
+		final String jobClassName = commandLine.getOptionValue(JOB_CLASS_NAME_OPTION.getOpt());
 
 		return new StandaloneJobClusterConfiguration(
 			configDir,
@@ -91,9 +91,9 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 			commandLine.getArgs(),
 			hostname,
 			restPort,
-			jobClassName,
 			savepointRestoreSettings,
-			jobId);
+			jobId,
+			jobClassName);
 	}
 
 	private int getRestPort(CommandLine commandLine) throws FlinkParseException {
@@ -101,7 +101,7 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 		try {
 			return Integer.parseInt(restPortString);
 		} catch (NumberFormatException e) {
-			throw flinkParseException(REST_PORT_OPTION, e);
+			throw createFlinkParseException(REST_PORT_OPTION, e);
 		}
 	}
 
@@ -113,11 +113,11 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 		try {
 			return JobID.fromHexString(jobId);
 		} catch (IllegalArgumentException e) {
-			throw flinkParseException(JOB_ID_OPTION, e);
+			throw createFlinkParseException(JOB_ID_OPTION, e);
 		}
 	}
 
-	private static FlinkParseException flinkParseException(Option option, Exception cause) {
+	private static FlinkParseException createFlinkParseException(Option option, Exception cause) {
 		return new FlinkParseException(String.format("Failed to parse '--%s' option", option.getLongOpt()), cause);
 	}
 }

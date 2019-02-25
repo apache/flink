@@ -36,6 +36,8 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.core.IsNull.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -77,14 +79,18 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 	@Test
 	public void testOnlyRequiredArguments() throws FlinkParseException {
 		final String configDir = "/foo/bar";
-		final String jobClassName = "foobar";
-		final String[] args = {"--configDir", configDir, "--job-classname", jobClassName};
+		final String[] args = {"--configDir", configDir};
 
 		final StandaloneJobClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
 
 		assertThat(clusterConfiguration.getConfigDir(), is(equalTo(configDir)));
-		assertThat(clusterConfiguration.getJobClassName(), is(equalTo(jobClassName)));
+		assertThat(clusterConfiguration.getDynamicProperties(), is(equalTo(new Properties())));
+		assertThat(clusterConfiguration.getArgs(), is(new String[0]));
 		assertThat(clusterConfiguration.getRestPort(), is(equalTo(-1)));
+		assertThat(clusterConfiguration.getHostname(), is(nullValue()));
+		assertThat(clusterConfiguration.getSavepointRestoreSettings(), is(equalTo(SavepointRestoreSettings.none())));
+		assertThat(clusterConfiguration.getJobId(), is(not(nullValue())));
+		assertThat(clusterConfiguration.getJobClassName(),  is(nullValue()));
 	}
 
 	@Test(expected = FlinkParseException.class)
