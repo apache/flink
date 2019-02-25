@@ -23,9 +23,8 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -340,12 +339,14 @@ public class OperatorStateBackendTest {
 
 		@Override
 		public TypeSerializerSnapshot<Integer> snapshotConfiguration() {
-			return IntSerializer.INSTANCE.snapshotConfiguration();
+			return new VerifyingIntSerializerSnapshot();
 		}
+	}
 
-		@Override
-		public CompatibilityResult<Integer> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-			return IntSerializer.INSTANCE.ensureCompatibility(configSnapshot);
+	@SuppressWarnings("WeakerAccess")
+	public static class VerifyingIntSerializerSnapshot extends SimpleTypeSerializerSnapshot<Integer> {
+		public VerifyingIntSerializerSnapshot() {
+			super(() -> new VerifyingIntSerializer(Thread.currentThread().getContextClassLoader(), new AtomicInteger()));
 		}
 	}
 
