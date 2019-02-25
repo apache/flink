@@ -109,12 +109,7 @@ public class UnloadableDummyTypeSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public TypeSerializerConfigSnapshot<T> snapshotConfiguration() {
-		throw new UnsupportedOperationException("This object is a dummy TypeSerializer.");
-	}
-
-	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+	public TypeSerializerSnapshot<T> snapshotConfiguration() {
 		throw new UnsupportedOperationException("This object is a dummy TypeSerializer.");
 	}
 
