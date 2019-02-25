@@ -49,7 +49,7 @@ public final class ScalaCaseClassSerializerSnapshot<T extends scala.Product>
 	 */
 	@SuppressWarnings("unused")
 	public ScalaCaseClassSerializerSnapshot() {
-		super(correspondingSerializerClass());
+		super(ScalaCaseClassSerializer.class);
 	}
 
 	/**
@@ -63,7 +63,7 @@ public final class ScalaCaseClassSerializerSnapshot<T extends scala.Product>
 	 */
 	@Internal
 	ScalaCaseClassSerializerSnapshot(Class<T> type) {
-		super(correspondingSerializerClass());
+		super(ScalaCaseClassSerializer.class);
 		this.type = checkNotNull(type, "type can not be NULL");
 	}
 
@@ -105,10 +105,5 @@ public final class ScalaCaseClassSerializerSnapshot<T extends scala.Product>
 	@Override
 	protected boolean isOuterSnapshotCompatible(ScalaCaseClassSerializer<T> newSerializer) {
 		return Objects.equals(type, newSerializer.getTupleClass());
-	}
-
-	@SuppressWarnings("unchecked")
-	private static <T extends scala.Product> Class<ScalaCaseClassSerializer<T>> correspondingSerializerClass() {
-		return (Class<ScalaCaseClassSerializer<T>>) (Class<?>) ScalaCaseClassSerializer.class;
 	}
 }

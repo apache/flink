@@ -299,7 +299,7 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 
 		@SuppressWarnings("unused")
 		public NullableSerializerSnapshot() {
-			super(serializerClass());
+			super(NullableSerializer.class);
 		}
 
 		public NullableSerializerSnapshot(NullableSerializer<T> serializerInstance) {
@@ -308,7 +308,7 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 		}
 
 		private NullableSerializerSnapshot(int nullPaddingLength) {
-			super(serializerClass());
+			super(NullableSerializer.class);
 			checkArgument(nullPaddingLength >= 0,
 				"Computed NULL padding can not be negative. %d",
 				nullPaddingLength);
@@ -350,10 +350,6 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 		@Override
 		protected boolean isOuterSnapshotCompatible(NullableSerializer<T> newSerializer) {
 			return nullPaddingLength == newSerializer.nullPaddingLength();
-		}
-
-		private static <T> Class<NullableSerializer<T>> serializerClass() {
-			return (Class<NullableSerializer<T>>) (Class<?>) NullableSerializer.class;
 		}
 	}
 

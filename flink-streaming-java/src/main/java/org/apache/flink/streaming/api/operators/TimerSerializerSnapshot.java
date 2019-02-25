@@ -31,7 +31,7 @@ public class TimerSerializerSnapshot<K, N> extends CompositeTypeSerializerSnapsh
 	private static final int VERSION = 2;
 
 	public TimerSerializerSnapshot() {
-		super(correspondingSerializerClass());
+		super(TimerSerializer.class);
 	}
 
 	public TimerSerializerSnapshot(TimerSerializer<K, N> timerSerializer) {
@@ -51,16 +51,11 @@ public class TimerSerializerSnapshot<K, N> extends CompositeTypeSerializerSnapsh
 		@SuppressWarnings("unchecked")
 		final TypeSerializer<N> namespaceSerializer = (TypeSerializer<N>) nestedSerializers[1];
 
-		return new TimerSerializer<K, N>(keySerializer, namespaceSerializer);
+		return new TimerSerializer<>(keySerializer, namespaceSerializer);
 	}
 
 	@Override
 	protected TypeSerializer<?>[] getNestedSerializers(TimerSerializer<K, N> outerSerializer) {
 		return new TypeSerializer<?>[] { outerSerializer.getKeySerializer(), outerSerializer.getNamespaceSerializer() };
-	}
-
-	@SuppressWarnings("unchecked")
-	private static <K, N> Class<TimerSerializer<K, N>> correspondingSerializerClass() {
-		return (Class<TimerSerializer<K, N>>) (Class<?>) TimerSerializer.class;
 	}
 }

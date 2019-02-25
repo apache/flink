@@ -80,7 +80,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <S> The type of the originating serializer.
  */
 @PublicEvolving
-public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerializer> implements TypeSerializerSnapshot<T> {
+public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerializer<T>> implements TypeSerializerSnapshot<T> {
 
 	/** Magic number for integrity checks during deserialization. */
 	private static final int MAGIC_NUMBER = 911108;
@@ -111,8 +111,9 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
 	 *
 	 * @param correspondingSerializerClass the expected class of the new serializer.
 	 */
-	public CompositeTypeSerializerSnapshot(Class<S> correspondingSerializerClass) {
-		this.correspondingSerializerClass = checkNotNull(correspondingSerializerClass);
+	@SuppressWarnings("unchecked")
+	public CompositeTypeSerializerSnapshot(Class<? extends TypeSerializer> correspondingSerializerClass) {
+		this.correspondingSerializerClass = (Class<S>) checkNotNull(correspondingSerializerClass);
 	}
 
 	/**
