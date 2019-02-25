@@ -63,7 +63,7 @@ import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_USER_NAME_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_WEB_AUTHENTICATION_KERBEROS_PRINCIPAL_KEY;
 
 /**
- * Tests for running {@link RollingSinkSecuredITCase} which is an extension of {@link RollingSink} in secure environment
+ * Tests for running {@link RollingSinkSecuredITCase} which is an extension of {@link RollingSinkITCase} in secure environment
  * Note: only executed for Hadoop version > 3.x.x.
  */
 public class RollingSinkSecuredITCase extends RollingSinkITCase {
