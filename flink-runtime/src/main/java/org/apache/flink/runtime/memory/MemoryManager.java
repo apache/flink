@@ -288,7 +288,7 @@ public class MemoryManager {
 		// -------------------- BEGIN CRITICAL SECTION -------------------
 		synchronized (lock) {
 			if (isShutDown) {
-				return;
+				throw new IllegalStateException("Memory manager has been shut down.");
 			}
 
 			// in the case of pre-allocated memory, the 'numNonAllocatedPages' is zero, in the
@@ -349,7 +349,7 @@ public class MemoryManager {
 				return;
 			}
 			if (isShutDown) {
-				return;
+				throw new IllegalStateException("Memory manager has been shut down.");
 			}
 
 			// remove the reference in the map for the owner
@@ -397,7 +397,7 @@ public class MemoryManager {
 		// -------------------- BEGIN CRITICAL SECTION -------------------
 		synchronized (lock) {
 			if (isShutDown) {
-				return;
+				throw new IllegalStateException("Memory manager has been shut down.");
 			}
 
 			// since concurrent modifications to the collection
@@ -477,7 +477,7 @@ public class MemoryManager {
 		// -------------------- BEGIN CRITICAL SECTION -------------------
 		synchronized (lock) {
 			if (isShutDown) {
-				return;
+				throw new IllegalStateException("Memory manager has been shut down.");
 			}
 
 			// get all segments
