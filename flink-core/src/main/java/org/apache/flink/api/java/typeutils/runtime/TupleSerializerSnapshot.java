@@ -44,7 +44,7 @@ public final class TupleSerializerSnapshot<T extends Tuple>
 
 	@SuppressWarnings("unused")
 	public TupleSerializerSnapshot() {
-		super(correspondingSerializerClass());
+		super(TupleSerializer.class);
 	}
 
 	TupleSerializerSnapshot(TupleSerializer<T> serializerInstance) {
@@ -57,7 +57,7 @@ public final class TupleSerializerSnapshot<T extends Tuple>
 	 * {@link TupleSerializer#resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass}.
 	 */
 	TupleSerializerSnapshot(Class<T> tupleClass) {
-		super(correspondingSerializerClass());
+		super(TupleSerializer.class);
 		this.tupleClass = checkNotNull(tupleClass, "tuple class can not be NULL");
 	}
 
@@ -86,10 +86,5 @@ public final class TupleSerializerSnapshot<T extends Tuple>
 	@Override
 	protected void readOuterSnapshot(int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
 		this.tupleClass = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
-	}
-
-	@SuppressWarnings("unchecked")
-	private static <T extends Tuple> Class<TupleSerializer<T>> correspondingSerializerClass() {
-		return (Class<TupleSerializer<T>>) (Class<?>) TupleSerializer.class;
 	}
 }

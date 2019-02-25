@@ -30,7 +30,7 @@ import java.util.List;
  *
  * @param <T> the type of the list elements.
  */
-public final class ListViewSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<ListView<T>, ListViewSerializer> {
+public final class ListViewSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<ListView<T>, ListViewSerializer<T>> {
 
 	private static final int CURRENT_VERSION = 1;
 
@@ -54,14 +54,14 @@ public final class ListViewSerializerSnapshot<T> extends CompositeTypeSerializer
 	}
 
 	@Override
-	protected ListViewSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+	protected ListViewSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
 		@SuppressWarnings("unchecked")
 		TypeSerializer<List<T>> listSerializer = (TypeSerializer<List<T>>) nestedSerializers[0];
 		return new ListViewSerializer<>(listSerializer);
 	}
 
 	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(ListViewSerializer outerSerializer) {
+	protected TypeSerializer<?>[] getNestedSerializers(ListViewSerializer<T> outerSerializer) {
 		return new TypeSerializer<?>[] { outerSerializer.getListSerializer() };
 	}
 }
