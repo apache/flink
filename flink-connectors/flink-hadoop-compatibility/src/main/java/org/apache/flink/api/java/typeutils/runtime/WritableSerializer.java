@@ -19,11 +19,9 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -164,20 +162,10 @@ public final class WritableSerializer<T extends Writable> extends TypeSerializer
 		return new WritableSerializerSnapshot<>(typeClass);
 	}
 
-	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-		if (configSnapshot instanceof WritableSerializerConfigSnapshot
-				&& typeClass.equals(((WritableSerializerConfigSnapshot<?>) configSnapshot).getTypeClass())) {
-
-			return CompatibilityResult.compatible();
-		} else {
-			return CompatibilityResult.requiresMigration();
-		}
-	}
-
 	/**
 	 * The config snapshot for this serializer.
-	 * @param <T>
+	 * @deprecated This class is no longer used as a snapshot for any serializer.
+	 *             It is fully replaced by {@link WritableSerializerSnapshot}.
 	 */
 	@Deprecated
 	public static final class WritableSerializerConfigSnapshot<T extends Writable>
