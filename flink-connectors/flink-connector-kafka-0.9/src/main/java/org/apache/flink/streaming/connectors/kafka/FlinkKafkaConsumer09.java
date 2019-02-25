@@ -336,4 +336,8 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	public void setRateLimiter(FlinkConnectorRateLimiter kafkaRateLimiter) {
 		this.rateLimiter = kafkaRateLimiter;
 	}
+
+	public FlinkConnectorRateLimiter getRateLimiter() {
+		return rateLimiter;
+	}
 }

@@ -70,12 +70,6 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 
 	private static final long serialVersionUID = 2324564345203409112L;
 
-	/**
-	 * RateLimiter to throttle bytes read from Kafka. The rateLimiter is set via
-	 * {@link #setRateLimiter(FlinkConnectorRateLimiter)}.
-	 */
-	private FlinkConnectorRateLimiter rateLimiter;
-
 	// ------------------------------------------------------------------------
 
 	/**
@@ -201,6 +195,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 			properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
 		}
 
+		FlinkConnectorRateLimiter rateLimiter = super.getRateLimiter();
 		// If a rateLimiter is set, then call rateLimiter.open() with the runtime context.
 		if (rateLimiter != null) {
 			rateLimiter.open(runtimeContext);
@@ -273,12 +268,4 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 		return result;
 	}
 
-	/**
-	 * Set a rate limiter to ratelimit bytes read from Kafka.
-	 * @param kafkaRateLimiter A ratelimiter to rate limit bytes read from Kafka.
-	 *
-	 */
-	public void setRateLimiter(FlinkConnectorRateLimiter kafkaRateLimiter) {
-		this.rateLimiter = kafkaRateLimiter;
-	}
 }
