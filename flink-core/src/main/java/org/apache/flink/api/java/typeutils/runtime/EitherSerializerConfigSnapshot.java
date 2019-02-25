@@ -63,7 +63,6 @@ public final class EitherSerializerConfigSnapshot<L, R> extends CompositeTypeSer
 				nestedSerializersAndConfigs.get(1).f1);
 		}
 		else {
-			// Scala Either Serializer, or other.
 			// fall back to the backwards compatibility path
 			return super.resolveSchemaCompatibility(newSerializer);
 		}
