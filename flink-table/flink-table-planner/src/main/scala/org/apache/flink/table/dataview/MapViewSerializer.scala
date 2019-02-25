@@ -19,7 +19,7 @@
 package org.apache.flink.table.dataview
 
 import org.apache.flink.api.common.typeutils._
-import org.apache.flink.api.common.typeutils.base.{MapSerializer, MapSerializerConfigSnapshot}
+import org.apache.flink.api.common.typeutils.base.{MapSerializerConfigSnapshot, MapSerializerSnapshot}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 import org.apache.flink.table.api.dataview.MapView
 
@@ -37,7 +37,8 @@ import org.apache.flink.table.api.dataview.MapView
   */
 @SerialVersionUID(-9007142882049098705L)
 class MapViewSerializer[K, V](val mapSerializer: TypeSerializer[java.util.Map[K, V]])
-  extends TypeSerializer[MapView[K, V]] {
+  extends TypeSerializer[MapView[K, V]]
+  with LegacySerializerSnapshotTransformer[MapView[K, V]] {
 
   override def isImmutableType: Boolean = false
 
@@ -78,40 +79,43 @@ class MapViewSerializer[K, V](val mapSerializer: TypeSerializer[java.util.Map[K,
   override def snapshotConfiguration(): MapViewSerializerSnapshot[K, V] =
     new MapViewSerializerSnapshot[K, V](this)
 
-  // copy and modified from MapSerializer.ensureCompatibility
-  override def ensureCompatibility(configSnapshot: TypeSerializerConfigSnapshot[_])
-  : CompatibilityResult[MapView[K, V]] = {
+  /**
+    * We need to override this as a [[LegacySerializerSnapshotTransformer]]
+    * because in Flink 1.6.x and below, this serializer was incorrectly returning
+    * directly the snapshot of the nested map serializer as its own snapshot.
+    *
+    * <p>This method transforms the incorrect map serializer snapshot
+    * to be a proper [[MapViewSerializerSnapshot]].
+    */
+  override def transformLegacySerializerSnapshot[U](
+      legacySnapshot: TypeSerializerSnapshot[U]
+  ): TypeSerializerSnapshot[MapView[K, V]] = {
 
-    configSnapshot match {
-      // backwards compatibility path;
-      // Flink versions older or equal to 1.5.x returns a
-      // MapSerializerConfigSnapshot as the snapshot
+    legacySnapshot match {
+      case correctSnapshot: MapViewSerializerSnapshot[K, V] =>
+        correctSnapshot
+
       case legacySnapshot: MapSerializerConfigSnapshot[K, V] =>
-        val previousKvSerializersAndConfigs =
-          legacySnapshot.getNestedSerializersAndConfigs
+        // first, transform the incorrect map serializer's snapshot
+        // into a proper ListSerializerSnapshot
+        val transformedNestedMapSerializerSnapshot =
+          new MapSerializerSnapshot[K, V]
+        CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
+          transformedNestedMapSerializerSnapshot,
+          legacySnapshot.getNestedSerializersAndConfigs.get(0).f1,
+          legacySnapshot.getNestedSerializersAndConfigs.get(1).f1
+        )
 
-        // in older versions, the nested map serializer was always
-        // specifically a MapSerializer, so this cast is safe
-        val castedSer = mapSerializer.asInstanceOf[MapSerializer[K, V]]
-        val keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-          previousKvSerializersAndConfigs.get(0).f0,
-          classOf[UnloadableDummyTypeSerializer[_]],
-          previousKvSerializersAndConfigs.get(0).f1,
-          castedSer.getKeySerializer)
+        // then, wrap the transformed MapSerializerSnapshot
+        // as a nested snapshot in the final resulting MapViewSerializerSnapshot
+        val transformedMapViewSerializerSnapshot =
+          new MapViewSerializerSnapshot[K, V]()
+        CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
+          transformedMapViewSerializerSnapshot,
+          transformedNestedMapSerializerSnapshot
+        )
 
-        val valueCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-          previousKvSerializersAndConfigs.get(1).f0,
-          classOf[UnloadableDummyTypeSerializer[_]],
-          previousKvSerializersAndConfigs.get(1).f1,
-          castedSer.getValueSerializer)
-
-        if (!keyCompatResult.isRequiresMigration && !valueCompatResult.isRequiresMigration) {
-          CompatibilityResult.compatible[MapView[K, V]]
-        } else {
-          CompatibilityResult.requiresMigration[MapView[K, V]]
-        }
-
-      case _ => CompatibilityResult.requiresMigration[MapView[K, V]]
+        transformedMapViewSerializerSnapshot
     }
   }
 
