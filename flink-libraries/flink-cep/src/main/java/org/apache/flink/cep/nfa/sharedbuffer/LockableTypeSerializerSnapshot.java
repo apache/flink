@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
  * A {@link TypeSerializerSnapshot} for the {@link Lockable.LockableTypeSerializer}.
  */
 @Internal
-public class LockableTypeSerializerSnapshot<E> extends CompositeTypeSerializerSnapshot<Lockable<E>, Lockable.LockableTypeSerializer> {
+public class LockableTypeSerializerSnapshot<E> extends CompositeTypeSerializerSnapshot<Lockable<E>, Lockable.LockableTypeSerializer<E>> {
 
 	private static final int CURRENT_VERSION = 1;
 
@@ -51,14 +51,14 @@ public class LockableTypeSerializerSnapshot<E> extends CompositeTypeSerializerSn
 	}
 
 	@Override
-	protected Lockable.LockableTypeSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+	protected Lockable.LockableTypeSerializer<E> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
 		@SuppressWarnings("unchecked")
 		TypeSerializer<E> elementSerializer = (TypeSerializer<E>) nestedSerializers[0];
 		return new Lockable.LockableTypeSerializer<>(elementSerializer);
 	}
 
 	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(Lockable.LockableTypeSerializer outerSerializer) {
+	protected TypeSerializer<?>[] getNestedSerializers(Lockable.LockableTypeSerializer<E> outerSerializer) {
 		return new TypeSerializer<?>[] { outerSerializer.getElementSerializer() };
 	}
 }

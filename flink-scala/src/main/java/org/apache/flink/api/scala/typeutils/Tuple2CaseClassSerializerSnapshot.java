@@ -99,8 +99,7 @@ public final class Tuple2CaseClassSerializerSnapshot<T1, T2>
 		return Objects.equals(type, newSerializer.getTupleClass());
 	}
 
-	@SuppressWarnings("unchecked")
-	private static <T1, T2> Class<ScalaCaseClassSerializer<Tuple2<T1, T2>>> correspondingSerializerClass() {
-		return (Class<ScalaCaseClassSerializer<Tuple2<T1, T2>>>) (Class<?>) package$.MODULE$.tuple2ClassForJava();
+	private static <T1, T2> Class<ScalaCaseClassSerializer<scala.Tuple2<T1, T2>>> correspondingSerializerClass() {
+		return package$.MODULE$.tuple2ClassForJava();
 	}
 }
