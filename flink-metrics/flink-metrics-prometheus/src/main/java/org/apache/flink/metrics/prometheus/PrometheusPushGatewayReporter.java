@@ -29,6 +29,9 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.PushGateway;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Map;
+import java.util.UUID;
 
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.DELETE_ON_SHUTDOWN;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST;
@@ -45,6 +48,7 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
 	private PushGateway pushGateway;
 	private String jobName;
 	private boolean deleteOnShutdown;
+	private Map<String, String> instance;
 
 	@Override
 	public void open(MetricConfig config) {
@@ -66,6 +70,8 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
 			this.jobName = configuredJobName;
 		}
 
+		instance = Collections.singletonMap("instance", this.jobName + "-" + UUID.randomUUID().toString().replace("-", ""));
+
 		pushGateway = new PushGateway(host + ':' + port);
 		log.info("Configured PrometheusPushGatewayReporter with {host:{}, port:{}, jobName: {}, randomJobNameSuffix:{}, deleteOnShutdown:{}}", host, port, jobName, randomSuffix, deleteOnShutdown);
 	}
@@ -73,7 +79,7 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
 	@Override
 	public void report() {
 		try {
-			pushGateway.push(CollectorRegistry.defaultRegistry, jobName);
+			pushGateway.push(CollectorRegistry.defaultRegistry, jobName, instance);
 		} catch (Exception e) {
 			log.warn("Failed to push metrics to PushGateway with jobName {}.", jobName, e);
 		}
