@@ -23,7 +23,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
+import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
@@ -54,7 +54,7 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
 	 * @throws Exception Thrown if can not transfer all the state data.
 	 */
 	public void transferAllStateDataToDirectory(
-		IncrementalKeyedStateHandle restoreStateHandle,
+		IncrementalRemoteKeyedStateHandle restoreStateHandle,
 		Path dest,
 		CloseableRegistry closeableRegistry) throws Exception {
 

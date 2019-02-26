@@ -32,15 +32,15 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
-public class IncrementalKeyedStateHandleTest {
+public class IncrementalRemoteKeyedStateHandleTest {
 
 	/**
-	 * This test checks, that for an unregistered {@link IncrementalKeyedStateHandle} all state
+	 * This test checks, that for an unregistered {@link IncrementalRemoteKeyedStateHandle} all state
 	 * (including shared) is discarded.
 	 */
 	@Test
 	public void testUnregisteredDiscarding() throws Exception {
-		IncrementalKeyedStateHandle stateHandle = create(new Random(42));
+		IncrementalRemoteKeyedStateHandle stateHandle = create(new Random(42));
 
 		stateHandle.discardState();
 
@@ -56,7 +56,7 @@ public class IncrementalKeyedStateHandleTest {
 	}
 
 	/**
-	 * This test checks, that for a registered {@link IncrementalKeyedStateHandle} discards respect
+	 * This test checks, that for a registered {@link IncrementalRemoteKeyedStateHandle} discards respect
 	 * all shared state and only discard it one all references are released.
 	 */
 	@Test
@@ -65,8 +65,8 @@ public class IncrementalKeyedStateHandleTest {
 		SharedStateRegistry registry = spy(new SharedStateRegistry());
 
 		// Create two state handles with overlapping shared state
-		IncrementalKeyedStateHandle stateHandle1 = create(new Random(42));
-		IncrementalKeyedStateHandle stateHandle2 = create(new Random(42));
+		IncrementalRemoteKeyedStateHandle stateHandle1 = create(new Random(42));
+		IncrementalRemoteKeyedStateHandle stateHandle2 = create(new Random(42));
 
 		// Both handles should not be registered and not discarded by now.
 		for (Map.Entry<StateHandleID, StreamStateHandle> entry :
@@ -197,9 +197,9 @@ public class IncrementalKeyedStateHandleTest {
 
 		SharedStateRegistry stateRegistryA = spy(new SharedStateRegistry());
 
-		IncrementalKeyedStateHandle stateHandleX = create(new Random(1));
-		IncrementalKeyedStateHandle stateHandleY = create(new Random(2));
-		IncrementalKeyedStateHandle stateHandleZ = create(new Random(3));
+		IncrementalRemoteKeyedStateHandle stateHandleX = create(new Random(1));
+		IncrementalRemoteKeyedStateHandle stateHandleY = create(new Random(2));
+		IncrementalRemoteKeyedStateHandle stateHandleZ = create(new Random(3));
 
 		// Now we register first time ...
 		stateHandleX.registerSharedStates(stateRegistryA);
@@ -257,8 +257,8 @@ public class IncrementalKeyedStateHandleTest {
 		sharedStateRegistryB.close();
 	}
 
-	private static IncrementalKeyedStateHandle create(Random rnd) {
-		return new IncrementalKeyedStateHandle(
+	private static IncrementalRemoteKeyedStateHandle create(Random rnd) {
+		return new IncrementalRemoteKeyedStateHandle(
 			UUID.nameUUIDFromBytes("test".getBytes()),
 			KeyGroupRange.of(0, 0),
 			1L,

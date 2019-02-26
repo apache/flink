@@ -40,6 +40,7 @@ import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.DirectoryStateHandle;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.IncrementalLocalKeyedStateHandle;
+import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -156,24 +157,25 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 	/**
 	 * Recovery from a single remote incremental state without rescaling.
 	 */
-	private void restoreWithoutRescaling(KeyedStateHandle rawStateHandle) throws Exception {
-		if (rawStateHandle instanceof IncrementalKeyedStateHandle) {
-			IncrementalKeyedStateHandle incrementalKeyedStateHandle = (IncrementalKeyedStateHandle) rawStateHandle;
-			restorePreviousIncrementalFilesStatus(incrementalKeyedStateHandle);
-			restoreFromRemoteState(incrementalKeyedStateHandle);
-		} else if (rawStateHandle instanceof IncrementalLocalKeyedStateHandle) {
+	private void restoreWithoutRescaling(KeyedStateHandle keyedStateHandle) throws Exception {
+		if (keyedStateHandle instanceof IncrementalRemoteKeyedStateHandle) {
+			IncrementalRemoteKeyedStateHandle incrementalRemoteKeyedStateHandle =
+				(IncrementalRemoteKeyedStateHandle) keyedStateHandle;
+			restorePreviousIncrementalFilesStatus(incrementalRemoteKeyedStateHandle);
+			restoreFromRemoteState(incrementalRemoteKeyedStateHandle);
+		} else if (keyedStateHandle instanceof IncrementalLocalKeyedStateHandle) {
 			IncrementalLocalKeyedStateHandle incrementalLocalKeyedStateHandle =
-				(IncrementalLocalKeyedStateHandle) rawStateHandle;
+				(IncrementalLocalKeyedStateHandle) keyedStateHandle;
 			restorePreviousIncrementalFilesStatus(incrementalLocalKeyedStateHandle);
 			restoreFromLocalState(incrementalLocalKeyedStateHandle);
 		} else {
 			throw new BackendBuildingException("Unexpected state handle type, " +
-				"expected " + IncrementalKeyedStateHandle.class + " or " + IncrementalLocalKeyedStateHandle.class +
-				", but found " + rawStateHandle.getClass());
+				"expected " + IncrementalRemoteKeyedStateHandle.class + " or " + IncrementalLocalKeyedStateHandle.class +
+				", but found " + keyedStateHandle.getClass());
 		}
 	}
 
-	private void restorePreviousIncrementalFilesStatus(IncrementalLocalKeyedStateHandle localKeyedStateHandle) {
+	private void restorePreviousIncrementalFilesStatus(IncrementalKeyedStateHandle localKeyedStateHandle) {
 		backendUID = localKeyedStateHandle.getBackendIdentifier();
 		restoredSstFiles.put(
 			localKeyedStateHandle.getCheckpointId(),
@@ -181,18 +183,10 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 		lastCompletedCheckpointId = localKeyedStateHandle.getCheckpointId();
 	}
 
-	private void restorePreviousIncrementalFilesStatus(IncrementalKeyedStateHandle remoteKeyedStateHandle) {
-		backendUID = remoteKeyedStateHandle.getBackendIdentifier();
-		restoredSstFiles.put(
-			remoteKeyedStateHandle.getCheckpointId(),
-			remoteKeyedStateHandle.getSharedState().keySet());
-		lastCompletedCheckpointId = remoteKeyedStateHandle.getCheckpointId();
-	}
-
-	private void restoreFromRemoteState(IncrementalKeyedStateHandle stateHandle) throws Exception {
+	private void restoreFromRemoteState(IncrementalRemoteKeyedStateHandle stateHandle) throws Exception {
 		final Path tmpRestoreInstancePath = new Path(
 			instanceBasePath.getAbsolutePath(),
-			UUID.randomUUID().toString()); // used as restore source for IncrementalKeyedStateHandle
+			UUID.randomUUID().toString()); // used as restore source for IncrementalRemoteKeyedStateHandle
 		try {
 			restoreFromLocalState(
 				transferRemoteStateToLocalDirectory(tmpRestoreInstancePath, stateHandle));
@@ -227,7 +221,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 
 	private IncrementalLocalKeyedStateHandle transferRemoteStateToLocalDirectory(
 		Path temporaryRestoreInstancePath,
-		IncrementalKeyedStateHandle restoreStateHandle) throws Exception {
+		IncrementalRemoteKeyedStateHandle restoreStateHandle) throws Exception {
 
 		try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(numberOfTransferringThreads)) {
 			rocksDBStateDownloader.transferAllStateDataToDirectory(
@@ -302,15 +296,15 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 
 		for (KeyedStateHandle rawStateHandle : restoreStateHandles) {
 
-			if (!(rawStateHandle instanceof IncrementalKeyedStateHandle)) {
+			if (!(rawStateHandle instanceof IncrementalRemoteKeyedStateHandle)) {
 				throw new IllegalStateException("Unexpected state handle type, " +
-					"expected " + IncrementalKeyedStateHandle.class +
+					"expected " + IncrementalRemoteKeyedStateHandle.class +
 					", but found " + rawStateHandle.getClass());
 			}
 
 			Path temporaryRestoreInstancePath = new Path(instanceBasePath.getAbsolutePath() + UUID.randomUUID().toString());
 			try (RestoredDBInstance tmpRestoreDBInfo = restoreDBInstanceFromStateHandle(
-				(IncrementalKeyedStateHandle) rawStateHandle,
+				(IncrementalRemoteKeyedStateHandle) rawStateHandle,
 				temporaryRestoreInstancePath);
 				RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(this.db)) {
 
@@ -351,10 +345,10 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 
 	private void initDBWithRescaling(KeyedStateHandle initialHandle) throws Exception {
 
-		assert (initialHandle instanceof IncrementalKeyedStateHandle);
+		assert (initialHandle instanceof IncrementalRemoteKeyedStateHandle);
 
 		// 1. Restore base DB from selected initial handle
-		restoreFromRemoteState((IncrementalKeyedStateHandle) initialHandle);
+		restoreFromRemoteState((IncrementalRemoteKeyedStateHandle) initialHandle);
 
 		// 2. Clip the base DB instance
 		try {
@@ -416,7 +410,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 	}
 
 	private RestoredDBInstance restoreDBInstanceFromStateHandle(
-		IncrementalKeyedStateHandle restoreStateHandle,
+		IncrementalRemoteKeyedStateHandle restoreStateHandle,
 		Path temporaryRestoreInstancePath) throws Exception {
 
 		try (RocksDBStateDownloader rocksDBStateDownloader =
