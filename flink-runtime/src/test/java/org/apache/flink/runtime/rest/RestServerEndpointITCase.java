@@ -81,6 +81,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -171,9 +172,12 @@ public class RestServerEndpointITCase extends TestLogger {
 	}
 
 	private static Configuration getBaseConfig() {
+		final String loopbackAddress = InetAddress.getLoopbackAddress().getHostAddress();
+
 		final Configuration config = new Configuration();
 		config.setString(RestOptions.BIND_PORT, "0");
-		config.setString(RestOptions.ADDRESS, "localhost");
+		config.setString(RestOptions.BIND_ADDRESS, loopbackAddress);
+		config.setString(RestOptions.ADDRESS, loopbackAddress);
 		config.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
 		config.setInteger(RestOptions.CLIENT_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
 		return config;
@@ -194,14 +198,12 @@ public class RestServerEndpointITCase extends TestLogger {
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 		RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
 
-		final String restAddress = "http://localhost:1234";
 		RestfulGateway mockRestfulGateway = mock(RestfulGateway.class);
 
 		final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
 			CompletableFuture.completedFuture(mockRestfulGateway);
 
 		testHandler = new TestHandler(
-			CompletableFuture.completedFuture(restAddress),
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT);
 
@@ -636,10 +638,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		private Function<Integer, CompletableFuture<TestResponse>> handlerBody;
 
-		TestHandler(
-				CompletableFuture<String> localAddressFuture,
-				GatewayRetriever<RestfulGateway> leaderRetriever,
-				Time timeout) {
+		TestHandler(GatewayRetriever<RestfulGateway> leaderRetriever, Time timeout) {
 			super(
 				leaderRetriever,
 				timeout,
