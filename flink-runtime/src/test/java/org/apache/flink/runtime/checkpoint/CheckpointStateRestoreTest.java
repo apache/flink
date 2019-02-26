@@ -38,9 +38,13 @@ import org.apache.flink.util.SerializableObject;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.mockito.Mockito;
 import org.mockito.hamcrest.MockitoHamcrest;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -57,7 +61,16 @@ import static org.mockito.Mockito.when;
 /**
  * Tests concerning the restoring of state from a checkpoint to the task executions.
  */
+@RunWith(Parameterized.class)
 public class CheckpointStateRestoreTest {
+
+	@Parameterized.Parameters(name = "fullRestartStrategy: {0}")
+	public static Collection<Boolean> parameters() {
+		return Arrays.asList(true, false);
+	}
+
+	@Parameterized.Parameter
+	public boolean fullRestartStrategy;
 
 	/**
 	 * Tests that on restore the task state is reset for each stateful task.
@@ -68,7 +81,7 @@ public class CheckpointStateRestoreTest {
 
 			KeyGroupRange keyGroupRange = KeyGroupRange.of(0,0);
 			List<SerializableObject> testStates = Collections.singletonList(new SerializableObject());
-			final KeyedStateHandle serializedKeyGroupStates = CheckpointCoordinatorTest.generateKeyGroupState(keyGroupRange, testStates);
+			final KeyedStateHandle serializedKeyGroupStates = CheckpointCoordinatorTest.generateStateSnapshot(keyGroupRange, testStates);
 
 			final JobID jid = new JobID();
 			final JobVertexID statefulId = new JobVertexID();
@@ -87,13 +100,9 @@ public class CheckpointStateRestoreTest {
 			ExecutionVertex stateless2 = mockExecutionVertex(statelessExec2, statelessId, 1, 2);
 
 			ExecutionJobVertex stateful = mockExecutionJobVertex(statefulId,
-					new ExecutionVertex[] { stateful1, stateful2, stateful3 });
+				new ExecutionVertex[] { stateful1, stateful2, stateful3 });
 			ExecutionJobVertex stateless = mockExecutionJobVertex(statelessId,
-					new ExecutionVertex[] { stateless1, stateless2 });
-
-			Map<JobVertexID, ExecutionJobVertex> map = new HashMap<JobVertexID, ExecutionJobVertex>();
-			map.put(statefulId, stateful);
-			map.put(statelessId, stateless);
+				new ExecutionVertex[] { stateless1, stateless2 });
 
 			CheckpointCoordinator coord = new CheckpointCoordinator(
 				jid,
@@ -138,7 +147,15 @@ public class CheckpointStateRestoreTest {
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 
 			// let the coordinator inject the state
-			coord.restoreLatestCheckpointedState(map, true, false);
+			if (fullRestartStrategy) {
+				Map<JobVertexID, ExecutionJobVertex> map = new HashMap<JobVertexID, ExecutionJobVertex>();
+				map.put(statefulId, stateful);
+				map.put(statelessId, stateless);
+				coord.restoreLatestCheckpointedState(map, true, false);
+			} else {
+				Map<JobVertexID, ExecutionJobVertex> executionVertices = getExecutionVertices(stateful, stateless);
+				coord.restoreLatestCheckpointedState(executionVertices, true, false);
+			}
 
 			// verify that each stateful vertex got the state
 
@@ -189,12 +206,20 @@ public class CheckpointStateRestoreTest {
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY);
 
-			try {
-				coord.restoreLatestCheckpointedState(new HashMap<JobVertexID, ExecutionJobVertex>(), true, false);
-				fail("this should throw an exception");
-			}
-			catch (IllegalStateException e) {
-				// expected
+			if (fullRestartStrategy) {
+				try {
+					coord.restoreLatestCheckpointedState(new HashMap<JobVertexID, ExecutionJobVertex>(), true, false);
+					fail("this should throw an exception");
+				} catch (IllegalStateException e) {
+					// expected
+				}
+			} else {
+				try {
+					coord.restoreLatestCheckpointedState(new HashMap<>(), true, false);
+					fail("this should throw an exception");
+				} catch (IllegalStateException e) {
+					// expected
+				}
 			}
 		}
 		catch (Exception e) {
@@ -226,10 +251,6 @@ public class CheckpointStateRestoreTest {
 
 		ExecutionJobVertex jobVertex1 = mockExecutionJobVertex(jobVertexId1, new ExecutionVertex[] { vertex11, vertex12, vertex13 });
 		ExecutionJobVertex jobVertex2 = mockExecutionJobVertex(jobVertexId2, new ExecutionVertex[] { vertex21, vertex22 });
-
-		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
-		tasks.put(jobVertexId1, jobVertex1);
-		tasks.put(jobVertexId2, jobVertex2);
 
 		CheckpointCoordinator coord = new CheckpointCoordinator(
 			new JobID(),
@@ -269,8 +290,20 @@ public class CheckpointStateRestoreTest {
 
 		coord.getCheckpointStore().addCheckpoint(checkpoint);
 
-		coord.restoreLatestCheckpointedState(tasks, true, false);
-		coord.restoreLatestCheckpointedState(tasks, true, true);
+		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
+		tasks.put(jobVertexId1, jobVertex1);
+		tasks.put(jobVertexId2, jobVertex2);
+
+		Map<JobVertexID, ExecutionJobVertex> executionVertices = getExecutionVertices(jobVertex1, jobVertex2);
+
+		if (fullRestartStrategy) {
+			coord.restoreLatestCheckpointedState(tasks, true, false);
+			coord.restoreLatestCheckpointedState(tasks, true, true);
+		} else {
+			coord.restoreLatestCheckpointedState(executionVertices, true, false);
+			coord.restoreLatestCheckpointedState(executionVertices, true, true);
+
+		}
 
 		// --- (3) JobVertex missing for task state that is part of the checkpoint ---
 		JobVertexID newJobVertexID = new JobVertexID();
@@ -297,7 +330,11 @@ public class CheckpointStateRestoreTest {
 		coord.getCheckpointStore().addCheckpoint(checkpoint);
 
 		// (i) Allow non restored state (should succeed)
-		coord.restoreLatestCheckpointedState(tasks, true, true);
+		if (fullRestartStrategy) {
+			coord.restoreLatestCheckpointedState(tasks, true, true);
+		} else {
+			coord.restoreLatestCheckpointedState(executionVertices, true, true);
+		}
 
 		// (ii) Don't allow non restored state (should fail)
 		try {
@@ -343,5 +380,13 @@ public class CheckpointStateRestoreTest {
 			when(v.getJobVertex()).thenReturn(vertex);
 		}
 		return vertex;
+	}
+
+	private Map<JobVertexID, ExecutionJobVertex>  getExecutionVertices(ExecutionJobVertex... executionJobVertices) {
+		Map<JobVertexID, ExecutionJobVertex> executionVertices = new HashMap<>();
+		for (ExecutionJobVertex executionJobVertex : executionJobVertices) {
+			executionVertices.put(executionJobVertex.getJobVertexId(), executionJobVertex);
+		}
+		return executionVertices;
 	}
 }
