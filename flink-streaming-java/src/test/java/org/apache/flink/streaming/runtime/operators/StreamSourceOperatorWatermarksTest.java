@@ -101,7 +101,6 @@ public class StreamSourceOperatorWatermarksTest {
 	public void testNoMaxWatermarkOnAsyncCancel() throws Exception {
 
 		final List<StreamElement> output = new ArrayList<>();
-		final Thread runner = Thread.currentThread();
 
 		// regular stream source operator
 		final StreamSource<String, InfiniteSource<String>> operator =
@@ -117,7 +116,6 @@ public class StreamSourceOperatorWatermarksTest {
 					Thread.sleep(200);
 				} catch (InterruptedException ignored) {}
 				operator.cancel();
-				runner.interrupt();
 			}
 		}.start();
 
