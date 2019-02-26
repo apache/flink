@@ -140,14 +140,6 @@ public class StatefulComplexPayloadSerializer extends TypeSerializer<ComplexPayl
 		return new Snapshot();
 	}
 
-	private boolean isCompatibleSerializationFormatIdentifier(String identifier) {
-		return identifier.equals(getSerializationFormatIdentifier());
-	}
-
-	private String getSerializationFormatIdentifier() {
-		return getClass().getCanonicalName();
-	}
-
 	// ----------------------------------------------------------------------------------------
 
 	/**

@@ -141,10 +141,11 @@ public class DataStreamAllroundTestProgram {
 
 		// apply a tumbling window that simply passes forward window elements;
 		// this allows the job to cover timers state
+		@SuppressWarnings("Convert2Lambda")
 		DataStream<Event> eventStream3 = applyTumblingWindows(eventStream2.keyBy(Event::getKey), pt)
 			.apply(new WindowFunction<Event, Event, Integer, TimeWindow>() {
 				@Override
-				public void apply(Integer integer, TimeWindow window, Iterable<Event> input, Collector<Event> out) throws Exception {
+				public void apply(Integer integer, TimeWindow window, Iterable<Event> input, Collector<Event> out) {
 					for (Event e : input) {
 						out.collect(e);
 					}
@@ -175,7 +176,7 @@ public class DataStreamAllroundTestProgram {
 				@Override
 				public void apply(
 					Integer key, TimeWindow window, Iterable<Event> input,
-					Collector<Tuple2<Integer, List<Event>>> out) throws Exception {
+					Collector<Tuple2<Integer, List<Event>>> out) {
 
 					out.collect(Tuple2.of(key, StreamSupport.stream(input.spliterator(), false).collect(Collectors.toList())));
 				}
