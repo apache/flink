@@ -27,4 +27,8 @@ public class BackendBuildingException extends IOException {
 	public BackendBuildingException(String message, Throwable cause) {
 		super(message, cause);
 	}
+
+	public BackendBuildingException(String message) {
+		super(message);
+	}
 }
