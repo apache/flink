@@ -193,14 +193,12 @@ public class RestServerEndpointITCase extends TestLogger {
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 		RestClientConfiguration clientConfig = RestClientConfiguration.fromConfiguration(config);
 
-		final String restAddress = "http://example.org:1234";
 		RestfulGateway mockRestfulGateway = mock(RestfulGateway.class);
 
 		final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
 			CompletableFuture.completedFuture(mockRestfulGateway);
 
 		testHandler = new TestHandler(
-			CompletableFuture.completedFuture(restAddress),
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT);
 
@@ -644,10 +642,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		private Function<Integer, CompletableFuture<TestResponse>> handlerBody;
 
-		TestHandler(
-				CompletableFuture<String> localAddressFuture,
-				GatewayRetriever<RestfulGateway> leaderRetriever,
-				Time timeout) {
+		TestHandler(GatewayRetriever<RestfulGateway> leaderRetriever, Time timeout) {
 			super(
 				leaderRetriever,
 				timeout,
