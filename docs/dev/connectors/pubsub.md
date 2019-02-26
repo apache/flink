@@ -30,7 +30,7 @@ following dependency to your project:
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-pubsub{{ site.scala_version_suffix }}</artifactId>
+  <artifactId>flink-connector-gcp-pubsub{{ site.scala_version_suffix }}</artifactId>
   <version>{{ site.version }}</version>
 </dependency>
 {% endhighlight %}
@@ -43,12 +43,12 @@ cluster execution.
 
 ## Consuming or Producing PubSubMessages
 
+The connector provides a connectors for receiving and sending messages from and to Google PubSub.
+Google PubSub has an `Atleast-Once` guarantee and as such the connector delivers the same guarantees.
+
 ### PubSub SourceFunction
 
-The connector provides a Source for reading data from Google PubSub to Apache Flink.
-Google PubSub has an `Atleast-Once` guarantee and as such this connector delivers the same guarantees.
-
-The class `PubSubSource(…)` has a builder to create PubSubsources. `PubSubSource.newBuilder(...)`
+The class `PubSubSource` has a builder to create PubSubsources: `PubSubSource.newBuilder(...)`
 
 There are several optional methods to alter how the PubSubSource is created, the bare minimum is to provide a Google project, Pubsub subscription and a way to deserialize the PubSubMessages.
 
@@ -59,9 +59,9 @@ Example:
 {% highlight java %}
 StreamExecutionEnvironment streamExecEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 
-DeserializationSchema<SomeObject> deserializationSchema = (...);
-SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder(deserializationSchema, "google-project", "subscription")
-                                                .build();
+DeserializationSchema<SomeObject> deserializer = (...);
+SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder(deserializer, "project", "subscription")
+                                                      .build();
 
 streamExecEnv.addSource(source);
 {% endhighlight %}
@@ -70,11 +70,10 @@ streamExecEnv.addSource(source);
 
 ### PubSub Sink
 
-The connector provides a Sink for writing data to PubSub.
-
-The class `PubSubSource(…)` has a builder to create PubSubsources. `PubSubSource.newBuilder(...)`
+The class `PubSubSink` has a builder to create PubSubSinks. `PubSubSink.newBuilder(...)`
 
 This builder works in a similar way to the PubSubSource.
+
 Example:
 
 <div class="codetabs" markdown="1">
@@ -103,33 +102,41 @@ If you want to provide Credentials manually, for instance if you read the Creden
 
 When running integration tests you might not want to connect to PubSub directly but use a docker container to read and write to. (See: [PubSub testing locally](https://cloud.google.com/pubsub/docs/emulator))
 
-This is possible by using `PubSubSource.newBuilder().withHostAndPort("localhost:1234")`, note in this case the connector will use the `NoCredentialsProvider` from the `google-cloud-pubsub` sdk to make sure it connects properly with the docker container.
-
-## Backpressure
-
-Backpressure can happen when the source function produces messages faster than the Flink pipeline can handle.
-
-The connector uses the Google Cloud PubSub SDK under the hood and this allows us to deal with backpressure. Through the PubSubSource builder you are able to use `.withBackpressureParameters()` or `.withPubSubSubscriberFactory()`. Both affect how the [Subscriber](http://googleapis.github.io/google-cloud-java/google-cloud-clients/apidocs/index.html?com/google/cloud/pubsub/v1/package-summary.html), which is used within the connector, handles backpressure through [Message Flow Control](https://cloud.google.com/pubsub/docs/pull#message-flow-control). For instance, in the following example we allow at most 10000 messages to be buffered (meaning messages read but not yet acknowledged), once we have more than 10000 messages we stop pulling in more messages.
-
+The following example shows how you would create a source to read messages from the emulator and send them back:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-StreamExecutionEnvironment streamExecEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-
-DeserializationSchema<SomeObject> deserializationSchema = (...);
+SerializationSchema<SomeObject> serializationSchema = (...);
 SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder(deserializationSchema, "google-project", "subscription")
-                                                .withBackpressureParameters(10_000L, 100_000L)
-                                                .build();
+                                                      .withPubSubSubscriberFactory(new PubSubSubscriberFactoryForEmulator("localhost:1234"))
+                                                      .build();
+SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder(deserializationSchema, "my-fake-project", "topic")
+                                                .withHostAndPortForEmulator(getPubSubHostPort())
+                                                .build()
 
-streamExecEnv.addSource(source);
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.addSource(pubsubSource)
+   .addSink(pubsubSink);
 {% endhighlight %}
 </div>
 </div>
 
-One important aspect to keep in mind is the 10000 messages limit is based on the amount of messages that has not been acknowledged yet. The connector will only acknowledge messages on successful checkpoints. This means if you checkpoint once every minute and you set the message limit to 10000. Your max throughput will be 10000 messages per minute.
+### Atleast once guarantee
 
-To give insight into this behavior two metrics have been added:
-  * `PubSubMessagesReceivedNotProcessed` this is the amount of messages that has been received but have not been processed yet. If this number is high that is a good indicator you are having backpressure problems.
-  * `PubSubMessagesProcessedNotAcked` this is the amount of messages that has been send to the next operator in the pipeline but has not yet been acknowledged. (Again note: only after a successful checkpoint are messages acknowledged)
+#### SourceFunction
+
+There are several reasons why a message might be send multiple times, such as failure scenarios on Google PubSub's side.
+
+Another reason is when the acknowledgement deadline has past. This is the time between receiving the message and between acknowledging the message. The PubSubSource will only acknowledge a message on successful checkpoints to guarantee Atleast-Once. This does mean if the time between successful checkpoints is larger than the acknowledgment deadline of your subscription messages will most likely be processed multiple times.
+
+For this reason it's recommended to have a (much) lower checkpoint interval than acknowledgement deadline.
+
+See [PubSub](https://cloud.google.com/pubsub/docs/subscriber) for details on how to increase the acknowledgment deadline of your subscription.
+
+Note: The metric `PubSubMessagesProcessedNotAcked` shows how many messages are waiting for the next checkpoint before they will be acknowledged.
+
+#### SinkFunction
+
+The sink function buffers messages that are to be send to PubSub for a short amount of time for performance reasons. Before each checkpoint this buffer is flushed and the checkpoint will not succeed unless the messages have been delivered to PubSub.
 
 {% top %}
