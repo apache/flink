@@ -31,7 +31,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
+import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
@@ -495,7 +495,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				ValueState<String> state =
 					backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
-				Queue<IncrementalKeyedStateHandle> previousStateHandles = new LinkedList<>();
+				Queue<IncrementalRemoteKeyedStateHandle> previousStateHandles = new LinkedList<>();
 				SharedStateRegistry sharedStateRegistry = spy(new SharedStateRegistry());
 				for (int checkpointId = 0; checkpointId < 3; ++checkpointId) {
 
@@ -514,8 +514,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
 					SnapshotResult<KeyedStateHandle> snapshotResult = snapshot.get();
 
-					IncrementalKeyedStateHandle stateHandle =
-						(IncrementalKeyedStateHandle) snapshotResult.getJobManagerOwnedSnapshot();
+					IncrementalRemoteKeyedStateHandle stateHandle =
+						(IncrementalRemoteKeyedStateHandle) snapshotResult.getJobManagerOwnedSnapshot();
 
 					Map<StateHandleID, StreamStateHandle> sharedState =
 						new HashMap<>(stateHandle.getSharedState());
@@ -551,7 +551,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		}
 	}
 
-	private void checkRemove(IncrementalKeyedStateHandle remove, SharedStateRegistry registry) throws Exception {
+	private void checkRemove(IncrementalRemoteKeyedStateHandle remove, SharedStateRegistry registry) throws Exception {
 		for (StateHandleID id : remove.getSharedState().keySet()) {
 			verify(registry, times(0)).unregisterReference(
 				remove.createSharedStateRegistryKeyFromFileName(id));

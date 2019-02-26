@@ -36,7 +36,6 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
-import org.apache.flink.runtime.state.IncrementalLocalKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
@@ -376,9 +375,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				ttlTimeProvider);
 		}
 		KeyedStateHandle firstStateHandle = restoreStateHandles.iterator().next();
-		boolean isIncrementalStateHandle = (firstStateHandle instanceof IncrementalKeyedStateHandle)
-			|| (firstStateHandle instanceof IncrementalLocalKeyedStateHandle);
-		if (isIncrementalStateHandle) {
+		if (firstStateHandle instanceof IncrementalKeyedStateHandle) {
 			return new RocksDBIncrementalRestoreOperation<>(
 				operatorIdentifier,
 				keyGroupRange,
