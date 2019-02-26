@@ -149,7 +149,7 @@ public final class FileUtils {
 				throw new OutOfMemoryError("Required array size too large");
 			}
 
-			return read(in, (int) size, BUFFER_SIZE);
+			return read(in, (int) size);
 		}
 	}
 
@@ -162,8 +162,6 @@ public final class FileUtils {
 	 *        the input stream to read from
 	 * @param initialSize
 	 *        the initial size of the byte array to allocate
-	 * @param maxDirectBufferSize
-	 *        the maximum size of the direct buffer used to read
 	 * @return a byte array containing the bytes read from the file
 	 *
 	 * @throws IOException
@@ -171,17 +169,16 @@ public final class FileUtils {
 	 * @throws OutOfMemoryError
 	 *         if an array of the required size cannot be allocated
 	 */
-	private static byte[] read(InputStream source, int initialSize, int maxDirectBufferSize) throws IOException {
+	private static byte[] read(InputStream source, int initialSize) throws IOException {
 		int capacity = initialSize;
 		byte[] buf = new byte[capacity];
 		int nread = 0;
 		int n;
 
-		maxDirectBufferSize = (maxDirectBufferSize <= 0) ? BUFFER_SIZE : maxDirectBufferSize;
 		for (; ;) {
 			// read to EOF which may read more or less than initialSize (eg: file
 			// is truncated while we are reading)
-			while ((n = source.read(buf, nread, Math.min(capacity - nread, maxDirectBufferSize))) > 0) {
+			while ((n = source.read(buf, nread, Math.min(capacity - nread, BUFFER_SIZE))) > 0) {
 				nread += n;
 			}
 
