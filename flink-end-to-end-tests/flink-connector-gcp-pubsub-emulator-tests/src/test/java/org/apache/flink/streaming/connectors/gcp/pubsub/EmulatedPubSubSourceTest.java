@@ -24,8 +24,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.GCloudUnitTestBase;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.PubsubHelper;
-import org.apache.flink.streaming.connectors.pubsub.PubSubSource;
-import org.apache.flink.streaming.connectors.pubsub.PubSubSubscriberFactoryForEmulator;
 
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.protobuf.ByteString;
