@@ -32,9 +32,7 @@ import static org.apache.flink.table.descriptors.MetadataValidator.METADATA_LAST
 @PublicEvolving
 public class Metadata implements Descriptor {
 
-	private String comment;
-	private Long creationTime;
-	private Long lastAccessTime;
+	private final DescriptorProperties internalProperties = new DescriptorProperties(true);
 
 	public Metadata() {}
 
@@ -44,7 +42,7 @@ public class Metadata implements Descriptor {
 	 * @param comment the description
 	 */
 	public Metadata comment(String comment) {
-		this.comment = comment;
+		internalProperties.putString(METADATA_COMMENT, comment);
 		return this;
 	}
 
@@ -53,8 +51,8 @@ public class Metadata implements Descriptor {
 	 *
 	 * @param time UTC milliseconds timestamp
 	 */
-	public Metadata creationTime(Long time) {
-		this.creationTime = time;
+	public Metadata creationTime(long time) {
+		internalProperties.putLong(METADATA_CREATION_TIME, time);
 		return this;
 	}
 
@@ -63,8 +61,8 @@ public class Metadata implements Descriptor {
 	 *
 	 * @param time UTC milliseconds timestamp
 	 */
-	public Metadata lastAccessTime(Long time) {
-		this.lastAccessTime = time;
+	public Metadata lastAccessTime(long time) {
+		internalProperties.putLong(METADATA_LAST_ACCESS_TIME, time);
 		return this;
 	}
 
@@ -73,16 +71,8 @@ public class Metadata implements Descriptor {
 	 */
 	@Override
 	public final Map<String, String> toProperties() {
-		DescriptorProperties properties = new DescriptorProperties();
-		if (comment != null) {
-			properties.putString(METADATA_COMMENT, comment);
-		}
-		if (creationTime != null) {
-			properties.putLong(METADATA_CREATION_TIME, creationTime);
-		}
-		if (lastAccessTime != null) {
-			properties.putLong(METADATA_LAST_ACCESS_TIME, lastAccessTime);
-		}
+		final DescriptorProperties properties = new DescriptorProperties();
+		properties.putProperties(internalProperties);
 		return properties.asMap();
 	}
 }

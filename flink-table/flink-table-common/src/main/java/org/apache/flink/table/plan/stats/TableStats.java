@@ -18,12 +18,15 @@
 
 package org.apache.flink.table.plan.stats;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * Table statistics.
  */
+@PublicEvolving
 public final class TableStats {
 
 	/**
@@ -49,7 +52,7 @@ public final class TableStats {
 		return rowCount;
 	}
 
-	public Map<String, ColumnStats> getColStats() {
+	public Map<String, ColumnStats> getColumnStats() {
 		return colStats;
 	}
 }

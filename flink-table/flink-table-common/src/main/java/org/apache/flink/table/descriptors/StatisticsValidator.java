@@ -19,13 +19,10 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.plan.stats.ColumnStats;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Supplier;
 
 /**
  * Validator for {@link Statistics}.
@@ -69,11 +66,11 @@ public class StatisticsValidator implements DescriptorValidator {
 		if (columnStats.getMaxLen() != null) {
 			stats.put(MAX_LENGTH, String.valueOf(columnStats.getMaxLen()));
 		}
-		if (columnStats.getMax() != null) {
-			stats.put(MAX_VALUE, String.valueOf(columnStats.getMax()));
+		if (columnStats.getMaxValue() != null) {
+			stats.put(MAX_VALUE, String.valueOf(columnStats.getMaxValue()));
 		}
-		if (columnStats.getMin() != null) {
-			stats.put(MIN_VALUE, String.valueOf(columnStats.getMin()));
+		if (columnStats.getMinValue() != null) {
+			stats.put(MIN_VALUE, String.valueOf(columnStats.getMinValue()));
 		}
 		return stats;
 	}
@@ -102,7 +99,7 @@ public class StatisticsValidator implements DescriptorValidator {
 		Map<String, ColumnStats> stats = new HashMap<>();
 		for (int i = 0; i < columnCount; i++) {
 			final String propertyKey = key + "." + i + "." + NAME;
-			String name = properties.getOptionalString(propertyKey).orElseThrow(exceptionSupplier(propertyKey));
+			String name = properties.getString(propertyKey);
 
 			ColumnStats columnStats = new ColumnStats(
 				properties.getOptionalLong(key + "." + i + "." + DISTINCT_COUNT).orElse(null),
@@ -117,11 +114,5 @@ public class StatisticsValidator implements DescriptorValidator {
 		}
 
 		return stats;
-	}
-
-	private static Supplier<TableException> exceptionSupplier(String key) {
-		return () -> {
-			throw new ValidationException("Could not find name of property '" + key + "'.");
-		};
 	}
 }

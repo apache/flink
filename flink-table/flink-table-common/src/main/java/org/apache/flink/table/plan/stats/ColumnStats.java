@@ -18,13 +18,16 @@
 
 package org.apache.flink.table.plan.stats;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * column statistics.
+ * Column statistics.
  */
+@PublicEvolving
 public final class ColumnStats {
 
 	/**
@@ -88,11 +91,11 @@ public final class ColumnStats {
 		return maxLen;
 	}
 
-	public Number getMax() {
+	public Number getMaxValue() {
 		return max;
 	}
 
-	public Number getMin() {
+	public Number getMinValue() {
 		return min;
 	}
 

@@ -24,7 +24,7 @@ import org.apache.flink.annotation.PublicEvolving;
  * A trait for descriptors that allow to convert between a dynamic table and an external connector.
  */
 @PublicEvolving
-public interface StreamableDescriptor<D extends StreamableDescriptor<D>> {
+public interface StreamableDescriptor<D extends StreamableDescriptor<D>> extends Descriptor {
 
 	/**
 	 * Declares how to perform the conversion between a dynamic table and an external connector.

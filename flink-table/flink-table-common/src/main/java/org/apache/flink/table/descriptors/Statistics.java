@@ -46,7 +46,7 @@ import static org.apache.flink.table.descriptors.StatisticsValidator.normalizeCo
 @PublicEvolving
 public class Statistics implements Descriptor {
 
-	private Long rowCount;
+	private final DescriptorProperties internalProperties = new DescriptorProperties(true);
 	private LinkedHashMap<String, Map<String, String>> columnStats = new LinkedHashMap<>();
 
 	/**
@@ -59,7 +59,7 @@ public class Statistics implements Descriptor {
 	public Statistics tableStats(TableStats tableStats) {
 		rowCount(tableStats.getRowCount());
 		columnStats.clear();
-		tableStats.getColStats().forEach(this::columnStats);
+		tableStats.getColumnStats().forEach(this::columnStats);
 		return this;
 	}
 
@@ -68,8 +68,8 @@ public class Statistics implements Descriptor {
 	 *
 	 * @param rowCount the expected number of rows
 	 */
-	public Statistics rowCount(Long rowCount) {
-		this.rowCount = rowCount;
+	public Statistics rowCount(long rowCount) {
+		internalProperties.putLong(STATISTICS_ROW_COUNT, rowCount);
 		return this;
 	}
 
@@ -150,12 +150,11 @@ public class Statistics implements Descriptor {
 	 */
 	@Override
 	public final Map<String, String> toProperties() {
-		DescriptorProperties properties = new DescriptorProperties();
+		final DescriptorProperties properties = new DescriptorProperties();
+		properties.putProperties(internalProperties);
 
 		properties.putInt(STATISTICS_PROPERTY_VERSION, 1);
-		if (rowCount != null) {
-			properties.putLong(STATISTICS_ROW_COUNT, rowCount);
-		}
+
 		List<Map<String, String>> namedStats = new ArrayList<>();
 		for (Map.Entry<String, Map<String, String>> entry : columnStats.entrySet()) {
 			Map<String, String> columnStat = entry.getValue();
