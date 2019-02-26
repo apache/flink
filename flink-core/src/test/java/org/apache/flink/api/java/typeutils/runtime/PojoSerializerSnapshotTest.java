@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.testutils.migration.SchemaCompatibilityTestingSerializer;
+import org.apache.flink.testutils.migration.SchemaCompatibilityTestingSerializer.SchemaCompatibilityTestingSnapshot;
 
 import org.junit.Test;
 
@@ -39,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -120,7 +122,7 @@ public class PojoSerializerSnapshotTest {
 		));
 
 		final TypeSerializer<TestPojo> restoredSerializer = testSnapshot.restoreSerializer();
-		assertTrue(restoredSerializer.getClass() == PojoSerializer.class);
+		assertSame(restoredSerializer.getClass(), PojoSerializer.class);
 		final PojoSerializer<TestPojo> restoredPojoSerializer = (PojoSerializer<TestPojo>) restoredSerializer;
 
 		final Field[] restoredFields = restoredPojoSerializer.getFields();
@@ -254,13 +256,13 @@ public class PojoSerializerSnapshotTest {
 			ID_FIELD,
 			mockFieldSerializerSnapshot(
 				NAME_FIELD,
-				new SchemaCompatibilityTestingSerializer.InitialSerializer<>().snapshotConfiguration()),
+				SchemaCompatibilityTestingSnapshot.thatIsIncompatibleWithTheNextSerializer()),
 			HEIGHT_FIELD
 		));
 
 		final PojoSerializer<TestPojo> newPojoSerializer = buildTestNewPojoSerializer(Arrays.asList(
 			ID_FIELD,
-			mockFieldSerializer(NAME_FIELD, new SchemaCompatibilityTestingSerializer.IncompatibleSerializer<>()),
+			mockFieldSerializer(NAME_FIELD, new SchemaCompatibilityTestingSerializer()),
 			HEIGHT_FIELD
 		));
 
@@ -277,13 +279,12 @@ public class PojoSerializerSnapshotTest {
 			NAME_FIELD,
 			mockFieldSerializerSnapshot(
 				HEIGHT_FIELD,
-				new SchemaCompatibilityTestingSerializer.InitialSerializer<>().snapshotConfiguration())
-		));
+				SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializerAfterMigration())));
 
 		final PojoSerializer<TestPojo> newPojoSerializer = buildTestNewPojoSerializer(Arrays.asList(
 			ID_FIELD,
 			NAME_FIELD,
-			mockFieldSerializer(HEIGHT_FIELD, new SchemaCompatibilityTestingSerializer.UpgradedSchemaSerializer<>())
+			mockFieldSerializer(HEIGHT_FIELD, new SchemaCompatibilityTestingSerializer())
 		));
 
 		final TypeSerializerSchemaCompatibility<TestPojo> resultCompatibility =
@@ -297,13 +298,13 @@ public class PojoSerializerSnapshotTest {
 		final PojoSerializerSnapshot<TestPojo> testSnapshot = buildTestSnapshot(Arrays.asList(
 			mockFieldSerializerSnapshot(
 				ID_FIELD,
-				new SchemaCompatibilityTestingSerializer.InitialSerializer<>().snapshotConfiguration()),
+				SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializerAfterReconfiguration()),
 			NAME_FIELD,
 			HEIGHT_FIELD
 		));
 
 		final PojoSerializer<TestPojo> newPojoSerializer = buildTestNewPojoSerializer(Arrays.asList(
-			mockFieldSerializer(ID_FIELD, new SchemaCompatibilityTestingSerializer.ReconfigurationRequiringSerializer<>()),
+			mockFieldSerializer(ID_FIELD, new SchemaCompatibilityTestingSerializer()),
 			NAME_FIELD,
 			HEIGHT_FIELD
 		));
@@ -314,13 +315,13 @@ public class PojoSerializerSnapshotTest {
 		assertTrue(resultCompatibility.isCompatibleWithReconfiguredSerializer());
 
 		final TypeSerializer<TestPojo> reconfiguredSerializer = resultCompatibility.getReconfiguredSerializer();
-		assertTrue(reconfiguredSerializer.getClass() == PojoSerializer.class);
+		assertSame(reconfiguredSerializer.getClass(), PojoSerializer.class);
 		final PojoSerializer<TestPojo> reconfiguredPojoSerializer = (PojoSerializer<TestPojo>) reconfiguredSerializer;
 
 		final TypeSerializer<?>[] reconfiguredFieldSerializers = reconfiguredPojoSerializer.getFieldSerializers();
 		assertArrayEquals(
 			new TypeSerializer[] {
-				new SchemaCompatibilityTestingSerializer.InitialSerializer(),
+				new SchemaCompatibilityTestingSerializer(),
 				StringSerializer.INSTANCE,
 				DoubleSerializer.INSTANCE },
 			reconfiguredFieldSerializers);
