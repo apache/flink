@@ -157,42 +157,97 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 	 * Recovery from a single remote incremental state without rescaling.
 	 */
 	private void restoreWithoutRescaling(KeyedStateHandle rawStateHandle) throws Exception {
-		// 1. Prepare for restore without rescaling
-		Path temporaryRestoreInstancePath = new Path(
+		if (rawStateHandle instanceof IncrementalKeyedStateHandle) {
+			IncrementalKeyedStateHandle incrementalKeyedStateHandle = (IncrementalKeyedStateHandle) rawStateHandle;
+			restorePreviousIncrementalFilesStatus(incrementalKeyedStateHandle);
+			restoreFromRemoteState(incrementalKeyedStateHandle);
+		} else if (rawStateHandle instanceof IncrementalLocalKeyedStateHandle) {
+			IncrementalLocalKeyedStateHandle incrementalLocalKeyedStateHandle =
+				(IncrementalLocalKeyedStateHandle) rawStateHandle;
+			restorePreviousIncrementalFilesStatus(incrementalLocalKeyedStateHandle);
+			restoreFromLocalState(incrementalLocalKeyedStateHandle);
+		} else {
+			throw new BackendBuildingException("Unexpected state handle type, " +
+				"expected " + IncrementalKeyedStateHandle.class + " or " + IncrementalLocalKeyedStateHandle.class +
+				", but found " + rawStateHandle.getClass());
+		}
+	}
+
+	private void restorePreviousIncrementalFilesStatus(IncrementalLocalKeyedStateHandle localKeyedStateHandle) {
+		backendUID = localKeyedStateHandle.getBackendIdentifier();
+		restoredSstFiles.put(
+			localKeyedStateHandle.getCheckpointId(),
+			localKeyedStateHandle.getSharedStateHandleIDs());
+		lastCompletedCheckpointId = localKeyedStateHandle.getCheckpointId();
+	}
+
+	private void restorePreviousIncrementalFilesStatus(IncrementalKeyedStateHandle remoteKeyedStateHandle) {
+		backendUID = remoteKeyedStateHandle.getBackendIdentifier();
+		restoredSstFiles.put(
+			remoteKeyedStateHandle.getCheckpointId(),
+			remoteKeyedStateHandle.getSharedState().keySet());
+		lastCompletedCheckpointId = remoteKeyedStateHandle.getCheckpointId();
+	}
+
+	private void restoreFromRemoteState(IncrementalKeyedStateHandle stateHandle) throws Exception {
+		final Path tmpRestoreInstancePath = new Path(
 			instanceBasePath.getAbsolutePath(),
 			UUID.randomUUID().toString()); // used as restore source for IncrementalKeyedStateHandle
-		RocksDBIncrementalRestorePrepareResult prepareResult = prepareFiles(rawStateHandle, temporaryRestoreInstancePath);
-		Path restoreSourcePath = prepareResult.getLocalKeyedStateHandle().getDirectoryStateHandle().getDirectory();
-		if (rawStateHandle instanceof IncrementalKeyedStateHandle) {
-			backendUID = ((IncrementalKeyedStateHandle) rawStateHandle).getBackendIdentifier();
-		} else {
-			backendUID = ((IncrementalLocalKeyedStateHandle) rawStateHandle).getBackendIdentifier();
+		try {
+			restoreFromLocalState(
+				transferRemoteStateToLocalDirectory(tmpRestoreInstancePath, stateHandle));
+		} finally {
+			cleanUpPathQuietly(tmpRestoreInstancePath);
 		}
+	}
+
+	private void restoreFromLocalState(IncrementalLocalKeyedStateHandle localKeyedStateHandle) throws Exception {
+		KeyedBackendSerializationProxy<K> serializationProxy = readMetaData(localKeyedStateHandle.getMetaDataState());
+		List<StateMetaInfoSnapshot> stateMetaInfoSnapshots = serializationProxy.getStateMetaInfoSnapshots();
+		columnFamilyDescriptors = createAndRegisterColumnFamilyDescriptors(stateMetaInfoSnapshots, true);
+		columnFamilyHandles = new ArrayList<>(columnFamilyDescriptors.size() + 1);
+
+		Path restoreSourcePath = localKeyedStateHandle.getDirectoryStateHandle().getDirectory();
+
 		LOG.debug("Restoring keyed backend uid in operator {} from incremental snapshot to {}.",
-			this.operatorIdentifier, this.backendUID);
+			operatorIdentifier, backendUID);
+
 		if (!instanceRocksDBPath.mkdirs()) {
 			String errMsg = "Could not create RocksDB data directory: " + instanceBasePath.getAbsolutePath();
 			LOG.error(errMsg);
 			throw new IOException(errMsg);
 		}
-		try {
-			restoreInstanceDirectoryFromPath(restoreSourcePath, dbPath);
-		} finally {
-			cleanUpPathQuietly(restoreSourcePath);
-		}
-		// 2. Open db instance
+
+		restoreInstanceDirectoryFromPath(restoreSourcePath, dbPath);
+
 		openDB();
-		// 3. Use the restore sst files as the base for succeeding checkpoints
-		IncrementalLocalKeyedStateHandle restoreStateHandle = prepareResult.getLocalKeyedStateHandle();
-		restoredSstFiles.put(
-			restoreStateHandle.getCheckpointId(),
-			restoreStateHandle.getSharedStateHandleIDs());
-		lastCompletedCheckpointId = restoreStateHandle.getCheckpointId();
-		// 4. Register column family handles
-		registerCFHandles(prepareResult.getStateMetaInfoSnapshots());
+
+		registerColumnFamilyHandles(stateMetaInfoSnapshots);
 	}
 
-	private void cleanUpPathQuietly(Path path) {
+	private IncrementalLocalKeyedStateHandle transferRemoteStateToLocalDirectory(
+		Path temporaryRestoreInstancePath,
+		IncrementalKeyedStateHandle restoreStateHandle) throws Exception {
+
+		try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(numberOfTransferringThreads)) {
+			rocksDBStateDownloader.transferAllStateDataToDirectory(
+				restoreStateHandle,
+				temporaryRestoreInstancePath,
+				cancelStreamRegistry);
+		}
+
+		// since we transferred all remote state to a local directory, we can use the same code as for
+		// local recovery.
+		return new IncrementalLocalKeyedStateHandle(
+			restoreStateHandle.getBackendIdentifier(),
+			restoreStateHandle.getCheckpointId(),
+			new DirectoryStateHandle(temporaryRestoreInstancePath),
+			restoreStateHandle.getKeyGroupRange(),
+			restoreStateHandle.getMetaStateHandle(),
+			restoreStateHandle.getSharedState().keySet());
+	}
+
+	private void cleanUpPathQuietly(@Nonnull Path path) {
 		try {
 			FileSystem fileSystem = path.getFileSystem();
 			if (fileSystem.exists(path)) {
@@ -203,7 +258,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 		}
 	}
 
-	private void registerCFHandles(List<StateMetaInfoSnapshot> metaInfoSnapshots)
+	private void registerColumnFamilyHandles(List<StateMetaInfoSnapshot> metaInfoSnapshots)
 		throws BackendBuildingException {
 		// Register CF handlers
 		for (int i = 0; i < metaInfoSnapshots.size(); ++i) {
@@ -219,65 +274,26 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 		}
 	}
 
-	private RocksDBIncrementalRestorePrepareResult prepareFiles(
-		KeyedStateHandle rawStateHandle,
-		Path restoreInstancePath) throws BackendBuildingException {
-		final IncrementalLocalKeyedStateHandle localKeyedStateHandle;
-		try {
-			if (rawStateHandle instanceof IncrementalKeyedStateHandle) {
-				IncrementalKeyedStateHandle restoreStateHandle = (IncrementalKeyedStateHandle) rawStateHandle;
-
-				// read state data.
-				try (RocksDBStateDownloader rocksDBStateDownloader =
-						new RocksDBStateDownloader(numberOfTransferringThreads)) {
-					rocksDBStateDownloader.transferAllStateDataToDirectory(
-						restoreStateHandle,
-						restoreInstancePath,
-						cancelStreamRegistry);
-				}
-
-				// since we transferred all remote state to a local directory, we can use the same code as for
-				// local recovery.
-				localKeyedStateHandle = new IncrementalLocalKeyedStateHandle(
-					restoreStateHandle.getBackendIdentifier(),
-					restoreStateHandle.getCheckpointId(),
-					new DirectoryStateHandle(restoreInstancePath),
-					restoreStateHandle.getKeyGroupRange(),
-					restoreStateHandle.getMetaStateHandle(),
-					restoreStateHandle.getSharedState().keySet());
-			} else if (rawStateHandle instanceof IncrementalLocalKeyedStateHandle) {
-				// Recovery from local incremental state.
-				localKeyedStateHandle = (IncrementalLocalKeyedStateHandle) rawStateHandle;
-			} else {
-				throw new IllegalStateException("Unexpected state handle type, " +
-					"expected " + IncrementalKeyedStateHandle.class + " or " + IncrementalLocalKeyedStateHandle.class +
-					", but found " + rawStateHandle.getClass());
-			}
-
-			KeyedBackendSerializationProxy<K> serializationProxy = readMetaData(localKeyedStateHandle.getMetaDataState());
-			List<StateMetaInfoSnapshot> stateMetaInfoSnapshots = serializationProxy.getStateMetaInfoSnapshots();
-			columnFamilyDescriptors = createAndRegisterColumnFamilyDescriptors(stateMetaInfoSnapshots, true);
-			columnFamilyHandles = new ArrayList<>(columnFamilyDescriptors.size() + 1);
-			return new RocksDBIncrementalRestorePrepareResult(stateMetaInfoSnapshots, localKeyedStateHandle);
-		} catch (Exception e) {
-			// clean up
-			cleanUpPathQuietly(restoreInstancePath);
-			// log and rethrow
-			String errMsg = "Failed to prepare files for restore from incremental state handle.";
-			LOG.error(errMsg, e);
-			throw new BackendBuildingException(errMsg, e);
-		}
-	}
-
 	/**
 	 * Recovery from multi incremental states with rescaling. For rescaling, this method creates a temporary
 	 * RocksDB instance for a key-groups shard. All contents from the temporary instance are copied into the
 	 * real restore instance and then the temporary instance is discarded.
 	 */
 	private void restoreWithRescaling(Collection<KeyedStateHandle> restoreStateHandles) throws Exception {
-		// Init DB instance
-		initDBWithRescaling(restoreStateHandles);
-		// Do restore
+
+		// Prepare for restore with rescaling
+		KeyedStateHandle initialHandle = RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
+			restoreStateHandles, keyGroupRange);
+
+		// Init base DB instance
+		if (initialHandle != null) {
+			restoreStateHandles.remove(initialHandle);
+			initDBWithRescaling(initialHandle);
+		} else {
+			openDB();
+		}
+
+		// Transfer remaining key-groups from temporary instance into base DB
 		byte[] startKeyGroupPrefixBytes = new byte[keyGroupPrefixBytes];
 		RocksDBKeySerializationUtils.serializeKeyGroup(keyGroupRange.getStartKeyGroup(), startKeyGroupPrefixBytes);
 
@@ -333,35 +349,25 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 		}
 	}
 
-	private void initDBWithRescaling(Collection<KeyedStateHandle> restoreStateHandles) throws IOException {
-		// Prepare for restore with rescaling
-		IncrementalKeyedStateHandle initialHandle =
-			(IncrementalKeyedStateHandle) RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
-				restoreStateHandles, keyGroupRange);
-		Path instancePath = new Path(dbPath);
-		if (initialHandle != null) {
-			restoreStateHandles.remove(initialHandle);
-			// 1. Download target files
-			RocksDBIncrementalRestorePrepareResult prepareResult = prepareFiles(initialHandle, instancePath);
-			// 2. Open db instance
-			openDB();
-			// 3. Clip the DB instance
-			try {
-				RocksDBIncrementalCheckpointUtils.clipDBWithKeyGroupRange(
-					db,
-					columnFamilyHandles,
-					keyGroupRange,
-					initialHandle.getKeyGroupRange(),
-					keyGroupPrefixBytes);
-			} catch (RocksDBException e) {
-				String errMsg = "Failed to clip DB after initialization.";
-				LOG.error(errMsg, e);
-				throw new BackendBuildingException(errMsg, e);
-			}
-			// 4. Register column family handles
-			registerCFHandles(prepareResult.getStateMetaInfoSnapshots());
-		} else {
-			openDB();
+	private void initDBWithRescaling(KeyedStateHandle initialHandle) throws Exception {
+
+		assert (initialHandle instanceof IncrementalKeyedStateHandle);
+
+		// 1. Restore base DB from selected initial handle
+		restoreFromRemoteState((IncrementalKeyedStateHandle) initialHandle);
+
+		// 2. Clip the base DB instance
+		try {
+			RocksDBIncrementalCheckpointUtils.clipDBWithKeyGroupRange(
+				db,
+				columnFamilyHandles,
+				keyGroupRange,
+				initialHandle.getKeyGroupRange(),
+				keyGroupPrefixBytes);
+		} catch (RocksDBException e) {
+			String errMsg = "Failed to clip DB after initialization.";
+			LOG.error(errMsg, e);
+			throw new BackendBuildingException(errMsg, e);
 		}
 	}
 
