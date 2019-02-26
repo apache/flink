@@ -30,6 +30,7 @@ import org.junit.runners.Parameterized;
 
 import java.util.Collection;
 
+import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.hasSameCompatibilityAs;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -104,7 +105,7 @@ public class PojoSerializerSnapshotMigrationTest extends TypeSerializerSnapshotM
 			PojoSerializer.class,
 			PojoSerializerSnapshot.class,
 			PojoSerializerSnapshotMigrationTest::testPojoWithNewAndRemovedFieldsSerializerSupplier,
-			hasSameCompatibilityType(TypeSerializerSchemaCompatibility.compatibleAfterMigration()));
+			hasSameCompatibilityAs(TypeSerializerSchemaCompatibility.compatibleAfterMigration()));
 
 		return testSpecifications.get();
 	}
