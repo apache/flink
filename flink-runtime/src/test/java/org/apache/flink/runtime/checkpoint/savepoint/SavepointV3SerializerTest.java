@@ -37,9 +37,9 @@ import java.util.Random;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Various tests for the version 2 format serializer of a checkpoint.
+ * Various tests for the version 3 format serializer of a checkpoint.
  */
-public class SavepointV2SerializerTest {
+public class SavepointV3SerializerTest {
 
 	@Test
 	public void testCheckpointWithNoState() throws Exception {
@@ -66,7 +66,7 @@ public class SavepointV2SerializerTest {
 
 			final int numMasterStates = rnd.nextInt(maxNumMasterStates) + 1;
 			final Collection<MasterState> masterStates =
-				CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
+					CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
 
 			testCheckpointSerialization(checkpointId, operatorStates, masterStates);
 		}
@@ -84,7 +84,7 @@ public class SavepointV2SerializerTest {
 			final int numTasks = rnd.nextInt(maxTaskStates) + 1;
 			final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
 			final Collection<OperatorState> taskStates =
-				CheckpointTestUtils.createOperatorStatesV2(rnd, numTasks, numSubtasks);
+					CheckpointTestUtils.createOperatorStatesV3(rnd, numTasks, numSubtasks);
 
 			final Collection<MasterState> masterStates = Collections.emptyList();
 
@@ -106,36 +106,37 @@ public class SavepointV2SerializerTest {
 			final int numTasks = rnd.nextInt(maxTaskStates) + 1;
 			final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
 			final Collection<OperatorState> taskStates =
-				CheckpointTestUtils.createOperatorStatesV2(rnd, numTasks, numSubtasks);
+					CheckpointTestUtils.createOperatorStatesV3(rnd, numTasks, numSubtasks);
 
 			final int numMasterStates = rnd.nextInt(maxNumMasterStates) + 1;
 			final Collection<MasterState> masterStates =
-				CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
+					CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
 
 			testCheckpointSerialization(checkpointId, taskStates, masterStates);
 		}
 	}
 
 	private void testCheckpointSerialization(
-		long checkpointId,
-		Collection<OperatorState> operatorStates,
-		Collection<MasterState> masterStates) throws IOException {
+			long checkpointId,
+			Collection<OperatorState> operatorStates,
+			Collection<MasterState> masterStates) throws IOException {
 
-		SavepointV2Serializer serializer = SavepointV2Serializer.INSTANCE;
+		SavepointV3Serializer serializer = SavepointV3Serializer.INSTANCE;
 
 		ByteArrayOutputStreamWithPos baos = new ByteArrayOutputStreamWithPos();
 		DataOutputStream out = new DataOutputViewStreamWrapper(baos);
 
-		serializer.serialize(new SavepointV2(checkpointId, operatorStates, masterStates), out);
+		serializer.serialize(new SavepointV3(checkpointId, operatorStates, masterStates), out);
 		out.close();
 
 		byte[] bytes = baos.toByteArray();
 
 		DataInputStream in = new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(bytes));
-		SavepointV2 deserialized = serializer.deserialize(in, getClass().getClassLoader());
+		SavepointV3 deserialized = serializer.deserialize(in, getClass().getClassLoader());
 
 		assertEquals(checkpointId, deserialized.getCheckpointId());
-		assertEquals(operatorStates, deserialized.getOperatorStates());
+		Collection<OperatorState> operatorStates1 = deserialized.getOperatorStates();
+		assertEquals(operatorStates, operatorStates1);
 
 		assertEquals(masterStates.size(), deserialized.getMasterStates().size());
 		for (Iterator<MasterState> a = masterStates.iterator(), b = deserialized.getMasterStates().iterator();

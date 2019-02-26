@@ -143,9 +143,12 @@ public class Checkpoints {
 			rawCheckpointMetadata = loadCheckpointMetadata(dis, classLoader);
 		}
 
-		final Savepoint checkpointMetadata = rawCheckpointMetadata.getTaskStates() == null ?
-				rawCheckpointMetadata :
-				SavepointV2.convertToOperatorStateSavepointV2(tasks, rawCheckpointMetadata);
+		final Savepoint checkpointMetadata;
+		if (rawCheckpointMetadata.getVersion() > SavepointV2.VERSION || rawCheckpointMetadata.getTaskStates() == null) {
+			checkpointMetadata = rawCheckpointMetadata;
+		} else {
+			checkpointMetadata = SavepointV2.convertToOperatorStateSavepointV2(tasks, rawCheckpointMetadata);
+		}
 
 		// generate mapping from operator to task
 		Map<OperatorID, ExecutionJobVertex> operatorToJobVertexMapping = new HashMap<>();

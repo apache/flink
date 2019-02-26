@@ -37,6 +37,7 @@ public class SavepointSerializers {
 	static {
 		SERIALIZERS.put(SavepointV1.VERSION, SavepointV1Serializer.INSTANCE);
 		SERIALIZERS.put(SavepointV2.VERSION, SavepointV2Serializer.INSTANCE);
+		SERIALIZERS.put(SavepointV3.VERSION, SavepointV3Serializer.INSTANCE);
 	}
 
 	private SavepointSerializers() {

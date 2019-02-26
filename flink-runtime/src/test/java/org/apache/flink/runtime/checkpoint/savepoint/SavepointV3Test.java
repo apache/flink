@@ -20,23 +20,20 @@ package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
-
 import org.junit.Test;
 
 import java.util.Collection;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
-public class SavepointV2Test {
+public class SavepointV3Test {
 
 	/**
 	 * Simple test of savepoint methods.
 	 */
 	@Test
-	public void testSavepointV2() throws Exception {
+	public void testSavepointV3() throws Exception {
 		final Random rnd = new Random();
 
 		final long checkpointId = rnd.nextInt(Integer.MAX_VALUE) + 1;
@@ -45,14 +42,14 @@ public class SavepointV2Test {
 		final int numMasterStates = 7;
 
 		Collection<OperatorState> taskStates =
-			CheckpointTestUtils.createOperatorStatesV2(rnd, numTaskStates, numSubtaskStates);
+				CheckpointTestUtils.createOperatorStatesV3(rnd, numTaskStates, numSubtaskStates);
 
 		Collection<MasterState> masterStates =
-			CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
+				CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
 
-		SavepointV2 checkpoint = new SavepointV2(checkpointId, taskStates, masterStates);
+		SavepointV3 checkpoint = new SavepointV3(checkpointId, taskStates, masterStates);
 
-		assertEquals(2, checkpoint.getVersion());
+		assertEquals(3, checkpoint.getVersion());
 		assertEquals(checkpointId, checkpoint.getCheckpointId());
 		assertEquals(taskStates, checkpoint.getOperatorStates());
 		assertEquals(masterStates, checkpoint.getMasterStates());
