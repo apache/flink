@@ -27,12 +27,14 @@ import com.google.cloud.pubsub.v1.stub.GrpcSubscriberStub;
 import com.google.cloud.pubsub.v1.stub.SubscriberStub;
 import com.google.cloud.pubsub.v1.stub.SubscriberStubSettings;
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
+import io.grpc.netty.shaded.io.netty.channel.EventLoopGroup;
 
 import java.io.IOException;
 
 /**
- * A PubSubSubscriberFactory that can be used to connect to a PubSub emulator.
+ * A convenience PubSubSubscriberFactory that can be used to connect to a PubSub emulator.
+ * The PubSub emulators do not support SSL or Credentials and as such this SubscriberStub does not require or provide this.
  */
 public class PubSubSubscriberFactoryForEmulator implements PubSubSubscriberFactory {
 	private final String hostAndPort;
@@ -42,11 +44,11 @@ public class PubSubSubscriberFactoryForEmulator implements PubSubSubscriberFacto
 	}
 
 	@Override
-	public SubscriberStub getSubscriber(Credentials credentials) throws IOException {
-		ManagedChannel managedChannel = ManagedChannelBuilder
-			.forTarget(hostAndPort)
-			.usePlaintext() // This is 'Ok' because this is ONLY used for testing.
-			.build();
+	public SubscriberStub getSubscriber(EventLoopGroup eventLoopGroup, Credentials credentials) throws IOException {
+		ManagedChannel managedChannel = NettyChannelBuilder.forTarget(hostAndPort)
+														.usePlaintext() // This is 'Ok' because this is ONLY used for testing.
+														.eventLoopGroup(eventLoopGroup)
+														.build();
 
 		SubscriberStubSettings settings = SubscriberStubSettings.newBuilder()
 																.setCredentialsProvider(NoCredentialsProvider.create())

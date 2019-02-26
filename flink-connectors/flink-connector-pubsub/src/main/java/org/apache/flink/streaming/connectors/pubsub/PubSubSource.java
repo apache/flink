@@ -39,6 +39,8 @@ import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.PullRequest;
 import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.ReceivedMessage;
+import io.grpc.netty.shaded.io.netty.channel.EventLoopGroup;
+import io.grpc.netty.shaded.io.netty.channel.nio.NioEventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,6 +67,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	protected transient boolean deduplicateMessages;
 	protected transient SubscriberStub subscriber;
 	protected transient PullRequest pullRequest;
+	protected transient EventLoopGroup eventLoopGroup;
 
 	protected transient volatile boolean isRunning;
 	protected transient volatile ApiFuture<PullResponse> messagesFuture;
@@ -88,7 +91,8 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 
 		getRuntimeContext().getMetricGroup().gauge("PubSubMessagesProcessedNotAcked", this::getOutstandingMessagesToAck);
 
-		this.subscriber = pubSubSubscriberFactory.getSubscriber(credentials);
+		this.eventLoopGroup = new NioEventLoopGroup();
+		this.subscriber = pubSubSubscriberFactory.getSubscriber(eventLoopGroup, credentials);
 		this.deduplicateMessages = getRuntimeContext().getNumberOfParallelSubtasks() == 1;
 		this.isRunning = true;
 		this.pullRequest = PullRequest.newBuilder()
@@ -104,7 +108,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 
 	@Override
 	protected void acknowledgeSessionIDs(List<String> acknowledgementIds) {
-		if (acknowledgementIds.isEmpty()) {
+		if (acknowledgementIds.isEmpty() || !isRunning) {
 			return;
 		}
 
@@ -163,13 +167,7 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 
 	@Override
 	public void cancel() {
-		isRunning = false;
-		if (messagesFuture != null) {
-			messagesFuture.cancel(true);
-		}
-		if (subscriber != null) {
-			subscriber.shutdownNow();
-		}
+		stop();
 	}
 
 	@Override
@@ -179,7 +177,11 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 			messagesFuture.cancel(true);
 		}
 		if (subscriber != null) {
-			subscriber.shutdown();
+			subscriber.shutdownNow();
+		}
+
+		if (eventLoopGroup != null) {
+			eventLoopGroup.shutdownGracefully();
 		}
 	}
 
@@ -198,12 +200,12 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	 */
 	private void awaitSubscriberTermination() {
 		//Wait for the subscriber to terminate, to prevent leaking threads
-		while (!subscriber.isTerminated()) {
+		while (!subscriber.isTerminated() || !eventLoopGroup.isTerminated()) {
 			try {
 				subscriber.awaitTermination(60, TimeUnit.SECONDS);
-				Thread.sleep(2500);
+				eventLoopGroup.awaitTermination(60, TimeUnit.SECONDS);
 			} catch (InterruptedException e) {
-				LOG.error("Still waiting for subscriber to terminate.", e);
+				LOG.warn("Still waiting for subscriber to terminate.", e);
 			}
 		}
 	}

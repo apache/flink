@@ -43,7 +43,7 @@ public class PubSubExample {
 
 		if (parameterTool.getNumberOfParameters() < 3) {
 			System.out.println("Missing parameters!\n" +
-								"Usage: flink run PubSub.jar --input-subscription <subscription> --input-topicName <topic> --output-topicName " +
+								"Usage: flink run PubSub.jar --input-subscription <subscription> --input-topicName <topic> --output-topicName <output-topic> " +
 								"--google-project <google project name> ");
 			return;
 		}
@@ -54,8 +54,8 @@ public class PubSubExample {
 		String outputTopicName = parameterTool.getRequired("output-topicName");
 
 		PubSubPublisher pubSubPublisher = new PubSubPublisher(projectName, inputTopicName);
-
 		pubSubPublisher.publish(10);
+
 		runFlinkJob(projectName, subscriptionName, outputTopicName);
 	}
 

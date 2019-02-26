@@ -47,9 +47,11 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.internal.verification.VerificationModeFactory.times;
 
@@ -86,7 +88,7 @@ public class PubSubSourceTest {
 
 	@Before
 	public void setup() throws Exception {
-		when(pubSubSubscriberFactory.getSubscriber(credentials)).thenReturn(subscriberStub);
+		when(pubSubSubscriberFactory.getSubscriber(any(), eq(credentials))).thenReturn(subscriberStub);
 		when(functionInitializationContext.getOperatorStateStore()).thenReturn(operatorStateStore);
 		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
 		when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
@@ -115,7 +117,7 @@ public class PubSubSourceTest {
 
 		pubSubSource.open(null);
 
-		verify(pubSubSubscriberFactory, times(1)).getSubscriber(credentials);
+		verify(pubSubSubscriberFactory, times(1)).getSubscriber(any(), eq(credentials));
 	}
 
 	@Test
@@ -155,6 +157,18 @@ public class PubSubSourceTest {
 		assertThat(actual.getAckIdsList().size(), is(2));
 		assertThat(actual.getAckIdsList().get(0), is("firstAckId"));
 		assertThat(actual.getAckIdsList().get(1), is("secondAckId"));
+	}
+
+	@Test
+	public void testNoMessagesAreAcknowledgedAfterSourceStopOrCancel() throws Exception {
+		List<String> input = asList("firstAckId", "secondAckId");
+
+		pubSubSource.open(null);
+		pubSubSource.stop();
+		verify(subscriberStub, times(1)).shutdownNow();
+
+		pubSubSource.acknowledgeSessionIDs(input);
+		verifyZeroInteractions(subscriberStub);
 	}
 
 	@Test

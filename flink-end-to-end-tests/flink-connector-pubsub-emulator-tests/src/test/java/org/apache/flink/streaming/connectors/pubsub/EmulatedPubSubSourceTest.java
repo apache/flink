@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.pubsub;
 
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -87,6 +88,7 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.enableCheckpointing(1000);
 		env.setParallelism(1);
+		env.setRestartStrategy(RestartStrategies.noRestart());
 
 		DataStream<String> fromPubSub = env
 			.addSource(PubSubSource.newBuilder(new BoundedStringDeserializer(10), PROJECT_NAME, SUBSCRIPTION_NAME)
