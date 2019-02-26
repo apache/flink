@@ -703,7 +703,6 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 		AbstractStreamOperatorTestHarness<String>[] testHarnesses =
 			new AbstractStreamOperatorTestHarness[initialParallelism];
 
-
 		List<String> testTopics = Collections.singletonList("test-topic");
 
 		for (int i = 0; i < initialParallelism; i++) {

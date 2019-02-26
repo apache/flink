@@ -27,11 +27,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.regex.Pattern;
 
+/**
+ * Tests for the {@link KafkaTopicsDescriptor}.
+ */
 @RunWith(Parameterized.class)
 public class KafkaTopicsDescriptorTest {
 
 	@Parameterized.Parameters
-	public static Collection<Object[]> Data() {
+	public static Collection<Object[]> data() {
 		return Arrays.asList(new Object[][] {
 			{ "topic1", null, Arrays.asList("topic1", "topic2", "topic3"), true },
 			{ "topic1", null, Arrays.asList("topic2", "topic3"), false },
@@ -45,7 +48,7 @@ public class KafkaTopicsDescriptorTest {
 	private List<String> fixedTopics;
 	boolean expected;
 
-	public KafkaTopicsDescriptorTest(String topic, Pattern topicPattern, List<String> fixedTopics, boolean expected){
+	public KafkaTopicsDescriptorTest(String topic, Pattern topicPattern, List<String> fixedTopics, boolean expected) {
 		this.topic = topic;
 		this.topicPattern = topicPattern;
 		this.fixedTopics = fixedTopics;
@@ -53,7 +56,7 @@ public class KafkaTopicsDescriptorTest {
 	}
 
 	@Test
-	public void TestIsMatchingTopic() {
+	public void testIsMatchingTopic() {
 		KafkaTopicsDescriptor topicsDescriptor = new KafkaTopicsDescriptor(fixedTopics, topicPattern);
 
 		Assert.assertEquals(expected, topicsDescriptor.isMatchingTopic(topic));
