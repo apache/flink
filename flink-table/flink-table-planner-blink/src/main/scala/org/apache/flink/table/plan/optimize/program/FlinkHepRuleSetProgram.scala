@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.plan.optimize.program
 
-import org.apache.flink.table.plan.optimize.program
 import org.apache.flink.table.plan.optimize.program.HEP_RULES_EXECUTION_TYPE.HEP_RULES_EXECUTION_TYPE
 import org.apache.flink.util.Preconditions
 

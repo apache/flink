@@ -45,7 +45,7 @@ abstract class FlinkRuleSetProgram[OC <: OptimizeContext] extends FlinkOptimizeP
     Preconditions.checkNotNull(ruleSet)
     ruleSet.foreach { rule =>
       if (!contains(rule)) {
-        rules += rule
+        rules.add(rule)
       }
     }
   }
