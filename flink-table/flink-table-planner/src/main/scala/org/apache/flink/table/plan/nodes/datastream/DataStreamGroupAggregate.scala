@@ -17,11 +17,14 @@
  */
 package org.apache.flink.table.plan.nodes.datastream
 
+import java.lang.{Byte => JByte}
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
 import org.apache.flink.table.codegen.AggregationCodeGenerator
 import org.apache.flink.table.plan.nodes.CommonAggregate
@@ -32,6 +35,7 @@ import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.util.Logging
+import org.apache.flink.types.Row
 
 /**
   *
@@ -131,23 +135,25 @@ class DataStreamGroupAggregate(
       s"select: ($aggString)"
     val nonKeyedAggOpName = s"select: ($aggString)"
 
-    val processFunction = AggregateUtil.createGroupAggregateFunction(
-      generator,
-      namedAggregates,
-      inputSchema.relDataType,
-      inputSchema.fieldTypeInfos,
-      groupings,
-      queryConfig,
-      tableEnv.getConfig,
-      DataStreamRetractionRules.isAccRetract(this),
-      DataStreamRetractionRules.isAccRetract(getInput))
+    def createKeyedProcessFunction[K]: KeyedProcessFunction[K, CRow, CRow] = {
+      AggregateUtil.createGroupAggregateFunction[K](
+        generator,
+        namedAggregates,
+        inputSchema.relDataType,
+        inputSchema.fieldTypeInfos,
+        groupings,
+        queryConfig,
+        tableEnv.getConfig,
+        DataStreamRetractionRules.isAccRetract(this),
+        DataStreamRetractionRules.isAccRetract(getInput))
+    }
 
     val result: DataStream[CRow] =
     // grouped / keyed aggregation
       if (groupings.nonEmpty) {
         inputDS
         .keyBy(new CRowKeySelector(groupings, inputSchema.projectedTypeInfo(groupings)))
-        .process(processFunction)
+        .process(createKeyedProcessFunction[Row])
         .returns(outRowType)
         .name(keyedAggOpName)
         .asInstanceOf[DataStream[CRow]]
@@ -156,7 +162,7 @@ class DataStreamGroupAggregate(
       else {
         inputDS
         .keyBy(new NullByteKeySelector[CRow])
-        .process(processFunction)
+        .process(createKeyedProcessFunction[JByte])
         .setParallelism(1)
         .setMaxParallelism(1)
         .returns(outRowType)

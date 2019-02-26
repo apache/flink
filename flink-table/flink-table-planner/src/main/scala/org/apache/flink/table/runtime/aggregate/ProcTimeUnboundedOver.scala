@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.aggregate
 import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.CRow
@@ -34,11 +34,11 @@ import org.apache.flink.util.Collector
   * @param genAggregations Generated aggregate helper function
   * @param aggregationStateType     row type info of aggregation
   */
-class ProcTimeUnboundedOver(
+class ProcTimeUnboundedOver[K](
     genAggregations: GeneratedAggregationsFunction,
     aggregationStateType: RowTypeInfo,
     queryConfig: StreamQueryConfig)
-  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
+  extends ProcessFunctionWithCleanupState[K, CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations]
     with Logging {
 
@@ -67,7 +67,7 @@ class ProcTimeUnboundedOver(
 
   override def processElement(
     inputC: CRow,
-    ctx: ProcessFunction[CRow, CRow]#Context,
+    ctx: KeyedProcessFunction[K, CRow, CRow]#Context,
     out: Collector[CRow]): Unit = {
 
     // register state-cleanup timer
@@ -92,7 +92,7 @@ class ProcTimeUnboundedOver(
 
   override def onTimer(
     timestamp: Long,
-    ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
+    ctx: KeyedProcessFunction[K, CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
 
     if (stateCleaningEnabled) {

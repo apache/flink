@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.plan.nodes.datastream
 
+import java.lang.{Byte => JByte}
 import java.util.{List => JList}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -28,6 +29,7 @@ import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.AggregationCodeGenerator
@@ -39,6 +41,7 @@ import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.util.Logging
+import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
 
@@ -214,25 +217,27 @@ class DataStreamOverAggregate(
     // get the output types
     val returnTypeInfo = CRowTypeInfo(schema.typeInfo)
 
-    val processFunction = AggregateUtil.createUnboundedOverProcessFunction(
-      generator,
-      namedAggregates,
-      aggregateInputType,
-      inputSchema.relDataType,
-      inputSchema.typeInfo,
-      inputSchema.fieldTypeInfos,
-      queryConfig,
-      tableConfig,
-      rowTimeIdx,
-      partitionKeys.nonEmpty,
-      isRowsClause)
+    def createKeyedProcessFunction[K]: KeyedProcessFunction[K, CRow, CRow] = {
+      AggregateUtil.createUnboundedOverProcessFunction[K](
+        generator,
+        namedAggregates,
+        aggregateInputType,
+        inputSchema.relDataType,
+        inputSchema.typeInfo,
+        inputSchema.fieldTypeInfos,
+        queryConfig,
+        tableConfig,
+        rowTimeIdx,
+        partitionKeys.nonEmpty,
+        isRowsClause)
+    }
 
     val result: DataStream[CRow] =
     // partitioned aggregation
       if (partitionKeys.nonEmpty) {
         inputDS
           .keyBy(new CRowKeySelector(partitionKeys, inputSchema.projectedTypeInfo(partitionKeys)))
-          .process(processFunction)
+          .process(createKeyedProcessFunction[Row])
           .returns(returnTypeInfo)
           .name(aggOpName)
           .asInstanceOf[DataStream[CRow]]
@@ -240,7 +245,7 @@ class DataStreamOverAggregate(
       // non-partitioned aggregation
       else {
         inputDS.keyBy(new NullByteKeySelector[CRow])
-          .process(processFunction).setParallelism(1).setMaxParallelism(1)
+          .process(createKeyedProcessFunction[JByte]).setParallelism(1).setMaxParallelism(1)
           .returns(returnTypeInfo)
           .name(aggOpName)
       }
@@ -268,25 +273,28 @@ class DataStreamOverAggregate(
     // get the output types
     val returnTypeInfo = CRowTypeInfo(schema.typeInfo)
 
-    val processFunction = AggregateUtil.createBoundedOverProcessFunction(
-      generator,
-      namedAggregates,
-      aggregateInputType,
-      inputSchema.relDataType,
-      inputSchema.typeInfo,
-      inputSchema.fieldTypeInfos,
-      precedingOffset,
-      queryConfig,
-      tableConfig,
-      isRowsClause,
-      rowTimeIdx
-    )
+    def createKeyedProcessFunction[K]: KeyedProcessFunction[K, CRow, CRow] = {
+      AggregateUtil.createBoundedOverProcessFunction[K](
+        generator,
+        namedAggregates,
+        aggregateInputType,
+        inputSchema.relDataType,
+        inputSchema.typeInfo,
+        inputSchema.fieldTypeInfos,
+        precedingOffset,
+        queryConfig,
+        tableConfig,
+        isRowsClause,
+        rowTimeIdx
+      )
+    }
+
     val result: DataStream[CRow] =
     // partitioned aggregation
       if (partitionKeys.nonEmpty) {
         inputDS
           .keyBy(new CRowKeySelector(partitionKeys, inputSchema.projectedTypeInfo(partitionKeys)))
-          .process(processFunction)
+          .process(createKeyedProcessFunction[Row])
           .returns(returnTypeInfo)
           .name(aggOpName)
       }
@@ -294,7 +302,7 @@ class DataStreamOverAggregate(
       else {
         inputDS
           .keyBy(new NullByteKeySelector[CRow])
-          .process(processFunction).setParallelism(1).setMaxParallelism(1)
+          .process(createKeyedProcessFunction[JByte]).setParallelism(1).setMaxParallelism(1)
           .returns(returnTypeInfo)
           .name(aggOpName)
       }

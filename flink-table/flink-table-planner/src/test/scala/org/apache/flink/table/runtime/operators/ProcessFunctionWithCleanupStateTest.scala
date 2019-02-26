@@ -23,8 +23,8 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.runtime.aggregate.ProcessFunctionWithCleanupState
 import org.apache.flink.table.runtime.harness.HarnessTestBase
@@ -39,8 +39,8 @@ class ProcessFunctionWithCleanupStateTest extends HarnessTestBase {
   def testStateCleaning(): Unit = {
     val queryConfig = new TestStreamQueryConfig(Time.milliseconds(5), Time.milliseconds(10))
 
-    val func = new MockedProcessFunction(queryConfig)
-    val operator = new LegacyKeyedProcessOperator(func)
+    val func = new MockedProcessFunction[String](queryConfig)
+    val operator = new KeyedProcessOperator(func)
 
     val testHarness = createHarnessTester(operator,
       new FirstFieldSelector,
@@ -93,8 +93,8 @@ class ProcessFunctionWithCleanupStateTest extends HarnessTestBase {
   }
 }
 
-private class MockedProcessFunction(queryConfig: StreamQueryConfig)
-    extends ProcessFunctionWithCleanupState[(String, String), String](queryConfig) {
+private class MockedProcessFunction[K](queryConfig: StreamQueryConfig)
+    extends ProcessFunctionWithCleanupState[K, (String, String), String](queryConfig) {
 
   var state: ValueState[String] = _
 
@@ -106,7 +106,7 @@ private class MockedProcessFunction(queryConfig: StreamQueryConfig)
 
   override def processElement(
       value: (String, String),
-      ctx: ProcessFunction[(String, String), String]#Context,
+      ctx: KeyedProcessFunction[K, (String, String), String]#Context,
       out: Collector[String]): Unit = {
 
     val curTime = ctx.timerService().currentProcessingTime()
@@ -116,7 +116,7 @@ private class MockedProcessFunction(queryConfig: StreamQueryConfig)
 
   override def onTimer(
       timestamp: Long,
-      ctx: ProcessFunction[(String, String), String]#OnTimerContext,
+      ctx: KeyedProcessFunction[K, (String, String), String]#OnTimerContext,
       out: Collector[String]): Unit = {
 
     if (stateCleaningEnabled) {

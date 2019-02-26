@@ -24,7 +24,7 @@ import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{ListTypeInfo, RowTypeInfo}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
@@ -41,14 +41,14 @@ import org.apache.flink.util.{Collector, Preconditions}
   * @param inputRowType             row type info of input row
   * @param precedingOffset          preceding offset
  */
-class RowTimeBoundedRowsOver(
+class RowTimeBoundedRowsOver[K](
     genAggregations: GeneratedAggregationsFunction,
     aggregationStateType: RowTypeInfo,
     inputRowType: CRowTypeInfo,
     precedingOffset: Long,
     rowTimeIdx: Int,
     queryConfig: StreamQueryConfig)
-  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
+  extends ProcessFunctionWithCleanupState[K, CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations]
     with Logging {
 
@@ -117,7 +117,7 @@ class RowTimeBoundedRowsOver(
 
   override def processElement(
     inputC: CRow,
-    ctx: ProcessFunction[CRow, CRow]#Context,
+    ctx: KeyedProcessFunction[K, CRow, CRow]#Context,
     out: Collector[CRow]): Unit = {
 
     val input = inputC.row
@@ -148,7 +148,7 @@ class RowTimeBoundedRowsOver(
 
   override def onTimer(
     timestamp: Long,
-    ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
+    ctx: KeyedProcessFunction[K, CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
 
     if (isProcessingTimeTimer(ctx.asInstanceOf[OnTimerContext])) {

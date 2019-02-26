@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.table.api.scala._
@@ -45,8 +45,8 @@ class GroupAggregateHarnessTest extends HarnessTestBase {
   @Test
   def testAggregate(): Unit = {
 
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new GroupAggProcessFunction(
+    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+      new GroupAggProcessFunction[String](
         genSumAggFunction,
         sumAggregationStateType,
         false,
@@ -104,8 +104,8 @@ class GroupAggregateHarnessTest extends HarnessTestBase {
   @Test
   def testAggregateWithRetract(): Unit = {
 
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new GroupAggProcessFunction(
+    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+      new GroupAggProcessFunction[String](
         genSumAggFunction,
         sumAggregationStateType,
         true,
@@ -211,7 +211,7 @@ class GroupAggregateHarnessTest extends HarnessTestBase {
     val fields = getGeneratedAggregationFields(
       operator,
       "function",
-      classOf[GroupAggProcessFunction])
+      classOf[GroupAggProcessFunction[Row]])
 
     // check only one DistinctAccumulator is used
     assertTrue(fields.count(_.getName.endsWith("distinctValueMap_dataview")) == 1)
@@ -301,7 +301,7 @@ class GroupAggregateHarnessTest extends HarnessTestBase {
     val fields = getGeneratedAggregationFields(
       operator,
       "function",
-      classOf[GroupAggProcessFunction])
+      classOf[GroupAggProcessFunction[Row]])
 
     // check only one DistinctAccumulator is used
     assertTrue(fields.count(_.getName.endsWith("distinctValueMap_dataview")) == 1)

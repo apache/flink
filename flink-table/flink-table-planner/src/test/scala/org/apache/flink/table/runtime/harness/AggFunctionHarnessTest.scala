@@ -71,7 +71,7 @@ class AggFunctionHarnessTest extends HarnessTestBase {
     val state = getState(
       operator,
       "function",
-      classOf[GroupAggProcessFunction],
+      classOf[GroupAggProcessFunction[Row]],
       "acc0_map_dataview").asInstanceOf[MapView[JInt, JInt]]
     assertTrue(state.isInstanceOf[StateMapView[_, _]])
     assertTrue(operator.getKeyedStateBackend.isInstanceOf[RocksDBKeyedStateBackend[_]])
@@ -136,12 +136,12 @@ class AggFunctionHarnessTest extends HarnessTestBase {
     val minState = getState(
       operator,
       "function",
-      classOf[GroupAggProcessFunction],
+      classOf[GroupAggProcessFunction[Row]],
       "acc0_map_dataview").asInstanceOf[MapView[JInt, JInt]]
     val maxState = getState(
       operator,
       "function",
-      classOf[GroupAggProcessFunction],
+      classOf[GroupAggProcessFunction[Row]],
       "acc1_map_dataview").asInstanceOf[MapView[JInt, JInt]]
     assertTrue(minState.isInstanceOf[StateMapView[_, _]])
     assertTrue(maxState.isInstanceOf[StateMapView[_, _]])

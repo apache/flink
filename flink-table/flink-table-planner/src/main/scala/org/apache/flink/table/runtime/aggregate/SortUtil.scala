@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
+import java.lang.{Byte => JByte}
+
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rel.RelFieldCollation
@@ -25,7 +27,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.java.typeutils.runtime.RowComparator
 import org.apache.flink.api.common.typeutils.TypeSerializer
@@ -59,7 +61,7 @@ object SortUtil {
     collationSort: RelCollation,
     inputType: RelDataType,
     inputTypeInfo: TypeInformation[Row],
-    execCfg: ExecutionConfig): ProcessFunction[CRow, CRow] = {
+    execCfg: ExecutionConfig): KeyedProcessFunction[JByte, CRow, CRow] = {
 
     Preconditions.checkArgument(collationSort.getFieldCollations.size() > 0)
     val rowtimeIdx = collationSort.getFieldCollations.get(0).getFieldIndex
@@ -78,7 +80,7 @@ object SortUtil {
 
     val inputCRowType = CRowTypeInfo(inputTypeInfo)
  
-    new RowTimeSortProcessFunction(
+    new RowTimeSortProcessFunction[JByte](
       inputCRowType,
       rowtimeIdx,
       collectionRowComparator)
@@ -97,7 +99,7 @@ object SortUtil {
     collationSort: RelCollation,
     inputType: RelDataType,
     inputTypeInfo: TypeInformation[Row],
-    execCfg: ExecutionConfig): ProcessFunction[CRow, CRow] = {
+    execCfg: ExecutionConfig): KeyedProcessFunction[JByte, CRow, CRow] = {
 
     val rowComp = createRowComparator(
       inputType,
