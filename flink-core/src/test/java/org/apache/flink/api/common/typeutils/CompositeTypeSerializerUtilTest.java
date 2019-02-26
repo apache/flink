@@ -19,8 +19,10 @@
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil.IntermediateCompatibilityResult;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.testutils.migration.SchemaCompatibilityTestingSerializer;
+import org.apache.flink.testutils.migration.SchemaCompatibilityTestingSerializer.SchemaCompatibilityTestingSnapshot;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -38,13 +40,13 @@ public class CompositeTypeSerializerUtilTest {
 	@Test
 	public void testCompatibleAsIsIntermediateCompatibilityResult() {
 		final TypeSerializerSnapshot<?>[] testSerializerSnapshots = new TypeSerializerSnapshot<?>[] {
-			new SchemaCompatibilityTestingSerializer.InitialSerializer().snapshotConfiguration(),
-			new SchemaCompatibilityTestingSerializer.InitialSerializer().snapshotConfiguration(),
+			SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializer("first serializer"),
+			SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializer("second serializer"),
 		};
 
 		final TypeSerializer<?>[] testNewSerializers = new TypeSerializer<?>[] {
-			new SchemaCompatibilityTestingSerializer.InitialSerializer(),
-			new SchemaCompatibilityTestingSerializer.InitialSerializer(),
+			new SchemaCompatibilityTestingSerializer("first serializer"),
+			new SchemaCompatibilityTestingSerializer("second serializer"),
 		};
 
 		IntermediateCompatibilityResult<?> intermediateCompatibilityResult =
@@ -58,39 +60,39 @@ public class CompositeTypeSerializerUtilTest {
 	@Test
 	public void testCompatibleWithReconfiguredSerializerIntermediateCompatibilityResult() {
 		final TypeSerializerSnapshot<?>[] testSerializerSnapshots = new TypeSerializerSnapshot<?>[] {
-			new SchemaCompatibilityTestingSerializer.InitialSerializer().snapshotConfiguration(),
-			new SchemaCompatibilityTestingSerializer.InitialSerializer().snapshotConfiguration(),
+			SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializer("a"),
+			SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializerAfterReconfiguration("b"),
 		};
 
 		final TypeSerializer<?>[] testNewSerializers = new TypeSerializer<?>[] {
-			new SchemaCompatibilityTestingSerializer.InitialSerializer(),
-			new SchemaCompatibilityTestingSerializer.ReconfigurationRequiringSerializer<>(),
+			new SchemaCompatibilityTestingSerializer("a"),
+			new SchemaCompatibilityTestingSerializer("b"),
 		};
 
 		IntermediateCompatibilityResult<?> intermediateCompatibilityResult =
 			CompositeTypeSerializerUtil.constructIntermediateCompatibilityResult(testNewSerializers, testSerializerSnapshots);
 
-		assertTrue(intermediateCompatibilityResult.isCompatibleWithReconfiguredSerializer());
-
 		final TypeSerializer<?>[] expectedReconfiguredNestedSerializers = new TypeSerializer<?>[] {
-			new SchemaCompatibilityTestingSerializer.InitialSerializer(),
-			new SchemaCompatibilityTestingSerializer.InitialSerializer(),
+			new SchemaCompatibilityTestingSerializer("a"),
+			new SchemaCompatibilityTestingSerializer("b"),
 		};
+
+		assertTrue(intermediateCompatibilityResult.isCompatibleWithReconfiguredSerializer());
 		assertArrayEquals(expectedReconfiguredNestedSerializers, intermediateCompatibilityResult.getNestedSerializers());
 	}
 
 	@Test
 	public void testCompatibleAfterMigrationIntermediateCompatibilityResult() {
 		final TypeSerializerSnapshot<?>[] testSerializerSnapshots = new TypeSerializerSnapshot<?>[] {
-			new SchemaCompatibilityTestingSerializer.InitialSerializer().snapshotConfiguration(),
-			new SchemaCompatibilityTestingSerializer.InitialSerializer().snapshotConfiguration(),
-			new SchemaCompatibilityTestingSerializer.InitialSerializer().snapshotConfiguration(),
+			SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializerAfterReconfiguration("a"),
+			SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializerAfterMigration("b"),
+			SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializer("c"),
 		};
 
 		final TypeSerializer<?>[] testNewSerializers = new TypeSerializer<?>[] {
-			new SchemaCompatibilityTestingSerializer.ReconfigurationRequiringSerializer<>(),
-			new SchemaCompatibilityTestingSerializer.UpgradedSchemaSerializer<>(),
-			new SchemaCompatibilityTestingSerializer.InitialSerializer()
+			new SchemaCompatibilityTestingSerializer("a"),
+			new SchemaCompatibilityTestingSerializer("b"),
+			new SchemaCompatibilityTestingSerializer("c")
 		};
 
 		IntermediateCompatibilityResult<?> intermediateCompatibilityResult =
@@ -103,17 +105,17 @@ public class CompositeTypeSerializerUtilTest {
 	@Test
 	public void testIncompatibleIntermediateCompatibilityResult() {
 		final TypeSerializerSnapshot<?>[] testSerializerSnapshots = new TypeSerializerSnapshot<?>[] {
-			new SchemaCompatibilityTestingSerializer.InitialSerializer().snapshotConfiguration(),
-			new SchemaCompatibilityTestingSerializer.InitialSerializer().snapshotConfiguration(),
-			new SchemaCompatibilityTestingSerializer.InitialSerializer().snapshotConfiguration(),
-			new SchemaCompatibilityTestingSerializer.InitialSerializer().snapshotConfiguration(),
+			SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializer(),
+			SchemaCompatibilityTestingSnapshot.thatIsIncompatibleWithTheNextSerializer(),
+			SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializerAfterReconfiguration(),
+			SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializerAfterMigration(),
 		};
 
 		final TypeSerializer<?>[] testNewSerializers = new TypeSerializer<?>[] {
-			new SchemaCompatibilityTestingSerializer.InitialSerializer(),
-			new SchemaCompatibilityTestingSerializer.IncompatibleSerializer<>(),
-			new SchemaCompatibilityTestingSerializer.ReconfigurationRequiringSerializer<>(),
-			new SchemaCompatibilityTestingSerializer.UpgradedSchemaSerializer()
+			new SchemaCompatibilityTestingSerializer(),
+			new SchemaCompatibilityTestingSerializer(),
+			new SchemaCompatibilityTestingSerializer(),
+			new SchemaCompatibilityTestingSerializer()
 		};
 
 		IntermediateCompatibilityResult<?> intermediateCompatibilityResult =
