@@ -30,6 +30,7 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -268,13 +269,13 @@ public class DataStreamAllroundTestJobFactory {
 				STATE_BACKEND_FILE_ASYNC.key(),
 				STATE_BACKEND_FILE_ASYNC.defaultValue());
 
-			env.setStateBackend(new FsStateBackend(checkpointDir, asyncCheckpoints));
+			env.setStateBackend((StateBackend) new FsStateBackend(checkpointDir, asyncCheckpoints));
 		} else if ("rocks".equalsIgnoreCase(stateBackend)) {
 			boolean incrementalCheckpoints = pt.getBoolean(
 				STATE_BACKEND_ROCKS_INCREMENTAL.key(),
 				STATE_BACKEND_ROCKS_INCREMENTAL.defaultValue());
 
-			env.setStateBackend(new RocksDBStateBackend(checkpointDir, incrementalCheckpoints));
+			env.setStateBackend((StateBackend) new RocksDBStateBackend(checkpointDir, incrementalCheckpoints));
 		} else {
 			throw new IllegalArgumentException("Unknown backend requested: " + stateBackend);
 		}
@@ -441,7 +442,7 @@ public class DataStreamAllroundTestJobFactory {
 		return new ArtificalOperatorStateMapper<>(mapFunction);
 	}
 
-	static <IN, STATE> ArtificialStateBuilder<IN> createValueStateBuilder(
+	private static <IN, STATE> ArtificialStateBuilder<IN> createValueStateBuilder(
 		JoinFunction<IN, STATE, STATE> inputAndOldStateToNewState,
 		ValueStateDescriptor<STATE> valueStateDescriptor) {
 
@@ -451,7 +452,7 @@ public class DataStreamAllroundTestJobFactory {
 			valueStateDescriptor);
 	}
 
-	static <IN, STATE> ArtificialStateBuilder<IN> createListStateBuilder(
+	private static <IN, STATE> ArtificialStateBuilder<IN> createListStateBuilder(
 		JoinFunction<IN, STATE, STATE> inputAndOldStateToNewState,
 		ListStateDescriptor<STATE> listStateDescriptor) {
 
