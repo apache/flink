@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{ RelNode, RelWriter }
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.runtime.aggregate._
@@ -34,6 +34,7 @@ import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, Ta
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.nodes.CommonSort
 import org.apache.calcite.rel.core.Sort
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 
 /**
  * Flink RelNode which matches along with Sort Rule.
@@ -146,14 +147,14 @@ class DataStreamSort(
     // if the order has secondary sorting fields in addition to the proctime
     if (sortCollation.getFieldCollations.size() > 1) {
     
-      val processFunction = SortUtil.createProcTimeSortFunction(
+      val KeyedProcessFunction = SortUtil.createProcTimeSortFunction(
         sortCollation,
         inputSchema.relDataType,
         inputSchema.typeInfo,
         execCfg)
       
       inputDS.keyBy(new NullByteKeySelector[CRow])
-        .process(processFunction).setParallelism(1).setMaxParallelism(1)
+        .process(KeyedProcessFunction).setParallelism(1).setMaxParallelism(1)
         .returns(returnTypeInfo)
         .asInstanceOf[DataStream[CRow]]
     } else {
@@ -175,14 +176,14 @@ class DataStreamSort(
 
     val returnTypeInfo = CRowTypeInfo(schema.typeInfo)
        
-    val processFunction = SortUtil.createRowTimeSortFunction(
+    val keyedProcessFunction = SortUtil.createRowTimeSortFunction(
       sortCollation,
       inputSchema.relDataType,
       inputSchema.typeInfo,
       execCfg)
-      
+
     inputDS.keyBy(new NullByteKeySelector[CRow])
-      .process(processFunction).setParallelism(1).setMaxParallelism(1)
+      .process(keyedProcessFunction).setParallelism(1).setMaxParallelism(1)
       .returns(returnTypeInfo)
       .asInstanceOf[DataStream[CRow]]
        

@@ -30,7 +30,7 @@ import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFuncti
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala.typeutils.Types
-import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
 import org.apache.flink.table.api.dataview.DataViewSpec
@@ -72,7 +72,7 @@ object AggregateUtil {
     * @param isPartitioned It is a tag that indicate whether the input is partitioned
     * @param isRowsClause It is a tag that indicates whether the OVER clause is ROWS clause
     */
-  private[flink] def createUnboundedOverProcessFunction(
+  private[flink] def createUnboundedOverProcessFunction[K](
       generator: AggregationCodeGenerator,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       aggregateInputType: RelDataType,
@@ -84,7 +84,7 @@ object AggregateUtil {
       rowTimeIdx: Option[Int],
       isPartitioned: Boolean,
       isRowsClause: Boolean)
-    : ProcessFunction[CRow, CRow] = {
+    : KeyedProcessFunction[K, CRow, CRow] = {
 
     val aggregateMetadata = extractAggregateMetadata(
         namedAggregates.map(_.getKey),
@@ -123,7 +123,7 @@ object AggregateUtil {
     if (rowTimeIdx.isDefined) {
       if (isRowsClause) {
         // ROWS unbounded over process function
-        new RowTimeUnboundedRowsOver(
+        new RowTimeUnboundedRowsOver[K](
           genFunction,
           aggregationStateType,
           CRowTypeInfo(inputTypeInfo),
@@ -131,7 +131,7 @@ object AggregateUtil {
           queryConfig)
       } else {
         // RANGE unbounded over process function
-        new RowTimeUnboundedRangeOver(
+        new RowTimeUnboundedRangeOver[K](
           genFunction,
           aggregationStateType,
           CRowTypeInfo(inputTypeInfo),
@@ -139,7 +139,7 @@ object AggregateUtil {
           queryConfig)
       }
     } else {
-      new ProcTimeUnboundedOver(
+      new ProcTimeUnboundedOver[K](
         genFunction,
         aggregationStateType,
         queryConfig)
@@ -160,7 +160,7 @@ object AggregateUtil {
     * @param consumeRetraction It is a tag that indicates whether consume the retract record.
     * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
     */
-  private[flink] def createGroupAggregateFunction(
+  private[flink] def createGroupAggregateFunction[K](
       generator: AggregationCodeGenerator,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputRowType: RelDataType,
@@ -169,7 +169,7 @@ object AggregateUtil {
       queryConfig: StreamQueryConfig,
       tableConfig: TableConfig,
       generateRetraction: Boolean,
-      consumeRetraction: Boolean): ProcessFunction[CRow, CRow] = {
+      consumeRetraction: Boolean): KeyedProcessFunction[K, CRow, CRow] = {
 
     val aggregateMetadata = extractAggregateMetadata(
         namedAggregates.map(_.getKey),
@@ -202,7 +202,7 @@ object AggregateUtil {
 
     val aggregationStateType: RowTypeInfo = new RowTypeInfo(aggregateMetadata
       .getAggregatesAccumulatorTypes: _*)
-    new GroupAggProcessFunction(
+    new GroupAggProcessFunction[K](
       genFunction,
       aggregationStateType,
       generateRetraction,
@@ -225,7 +225,7 @@ object AggregateUtil {
     * @param rowTimeIdx      The index of the rowtime field or None in case of processing time.
     * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
     */
-  private[flink] def createBoundedOverProcessFunction(
+  private[flink] def createBoundedOverProcessFunction[K](
       generator: AggregationCodeGenerator,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       aggregateInputType: RelDataType,
@@ -237,7 +237,7 @@ object AggregateUtil {
       tableConfig: TableConfig,
       isRowsClause: Boolean,
       rowTimeIdx: Option[Int])
-    : ProcessFunction[CRow, CRow] = {
+    : KeyedProcessFunction[K, CRow, CRow] = {
 
     val needRetract = true
     val aggregateMetadata = extractAggregateMetadata(
@@ -277,7 +277,7 @@ object AggregateUtil {
       .getAggregatesAccumulatorTypes: _*)
     if (rowTimeIdx.isDefined) {
       if (isRowsClause) {
-        new RowTimeBoundedRowsOver(
+        new RowTimeBoundedRowsOver[K](
           genFunction,
           aggregationStateType,
           inputRowType,
@@ -285,7 +285,7 @@ object AggregateUtil {
           rowTimeIdx.get,
           queryConfig)
       } else {
-        new RowTimeBoundedRangeOver(
+        new RowTimeBoundedRangeOver[K](
           genFunction,
           aggregationStateType,
           inputRowType,
@@ -295,14 +295,14 @@ object AggregateUtil {
       }
     } else {
       if (isRowsClause) {
-        new ProcTimeBoundedRowsOver(
+        new ProcTimeBoundedRowsOver[K](
           genFunction,
           precedingOffset,
           aggregationStateType,
           inputRowType,
           queryConfig)
       } else {
-        new ProcTimeBoundedRangeOver(
+        new ProcTimeBoundedRangeOver[K](
           genFunction,
           precedingOffset,
           aggregationStateType,

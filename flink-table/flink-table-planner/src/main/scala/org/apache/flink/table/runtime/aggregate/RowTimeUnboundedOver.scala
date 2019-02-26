@@ -24,7 +24,7 @@ import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
@@ -41,13 +41,13 @@ import org.apache.flink.util.Collector
   * @param intermediateType         the intermediate row tye which the state saved
   * @param inputType                the input row tye which the state saved
   */
-abstract class RowTimeUnboundedOver(
+abstract class RowTimeUnboundedOver[K](
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[CRow],
     rowTimeIdx: Int,
     queryConfig: StreamQueryConfig)
-  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
+  extends ProcessFunctionWithCleanupState[K, CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations]
     with Logging {
 
@@ -102,7 +102,7 @@ abstract class RowTimeUnboundedOver(
     */
   override def processElement(
      inputC: CRow,
-     ctx:  ProcessFunction[CRow, CRow]#Context,
+     ctx:  KeyedProcessFunction[K, CRow, CRow]#Context,
      out: Collector[CRow]): Unit = {
 
     val input = inputC.row
@@ -139,7 +139,7 @@ abstract class RowTimeUnboundedOver(
     */
   override def onTimer(
       timestamp: Long,
-      ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
+      ctx: KeyedProcessFunction[K, CRow, CRow]#OnTimerContext,
       out: Collector[CRow]): Unit = {
 
     if (isProcessingTimeTimer(ctx.asInstanceOf[OnTimerContext])) {
@@ -251,13 +251,13 @@ abstract class RowTimeUnboundedOver(
   * A ProcessFunction to support unbounded ROWS window.
   * The ROWS clause defines on a physical level how many rows are included in a window frame.
   */
-class RowTimeUnboundedRowsOver(
+class RowTimeUnboundedRowsOver[K](
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[CRow],
     rowTimeIdx: Int,
     queryConfig: StreamQueryConfig)
-  extends RowTimeUnboundedOver(
+  extends RowTimeUnboundedOver[K](
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
     inputType,
@@ -292,13 +292,13 @@ class RowTimeUnboundedRowsOver(
   * The RANGE option includes all the rows within the window frame
   * that have the same ORDER BY values as the current row.
   */
-class RowTimeUnboundedRangeOver(
+class RowTimeUnboundedRangeOver[K](
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[CRow],
     rowTimeIdx: Int,
     queryConfig: StreamQueryConfig)
-  extends RowTimeUnboundedOver(
+  extends RowTimeUnboundedOver[K](
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
     inputType,

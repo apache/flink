@@ -23,7 +23,7 @@ import org.apache.flink.api.common.state.{MapState, MapStateDescriptor, ValueSta
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
@@ -36,11 +36,11 @@ import org.apache.flink.util.{Collector, Preconditions}
   * @param rowtimeIdx The index of the rowtime field.
   * @param rowComparator A comparator to sort rows.
  */
-class RowTimeSortProcessFunction(
+class RowTimeSortProcessFunction[K](
     private val inputRowType: CRowTypeInfo,
     private val rowtimeIdx: Int,
     private val rowComparator: Option[CollectionRowComparator])
-  extends ProcessFunction[CRow, CRow] {
+  extends KeyedProcessFunction[K, CRow, CRow] {
 
   Preconditions.checkNotNull(rowComparator)
 
@@ -77,7 +77,7 @@ class RowTimeSortProcessFunction(
   
   override def processElement(
     inputC: CRow,
-    ctx: ProcessFunction[CRow, CRow]#Context,
+    ctx: KeyedProcessFunction[K, CRow, CRow]#Context,
     out: Collector[CRow]): Unit = {
 
     val input = inputC.row
@@ -107,7 +107,7 @@ class RowTimeSortProcessFunction(
 
   override def onTimer(
     timestamp: Long,
-    ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
+    ctx: KeyedProcessFunction[K, CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
 
     // remove timestamp set outside of ProcessFunction.

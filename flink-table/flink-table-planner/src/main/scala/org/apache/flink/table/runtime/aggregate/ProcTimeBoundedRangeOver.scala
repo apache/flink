@@ -19,7 +19,7 @@ package org.apache.flink.table.runtime.aggregate
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.state._
@@ -43,13 +43,13 @@ import org.apache.flink.table.util.Logging
   * @param aggregatesTypeInfo       row type info of aggregation
   * @param inputType                row type info of input row
   */
-class ProcTimeBoundedRangeOver(
+class ProcTimeBoundedRangeOver[K](
     genAggregations: GeneratedAggregationsFunction,
     precedingTimeBoundary: Long,
     aggregatesTypeInfo: RowTypeInfo,
     inputType: TypeInformation[CRow],
     queryConfig: StreamQueryConfig)
-  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
+  extends ProcessFunctionWithCleanupState[K, CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations]
     with Logging {
 
@@ -90,7 +90,7 @@ class ProcTimeBoundedRangeOver(
 
   override def processElement(
     input: CRow,
-    ctx: ProcessFunction[CRow, CRow]#Context,
+    ctx: KeyedProcessFunction[K, CRow, CRow]#Context,
     out: Collector[CRow]): Unit = {
 
     val currentTime = ctx.timerService.currentProcessingTime
@@ -114,7 +114,7 @@ class ProcTimeBoundedRangeOver(
 
   override def onTimer(
     timestamp: Long,
-    ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
+    ctx: KeyedProcessFunction[K, CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
 
     if (stateCleaningEnabled) {

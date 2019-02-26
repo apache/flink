@@ -28,7 +28,7 @@ import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.typeutils.runtime.RowComparator
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, TestHarnessUtil}
@@ -71,8 +71,8 @@ class SortProcessFunctionHarnessTest {
     
     val inputCRowType = CRowTypeInfo(rT)
     
-    val processFunction = new LegacyKeyedProcessOperator[Integer,CRow,CRow](
-      new ProcTimeSortProcessFunction(
+    val processFunction = new KeyedProcessOperator[Integer,CRow,CRow](
+      new ProcTimeSortProcessFunction[Integer](
         inputCRowType,
         collectionRowComparator))
   
@@ -170,8 +170,8 @@ class SortProcessFunctionHarnessTest {
 
     val inputCRowType = CRowTypeInfo(rT)
 
-    val processFunction = new LegacyKeyedProcessOperator[Integer,CRow,CRow](
-      new RowTimeSortProcessFunction(
+    val processFunction = new KeyedProcessOperator[Integer,CRow,CRow](
+      new RowTimeSortProcessFunction[Integer](
         inputCRowType,
         4,
         Some(collectionRowComparator)))

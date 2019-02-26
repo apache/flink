@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
 import org.apache.flink.table.runtime.aggregate._
@@ -40,8 +40,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
   @Test
   def testProcTimeBoundedRowsOver(): Unit = {
 
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new ProcTimeBoundedRowsOver(
+    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+      new ProcTimeBoundedRowsOver[String](
         genMinMaxAggFunction,
         2,
         minMaxAggregationStateType,
@@ -141,8 +141,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
   @Test
   def testProcTimeBoundedRangeOver(): Unit = {
 
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new ProcTimeBoundedRangeOver(
+    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+      new ProcTimeBoundedRangeOver[String](
         genMinMaxAggFunction,
         4000,
         minMaxAggregationStateType,
@@ -269,8 +269,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
   @Test
   def testProcTimeUnboundedOver(): Unit = {
 
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new ProcTimeUnboundedOver(
+    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+      new ProcTimeUnboundedOver[String](
         genMinMaxAggFunction,
         minMaxAggregationStateType,
         queryConfig))
@@ -361,8 +361,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
   @Test
   def testRowTimeBoundedRangeOver(): Unit = {
 
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new RowTimeBoundedRangeOver(
+    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+      new RowTimeBoundedRangeOver[String](
         genMinMaxAggFunction,
         minMaxAggregationStateType,
         minMaxCRowType,
@@ -511,8 +511,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
   @Test
   def testRowTimeBoundedRowsOver(): Unit = {
 
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new RowTimeBoundedRowsOver(
+    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+      new RowTimeBoundedRowsOver[String](
         genMinMaxAggFunction,
         minMaxAggregationStateType,
         minMaxCRowType,
@@ -659,8 +659,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
   @Test
   def testRowTimeUnboundedRangeOver(): Unit = {
 
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new RowTimeUnboundedRangeOver(
+    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+      new RowTimeUnboundedRangeOver[String](
         genMinMaxAggFunction,
         minMaxAggregationStateType,
         minMaxCRowType,
@@ -795,8 +795,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
   @Test
   def testRowTimeUnboundedRowsOver(): Unit = {
 
-    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
-      new RowTimeUnboundedRowsOver(
+    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+      new RowTimeUnboundedRowsOver[String](
         genMinMaxAggFunction,
         minMaxAggregationStateType,
         minMaxCRowType,
