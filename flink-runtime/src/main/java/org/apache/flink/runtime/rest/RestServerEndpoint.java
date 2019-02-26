@@ -57,6 +57,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.BindException;
 import java.net.InetSocketAddress;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -161,7 +162,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 					RouterHandler handler = new RouterHandler(router, responseHeaders);
 
 					// SSL should be the first handler in the pipeline
-					if (sslHandlerFactory != null) {
+					if (isHttpsEnabled()) {
 						ch.pipeline().addLast("ssl",
 							new RedirectingSslHandler(restAddress, restAddressFuture, sslHandlerFactory));
 					}
@@ -231,15 +232,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 			log.info("Rest endpoint listening at {}:{}", advertisedAddress, port);
 
-			final String protocol;
-
-			if (sslHandlerFactory != null) {
-				protocol = "https://";
-			} else {
-				protocol = "http://";
-			}
-
-			restBaseUrl = protocol + advertisedAddress + ':' + port;
+			restBaseUrl = new URL(determineProtocol(), advertisedAddress, port, "").toString();
 
 			restAddressFuture.complete(restBaseUrl);
 
@@ -407,6 +400,14 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 			return channelTerminationFuture;
 		}
+	}
+
+	private boolean isHttpsEnabled() {
+		return sslHandlerFactory != null;
+	}
+
+	private String determineProtocol() {
+		return isHttpsEnabled() ? "https" : "http";
 	}
 
 	private static void registerHandler(Router router, Tuple2<RestHandlerSpecification, ChannelInboundHandler> specificationHandler, Logger log) {
