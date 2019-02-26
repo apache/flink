@@ -32,8 +32,8 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.DirectoryStateHandle;
-import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.IncrementalLocalKeyedStateHandle;
+import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -318,8 +318,8 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 					materializedSstFiles.put(checkpointId, sstFiles.keySet());
 				}
 
-				final IncrementalKeyedStateHandle jmIncrementalKeyedStateHandle =
-					new IncrementalKeyedStateHandle(
+				final IncrementalRemoteKeyedStateHandle jmIncrementalKeyedStateHandle =
+					new IncrementalRemoteKeyedStateHandle(
 						backendUID,
 						keyGroupRange,
 						checkpointId,

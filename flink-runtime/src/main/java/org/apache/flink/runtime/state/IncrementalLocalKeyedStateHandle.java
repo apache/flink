@@ -27,11 +27,11 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * State handle for local copies of {@link IncrementalKeyedStateHandle}. Consists of a {@link DirectoryStateHandle} that
+ * State handle for local copies of {@link IncrementalRemoteKeyedStateHandle}. Consists of a {@link DirectoryStateHandle} that
  * represents the directory of the native RocksDB snapshot, the key groups, and a stream state handle for Flink's state
  * meta data file.
  */
-public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle {
+public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle implements IncrementalKeyedStateHandle {
 
 	private static final long serialVersionUID = 1L;
 
@@ -71,15 +71,18 @@ public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle 
 		return metaDataState;
 	}
 
+	@Override
 	public long getCheckpointId() {
 		return checkpointId;
 	}
 
+	@Override
 	@Nonnull
 	public UUID getBackendIdentifier() {
 		return backendIdentifier;
 	}
 
+	@Override
 	@Nonnull
 	public Set<StateHandleID> getSharedStateHandleIDs() {
 		return sharedStateHandleIDs;

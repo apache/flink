@@ -35,7 +35,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
+import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
@@ -66,8 +66,6 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.mockito.verification.VerificationMode;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -3488,7 +3486,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 					for (KeyedStateHandle keyedStateHandle : subtaskState.getManagedKeyedState()) {
 						// test we are once registered with the current registry
 						verify(keyedStateHandle, times(1)).registerSharedStates(createdSharedStateRegistries.get(0));
-						IncrementalKeyedStateHandle incrementalKeyedStateHandle = (IncrementalKeyedStateHandle) keyedStateHandle;
+						IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle = (IncrementalRemoteKeyedStateHandle) keyedStateHandle;
 
 						sharedHandlesByCheckpoint.get(cp).putAll(incrementalKeyedStateHandle.getSharedState());
 
@@ -3618,8 +3616,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StateHandleID("shared-" + cpSequenceNumber),
 				spy(new ByteStreamStateHandle("shared-" + cpSequenceNumber + "-" + keyGroupRange, new byte[]{'s'})));
 
-			IncrementalKeyedStateHandle managedState =
-				spy(new IncrementalKeyedStateHandle(
+			IncrementalRemoteKeyedStateHandle managedState =
+				spy(new IncrementalRemoteKeyedStateHandle(
 					new UUID(42L, 42L),
 					keyGroupRange,
 					checkpointId,

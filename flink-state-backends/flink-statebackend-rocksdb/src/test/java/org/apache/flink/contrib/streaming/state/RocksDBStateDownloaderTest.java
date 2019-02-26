@@ -21,7 +21,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
+import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -79,8 +79,8 @@ public class RocksDBStateDownloaderTest extends TestLogger {
 		Map<StateHandleID, StreamStateHandle> stateHandles = new HashMap<>(1);
 		stateHandles.put(new StateHandleID("state1"), stateHandle);
 
-		IncrementalKeyedStateHandle incrementalKeyedStateHandle =
-			new IncrementalKeyedStateHandle(
+		IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =
+			new IncrementalRemoteKeyedStateHandle(
 				UUID.randomUUID(),
 				KeyGroupRange.EMPTY_KEY_GROUP_RANGE,
 				1,
@@ -124,8 +124,8 @@ public class RocksDBStateDownloaderTest extends TestLogger {
 			privateStates.put(new StateHandleID(String.format("privateState%d", i)), handles.get(i));
 		}
 
-		IncrementalKeyedStateHandle incrementalKeyedStateHandle =
-			new IncrementalKeyedStateHandle(
+		IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =
+			new IncrementalRemoteKeyedStateHandle(
 				UUID.randomUUID(),
 				KeyGroupRange.of(0, 1),
 				1,
