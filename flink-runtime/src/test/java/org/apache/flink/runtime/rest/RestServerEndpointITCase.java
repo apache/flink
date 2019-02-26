@@ -147,13 +147,8 @@ public class RestServerEndpointITCase extends TestLogger {
 	public static Collection<Object[]> data() {
 		final Configuration config = getBaseConfig();
 
-		final ClassLoader classLoader = ClassLoader.getSystemClassLoader();
-		final String truststorePath = new File(classLoader
-			.getResource("local127.truststore")
-			.getFile()).getAbsolutePath();
-		final String keystorePath = new File(classLoader
-			.getResource("local127.keystore")
-			.getFile()).getAbsolutePath();
+		final String truststorePath = getTestResource("local127.truststore").getAbsolutePath();
+		final String keystorePath = getTestResource("local127.keystore").getAbsolutePath();
 
 		final Configuration sslConfig = new Configuration(config);
 		sslConfig.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
@@ -592,6 +587,15 @@ public class RestServerEndpointITCase extends TestLogger {
 			assertThat(serverEndpoint2.getServerAddress().getPort(), is(greaterThanOrEqualTo(portRangeStart)));
 			assertThat(serverEndpoint2.getServerAddress().getPort(), is(lessThanOrEqualTo(portRangeEnd)));
 		}
+	}
+
+	private static File getTestResource(final String fileName) {
+		final ClassLoader classLoader = ClassLoader.getSystemClassLoader();
+		final URL resource = classLoader.getResource(fileName);
+		if (resource == null) {
+			throw new IllegalArgumentException(String.format("Test resource %s does not exist", fileName));
+		}
+		return new File(resource.getFile());
 	}
 
 	private HttpURLConnection openHttpConnectionForUpload(final String boundary) throws IOException {
