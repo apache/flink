@@ -77,7 +77,7 @@ public class PojoField implements Serializable {
 		if (obj instanceof PojoField) {
 			PojoField other = (PojoField) obj;
 
-			return other.canEqual(this) && type.equals(other.type) &&
+			return type.equals(other.type) &&
 				Objects.equals(field, other.field);
 		} else {
 			return false;
@@ -87,9 +87,5 @@ public class PojoField implements Serializable {
 	@Override
 	public int hashCode() {
 		return Objects.hash(field, type);
-	}
-
-	public boolean canEqual(Object obj) {
-		return obj instanceof PojoField;
 	}
 }

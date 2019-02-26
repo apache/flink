@@ -23,10 +23,10 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
+import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -55,7 +55,7 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 			long autoWatermarkInterval,
 			ClassLoader userCodeClassLoader,
 			String taskNameWithSubtasks,
-			KeyedDeserializationSchema<T> deserializer,
+			KafkaDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
 			MetricGroup subtaskMetricGroup,

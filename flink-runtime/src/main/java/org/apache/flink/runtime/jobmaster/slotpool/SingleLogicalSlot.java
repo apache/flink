@@ -33,12 +33,11 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import java.util.function.Function;
 
 /**
- * Implementation of the {@link LogicalSlot} which is used by the {@link SlotPool}.
+ * Implementation of the {@link LogicalSlot} which is used by the {@link SlotPoolImpl}.
  */
-public class SingleLogicalSlot implements LogicalSlot, AllocatedSlot.Payload {
+public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
 
 	private static final AtomicReferenceFieldUpdater<SingleLogicalSlot, Payload> PAYLOAD_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
 		SingleLogicalSlot.class,
@@ -171,29 +170,25 @@ public class SingleLogicalSlot implements LogicalSlot, AllocatedSlot.Payload {
 
 	private void signalPayloadRelease(Throwable cause) {
 		tryAssignPayload(TERMINATED_PAYLOAD);
-		payload.failAsync(cause); //TODO this goes from the pool against the execution, has to by sync'ed back into the jm main thread
+		payload.fail(cause);
 	}
 
 	private void returnSlotToOwner(CompletableFuture<?> terminalStateFuture) {
 		terminalStateFuture
-			.handle((Object ignored, Throwable throwable) -> {
-				if (state == State.RELEASING) {
-					return slotOwner.returnAllocatedSlot(this);
-				} else {
-					return CompletableFuture.completedFuture(true);
-				}
-			})
-			.thenCompose(Function.identity())
-			.whenComplete( //TODO this could be inside the job master main thread, should be inside slot pool main thread
-				(Object ignored, Throwable throwable) -> {
-					markReleased();
+			.whenComplete((Object ignored, Throwable throwable) -> {
 
-					if (throwable != null) {
-						releaseFuture.completeExceptionally(throwable);
-					} else {
-						releaseFuture.complete(null);
-					}
-				});
+				if (state == State.RELEASING) {
+					slotOwner.returnLogicalSlot(this);
+				}
+
+				markReleased();
+
+				if (throwable != null) {
+					releaseFuture.completeExceptionally(throwable);
+				} else {
+					releaseFuture.complete(null);
+				}
+			});
 	}
 
 	private void markReleased() {

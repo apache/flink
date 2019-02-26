@@ -346,11 +346,6 @@ public class SharedBuffer<V> {
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			return true;
-		}
-
-		@Override
 		public int hashCode() {
 			return 37 * keySerializer.hashCode() + valueSerializer.hashCode();
 		}

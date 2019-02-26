@@ -59,10 +59,6 @@ class UnitSerializer extends TypeSerializerSingleton[Unit] {
 
   override def hashCode(): Int = classOf[UnitSerializer].hashCode
 
-  override def canEqual(obj: scala.Any): Boolean = {
-    obj.isInstanceOf[UnitSerializer]
-  }
-
   // -----------------------------------------------------------------------------------
 
   @Override

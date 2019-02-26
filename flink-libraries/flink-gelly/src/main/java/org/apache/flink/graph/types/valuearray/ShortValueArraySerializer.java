@@ -81,11 +81,6 @@ public final class ShortValueArraySerializer extends TypeSerializerSingleton<Sho
 		ShortValueArray.copyInternal(source, target);
 	}
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof ShortValueArraySerializer;
-	}
-
 	// ------------------------------------------------------------------------
 
 	@Override

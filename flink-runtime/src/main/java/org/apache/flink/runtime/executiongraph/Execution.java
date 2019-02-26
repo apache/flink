@@ -76,6 +76,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
@@ -516,21 +517,18 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			final SlotRequestId slotRequestId = new SlotRequestId();
 
-			final ComponentMainThreadExecutor mainThreadExecutor =
-				vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
-
 			final CompletableFuture<LogicalSlot> logicalSlotFuture =
 				preferredLocationsFuture.thenCompose(
 					(Collection<TaskManagerLocation> preferredLocations) ->
 						slotProvider.allocateSlot(
 							slotRequestId,
 							toSchedule,
-							queued,
 							new SlotProfile(
 								ResourceProfile.UNKNOWN,
 								preferredLocations,
 								previousAllocationIDs,
 								allPreviousExecutionGraphAllocationIds),
+							queued,
 							allocationTimeout));
 
 			// register call back to cancel slot request in case that the execution gets canceled
@@ -545,9 +543,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				});
 
 			// This forces calls to the slot pool back into the main thread, for normal and exceptional completion
-			return FutureUtils.handleAsyncIfNotDone(
-				logicalSlotFuture,
-				mainThreadExecutor,
+			return logicalSlotFuture.handle(
 				(LogicalSlot logicalSlot, Throwable failure) -> {
 
 					if (failure != null) {
@@ -633,27 +629,31 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
-			final CompletableFuture<Acknowledge> submitResultFuture = taskManagerGateway.submitTask(deployment, rpcTimeout);
-			ComponentMainThreadExecutor jobMasterMainThreadExecutor =
+			final ComponentMainThreadExecutor jobMasterMainThreadExecutor =
 				vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
 
-			FutureUtils.whenCompleteAsyncIfNotDone(
-				submitResultFuture,
-				jobMasterMainThreadExecutor,
-				(ack, failure) -> {
-					// only respond to the failure case
-					if (failure != null) {
-						if (failure instanceof TimeoutException) {
-							String taskname = vertex.getTaskNameWithSubtaskIndex() + " (" + attemptId + ')';
 
-							markFailed(new Exception(
-								"Cannot deploy task " + taskname + " - TaskManager (" + getAssignedResourceLocation()
-									+ ") not responding after a rpcTimeout of " + rpcTimeout, failure));
-						} else {
-							markFailed(failure);
+			// We run the submission in the future executor so that the serialization of large TDDs does not block
+			// the main thread and sync back to the main thread once submission is completed.
+			CompletableFuture.supplyAsync(() -> taskManagerGateway.submitTask(deployment, rpcTimeout), executor)
+				.thenCompose(Function.identity())
+				.whenCompleteAsync(
+					(ack, failure) -> {
+						// only respond to the failure case
+						if (failure != null) {
+							if (failure instanceof TimeoutException) {
+								String taskname = vertex.getTaskNameWithSubtaskIndex() + " (" + attemptId + ')';
+
+								markFailed(new Exception(
+									"Cannot deploy task " + taskname + " - TaskManager (" + getAssignedResourceLocation()
+										+ ") not responding after a rpcTimeout of " + rpcTimeout, failure));
+							} else {
+								markFailed(failure);
+							}
 						}
-					}
-				});
+					},
+					jobMasterMainThreadExecutor);
+
 		}
 		catch (Throwable t) {
 			markFailed(t);
@@ -703,8 +703,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			// these two are the common cases where we need to send a cancel call
 			else if (current == RUNNING || current == DEPLOYING) {
 				// try to transition to canceling, if successful, send the cancel call
-				if (transitionState(current, CANCELING)) {
-					sendCancelRpcCall();
+				if (startCancelling(NUM_CANCEL_CALL_TRIES)) {
 					return;
 				}
 				// else: fall through the loop
@@ -719,22 +718,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			}
 			else if (current == CREATED || current == SCHEDULED) {
 				// from here, we can directly switch to cancelled, because no task has been deployed
-				if (transitionState(current, CANCELED)) {
-
-					// we skip the canceling state. set the timestamp, for a consistent appearance
-					markTimestamp(CANCELING, getStateTimestamp(CANCELED));
-
-					// cancel the future in order to fail depending scheduling operations
-					taskManagerLocationFuture.cancel(false);
-
-					try {
-						vertex.getExecutionGraph().deregisterExecution(this);
-
-						releaseAssignedResource(new FlinkException("Execution " + this + " was cancelled."));
-					}
-					finally {
-						vertex.executionCanceled(this);
-					}
+				if (cancelAtomically()) {
 					return;
 				}
 				// else: fall through the loop
@@ -743,6 +727,33 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				throw new IllegalStateException(current.name());
 			}
 		}
+	}
+
+	public CompletableFuture<?> suspend() {
+		switch(state) {
+			case RUNNING:
+			case DEPLOYING:
+			case CREATED:
+			case SCHEDULED:
+				if (!cancelAtomically()) {
+					throw new IllegalStateException(
+						String.format("Could not directly go to %s from %s.", CANCELED.name(), state.name()));
+				}
+				break;
+			case CANCELING:
+				completeCancelling();
+				break;
+			case FINISHED:
+			case FAILED:
+				sendFailIntermediateResultPartitionsRpcCall();
+				break;
+			case CANCELED:
+				break;
+			default:
+				throw new IllegalStateException(state.name());
+		}
+
+		return releaseFuture;
 	}
 
 	private void scheduleConsumer(ExecutionVertex consumerVertex) {
@@ -764,7 +775,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		final int numConsumers = allConsumers.size();
 
 		if (numConsumers > 1) {
-			failSync(new IllegalStateException("Currently, only a single consumer group per partition is supported."));
+			fail(new IllegalStateException("Currently, only a single consumer group per partition is supported."));
 		}
 		else if (numConsumers == 0) {
 			return;
@@ -884,20 +895,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param t The exception that caused the task to fail.
 	 */
 	@Override
-	public void failAsync(Throwable t) {
-		ComponentMainThreadExecutor mainThreadExecutor = vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
-		mainThreadExecutor.execute(() -> failSync(t));
-	}
-
-	/**
-	 * This method fails the vertex due to an external condition. The task will move to state FAILED.
-	 * If the task was in state RUNNING or DEPLOYING before, it will send a cancel call to the TaskManager.
-	 * This method must be called from the current main thread, otherwise use {@link #failAsync(Throwable)}.
-	 *
-	 * @param t The exception that caused the task to fail.
-	 */
-	@Override
-	public void failSync(Throwable t) {
+	public void fail(Throwable t) {
 		processFail(t, false);
 	}
 
@@ -1035,7 +1033,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			else if (current == CANCELING) {
 				// we sent a cancel call, and the task manager finished before it arrived. We
 				// will never get a CANCELED call back from the job manager
-				cancelingComplete(userAccumulators, metrics);
+				completeCancelling(userAccumulators, metrics);
 				return;
 			}
 			else if (current == CANCELED || current == FAILED) {
@@ -1052,11 +1050,30 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 	}
 
-	void cancelingComplete() {
-		cancelingComplete(null, null);
+	private boolean cancelAtomically() {
+		if (startCancelling(0)) {
+			completeCancelling();
+			return true;
+		} else {
+			return false;
+		}
 	}
 
-	void cancelingComplete(Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics) {
+	private boolean startCancelling(int numberCancelRetries) {
+		if (transitionState(state, CANCELING)) {
+			taskManagerLocationFuture.cancel(false);
+			sendCancelRpcCall(numberCancelRetries);
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	void completeCancelling() {
+		completeCancelling(null, null);
+	}
+
+	void completeCancelling(Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics) {
 
 		// the taskmanagers can themselves cancel tasks without an external trigger, if they find that the
 		// network stack is canceled (for example by a failing / canceling receiver or sender
@@ -1074,14 +1091,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
 				if (transitionState(current, CANCELED)) {
-					try {
-						releaseAssignedResource(new FlinkException("Execution " + this + " was cancelled."));
-
-						vertex.getExecutionGraph().deregisterExecution(this);
-					}
-					finally {
-						vertex.executionCanceled(this);
-					}
+					finishCancellation();
 					return;
 				}
 
@@ -1097,6 +1107,15 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				}
 				return;
 			}
+		}
+	}
+
+	private void finishCancellation() {
+		try {
+			releaseAssignedResource(new FlinkException("Execution " + this + " was cancelled."));
+			vertex.getExecutionGraph().deregisterExecution(this);
+		} finally {
+			vertex.executionCanceled(this);
 		}
 	}
 
@@ -1156,7 +1175,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			}
 
 			if (current == CANCELING) {
-				cancelingComplete(userAccumulators, metrics);
+				completeCancelling(userAccumulators, metrics);
 				return false;
 			}
 
@@ -1181,7 +1200,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 					try {
 						if (assignedResource != null) {
-							sendCancelRpcCall();
+							sendCancelRpcCall(NUM_CANCEL_CALL_TRIES);
 						}
 					} catch (Throwable tt) {
 						// no reason this should ever happen, but log it to be safe
@@ -1220,7 +1239,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					// performs string concatenations
 					LOG.debug("Concurrent canceling/failing of {} while deployment was in progress.", getVertexWithAttempt());
 				}
-				sendCancelRpcCall();
+				sendCancelRpcCall(NUM_CANCEL_CALL_TRIES);
 			}
 			else {
 				String message = String.format("Concurrent unexpected state transition of task %s to %s while deployment was in progress.",
@@ -1231,7 +1250,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				}
 
 				// undo the deployment
-				sendCancelRpcCall();
+				sendCancelRpcCall(NUM_CANCEL_CALL_TRIES);
 
 				// record the failure
 				markFailed(new Exception(message));
@@ -1246,7 +1265,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 *
 	 * <p>The sending is tried up to NUM_CANCEL_CALL_TRIES times.
 	 */
-	private void sendCancelRpcCall() {
+	private void sendCancelRpcCall(int numberRetries) {
 		final LogicalSlot slot = assignedResource;
 
 		if (slot != null) {
@@ -1256,13 +1275,13 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			CompletableFuture<Acknowledge> cancelResultFuture = FutureUtils.retry(
 				() -> taskManagerGateway.cancelTask(attemptId, rpcTimeout),
-				NUM_CANCEL_CALL_TRIES,
+				numberRetries,
 				jobMasterMainThreadExecutor);
 
 			cancelResultFuture.whenComplete(
 				(ack, failure) -> {
 					if (failure != null) {
-						failSync(new Exception("Task could not be canceled.", failure));
+						fail(new Exception("Task could not be canceled.", failure));
 					}
 				});
 		}
@@ -1299,7 +1318,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				(ack, failure) -> {
 					// fail if there was a failure
 					if (failure != null) {
-						failSync(new IllegalStateException("Update task on TaskManager " + taskManagerLocation +
+						fail(new IllegalStateException("Update task on TaskManager " + taskManagerLocation +
 							" failed due to:", failure));
 					}
 				}, getVertex().getExecutionGraph().getJobMasterMainThreadExecutor());
@@ -1322,10 +1341,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			ComponentMainThreadExecutor jobMasterMainThreadExecutor =
 				getVertex().getExecutionGraph().getJobMasterMainThreadExecutor();
 
-			FutureUtils.whenCompleteAsyncIfNotDone(
-				slot.releaseSlot(cause),
-				jobMasterMainThreadExecutor,
-				(Object ignored, Throwable throwable) -> {
+			slot.releaseSlot(cause)
+				.whenComplete((Object ignored, Throwable throwable) -> {
+					jobMasterMainThreadExecutor.assertRunningInMainThread();
 					if (throwable != null) {
 						releaseFuture.completeExceptionally(throwable);
 					} else {

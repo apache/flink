@@ -26,7 +26,10 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
+import java.util.Collection;
 
 /**
  * An abstract base implementation of the {@link StateBackend} interface.
@@ -52,7 +55,8 @@ public abstract class AbstractStateBackend implements StateBackend, java.io.Seri
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
-		MetricGroup metricGroup) throws IOException;
+		MetricGroup metricGroup,
+		@Nonnull Collection<KeyedStateHandle> stateHandles) throws IOException;
 
 	@Override
 	public abstract OperatorStateBackend createOperatorStateBackend(

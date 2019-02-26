@@ -27,11 +27,13 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import java.io.IOException;
+import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -64,27 +66,28 @@ final class StubStateBackend implements StateBackend {
 
 	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry,
-			TtlTimeProvider ttlTimeProvider,
-			MetricGroup metricGroup) throws Exception {
+		Environment env,
+		JobID jobID,
+		String operatorIdentifier,
+		TypeSerializer<K> keySerializer,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		TaskKvStateRegistry kvStateRegistry,
+		TtlTimeProvider ttlTimeProvider,
+		MetricGroup metricGroup,
+		Collection<KeyedStateHandle> stateHandles) throws Exception {
 
 		return backend.createKeyedStateBackend(
-				env,
-				jobID,
-				operatorIdentifier,
-				keySerializer,
-				numberOfKeyGroups,
-				keyGroupRange,
-				kvStateRegistry,
-				this.ttlTimeProvider,
-				metricGroup
-		);
+			env,
+			jobID,
+			operatorIdentifier,
+			keySerializer,
+			numberOfKeyGroups,
+			keyGroupRange,
+			kvStateRegistry,
+			this.ttlTimeProvider,
+			metricGroup,
+			stateHandles);
 	}
 
 	@Override

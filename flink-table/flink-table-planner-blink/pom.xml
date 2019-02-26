@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+  http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.apache.flink</groupId>
+		<artifactId>flink-table</artifactId>
+		<version>1.9-SNAPSHOT</version>
+		<relativePath>..</relativePath>
+	</parent>
+
+	<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
+	<name>flink-table-planner-blink</name>
+	<description>
+		This module bridges Table/SQL API and runtime. It contains
+		all resources that are required during pre-flight and runtime
+		phase. The content of this module is work-in-progress. It will
+		replace flink-table-planner once it is stable. See FLINK-11439
+		and FLIP-32 for more details.
+	</description>
+
+	<packaging>jar</packaging>
+
+	<dependencyManagement>
+		<dependencies>
+			<!-- Common dependency of calcite-core and flink-* -->
+			<dependency>
+				<groupId>com.google.guava</groupId>
+				<artifactId>guava</artifactId>
+				<version>19.0</version>
+			</dependency>
+			<!-- Common dependency of calcite-core and flink-table-runtime-blink -->
+			<dependency>
+				<groupId>org.codehaus.janino</groupId>
+				<artifactId>commons-compiler</artifactId>
+				<version>${janino.version}</version>
+			</dependency>
+			<!-- Common dependency of calcite-core and flink-table-runtime-blink -->
+			<dependency>
+				<groupId>org.codehaus.janino</groupId>
+				<artifactId>janino</artifactId>
+				<version>${janino.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<dependencies>
+
+		<!-- core dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-runtime-blink</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-scala_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-jackson</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Used for translation of table programs -->
+		<dependency>
+			<groupId>org.apache.calcite</groupId>
+			<artifactId>calcite-core</artifactId>
+			<!-- When updating the Calcite version, make sure to update the dependency exclusions -->
+			<version>1.17.0</version>
+			<exclusions>
+				<!-- Dependencies that are not needed for how we use Calcite right now -->
+				<exclusion>
+					<groupId>org.apache.calcite.avatica</groupId>
+					<artifactId>avatica-metrics</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-databind</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.protobuf</groupId>
+					<artifactId>protobuf-java</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpclient</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpcore</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>commons-dbcp</groupId>
+					<artifactId>commons-dbcp</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.esri.geometry</groupId>
+					<artifactId>esri-geometry-api</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<!-- Scala Compiler -->
+			<plugin>
+				<groupId>net.alchim31.maven</groupId>
+				<artifactId>scala-maven-plugin</artifactId>
+				<executions>
+					<!-- Run scala compiler in the process-resources phase, so that dependencies on
+						scala classes can be resolved later in the (Java) compile phase -->
+					<execution>
+						<id>scala-compile-first</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>add-source</goal>
+							<goal>compile</goal>
+						</goals>
+					</execution>
+
+					<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
+						 scala classes can be resolved later in the (Java) test-compile phase -->
+					<execution>
+						<id>scala-test-compile</id>
+						<phase>process-test-resources</phase>
+						<goals>
+							<goal>testCompile</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<configuration>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<!-- Excluded all these files for a clean flink-table-planner-blink JAR -->
+										<exclude>org-apache-calcite-jdbc.properties</exclude>
+										<exclude>common.proto</exclude>
+										<exclude>requests.proto</exclude>
+										<exclude>responses.proto</exclude>
+										<exclude>mozilla/**</exclude>
+										<exclude>codegen/**</exclude>
+										<exclude>google/**</exclude>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+										<exclude>META-INF/services/java.sql.Driver</exclude>
+										<exclude>properties.dtd</exclude>
+										<exclude>PropertyList-1.0.dtd</exclude>
+										<exclude>digesterRules.xml</exclude>
+									</excludes>
+								</filter>
+							</filters>
+							<artifactSet>
+								<includes combine.children="append">
+									<include>org.apache.calcite:*</include>
+									<include>org.apache.calcite.avatica:*</include>
+
+									<!-- Calcite's dependencies -->
+									<include>com.google.guava:guava</include>
+									<include>net.hydromatic:*</include>
+
+									<!-- flink-table-runtime-blink dependencies -->
+									<include>org.codehaus.janino:*</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<!-- Calcite's dependencies -->
+								<relocation>
+									<pattern>com.google</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.com.google</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.pentaho</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.pentaho</shadedPattern>
+								</relocation>
+							</relocations>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Scala Code Style, most of the configuration done via plugin management -->
+			<plugin>
+				<groupId>org.scalastyle</groupId>
+				<artifactId>scalastyle-maven-plugin</artifactId>
+				<configuration>
+					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>

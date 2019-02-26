@@ -160,11 +160,6 @@ public class NodeId {
 			StringValue.copyString(source, target);
 		}
 
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj.getClass().equals(NodeIdSerializer.class);
-		}
-
 		// ------------------------------------------------------------------------
 
 		@Override

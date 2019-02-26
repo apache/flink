@@ -77,8 +77,17 @@ public class TestingComponentMainThreadExecutor {
 	 */
 	public static class Resource extends ExternalResource {
 
+		private long shutdownTimeoutMillis;
 		private TestingComponentMainThreadExecutor componentMainThreadTestExecutor;
 		private ScheduledExecutorService innerExecutorService;
+
+		public Resource() {
+			this(500L);
+		}
+
+		public Resource(long shutdownTimeoutMillis) {
+			this.shutdownTimeoutMillis = shutdownTimeoutMillis;
+		}
 
 		@Override
 		protected void before() {
@@ -90,7 +99,7 @@ public class TestingComponentMainThreadExecutor {
 
 		@Override
 		protected void after() {
-			ExecutorUtils.gracefulShutdown(5000, TimeUnit.MILLISECONDS, innerExecutorService);
+			ExecutorUtils.gracefulShutdown(shutdownTimeoutMillis, TimeUnit.MILLISECONDS, innerExecutorService);
 		}
 
 		public TestingComponentMainThreadExecutor getComponentMainThreadTestExecutor() {

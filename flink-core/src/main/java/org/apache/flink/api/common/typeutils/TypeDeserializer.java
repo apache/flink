@@ -74,14 +74,6 @@ public interface TypeDeserializer<T> {
 	 */
 	int getLength();
 
-	/**
-	 * Returns true if the given object can be equaled with this object. If not, it returns false.
-	 *
-	 * @param obj Object which wants to take part in the equality relation
-	 * @return true if obj can be equaled with this, otherwise false
-	 */
-	boolean canEqual(Object obj);
-
 	boolean equals(Object obj);
 
 	int hashCode();

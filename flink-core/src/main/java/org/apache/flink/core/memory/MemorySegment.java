@@ -119,7 +119,7 @@ public abstract class MemorySegment {
 	/**
 	 * The heap byte array object relative to which we access the memory.
 	 *
-	 * <p>Is non-<tt>null</tt> if the memory is on the heap, and is <tt>null</tt>, if the memory if
+	 * <p>Is non-<tt>null</tt> if the memory is on the heap, and is <tt>null</tt>, if the memory is
 	 * off the heap. If we have this buffer, we must never void this reference, or the memory
 	 * segment will point to undefined addresses outside the heap and may in out-of-order execution
 	 * cases cause segmentation faults.
@@ -392,7 +392,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the memory will be read.
 	 * @return The boolean value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 1.
 	 */
 	public abstract boolean getBoolean(int index);
@@ -404,7 +404,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the memory will be written.
 	 * @param value The char value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 1.
 	 */
 	public abstract void putBoolean(int index, boolean value);
@@ -415,7 +415,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the memory will be read.
 	 * @return The char value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 2.
 	 */
 	@SuppressWarnings("restriction")
@@ -444,7 +444,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the value will be read.
 	 * @return The character value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment size minus 2.
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment size minus 2.
 	 */
 	public final char getCharLittleEndian(int index) {
 		if (LITTLE_ENDIAN) {
@@ -465,7 +465,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the value will be read.
 	 * @return The character value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment size minus 2.
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment size minus 2.
 	 */
 	public final char getCharBigEndian(int index) {
 		if (LITTLE_ENDIAN) {
@@ -481,7 +481,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the memory will be written.
 	 * @param value The char value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 2.
 	 */
 	@SuppressWarnings("restriction")
@@ -510,7 +510,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the value will be written.
 	 * @param value The char value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment size minus 2.
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment size minus 2.
 	 */
 	public final void putCharLittleEndian(int index, char value) {
 		if (LITTLE_ENDIAN) {
@@ -531,7 +531,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the value will be written.
 	 * @param value The char value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment size minus 2.
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment size minus 2.
 	 */
 	public final void putCharBigEndian(int index, char value) {
 		if (LITTLE_ENDIAN) {
@@ -548,7 +548,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the memory will be read.
 	 * @return The short value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 2.
 	 */
 	public final short getShort(int index) {
@@ -576,7 +576,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the value will be read.
 	 * @return The short value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment size minus 2.
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment size minus 2.
 	 */
 	public final short getShortLittleEndian(int index) {
 		if (LITTLE_ENDIAN) {
@@ -597,7 +597,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the value will be read.
 	 * @return The short value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment size minus 2.
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment size minus 2.
 	 */
 	public final short getShortBigEndian(int index) {
 		if (LITTLE_ENDIAN) {
@@ -614,7 +614,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the value will be written.
 	 * @param value The short value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 2.
 	 */
 	public final void putShort(int index, short value) {
@@ -642,7 +642,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the value will be written.
 	 * @param value The short value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment size minus 2.
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment size minus 2.
 	 */
 	public final void putShortLittleEndian(int index, short value) {
 		if (LITTLE_ENDIAN) {
@@ -663,7 +663,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the value will be written.
 	 * @param value The short value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment size minus 2.
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment size minus 2.
 	 */
 	public final void putShortBigEndian(int index, short value) {
 		if (LITTLE_ENDIAN) {
@@ -684,7 +684,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the value will be read.
 	 * @return The int value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 4.
 	 */
 	public final int getInt(int index) {
@@ -712,7 +712,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the value will be read.
 	 * @return The int value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 4.
 	 */
 	public final int getIntLittleEndian(int index) {
@@ -734,7 +734,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the value will be read.
 	 * @return The int value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 4.
 	 */
 	public final int getIntBigEndian(int index) {
@@ -756,7 +756,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the value will be written.
 	 * @param value The int value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 4.
 	 */
 	public final void putInt(int index, int value) {
@@ -784,7 +784,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the value will be written.
 	 * @param value The int value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 4.
 	 */
 	public final void putIntLittleEndian(int index, int value) {
@@ -806,7 +806,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the value will be written.
 	 * @param value The int value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 4.
 	 */
 	public final void putIntBigEndian(int index, int value) {
@@ -828,7 +828,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the value will be read.
 	 * @return The long value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
 	public final long getLong(int index) {
@@ -856,7 +856,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the value will be read.
 	 * @return The long value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
 	public final long getLongLittleEndian(int index) {
@@ -878,7 +878,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the value will be read.
 	 * @return The long value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
 	public final long getLongBigEndian(int index) {
@@ -900,7 +900,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the value will be written.
 	 * @param value The long value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
 	public final void putLong(int index, long value) {
@@ -928,7 +928,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the value will be written.
 	 * @param value The long value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
 	public final void putLongLittleEndian(int index, long value) {
@@ -950,7 +950,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the value will be written.
 	 * @param value The long value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
 	public final void putLongBigEndian(int index, long value) {
@@ -972,7 +972,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the value will be read.
 	 * @return The float value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 4.
 	 */
 	public final float getFloat(int index) {
@@ -990,7 +990,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the value will be read.
 	 * @return The long value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
 	public final float getFloatLittleEndian(int index) {
@@ -1008,7 +1008,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the value will be read.
 	 * @return The long value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
 	public final float getFloatBigEndian(int index) {
@@ -1026,7 +1026,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the value will be written.
 	 * @param value The float value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 4.
 	 */
 	public final void putFloat(int index, float value) {
@@ -1044,7 +1044,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the value will be written.
 	 * @param value The long value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
 	public final void putFloatLittleEndian(int index, float value) {
@@ -1062,7 +1062,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the value will be written.
 	 * @param value The long value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
 	public final void putFloatBigEndian(int index, float value) {
@@ -1080,7 +1080,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the value will be read.
 	 * @return The double value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
 	public final double getDouble(int index) {
@@ -1098,7 +1098,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the value will be read.
 	 * @return The long value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
 	public final double getDoubleLittleEndian(int index) {
@@ -1116,7 +1116,7 @@ public abstract class MemorySegment {
 	 * @param index The position from which the value will be read.
 	 * @return The long value at the given position.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
 	public final double getDoubleBigEndian(int index) {
@@ -1134,7 +1134,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the memory will be written.
 	 * @param value The double value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
 	public final void putDouble(int index, double value) {
@@ -1152,7 +1152,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the value will be written.
 	 * @param value The long value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
 	public final void putDoubleLittleEndian(int index, double value) {
@@ -1170,7 +1170,7 @@ public abstract class MemorySegment {
 	 * @param index The position at which the value will be written.
 	 * @param value The long value to be written.
 	 *
-	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment
+	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
 	 *                                   size minus 8.
 	 */
 	public final void putDoubleBigEndian(int index, double value) {

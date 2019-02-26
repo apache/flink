@@ -19,7 +19,7 @@
 package org.apache.flink.contrib.streaming.state.snapshot;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBStateUploader;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileStatus;
@@ -40,7 +40,6 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
-import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.SnapshotDirectory;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateHandleID;
@@ -55,7 +54,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ResourceGuard;
 
 import org.rocksdb.Checkpoint;
-import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,7 +110,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		@Nonnull RocksDB db,
 		@Nonnull ResourceGuard rocksDBResourceGuard,
 		@Nonnull TypeSerializer<K> keySerializer,
-		@Nonnull LinkedHashMap<String, Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase>> kvStateInformation,
+		@Nonnull LinkedHashMap<String, RocksDbKvStateInfo> kvStateInformation,
 		@Nonnull KeyGroupRange keyGroupRange,
 		@Nonnegative int keyGroupPrefixBytes,
 		@Nonnull LocalRecoveryConfig localRecoveryConfig,
@@ -232,9 +230,8 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			"assuming the following (shared) files as base: {}.", checkpointId, lastCompletedCheckpoint, baseSstFiles);
 
 		// snapshot meta data to save
-		for (Map.Entry<String, Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase>> stateMetaInfoEntry
-			: kvStateInformation.entrySet()) {
-			stateMetaInfoSnapshots.add(stateMetaInfoEntry.getValue().f1.snapshot());
+		for (Map.Entry<String, RocksDbKvStateInfo> stateMetaInfoEntry : kvStateInformation.entrySet()) {
+			stateMetaInfoSnapshots.add(stateMetaInfoEntry.getValue().metaInfo.snapshot());
 		}
 		return baseSstFiles;
 	}

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.TaskStateManager;
@@ -43,6 +44,7 @@ import org.apache.flink.util.TernaryBoolean;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -93,7 +95,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * parameters from the Flink configuration. For example, if the backend if configured in the application
  * without a default savepoint directory, it will pick up a default savepoint directory specified in the
  * Flink configuration of the running job/cluster. That behavior is implemented via the
- * {@link #configure(Configuration)} method.
+ * {@link #configure(Configuration, ClassLoader)} method.
  */
 @PublicEvolving
 public class MemoryStateBackend extends AbstractFileStateBackend implements ConfigurableStateBackend {
@@ -225,8 +227,9 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 *
 	 * @param original The state backend to re-configure
 	 * @param configuration The configuration
+	 * @param classLoader The class loader
 	 */
-	private MemoryStateBackend(MemoryStateBackend original, Configuration configuration) {
+	private MemoryStateBackend(MemoryStateBackend original, Configuration configuration, ClassLoader classLoader) {
 		super(original.getCheckpointPath(), original.getSavepointPath(), configuration);
 
 		this.maxStateSize = original.maxStateSize;
@@ -269,12 +272,13 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 * Creates a copy of this state backend that uses the values defined in the configuration
 	 * for fields where that were not specified in this state backend.
 	 *
-	 * @param config the configuration
+	 * @param config The configuration
+	 * @param classLoader The class loader
 	 * @return The re-configured variant of the state backend
 	 */
 	@Override
-	public MemoryStateBackend configure(Configuration config) {
-		return new MemoryStateBackend(this, config);
+	public MemoryStateBackend configure(Configuration config, ClassLoader classLoader) {
+		return new MemoryStateBackend(this, config, classLoader);
 	}
 
 	// ------------------------------------------------------------------------
@@ -303,15 +307,16 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 
 	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry,
-			TtlTimeProvider ttlTimeProvider,
-			MetricGroup metricGroup) {
+		Environment env,
+		JobID jobID,
+		String operatorIdentifier,
+		TypeSerializer<K> keySerializer,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		TaskKvStateRegistry kvStateRegistry,
+		TtlTimeProvider ttlTimeProvider,
+		MetricGroup metricGroup,
+		Collection<KeyedStateHandle> stateHandles) {
 
 		TaskStateManager taskStateManager = env.getTaskStateManager();
 		HeapPriorityQueueSetFactory priorityQueueSetFactory =

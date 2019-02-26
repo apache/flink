@@ -309,11 +309,6 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj.getClass() == this.getClass();
-	}
-
-	@Override
 	public String toString() {
 		return getClass().getName() + " (" + getType().getName() + ')';
 	}

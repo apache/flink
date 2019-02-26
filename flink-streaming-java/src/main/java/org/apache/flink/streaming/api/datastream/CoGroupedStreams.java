@@ -607,15 +607,10 @@ public class CoGroupedStreams<T1, T2> {
 			if (obj instanceof UnionSerializer) {
 				UnionSerializer<T1, T2> other = (UnionSerializer<T1, T2>) obj;
 
-				return other.canEqual(this) && oneSerializer.equals(other.oneSerializer) && twoSerializer.equals(other.twoSerializer);
+				return oneSerializer.equals(other.oneSerializer) && twoSerializer.equals(other.twoSerializer);
 			} else {
 				return false;
 			}
-		}
-
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof UnionSerializer;
 		}
 
 		@Override

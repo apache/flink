@@ -32,9 +32,12 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 
 import net.jcip.annotations.NotThreadSafe;
+import org.hamcrest.Description;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import sun.net.util.IPAddressUtil;
 
 import javax.annotation.Nullable;
 
@@ -91,7 +94,22 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
 	}
 
 	@Test
-	public void testTaskManagerRpcServiceShouldBindToAddressDeterminedByConnectingToResourceManager() throws Exception {
+	public void testTaskManagerRpcServiceShouldBindToHostnameAddress() throws Exception {
+		final Configuration config = createFlinkConfigWithHostBindPolicy(HostBindPolicy.NAME);
+		final HighAvailabilityServices highAvailabilityServices = createHighAvailabilityServices(config);
+
+		RpcService taskManagerRpcService = null;
+		try {
+			taskManagerRpcService = TaskManagerRunner.createRpcService(config, highAvailabilityServices);
+			assertThat(taskManagerRpcService.getAddress(), not(isEmptyOrNullString()));
+		} finally {
+			maybeCloseRpcService(taskManagerRpcService);
+			highAvailabilityServices.closeAndCleanupAllData();
+		}
+	}
+
+	@Test
+	public void testTaskManagerRpcServiceShouldBindToIpAddressDeterminedByConnectingToResourceManager() throws Exception {
 		final ServerSocket testJobManagerSocket = openServerSocket();
 		final Configuration config = createFlinkConfigWithJobManagerPort(testJobManagerSocket.getLocalPort());
 		final HighAvailabilityServices highAvailabilityServices = createHighAvailabilityServices(config);
@@ -99,7 +117,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
 		RpcService taskManagerRpcService = null;
 		try {
 			taskManagerRpcService = TaskManagerRunner.createRpcService(config, highAvailabilityServices);
-			assertThat(taskManagerRpcService.getAddress(), not(isEmptyOrNullString()));
+			assertThat(taskManagerRpcService.getAddress(), is(ipAddress()));
 		} finally {
 			maybeCloseRpcService(taskManagerRpcService);
 			highAvailabilityServices.closeAndCleanupAllData();
@@ -156,6 +174,13 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
 		return new UnmodifiableConfiguration(config);
 	}
 
+	private static Configuration createFlinkConfigWithHostBindPolicy(final HostBindPolicy bindPolicy) {
+		final Configuration config = new Configuration();
+		config.setString(TaskManagerOptions.HOST_BIND_POLICY, bindPolicy.toString());
+		config.setString(JobManagerOptions.ADDRESS, "localhost");
+		return new UnmodifiableConfiguration(config);
+	}
+
 	private static Configuration createFlinkConfigWithJobManagerPort(final int port) {
 		Configuration config = new Configuration();
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
@@ -183,5 +208,19 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
 		if (rpcService != null) {
 			rpcService.stopService().get(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 		}
+	}
+
+	private static TypeSafeMatcher<String> ipAddress() {
+		return new TypeSafeMatcher<String>() {
+			@Override
+			protected boolean matchesSafely(String value) {
+				return IPAddressUtil.isIPv4LiteralAddress(value) || IPAddressUtil.isIPv6LiteralAddress(value);
+			}
+
+			@Override
+			public void describeTo(Description description) {
+				description.appendText("Is an ip address.");
+			}
+		};
 	}
 }

@@ -25,6 +25,8 @@ cache:
   directories:
   - $HOME/.m2
   - $HOME/flink_cache
+  # keep in sync with tools/travis/setup_maven.sh
+  - $HOME/maven_cache
 
 # do not cache our own artifacts
 before_cache:
@@ -51,14 +53,7 @@ before_script:
 
 # Install maven 3.2.5 since trusty uses 3.3.9 for which shading is broken
 before_install:
-   - "wget https://archive.apache.org/dist/maven/maven-3/3.2.5/binaries/apache-maven-3.2.5-bin.zip"
-   - "unzip -qq apache-maven-3.2.5-bin.zip"
-   - "rm apache-maven-3.2.5-bin.zip"
-   - "export M2_HOME=$PWD/apache-maven-3.2.5"
-   - "export PATH=$M2_HOME/bin:$PATH"
-   - "export MAVEN_OPTS=\"-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS\""
-# just in case: clean up the .m2 home and remove invalid jar files
-   - 'test ! -d $HOME/.m2/repository/ || find $HOME/.m2/repository/ -name "*.jar" -exec sh -c ''if ! zip -T {} >/dev/null ; then echo "deleting invalid file: {}"; rm -f {} ; fi'' \;'
+   - source ./tools/travis/setup_maven.sh
 # Installing the specified docker compose version
    - sudo rm /usr/local/bin/docker-compose
    - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose

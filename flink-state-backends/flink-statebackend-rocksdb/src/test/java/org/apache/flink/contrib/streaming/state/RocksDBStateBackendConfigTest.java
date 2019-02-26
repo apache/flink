@@ -50,7 +50,6 @@ import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
 
 import java.io.File;
-import java.util.Collections;
 
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -149,7 +148,6 @@ public class RocksDBStateBackendConfigTest {
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
 
 		RocksDBKeyedStateBackend<Integer> keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
-		keyedBackend.restore(Collections.emptyList());
 		Assert.assertEquals(HeapPriorityQueueSetFactory.class, keyedBackend.getPriorityQueueFactory().getClass());
 		keyedBackend.dispose();
 
@@ -158,11 +156,10 @@ public class RocksDBStateBackendConfigTest {
 			RocksDBOptions.TIMER_SERVICE_FACTORY,
 			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
 
-		rocksDbBackend = rocksDbBackend.configure(conf);
+		rocksDbBackend = rocksDbBackend.configure(conf, Thread.currentThread().getContextClassLoader());
 		keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
-		keyedBackend.restore(Collections.emptyList());
 		Assert.assertEquals(
-			RocksDBKeyedStateBackend.RocksDBPriorityQueueSetFactory.class,
+			RocksDBPriorityQueueSetFactory.class,
 			keyedBackend.getPriorityQueueFactory().getClass());
 		keyedBackend.dispose();
 	}
@@ -478,7 +475,7 @@ public class RocksDBStateBackendConfigTest {
 				tempFolder.newFolder().getAbsolutePath(), tempFolder.newFolder().getAbsolutePath() };
 		original.setDbStoragePaths(localDirs);
 
-		RocksDBStateBackend copy = original.configure(new Configuration());
+		RocksDBStateBackend copy = original.configure(new Configuration(), Thread.currentThread().getContextClassLoader());
 
 		assertEquals(original.isIncrementalCheckpointsEnabled(), copy.isIncrementalCheckpointsEnabled());
 		assertArrayEquals(original.getDbStoragePaths(), copy.getDbStoragePaths());

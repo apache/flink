@@ -34,6 +34,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.testutils.statemigration.TestType;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.StateMigrationException;
@@ -911,11 +912,6 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof CustomVoidNamespaceSerializer;
-		}
-
-		@Override
 		public boolean equals(Object obj) {
 			return obj instanceof CustomVoidNamespaceSerializer;
 		}
@@ -1004,7 +1000,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			numberOfKeyGroups,
 			keyGroupRange,
 			env.getTaskKvStateRegistry());
-		backend.restore(null);
+		backend.restore(Collections.emptyList());
 		return backend;
 	}
 
@@ -1037,7 +1033,9 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			keySerializer,
 			numberOfKeyGroups,
 			keyGroupRange,
-			env.getTaskKvStateRegistry());
+			env.getTaskKvStateRegistry()
+			, TtlTimeProvider.DEFAULT,
+			state);
 		backend.restore(new StateObjectCollection<>(state));
 		return backend;
 	}

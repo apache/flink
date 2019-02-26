@@ -57,6 +57,7 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -64,6 +65,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
@@ -81,6 +83,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -167,6 +170,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
+			new TestGlobalAggregateManager(),
 			blobService,
 			new BlobLibraryCacheManager(
 				blobService.getPermanentBlobService(),
@@ -265,7 +269,8 @@ public class StreamTaskTerminationTest extends TestLogger {
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry,
 			TtlTimeProvider ttlTimeProvider,
-			MetricGroup metricGroup) {
+			MetricGroup metricGroup,
+			Collection<KeyedStateHandle> stateHandles) {
 			return null;
 		}
 

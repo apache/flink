@@ -20,6 +20,7 @@ package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.SessionDispatcherResourceManagerComponentFactory;
@@ -124,6 +125,11 @@ public class TestingMiniCluster extends MiniCluster {
 		}
 
 		return result;
+	}
+
+	@Override
+	public CompletableFuture<DispatcherGateway> getDispatcherGatewayFuture() {
+		return super.getDispatcherGatewayFuture();
 	}
 
 	private SessionDispatcherResourceManagerComponentFactory createTestingDispatcherResourceManagerComponentFactory() {

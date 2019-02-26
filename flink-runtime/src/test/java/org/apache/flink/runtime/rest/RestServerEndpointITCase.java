@@ -101,9 +101,12 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -169,7 +172,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	private static Configuration getBaseConfig() {
 		final Configuration config = new Configuration();
-		config.setInteger(RestOptions.PORT, 0);
+		config.setString(RestOptions.BIND_PORT, "0");
 		config.setString(RestOptions.ADDRESS, "localhost");
 		config.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
 		config.setInteger(RestOptions.CLIENT_MAX_CONTENT_LENGTH, TEST_REST_MAX_CONTENT_LENGTH);
@@ -559,6 +562,32 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		request.get(timeout.getSize(), timeout.getUnit());
 		closeRestServerEndpointFuture.get(timeout.getSize(), timeout.getUnit());
+	}
+
+	@Test
+	public void testRestServerBindPort() throws Exception {
+		final int portRangeStart = 52300;
+		final int portRangeEnd = 52400;
+		final Configuration config = new Configuration();
+		config.setString(RestOptions.ADDRESS, "localhost");
+		config.setString(RestOptions.BIND_PORT, portRangeStart + "-" + portRangeEnd);
+
+		final RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
+
+		try (RestServerEndpoint serverEndpoint1 = new TestRestServerEndpoint(serverConfig, Collections.emptyList());
+			RestServerEndpoint serverEndpoint2 = new TestRestServerEndpoint(serverConfig, Collections.emptyList())) {
+
+			serverEndpoint1.start();
+			serverEndpoint2.start();
+
+			assertNotEquals(serverEndpoint1.getServerAddress().getPort(), serverEndpoint2.getServerAddress().getPort());
+
+			assertThat(serverEndpoint1.getServerAddress().getPort(), is(greaterThanOrEqualTo(portRangeStart)));
+			assertThat(serverEndpoint1.getServerAddress().getPort(), is(lessThanOrEqualTo(portRangeEnd)));
+
+			assertThat(serverEndpoint2.getServerAddress().getPort(), is(greaterThanOrEqualTo(portRangeStart)));
+			assertThat(serverEndpoint2.getServerAddress().getPort(), is(lessThanOrEqualTo(portRangeEnd)));
+		}
 	}
 
 	private HttpURLConnection openHttpConnectionForUpload(final String boundary) throws IOException {

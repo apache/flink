@@ -22,5 +22,10 @@
             <td style="word-wrap: break-word;">"HEAP"</td>
             <td>This determines the factory for timer service state implementation. Options are either HEAP (heap-based, default) or ROCKSDB for an implementation based on RocksDB .</td>
         </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.ttl.compaction.filter.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>This determines if compaction filter to cleanup state with TTL is enabled for backend.Note: User can still decide in state TTL configuration in state descriptor whether the filter is active for particular state or not.</td>
+        </tr>
     </tbody>
 </table>

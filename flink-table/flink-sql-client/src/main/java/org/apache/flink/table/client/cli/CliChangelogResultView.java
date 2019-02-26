@@ -119,7 +119,7 @@ public class CliChangelogResultView extends CliResultView<CliChangelogResultView
 				break;
 			// stop retrieval if job is done
 			case EOS:
-				stopRetrieval();
+				stopRetrieval(false);
 				break;
 			default:
 				List<Tuple2<Boolean, Row>> changes = result.getPayload();

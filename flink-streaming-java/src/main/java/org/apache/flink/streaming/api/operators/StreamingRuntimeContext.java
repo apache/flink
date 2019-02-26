@@ -38,6 +38,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -91,6 +92,14 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
 	public ProcessingTimeService getProcessingTimeService() {
 		return operator.getProcessingTimeService();
+	}
+
+	/**
+	 * Returns the global aggregate manager for the current job.
+	 * @return The global aggregate manager.
+	 */
+	public GlobalAggregateManager getGlobalAggregateManager() {
+		return taskEnvironment.getGlobalAggregateManager();
 	}
 
 	/**

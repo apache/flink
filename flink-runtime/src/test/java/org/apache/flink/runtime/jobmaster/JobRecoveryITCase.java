@@ -25,7 +25,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
@@ -81,7 +80,7 @@ public class JobRecoveryITCase extends TestLogger {
 	private JobGraph createjobGraph(boolean slotSharingEnabled) throws IOException {
 		final JobVertex sender = new JobVertex("Sender");
 		sender.setParallelism(PARALLELISM);
-		sender.setInvokableClass(Tasks.Sender.class);
+		sender.setInvokableClass(TestingAbstractInvokables.Sender.class);
 
 		final JobVertex receiver = new JobVertex("Receiver");
 		receiver.setParallelism(PARALLELISM);
@@ -108,7 +107,7 @@ public class JobRecoveryITCase extends TestLogger {
 	/**
 	 * Receiver which fails once before successfully completing.
 	 */
-	public static final class FailingOnceReceiver extends JobExecutionITCase.Receiver {
+	public static final class FailingOnceReceiver extends TestingAbstractInvokables.Receiver {
 
 		private static volatile boolean failed = false;
 

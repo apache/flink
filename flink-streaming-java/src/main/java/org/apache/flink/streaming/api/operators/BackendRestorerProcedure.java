@@ -25,7 +25,7 @@ import org.apache.flink.util.Disposable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.function.SupplierWithException;
+import org.apache.flink.util.function.FunctionWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +57,7 @@ public class BackendRestorerProcedure<
 	private static final Logger LOG = LoggerFactory.getLogger(BackendRestorerProcedure.class);
 
 	/** Factory for new, fresh backends without state. */
-	private final SupplierWithException<T, Exception> instanceSupplier;
+	private final FunctionWithException<Collection<S>, T, Exception> instanceSupplier;
 
 	/** This registry is used so that recovery can participate in the task lifecycle, i.e. can be canceled. */
 	private final CloseableRegistry backendCloseableRegistry;
@@ -72,7 +72,7 @@ public class BackendRestorerProcedure<
 	 * @param backendCloseableRegistry registry to allow participation in task lifecycle, e.g. react to cancel.
 	 */
 	public BackendRestorerProcedure(
-		@Nonnull SupplierWithException<T, Exception> instanceSupplier,
+		@Nonnull FunctionWithException<Collection<S>, T, Exception> instanceSupplier,
 		@Nonnull CloseableRegistry backendCloseableRegistry,
 		@Nonnull String logDescription) {
 
@@ -141,13 +141,14 @@ public class BackendRestorerProcedure<
 	private T attemptCreateAndRestore(Collection<S> restoreState) throws Exception {
 
 		// create a new, empty backend.
-		final T backendInstance = instanceSupplier.get();
+		final T backendInstance = instanceSupplier.apply(restoreState);
 
 		try {
 			// register the backend with the registry to participate in task lifecycle w.r.t. cancellation.
 			backendCloseableRegistry.registerCloseable(backendInstance);
 
 			// attempt to restore from snapshot (or null if no state was checkpointed).
+			// TODO we could remove this invocation when moving all backend's restore into builder
 			backendInstance.restore(restoreState);
 
 			return backendInstance;

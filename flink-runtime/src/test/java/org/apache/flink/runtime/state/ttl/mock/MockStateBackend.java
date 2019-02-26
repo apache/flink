@@ -34,15 +34,18 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
+import java.util.Collection;
 
 /** mack state backend. */
 public class MockStateBackend extends AbstractStateBackend {
+	private static final long serialVersionUID = 995676510267499393L;
+
 	@Override
 	public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) {
 		throw new UnsupportedOperationException();
@@ -71,17 +74,17 @@ public class MockStateBackend extends AbstractStateBackend {
 				return new CheckpointStorageLocation() {
 
 					@Override
-					public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException {
+					public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) {
 						return null;
 					}
 
 					@Override
-					public CheckpointMetadataOutputStream createMetadataOutputStream() throws IOException {
+					public CheckpointMetadataOutputStream createMetadataOutputStream() {
 						return null;
 					}
 
 					@Override
-					public void disposeOnFailure() throws IOException {
+					public void disposeOnFailure() {
 
 					}
 
@@ -119,7 +122,8 @@ public class MockStateBackend extends AbstractStateBackend {
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
-		MetricGroup metricGroup) {
+		MetricGroup metricGroup,
+		Collection<KeyedStateHandle> stateHandles) {
 		return new MockKeyedStateBackend<>(
 			new KvStateRegistry().createTaskRegistry(jobID, new JobVertexID()),
 			keySerializer,

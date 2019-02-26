@@ -255,6 +255,11 @@ public class SourceStreamTaskTest {
 		public static boolean openCalled = false;
 		public static boolean closeCalled = false;
 
+		OpenCloseTestSource() {
+			openCalled = false;
+			closeCalled = false;
+		}
+
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);

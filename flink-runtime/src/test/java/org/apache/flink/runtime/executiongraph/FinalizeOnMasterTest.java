@@ -86,7 +86,7 @@ public class FinalizeOnMasterTest extends TestLogger {
 
 		// fail the execution
 		final Execution exec = eg.getJobVertex(vertex.getID()).getTaskVertices()[0].getCurrentExecutionAttempt();
-		exec.failAsync(new Exception("test"));
+		exec.fail(new Exception("test"));
 
 		assertEquals(JobStatus.FAILED, eg.waitUntilTerminal());
 

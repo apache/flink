@@ -13,19 +13,9 @@
             <td>The failover timeout in seconds for the Mesos scheduler, after which running tasks are automatically shut down.</td>
         </tr>
         <tr>
-            <td><h5>mesos.initial-tasks</h5></td>
-            <td style="word-wrap: break-word;">0</td>
-            <td>The initial workers to bring up when the master starts. This option is ignored unless Flink is in <a href="#legacy">legacy mode</a>.</td>
-        </tr>
-        <tr>
             <td><h5>mesos.master</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>The Mesos master URL. The value should be in one of the following forms: <ul><li>host:port</li><li>zk://host1:port1,host2:port2,.../path</li><li>zk://username:password@host1:port1,host2:port2,.../path</li><li>file:///path/to/file</li></ul></td>
-        </tr>
-        <tr>
-            <td><h5>mesos.maximum-failed-tasks</h5></td>
-            <td style="word-wrap: break-word;">-1</td>
-            <td>The maximum number of failed workers before the cluster fails. May be set to -1 to disable this feature. This option is ignored unless Flink is in <a href="#legacy">legacy mode</a>.</td>
         </tr>
         <tr>
             <td><h5>mesos.resourcemanager.artifactserver.port</h5></td>

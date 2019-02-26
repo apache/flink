@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -49,13 +49,13 @@ under the License.
 			<dependency>
 				<groupId>org.codehaus.janino</groupId>
 				<artifactId>commons-compiler</artifactId>
-				<version>3.0.7</version>
+				<version>${janino.version}</version>
 			</dependency>
 			<!-- Common dependency of calcite-core and flink-table-planner -->
 			<dependency>
 				<groupId>org.codehaus.janino</groupId>
 				<artifactId>janino</artifactId>
-				<version>3.0.7</version>
+				<version>${janino.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -148,6 +148,10 @@ under the License.
 				<exclusion>
 					<groupId>commons-dbcp</groupId>
 					<artifactId>commons-dbcp</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.esri.geometry</groupId>
+					<artifactId>esri-geometry-api</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -284,7 +288,6 @@ under the License.
 									<!-- Calcite's dependencies -->
 									<include>com.google.guava:guava</include>
 									<include>net.hydromatic:*</include>
-									<include>com.esri.geometry:*</include>
 
 									<!-- flink-table-planner dependencies -->
 									<include>org.codehaus.janino:*</include>
@@ -306,10 +309,6 @@ under the License.
 								<relocation>
 									<pattern>org.pentaho</pattern>
 									<shadedPattern>org.apache.flink.calcite.shaded.org.pentaho</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>com.esri</pattern>
-									<shadedPattern>org.apache.flink.calcite.shaded.com.esri</shadedPattern>
 								</relocation>
 
 								<!-- flink-table dependencies -->

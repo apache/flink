@@ -182,11 +182,6 @@ public final class Lockable<T> {
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			return obj.getClass().equals(LockableTypeSerializer.class);
-		}
-
-		@Override
 		public TypeSerializerSnapshot<Lockable<E>> snapshotConfiguration() {
 			return new LockableTypeSerializerSnapshot<>(this);
 		}

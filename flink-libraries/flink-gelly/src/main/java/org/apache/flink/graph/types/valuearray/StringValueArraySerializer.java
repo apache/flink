@@ -80,11 +80,6 @@ public final class StringValueArraySerializer extends TypeSerializerSingleton<St
 		StringValueArray.copyInternal(source, target);
 	}
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof StringValueArraySerializer;
-	}
-
 	// -----------------------------------------------------------------------------------
 
 	@Override

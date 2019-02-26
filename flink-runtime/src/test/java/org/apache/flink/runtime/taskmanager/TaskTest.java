@@ -62,6 +62,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.FlinkException;
@@ -1060,6 +1061,7 @@ public class TaskTest extends TestLogger {
 				taskManagerActions,
 				new MockInputSplitProvider(),
 				new TestCheckpointResponder(),
+				new TestGlobalAggregateManager(),
 				blobCacheService,
 				libraryCacheManager,
 				mock(FileCache.class),

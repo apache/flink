@@ -127,7 +127,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	}
 
 	private void completeCanceling(ExecutionGraph eg) {
-		executeOperationForAllExecutions(eg, Execution::cancelingComplete);
+		executeOperationForAllExecutions(eg, Execution::completeCancelling);
 	}
 
 	private void executeOperationForAllExecutions(ExecutionGraph eg, Consumer<Execution> operation) {
@@ -195,6 +195,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			new InfiniteDelayRestartStrategy(),
 			scheduler);
 
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+
 		JobVertex jobVertex = new JobVertex("NoOpInvokable");
 		jobVertex.setInvokableClass(NoOpInvokable.class);
 		jobVertex.setParallelism(NUM_TASKS);
@@ -211,8 +213,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		// Kill the instance and wait for the job to restart
 		instance.markDead();
-
-		Assert.assertEquals(JobStatus.RESTARTING, executionGraph.getState());
 
 		assertEquals(JobStatus.RESTARTING, executionGraph.getState());
 
@@ -345,8 +345,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		finishedExecution.markFinished();
 
-		failedExecution.failSync(new Exception("Test Exception"));
-		failedExecution.cancelingComplete();
+		failedExecution.fail(new Exception("Test Exception"));
+		failedExecution.completeCancelling();
 
 		assertEquals(JobStatus.RUNNING, eg.getState());
 
@@ -357,7 +357,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		}
 
 		// fail old finished execution, this should not affect the execution
-		finishedExecution.failSync(new Exception("This should have no effect"));
+		finishedExecution.fail(new Exception("This should have no effect"));
 
 		for (ExecutionVertex vertex: eg.getAllExecutionVertices()) {
 			vertex.getCurrentExecutionAttempt().markFinished();
@@ -405,14 +405,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		eg.cancel();
 
 		for (ExecutionVertex v : eg.getAllExecutionVertices()) {
-			v.getCurrentExecutionAttempt().failSync(new Exception("Test Exception"));
+			v.getCurrentExecutionAttempt().fail(new Exception("Test Exception"));
 		}
 
 		assertEquals(JobStatus.CANCELED, eg.getTerminationFuture().get());
 
 		Execution execution = eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt();
 
-		execution.cancelingComplete();
+		execution.completeCancelling();
 		assertEquals(JobStatus.CANCELED, eg.getState());
 	}
 
@@ -456,7 +456,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		Execution execution = eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt();
 
-		execution.cancelingComplete();
+		execution.completeCancelling();
 		assertEquals(JobStatus.RESTARTING, eg.getState());
 	}
 
@@ -542,8 +542,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		final Execution last = vertex.getTaskVertices()[vertex.getParallelism() - 1].getCurrentExecutionAttempt();
 
 		// Have two executions fail
-		first.failSync(new Exception("intended test failure 1"));
-		last.failSync(new Exception("intended test failure 2"));
+		first.fail(new Exception("intended test failure 1"));
+		last.fail(new Exception("intended test failure 2"));
 
 		Assert.assertEquals(JobStatus.FAILING, eg.getState());
 
@@ -645,7 +645,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		switchToRunning(eg);
 
 		// fail into 'RESTARTING'
-		eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt().failAsync(
+		eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt().fail(
 			new Exception("intended test failure"));
 
 		assertEquals(JobStatus.FAILING, eg.getState());
@@ -797,7 +797,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	}
 
 	private static ExecutionGraph newExecutionGraph(RestartStrategy restartStrategy, SlotProvider slotProvider) throws IOException {
-		return new ExecutionGraph(
+		final ExecutionGraph executionGraph = new ExecutionGraph(
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			new JobID(),
@@ -807,6 +807,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			restartStrategy,
 			slotProvider);
+
+		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+
+		return executionGraph;
 	}
 
 	private void restartAfterFailure(ExecutionGraph eg, FiniteDuration timeout, boolean haltAfterRestart) {
@@ -816,7 +820,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		assertEquals(JobStatus.FAILING, eg.getState());
 
 		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
-			vertex.getCurrentExecutionAttempt().cancelingComplete();
+			vertex.getCurrentExecutionAttempt().completeCancelling();
 		}
 
 		assertEquals(JobStatus.RUNNING, eg.getState());

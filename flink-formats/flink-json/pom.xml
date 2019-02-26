@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -59,11 +59,6 @@ under the License.
 		</dependency>
 
 		<!-- test dependencies -->
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils-junit</artifactId>
-		</dependency>
 
 		<!-- JSON table descriptor testing -->
 		<dependency>

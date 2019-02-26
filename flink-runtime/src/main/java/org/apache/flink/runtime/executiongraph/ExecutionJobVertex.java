@@ -68,6 +68,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * An {@code ExecutionJobVertex} is part of the {@link ExecutionGraph}, and the peer
@@ -516,6 +518,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds,
 			Time allocationTimeout) {
 		final ExecutionVertex[] vertices = this.taskVertices;
+
+		@SuppressWarnings("unchecked")
 		final CompletableFuture<Execution>[] slots = new CompletableFuture[vertices.length];
 
 		// try to acquire a slot future for each execution.
@@ -551,13 +555,18 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * @return A future that is complete once all tasks have canceled.
 	 */
 	public CompletableFuture<Void> cancelWithFuture() {
-		// we collect all futures from the task cancellations
-		CompletableFuture<ExecutionState>[] futures = Arrays.stream(getTaskVertices())
-			.map(ExecutionVertex::cancel)
-			.<CompletableFuture<ExecutionState>>toArray(CompletableFuture[]::new);
+		return FutureUtils.waitForAll(mapExecutionVertices(ExecutionVertex::cancel));
+	}
 
-		// return a conjunct future, which is complete once all individual tasks are canceled
-		return CompletableFuture.allOf(futures);
+	public CompletableFuture<Void> suspend() {
+		return FutureUtils.waitForAll(mapExecutionVertices(ExecutionVertex::suspend));
+	}
+
+	@Nonnull
+	private Collection<CompletableFuture<?>> mapExecutionVertices(final Function<ExecutionVertex, CompletableFuture<?>> mapFunction) {
+		return Arrays.stream(getTaskVertices())
+			.map(mapFunction)
+			.collect(Collectors.toList());
 	}
 
 	public void fail(Throwable t) {

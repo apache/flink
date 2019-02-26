@@ -757,11 +757,6 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof StateSerializer;
-		}
-
-		@Override
 		public boolean equals(Object o) {
 			if (this == o) {
 				return true;

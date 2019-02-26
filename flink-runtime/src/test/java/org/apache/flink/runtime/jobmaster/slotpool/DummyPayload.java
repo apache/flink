@@ -28,28 +28,23 @@ import java.util.concurrent.CompletableFuture;
  */
 final class DummyPayload implements LogicalSlot.Payload {
 
-    private final CompletableFuture<?> terminalStateFuture;
+	private final CompletableFuture<?> terminalStateFuture;
 
-    DummyPayload() {
-    	this(new CompletableFuture<>());
+	DummyPayload() {
+		this(new CompletableFuture<>());
 	}
 
-    DummyPayload(CompletableFuture<?> terminalStateFuture) {
-        this.terminalStateFuture = Preconditions.checkNotNull(terminalStateFuture);
-    }
-
-    @Override
-    public void failAsync(Throwable cause) {
-		failSync(cause);
-    }
+	DummyPayload(CompletableFuture<?> terminalStateFuture) {
+		this.terminalStateFuture = Preconditions.checkNotNull(terminalStateFuture);
+	}
 
 	@Override
-	public void failSync(Throwable cause) {
+	public void fail(Throwable cause) {
 		terminalStateFuture.complete(null);
 	}
 
 	@Override
-    public CompletableFuture<?> getTerminalStateFuture() {
-        return terminalStateFuture;
-    }
+	public CompletableFuture<?> getTerminalStateFuture() {
+		return terminalStateFuture;
+	}
 }

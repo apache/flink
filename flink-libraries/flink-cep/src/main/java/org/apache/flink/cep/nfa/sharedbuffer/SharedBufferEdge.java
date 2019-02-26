@@ -139,11 +139,6 @@ public class SharedBufferEdge {
 			deweyNumberSerializer.copy(source, target);
 		}
 
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj.getClass().equals(SharedBufferEdgeSerializer.class);
-		}
-
 		// -----------------------------------------------------------------------------------
 
 		@Override

@@ -391,11 +391,6 @@ public class InternalTimersSnapshotReaderWriters {
 		}
 
 		@Override
-		public boolean canEqual(Object obj) {
-			return true;
-		}
-
-		@Override
 		public int hashCode() {
 			return getClass().hashCode();
 		}

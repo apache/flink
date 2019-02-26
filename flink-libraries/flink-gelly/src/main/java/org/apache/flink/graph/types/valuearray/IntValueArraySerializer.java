@@ -80,11 +80,6 @@ public final class IntValueArraySerializer extends TypeSerializerSingleton<IntVa
 		IntValueArray.copyInternal(source, target);
 	}
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof IntValueArraySerializer;
-	}
-
 	// -----------------------------------------------------------------------------------
 
 	@Override

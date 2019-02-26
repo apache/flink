@@ -31,14 +31,19 @@ import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nonnull;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * {@link JobGraphRetriever} which creates the {@link JobGraph} from a class
  * on the class path.
  */
-public class ClassPathJobGraphRetriever implements JobGraphRetriever {
+class ClassPathJobGraphRetriever implements JobGraphRetriever {
 
 	@Nonnull
 	private final String jobClassName;
+
+	@Nonnull
+	private final JobID jobId;
 
 	@Nonnull
 	private final SavepointRestoreSettings savepointRestoreSettings;
@@ -46,15 +51,15 @@ public class ClassPathJobGraphRetriever implements JobGraphRetriever {
 	@Nonnull
 	private final String[] programArguments;
 
-	public static final JobID FIXED_JOB_ID = new JobID(0, 0);
-
-	public ClassPathJobGraphRetriever(
+	ClassPathJobGraphRetriever(
 			@Nonnull String jobClassName,
+			@Nonnull JobID jobId,
 			@Nonnull SavepointRestoreSettings savepointRestoreSettings,
 			@Nonnull String[] programArguments) {
-		this.jobClassName = jobClassName;
-		this.savepointRestoreSettings = savepointRestoreSettings;
-		this.programArguments = programArguments;
+		this.jobClassName = requireNonNull(jobClassName, "jobClassName");
+		this.jobId = requireNonNull(jobId, "jobId");
+		this.savepointRestoreSettings = requireNonNull(savepointRestoreSettings, "savepointRestoreSettings");
+		this.programArguments = requireNonNull(programArguments, "programArguments");
 	}
 
 	@Override
@@ -66,7 +71,7 @@ public class ClassPathJobGraphRetriever implements JobGraphRetriever {
 				packagedProgram,
 				configuration,
 				defaultParallelism,
-				FIXED_JOB_ID);
+				jobId);
 			jobGraph.setAllowQueuedScheduling(true);
 			jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 

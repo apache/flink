@@ -18,6 +18,7 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -34,9 +35,13 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.AbstractID;
@@ -50,6 +55,7 @@ import org.rocksdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.File;
@@ -58,12 +64,14 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TIMER_SERVICE_FACTORY;
+import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TTL_COMPACT_FILTER_ENABLED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -126,6 +134,14 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	/** Thread number used to transfer (download and upload) state, default value: 1. */
 	private int numberOfTransferingThreads;
+
+	/**
+	 * This determines if compaction filter to cleanup state with TTL is enabled.
+	 *
+	 * <p>Note: User can still decide in state TTL configuration in state descriptor
+	 * whether the filter is active for particular state or not.
+	 */
+	private TernaryBoolean enableTtlCompactionFilter;
 
 	/** This determines the type of priority queue state. */
 	private final PriorityQueueStateType priorityQueueStateType;
@@ -249,6 +265,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		// for now, we use still the heap-based implementation as default
 		this.priorityQueueStateType = PriorityQueueStateType.HEAP;
 		this.defaultMetricOptions = new RocksDBNativeMetricOptions();
+		this.enableTtlCompactionFilter = TernaryBoolean.UNDEFINED;
 	}
 
 	/**
@@ -272,12 +289,13 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 *
 	 * @param original The state backend to re-configure.
 	 * @param config The configuration.
+	 * @param classLoader The class loader.
 	 */
-	private RocksDBStateBackend(RocksDBStateBackend original, Configuration config) {
+	private RocksDBStateBackend(RocksDBStateBackend original, Configuration config, ClassLoader classLoader) {
 		// reconfigure the state backend backing the streams
 		final StateBackend originalStreamBackend = original.checkpointStreamBackend;
 		this.checkpointStreamBackend = originalStreamBackend instanceof ConfigurableStateBackend ?
-				((ConfigurableStateBackend) originalStreamBackend).configure(config) :
+				((ConfigurableStateBackend) originalStreamBackend).configure(config, classLoader) :
 				originalStreamBackend;
 
 		// configure incremental checkpoints
@@ -289,6 +307,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		} else {
 			this.numberOfTransferingThreads = original.numberOfTransferingThreads;
 		}
+
+		this.enableTtlCompactionFilter = original.enableTtlCompactionFilter
+			.resolveUndefined(config.getBoolean(TTL_COMPACT_FILTER_ENABLED));
 
 		final String priorityQueueTypeString = config.getString(TIMER_SERVICE_FACTORY);
 
@@ -330,12 +351,13 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * Creates a copy of this state backend that uses the values defined in the configuration
 	 * for fields where that were not yet specified in this state backend.
 	 *
-	 * @param config the configuration
+	 * @param config The configuration.
+	 * @param classLoader The class loader.
 	 * @return The re-configured variant of the state backend
 	 */
 	@Override
-	public RocksDBStateBackend configure(Configuration config) {
-		return new RocksDBStateBackend(this, config);
+	public RocksDBStateBackend configure(Configuration config, ClassLoader classLoader) {
+		return new RocksDBStateBackend(this, config, classLoader);
 	}
 
 	// ------------------------------------------------------------------------
@@ -427,15 +449,16 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry,
-			TtlTimeProvider ttlTimeProvider,
-			MetricGroup metricGroup) throws IOException {
+		Environment env,
+		JobID jobID,
+		String operatorIdentifier,
+		TypeSerializer<K> keySerializer,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		TaskKvStateRegistry kvStateRegistry,
+		TtlTimeProvider ttlTimeProvider,
+		MetricGroup metricGroup,
+		@Nonnull Collection<KeyedStateHandle> stateHandles) throws IOException {
 
 		// first, make sure that the RocksDB JNI library is loaded
 		// we do this explicitly here to have better error handling
@@ -454,24 +477,38 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		LocalRecoveryConfig localRecoveryConfig =
 			env.getTaskStateManager().createLocalRecoveryConfig();
 
-		return new RocksDBKeyedStateBackend<>(
-				operatorIdentifier,
-				env.getUserClassLoader(),
-				instanceBasePath,
-				getDbOptions(),
-				getColumnOptions(),
-				kvStateRegistry,
-				keySerializer,
-				numberOfKeyGroups,
-				keyGroupRange,
-				env.getExecutionConfig(),
-				isIncrementalCheckpointsEnabled(),
-				getNumberOfTransferingThreads(),
-				localRecoveryConfig,
-				priorityQueueStateType,
-				ttlTimeProvider,
-				getMemoryWatcherOptions(),
-				metricGroup);
+		ExecutionConfig executionConfig = env.getExecutionConfig();
+		StreamCompressionDecorator keyGroupCompressionDecorator = getCompressionDecorator(executionConfig);
+		RocksDBKeyedStateBackendBuilder<K> builder = new RocksDBKeyedStateBackendBuilder<>(
+			operatorIdentifier,
+			env.getUserClassLoader(),
+			instanceBasePath,
+			getDbOptions(),
+			stateName -> getColumnOptions(),
+			kvStateRegistry,
+			keySerializer,
+			numberOfKeyGroups,
+			keyGroupRange,
+			executionConfig,
+			localRecoveryConfig,
+			priorityQueueStateType,
+			ttlTimeProvider,
+			metricGroup,
+			stateHandles,
+			keyGroupCompressionDecorator
+		).setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
+			.setEnableTtlCompactionFilter(isTtlCompactionFilterEnabled())
+			.setNumberOfTransferingThreads(getNumberOfTransferingThreads())
+			.setNativeMetricOptions(getMemoryWatcherOptions());
+		return builder.build();
+	}
+
+	public static StreamCompressionDecorator getCompressionDecorator(ExecutionConfig executionConfig) {
+		if (executionConfig != null && executionConfig.isUseSnapshotCompression()) {
+			return SnappyStreamCompressionDecorator.INSTANCE;
+		} else {
+			return UncompressedStreamCompressionDecorator.INSTANCE;
+		}
 	}
 
 	@Override
@@ -600,6 +637,23 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	public boolean isIncrementalCheckpointsEnabled() {
 		return enableIncrementalCheckpointing.getOrDefault(CheckpointingOptions.INCREMENTAL_CHECKPOINTS.defaultValue());
+	}
+
+	/**
+	 * Gets whether incremental checkpoints are enabled for this state backend.
+	 */
+	public boolean isTtlCompactionFilterEnabled() {
+		return enableTtlCompactionFilter.getOrDefault(TTL_COMPACT_FILTER_ENABLED.defaultValue());
+	}
+
+	/**
+	 * Enable compaction filter to cleanup state with TTL is enabled.
+	 *
+	 * <p>Note: User can still decide in state TTL configuration in state descriptor
+	 * whether the filter is active for particular state or not.
+	 */
+	public void enableTtlCompactionFilter() {
+		enableTtlCompactionFilter = TernaryBoolean.TRUE;
 	}
 
 	// ------------------------------------------------------------------------

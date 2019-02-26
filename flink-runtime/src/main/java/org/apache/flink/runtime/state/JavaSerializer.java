@@ -95,11 +95,6 @@ final class JavaSerializer<T extends Serializable> extends TypeSerializerSinglet
 		serialize(tmp, target);
 	}
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof JavaSerializer;
-	}
-
 	// ------------------------------------------------------------------------
 
 	@Override

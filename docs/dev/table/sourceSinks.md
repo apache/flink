@@ -413,7 +413,7 @@ AppendStreamTableSink<T> implements TableSink<T> {
 {% highlight scala %}
 AppendStreamTableSink[T] extends TableSink[T] {
 
-  def emitDataStream(dataStream: DataStream<T>): Unit
+  def emitDataStream(dataStream: DataStream[T]): Unit
 }
 {% endhighlight %}
 </div>

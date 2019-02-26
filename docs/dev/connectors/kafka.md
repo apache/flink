@@ -159,7 +159,7 @@ or just `FlinkKafkaConsumer` for Kafka >= 1.0.0 versions). It provides access to
 The constructor accepts the following arguments:
 
 1. The topic name / list of topic names
-2. A DeserializationSchema / KeyedDeserializationSchema for deserializing the data from Kafka
+2. A DeserializationSchema / KafkaDeserializationSchema for deserializing the data from Kafka
 3. Properties for the Kafka consumer.
   The following properties are required:
   - "bootstrap.servers" (comma separated list of Kafka brokers)
@@ -204,8 +204,8 @@ It is usually helpful to start from the `AbstractDeserializationSchema`, which t
 produced Java/Scala type to Flink's type system. Users that implement a vanilla `DeserializationSchema` need
 to implement the `getProducedType(...)` method themselves.
 
-For accessing both the key and value of the Kafka message, the `KeyedDeserializationSchema` has
-the following deserialize method `T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset)`.
+For accessing the key, value and metadata of the Kafka message, the `KafkaDeserializationSchema` has
+the following deserialize method `T deserialize(ConsumerRecord<byte[], byte[]> record)`.
 
 For convenience, Flink provides the following schemas:
 
@@ -681,13 +681,13 @@ chosen by passing appropriate `semantic` parameter to the `FlinkKafkaProducer011
 
 `Semantic.EXACTLY_ONCE` mode relies on the ability to commit transactions
 that were started before taking a checkpoint, after recovering from the said checkpoint. If the time
-between Flink application crash and completed restart is larger then Kafka's transaction timeout
+between Flink application crash and completed restart is larger than Kafka's transaction timeout
 there will be data loss (Kafka will automatically abort transactions that exceeded timeout time).
 Having this in mind, please configure your transaction timeout appropriately to your expected down
 times.
 
 Kafka brokers by default have `transaction.max.timeout.ms` set to 15 minutes. This property will
-not allow to set transaction timeouts for the producers larger then it's value.
+not allow to set transaction timeouts for the producers larger than it's value.
 `FlinkKafkaProducer011` by default sets the `transaction.timeout.ms` property in producer config to
 1 hour, thus `transaction.max.timeout.ms` should be increased before using the
 `Semantic.EXACTLY_ONCE` mode.
@@ -720,7 +720,7 @@ number of concurrent checkpoints accordingly.
 that would block the consumers from reading from Kafka topic more then it is necessary. However in the
 event of failure of Flink application before first checkpoint, after restarting such application there
 is no information in the system about previous pool sizes. Thus it is unsafe to scale down Flink
-application before first checkpoint completes, by factor larger then `FlinkKafkaProducer011.SAFE_SCALE_DOWN_FACTOR`.
+application before first checkpoint completes, by factor larger than `FlinkKafkaProducer011.SAFE_SCALE_DOWN_FACTOR`.
 
 ## Using Kafka timestamps and Flink event time in Kafka 0.10
 

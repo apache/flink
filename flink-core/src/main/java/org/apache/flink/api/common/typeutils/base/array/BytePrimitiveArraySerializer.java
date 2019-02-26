@@ -99,11 +99,6 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof BytePrimitiveArraySerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<byte[]> snapshotConfiguration() {
 		return new BytePrimitiveArraySerializerSnapshot();
 	}

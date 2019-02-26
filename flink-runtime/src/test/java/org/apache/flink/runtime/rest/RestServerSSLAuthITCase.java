@@ -66,7 +66,7 @@ public class RestServerSSLAuthITCase extends TestLogger {
 
 		try {
 			final Configuration baseConfig = new Configuration();
-			baseConfig.setInteger(RestOptions.PORT, 0);
+			baseConfig.setString(RestOptions.BIND_PORT, "0");
 			baseConfig.setString(RestOptions.ADDRESS, "localhost");
 			baseConfig.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
 			baseConfig.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);

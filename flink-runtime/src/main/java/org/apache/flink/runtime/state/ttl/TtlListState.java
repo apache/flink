@@ -42,6 +42,7 @@ import java.util.NoSuchElementException;
 class TtlListState<K, N, T> extends
 	AbstractTtlState<K, N, List<T>, List<TtlValue<T>>, InternalListState<K, N, TtlValue<T>>>
 	implements InternalListState<K, N, T> {
+
 	TtlListState(TtlStateContext<InternalListState<K, N, TtlValue<T>>, List<T>> ttlStateContext) {
 		super(ttlStateContext);
 	}
@@ -146,14 +147,15 @@ class TtlListState<K, N, T> extends
 	@Override
 	public void updateInternal(List<T> valueToStore) throws Exception {
 		Preconditions.checkNotNull(valueToStore, "List of values to update cannot be null.");
-		original.updateInternal(withTs(valueToStore));
+		original.update(withTs(valueToStore));
 	}
 
 	private List<TtlValue<T>> withTs(List<T> values) {
+		long currentTimestamp = timeProvider.currentTimestamp();
 		List<TtlValue<T>> withTs = new ArrayList<>(values.size());
 		for (T value : values) {
 			Preconditions.checkNotNull(value, "You cannot have null element in a ListState.");
-			withTs.add(wrapWithTs(value));
+			withTs.add(TtlUtils.wrapWithTs(value, currentTimestamp));
 		}
 		return withTs;
 	}

@@ -105,11 +105,6 @@ public final class ShortPrimitiveArraySerializer extends TypeSerializerSingleton
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof ShortPrimitiveArraySerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<short[]> snapshotConfiguration() {
 		return new ShortPrimitiveArraySerializerSnapshot();
 	}

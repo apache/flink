@@ -109,11 +109,6 @@ public final class SqlTimestampSerializer extends TypeSerializerSingleton<Timest
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof SqlTimestampSerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<Timestamp> snapshotConfiguration() {
 		return new SqlTimestampSerializerSnapshot();
 	}

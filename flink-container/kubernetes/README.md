@@ -38,6 +38,12 @@ At last, you should start the task manager deployment:
 
 `FLINK_IMAGE_NAME=<IMAGE_NAME> FLINK_JOB_PARALLELISM=<PARALLELISM> envsubst < task-manager-deployment.yaml.template | kubectl create -f -`
 
+### Additional command line arguments
+
+You can provide the following additional command line arguments to the cluster entrypoint:
+
+- `--job-id <job id>`: Manually set a Flink job ID for the job (default: `00000000000000000000000000000000`)
+
 ## Resuming from a savepoint
 
 In order to resume from a savepoint, one needs to pass the savepoint path to the cluster entrypoint.

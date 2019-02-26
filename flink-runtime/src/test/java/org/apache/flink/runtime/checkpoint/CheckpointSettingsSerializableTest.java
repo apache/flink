@@ -39,6 +39,7 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
@@ -53,6 +54,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.Collection;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
@@ -172,7 +174,8 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry,
 			TtlTimeProvider ttlTimeProvider,
-			MetricGroup metricGroup) throws Exception {
+			MetricGroup metricGroup,
+			Collection<KeyedStateHandle> stateHandles) throws Exception {
 			throw new UnsupportedOperationException();
 		}
 

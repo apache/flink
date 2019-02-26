@@ -23,12 +23,16 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -141,7 +145,8 @@ public class TaskExecutorITCase extends TestLogger {
 	}
 
 	private SupplierWithException<Boolean, Exception> jobIsRunning(Supplier<CompletableFuture<? extends AccessExecutionGraph>> executionGraphFutureSupplier) {
-		final Predicate<AccessExecutionGraph> allExecutionsRunning = ExecutionGraphTestUtils.allExecutionsPredicate(ExecutionGraphTestUtils.isInExecutionState(ExecutionState.RUNNING));
+		final Predicate<AccessExecution> runningOrFinished = ExecutionGraphTestUtils.isInExecutionState(ExecutionState.RUNNING).or(ExecutionGraphTestUtils.isInExecutionState(ExecutionState.FINISHED));
+		final Predicate<AccessExecutionGraph> allExecutionsRunning = ExecutionGraphTestUtils.allExecutionsPredicate(runningOrFinished);
 
 		return () -> {
 			final AccessExecutionGraph executionGraph = executionGraphFutureSupplier.get().join();
@@ -159,19 +164,28 @@ public class TaskExecutorITCase extends TestLogger {
 	}
 
 	private JobGraph createJobGraph(int parallelism) {
-		final JobVertex vertex = new JobVertex("blocking operator");
-		vertex.setParallelism(parallelism);
-		vertex.setInvokableClass(BlockingOperator.class);
+		final JobVertex sender = new JobVertex("Sender");
+		sender.setParallelism(parallelism);
+		sender.setInvokableClass(TestingAbstractInvokables.Sender.class);
 
+		final JobVertex receiver = new JobVertex("Blocking receiver");
+		receiver.setParallelism(parallelism);
+		receiver.setInvokableClass(BlockingOperator.class);
 		BlockingOperator.reset();
 
-		return new JobGraph("Blocking test job", vertex);
+		receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+
+		final SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+		sender.setSlotSharingGroup(slotSharingGroup);
+		receiver.setSlotSharingGroup(slotSharingGroup);
+
+		return new JobGraph("Blocking test job with slot sharing", sender, receiver);
 	}
 
 	/**
 	 * Blocking invokable which is controlled by a static field.
 	 */
-	public static class BlockingOperator extends AbstractInvokable {
+	public static class BlockingOperator extends TestingAbstractInvokables.Receiver {
 		private static CountDownLatch countDownLatch = new CountDownLatch(1);
 
 		public BlockingOperator(Environment environment) {
@@ -181,6 +195,7 @@ public class TaskExecutorITCase extends TestLogger {
 		@Override
 		public void invoke() throws Exception {
 			countDownLatch.await();
+			super.invoke();
 		}
 
 		public static void unblock() {
