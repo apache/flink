@@ -25,9 +25,7 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.Description;
 import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeMatcher;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -42,6 +40,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Supplier;
 
+import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.hasSameCompatibilityAs;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.allOf;
@@ -286,7 +285,7 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 				Supplier<? extends TypeSerializer<T>> serializerProvider,
 				TypeSerializerSchemaCompatibility<T> expectedCompatibilityResult) {
 			this.serializerProvider = serializerProvider;
-			this.schemaCompatibilityMatcher = hasSameCompatibilityType(expectedCompatibilityResult);
+			this.schemaCompatibilityMatcher = hasSameCompatibilityAs(expectedCompatibilityResult);
 			return this;
 		}
 
@@ -523,33 +522,5 @@ public abstract class TypeSerializerSnapshotMigrationTestBase<ElementT> extends 
 	 */
 	protected interface TestResourceFilenameSupplier {
 		String get(MigrationVersion testVersion);
-	}
-
-	// --------------------------------------------------------------------------------------------------------------
-	// Utilities
-	// --------------------------------------------------------------------------------------------------------------
-
-	public static <T> Matcher<TypeSerializerSchemaCompatibility<T>> hasSameCompatibilityType(TypeSerializerSchemaCompatibility<T> expectedCompatibilty) {
-		return new TypeSafeMatcher<TypeSerializerSchemaCompatibility<T>>() {
-
-			@Override
-			protected boolean matchesSafely(TypeSerializerSchemaCompatibility<T> testResultCompatibility) {
-				if (expectedCompatibilty.isCompatibleAsIs()) {
-					return testResultCompatibility.isCompatibleAsIs();
-				} else if (expectedCompatibilty.isIncompatible()) {
-					return testResultCompatibility.isIncompatible();
-				} else if (expectedCompatibilty.isCompatibleAfterMigration()) {
-					return testResultCompatibility.isCompatibleAfterMigration();
-				} else if (expectedCompatibilty.isCompatibleWithReconfiguredSerializer()) {
-					return testResultCompatibility.isCompatibleWithReconfiguredSerializer();
-				}
-				return false;
-			}
-
-			@Override
-			public void describeTo(Description description) {
-				description.appendText("same compatibility as ").appendValue(expectedCompatibilty);
-			}
-		};
 	}
 }
