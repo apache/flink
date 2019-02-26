@@ -24,8 +24,11 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -34,6 +37,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
@@ -51,6 +55,10 @@ import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialValueS
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.apache.flink.streaming.tests.TestOperatorEnum.EVENT_IDENTITY_MAPPER;
+import static org.apache.flink.streaming.tests.TestOperatorEnum.MAPPER_RETURNS_OUT_WITH_CUSTOM_SER;
+import static org.apache.flink.streaming.tests.TestOperatorEnum.RESULT_TYPE_QUERYABLE_MAPPER_WITH_CUSTOM_SER;
 
 /**
  * A factory for components of general purpose test jobs for Flink's DataStream API operators and primitives.
@@ -489,5 +497,57 @@ public class DataStreamAllroundTestJobFactory {
 			TEST_SLIDE_FACTOR.key(),
 			TEST_SLIDE_FACTOR.defaultValue()
 		));
+	}
+
+	static DataStream<Event> verifyCustomStatefulTypeSerializer(DataStream<Event> eventStream) {
+		return eventStream
+			.map(new EventIdentityFunctionWithCustomEventTypeInformation())
+			.name(RESULT_TYPE_QUERYABLE_MAPPER_WITH_CUSTOM_SER.getName())
+			.uid(RESULT_TYPE_QUERYABLE_MAPPER_WITH_CUSTOM_SER.getUid())
+			// apply a keyBy so that we have a non-chained operator with Event as input type that goes through serialization
+			.keyBy(new EventKeySelectorWithCustomKeyTypeInformation())
+
+			.map(e -> e)
+			.returns(new SingleThreadAccessCheckingTypeInfo<>(Event.class))
+			.name(MAPPER_RETURNS_OUT_WITH_CUSTOM_SER.getName())
+			.uid(MAPPER_RETURNS_OUT_WITH_CUSTOM_SER.getUid())
+			// apply a keyBy so that we have a non-chained operator with Event as input type that goes through serialization
+			.keyBy(new EventKeySelectorWithCustomKeyTypeInformation())
+
+			.map(e -> e)
+			.name(EVENT_IDENTITY_MAPPER.getName())
+			.uid(EVENT_IDENTITY_MAPPER.getUid());
+	}
+
+	private static class EventIdentityFunctionWithCustomEventTypeInformation
+		implements MapFunction<Event, Event>, ResultTypeQueryable<Event> {
+
+		private final SingleThreadAccessCheckingTypeInfo<Event> typeInformation = new SingleThreadAccessCheckingTypeInfo<>(Event.class);
+
+		@Override
+		public Event map(Event value) {
+			return value;
+		}
+
+		@Override
+		public TypeInformation<Event> getProducedType() {
+			return typeInformation;
+		}
+	}
+
+	private static class EventKeySelectorWithCustomKeyTypeInformation
+		implements KeySelector<Event, Integer>, ResultTypeQueryable<Integer> {
+
+		private final SingleThreadAccessCheckingTypeInfo<Integer> typeInformation = new SingleThreadAccessCheckingTypeInfo<>(Integer.class);
+
+		@Override
+		public Integer getKey(Event value) {
+			return value.getKey();
+		}
+
+		@Override
+		public TypeInformation<Integer> getProducedType() {
+			return typeInformation;
+		}
 	}
 }

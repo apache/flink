@@ -29,9 +29,8 @@ import java.io.Serializable;
  * This interface describes the methods that are required for a data type to be handled by the Flink
  * runtime. Specifically, this interface contains the serialization and copying methods.
  *
- * <p>The methods in this class are assumed to be stateless, such that it is effectively thread safe. Stateful
- * implementations of the methods may lead to unpredictable side effects and will compromise both stability and
- * correctness of the program.
+ * <p>The methods in this class are not necessarily thread safe. To avoid unpredictable side effects,
+ * it is recommended to call {@code duplicate()} method and use one serializer instance per thread.
  *
  * <p><b>Upgrading TypeSerializers to the new TypeSerializerSnapshot model</b>
  *
