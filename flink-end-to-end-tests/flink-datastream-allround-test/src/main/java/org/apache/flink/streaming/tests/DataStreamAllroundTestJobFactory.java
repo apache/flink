@@ -24,8 +24,10 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -34,6 +36,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
@@ -51,6 +54,7 @@ import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialValueS
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A factory for components of general purpose test jobs for Flink's DataStream API operators and primitives.
@@ -489,5 +493,45 @@ public class DataStreamAllroundTestJobFactory {
 			TEST_SLIDE_FACTOR.key(),
 			TEST_SLIDE_FACTOR.defaultValue()
 		));
+	}
+
+	static String getUidStringAndIncCounter(AtomicInteger uidCounter) {
+		return String.format("%04d", uidCounter.getAndIncrement());
+	}
+
+	static DataStream<Event> verifyCustomStatefulTypeSerializer(DataStream<Event> eventStream, AtomicInteger uidCounter) {
+		return eventStream
+			.map(new EventIdentityFunctionWithCustomEventTypeInformation())
+			.name("ResultTypeQueryableMapWithCustomStatefulTypeSerializer")
+			.uid(getUidStringAndIncCounter(uidCounter))
+			// apply a keyBy so that we have a non-chained operator with Event as input type that goes through serialization
+			.keyBy(Event::getKey)
+
+			.map(e -> e)
+			.returns(new CustomEventTypeInformation())
+			.name("MapReturnsOutputWithCustomStatefulTypeSerializer")
+			.uid(getUidStringAndIncCounter(uidCounter))
+			// apply a keyBy so that we have a non-chained operator with Event as input type that goes through serialization
+			.keyBy(Event::getKey)
+
+			.map(e -> e)
+			.name("EventIdentityMapper")
+			.uid(getUidStringAndIncCounter(uidCounter));
+	}
+
+	private static class EventIdentityFunctionWithCustomEventTypeInformation
+		implements MapFunction<Event, Event>, ResultTypeQueryable<Event> {
+
+		private final CustomEventTypeInformation typeInformation = new CustomEventTypeInformation();
+
+		@Override
+		public Event map(Event value) {
+			return value;
+		}
+
+		@Override
+		public TypeInformation<Event> getProducedType() {
+			return typeInformation;
+		}
 	}
 }

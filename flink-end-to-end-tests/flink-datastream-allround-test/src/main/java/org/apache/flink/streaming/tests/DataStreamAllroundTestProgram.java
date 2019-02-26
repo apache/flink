@@ -38,6 +38,7 @@ import org.apache.flink.util.Collector;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -50,6 +51,7 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSlidingWindow;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSlidingWindowCheckMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.getUidStringAndIncCounter;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.isSimulateFailures;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
 
@@ -85,8 +87,10 @@ public class DataStreamAllroundTestProgram {
 
 		setupEnvironment(env, pt);
 
+		AtomicInteger uidCounter = new AtomicInteger(1);
+
 		// add a keyed stateful map operator, which uses Kryo for state serialization
-		DataStream<Event> eventStream = env.addSource(createEventSource(pt)).uid("0001")
+		DataStream<Event> eventStream = env.addSource(createEventSource(pt)).uid(getUidStringAndIncCounter(uidCounter))
 			.assignTimestampsAndWatermarks(createTimestampExtractor(pt))
 			.keyBy(Event::getKey)
 			.map(createArtificialKeyedStateMapper(
@@ -105,7 +109,7 @@ public class DataStreamAllroundTestProgram {
 						new StatefulComplexPayloadSerializer()), // custom stateful serializer
 					Collections.singletonList(ComplexPayload.class) // KryoSerializer via type extraction
 				)
-			).returns(Event.class).name(KEYED_STATE_OPER_NAME + "_Kryo_and_Custom_Stateful").uid("0002");
+			).returns(Event.class).name(KEYED_STATE_OPER_NAME + "_Kryo_and_Custom_Stateful").uid(getUidStringAndIncCounter(uidCounter));
 
 		// add a keyed stateful map operator, which uses Avro for state serialization
 		eventStream = eventStream
@@ -132,12 +136,12 @@ public class DataStreamAllroundTestProgram {
 						new AvroSerializer<>(ComplexPayloadAvro.class)), // custom AvroSerializer
 					Collections.singletonList(ComplexPayloadAvro.class) // AvroSerializer via type extraction
 				)
-			).returns(Event.class).name(KEYED_STATE_OPER_NAME + "_Avro").uid("0003");
+			).returns(Event.class).name(KEYED_STATE_OPER_NAME + "_Avro").uid(getUidStringAndIncCounter(uidCounter));
 
 		DataStream<Event> eventStream2 = eventStream
 			.map(createArtificialOperatorStateMapper((MapFunction<Event, Event>) in -> in))
 			.returns(Event.class)
-			.name(OPERATOR_STATE_OPER_NAME).uid("0004");
+			.name(OPERATOR_STATE_OPER_NAME).uid(getUidStringAndIncCounter(uidCounter));
 
 		// apply a tumbling window that simply passes forward window elements;
 		// this allows the job to cover timers state
@@ -150,21 +154,23 @@ public class DataStreamAllroundTestProgram {
 						out.collect(e);
 					}
 				}
-			}).name(TIME_WINDOW_OPER_NAME).uid("0005");
+			}).name(TIME_WINDOW_OPER_NAME).uid(getUidStringAndIncCounter(uidCounter));
+
+		eventStream3 = DataStreamAllroundTestJobFactory.verifyCustomStatefulTypeSerializer(eventStream3, uidCounter);
 
 		if (isSimulateFailures(pt)) {
 			eventStream3 = eventStream3
 				.map(createFailureMapper(pt))
 				.setParallelism(1)
-				.name(FAILURE_MAPPER_NAME).uid("0006");
+				.name(FAILURE_MAPPER_NAME).uid(getUidStringAndIncCounter(uidCounter));
 		}
 
 		eventStream3.keyBy(Event::getKey)
 			.flatMap(createSemanticsCheckMapper(pt))
 			.name(SEMANTICS_CHECK_MAPPER_NAME)
-			.uid("007")
+			.uid(getUidStringAndIncCounter(uidCounter))
 			.addSink(new PrintSinkFunction<>())
-			.uid("008");
+			.uid(getUidStringAndIncCounter(uidCounter));
 
 		// Check sliding windows aggregations. Output all elements assigned to a window and later on
 		// check if each event was emitted slide_factor number of times
@@ -182,14 +188,14 @@ public class DataStreamAllroundTestProgram {
 				}
 			})
 			.name(SLIDING_WINDOW_AGG_NAME)
-			.uid("009");
+			.uid(getUidStringAndIncCounter(uidCounter));
 
 		eventStream4.keyBy(events -> events.f0)
 			.flatMap(createSlidingWindowCheckMapper(pt))
-			.uid("010")
+			.uid(getUidStringAndIncCounter(uidCounter))
 			.name(SLIDING_WINDOW_CHECK_MAPPER_NAME)
 			.addSink(new PrintSinkFunction<>())
-			.uid("011");
+			.uid(getUidStringAndIncCounter(uidCounter));
 
 		env.execute("General purpose test job");
 	}
