@@ -57,12 +57,7 @@ import org.apache.commons.collections.map.LinkedMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
@@ -515,15 +510,17 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			}
 
 			if (filterRestoredPartitionsWithDiscovered) {
-				subscribedPartitionsToStartOffsets.entrySet().removeIf(
-					entry -> {
-						if (!allPartitions.contains(entry.getKey())) {
-							LOG.warn("{} is removed from subscribed Partitions.", entry.getKey());
-							return true;
-						}
-						return false;
+				Iterator<Map.Entry<KafkaTopicPartition, Long>> iter = subscribedPartitionsToStartOffsets.entrySet().iterator();
+
+				while (iter.hasNext()) {
+					Map.Entry<KafkaTopicPartition, Long> entry = iter.next();
+					String topic = entry.getKey().getTopic();
+
+					if (!topicsDescriptor.isMatchingTopic(topic)) {
+						LOG.warn("{} is removed from subscribed Partitions.", entry.getKey());
+						iter.remove();
 					}
-				);
+				}
 			}
 
 			LOG.info("Consumer subtask {} will start reading {} partitions with offsets in restored state: {}",

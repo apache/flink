@@ -252,9 +252,8 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that subscribed partitions are the same when restored partitions
-	 * and discovered partitions didn't change.
-	 * (filterRestoredPartitionsWithDiscovered is active)
+	 * Tests that subscribed partitions didn't change when there's no change
+	 * on the intial topics. (filterRestoredPartitionsWithDiscovered is active)
 	 */
 	@Test
 	public void testSetFilterRestoredParitionsNoChange() throws Exception {
@@ -293,8 +292,8 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that subscribed partitions are the same when restored partitions
-	 * and discovered partitions didn't change.
+	 * Tests that subscribed partitions are the same when there's no
+	 * change on the intial topics.
 	 * (filterRestoredPartitionsWithDiscovered is disabled)
 	 */
 	@Test
@@ -334,19 +333,19 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 	}
 
 	private void checkFilterRestoredPartitionsWithDisovered(List<String> restoredKafkaTopics,
-															List<String> discoveredKafkaTopics,
+															List<String> initKafkaTopics,
 															List<String> expectedSubscribedPartitions,
 															Boolean disableFiltering) throws Exception {
 		final AbstractPartitionDiscoverer discoverer = new TestPartitionDiscoverer(
-			new KafkaTopicsDescriptor(discoveredKafkaTopics, null),
+			new KafkaTopicsDescriptor(initKafkaTopics, null),
 			0,
 			1,
-			TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(discoveredKafkaTopics),
+			TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(initKafkaTopics),
 			TestPartitionDiscoverer.createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(
-				discoveredKafkaTopics.stream()
+				initKafkaTopics.stream()
 					.map(topic -> new KafkaTopicPartition(topic, 0))
 					.collect(Collectors.toList())));
-		final FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>(discoverer);
+		final FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>(initKafkaTopics, discoverer);
 		if (disableFiltering) {
 			consumer.disableFilterRestoredPartitionsWithDiscovered();
 		}
@@ -703,15 +702,18 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 		AbstractStreamOperatorTestHarness<String>[] testHarnesses =
 			new AbstractStreamOperatorTestHarness[initialParallelism];
 
+
+		List<String> testTopics = Collections.singletonList("test-topic");
+
 		for (int i = 0; i < initialParallelism; i++) {
 			TestPartitionDiscoverer partitionDiscoverer = new TestPartitionDiscoverer(
-				new KafkaTopicsDescriptor(Collections.singletonList("test-topic"), null),
+				new KafkaTopicsDescriptor(testTopics, null),
 				i,
 				initialParallelism,
-				TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList("test-topic")),
+				TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(testTopics),
 				TestPartitionDiscoverer.createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockFetchedPartitionsOnStartup));
 
-			consumers[i] = new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), partitionDiscoverer, false);
+			consumers[i] = new DummyFlinkKafkaConsumer<>(testTopics, partitionDiscoverer);
 			testHarnesses[i] = createTestHarness(consumers[i], initialParallelism, i);
 
 			// initializeState() is always called, null signals that we didn't restore
@@ -759,13 +761,13 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 
 		for (int i = 0; i < restoredParallelism; i++) {
 			TestPartitionDiscoverer partitionDiscoverer = new TestPartitionDiscoverer(
-				new KafkaTopicsDescriptor(Collections.singletonList("test-topic"), null),
+				new KafkaTopicsDescriptor(testTopics, null),
 				i,
 				restoredParallelism,
-				TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList("test-topic")),
+				TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(testTopics),
 				TestPartitionDiscoverer.createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockFetchedPartitionsAfterRestore));
 
-			restoredConsumers[i] = new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), partitionDiscoverer, false);
+			restoredConsumers[i] = new DummyFlinkKafkaConsumer<>(testTopics, partitionDiscoverer);
 			restoredTestHarnesses[i] = createTestHarness(restoredConsumers[i], restoredParallelism, i);
 
 			// initializeState() is always called, null signals that we didn't restore
@@ -984,6 +986,16 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 		}
 
 		@SuppressWarnings("unchecked")
+		DummyFlinkKafkaConsumer(List<String> topics, AbstractPartitionDiscoverer abstractPartitionDiscoverer) {
+			this(
+				() -> mock(AbstractFetcher.class),
+				abstractPartitionDiscoverer,
+				false,
+				PARTITION_DISCOVERY_DISABLED,
+				topics);
+		}
+
+		@SuppressWarnings("unchecked")
 		DummyFlinkKafkaConsumer(SupplierWithException<AbstractFetcher<T, ?>, Exception> abstractFetcherSupplier, AbstractPartitionDiscoverer abstractPartitionDiscoverer, long discoveryIntervalMillis) {
 			this(abstractFetcherSupplier, abstractPartitionDiscoverer, false, discoveryIntervalMillis);
 		}
@@ -1019,13 +1031,29 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 				AbstractPartitionDiscoverer testPartitionDiscoverer,
 				boolean isAutoCommitEnabled,
 				long discoveryIntervalMillis) {
+			this(
+				testFetcherSupplier,
+				testPartitionDiscoverer,
+				isAutoCommitEnabled,
+				discoveryIntervalMillis,
+				Collections.singletonList("dummy-topic")
+				);
+		}
+
+		@SuppressWarnings("unchecked")
+		DummyFlinkKafkaConsumer(
+			SupplierWithException<AbstractFetcher<T, ?>, Exception> testFetcherSupplier,
+			AbstractPartitionDiscoverer testPartitionDiscoverer,
+			boolean isAutoCommitEnabled,
+			long discoveryIntervalMillis,
+			List<String> topics) {
 
 			super(
-					Collections.singletonList("dummy-topic"),
-					null,
-					(KeyedDeserializationSchema < T >) mock(KeyedDeserializationSchema.class),
-					discoveryIntervalMillis,
-					false);
+				topics,
+				null,
+				(KeyedDeserializationSchema < T >) mock(KeyedDeserializationSchema.class),
+				discoveryIntervalMillis,
+				false);
 
 			this.testFetcherSupplier = testFetcherSupplier;
 			this.testPartitionDiscoverer = testPartitionDiscoverer;
