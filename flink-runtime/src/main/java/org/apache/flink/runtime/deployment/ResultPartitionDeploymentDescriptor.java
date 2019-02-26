@@ -20,9 +20,9 @@ package org.apache.flink.runtime.deployment;
 
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 
 import java.io.Serializable;
@@ -43,7 +43,7 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 	private final IntermediateDataSetID resultId;
 
 	/** The ID of the partition. */
-	private final IntermediateResultPartitionID partitionId;
+	private final ResultPartitionID partitionId;
 
 	/** The type of the partition. */
 	private final ResultPartitionType partitionType;
@@ -59,7 +59,7 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 
 	public ResultPartitionDeploymentDescriptor(
 			IntermediateDataSetID resultId,
-			IntermediateResultPartitionID partitionId,
+			ResultPartitionID partitionId,
 			ResultPartitionType partitionType,
 			int numberOfSubpartitions,
 			int maxParallelism,
@@ -80,7 +80,7 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 		return resultId;
 	}
 
-	public IntermediateResultPartitionID getPartitionId() {
+	public ResultPartitionID getPartitionId() {
 		return partitionId;
 	}
 
@@ -113,7 +113,8 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 			IntermediateResultPartition partition, int maxParallelism, boolean lazyScheduling) {
 
 		final IntermediateDataSetID resultId = partition.getIntermediateResult().getId();
-		final IntermediateResultPartitionID partitionId = partition.getPartitionId();
+		final ResultPartitionID partitionId = new ResultPartitionID(
+			partition.getPartitionId(), partition.getProducer().getCurrentExecutionAttempt().getAttemptId());
 		final ResultPartitionType partitionType = partition.getIntermediateResult().getResultType();
 
 		// The produced data is partitioned among a number of subpartitions.

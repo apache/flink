@@ -364,13 +364,11 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		int counter = 0;
 
 		for (ResultPartitionDeploymentDescriptor desc: resultPartitionDeploymentDescriptors) {
-			ResultPartitionID partitionId = new ResultPartitionID(desc.getPartitionId(), executionId);
-
 			this.producedPartitions[counter] = new ResultPartition(
 				taskNameWithSubtaskAndId,
 				this,
 				jobId,
-				partitionId,
+				desc.getPartitionId(),
 				desc.getPartitionType(),
 				desc.getNumberOfSubpartitions(),
 				desc.getMaxParallelism(),

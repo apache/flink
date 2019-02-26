@@ -680,7 +680,8 @@ public class TaskManagerTest extends TestLogger {
 				IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
 
 				List<ResultPartitionDeploymentDescriptor> irpdd = new ArrayList<ResultPartitionDeploymentDescriptor>();
-				irpdd.add(new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1, 1, true));
+				irpdd.add(new ResultPartitionDeploymentDescriptor(
+					new IntermediateDataSetID(), new ResultPartitionID(partitionId, eid1), ResultPartitionType.PIPELINED, 1, 1, true));
 
 				InputGateDeploymentDescriptor ircdd =
 						new InputGateDeploymentDescriptor(
@@ -829,7 +830,8 @@ public class TaskManagerTest extends TestLogger {
 				IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
 
 				List<ResultPartitionDeploymentDescriptor> irpdd = new ArrayList<ResultPartitionDeploymentDescriptor>();
-				irpdd.add(new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1, 1, true));
+				irpdd.add(new ResultPartitionDeploymentDescriptor(
+					new IntermediateDataSetID(), new ResultPartitionID(partitionId, eid1), ResultPartitionType.PIPELINED, 1, 1, true));
 
 				InputGateDeploymentDescriptor ircdd =
 						new InputGateDeploymentDescriptor(
@@ -1580,7 +1582,7 @@ public class TaskManagerTest extends TestLogger {
 
 			final ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor = new ResultPartitionDeploymentDescriptor(
 				new IntermediateDataSetID(),
-				new IntermediateResultPartitionID(),
+				new ResultPartitionID(new IntermediateResultPartitionID(), eid),
 				ResultPartitionType.PIPELINED,
 				1,
 				1,

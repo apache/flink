@@ -1253,7 +1253,7 @@ public class JobMasterTest extends TestLogger {
 			jobMasterGateway.updateTaskExecutionState(new TaskExecutionState(producerConsumerJobGraph.getJobID(), executionAttemptId, ExecutionState.FINISHED)).get();
 
 			// request the state of the result partition of the producer
-			final ResultPartitionID partitionId = new ResultPartitionID(partition.getPartitionId(), copiedExecutionAttemptId);
+			final ResultPartitionID partitionId = new ResultPartitionID(partition.getPartitionId().getPartitionId(), copiedExecutionAttemptId);
 			CompletableFuture<ExecutionState> partitionStateFuture = jobMasterGateway.requestPartitionState(partition.getResultId(), partitionId);
 
 			assertThat(partitionStateFuture.get(), equalTo(ExecutionState.FINISHED));
@@ -1279,7 +1279,8 @@ public class JobMasterTest extends TestLogger {
 			}
 
 			// ask for "old" execution
-			partitionStateFuture = jobMasterGateway.requestPartitionState(partition.getResultId(), new ResultPartitionID(partition.getPartitionId(), new ExecutionAttemptID()));
+			partitionStateFuture = jobMasterGateway.requestPartitionState(
+				partition.getResultId(), new ResultPartitionID(partition.getPartitionId().getPartitionId(), new ExecutionAttemptID()));
 
 			try {
 				partitionStateFuture.get();

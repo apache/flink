@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.deployment;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -40,7 +42,7 @@ public class ResultPartitionDeploymentDescriptorTest {
 	public void testSerialization() throws Exception {
 		// Expected values
 		IntermediateDataSetID resultId = new IntermediateDataSetID();
-		IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
+		ResultPartitionID partitionId = new ResultPartitionID(new IntermediateResultPartitionID(), new ExecutionAttemptID());
 		ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
 		int numberOfSubpartitions = 24;
 
