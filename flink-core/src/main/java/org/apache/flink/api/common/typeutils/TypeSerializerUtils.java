@@ -45,7 +45,7 @@ public final class TypeSerializerUtils {
 	 * is set up properly (with its originating serializer) such that the backwards
 	 * compatible code paths work.
 	 */
-	public static TypeSerializerSnapshot<?> snapshotBackwardsCompatible(TypeSerializer<?> originatingSerializer) {
+	public static <T> TypeSerializerSnapshot<T> snapshotBackwardsCompatible(TypeSerializer<T> originatingSerializer) {
 		return configureForBackwardsCompatibility(originatingSerializer.snapshotConfiguration(), originatingSerializer);
 	}
 
