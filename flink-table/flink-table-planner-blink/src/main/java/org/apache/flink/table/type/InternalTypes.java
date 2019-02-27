@@ -53,8 +53,12 @@ public class InternalTypes {
 
 	public static final DecimalType SYSTEM_DEFAULT_DECIMAL = DecimalType.SYSTEM_DEFAULT;
 
-	public static ArrayType createArrayType(InternalType elementType, boolean nullable) {
-		return new ArrayType(elementType, nullable);
+	public static ArrayType createArrayType(InternalType elementType) {
+		return new ArrayType(elementType, false);
+	}
+
+	public static ArrayType createArrayType(InternalType elementType, boolean primitive) {
+		return new ArrayType(elementType, primitive);
 	}
 
 	public static DecimalType createDecimalType(int precision, int scale) {

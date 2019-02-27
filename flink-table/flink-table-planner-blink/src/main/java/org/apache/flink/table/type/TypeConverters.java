@@ -61,8 +61,6 @@ public class TypeConverters {
 		TYPE_INFO_TO_INTERNAL_TYPE = Collections.unmodifiableMap(tiToType);
 	}
 
-
-
 	/**
 	 * Create a {@link InternalType} from a {@link TypeInformation}.
 	 *
@@ -95,15 +93,15 @@ public class TypeConverters {
 		} else if (typeInfo instanceof PrimitiveArrayTypeInfo) {
 			PrimitiveArrayTypeInfo arrayType = (PrimitiveArrayTypeInfo) typeInfo;
 			return InternalTypes.createArrayType(
-					createInternalTypeFromTypeInfo(arrayType.getComponentType()), false);
+					createInternalTypeFromTypeInfo(arrayType.getComponentType()), true);
 		} else if (typeInfo instanceof BasicArrayTypeInfo) {
 			BasicArrayTypeInfo arrayType = (BasicArrayTypeInfo) typeInfo;
 			return InternalTypes.createArrayType(
-					createInternalTypeFromTypeInfo(arrayType.getComponentInfo()), true);
+					createInternalTypeFromTypeInfo(arrayType.getComponentInfo()));
 		} else if (typeInfo instanceof ObjectArrayTypeInfo) {
 			ObjectArrayTypeInfo arrayType = (ObjectArrayTypeInfo) typeInfo;
 			return InternalTypes.createArrayType(
-					createInternalTypeFromTypeInfo(arrayType.getComponentInfo()), true);
+					createInternalTypeFromTypeInfo(arrayType.getComponentInfo()));
 		} else if (typeInfo instanceof MapTypeInfo) {
 			MapTypeInfo mapType = (MapTypeInfo) typeInfo;
 			return InternalTypes.createMapType(

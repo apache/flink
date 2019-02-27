@@ -26,19 +26,23 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ArrayType implements InternalType {
 
 	private final InternalType elementType;
-	private final boolean nullable;
+	private final boolean primitive;
 
-	public ArrayType(InternalType elementType, boolean nullable) {
+	public ArrayType(InternalType elementType) {
+		this(elementType, false);
+	}
+
+	public ArrayType(InternalType elementType, boolean primitive) {
 		this.elementType = checkNotNull(elementType);
-		this.nullable = nullable;
+		this.primitive = primitive;
 	}
 
 	public InternalType getElementType() {
 		return elementType;
 	}
 
-	public boolean isNullable() {
-		return nullable;
+	public boolean isPrimitive() {
+		return primitive;
 	}
 
 	@Override
@@ -52,13 +56,13 @@ public class ArrayType implements InternalType {
 
 		ArrayType arrayType = (ArrayType) o;
 
-		return nullable == arrayType.nullable && elementType.equals(arrayType.elementType);
+		return primitive == arrayType.primitive && elementType.equals(arrayType.elementType);
 	}
 
 	@Override
 	public int hashCode() {
 		int result = elementType != null ? elementType.hashCode() : 0;
-		result = 31 * result + (nullable ? 1 : 0);
+		result = 31 * result + (primitive ? 1 : 0);
 		return result;
 	}
 }
