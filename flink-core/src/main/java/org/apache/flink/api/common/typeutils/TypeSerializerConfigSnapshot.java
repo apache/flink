@@ -151,13 +151,24 @@ public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadabl
 				SelfResolvingTypeSerializer<T> selfResolvingTypeSerializer = (SelfResolvingTypeSerializer<T>) newSerializer;
 				return selfResolvingTypeSerializer.resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(this);
 		}
-		// in prior versions, the compatibility check was in the serializer itself, so we
-		// delegate this call to the serializer.
-		final CompatibilityResult<T> compatibility = newSerializer.ensureCompatibility(this);
 
-		return compatibility.isRequiresMigration() ?
-				TypeSerializerSchemaCompatibility.incompatible() :
-				TypeSerializerSchemaCompatibility.compatibleAsIs();
+		// we reach here if:
+		// - this legacy config snapshot did not override #resolveSchemaCompatibility to redirect
+		//   the compatibility check to a new TypeSerializerSnapshot
+		// - the corresponding newSerializer does not make use of the SelfResolvingTypeSerializer
+		//   to assist with the redirection
+		throw new UnsupportedOperationException(
+			"Serializer snapshot " + getClass().getName() + " is still implementing the deprecated TypeSerializerConfigSnapshot class.\n" +
+				"Please update it to implement the TypeSerializerSnapshot interface, to enable state evolution as well as being future-proof.\n\n" +
+				"- If possible, you should try to perform the update in-place, i.e. use the same snapshot class under the same name, but change it to implement TypeSerializerSnapshot instead.\n\n" +
+				"- Otherwise, if the above isn't possible (perhaps because the new snapshot is intended to have completely\n" +
+				"  different written contents or intended to have a different class name),\n" +
+				"  retain the old serializer snapshot class (extending TypeSerializerConfigSnapshot) under the same name\n" +
+				"  and give the updated serializer snapshot class (the one extending TypeSerializerSnapshot) a new name.\n" +
+				"  Afterwards, override the TypeSerializerConfigSnapshot#resolveSchemaCompatibility(TypeSerializer)\n" +
+				"  method on the old snapshot to perform the compatibility check based on configuration written by" +
+				"  the old serializer snapshot class."
+		);
 	}
 
 	/**
