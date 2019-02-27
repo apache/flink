@@ -126,7 +126,7 @@ DataStream<RawEvent> input = ...;
 StreamingFileSink<RawEvent> sink = StreamingFileSink.forBulkFormat(
 				new Path(outputPath),
 				ParquetAvroWriters.forSpecificRecord(RawEvent.class)
-)
+).build()
 
 input.addSink(sink);
 
@@ -141,7 +141,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSin
 val input: DataStream[RawEvent] = ...
 
 val sink: StreamingFileSink[RawEvent] = StreamingFileSink
-    .forRowFormat(new Path(outputPath), ParquetAvroWriters.forSpecificRecord(RawEvent.class))
+    .forBulkFormat(new Path(outputPath), ParquetAvroWriters.forSpecificRecord(RawEvent.class))
     .build()
 
 input.addSink(sink)
