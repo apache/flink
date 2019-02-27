@@ -19,10 +19,7 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 
 @Internal
 public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T> {
@@ -40,38 +37,9 @@ public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T> {
 	public int hashCode() {
 		return this.getClass().hashCode();
 	}
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		return obj.getClass().equals(this.getClass());
-	}
-
-	/**
-	 * @deprecated this is kept around for backwards compatibility.
-	 *             Can only be removed when {@link ParameterlessTypeSerializerConfig} is removed.
-	 */
-	@Override
-	@Deprecated
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-		if (configSnapshot instanceof ParameterlessTypeSerializerConfig
-				&& isCompatibleSerializationFormatIdentifier(
-						((ParameterlessTypeSerializerConfig<?>) configSnapshot).getSerializationFormatIdentifier())) {
-
-			return CompatibilityResult.compatible();
-		} else {
-			return CompatibilityResult.requiresMigration();
-		}
-	}
-
-	/**
-	 * Subclasses can override this if they know that they are also compatible with identifiers of other formats.
-	 */
-	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
-		return identifier.equals(getClass().getName()) ||
-				identifier.equals(getClass().getCanonicalName());
-	}
-
-	private String getSerializationFormatIdentifier() {
-		return getClass().getName();
 	}
 }
