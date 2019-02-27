@@ -42,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadableWritable implements TypeSerializerSnapshot<T> {
 
 	/** Version / Magic number for the format that bridges between the old and new interface. */
-	private static final int ADAPTER_VERSION = 0x7a53c4f0;
+	static final int ADAPTER_VERSION = 0x7a53c4f0;
 
 	/** The user code class loader; only relevant if this configuration instance was deserialized from binary form. */
 	private ClassLoader userCodeClassLoader;
