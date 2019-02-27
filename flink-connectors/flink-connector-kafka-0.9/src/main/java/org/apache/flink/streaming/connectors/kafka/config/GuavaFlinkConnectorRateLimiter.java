@@ -22,10 +22,14 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.RateLimiter;
 
+import java.io.Serializable;
+
 /**
  * An implemetation of {@link FlinkConnectorRateLimiter} that uses Guava's RateLimiter for rate limiting.
  */
-public class GuavaFlinkConnectorRateLimiter implements FlinkConnectorRateLimiter {
+public class GuavaFlinkConnectorRateLimiter implements FlinkConnectorRateLimiter, Serializable {
+
+	private static final long serialVersionUID = -3680641524643737192L;
 
 	/** Rate in bytes per second for the consumer on a whole. */
 	private long globalRateBytesPerSecond;
