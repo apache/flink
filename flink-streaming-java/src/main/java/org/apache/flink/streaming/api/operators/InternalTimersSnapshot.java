@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -32,9 +33,7 @@ import java.util.Set;
  */
 public class InternalTimersSnapshot<K, N> {
 
-	private TypeSerializer<K> keySerializer;
 	private TypeSerializerSnapshot<K> keySerializerSnapshot;
-	private TypeSerializer<N> namespaceSerializer;
 	private TypeSerializerSnapshot<N> namespaceSerializerSnapshot;
 
 	private Set<TimerHeapInternalTimer<K, N>> eventTimeTimers;
@@ -46,26 +45,17 @@ public class InternalTimersSnapshot<K, N> {
 	/** Constructor to use when snapshotting the timers. */
 	public InternalTimersSnapshot(
 			TypeSerializer<K> keySerializer,
-			TypeSerializerSnapshot<K> keySerializerSnapshot,
 			TypeSerializer<N> namespaceSerializer,
-			TypeSerializerSnapshot<N> namespaceSerializerSnapshot,
 			@Nullable Set<TimerHeapInternalTimer<K, N>> eventTimeTimers,
 			@Nullable Set<TimerHeapInternalTimer<K, N>> processingTimeTimers) {
 
-		this.keySerializer = Preconditions.checkNotNull(keySerializer);
-		this.keySerializerSnapshot = Preconditions.checkNotNull(keySerializerSnapshot);
-		this.namespaceSerializer = Preconditions.checkNotNull(namespaceSerializer);
-		this.namespaceSerializerSnapshot = Preconditions.checkNotNull(namespaceSerializerSnapshot);
+		Preconditions.checkNotNull(keySerializer);
+		this.keySerializerSnapshot = TypeSerializerUtils.snapshotBackwardsCompatible(keySerializer);
+		Preconditions.checkNotNull(namespaceSerializer);
+		this.namespaceSerializerSnapshot = TypeSerializerUtils.snapshotBackwardsCompatible(namespaceSerializer);
+
 		this.eventTimeTimers = eventTimeTimers;
 		this.processingTimeTimers = processingTimeTimers;
-	}
-
-	public TypeSerializer<K> getKeySerializer() {
-		return keySerializer;
-	}
-
-	public void setKeySerializer(TypeSerializer<K> keySerializer) {
-		this.keySerializer = keySerializer;
 	}
 
 	public TypeSerializerSnapshot<K> getKeySerializerSnapshot() {
@@ -74,14 +64,6 @@ public class InternalTimersSnapshot<K, N> {
 
 	public void setKeySerializerSnapshot(TypeSerializerSnapshot<K> keySerializerConfigSnapshot) {
 		this.keySerializerSnapshot = keySerializerConfigSnapshot;
-	}
-
-	public TypeSerializer<N> getNamespaceSerializer() {
-		return namespaceSerializer;
-	}
-
-	public void setNamespaceSerializer(TypeSerializer<N> namespaceSerializer) {
-		this.namespaceSerializer = namespaceSerializer;
 	}
 
 	public TypeSerializerSnapshot<N> getNamespaceSerializerSnapshot() {
