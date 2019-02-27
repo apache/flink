@@ -42,24 +42,30 @@ public class DecimalType implements AtomicType {
 
 	public DecimalType(int precision, int scale) {
 
+		if (precision < 0) {
+			throw new IllegalArgumentException(format("Decimal precision (%s) cannot be negative.",
+					precision));
+		}
+
 		if (scale > precision) {
 			throw new IllegalArgumentException(format("Decimal scale (%s) cannot be greater than " +
 					"precision (%s).", scale, precision));
 		}
 
-		if (precision > DecimalType.MAX_PRECISION) {
-			throw new IllegalArgumentException("DecimalType can only support precision up to 38");
+		if (precision > MAX_PRECISION) {
+			throw new IllegalArgumentException(
+					"DecimalType can only support precision up to " + MAX_PRECISION);
 		}
 
 		this.precision = precision;
 		this.scale = scale;
 	}
 
-	public int precision(){
+	public int precision() {
 		return this.precision;
 	}
 
-	public int scale(){
+	public int scale() {
 		return this.scale;
 	}
 
@@ -69,29 +75,6 @@ public class DecimalType implements AtomicType {
 
 	public static DecimalType of(BigDecimal value) {
 		return of(value.precision(), value.scale());
-	}
-
-	/**
-	 * Create a DecimalType instance from its qualified name in the form of "decimal(p,s)".
-	 * @param qualifiedName qualified decimal type name
-	 * @return a DecimalType instance
-	 */
-	public static DecimalType of(String qualifiedName) {
-		if (!qualifiedName.startsWith("decimal(")) {
-			throw new IllegalArgumentException("Illegal form of qualified decimal type " + qualifiedName);
-		}
-
-		int start = qualifiedName.indexOf('(');
-		int end = qualifiedName.indexOf(')');
-		String ps = qualifiedName.substring(start + 1, end);
-		String[] sArray = ps.split(",");
-		if (sArray.length != 2) {
-			throw new IllegalArgumentException("Illegal form of qualified decimal type " + qualifiedName);
-		}
-
-		int precision = Integer.parseInt(sArray[0]);
-		int scale = Integer.parseInt(sArray[1]);
-		return new DecimalType(precision, scale);
 	}
 
 	@Override
