@@ -162,6 +162,14 @@
 			<fileMode>0644</fileMode>
 		</file>
 
+		<!-- Batch Python API -->
+		<file>
+			<source>../flink-libraries/flink-python/target/flink-python_${scala.binary.version}-${project.version}.jar</source>
+			<outputDirectory>opt</outputDirectory>
+			<destName>flink-python_${scala.binary.version}-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
 		<!-- Streaming Python API -->
 		<file>
 			<source>../flink-libraries/flink-streaming-python/target/flink-streaming-python_${scala.binary.version}-${project.version}.jar</source>
