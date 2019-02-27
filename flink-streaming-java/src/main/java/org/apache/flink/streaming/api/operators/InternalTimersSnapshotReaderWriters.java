@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.BackwardsCompatibleSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
@@ -265,8 +266,13 @@ public class InternalTimersSnapshotReaderWriters {
 
 			DataInputViewStream dis = new DataInputViewStream(in);
 			try {
-				restoredTimersSnapshot.setKeySerializer(InstantiationUtil.deserializeObject(dis, userCodeClassLoader, true));
-				restoredTimersSnapshot.setNamespaceSerializer(InstantiationUtil.deserializeObject(dis, userCodeClassLoader, true));
+				final TypeSerializer<K> keySerializer = InstantiationUtil.deserializeObject(dis, userCodeClassLoader, true);
+				final TypeSerializer<N> namespaceSerializer = InstantiationUtil.deserializeObject(dis, userCodeClassLoader, true);
+
+				restoredTimersSnapshot.setKeySerializer(keySerializer);
+				restoredTimersSnapshot.setKeySerializerSnapshot(new BackwardsCompatibleSerializerSnapshot<>(keySerializer));
+				restoredTimersSnapshot.setNamespaceSerializer(namespaceSerializer);
+				restoredTimersSnapshot.setNamespaceSerializerSnapshot(new BackwardsCompatibleSerializerSnapshot<>(namespaceSerializer));
 			} catch (ClassNotFoundException exception) {
 				throw new IOException(exception);
 			}
