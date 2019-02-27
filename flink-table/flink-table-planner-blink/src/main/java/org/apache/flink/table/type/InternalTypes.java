@@ -20,9 +20,6 @@ package org.apache.flink.table.type;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
-import java.util.Arrays;
-import java.util.List;
-
 /**
  * Accessor of {@link InternalType}s.
  */
@@ -56,8 +53,8 @@ public class InternalTypes {
 
 	public static final DecimalType SYSTEM_DEFAULT_DECIMAL = DecimalType.SYSTEM_DEFAULT;
 
-	public static ArrayType createArrayType(InternalType elementType) {
-		return new ArrayType(elementType);
+	public static ArrayType createArrayType(InternalType elementType, boolean nullable) {
+		return new ArrayType(elementType, nullable);
 	}
 
 	public static DecimalType createDecimalType(int precision, int scale) {

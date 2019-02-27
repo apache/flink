@@ -30,8 +30,9 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
-import com.google.common.collect.ImmutableBiMap;
-
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -40,23 +41,27 @@ import java.util.stream.Stream;
  */
 public class TypeConverters {
 
-	public static final ImmutableBiMap<InternalType, TypeInformation> INTERNAL_TYPE_TO_EXTERNAL_TYPE_INFO =
-			new ImmutableBiMap.Builder<InternalType, TypeInformation>()
-					.put(InternalTypes.STRING, BasicTypeInfo.STRING_TYPE_INFO)
-					.put(InternalTypes.BOOLEAN, BasicTypeInfo.BOOLEAN_TYPE_INFO)
-					.put(InternalTypes.DOUBLE, BasicTypeInfo.DOUBLE_TYPE_INFO)
-					.put(InternalTypes.FLOAT, BasicTypeInfo.FLOAT_TYPE_INFO)
-					.put(InternalTypes.BYTE, BasicTypeInfo.BYTE_TYPE_INFO)
-					.put(InternalTypes.INT, BasicTypeInfo.INT_TYPE_INFO)
-					.put(InternalTypes.LONG, BasicTypeInfo.LONG_TYPE_INFO)
-					.put(InternalTypes.SHORT, BasicTypeInfo.SHORT_TYPE_INFO)
-					.put(InternalTypes.CHAR, BasicTypeInfo.CHAR_TYPE_INFO)
-					.put(InternalTypes.BYTE_ARRAY, PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO)
-					.put(InternalTypes.DATE, SqlTimeTypeInfo.DATE)
-					.put(InternalTypes.TIMESTAMP, SqlTimeTypeInfo.TIMESTAMP)
-					.put(InternalTypes.TIME, SqlTimeTypeInfo.TIME)
-					.put(InternalTypes.SYSTEM_DEFAULT_DECIMAL, BasicTypeInfo.BIG_DEC_TYPE_INFO)
-					.build();
+	public static final Map<TypeInformation, InternalType> TYPE_INFO_TO_INTERNAL_TYPE;
+	static {
+		Map<TypeInformation, InternalType> tiToType = new HashMap<>();
+		tiToType.put(BasicTypeInfo.STRING_TYPE_INFO, InternalTypes.STRING);
+		tiToType.put(BasicTypeInfo.BOOLEAN_TYPE_INFO, InternalTypes.BOOLEAN);
+		tiToType.put(BasicTypeInfo.DOUBLE_TYPE_INFO, InternalTypes.DOUBLE);
+		tiToType.put(BasicTypeInfo.FLOAT_TYPE_INFO, InternalTypes.FLOAT);
+		tiToType.put(BasicTypeInfo.BYTE_TYPE_INFO, InternalTypes.BYTE);
+		tiToType.put(BasicTypeInfo.INT_TYPE_INFO, InternalTypes.INT);
+		tiToType.put(BasicTypeInfo.LONG_TYPE_INFO, InternalTypes.LONG);
+		tiToType.put(BasicTypeInfo.SHORT_TYPE_INFO, InternalTypes.SHORT);
+		tiToType.put(BasicTypeInfo.CHAR_TYPE_INFO, InternalTypes.CHAR);
+		tiToType.put(PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO, InternalTypes.BYTE_ARRAY);
+		tiToType.put(SqlTimeTypeInfo.DATE, InternalTypes.DATE);
+		tiToType.put(SqlTimeTypeInfo.TIMESTAMP, InternalTypes.TIMESTAMP);
+		tiToType.put(SqlTimeTypeInfo.TIME, InternalTypes.TIME);
+		tiToType.put(BasicTypeInfo.BIG_DEC_TYPE_INFO, InternalTypes.SYSTEM_DEFAULT_DECIMAL);
+		TYPE_INFO_TO_INTERNAL_TYPE = Collections.unmodifiableMap(tiToType);
+	}
+
+
 
 	/**
 	 * Create a {@link InternalType} from a {@link TypeInformation}.
@@ -73,7 +78,7 @@ public class TypeConverters {
 	 */
 	public static InternalType createInternalTypeFromTypeInfo(TypeInformation typeInfo) {
 
-		InternalType type = INTERNAL_TYPE_TO_EXTERNAL_TYPE_INFO.inverse().get(typeInfo);
+		InternalType type = TYPE_INFO_TO_INTERNAL_TYPE.get(typeInfo);
 		if (type != null) {
 			return type;
 		}
@@ -89,13 +94,16 @@ public class TypeConverters {
 			);
 		} else if (typeInfo instanceof PrimitiveArrayTypeInfo) {
 			PrimitiveArrayTypeInfo arrayType = (PrimitiveArrayTypeInfo) typeInfo;
-			return InternalTypes.createArrayType(createInternalTypeFromTypeInfo(arrayType.getComponentType()));
+			return InternalTypes.createArrayType(
+					createInternalTypeFromTypeInfo(arrayType.getComponentType()), false);
 		} else if (typeInfo instanceof BasicArrayTypeInfo) {
 			BasicArrayTypeInfo arrayType = (BasicArrayTypeInfo) typeInfo;
-			return InternalTypes.createArrayType(createInternalTypeFromTypeInfo(arrayType.getComponentInfo()));
+			return InternalTypes.createArrayType(
+					createInternalTypeFromTypeInfo(arrayType.getComponentInfo()), true);
 		} else if (typeInfo instanceof ObjectArrayTypeInfo) {
 			ObjectArrayTypeInfo arrayType = (ObjectArrayTypeInfo) typeInfo;
-			return InternalTypes.createArrayType(createInternalTypeFromTypeInfo(arrayType.getComponentInfo()));
+			return InternalTypes.createArrayType(
+					createInternalTypeFromTypeInfo(arrayType.getComponentInfo()), true);
 		} else if (typeInfo instanceof MapTypeInfo) {
 			MapTypeInfo mapType = (MapTypeInfo) typeInfo;
 			return InternalTypes.createMapType(

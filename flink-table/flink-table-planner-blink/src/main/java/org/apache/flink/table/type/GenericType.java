@@ -23,12 +23,14 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Generic type.
  */
-public class GenericType<T> extends AtomicType {
+public class GenericType<T> implements AtomicType {
 
-	private TypeInformation<T> typeInfo;
+	private final TypeInformation<T> typeInfo;
 	private TypeSerializer<T> serializer;
 
 	public GenericType(Class<T> typeClass) {
@@ -36,7 +38,7 @@ public class GenericType<T> extends AtomicType {
 	}
 
 	public GenericType(TypeInformation<T> typeInfo) {
-		this.typeInfo = typeInfo;
+		this.typeInfo = checkNotNull(typeInfo);
 	}
 
 	public TypeInformation<T> getTypeInfo() {
@@ -64,15 +66,12 @@ public class GenericType<T> extends AtomicType {
 		}
 
 		GenericType<?> that = (GenericType<?>) o;
-
 		return typeInfo.equals(that.typeInfo);
 	}
 
 	@Override
 	public int hashCode() {
-		int result = super.hashCode();
-		result = 31 * result + typeInfo.hashCode();
-		return result;
+		return typeInfo.hashCode();
 	}
 
 	@Override

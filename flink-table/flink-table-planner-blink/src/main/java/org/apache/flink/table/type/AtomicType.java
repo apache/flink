@@ -21,20 +21,5 @@ package org.apache.flink.table.type;
 /**
  * Atomic Type.
  */
-public abstract class AtomicType extends InternalType {
-
-	@Override
-	public boolean equals(Object o) {
-		return this == o || o != null && getClass() == o.getClass();
-	}
-
-	@Override
-	public int hashCode() {
-		return getClass().hashCode();
-	}
-
-	@Override
-	public String toString() {
-		return getClass().getSimpleName();
-	}
+public interface AtomicType extends InternalType {
 }

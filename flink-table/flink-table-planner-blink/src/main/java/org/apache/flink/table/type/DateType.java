@@ -21,9 +21,24 @@ package org.apache.flink.table.type;
 /**
  * Sql date type.
  */
-public class DateType extends AtomicType {
+public class DateType implements AtomicType {
 
 	public static final DateType INSTANCE = new DateType();
 
 	private DateType() {}
+
+	@Override
+	public boolean equals(Object o) {
+		return this == o || o != null && getClass() == o.getClass();
+	}
+
+	@Override
+	public int hashCode() {
+		return getClass().hashCode();
+	}
+
+	@Override
+	public String toString() {
+		return getClass().getSimpleName();
+	}
 }

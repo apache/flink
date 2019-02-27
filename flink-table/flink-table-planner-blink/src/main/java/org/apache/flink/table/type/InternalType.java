@@ -21,7 +21,8 @@ package org.apache.flink.table.type;
 import java.io.Serializable;
 
 /**
- * InternalType is for internal computing and code generator.
+ * InternalType is the base type of all Flink SQL types and it is for internal computing
+ * and code generator.
  *
  * <p>An InternalType may correspond to multiple data formats. The user uses the basic
  * Java data format, while we use a more efficient binary format inside Table for
@@ -33,5 +34,5 @@ import java.io.Serializable;
  * into data formats that we support internally when executed inside the table. Convert
  * it to the user when he needs it (For example, UDF and so on).
  */
-public abstract class InternalType implements Serializable {
+public interface InternalType extends Serializable {
 }

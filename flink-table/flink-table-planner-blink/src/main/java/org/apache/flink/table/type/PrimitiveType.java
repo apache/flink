@@ -21,5 +21,21 @@ package org.apache.flink.table.type;
 /**
  * Primitive type.
  */
-public abstract class PrimitiveType extends AtomicType {
+public abstract class PrimitiveType implements AtomicType {
+
+	@Override
+	public boolean equals(Object o) {
+		return this == o || o != null && getClass() == o.getClass();
+	}
+
+	@Override
+	public int hashCode() {
+		return getClass().hashCode();
+	}
+
+	@Override
+	public String toString() {
+		return getClass().getSimpleName();
+	}
+
 }

@@ -21,10 +21,25 @@ package org.apache.flink.table.type;
 /**
  * Sql time type.
  */
-public class TimeType extends AtomicType {
+public class TimeType implements AtomicType {
 
 	public static final TimeType INSTANCE = new TimeType();
 
 	private TimeType() {}
+
+	@Override
+	public boolean equals(Object o) {
+		return this == o || o != null && getClass() == o.getClass();
+	}
+
+	@Override
+	public int hashCode() {
+		return getClass().hashCode();
+	}
+
+	@Override
+	public String toString() {
+		return getClass().getSimpleName();
+	}
 
 }

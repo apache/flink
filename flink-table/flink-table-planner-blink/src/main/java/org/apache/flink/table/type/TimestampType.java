@@ -21,9 +21,24 @@ package org.apache.flink.table.type;
 /**
  * Sql timestamp type.
  */
-public class TimestampType extends AtomicType {
+public class TimestampType implements AtomicType {
 
 	public static final TimestampType INSTANCE = new TimestampType();
 
 	private TimestampType() {}
+
+	@Override
+	public boolean equals(Object o) {
+		return this == o || o != null && getClass() == o.getClass();
+	}
+
+	@Override
+	public int hashCode() {
+		return getClass().hashCode();
+	}
+
+	@Override
+	public String toString() {
+		return getClass().getSimpleName();
+	}
 }

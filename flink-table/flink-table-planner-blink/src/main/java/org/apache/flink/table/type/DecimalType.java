@@ -25,7 +25,7 @@ import static java.lang.String.format;
 /**
  * Decimal type.
  */
-public class DecimalType extends AtomicType {
+public class DecimalType implements AtomicType {
 
 	public static final int MAX_PRECISION = 38;
 
@@ -110,8 +110,7 @@ public class DecimalType extends AtomicType {
 
 	@Override
 	public int hashCode() {
-		int result = super.hashCode();
-		result = 31 * result + precision;
+		int result = precision;
 		result = 31 * result + scale;
 		return result;
 	}
@@ -119,8 +118,8 @@ public class DecimalType extends AtomicType {
 	@Override
 	public String toString() {
 		return "DecimalType{" +
-			"precision=" + precision +
-			", scale=" + scale +
-			'}';
+				"precision=" + precision +
+				", scale=" + scale +
+				'}';
 	}
 }

@@ -21,10 +21,25 @@ package org.apache.flink.table.type;
 /**
  * String type.
  */
-public class StringType extends AtomicType {
+public class StringType implements AtomicType {
 
 	public static final StringType INSTANCE = new StringType();
 
 	private StringType() {
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		return this == o || o != null && getClass() == o.getClass();
+	}
+
+	@Override
+	public int hashCode() {
+		return getClass().hashCode();
+	}
+
+	@Override
+	public String toString() {
+		return getClass().getSimpleName();
 	}
 }

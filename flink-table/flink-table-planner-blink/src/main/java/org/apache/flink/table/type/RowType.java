@@ -27,7 +27,7 @@ import java.util.Arrays;
  *
  * <p>It's internal data structure is BaseRow, and it's external data structure is {@link Row}.
  */
-public class RowType extends InternalType {
+public class RowType implements InternalType {
 
 	/**
 	 * Use DataType instead of InternalType to convert to Row (if a Pojo in Row).

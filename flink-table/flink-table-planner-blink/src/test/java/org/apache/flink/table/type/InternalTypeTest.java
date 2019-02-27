@@ -18,9 +18,14 @@
 
 package org.apache.flink.table.type;
 
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.MapTypeInfo;
+import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -28,6 +33,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+
+import static org.apache.flink.table.type.TypeConverters.createInternalTypeFromTypeInfo;
 
 /**
  * Test for {@link InternalType}s.
@@ -37,10 +44,15 @@ public class InternalTypeTest {
 	@Test
 	public void testHashCodeAndEquals() throws IOException, ClassNotFoundException {
 		testHashCodeAndEquals(InternalTypes.INT);
+		testHashCodeAndEquals(InternalTypes.DATE);
+		testHashCodeAndEquals(InternalTypes.TIME);
+		testHashCodeAndEquals(InternalTypes.TIMESTAMP);
+		testHashCodeAndEquals(InternalTypes.BYTE_ARRAY);
+		testHashCodeAndEquals(InternalTypes.STRING);
 		testHashCodeAndEquals(new DecimalType(15, 5));
 		testHashCodeAndEquals(new GenericType<>(InternalTypeTest.class));
 		testHashCodeAndEquals(new RowType(InternalTypes.STRING, InternalTypes.INT, InternalTypes.INT));
-		testHashCodeAndEquals(new ArrayType(InternalTypes.STRING));
+		testHashCodeAndEquals(new ArrayType(InternalTypes.STRING, true));
 		testHashCodeAndEquals(new MapType(InternalTypes.STRING, InternalTypes.INT));
 	}
 
@@ -59,10 +71,20 @@ public class InternalTypeTest {
 				new TypeInformation[] {Types.INT, Types.STRING},
 				new String[] {"field1", "field2"}));
 		testConvertToRowType((CompositeType) TypeInformation.of(MyPojo.class));
+
+		testConvertCompare(PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
+				new ArrayType(InternalTypes.DOUBLE, false));
+		testConvertCompare(BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO,
+				new ArrayType(InternalTypes.DOUBLE, true));
+		testConvertCompare(ObjectArrayTypeInfo.getInfoFor(TypeInformation.of(MyPojo.class)),
+				new ArrayType(createInternalTypeFromTypeInfo(TypeInformation.of(MyPojo.class)), true));
+		testConvertCompare(new MapTypeInfo<>(Types.INT, Types.STRING),
+				new MapType(InternalTypes.INT, InternalTypes.STRING));
+		testConvertCompare(new GenericTypeInfo<>(MyPojo.class), new GenericType<>(MyPojo.class));
 	}
 
 	private void testConvertToRowType(CompositeType typeInfo) {
-		RowType rowType = (RowType) TypeConverters.createInternalTypeFromTypeInfo(typeInfo);
+		RowType rowType = (RowType) createInternalTypeFromTypeInfo(typeInfo);
 		Assert.assertArrayEquals(
 				new InternalType[] {InternalTypes.INT, InternalTypes.STRING},
 				rowType.getFieldTypes());
@@ -71,6 +93,15 @@ public class InternalTypeTest {
 				rowType.getFieldNames());
 	}
 
+	private void testConvertCompare(TypeInformation typeInfo, InternalType internalType) {
+		InternalType converted = createInternalTypeFromTypeInfo(typeInfo);
+		Assert.assertEquals(internalType, converted);
+		Assert.assertEquals(internalType.hashCode(), converted.hashCode());
+	}
+
+	/**
+	 * Test pojo.
+	 */
 	public static class MyPojo {
 		public int field1;
 		public String field2;
