@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
@@ -64,6 +65,18 @@ public final class ParameterlessTypeSerializerConfig<T> extends TypeSerializerCo
 	}
 
 	@Override
+	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
+		if (newSerializer instanceof TypeSerializerSingleton) {
+			TypeSerializerSingleton<T> singletonSerializer = (TypeSerializerSingleton<T>) newSerializer;
+			return isCompatibleSerializationFormatIdentifier(serializationFormatIdentifier, singletonSerializer)
+				? TypeSerializerSchemaCompatibility.compatibleAsIs()
+				: TypeSerializerSchemaCompatibility.incompatible();
+		}
+
+		return super.resolveSchemaCompatibility(newSerializer);
+	}
+
+	@Override
 	public int getVersion() {
 		return VERSION;
 	}
@@ -89,5 +102,15 @@ public final class ParameterlessTypeSerializerConfig<T> extends TypeSerializerCo
 	@Override
 	public int hashCode() {
 		return serializationFormatIdentifier.hashCode();
+	}
+
+	private static boolean isCompatibleSerializationFormatIdentifier(
+			String identifier, TypeSerializerSingleton<?> newSingletonSerializer) {
+
+		String name = newSingletonSerializer.getClass().getName();
+		// we also need to check canonical name because some singleton serializers were using that as the identifier
+		String canonicalName = newSingletonSerializer.getClass().getCanonicalName();
+
+		return identifier.equals(name) || identifier.equals(canonicalName);
 	}
 }
