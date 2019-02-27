@@ -19,15 +19,13 @@
 package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.calcite.schema.Statistic
-import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.calcite.schema.{Statistic, Statistics}
 import org.apache.flink.table.sources.TableSource
 
 /** Abstract class which define the interfaces required to convert a [[TableSource]] to
   * a Calcite Table */
 abstract class TableSourceTable[T](
-    val tableSource: TableSource[T],
-    val statistic: FlinkStatistic) {
+    val tableSource: TableSource[T]) {
 
   /** Returns the row type of the table with this tableSource.
     *
@@ -41,6 +39,6 @@ abstract class TableSourceTable[T](
     *
     * @return statistics of current table
     */
-  def getStatistic: Statistic = statistic
+  def getStatistic: Statistic = Statistics.UNKNOWN
 
 }

@@ -19,20 +19,19 @@
 package org.apache.flink.table.calcite
 
 import java.lang.Iterable
-import java.util.Collections
+import java.util.{Collections, Properties}
 
+import org.apache.calcite.config.{CalciteConnectionConfigImpl, CalciteConnectionProperty}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.volcano.VolcanoPlanner
 import org.apache.calcite.prepare.CalciteCatalogReader
-import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.calcite.rex.RexBuilder
 import org.apache.calcite.tools.RelBuilder.{AggCall, GroupKey}
 import org.apache.calcite.tools.{FrameworkConfig, RelBuilder}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.expressions.WindowProperty
 import org.apache.flink.table.plan.logical.LogicalWindow
-import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
 
 /**
   * Flink specific [[RelBuilder]] that changes the default type factory to a [[FlinkTypeFactory]].
@@ -61,12 +60,8 @@ class FlinkRelBuilder(
       namedProperties: Seq[NamedWindowProperty],
       aggCalls: Iterable[AggCall])
     : RelBuilder = {
-    // build logical aggregate
-    val aggregate = super.aggregate(groupKey, aggCalls).build().asInstanceOf[LogicalAggregate]
-
-    // build logical window aggregate from it
-    push(LogicalWindowAggregate.create(window, namedProperties, aggregate))
-    this
+    // TODO: support build window aggregate
+    throw new UnsupportedOperationException
   }
 
 }
@@ -85,11 +80,16 @@ object FlinkRelBuilder {
     planner.addRelTraitDef(ConventionTraitDef.INSTANCE)
     val cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory))
     val calciteSchema = CalciteSchema.from(config.getDefaultSchema)
+    val prop = new Properties()
+    prop.setProperty(
+      CalciteConnectionProperty.CASE_SENSITIVE.camelName,
+      String.valueOf(config.getParserConfig.caseSensitive))
+    val connectionConfig = new CalciteConnectionConfigImpl(prop)
     val relOptSchema = new CalciteCatalogReader(
       calciteSchema,
       Collections.emptyList(),
       typeFactory,
-      CalciteConfig.connectionConfig(config.getParserConfig))
+      connectionConfig)
 
     new FlinkRelBuilder(config.getContext, cluster, relOptSchema)
   }

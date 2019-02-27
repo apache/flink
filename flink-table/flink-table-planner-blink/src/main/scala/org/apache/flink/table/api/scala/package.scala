@@ -22,7 +22,6 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
-import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
 import org.apache.flink.table.expressions.{DefaultExpressionVisitor, Expression}
 import org.apache.flink.table.expressions.PlannerExpression
 
@@ -54,7 +53,7 @@ import _root_.scala.language.implicitConversions
   *   import org.apache.flink.api.scala._
   *   import org.apache.flink.table.api.scala._
   *
-  *   val env = ExecutionEnvironment.getExecutionEnvironment
+  *   val env = StreamExecutionEnvironment.getExecutionEnvironment
   *   val tEnv = TableEnvironment.getTableEnvironment(env)
   *
   *   val input: DataSet[(String, Int)] = env.fromElements(("Hello", 2), ("Hello", 5), ("Ciao", 3))
@@ -71,15 +70,6 @@ package object scala extends ImplicitExpressionConversions {
 
   implicit def table2TableConversions(table: Table): TableConversions = {
     new TableConversions(table)
-  }
-
-  implicit def dataSet2DataSetConversions[T](set: DataSet[T]): DataSetConversions[T] = {
-    new DataSetConversions[T](set, set.getType())
-  }
-
-  implicit def table2RowDataSet(table: Table): DataSet[Row] = {
-    val tableEnv = table.tableEnv.asInstanceOf[ScalaBatchTableEnv]
-    tableEnv.toDataSet[Row](table)
   }
 
   implicit def dataStream2DataStreamConversions[T](set: DataStream[T]): DataStreamConversions[T] = {

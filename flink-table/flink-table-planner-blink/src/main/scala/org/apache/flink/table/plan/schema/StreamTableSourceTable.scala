@@ -20,15 +20,12 @@ package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.{StreamTableSource, TableSourceUtil}
 
 class StreamTableSourceTable[T](
-    tableSource: StreamTableSource[T],
-    statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
+    tableSource: StreamTableSource[T])
   extends TableSourceTable[T](
-    tableSource,
-    statistic) {
+    tableSource) {
 
   TableSourceUtil.validateTableSource(tableSource)
 

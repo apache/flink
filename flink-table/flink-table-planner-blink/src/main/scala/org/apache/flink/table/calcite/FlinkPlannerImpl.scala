@@ -19,8 +19,10 @@
 package org.apache.flink.table.calcite
 
 import java.util
+import java.util.Properties
 
 import com.google.common.collect.ImmutableList
+import org.apache.calcite.config.{CalciteConnectionConfigImpl, CalciteConnectionProperty}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptTable.ViewExpander
 import org.apache.calcite.plan._
@@ -191,11 +193,16 @@ class FlinkPlannerImpl(
       .setCaseSensitive(caseSensitive)
       .build()
 
+    val prop = new Properties()
+    prop.setProperty(
+      CalciteConnectionProperty.CASE_SENSITIVE.camelName,
+      String.valueOf(parserConfig.caseSensitive))
+    val connectionConfig = new CalciteConnectionConfigImpl(prop)
     new CalciteCatalogReader(
       CalciteSchema.from(rootSchema),
       CalciteSchema.from(defaultSchema).path(null),
       typeFactory,
-      CalciteConfig.connectionConfig(parserConfig)
+      connectionConfig
     )
   }
 

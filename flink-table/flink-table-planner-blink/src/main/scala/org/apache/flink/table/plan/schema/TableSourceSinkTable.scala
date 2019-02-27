@@ -60,8 +60,8 @@ class TableSourceSinkTable[T1, T2](
     case _ => false
   }
 
-  def isBatchSourceTable: Boolean = tableSourceTable match {
-    case Some(_: BatchTableSourceTable[_]) => true
-    case _ => false
+  def isBatchSourceTable: Boolean = {
+    // TODO: support it when we have BatchTableSource
+    throw new UnsupportedOperationException
   }
 }
