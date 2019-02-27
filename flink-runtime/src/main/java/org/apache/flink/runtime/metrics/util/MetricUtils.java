@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics.util;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
@@ -52,6 +53,7 @@ import java.lang.management.MemoryUsage;
 import java.lang.management.ThreadMXBean;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.metrics.util.SystemResourcesMetricsInitializer.instantiateSystemMetrics;
 
@@ -197,18 +199,20 @@ public class MetricUtils {
 		}
 	}
 
-	private static void instantiateHeapMemoryMetrics(final MetricGroup metricGroup) {
-		instantiateMemoryUsageMetrics(metricGroup, ManagementFactory.getMemoryMXBean().getHeapMemoryUsage());
+	@VisibleForTesting
+	static void instantiateHeapMemoryMetrics(final MetricGroup metricGroup) {
+		instantiateMemoryUsageMetrics(metricGroup, () -> ManagementFactory.getMemoryMXBean().getHeapMemoryUsage());
 	}
 
-	private static void instantiateNonHeapMemoryMetrics(final MetricGroup metricGroup) {
-		instantiateMemoryUsageMetrics(metricGroup, ManagementFactory.getMemoryMXBean().getNonHeapMemoryUsage());
+	@VisibleForTesting
+	static void instantiateNonHeapMemoryMetrics(final MetricGroup metricGroup) {
+		instantiateMemoryUsageMetrics(metricGroup, () -> ManagementFactory.getMemoryMXBean().getNonHeapMemoryUsage());
 	}
 
-	private static void instantiateMemoryUsageMetrics(final MetricGroup metricGroup, final MemoryUsage memoryUsage) {
-		metricGroup.<Long, Gauge<Long>>gauge(MetricNames.MEMORY_USED, memoryUsage::getUsed);
-		metricGroup.<Long, Gauge<Long>>gauge(MetricNames.MEMORY_COMMITTED, memoryUsage::getCommitted);
-		metricGroup.<Long, Gauge<Long>>gauge(MetricNames.MEMORY_MAX, memoryUsage::getMax);
+	private static void instantiateMemoryUsageMetrics(final MetricGroup metricGroup, final Supplier<MemoryUsage> memoryUsageSupplier) {
+		metricGroup.<Long, Gauge<Long>>gauge(MetricNames.MEMORY_USED, () -> memoryUsageSupplier.get().getUsed());
+		metricGroup.<Long, Gauge<Long>>gauge(MetricNames.MEMORY_COMMITTED, () -> memoryUsageSupplier.get().getCommitted());
+		metricGroup.<Long, Gauge<Long>>gauge(MetricNames.MEMORY_MAX, () -> memoryUsageSupplier.get().getMax());
 	}
 
 	private static void instantiateThreadMetrics(MetricGroup metrics) {
