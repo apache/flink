@@ -89,6 +89,12 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		PARTITION_STATE.put(new KafkaTopicPartition("def", 7), 987654321L);
 	}
 
+	private static final List<String> TOPICS = new ArrayList<>(PARTITION_STATE.keySet())
+		.stream()
+		.map(p -> p.getTopic())
+		.distinct()
+		.collect(Collectors.toList());
+
 	private final MigrationVersion testMigrateVersion;
 
 	@Parameterized.Parameters(name = "Migration Savepoint: {0}")
@@ -134,10 +140,9 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		when(fetcher.snapshotCurrentState()).thenReturn(state);
 
 		final List<KafkaTopicPartition> partitions = new ArrayList<>(PARTITION_STATE.keySet());
-		final List<String> topics = partitions.stream().map(p -> p.getTopic()).collect(Collectors.toList());
 
 		final DummyFlinkKafkaConsumer<String> consumerFunction =
-			new DummyFlinkKafkaConsumer<>(fetcher, topics, partitions, FlinkKafkaConsumerBase.PARTITION_DISCOVERY_DISABLED);
+			new DummyFlinkKafkaConsumer<>(fetcher, TOPICS, partitions, FlinkKafkaConsumerBase.PARTITION_DISCOVERY_DISABLED);
 
 		StreamSource<String, DummyFlinkKafkaConsumer<String>> consumerOperator =
 				new StreamSource<>(consumerFunction);
@@ -232,10 +237,9 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 	@Test
 	public void testRestoreFromEmptyStateWithPartitions() throws Exception {
 		final List<KafkaTopicPartition> partitions = new ArrayList<>(PARTITION_STATE.keySet());
-		final List<String> topics = partitions.stream().map(p -> p.getTopic()).distinct().collect(Collectors.toList());
 
 		final DummyFlinkKafkaConsumer<String> consumerFunction =
-			new DummyFlinkKafkaConsumer<>(topics, partitions, FlinkKafkaConsumerBase.PARTITION_DISCOVERY_DISABLED);
+			new DummyFlinkKafkaConsumer<>(TOPICS, partitions, FlinkKafkaConsumerBase.PARTITION_DISCOVERY_DISABLED);
 
 		StreamSource<String, DummyFlinkKafkaConsumer<String>> consumerOperator =
 				new StreamSource<>(consumerFunction);
@@ -285,10 +289,9 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 	@Test
 	public void testRestore() throws Exception {
 		final List<KafkaTopicPartition> partitions = new ArrayList<>(PARTITION_STATE.keySet());
-		final List<String> topics = partitions.stream().map(p -> p.getTopic()).distinct().collect(Collectors.toList());
 
 		final DummyFlinkKafkaConsumer<String> consumerFunction =
-			new DummyFlinkKafkaConsumer<>(topics, partitions, FlinkKafkaConsumerBase.PARTITION_DISCOVERY_DISABLED);
+			new DummyFlinkKafkaConsumer<>(TOPICS, partitions, FlinkKafkaConsumerBase.PARTITION_DISCOVERY_DISABLED);
 
 		StreamSource<String, DummyFlinkKafkaConsumer<String>> consumerOperator =
 				new StreamSource<>(consumerFunction);
@@ -330,10 +333,9 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		assumeTrue(testMigrateVersion == MigrationVersion.v1_3 || testMigrateVersion == MigrationVersion.v1_2);
 
 		final List<KafkaTopicPartition> partitions = new ArrayList<>(PARTITION_STATE.keySet());
-		final List<String> topics = partitions.stream().map(p -> p.getTopic()).distinct().collect(Collectors.toList());
 
 		final DummyFlinkKafkaConsumer<String> consumerFunction =
-			new DummyFlinkKafkaConsumer<>(topics, partitions, 1000L); // discovery enabled
+			new DummyFlinkKafkaConsumer<>(TOPICS, partitions, 1000L); // discovery enabled
 
 		StreamSource<String, DummyFlinkKafkaConsumer<String>> consumerOperator =
 			new StreamSource<>(consumerFunction);
