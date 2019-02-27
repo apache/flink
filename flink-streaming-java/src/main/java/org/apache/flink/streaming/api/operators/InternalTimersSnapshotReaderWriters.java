@@ -159,8 +159,8 @@ public class InternalTimersSnapshotReaderWriters {
 			TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
 				out,
 				Arrays.asList(
-					Tuple2.of(timersSnapshot.getKeySerializer(), timersSnapshot.getKeySerializerConfigSnapshot()),
-					Tuple2.of(timersSnapshot.getNamespaceSerializer(), timersSnapshot.getNamespaceSerializerConfigSnapshot())));
+					Tuple2.of(timersSnapshot.getKeySerializer(), timersSnapshot.getKeySerializerSnapshot()),
+					Tuple2.of(timersSnapshot.getNamespaceSerializer(), timersSnapshot.getNamespaceSerializerSnapshot())));
 		}
 	}
 
@@ -289,9 +289,9 @@ public class InternalTimersSnapshotReaderWriters {
 				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader);
 
 			restoredTimersSnapshot.setKeySerializer((TypeSerializer<K>) serializersAndConfigs.get(0).f0);
-			restoredTimersSnapshot.setKeySerializerConfigSnapshot((TypeSerializerSnapshot<K>) serializersAndConfigs.get(0).f1);
+			restoredTimersSnapshot.setKeySerializerSnapshot((TypeSerializerSnapshot<K>) serializersAndConfigs.get(0).f1);
 			restoredTimersSnapshot.setNamespaceSerializer((TypeSerializer<N>) serializersAndConfigs.get(1).f0);
-			restoredTimersSnapshot.setNamespaceSerializerConfigSnapshot((TypeSerializerSnapshot<N>) serializersAndConfigs.get(1).f1);
+			restoredTimersSnapshot.setNamespaceSerializerSnapshot((TypeSerializerSnapshot<N>) serializersAndConfigs.get(1).f1);
 		}
 	}
 
