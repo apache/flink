@@ -19,9 +19,8 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
@@ -142,26 +141,31 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 
 			// the following is the case where we restore
 			if (restoredTimersSnapshot != null) {
-				CompatibilityResult<K> keySerializerCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-					this.keyDeserializer,
-					null,
-					restoredTimersSnapshot.getKeySerializerSnapshot(),
-					keySerializer);
+				TypeSerializerSchemaCompatibility<K> keySerializerCompatibility =
+					restoredTimersSnapshot.getKeySerializerSnapshot().resolveSchemaCompatibility(keySerializer);
 
-				CompatibilityResult<N> namespaceSerializerCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-					this.namespaceDeserializer,
-					null,
-					restoredTimersSnapshot.getNamespaceSerializerSnapshot(),
-					namespaceSerializer);
-
-				if (keySerializerCompatibility.isRequiresMigration() || namespaceSerializerCompatibility.isRequiresMigration()) {
-					throw new IllegalStateException("Tried to initialize restored TimerService " +
-						"with incompatible serializers than those used to snapshot its state.");
+				if (keySerializerCompatibility.isIncompatible() || keySerializerCompatibility.isCompatibleAfterMigration()) {
+					throw new IllegalStateException(
+						"Tried to initialize restored TimerService with new key serializer that requires migration or is incompatible.");
 				}
+
+				TypeSerializerSchemaCompatibility<N> namespaceSerializerCompatibility =
+					restoredTimersSnapshot.getNamespaceSerializerSnapshot().resolveSchemaCompatibility(namespaceSerializer);
+
+				if (namespaceSerializerCompatibility.isIncompatible() || namespaceSerializerCompatibility.isCompatibleAfterMigration()) {
+					throw new IllegalStateException(
+						"Tried to initialize restored TimerService with new namespace serializer that requires migration or is incompatible.");
+				}
+
+				this.keySerializer = keySerializerCompatibility.isCompatibleAsIs()
+					? keySerializer : keySerializerCompatibility.getReconfiguredSerializer();
+				this.namespaceSerializer = keySerializerCompatibility.isCompatibleAsIs()
+					? namespaceSerializer : namespaceSerializerCompatibility.getReconfiguredSerializer();
+			} else {
+				this.keySerializer = keySerializer;
+				this.namespaceSerializer = namespaceSerializer;
 			}
 
-			this.keySerializer = keySerializer;
-			this.namespaceSerializer = namespaceSerializer;
 			this.keyDeserializer = null;
 			this.namespaceDeserializer = null;
 
