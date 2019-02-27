@@ -265,11 +265,17 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 	public InternalTimersSnapshot<K, N> snapshotTimersForKeyGroup(int keyGroupIdx) {
 		return new InternalTimersSnapshot<>(
 			keySerializer,
-			keySerializer.snapshotConfiguration(),
 			namespaceSerializer,
-			namespaceSerializer.snapshotConfiguration(),
 			eventTimeTimersQueue.getSubsetForKeyGroup(keyGroupIdx),
 			processingTimeTimersQueue.getSubsetForKeyGroup(keyGroupIdx));
+	}
+
+	public TypeSerializer<K> getKeySerializer() {
+		return keySerializer;
+	}
+
+	public TypeSerializer<N> getNamespaceSerializer() {
+		return namespaceSerializer;
 	}
 
 	/**
@@ -283,13 +289,17 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 	public void restoreTimersForKeyGroup(InternalTimersSnapshot<?, ?> restoredSnapshot, int keyGroupIdx) {
 		this.restoredTimersSnapshot = (InternalTimersSnapshot<K, N>) restoredSnapshot;
 
-		if (areSnapshotSerializersIncompatible(restoredSnapshot)) {
-			throw new IllegalArgumentException("Tried to restore timers " +
-				"for the same service with different serializers.");
+		TypeSerializer<K> restoredKeySerializer = restoredTimersSnapshot.getKeySerializerSnapshot().restoreSerializer();
+		if (this.keyDeserializer != null && !this.keyDeserializer.equals(restoredKeySerializer)) {
+			throw new IllegalArgumentException("Tried to restore timers for the same service with different key serializers.");
 		}
+		this.keyDeserializer = restoredKeySerializer;
 
-		this.keyDeserializer = restoredTimersSnapshot.getKeySerializer();
-		this.namespaceDeserializer = restoredTimersSnapshot.getNamespaceSerializer();
+		TypeSerializer<N> restoredNamespaceSerializer = restoredTimersSnapshot.getNamespaceSerializerSnapshot().restoreSerializer();
+		if (this.namespaceDeserializer != null && !this.namespaceDeserializer.equals(restoredNamespaceSerializer)) {
+			throw new IllegalArgumentException("Tried to restore timers for the same service with different namespace serializers.");
+		}
+		this.namespaceDeserializer = restoredNamespaceSerializer;
 
 		checkArgument(localKeyGroupRange.contains(keyGroupIdx),
 			"Key Group " + keyGroupIdx + " does not belong to the local range.");
@@ -357,10 +367,5 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 			result.add(Collections.unmodifiableSet(keyGroupedQueue.getSubsetForKeyGroup(keyGroup)));
 		}
 		return result;
-	}
-
-	private boolean areSnapshotSerializersIncompatible(InternalTimersSnapshot<?, ?> restoredSnapshot) {
-		return (this.keyDeserializer != null && !this.keyDeserializer.equals(restoredSnapshot.getKeySerializer())) ||
-			(this.namespaceDeserializer != null && !this.namespaceDeserializer.equals(restoredSnapshot.getNamespaceSerializer()));
 	}
 }
