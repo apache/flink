@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -37,19 +36,6 @@ import static org.junit.Assert.fail;
  */
 @SuppressWarnings({"serial", "deprecation"})
 public class TypeSerializerSnapshotTest {
-
-	@Test
-	public void testBridgeCompatibilityCheck() throws Exception {
-		TestSerializerConfigSnapshot snap = new TestSerializerConfigSnapshot();
-
-		TestSerializer serCompat = new TestSerializer(true);
-		TypeSerializerSchemaCompatibility<Object> resultCompat = snap.resolveSchemaCompatibility(serCompat);
-		assertTrue(resultCompat.isCompatibleAsIs());
-
-		TestSerializer serIncompat = new TestSerializer(false);
-		TypeSerializerSchemaCompatibility<Object> resultIncompat = snap.resolveSchemaCompatibility(serIncompat);
-		assertTrue(resultIncompat.isIncompatible());
-	}
 
 	@Test
 	public void testSerializeConfigWhenSerializerMissing() throws Exception {
