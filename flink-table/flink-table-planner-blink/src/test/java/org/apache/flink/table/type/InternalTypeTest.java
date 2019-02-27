@@ -47,7 +47,7 @@ public class InternalTypeTest {
 		testHashCodeAndEquals(InternalTypes.DATE);
 		testHashCodeAndEquals(InternalTypes.TIME);
 		testHashCodeAndEquals(InternalTypes.TIMESTAMP);
-		testHashCodeAndEquals(InternalTypes.BYTE_ARRAY);
+		testHashCodeAndEquals(InternalTypes.BINARY);
 		testHashCodeAndEquals(InternalTypes.STRING);
 		testHashCodeAndEquals(new DecimalType(15, 5));
 		testHashCodeAndEquals(new GenericType<>(InternalTypeTest.class));
@@ -64,6 +64,9 @@ public class InternalTypeTest {
 
 		Assert.assertEquals(type.hashCode(), newType.hashCode());
 		Assert.assertEquals(type, newType);
+
+		// need override toString.
+		Assert.assertFalse(newType.toString().contains("@"));
 	}
 
 	@Test

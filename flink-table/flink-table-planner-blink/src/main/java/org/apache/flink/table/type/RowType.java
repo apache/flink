@@ -101,7 +101,7 @@ public class RowType implements InternalType {
 	@Override
 	public String toString() {
 		return "RowType{" +
-				", types=" + Arrays.toString(getFieldTypes()) +
+				"types=" + Arrays.toString(types) +
 				", fieldNames=" + Arrays.toString(fieldNames) +
 				'}';
 	}

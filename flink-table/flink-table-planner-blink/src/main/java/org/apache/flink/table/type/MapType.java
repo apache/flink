@@ -66,4 +66,12 @@ public class MapType implements InternalType {
 		result = 31 * result + getValueType().hashCode();
 		return result;
 	}
+
+	@Override
+	public String toString() {
+		return "MapType{" +
+				"keyType=" + keyType +
+				", valueType=" + valueType +
+				'}';
+	}
 }

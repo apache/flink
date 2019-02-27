@@ -21,11 +21,11 @@ package org.apache.flink.table.type;
 /**
  * Binary type, java format is java byte[].
  */
-public class ByteArrayType implements AtomicType {
+public class BinaryType implements AtomicType {
 
-	public static final ByteArrayType INSTANCE = new ByteArrayType();
+	public static final BinaryType INSTANCE = new BinaryType();
 
-	private ByteArrayType() {}
+	private BinaryType() {}
 
 	@Override
 	public boolean equals(Object o) {

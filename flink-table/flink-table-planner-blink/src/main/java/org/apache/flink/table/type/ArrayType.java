@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.type;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Type for Array.
@@ -33,7 +33,10 @@ public class ArrayType implements InternalType {
 	}
 
 	public ArrayType(InternalType elementType, boolean primitive) {
-		this.elementType = checkNotNull(elementType);
+		this.elementType = Preconditions.checkNotNull(elementType);
+		if (primitive) {
+			Preconditions.checkArgument(elementType instanceof PrimitiveType);
+		}
 		this.primitive = primitive;
 	}
 
@@ -64,5 +67,13 @@ public class ArrayType implements InternalType {
 		int result = elementType != null ? elementType.hashCode() : 0;
 		result = 31 * result + (primitive ? 1 : 0);
 		return result;
+	}
+
+	@Override
+	public String toString() {
+		return "ArrayType{" +
+				"elementType=" + elementType +
+				", primitive=" + primitive +
+				'}';
 	}
 }
