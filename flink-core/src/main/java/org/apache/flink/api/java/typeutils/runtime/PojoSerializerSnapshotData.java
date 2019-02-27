@@ -28,7 +28,6 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.LinkedOptionalMap;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.BiFunctionWithException;
-import org.apache.flink.util.function.FunctionWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +39,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.apache.flink.util.LinkedOptionalMap.optionalMapOf;
+import static org.apache.flink.util.LinkedOptionalMapSerializer.readOptionalMap;
+import static org.apache.flink.util.LinkedOptionalMapSerializer.writeOptionalMap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -220,67 +221,11 @@ final class PojoSerializerSnapshotData<T> {
 		return String.format("missing-field-at-%d", fieldIndex);
 	}
 
-	private static <K, V> void writeOptionalMap(
-		DataOutputView out,
-		LinkedOptionalMap<K, V> map,
-		BiConsumerWithException<DataOutputView, K, IOException> keyWriter,
-		BiConsumerWithException<DataOutputView, V, IOException> valueWriter) throws IOException {
-
-		out.writeInt(map.size());
-		map.forEach(((keyName, key, value) -> {
-			out.writeUTF(keyName);
-
-			if (key == null) {
-				out.writeBoolean(false);
-			} else {
-				out.writeBoolean(true);
-				keyWriter.accept(out, key);
-			}
-
-			if (value == null) {
-				out.writeBoolean(false);
-			} else {
-				out.writeBoolean(true);
-				valueWriter.accept(out, value);
-			}
-		}));
-	}
-
-	private static <K, V> LinkedOptionalMap<K, V> readOptionalMap(
-		DataInputView in,
-		BiFunctionWithException<DataInputView, String, K, IOException> keyReader,
-		FunctionWithException<DataInputView, V, IOException> valueReader) throws IOException {
-
-		long mapSize = in.readInt();
-
-		LinkedOptionalMap<K, V> map = new LinkedOptionalMap<>();
-		for (int i = 0; i < mapSize; i++) {
-			String keyName = in.readUTF();
-
-			final K key;
-			if (in.readBoolean()) {
-				key = keyReader.apply(in, keyName);
-			} else {
-				key = null;
-			}
-
-			final V value;
-			if (in.readBoolean()) {
-				value = valueReader.apply(in);
-			} else {
-				value = null;
-			}
-
-			map.put(keyName, key, value);
-		}
-		return map;
-	}
-
 	private enum NoOpWriter implements BiConsumerWithException<DataOutputView, Object, IOException> {
 		INSTANCE;
 
 		@Override
-		public void accept(DataOutputView dataOutputView, Object o) throws IOException {}
+		public void accept(DataOutputView dataOutputView, Object o) {}
 
 		@SuppressWarnings("unchecked")
 		static <K> BiConsumerWithException<DataOutputView, K, IOException> noopWriter() {
@@ -300,8 +245,8 @@ final class PojoSerializerSnapshotData<T> {
 		};
 	}
 
-	private static FunctionWithException<DataInputView, TypeSerializerSnapshot<?>, IOException> snapshotReader(ClassLoader cl) {
-		return input -> {
+	private static BiFunctionWithException<DataInputView, String, TypeSerializerSnapshot<?>, IOException> snapshotReader(ClassLoader cl) {
+		return (input, unused) -> {
 			try {
 				return TypeSerializerSnapshot.readVersionedSnapshot(input, cl);
 			}
