@@ -36,27 +36,20 @@ import java.io.Serializable;
  * <p><b>Upgrading TypeSerializers to the new TypeSerializerSnapshot model</b>
  *
  * <p>This section is relevant if you implemented a TypeSerializer in Flink versions up to 1.6 and want
- * to adapt that implementation to the new interfaces that support proper state schema evolution. Please
- * follow these steps:
+ * to adapt that implementation to the new interfaces that support proper state schema evolution, while maintaining
+ * backwards compatibility. Please follow these steps:
  *
  * <ul>
  *     <li>Change the type serializer's config snapshot to implement {@link TypeSerializerSnapshot}, rather
  *     than extending {@code TypeSerializerConfigSnapshot} (as previously).
- *     <li>Move the compatibility check from the {@link TypeSerializer#ensureCompatibility(TypeSerializerConfigSnapshot)}
- *     method to the {@link TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer)} method.
- * </ul>
- *
- * <p><b>Maintaining Backwards Compatibility</b>
- *
- * <p>If you want your serializer to be able to restore checkpoints from Flink 1.6 and before, add the steps
- * below in addition to the steps above.
- *
- * <ul>
- *     <li>Retain the old serializer snapshot class (extending {@code TypeSerializerConfigSnapshot}) under
+ *     <li>If the above step was completed, then the upgrade is done. Otherwise, if changing to implement
+ *     {@link TypeSerializerSnapshot} directly in-place as the same class isn't possible (perhaps because the new snapshot
+ *     is intended to have completely different written contents or intended to have a different class name),
+ *     retain the old serializer snapshot class (extending {@code TypeSerializerConfigSnapshot}) under
  *     the same name and give the updated serializer snapshot class (the one extending {@code TypeSerializerSnapshot})
  *     a new name.
- *     <li>Keep the {@link TypeSerializer#ensureCompatibility(TypeSerializerConfigSnapshot)} on the TypeSerializer
- *     as well.
+ *     <li>Override the {@code TypeSerializerConfigSnapshot#resolveSchemaCompatibility(TypeSerializer)}
+ *     method to perform the compatibility check based on configuration written by the old serializer snapshot class.
  * </ul>
  *
  * @param <T> The data type that the serializer serializes.
@@ -203,32 +196,4 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 * @return snapshot of the serializer's current configuration (cannot be {@code null}).
 	 */
 	public abstract TypeSerializerSnapshot<T> snapshotConfiguration();
-
-	// --------------------------------------------------------------------------------------------
-	//  Deprecated methods for backwards compatibility
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * This method is deprecated. It used to resolved compatibility of the serializer with serializer
-	 * config snapshots in checkpoints. The responsibility for this has moved to
-	 * {@link TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer)}.
-	 *
-	 * <p>New serializers should not override this method any more! Serializers implemented against Flink
-	 * versions up to 1.6 should still work, but should adjust to new model to enable state evolution and
-	 * be future-proof. See the class-level comments, section <i>"Upgrading TypeSerializers to the new
-	 * TypeSerializerSnapshot model"</i> for details.
-	 *
-	 * @deprecated Replaced by {@link TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer)}.
-	 */
-	@Deprecated
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-		throw new UnsupportedOperationException(
-				"This method is not supported any more - please evolve your TypeSerializer the following way:\n\n" +
-				"  - If you have a serializer whose 'ensureCompatibility()' method delegates to another\n" +
-				"    serializer's 'ensureCompatibility()', please use" +
-						"'CompatibilityUtil.resolveCompatibilityResult(snapshot, this)' instead.\n\n" +
-				"  - If you updated your serializer (removed overriding the 'ensureCompatibility()' method),\n" +
-				"    please also update the corresponding config snapshot to not extend 'TypeSerializerConfigSnapshot'" +
-						"any more.\n\n");
-	}
 }
