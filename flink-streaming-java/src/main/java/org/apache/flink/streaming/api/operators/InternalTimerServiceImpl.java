@@ -145,13 +145,13 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 				CompatibilityResult<K> keySerializerCompatibility = CompatibilityUtil.resolveCompatibilityResult(
 					this.keyDeserializer,
 					null,
-					restoredTimersSnapshot.getKeySerializerConfigSnapshot(),
+					restoredTimersSnapshot.getKeySerializerSnapshot(),
 					keySerializer);
 
 				CompatibilityResult<N> namespaceSerializerCompatibility = CompatibilityUtil.resolveCompatibilityResult(
 					this.namespaceDeserializer,
 					null,
-					restoredTimersSnapshot.getNamespaceSerializerConfigSnapshot(),
+					restoredTimersSnapshot.getNamespaceSerializerSnapshot(),
 					namespaceSerializer);
 
 				if (keySerializerCompatibility.isRequiresMigration() || namespaceSerializerCompatibility.isRequiresMigration()) {
