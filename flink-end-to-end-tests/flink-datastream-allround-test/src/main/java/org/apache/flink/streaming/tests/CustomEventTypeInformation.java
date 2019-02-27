@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.Objects;
 
+/** Custom {@link TypeInformation} to test custom {@link TypeSerializer}. */
 public class CustomEventTypeInformation extends TypeInformation<Event> {
 	private final TypeInformation<Event> originalTypeInformation = TypeInformation.of(Event.class);
 
@@ -70,8 +71,12 @@ public class CustomEventTypeInformation extends TypeInformation<Event> {
 
 	@Override
 	public boolean equals(Object o) {
-		if (this == o) return true;
-		if (o == null || getClass() != o.getClass()) return false;
+		if (this == o){
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
 		CustomEventTypeInformation that = (CustomEventTypeInformation) o;
 		return Objects.equals(originalTypeInformation, that.originalTypeInformation);
 	}
