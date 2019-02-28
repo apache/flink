@@ -24,7 +24,6 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.Null
 import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
@@ -88,7 +87,7 @@ class SetOperatorsTest extends TableTestBase {
 
     val in = t.select('a)
       .unionAll(
-        t.select(('c > 0) ? ('b, Null(createTypeInformation[(Int, String)]))))
+        t.select(('c > 0) ? ('b, nullOf(createTypeInformation[(Int, String)]))))
 
     val expected = binaryNode(
       "DataSetUnion",

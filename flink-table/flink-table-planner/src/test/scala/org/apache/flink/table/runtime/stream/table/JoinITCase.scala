@@ -18,20 +18,20 @@
 
 package org.apache.flink.table.runtime.stream.table
 
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{StreamQueryConfig, Types}
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
-import org.junit.Assert._
-import org.junit.Test
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{StreamQueryConfig, Types}
+import org.apache.flink.table.expressions.Literal
 import org.apache.flink.table.expressions.utils.Func20
-import org.apache.flink.table.expressions.{Literal, Null}
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
+import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
+import org.junit.Assert._
+import org.junit.Test
 
 import scala.collection.mutable
 
@@ -441,9 +441,9 @@ class JoinITCase extends StreamingWithStateTestBase {
     env.setStateBackend(getStateBackend)
 
     val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-      .select(('a === 21) ? (Null(Types.INT), 'a) as 'a, 'b, 'c)
+      .select(('a === 21) ? (nullOf(Types.INT), 'a) as 'a, 'b, 'c)
     val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
-      .select(('e === 15) ? (Null(Types.INT), 'd) as 'd,  'e, 'f, 'g, 'h)
+      .select(('e === 15) ? (nullOf(Types.INT), 'd) as 'd,  'e, 'f, 'g, 'h)
 
     val joinT = ds1.leftOuterJoin(ds2, 'a === 'd && 'b === 'h).select('c, 'g)
 

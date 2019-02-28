@@ -122,6 +122,9 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
   }
 }
 
+@deprecated(
+  "Use nullOf(TypeInformation) instead. It is available through the implicit Scala DSL.",
+  "1.8.0")
 case class Null(resultType: TypeInformation[_]) extends LeafExpression {
   override def toString = s"null"
 
