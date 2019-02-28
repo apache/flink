@@ -262,7 +262,6 @@ object FunctionCatalog {
     "currentTimestamp" -> classOf[CurrentTimestamp],
     "localTime" -> classOf[LocalTime],
     "localTimestamp" -> classOf[LocalTimestamp],
-    "quarter" -> classOf[Quarter],
     "temporalOverlaps" -> classOf[TemporalOverlaps],
     "dateTimePlus" -> classOf[Plus],
     "dateFormat" -> classOf[DateFormat],
