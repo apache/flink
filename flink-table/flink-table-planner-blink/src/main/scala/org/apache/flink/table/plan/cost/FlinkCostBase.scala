@@ -21,29 +21,17 @@ package org.apache.flink.table.plan.cost
 import org.apache.calcite.plan.RelOptCost
 
 /**
-  * This class is based on Apache Calcite's [[org.apache.calcite.plan.volcano.VolcanoCost#Factory]]
+  * A [[RelOptCost]] that extends network cost and memory cost.
   */
-class FlinkStreamCostFactory extends FlinkCostFactory {
+trait FlinkCostBase extends RelOptCost {
 
-  override def makeCost(
-      rowCount: Double,
-      cpu: Double,
-      io: Double,
-      network: Double,
-      memory: Double): RelOptCost = {
-    new FlinkStreamCost(rowCount, cpu, io, network, memory)
-  }
+  /**
+    * @return usage of network resources
+    */
+  def getNetwork: Double
 
-  override def makeCost(dRows: Double, dCpu: Double, dIo: Double): RelOptCost = {
-    new FlinkStreamCost(dRows, dCpu, dIo, 0.0, 0.0)
-  }
-
-  override def makeHugeCost: RelOptCost = FlinkStreamCost.Huge
-
-  override def makeInfiniteCost: RelOptCost = FlinkStreamCost.Infinity
-
-  override def makeTinyCost: RelOptCost = FlinkStreamCost.Tiny
-
-  override def makeZeroCost: RelOptCost = FlinkStreamCost.Zero
-
+  /**
+    * @return usage of memory resources
+    */
+  def getMemory: Double
 }
