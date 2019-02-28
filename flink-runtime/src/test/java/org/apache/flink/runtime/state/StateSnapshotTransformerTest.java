@@ -33,11 +33,13 @@ import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 class StateSnapshotTransformerTest {
 	private final AbstractKeyedStateBackend<Integer> backend;
@@ -161,7 +163,7 @@ class StateSnapshotTransformerTest {
 	private static class SingleThreadAccessCheckingSnapshotTransformFactory<T>
 		implements StateSnapshotTransformFactory<T> {
 
-		private final SingleThreadAccessCheckingTypeSerializer.SingleThreadAccessChecker singleThreadAccessChecker = new SingleThreadAccessCheckingTypeSerializer.SingleThreadAccessChecker();
+		private final SingleThreadAccessChecker singleThreadAccessChecker = new SingleThreadAccessChecker();
 
 		static <T> StateSnapshotTransformFactory<T> create() {
 			return new SingleThreadAccessCheckingSnapshotTransformFactory<>();
@@ -181,7 +183,7 @@ class StateSnapshotTransformerTest {
 
 		private <T1> Optional<StateSnapshotTransformer<T1>> createStateSnapshotTransformer() {
 			return Optional.of(new StateSnapshotTransformer<T1>() {
-				private final SingleThreadAccessCheckingTypeSerializer.SingleThreadAccessChecker singleThreadAccessChecker = new SingleThreadAccessCheckingTypeSerializer.SingleThreadAccessChecker();
+				private final SingleThreadAccessChecker singleThreadAccessChecker = new SingleThreadAccessChecker();
 
 				@Nullable
 				@Override
@@ -190,6 +192,17 @@ class StateSnapshotTransformerTest {
 					return value;
 				}
 			});
+		}
+	}
+
+	private static class SingleThreadAccessChecker implements Serializable {
+		private static final long serialVersionUID = 131020282727167064L;
+
+		private final AtomicReference<Thread> currentThreadRef = new AtomicReference<>();
+
+		void checkSingleThreadAccess() {
+			currentThreadRef.compareAndSet(null, Thread.currentThread());
+			assert (Thread.currentThread().equals(currentThreadRef.get())) : "Concurrent access from another thread";
 		}
 	}
 }

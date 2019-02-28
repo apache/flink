@@ -508,7 +508,7 @@ public class DataStreamAllroundTestJobFactory {
 			.keyBy(new EventKeySelectorWithCustomKeyTypeInformation())
 
 			.map(e -> e)
-			.returns(new CustomEventTypeInformation<>(Event.class))
+			.returns(new SingleThreadAccessCheckingTypeInfo<>(Event.class))
 			.name(MAPPER_RETURNS_OUT_WITH_CUSTOM_SER.getName())
 			.uid(MAPPER_RETURNS_OUT_WITH_CUSTOM_SER.getUid())
 			// apply a keyBy so that we have a non-chained operator with Event as input type that goes through serialization
@@ -522,7 +522,7 @@ public class DataStreamAllroundTestJobFactory {
 	private static class EventIdentityFunctionWithCustomEventTypeInformation
 		implements MapFunction<Event, Event>, ResultTypeQueryable<Event> {
 
-		private final CustomEventTypeInformation<Event> typeInformation = new CustomEventTypeInformation<>(Event.class);
+		private final SingleThreadAccessCheckingTypeInfo<Event> typeInformation = new SingleThreadAccessCheckingTypeInfo<>(Event.class);
 
 		@Override
 		public Event map(Event value) {
@@ -538,7 +538,7 @@ public class DataStreamAllroundTestJobFactory {
 	private static class EventKeySelectorWithCustomKeyTypeInformation
 		implements KeySelector<Event, Integer>, ResultTypeQueryable<Integer> {
 
-		private final CustomEventTypeInformation<Integer> typeInformation = new CustomEventTypeInformation<>(Integer.class);
+		private final SingleThreadAccessCheckingTypeInfo<Integer> typeInformation = new SingleThreadAccessCheckingTypeInfo<>(Integer.class);
 
 		@Override
 		public Integer getKey(Event value) {

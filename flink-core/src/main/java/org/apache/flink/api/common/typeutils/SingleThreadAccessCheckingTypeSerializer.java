@@ -21,10 +21,12 @@ package org.apache.flink.api.common.typeutils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Internal
 public class SingleThreadAccessCheckingTypeSerializer<T> extends TypeSerializer<T> {
@@ -40,82 +42,95 @@ public class SingleThreadAccessCheckingTypeSerializer<T> extends TypeSerializer<
 
 	@Override
 	public boolean isImmutableType() {
-		singleThreadAccessChecker.checkSingleThreadAccess();
-		return originalSerializer.isImmutableType();
+		try (SingleThreadAccessCheck ignored = singleThreadAccessChecker.startSingleThreadAccessCheck()) {
+			return originalSerializer.isImmutableType();
+		}
 	}
 
 	@Override
 	public TypeSerializer<T> duplicate() {
-		singleThreadAccessChecker.checkSingleThreadAccess();
-		return new SingleThreadAccessCheckingTypeSerializer<>(originalSerializer.duplicate());
+		try (SingleThreadAccessCheck ignored = singleThreadAccessChecker.startSingleThreadAccessCheck()) {
+			return new SingleThreadAccessCheckingTypeSerializer<>(originalSerializer.duplicate());
+		}
 	}
 
 	@Override
 	public T createInstance() {
-		singleThreadAccessChecker.checkSingleThreadAccess();
-		return originalSerializer.createInstance();
+		try (SingleThreadAccessCheck ignored = singleThreadAccessChecker.startSingleThreadAccessCheck()) {
+			return originalSerializer.createInstance();
+		}
 	}
 
 	@Override
 	public T copy(T from) {
-		singleThreadAccessChecker.checkSingleThreadAccess();
-		return originalSerializer.copy(from);
+		try (SingleThreadAccessCheck ignored = singleThreadAccessChecker.startSingleThreadAccessCheck()) {
+			return originalSerializer.copy(from);
+		}
 	}
 
 	@Override
 	public T copy(T from, T reuse) {
-		singleThreadAccessChecker.checkSingleThreadAccess();
-		return originalSerializer.copy(from, reuse);
+		try (SingleThreadAccessCheck ignored = singleThreadAccessChecker.startSingleThreadAccessCheck()) {
+			return originalSerializer.copy(from, reuse);
+		}
 	}
 
 	@Override
 	public int getLength() {
-		singleThreadAccessChecker.checkSingleThreadAccess();
-		return originalSerializer.getLength();
+		try (SingleThreadAccessCheck ignored = singleThreadAccessChecker.startSingleThreadAccessCheck()) {
+			return originalSerializer.getLength();
+		}
 	}
 
 	@Override
 	public void serialize(T record, DataOutputView target) throws IOException {
-		singleThreadAccessChecker.checkSingleThreadAccess();
-		originalSerializer.serialize(record, target);
+		try (SingleThreadAccessCheck ignored = singleThreadAccessChecker.startSingleThreadAccessCheck()) {
+			originalSerializer.serialize(record, target);
+		}
 	}
 
 	@Override
 	public T deserialize(DataInputView source) throws IOException {
-		singleThreadAccessChecker.checkSingleThreadAccess();
-		return originalSerializer.deserialize(source);
+		try (SingleThreadAccessCheck ignored = singleThreadAccessChecker.startSingleThreadAccessCheck()) {
+			return originalSerializer.deserialize(source);
+		}
 	}
 
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
-		singleThreadAccessChecker.checkSingleThreadAccess();
-		return originalSerializer.deserialize(reuse, source);
+		try (SingleThreadAccessCheck ignored = singleThreadAccessChecker.startSingleThreadAccessCheck()) {
+			return originalSerializer.deserialize(reuse, source);
+		}
 	}
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		singleThreadAccessChecker.checkSingleThreadAccess();
-		originalSerializer.copy(source, target);
+		try (SingleThreadAccessCheck ignored = singleThreadAccessChecker.startSingleThreadAccessCheck()) {
+			originalSerializer.copy(source, target);
+		}
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		singleThreadAccessChecker.checkSingleThreadAccess();
-		return obj == this ||
-			(obj != null && obj.getClass() == getClass() &&
-				originalSerializer.equals(obj));
+		try (SingleThreadAccessCheck ignored = singleThreadAccessChecker.startSingleThreadAccessCheck()) {
+			return obj == this ||
+				(obj != null && obj.getClass() == getClass() &&
+					originalSerializer.equals(obj));
+		}
 	}
 
 	@Override
 	public int hashCode() {
-		singleThreadAccessChecker.checkSingleThreadAccess();
-		return originalSerializer.hashCode();
+		try (SingleThreadAccessCheck ignored = singleThreadAccessChecker.startSingleThreadAccessCheck()) {
+			return originalSerializer.hashCode();
+		}
 	}
 
 	@Override
 	public TypeSerializerSnapshot<T> snapshotConfiguration() {
-		singleThreadAccessChecker.checkSingleThreadAccess();
-		return new SingleThreadAccessCheckingTypeSerializerSnapshot<>(this);
+		try (SingleThreadAccessCheck ignored = singleThreadAccessChecker.startSingleThreadAccessCheck()) {
+			return new SingleThreadAccessCheckingTypeSerializerSnapshot<>(this);
+		}
 	}
 
 	public static class SingleThreadAccessCheckingTypeSerializerSnapshot<T>
@@ -149,18 +164,40 @@ public class SingleThreadAccessCheckingTypeSerializer<T> extends TypeSerializer<
 		}
 	}
 
-	public static class SingleThreadAccessChecker implements Serializable {
+	private void writeObject(ObjectOutputStream outputStream) throws IOException {
+		try (SingleThreadAccessCheck ignored = singleThreadAccessChecker.startSingleThreadAccessCheck()) {
+			outputStream.defaultWriteObject();
+		}
+	}
+
+	private static class SingleThreadAccessChecker implements Serializable {
 		private static final long serialVersionUID = 131020282727167064L;
 
-		private transient Thread currentThread = null;
+		private transient AtomicReference<Thread> currentThreadRef = new AtomicReference<>();
 
-		public void checkSingleThreadAccess() {
-			if (currentThread == null) {
-				currentThread = Thread.currentThread();
-			} else {
-				Preconditions.checkArgument(
-					Thread.currentThread().equals(currentThread), "Concurrent access from another thread");
-			}
+		SingleThreadAccessCheck startSingleThreadAccessCheck() {
+			assert(currentThreadRef.compareAndSet(null, Thread.currentThread())) :
+				"The checker has concurrent access from " + currentThreadRef.get();
+			return new SingleThreadAccessCheck(currentThreadRef);
+		}
+
+		private void readObject(ObjectInputStream inputStream) throws ClassNotFoundException, IOException {
+			inputStream.defaultReadObject();
+			currentThreadRef = new AtomicReference<>();
+		}
+	}
+
+	private static class SingleThreadAccessCheck implements AutoCloseable {
+		private final AtomicReference<Thread> currentThreadRef;
+
+		private SingleThreadAccessCheck(AtomicReference<Thread> currentThreadRef) {
+			this.currentThreadRef = currentThreadRef;
+		}
+
+		@Override
+		public void close() {
+			assert(currentThreadRef.compareAndSet(Thread.currentThread(), null)) :
+				"The checker has concurrent access from " + currentThreadRef.get();
 		}
 	}
 }

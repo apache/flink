@@ -52,7 +52,17 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.isSimulateFailures;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
-import static org.apache.flink.streaming.tests.TestOperatorEnum.*;
+import static org.apache.flink.streaming.tests.TestOperatorEnum.EVENT_SOURCE;
+import static org.apache.flink.streaming.tests.TestOperatorEnum.FAILURE_MAPPER_NAME;
+import static org.apache.flink.streaming.tests.TestOperatorEnum.KEYED_STATE_OPER_WITH_AVRO_SER;
+import static org.apache.flink.streaming.tests.TestOperatorEnum.KEYED_STATE_OPER_WITH_KRYO_AND_CUSTOM_SER;
+import static org.apache.flink.streaming.tests.TestOperatorEnum.OPERATOR_STATE_OPER;
+import static org.apache.flink.streaming.tests.TestOperatorEnum.SEMANTICS_CHECK_MAPPER;
+import static org.apache.flink.streaming.tests.TestOperatorEnum.SEMANTICS_CHECK_PRINT_SINK;
+import static org.apache.flink.streaming.tests.TestOperatorEnum.SLIDING_WINDOW_AGG;
+import static org.apache.flink.streaming.tests.TestOperatorEnum.SLIDING_WINDOW_CHECK_MAPPER;
+import static org.apache.flink.streaming.tests.TestOperatorEnum.SLIDING_WINDOW_CHECK_PRINT_SINK;
+import static org.apache.flink.streaming.tests.TestOperatorEnum.TIME_WINDOW_OPER;
 
 /**
  * A general purpose test job for Flink's DataStream API operators and primitives.

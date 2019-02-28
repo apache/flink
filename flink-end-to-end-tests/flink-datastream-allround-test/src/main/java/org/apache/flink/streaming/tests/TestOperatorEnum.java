@@ -18,15 +18,16 @@
 
 package org.apache.flink.streaming.tests;
 
+/** Enum of names and uids of all test operators used in {@link DataStreamAllroundTestProgram}. */
 public enum TestOperatorEnum {
 	EVENT_SOURCE("EventSource", 1),
 	KEYED_STATE_OPER_WITH_KRYO_AND_CUSTOM_SER("ArtificalKeyedStateMapper_Kryo_and_Custom_Stateful", 2),
 	KEYED_STATE_OPER_WITH_AVRO_SER("ArtificalKeyedStateMapper_Avro", 3),
 	OPERATOR_STATE_OPER("ArtificalOperatorStateMapper", 4),
 	TIME_WINDOW_OPER("TumblingWindowOperator", 5),
-	SEMANTICS_CHECK_MAPPER("SemanticsCheckMapper", 6),
-	SEMANTICS_CHECK_PRINT_SINK("SemanticsCheckPrintSink", 7),
-	FAILURE_MAPPER_NAME("FailureMapper", 8),
+	FAILURE_MAPPER_NAME("FailureMapper", 6),
+	SEMANTICS_CHECK_MAPPER("SemanticsCheckMapper", 7),
+	SEMANTICS_CHECK_PRINT_SINK("SemanticsCheckPrintSink", 8),
 	SLIDING_WINDOW_AGG("SlidingWindowOperator", 9),
 	SLIDING_WINDOW_CHECK_MAPPER("SlidingWindowCheckMapper", 10),
 	SLIDING_WINDOW_CHECK_PRINT_SINK("SlidingWindowCheckPrintSink", 11),

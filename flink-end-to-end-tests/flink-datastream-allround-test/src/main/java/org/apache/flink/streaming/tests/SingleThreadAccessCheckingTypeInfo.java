@@ -26,14 +26,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.util.Objects;
 
 /** Custom {@link TypeInformation} to test custom {@link TypeSerializer}. */
-public class CustomEventTypeInformation<T> extends TypeInformation<T> {
+public class SingleThreadAccessCheckingTypeInfo<T> extends TypeInformation<T> {
 	private final TypeInformation<T> originalTypeInformation;
 
-	public CustomEventTypeInformation(Class<T> clazz) {
+	SingleThreadAccessCheckingTypeInfo(Class<T> clazz) {
 		this(TypeInformation.of(clazz));
 	}
 
-	public CustomEventTypeInformation(TypeInformation<T> originalTypeInformation) {
+	private SingleThreadAccessCheckingTypeInfo(TypeInformation<T> originalTypeInformation) {
 		this.originalTypeInformation = originalTypeInformation;
 	}
 
@@ -85,7 +85,7 @@ public class CustomEventTypeInformation<T> extends TypeInformation<T> {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		CustomEventTypeInformation that = (CustomEventTypeInformation) o;
+		SingleThreadAccessCheckingTypeInfo that = (SingleThreadAccessCheckingTypeInfo) o;
 		return Objects.equals(originalTypeInformation, that.originalTypeInformation);
 	}
 
@@ -96,6 +96,6 @@ public class CustomEventTypeInformation<T> extends TypeInformation<T> {
 
 	@Override
 	public boolean canEqual(Object obj) {
-		return obj instanceof CustomEventTypeInformation;
+		return obj instanceof SingleThreadAccessCheckingTypeInfo;
 	}
 }
