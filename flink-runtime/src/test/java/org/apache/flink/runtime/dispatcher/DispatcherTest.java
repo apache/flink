@@ -575,6 +575,8 @@ public class DispatcherTest extends TestLogger {
 
 		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch));
 
+		dispatcher.waitUntilStarted();
+
 		final JobGraph failingJobGraph = createFailingJobGraph(testException);
 
 		final SubmittedJobGraph submittedJobGraph = new SubmittedJobGraph(failingJobGraph);
