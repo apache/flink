@@ -31,7 +31,7 @@ import scala.collection.JavaConversions._
 
 
 /**
-  * FlinkChainedPrograms contains a sequence of [[FlinkOptimizeProgram]]s which are chained
+  * A FlinkOptimizeProgram contains a sequence of [[FlinkOptimizeProgram]]s which are chained
   * together.
   *
   * The chained-order of programs can be adjusted by [[addFirst]], [[addLast]], [[addBefore]]
@@ -41,7 +41,7 @@ import scala.collection.JavaConversions._
   *
   * @tparam OC OptimizeContext
   */
-class FlinkChainedPrograms[OC <: OptimizeContext] extends Logging {
+class FlinkChainedProgram[OC <: OptimizeContext] extends FlinkOptimizeProgram[OC] with Logging {
   // keep program as ordered
   private val programNames = new util.ArrayList[String]()
   // map program name to program instance

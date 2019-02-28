@@ -29,13 +29,13 @@ import org.junit.Test
 import scala.collection.JavaConversions._
 
 /**
-  * Tests for [[FlinkChainedPrograms]].
+  * Tests for [[FlinkChainedProgram]].
   */
-class FlinkChainedProgramsTest {
+class FlinkChainedProgramTest {
 
   @Test
   def testAddGetRemovePrograms(): Unit = {
-    val programs = new FlinkChainedPrograms
+    val programs = new FlinkChainedProgram
     assertTrue(programs.getProgramNames.isEmpty)
     assertTrue(programs.get("o1").isEmpty)
 
@@ -118,7 +118,7 @@ class FlinkChainedProgramsTest {
 
   @Test
   def testGetFlinkRuleSetProgram(): Unit = {
-    val programs = new FlinkChainedPrograms
+    val programs = new FlinkChainedProgram
     assertTrue(programs.getProgramNames.isEmpty)
 
     val program1 = FlinkHepRuleSetProgramBuilder.newBuilder
@@ -151,7 +151,7 @@ class FlinkChainedProgramsTest {
 
   @Test(expected = classOf[NullPointerException])
   def testAddNullProgram(): Unit = {
-    val programs = new FlinkChainedPrograms[BatchOptimizeContext]
+    val programs = new FlinkChainedProgram[BatchOptimizeContext]
     programs.addLast("o1", null)
   }
 }
