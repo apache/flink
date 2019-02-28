@@ -113,7 +113,7 @@ public abstract class Slot {
 		checkArgument(slotNumber >= 0);
 
 		// create a simple slot context
-		this.slotContext = new SimpleSlotContext(
+		this.slotContext = new SettableSlotContext(
 			NO_ALLOCATION_ID,
 			location,
 			slotNumber,

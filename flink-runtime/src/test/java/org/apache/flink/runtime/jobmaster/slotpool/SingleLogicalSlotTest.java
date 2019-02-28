@@ -22,15 +22,14 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
+import org.apache.flink.runtime.instance.SettableSlotContext;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.DummySlotOwner;
-import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -73,9 +72,16 @@ public class SingleLogicalSlotTest extends TestLogger {
 	}
 
 	private SingleLogicalSlot createSingleLogicalSlot(SlotOwner slotOwner) {
+		SlotContext slotContext = new SettableSlotContext(
+			new AllocationID(),
+			new LocalTaskManagerLocation(),
+			0,
+			new SimpleAckingTaskManagerGateway(),
+			ResourceProfile.UNKNOWN);
+
 		return new SingleLogicalSlot(
 			new SlotRequestId(),
-			new DummySlotContext(),
+			slotContext,
 			null,
 			Locality.LOCAL,
 			slotOwner);
@@ -282,46 +288,6 @@ public class SingleLogicalSlotTest extends TestLogger {
 		@Override
 		public void returnLogicalSlot(LogicalSlot logicalSlot) {
 			returnAllocatedSlotFuture.complete(logicalSlot);
-		}
-	}
-
-	private static final class DummySlotContext implements SlotContext {
-
-		private final AllocationID allocationId;
-
-		private final TaskManagerLocation taskManagerLocation;
-
-		private final TaskManagerGateway taskManagerGateway;
-
-		DummySlotContext() {
-			allocationId = new AllocationID();
-			taskManagerLocation = new LocalTaskManagerLocation();
-			taskManagerGateway = new SimpleAckingTaskManagerGateway();
-		}
-
-		@Override
-		public AllocationID getAllocationId() {
-			return allocationId;
-		}
-
-		@Override
-		public TaskManagerLocation getTaskManagerLocation() {
-			return taskManagerLocation;
-		}
-
-		@Override
-		public int getPhysicalSlotNumber() {
-			return 0;
-		}
-
-		@Override
-		public ResourceProfile getResourceProfile() {
-			return ResourceProfile.UNKNOWN;
-		}
-
-		@Override
-		public TaskManagerGateway getTaskManagerGateway() {
-			return taskManagerGateway;
 		}
 	}
 }

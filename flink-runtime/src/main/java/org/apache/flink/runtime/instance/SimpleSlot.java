@@ -97,7 +97,7 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 		super(
 			parent != null ?
 				parent.getSlotContext() :
-				new SimpleSlotContext(
+				new SettableSlotContext(
 					NO_ALLOCATION_ID,
 					location,
 					slotNumber,

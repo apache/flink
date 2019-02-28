@@ -22,7 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
+import org.apache.flink.runtime.instance.SettableSlotContext;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.DummySlotOwner;
@@ -269,7 +269,7 @@ public class SlotSharingManagerTest extends TestLogger {
 			allocatedSlotActions,
 			SLOT_OWNER);
 
-		final SlotContext slotContext = new SimpleSlotContext(
+		final SlotContext slotContext = new SettableSlotContext(
 			new AllocationID(),
 			new LocalTaskManagerLocation(),
 			0,
@@ -384,7 +384,7 @@ public class SlotSharingManagerTest extends TestLogger {
 
 		// now complete the slotContextFuture
 		slotContextFuture.complete(
-			new SimpleSlotContext(
+			new SettableSlotContext(
 				new AllocationID(),
 				new LocalTaskManagerLocation(),
 				0,
@@ -409,7 +409,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		SlotSharingManager.MultiTaskSlot rootSlot = slotSharingManager.createRootSlot(
 			new SlotRequestId(),
 			CompletableFuture.completedFuture(
-				new SimpleSlotContext(
+				new SettableSlotContext(
 					new AllocationID(),
 					new LocalTaskManagerLocation(),
 					0,
@@ -457,7 +457,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		SlotSharingManager.MultiTaskSlot rootSlot1 = slotSharingManager.createRootSlot(
 			new SlotRequestId(),
 			CompletableFuture.completedFuture(
-				new SimpleSlotContext(
+				new SettableSlotContext(
 					new AllocationID(),
 					new LocalTaskManagerLocation(),
 					0,
@@ -468,7 +468,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		SlotSharingManager.MultiTaskSlot rootSlot2 = slotSharingManager.createRootSlot(
 			new SlotRequestId(),
 			CompletableFuture.completedFuture(
-				new SimpleSlotContext(
+				new SettableSlotContext(
 					new AllocationID(),
 					taskManagerLocation,
 					0,

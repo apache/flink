@@ -40,7 +40,7 @@ import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
+import org.apache.flink.runtime.instance.SettableSlotContext;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -355,7 +355,7 @@ public class ExecutionGraphTestUtils {
 		final TaskManagerLocation location = new TaskManagerLocation(
 				ResourceID.generate(), InetAddress.getLoopbackAddress(), 6572);
 
-		final SimpleSlotContext allocatedSlot = new SimpleSlotContext(
+		final SettableSlotContext allocatedSlot = new SettableSlotContext(
 			new AllocationID(),
 			location,
 			0,

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.clusterframework.types;
 
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
+import org.apache.flink.runtime.instance.SettableSlotContext;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
@@ -51,10 +51,10 @@ public abstract class SlotSelectionStrategyTestBase extends TestLogger {
 
 	protected final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
 
-	protected final SimpleSlotContext ssc1 = new SimpleSlotContext(aid1, tml1, 1, taskManagerGateway, resourceProfile);
-	protected final SimpleSlotContext ssc2 = new SimpleSlotContext(aid2, tml2, 2, taskManagerGateway, biggerResourceProfile);
-	protected final SimpleSlotContext ssc3 = new SimpleSlotContext(aid3, tml3, 3, taskManagerGateway, resourceProfile);
-	protected final SimpleSlotContext ssc4 = new SimpleSlotContext(aid4, tml4, 4, taskManagerGateway, resourceProfile);
+	protected final SettableSlotContext ssc1 = new SettableSlotContext(aid1, tml1, 1, taskManagerGateway, resourceProfile);
+	protected final SettableSlotContext ssc2 = new SettableSlotContext(aid2, tml2, 2, taskManagerGateway, biggerResourceProfile);
+	protected final SettableSlotContext ssc3 = new SettableSlotContext(aid3, tml3, 3, taskManagerGateway, resourceProfile);
+	protected final SettableSlotContext ssc4 = new SettableSlotContext(aid4, tml4, 4, taskManagerGateway, resourceProfile);
 
 	protected final Set<SlotContext> candidates = Collections.unmodifiableSet(createCandidates());
 

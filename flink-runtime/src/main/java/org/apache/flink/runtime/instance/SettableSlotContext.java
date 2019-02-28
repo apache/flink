@@ -26,9 +26,9 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 
 /**
- * Simple implementation of the {@link SlotContext} interface for the legacy code.
+ * A settable implementation of the {@link SlotContext} interface.
  */
-public class SimpleSlotContext implements SlotContext {
+public class SettableSlotContext implements SlotContext {
 
 	private final AllocationID allocationId;
 
@@ -40,7 +40,7 @@ public class SimpleSlotContext implements SlotContext {
 
 	private final ResourceProfile resourceProfile;
 
-	public SimpleSlotContext(
+	public SettableSlotContext(
 			AllocationID allocationId,
 			TaskManagerLocation taskManagerLocation,
 			int physicalSlotNumber,
@@ -48,7 +48,7 @@ public class SimpleSlotContext implements SlotContext {
 		this(allocationId, taskManagerLocation, physicalSlotNumber, taskManagerGateway, ResourceProfile.UNKNOWN);
 	}
 
-	public SimpleSlotContext(
+	public SettableSlotContext(
 			AllocationID allocationId,
 			TaskManagerLocation taskManagerLocation,
 			int physicalSlotNumber,

@@ -30,7 +30,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
+import org.apache.flink.runtime.instance.SettableSlotContext;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -600,7 +600,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		TaskManagerLocation location = new TaskManagerLocation(
 				ResourceID.generate(), InetAddress.getLoopbackAddress(), 12345);
 
-		SimpleSlotContext slot = new SimpleSlotContext(
+		SettableSlotContext slot = new SettableSlotContext(
 			new AllocationID(),
 			location,
 			0,
@@ -614,7 +614,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		TaskManagerLocation location = new TaskManagerLocation(
 			ResourceID.generate(), InetAddress.getLoopbackAddress(), 12345);
 
-		SimpleSlotContext slotContext = new SimpleSlotContext(
+		SettableSlotContext slotContext = new SettableSlotContext(
 			new AllocationID(),
 			location,
 			0,

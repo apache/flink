@@ -30,7 +30,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
+import org.apache.flink.runtime.instance.SettableSlotContext;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -233,7 +233,7 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 		//  - mocking the scheduler created fragile tests that break whenever the scheduler is adjusted
 		//  - exposing test methods in the ExecutionVertex leads to undesirable setters 
 
-		SlotContext slot = new SimpleSlotContext(
+		SlotContext slot = new SettableSlotContext(
 			new AllocationID(),
 			location,
 			0,
