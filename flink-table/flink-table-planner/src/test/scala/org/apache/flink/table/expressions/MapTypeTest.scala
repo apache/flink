@@ -54,8 +54,8 @@ class MapTypeTest extends MapTypeTestBase {
       "{2=2, 3=9}")
 
     testAllApis(
-      map(1, Null(Types.INT)),
-      "map(1, Null(INT))",
+      map(1, nullOf(Types.INT)),
+      "map(1, nullOf(INT))",
       "map[1, NULLIF(1,1)]",
       "{1=null}")
 

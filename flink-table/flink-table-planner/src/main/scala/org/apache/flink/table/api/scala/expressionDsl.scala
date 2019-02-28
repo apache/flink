@@ -1414,4 +1414,21 @@ object uuid {
   }
 }
 
+/**
+  * Returns a null literal value of a given type.
+  *
+  * e.g. nullOf(Types.INT)
+  */
+object nullOf {
+
+  /**
+    * Returns a null literal value of a given type.
+    *
+    * e.g. nullOf(Types.INT)
+    */
+  def apply(typeInfo: TypeInformation[_]): Expression = {
+    Null(typeInfo)
+  }
+}
+
 // scalastyle:on object.name

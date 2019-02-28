@@ -53,6 +53,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val ASC: Keyword = Keyword("asc")
   lazy val DESC: Keyword = Keyword("desc")
   lazy val NULL: Keyword = Keyword("Null")
+  lazy val NULL_OF: Keyword = Keyword("nullOf")
   lazy val IF: Keyword = Keyword("?")
   lazy val TO_DATE: Keyword = Keyword("toDate")
   lazy val TO_TIME: Keyword = Keyword("toTime")
@@ -207,7 +208,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     str => Literal(str.toBoolean)
   }
 
-  lazy val nullLiteral: PackratParser[Expression] = NULL ~ "(" ~> dataType <~ ")" ^^ {
+  lazy val nullLiteral: PackratParser[Expression] = (NULL | NULL_OF) ~ "(" ~> dataType <~ ")" ^^ {
     dt => Null(dt)
   }
 
