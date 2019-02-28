@@ -23,7 +23,6 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -37,7 +36,6 @@ import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -135,17 +133,6 @@ public abstract class StateBackendTestContext {
 			snapshotRunnableFuture.run();
 		}
 		return snapshotRunnableFuture;
-	}
-
-	void restoreSnapshot(@Nullable KeyedStateHandle snapshot) throws Exception {
-		Collection<KeyedStateHandle> snapshots = new ArrayList<>();
-		snapshots.add(snapshot);
-		Collection<KeyedStateHandle> restoreState =
-			snapshot == null ? null : new StateObjectCollection<>(snapshots);
-		keyedStateBackend.restore(restoreState);
-		if (snapshot != null) {
-			snapshots.add(snapshot);
-		}
 	}
 
 	public void setCurrentKey(String key) {

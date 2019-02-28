@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -41,6 +42,14 @@ import java.util.Collection;
 public abstract class AbstractStateBackend implements StateBackend, java.io.Serializable {
 
 	private static final long serialVersionUID = 4620415814639230247L;
+
+	public static StreamCompressionDecorator getCompressionDecorator(ExecutionConfig executionConfig) {
+		if (executionConfig != null && executionConfig.isUseSnapshotCompression()) {
+			return SnappyStreamCompressionDecorator.INSTANCE;
+		} else {
+			return UncompressedStreamCompressionDecorator.INSTANCE;
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	//  State Backend - State-Holding Backends

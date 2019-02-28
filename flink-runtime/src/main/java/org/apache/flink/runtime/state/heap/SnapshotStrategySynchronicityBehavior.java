@@ -16,16 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state.restore;
+package org.apache.flink.runtime.state.heap;
 
-import org.apache.flink.runtime.state.RestoreOperation;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 
 /**
- * Interface for RocksDB restore.
+ * Interface for synchronicity behavior of heap snapshot strategy.
+ *
+ * @param <K> The data type that the serializer serializes.
  */
-public interface RocksDBRestoreOperation extends RestoreOperation<RocksDBRestoreResult> {
-	/**
-	 * Restores state that was previously snapshot-ed from the provided state handles.
-	 */
-	RocksDBRestoreResult restore() throws Exception;
+interface SnapshotStrategySynchronicityBehavior<K> {
+
+	default void finalizeSnapshotBeforeReturnHook(Runnable runnable) {
+
+	}
+
+	boolean isAsynchronous();
+
+	<N, V> StateTable<K, N, V> newStateTable(
+		InternalKeyContext<K> keyContext,
+		RegisteredKeyValueStateBackendMetaInfo<N, V> newMetaInfo);
 }

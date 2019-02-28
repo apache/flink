@@ -16,16 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state.restore;
-
-import org.apache.flink.runtime.state.RestoreOperation;
+package org.apache.flink.runtime.state;
 
 /**
- * Interface for RocksDB restore.
+ * Interface for restore operation.
+ *
+ * @param <R> Generic type of the restore result.
  */
-public interface RocksDBRestoreOperation extends RestoreOperation<RocksDBRestoreResult> {
+public interface RestoreOperation<R> {
 	/**
 	 * Restores state that was previously snapshot-ed from the provided state handles.
 	 */
-	RocksDBRestoreResult restore() throws Exception;
+	R restore() throws Exception;
 }
