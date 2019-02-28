@@ -140,12 +140,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	private boolean enableCommitOnCheckpoints = true;
 
 	/**
-	 * User-set flag to disable filter restored partitions with current
-	 * discovered partitions. It's enabled by default since otherwise will result in
-	 * unexpected behaviors - e.g. When changing the topic name, or remove some topics,
-	 * The removed/renamed partitions will be still consumed.
+	 * User-set flag to disable filtering restored partitions with current topics descriptor.
 	 */
-	private boolean filterRestoredPartitionsWithDiscovered = true;
+	private boolean filterRestoredPartitionsWithCurrentTopicsDescriptor = true;
 
 	/**
 	 * The offset commit mode for the consumer.
@@ -470,15 +467,20 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		return this;
 	}
 
-	/* Disable filtering the restored partitions with discovered partitions.
-
-	 * Note: this may result in un-wanted behaviors: e.g. When changing the
-	 * topic name, or remove some topics, the removed/renamed partitions
-	 * will be still consumed.
+	/**
+	 * By default, when restoring from a checkpoint / savepoint, the consumer always
+	 * ignores restored partitions that are no longer associated with the current specified topics or
+	 * topic pattern to subscribe to.
+	 *
+	 * <p>This method configures the consumer to not filter the restored partitions,
+	 * therefore always attempting to consume whatever partition was present in the
+	 * previous execution regardless of the specified topics to subscribe to in the
+	 * current execution.
+	 *
 	 * @return The consumer object, to allow function chaining.
 	 */
-	public FlinkKafkaConsumerBase<T> disableFilterRestoredPartitionsWithDiscovered() {
-		this.filterRestoredPartitionsWithDiscovered = false;
+	public FlinkKafkaConsumerBase<T> disableFilterRestoredPartitionsWithSubscribedTopics() {
+		this.filterRestoredPartitionsWithCurrentTopicsDescriptor = false;
 		return this;
 	}
 
@@ -526,7 +528,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				}
 			}
 
-			if (filterRestoredPartitionsWithDiscovered) {
+			if (filterRestoredPartitionsWithCurrentTopicsDescriptor) {
 				subscribedPartitionsToStartOffsets.entrySet().removeIf(entry -> {
 					if (!topicsDescriptor.isMatchingTopic(entry.getKey().getTopic())) {
 						LOG.warn(
