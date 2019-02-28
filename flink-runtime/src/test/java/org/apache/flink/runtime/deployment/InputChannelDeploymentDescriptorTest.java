@@ -23,7 +23,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
-import org.apache.flink.runtime.executiongraph.ExecutionGraphException;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
@@ -33,10 +32,14 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.net.InetAddress;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -48,7 +51,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the {@link InputChannelDeploymentDescriptor}.
  */
-public class InputChannelDeploymentDescriptorTest {
+public class InputChannelDeploymentDescriptorTest extends TestLogger {
 
 	/**
 	 * Tests the deployment descriptors for local, remote, and unknown partition
@@ -56,12 +59,11 @@ public class InputChannelDeploymentDescriptorTest {
 	 * producers).
 	 */
 	@Test
-	public void testMixedLocalRemoteUnknownDeployment() throws Exception {
+	public void testMixedLocalRemoteUnknownDeployment() {
 		boolean allowLazyDeployment = true;
 
 		ResourceID consumerResourceId = ResourceID.generate();
-		ExecutionVertex consumer = mock(ExecutionVertex.class);
-		LogicalSlot consumerSlot = mockSlot(consumerResourceId);
+		ExecutionVertex consumer = mockExecutionVertex(ExecutionState.DEPLOYING, consumerResourceId);
 
 		// Local and remote channel are only allowed for certain execution
 		// states.
@@ -85,47 +87,45 @@ public class InputChannelDeploymentDescriptorTest {
 			ResultPartitionID unknownPartitionId = new ResultPartitionID(unknownPartition.getPartitionId(), unknownProducer.getCurrentExecutionAttempt().getAttemptId());
 			ExecutionEdge unknownEdge = new ExecutionEdge(unknownPartition, consumer, 2);
 
-			InputChannelDeploymentDescriptor[] desc = InputChannelDeploymentDescriptor.fromEdges(
-				new ExecutionEdge[]{localEdge, remoteEdge, unknownEdge},
-				consumerSlot.getTaskManagerLocation().getResourceID(),
+			List<InputChannelDeploymentDescriptor> desc = InputChannelDeploymentDescriptor.fromEdges(
+				Arrays.asList(localEdge, remoteEdge, unknownEdge),
 				allowLazyDeployment);
 
-			assertEquals(3, desc.length);
+			assertEquals(3, desc.size());
 
 			// These states are allowed
 			if (state == ExecutionState.RUNNING || state == ExecutionState.FINISHED ||
 				state == ExecutionState.SCHEDULED || state == ExecutionState.DEPLOYING) {
 
 				// Create local or remote channels
-				assertEquals(localPartitionId, desc[0].getConsumedPartitionId());
-				assertTrue(desc[0].getConsumedPartitionLocation().isLocal());
-				assertNull(desc[0].getConsumedPartitionLocation().getConnectionId());
+				assertEquals(localPartitionId, desc.get(0).getConsumedPartitionId());
+				assertTrue(desc.get(0).getConsumedPartitionLocation().isLocal());
+				assertNull(desc.get(0).getConsumedPartitionLocation().getConnectionId());
 
-				assertEquals(remotePartitionId, desc[1].getConsumedPartitionId());
-				assertTrue(desc[1].getConsumedPartitionLocation().isRemote());
-				assertEquals(remoteConnectionId, desc[1].getConsumedPartitionLocation().getConnectionId());
+				assertEquals(remotePartitionId, desc.get(1).getConsumedPartitionId());
+				assertTrue(desc.get(1).getConsumedPartitionLocation().isRemote());
+				assertEquals(remoteConnectionId, desc.get(1).getConsumedPartitionLocation().getConnectionId());
 			} else {
 				// Unknown (lazy deployment allowed)
-				assertEquals(localPartitionId, desc[0].getConsumedPartitionId());
-				assertTrue(desc[0].getConsumedPartitionLocation().isUnknown());
-				assertNull(desc[0].getConsumedPartitionLocation().getConnectionId());
+				assertEquals(localPartitionId, desc.get(0).getConsumedPartitionId());
+				assertTrue(desc.get(0).getConsumedPartitionLocation().isUnknown());
+				assertNull(desc.get(0).getConsumedPartitionLocation().getConnectionId());
 
-				assertEquals(remotePartitionId, desc[1].getConsumedPartitionId());
-				assertTrue(desc[1].getConsumedPartitionLocation().isUnknown());
-				assertNull(desc[1].getConsumedPartitionLocation().getConnectionId());
+				assertEquals(remotePartitionId, desc.get(1).getConsumedPartitionId());
+				assertTrue(desc.get(1).getConsumedPartitionLocation().isUnknown());
+				assertNull(desc.get(1).getConsumedPartitionLocation().getConnectionId());
 			}
 
-			assertEquals(unknownPartitionId, desc[2].getConsumedPartitionId());
-			assertTrue(desc[2].getConsumedPartitionLocation().isUnknown());
-			assertNull(desc[2].getConsumedPartitionLocation().getConnectionId());
+			assertEquals(unknownPartitionId, desc.get(2).getConsumedPartitionId());
+			assertTrue(desc.get(2).getConsumedPartitionLocation().isUnknown());
+			assertNull(desc.get(2).getConsumedPartitionLocation().getConnectionId());
 		}
 	}
 
 	@Test
-	public void testUnknownChannelWithoutLazyDeploymentThrows() throws Exception {
+	public void testUnknownChannelWithoutLazyDeploymentThrows() {
 		ResourceID consumerResourceId = ResourceID.generate();
-		ExecutionVertex consumer = mock(ExecutionVertex.class);
-		LogicalSlot consumerSlot = mockSlot(consumerResourceId);
+		ExecutionVertex consumer = mockExecutionVertex(ExecutionState.DEPLOYING, consumerResourceId);
 
 		// Unknown partition
 		ExecutionVertex unknownProducer = mockExecutionVertex(ExecutionState.CREATED, null); // no assigned resource
@@ -136,29 +136,26 @@ public class InputChannelDeploymentDescriptorTest {
 		// This should work if lazy deployment is allowed
 		boolean allowLazyDeployment = true;
 
-		InputChannelDeploymentDescriptor[] desc = InputChannelDeploymentDescriptor.fromEdges(
-			new ExecutionEdge[]{unknownEdge},
-			consumerSlot.getTaskManagerLocation().getResourceID(),
+		List<InputChannelDeploymentDescriptor> desc = InputChannelDeploymentDescriptor.fromEdges(
+			Collections.singletonList(unknownEdge),
 			allowLazyDeployment);
 
-		assertEquals(1, desc.length);
+		assertEquals(1, desc.size());
 
-		assertEquals(unknownPartitionId, desc[0].getConsumedPartitionId());
-		assertTrue(desc[0].getConsumedPartitionLocation().isUnknown());
-		assertNull(desc[0].getConsumedPartitionLocation().getConnectionId());
+		assertEquals(unknownPartitionId, desc.get(0).getConsumedPartitionId());
+		assertTrue(desc.get(0).getConsumedPartitionLocation().isUnknown());
+		assertNull(desc.get(0).getConsumedPartitionLocation().getConnectionId());
 
 		try {
 			// Fail if lazy deployment is *not* allowed
 			allowLazyDeployment = false;
 
 			InputChannelDeploymentDescriptor.fromEdges(
-				new ExecutionEdge[]{unknownEdge},
-				consumerSlot.getTaskManagerLocation().getResourceID(),
+				Collections.singletonList(unknownEdge),
 				allowLazyDeployment);
 
-			fail("Did not throw expected ExecutionGraphException");
-		} catch (ExecutionGraphException ignored) {
-		}
+			fail("Did not throw expected IllegalStateException");
+		} catch (IllegalStateException expected) {}
 	}
 
 	// ------------------------------------------------------------------------
