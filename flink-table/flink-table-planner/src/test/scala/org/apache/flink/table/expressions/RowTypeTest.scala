@@ -52,8 +52,8 @@ class RowTypeTest extends RowTypeTestBase {
       "1985-04-11,0.1,[1, 2, 3],{foo=bar},1,true") // string flatten
 
     testAllApis(
-      row(1 + 1, 2 * 3, Null(Types.STRING)),
-      "row(1 + 1, 2 * 3, Null(STRING))",
+      row(1 + 1, 2 * 3, nullOf(Types.STRING)),
+      "row(1 + 1, 2 * 3, nullOf(STRING))",
       "ROW(1 + 1, 2 * 3, NULLIF(1,1))",
       "2,6,null"
     )

@@ -296,8 +296,8 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     )
 
     testTableApi(
-      'f10.in("This is a test String.", "String", "Hello world", "Comment#1", Null(Types.STRING)),
-      "f10.in('This is a test String.', 'String', 'Hello world', 'Comment#1', Null(STRING))",
+      'f10.in("This is a test String.", "String", "Hello world", "Comment#1", nullOf(Types.STRING)),
+      "f10.in('This is a test String.', 'String', 'Hello world', 'Comment#1', nullOf(STRING))",
       "true"
     )
 
@@ -308,8 +308,8 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     )
 
     testTableApi(
-      'f10.in("FAIL", "FAIL", Null(Types.STRING)),
-      "f10.in('FAIL', 'FAIL', Null(STRING))",
+      'f10.in("FAIL", "FAIL", nullOf(Types.STRING)),
+      "f10.in('FAIL', 'FAIL', nullOf(STRING))",
       "null"
     )
   }
@@ -350,10 +350,10 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "true")
 
     // null
-    testAllApis(Null(Types.INT), "Null(INT)", "CAST(NULL AS INT)", "null")
+    testAllApis(nullOf(Types.INT), "nullOf(INT)", "CAST(NULL AS INT)", "null")
     testAllApis(
-      Null(Types.STRING) === "",
-      "Null(STRING) === ''",
+      nullOf(Types.STRING) === "",
+      "nullOf(STRING) === ''",
       "CAST(NULL AS VARCHAR) = ''",
       "null")
 
@@ -416,26 +416,26 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
   def testBetween(): Unit = {
     // between
     testAllApis(
-      4.between(Null(Types.INT), 3),
-      "4.between(Null(INT), 3)",
+      4.between(nullOf(Types.INT), 3),
+      "4.between(nullOf(INT), 3)",
       "4 BETWEEN NULL AND 3",
       "false"
     )
     testAllApis(
-      4.between(Null(Types.INT), 12),
-      "4.between(Null(INT), 12)",
+      4.between(nullOf(Types.INT), 12),
+      "4.between(nullOf(INT), 12)",
       "4 BETWEEN NULL AND 12",
       "null"
     )
     testAllApis(
-      4.between(Null(Types.INT), 3),
-      "4.between(Null(INT), 3)",
+      4.between(nullOf(Types.INT), 3),
+      "4.between(nullOf(INT), 3)",
       "4 BETWEEN 5 AND NULL",
       "false"
     )
     testAllApis(
-      4.between(Null(Types.INT), 12),
-      "4.between(Null(INT), 12)",
+      4.between(nullOf(Types.INT), 12),
+      "4.between(nullOf(INT), 12)",
       "4 BETWEEN 0 AND NULL",
       "null"
     )
@@ -490,8 +490,8 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
 
     // not between
     testAllApis(
-      2.notBetween(Null(Types.INT), 3),
-      "2.notBetween(Null(INT), 3)",
+      2.notBetween(nullOf(Types.INT), 3),
+      "2.notBetween(nullOf(INT), 3)",
       "2 NOT BETWEEN NULL AND 3",
       "null"
     )
