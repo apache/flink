@@ -32,6 +32,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -213,7 +214,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 			TtlTimeProvider.DEFAULT,
 			new UnregisteredMetricsGroup(),
 			Collections.emptyList(),
-			RocksDBStateBackend.getCompressionDecorator(env.getExecutionConfig()),
+			AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
 			spy(db),
 			defaultCFHandle,
 			new CloseableRegistry()).build();
@@ -290,7 +291,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				TtlTimeProvider.DEFAULT,
 				new UnregisteredMetricsGroup(),
 				Collections.emptyList(),
-				RocksDBStateBackend.getCompressionDecorator(executionConfig),
+				AbstractStateBackend.getCompressionDecorator(executionConfig),
 				db,
 				defaultCFHandle,
 				new CloseableRegistry()).build();

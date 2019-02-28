@@ -1000,7 +1000,6 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			numberOfKeyGroups,
 			keyGroupRange,
 			env.getTaskKvStateRegistry());
-		backend.restore(Collections.emptyList());
 		return backend;
 	}
 
@@ -1036,7 +1035,6 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 			env.getTaskKvStateRegistry()
 			, TtlTimeProvider.DEFAULT,
 			state);
-		backend.restore(new StateObjectCollection<>(state));
 		return backend;
 	}
 

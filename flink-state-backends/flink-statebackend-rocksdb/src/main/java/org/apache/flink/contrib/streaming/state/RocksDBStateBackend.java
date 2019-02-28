@@ -39,10 +39,8 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
-import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.AbstractID;
@@ -519,14 +517,6 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			.setNumberOfTransferingThreads(getNumberOfTransferingThreads())
 			.setNativeMetricOptions(getMemoryWatcherOptions());
 		return builder.build();
-	}
-
-	public static StreamCompressionDecorator getCompressionDecorator(ExecutionConfig executionConfig) {
-		if (executionConfig != null && executionConfig.isUseSnapshotCompression()) {
-			return SnappyStreamCompressionDecorator.INSTANCE;
-		} else {
-			return UncompressedStreamCompressionDecorator.INSTANCE;
-		}
 	}
 
 	@Override
