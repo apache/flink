@@ -43,7 +43,7 @@ import _root_.scala.language.implicitConversions
   *
   * When writing a query you can use Scala Symbols to refer to field names. One would
   * refer to field `a` by writing `'a`. Sometimes it is necessary to manually convert a
-  * Scala literal to an Expression literal, in those cases use `Literal`, as in `Literal(3)`.
+  * Scala literal to an expression literal, in those cases use `.toExpr`, as in `3.toExpr`.
   *
   * Example:
   *
