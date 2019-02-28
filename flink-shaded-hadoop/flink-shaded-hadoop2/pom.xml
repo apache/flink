@@ -33,7 +33,7 @@ under the License.
 	<name>flink-shaded-hadoop2</name>
 
 	<packaging>jar</packaging>
-	<version>1.9-SNAPSHOT-${hadoop.version}</version>
+	<version>${hadoop.version}-1.9-SNAPSHOT</version>
 
 	<dependencies>
 
