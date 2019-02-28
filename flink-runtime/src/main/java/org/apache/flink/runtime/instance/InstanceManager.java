@@ -107,7 +107,7 @@ public class InstanceManager {
 
 			Instance host = registeredHostsById.get(instanceId);
 
-			if (host == null){
+			if (host == null) {
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("Received heartbeat from unknown TaskManager with instance ID " + instanceId.toString() +
 							" Possibly TaskManager was marked as dead (timed-out) earlier. " +
@@ -128,7 +128,7 @@ public class InstanceManager {
 	 * Registers a task manager. Registration of a task manager makes it available to be used
 	 * for the job execution.
 	 *
-	 * @param taskManagerGateway gateway to the task manager
+	 * @param taskManagerGateway Gateway to the task manager
 	 * @param taskManagerLocation Location info of the TaskManager
 	 * @param resources Hardware description of the TaskManager
 	 * @param numberOfSlots Number of available slots on the TaskManager
@@ -198,10 +198,10 @@ public class InstanceManager {
 	 *
 	 * @param instanceId TaskManager which is about to be marked dead.
 	 */
-	public void unregisterTaskManager(InstanceID instanceId, boolean terminated){
+	public void unregisterTaskManager(InstanceID instanceId, boolean terminated) {
 		Instance instance = registeredHostsById.get(instanceId);
 
-		if (instance != null){
+		if (instance != null) {
 			registeredHostsById.remove(instance.getId());
 			registeredHostsByResource.remove(instance.getTaskManagerID());
 
