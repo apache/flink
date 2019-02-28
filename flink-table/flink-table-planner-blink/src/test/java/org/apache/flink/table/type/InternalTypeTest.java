@@ -52,7 +52,7 @@ public class InternalTypeTest {
 		testHashCodeAndEquals(new DecimalType(15, 5));
 		testHashCodeAndEquals(new GenericType<>(InternalTypeTest.class));
 		testHashCodeAndEquals(new RowType(InternalTypes.STRING, InternalTypes.INT, InternalTypes.INT));
-		testHashCodeAndEquals(new ArrayType(InternalTypes.INT, true));
+		testHashCodeAndEquals(new ArrayType(InternalTypes.INT));
 		testHashCodeAndEquals(new ArrayType(InternalTypes.STRING));
 		testHashCodeAndEquals(new MapType(InternalTypes.STRING, InternalTypes.INT));
 	}
@@ -77,7 +77,7 @@ public class InternalTypeTest {
 		testConvertToRowType((CompositeType) TypeInformation.of(MyPojo.class));
 
 		testConvertCompare(PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
-				new ArrayType(InternalTypes.DOUBLE, true));
+				new ArrayType(InternalTypes.DOUBLE));
 		testConvertCompare(BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO, new ArrayType(InternalTypes.DOUBLE));
 		testConvertCompare(ObjectArrayTypeInfo.getInfoFor(TypeInformation.of(MyPojo.class)),
 				new ArrayType(createInternalTypeFromTypeInfo(TypeInformation.of(MyPojo.class))));

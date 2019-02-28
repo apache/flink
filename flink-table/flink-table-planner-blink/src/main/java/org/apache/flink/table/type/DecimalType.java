@@ -29,8 +29,6 @@ public class DecimalType implements AtomicType {
 
 	public static final int MAX_PRECISION = 38;
 
-	public static final int MAX_SCALE = 18;
-
 	private final int precision;
 	private final int scale;
 
@@ -38,10 +36,9 @@ public class DecimalType implements AtomicType {
 	public static final DecimalType USER_DEFAULT = new DecimalType(10, 0);
 
 	// Mainly used for implicitly type cast and test.
-	public static final DecimalType SYSTEM_DEFAULT = new DecimalType(MAX_PRECISION, MAX_SCALE);
+	public static final DecimalType SYSTEM_DEFAULT = new DecimalType(MAX_PRECISION, 18);
 
 	public DecimalType(int precision, int scale) {
-
 		if (precision < 0) {
 			throw new IllegalArgumentException(format("Decimal precision (%s) cannot be negative.",
 					precision));
@@ -67,14 +64,6 @@ public class DecimalType implements AtomicType {
 
 	public int scale() {
 		return this.scale;
-	}
-
-	public static DecimalType of(int precision, int scale) {
-		return new DecimalType(precision, scale);
-	}
-
-	public static DecimalType of(BigDecimal value) {
-		return of(value.precision(), value.scale());
 	}
 
 	@Override
@@ -104,5 +93,13 @@ public class DecimalType implements AtomicType {
 				"precision=" + precision +
 				", scale=" + scale +
 				'}';
+	}
+
+	public static DecimalType of(int precision, int scale) {
+		return new DecimalType(precision, scale);
+	}
+
+	public static DecimalType of(BigDecimal value) {
+		return of(value.precision(), value.scale());
 	}
 }

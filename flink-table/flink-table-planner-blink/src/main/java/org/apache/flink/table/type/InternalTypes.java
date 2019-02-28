@@ -43,7 +43,7 @@ public class InternalTypes {
 
 	public static final CharType CHAR = CharType.INSTANCE;
 
-	public static final BinaryType BINARY = BinaryType.INSTANCE;
+	public static final ArrayType BINARY = new ArrayType(BYTE);
 
 	public static final DateType DATE = DateType.INSTANCE;
 
@@ -54,11 +54,7 @@ public class InternalTypes {
 	public static final DecimalType SYSTEM_DEFAULT_DECIMAL = DecimalType.SYSTEM_DEFAULT;
 
 	public static ArrayType createArrayType(InternalType elementType) {
-		return new ArrayType(elementType, false);
-	}
-
-	public static ArrayType createArrayType(InternalType elementType, boolean primitive) {
-		return new ArrayType(elementType, primitive);
+		return new ArrayType(elementType);
 	}
 
 	public static DecimalType createDecimalType(int precision, int scale) {

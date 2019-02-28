@@ -57,6 +57,10 @@ public class TypeConverters {
 		tiToType.put(SqlTimeTypeInfo.DATE, InternalTypes.DATE);
 		tiToType.put(SqlTimeTypeInfo.TIMESTAMP, InternalTypes.TIMESTAMP);
 		tiToType.put(SqlTimeTypeInfo.TIME, InternalTypes.TIME);
+
+		// BigDecimal have infinity precision and scale, but we converted it into a limited
+		// Decimal(38, 18). If the user's BigDecimal is more precision than this, we will
+		// throw Exception to remind user to use GenericType in real data conversion.
 		tiToType.put(BasicTypeInfo.BIG_DEC_TYPE_INFO, InternalTypes.SYSTEM_DEFAULT_DECIMAL);
 		TYPE_INFO_TO_INTERNAL_TYPE = Collections.unmodifiableMap(tiToType);
 	}
@@ -75,7 +79,6 @@ public class TypeConverters {
 	 * {@link TupleTypeInfo} (CompositeType) => {@link RowType}.
 	 */
 	public static InternalType createInternalTypeFromTypeInfo(TypeInformation typeInfo) {
-
 		InternalType type = TYPE_INFO_TO_INTERNAL_TYPE.get(typeInfo);
 		if (type != null) {
 			return type;
@@ -93,7 +96,7 @@ public class TypeConverters {
 		} else if (typeInfo instanceof PrimitiveArrayTypeInfo) {
 			PrimitiveArrayTypeInfo arrayType = (PrimitiveArrayTypeInfo) typeInfo;
 			return InternalTypes.createArrayType(
-					createInternalTypeFromTypeInfo(arrayType.getComponentType()), true);
+					createInternalTypeFromTypeInfo(arrayType.getComponentType()));
 		} else if (typeInfo instanceof BasicArrayTypeInfo) {
 			BasicArrayTypeInfo arrayType = (BasicArrayTypeInfo) typeInfo;
 			return InternalTypes.createArrayType(

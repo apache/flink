@@ -29,23 +29,24 @@ import java.util.Arrays;
  */
 public class RowType implements InternalType {
 
-	/**
-	 * Use DataType instead of InternalType to convert to Row (if a Pojo in Row).
-	 */
 	private final InternalType[] types;
 
 	private final String[] fieldNames;
 
 	public RowType(InternalType... types) {
-		this(types, getFieldNames(types.length));
+		this(types, generateDefaultFieldNames(types.length));
 	}
 
 	public RowType(InternalType[] types, String[] fieldNames) {
 		this.types = types;
 		this.fieldNames = fieldNames;
+		if (types.length != fieldNames.length) {
+			throw new IllegalArgumentException("Types should be the same length as names, types is: "
+					+ Arrays.toString(types) + ", and the names: " + Arrays.toString(fieldNames));
+		}
 	}
 
-	private static String[] getFieldNames(int length) {
+	private static String[] generateDefaultFieldNames(int length) {
 		String[] fieldNames = new String[length];
 		for (int i = 0; i < length; i++) {
 			fieldNames[i] = "f" + i;
