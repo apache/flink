@@ -48,4 +48,18 @@ public class PartitionInfo implements Serializable {
 	public InputChannelDeploymentDescriptor getInputChannelDeploymentDescriptor() {
 		return inputChannelDeploymentDescriptor;
 	}
+
+	// ------------------------------------------------------------------------
+
+	static PartitionInfo fromEdge(ExecutionEdge executionEdge) {
+		final InputChannelDeploymentDescriptor inputChannelDeploymentDescriptor = InputChannelDeploymentDescriptor.fromEdge(executionEdge);
+
+		Preconditions.checkState(
+			!inputChannelDeploymentDescriptor.getConsumedPartitionLocation().isUnknown(),
+			"PartitionInfo contains an unknown partition location.");
+
+		return new PartitionInfo(
+			executionEdge.getSource().getIntermediateResult().getId(),
+			inputChannelDeploymentDescriptor);
+	}
 }
