@@ -147,6 +147,7 @@ spec:
         image: flink:latest
         args:
         - taskmanager
+        - "-Dtaskmanager.host=$(K8S_POD_IP)"
         ports:
         - containerPort: 6121
           name: data
@@ -157,6 +158,10 @@ spec:
         env:
         - name: JOB_MANAGER_RPC_ADDRESS
           value: flink-jobmanager
+        - name: K8S_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
 {% endhighlight %}
 
 `jobmanager-service.yaml`

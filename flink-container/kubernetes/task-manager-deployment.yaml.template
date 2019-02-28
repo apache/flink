@@ -31,4 +31,9 @@ spec:
       containers:
       - name: flink-task-manager
         image: ${FLINK_IMAGE_NAME}
-        args: ["task-manager", "-Djobmanager.rpc.address=flink-job-cluster"]
+        args: ["task-manager", "-Djobmanager.rpc.address=flink-job-cluster", "-Dtaskmanager.host=$(K8S_POD_IP)"]
+        env:
+        - name: K8S_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
