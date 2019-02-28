@@ -34,7 +34,7 @@ under the License.
 	<name>flink-shaded-hadoop2-uber</name>
 
 	<packaging>jar</packaging>
-	<version>1.9-SNAPSHOT-${hadoop.version}</version>
+	<version>${hadoop.version}-1.9-SNAPSHOT</version>
 
 	<!--
 		the only dependency of the 'flink-shaded-hadoop2' artifact, out
