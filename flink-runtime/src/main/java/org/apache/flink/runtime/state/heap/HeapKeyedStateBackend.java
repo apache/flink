@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state.heap;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
@@ -33,38 +32,28 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.Keyed;
-import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSerializerProvider;
-import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StateSnapshotTransformers;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
-import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
-import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
 import org.slf4j.Logger;
@@ -73,9 +62,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.RunnableFuture;
@@ -212,9 +199,9 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
-			TypeSerializer<N> namespaceSerializer,
-			StateDescriptor<?, V> stateDesc,
-			@Nonnull StateSnapshotTransformFactory<V> snapshotTransformFactory) throws StateMigrationException {
+		TypeSerializer<N> namespaceSerializer,
+		StateDescriptor<?, V> stateDesc,
+		@Nonnull StateSnapshotTransformFactory<V> snapshotTransformFactory) throws StateMigrationException {
 
 		@SuppressWarnings("unchecked")
 		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) registeredKVStates.get(stateDesc.getName());
@@ -322,177 +309,6 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		// all restore work done in builder and nothing to do here
 	}
 
-	@SuppressWarnings({"unchecked"})
-	private void restorePartitionedState(Collection<KeyedStateHandle> state) throws Exception {
-
-		final Map<Integer, StateMetaInfoSnapshot> kvStatesById = new HashMap<>();
-		registeredKVStates.clear();
-		registeredPQStates.clear();
-
-		boolean keySerializerRestored = false;
-
-		for (KeyedStateHandle keyedStateHandle : state) {
-
-			if (keyedStateHandle == null) {
-				continue;
-			}
-
-			if (!(keyedStateHandle instanceof KeyGroupsStateHandle)) {
-				throw new IllegalStateException("Unexpected state handle type, " +
-						"expected: " + KeyGroupsStateHandle.class +
-						", but found: " + keyedStateHandle.getClass());
-			}
-
-			KeyGroupsStateHandle keyGroupsStateHandle = (KeyGroupsStateHandle) keyedStateHandle;
-			FSDataInputStream fsDataInputStream = keyGroupsStateHandle.openInputStream();
-			cancelStreamRegistry.registerCloseable(fsDataInputStream);
-
-			try {
-				DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(fsDataInputStream);
-
-				KeyedBackendSerializationProxy<K> serializationProxy =
-						new KeyedBackendSerializationProxy<>(userCodeClassLoader);
-
-				serializationProxy.read(inView);
-
-				if (!keySerializerRestored) {
-					// check for key serializer compatibility; this also reconfigures the
-					// key serializer to be compatible, if it is required and is possible
-					TypeSerializerSchemaCompatibility<K> keySerializerSchemaCompat =
-						checkKeySerializerSchemaCompatibility(serializationProxy.getKeySerializerSnapshot());
-					if (keySerializerSchemaCompat.isCompatibleAfterMigration() || keySerializerSchemaCompat.isIncompatible()) {
-						throw new StateMigrationException("The new key serializer must be compatible.");
-					}
-
-					keySerializerRestored = true;
-				}
-
-				List<StateMetaInfoSnapshot> restoredMetaInfos =
-					serializationProxy.getStateMetaInfoSnapshots();
-
-				createOrCheckStateForMetaInfo(restoredMetaInfos, kvStatesById);
-
-				readStateHandleStateData(
-					fsDataInputStream,
-					inView,
-					keyGroupsStateHandle.getGroupRangeOffsets(),
-					kvStatesById, restoredMetaInfos.size(),
-					serializationProxy.getReadVersion(),
-					serializationProxy.isUsingKeyGroupCompression());
-			} finally {
-				if (cancelStreamRegistry.unregisterCloseable(fsDataInputStream)) {
-					IOUtils.closeQuietly(fsDataInputStream);
-				}
-			}
-		}
-	}
-
-	private void readStateHandleStateData(
-		FSDataInputStream fsDataInputStream,
-		DataInputViewStreamWrapper inView,
-		KeyGroupRangeOffsets keyGroupOffsets,
-		Map<Integer, StateMetaInfoSnapshot> kvStatesById,
-		int numStates,
-		int readVersion,
-		boolean isCompressed) throws IOException {
-
-		final StreamCompressionDecorator streamCompressionDecorator = isCompressed ?
-			SnappyStreamCompressionDecorator.INSTANCE : UncompressedStreamCompressionDecorator.INSTANCE;
-
-		for (Tuple2<Integer, Long> groupOffset : keyGroupOffsets) {
-			int keyGroupIndex = groupOffset.f0;
-			long offset = groupOffset.f1;
-
-			// Check that restored key groups all belong to the backend.
-			Preconditions.checkState(keyGroupRange.contains(keyGroupIndex), "The key group must belong to the backend.");
-
-			fsDataInputStream.seek(offset);
-
-			int writtenKeyGroupIndex = inView.readInt();
-			Preconditions.checkState(writtenKeyGroupIndex == keyGroupIndex,
-				"Unexpected key-group in restore.");
-
-			try (InputStream kgCompressionInStream =
-					 streamCompressionDecorator.decorateWithCompression(fsDataInputStream)) {
-
-				readKeyGroupStateData(
-					kgCompressionInStream,
-					kvStatesById,
-					keyGroupIndex,
-					numStates,
-					readVersion);
-			}
-		}
-	}
-
-	private void readKeyGroupStateData(
-		InputStream inputStream,
-		Map<Integer, StateMetaInfoSnapshot> kvStatesById,
-		int keyGroupIndex,
-		int numStates,
-		int readVersion) throws IOException {
-
-		DataInputViewStreamWrapper inView =
-			new DataInputViewStreamWrapper(inputStream);
-
-		for (int i = 0; i < numStates; i++) {
-
-			final int kvStateId = inView.readShort();
-			final StateMetaInfoSnapshot stateMetaInfoSnapshot = kvStatesById.get(kvStateId);
-			final StateSnapshotRestore registeredState;
-
-			switch (stateMetaInfoSnapshot.getBackendStateType()) {
-				case KEY_VALUE:
-					registeredState = registeredKVStates.get(stateMetaInfoSnapshot.getName());
-					break;
-				case PRIORITY_QUEUE:
-					registeredState = registeredPQStates.get(stateMetaInfoSnapshot.getName());
-					break;
-				default:
-					throw new IllegalStateException("Unexpected state type: " +
-						stateMetaInfoSnapshot.getBackendStateType() + ".");
-			}
-
-			StateSnapshotKeyGroupReader keyGroupReader = registeredState.keyGroupReader(readVersion);
-			keyGroupReader.readMappingsInKeyGroup(inView, keyGroupIndex);
-		}
-	}
-
-	private void createOrCheckStateForMetaInfo(
-		List<StateMetaInfoSnapshot> restoredMetaInfo,
-		Map<Integer, StateMetaInfoSnapshot> kvStatesById) {
-
-		for (StateMetaInfoSnapshot metaInfoSnapshot : restoredMetaInfo) {
-			final StateSnapshotRestore registeredState;
-
-			switch (metaInfoSnapshot.getBackendStateType()) {
-				case KEY_VALUE:
-					registeredState = registeredKVStates.get(metaInfoSnapshot.getName());
-					if (registeredState == null) {
-						RegisteredKeyValueStateBackendMetaInfo<?, ?> registeredKeyedBackendStateMetaInfo =
-							new RegisteredKeyValueStateBackendMetaInfo<>(metaInfoSnapshot);
-						registeredKVStates.put(
-							metaInfoSnapshot.getName(),
-							snapshotStrategy.newStateTable(this, registeredKeyedBackendStateMetaInfo));
-					}
-					break;
-				case PRIORITY_QUEUE:
-					registeredState = registeredPQStates.get(metaInfoSnapshot.getName());
-					if (registeredState == null) {
-						createInternal(new RegisteredPriorityQueueStateBackendMetaInfo<>(metaInfoSnapshot));
-					}
-					break;
-				default:
-					throw new IllegalStateException("Unexpected state type: " +
-						metaInfoSnapshot.getBackendStateType() + ".");
-			}
-
-			if (registeredState == null) {
-				kvStatesById.put(kvStatesById.size(), metaInfoSnapshot);
-			}
-		}
-	}
-
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) {
 		//Nothing to do
@@ -500,10 +316,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	@Override
 	public <N, S extends State, T> void applyToAllKeys(
-			final N namespace,
-			final TypeSerializer<N> namespaceSerializer,
-			final StateDescriptor<S, T> stateDescriptor,
-			final KeyedStateFunction<K, S> function) throws Exception {
+		final N namespace,
+		final TypeSerializer<N> namespaceSerializer,
+		final StateDescriptor<S, T> stateDescriptor,
+		final KeyedStateFunction<K, S> function) throws Exception {
 
 		try (Stream<K> keyStream = getKeys(stateDescriptor.getName(), namespace)) {
 
@@ -512,9 +328,9 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			final List<K> keys = keyStream.collect(Collectors.toList());
 
 			final S state = getPartitionedState(
-					namespace,
-					namespaceSerializer,
-					stateDescriptor);
+				namespace,
+				namespaceSerializer,
+				stateDescriptor);
 
 			for (K key : keys) {
 				setCurrentKey(key);
