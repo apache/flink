@@ -23,7 +23,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
@@ -46,25 +48,30 @@ public abstract class HeapStateBackendTestBase {
 	@Parameterized.Parameter
 	public boolean async;
 
-	public HeapKeyedStateBackend<String> createKeyedBackend() throws Exception {
-		return createKeyedBackend(StringSerializer.INSTANCE);
+	public HeapKeyedStateBackend<String> createKeyedBackend(Collection<KeyedStateHandle> stateHandles) throws Exception {
+		return createKeyedBackend(StringSerializer.INSTANCE, stateHandles);
 	}
 
-	public <K> HeapKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer) throws Exception {
+	public <K> HeapKeyedStateBackend<K> createKeyedBackend(
+		TypeSerializer<K> keySerializer,
+		Collection<KeyedStateHandle> stateHandles) throws Exception {
 		final KeyGroupRange keyGroupRange = new KeyGroupRange(0, 15);
 		final int numKeyGroups = keyGroupRange.getNumberOfKeyGroups();
+		ExecutionConfig executionConfig = new ExecutionConfig();
 
-		return new HeapKeyedStateBackend<>(
+		return new HeapKeyedStateBackendBuilder<>(
 			mock(TaskKvStateRegistry.class),
 			keySerializer,
 			HeapStateBackendTestBase.class.getClassLoader(),
 			numKeyGroups,
 			keyGroupRange,
-			async,
-			new ExecutionConfig(),
+			executionConfig,
+			TtlTimeProvider.DEFAULT,
+			stateHandles,
+			AbstractStateBackend.getCompressionDecorator(executionConfig),
 			TestLocalRecoveryConfig.disabled(),
 			new HeapPriorityQueueSetFactory(keyGroupRange, numKeyGroups, 128),
-			TtlTimeProvider.DEFAULT,
-			new CloseableRegistry());
+			async,
+			new CloseableRegistry()).build();
 	}
 }

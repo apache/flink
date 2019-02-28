@@ -42,6 +42,7 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
 import java.util.Collection;
 
 /** mack state backend. */
@@ -127,7 +128,7 @@ public class MockStateBackend extends AbstractStateBackend {
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> stateHandles,
 		CloseableRegistry cancelStreamRegistry) {
-		return new MockKeyedStateBackend<>(
+		return new MockKeyedStateBackendBuilder<>(
 			new KvStateRegistry().createTaskRegistry(jobID, new JobVertexID()),
 			keySerializer,
 			env.getUserClassLoader(),
@@ -135,8 +136,9 @@ public class MockStateBackend extends AbstractStateBackend {
 			keyGroupRange,
 			env.getExecutionConfig(),
 			ttlTimeProvider,
-			metricGroup,
-			cancelStreamRegistry);
+			stateHandles,
+			AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
+			cancelStreamRegistry).build();
 	}
 
 	@Override

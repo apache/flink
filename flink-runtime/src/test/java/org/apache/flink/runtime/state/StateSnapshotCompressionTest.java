@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -26,16 +27,18 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.RunnableFuture;
 
 import static org.mockito.Mockito.mock;
@@ -43,23 +46,12 @@ import static org.mockito.Mockito.mock;
 public class StateSnapshotCompressionTest extends TestLogger {
 
 	@Test
-	public void testCompressionConfiguration() {
+	public void testCompressionConfiguration() throws BackendBuildingException {
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setUseSnapshotCompression(true);
 
-		AbstractKeyedStateBackend<String> stateBackend = new HeapKeyedStateBackend<>(
-			mock(TaskKvStateRegistry.class),
-			StringSerializer.INSTANCE,
-			StateSnapshotCompressionTest.class.getClassLoader(),
-			16,
-			new KeyGroupRange(0, 15),
-			true,
-			executionConfig,
-			TestLocalRecoveryConfig.disabled(),
-			mock(HeapPriorityQueueSetFactory.class),
-			TtlTimeProvider.DEFAULT,
-			new CloseableRegistry());
+		AbstractKeyedStateBackend<String> stateBackend = getStringHeapKeyedStateBackend(executionConfig);
 
 		try {
 			Assert.assertTrue(
@@ -73,18 +65,7 @@ public class StateSnapshotCompressionTest extends TestLogger {
 		executionConfig = new ExecutionConfig();
 		executionConfig.setUseSnapshotCompression(false);
 
-		stateBackend = new HeapKeyedStateBackend<>(
-			mock(TaskKvStateRegistry.class),
-			StringSerializer.INSTANCE,
-			StateSnapshotCompressionTest.class.getClassLoader(),
-			16,
-			new KeyGroupRange(0, 15),
-			true,
-			executionConfig,
-			TestLocalRecoveryConfig.disabled(),
-			mock(HeapPriorityQueueSetFactory.class),
-			TtlTimeProvider.DEFAULT,
-			new CloseableRegistry());
+		stateBackend = getStringHeapKeyedStateBackend(executionConfig);
 
 		try {
 			Assert.assertTrue(
@@ -106,28 +87,42 @@ public class StateSnapshotCompressionTest extends TestLogger {
 		snapshotRestoreRoundtrip(false);
 	}
 
-	private void snapshotRestoreRoundtrip(boolean useCompression) throws Exception {
+	private HeapKeyedStateBackend<String> getStringHeapKeyedStateBackend(ExecutionConfig executionConfig)
+		throws BackendBuildingException {
+		return getStringHeapKeyedStateBackend(executionConfig, Collections.emptyList());
+	}
 
-		ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.setUseSnapshotCompression(useCompression);
-
-		KeyedStateHandle stateHandle = null;
-
-		ValueStateDescriptor<String> stateDescriptor = new ValueStateDescriptor<>("test", String.class);
-		stateDescriptor.initializeSerializerUnlessSet(executionConfig);
-
-		AbstractKeyedStateBackend<String> stateBackend = new HeapKeyedStateBackend<>(
+	private HeapKeyedStateBackend<String> getStringHeapKeyedStateBackend(
+		ExecutionConfig executionConfig,
+		Collection<KeyedStateHandle> stateHandles)
+		throws BackendBuildingException {
+		return new HeapKeyedStateBackendBuilder<>(
 			mock(TaskKvStateRegistry.class),
 			StringSerializer.INSTANCE,
 			StateSnapshotCompressionTest.class.getClassLoader(),
 			16,
 			new KeyGroupRange(0, 15),
-			true,
 			executionConfig,
+			TtlTimeProvider.DEFAULT,
+			stateHandles,
+			AbstractStateBackend.getCompressionDecorator(executionConfig),
 			TestLocalRecoveryConfig.disabled(),
 			mock(HeapPriorityQueueSetFactory.class),
-			TtlTimeProvider.DEFAULT,
-			new CloseableRegistry());
+			true,
+			new CloseableRegistry()).build();
+	}
+
+	private void snapshotRestoreRoundtrip(boolean useCompression) throws Exception {
+
+		ExecutionConfig executionConfig = new ExecutionConfig();
+		executionConfig.setUseSnapshotCompression(useCompression);
+
+		KeyedStateHandle stateHandle;
+
+		ValueStateDescriptor<String> stateDescriptor = new ValueStateDescriptor<>("test", String.class);
+		stateDescriptor.initializeSerializerUnlessSet(executionConfig);
+
+		AbstractKeyedStateBackend<String> stateBackend = getStringHeapKeyedStateBackend(executionConfig);
 
 		try {
 
@@ -160,22 +155,8 @@ public class StateSnapshotCompressionTest extends TestLogger {
 
 		executionConfig = new ExecutionConfig();
 
-		stateBackend = new HeapKeyedStateBackend<>(
-			mock(TaskKvStateRegistry.class),
-			StringSerializer.INSTANCE,
-			StateSnapshotCompressionTest.class.getClassLoader(),
-			16,
-			new KeyGroupRange(0, 15),
-			true,
-			executionConfig,
-			TestLocalRecoveryConfig.disabled(),
-			mock(HeapPriorityQueueSetFactory.class),
-			TtlTimeProvider.DEFAULT,
-			new CloseableRegistry());
+		stateBackend = getStringHeapKeyedStateBackend(executionConfig, StateObjectCollection.singleton(stateHandle));
 		try {
-
-			stateBackend.restore(StateObjectCollection.singleton(stateHandle));
-
 			InternalValueState<String, VoidNamespace, String> state = stateBackend.createInternalState(
 				new VoidNamespaceSerializer(),
 				stateDescriptor);
