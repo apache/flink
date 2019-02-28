@@ -38,7 +38,6 @@ import org.apache.flink.util.Collector;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -51,9 +50,9 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSlidingWindow;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSlidingWindowCheckMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
-import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.getUidStringAndIncCounter;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.isSimulateFailures;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
+import static org.apache.flink.streaming.tests.TestOperatorEnum.*;
 
 /**
  * A general purpose test job for Flink's DataStream API operators and primitives.
@@ -72,13 +71,6 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
  *
  */
 public class DataStreamAllroundTestProgram {
-	private static final String KEYED_STATE_OPER_NAME = "ArtificalKeyedStateMapper";
-	private static final String OPERATOR_STATE_OPER_NAME = "ArtificalOperatorStateMapper";
-	private static final String TIME_WINDOW_OPER_NAME = "TumblingWindowOperator";
-	private static final String SEMANTICS_CHECK_MAPPER_NAME = "SemanticsCheckMapper";
-	private static final String FAILURE_MAPPER_NAME = "FailureMapper";
-	private static final String SLIDING_WINDOW_CHECK_MAPPER_NAME = "SlidingWindowCheckMapper";
-	private static final String SLIDING_WINDOW_AGG_NAME = "SlidingWindowOperator";
 
 	public static void main(String[] args) throws Exception {
 		final ParameterTool pt = ParameterTool.fromArgs(args);
@@ -87,10 +79,11 @@ public class DataStreamAllroundTestProgram {
 
 		setupEnvironment(env, pt);
 
-		AtomicInteger uidCounter = new AtomicInteger(1);
-
 		// add a keyed stateful map operator, which uses Kryo for state serialization
-		DataStream<Event> eventStream = env.addSource(createEventSource(pt)).uid(getUidStringAndIncCounter(uidCounter))
+		DataStream<Event> eventStream = env
+			.addSource(createEventSource(pt))
+			.name(EVENT_SOURCE.getName())
+			.uid(EVENT_SOURCE.getUid())
 			.assignTimestampsAndWatermarks(createTimestampExtractor(pt))
 			.keyBy(Event::getKey)
 			.map(createArtificialKeyedStateMapper(
@@ -98,18 +91,21 @@ public class DataStreamAllroundTestProgram {
 					(MapFunction<Event, Event>) in -> in,
 					// state is verified and updated per event as a wrapped ComplexPayload state object
 					(Event event, ComplexPayload lastState) -> {
-							if (lastState != null && !lastState.getStrPayload().equals(KEYED_STATE_OPER_NAME)
+							if (lastState != null && !lastState.getStrPayload().equals(KEYED_STATE_OPER_WITH_KRYO_AND_CUSTOM_SER.getName())
 									&& lastState.getInnerPayLoad().getSequenceNumber() == (event.getSequenceNumber() - 1)) {
 								System.out.println("State is set or restored incorrectly");
 							}
-							return new ComplexPayload(event, KEYED_STATE_OPER_NAME);
+							return new ComplexPayload(event, KEYED_STATE_OPER_WITH_KRYO_AND_CUSTOM_SER.getName());
 						},
 					Arrays.asList(
 						new KryoSerializer<>(ComplexPayload.class, env.getConfig()), // KryoSerializer
 						new StatefulComplexPayloadSerializer()), // custom stateful serializer
 					Collections.singletonList(ComplexPayload.class) // KryoSerializer via type extraction
 				)
-			).returns(Event.class).name(KEYED_STATE_OPER_NAME + "_Kryo_and_Custom_Stateful").uid(getUidStringAndIncCounter(uidCounter));
+			)
+			.returns(Event.class)
+			.name(KEYED_STATE_OPER_WITH_KRYO_AND_CUSTOM_SER.getName())
+			.uid(KEYED_STATE_OPER_WITH_KRYO_AND_CUSTOM_SER.getUid());
 
 		// add a keyed stateful map operator, which uses Avro for state serialization
 		eventStream = eventStream
@@ -119,7 +115,7 @@ public class DataStreamAllroundTestProgram {
 					(MapFunction<Event, Event>) in -> in,
 					// state is verified and updated per event as a wrapped ComplexPayloadAvro state object
 					(Event event, ComplexPayloadAvro lastState) -> {
-							if (lastState != null && !lastState.getStrPayload().equals(KEYED_STATE_OPER_NAME)
+							if (lastState != null && !lastState.getStrPayload().equals(KEYED_STATE_OPER_WITH_AVRO_SER.getName())
 									&& lastState.getInnerPayLoad().getSequenceNumber() == (event.getSequenceNumber() - 1)) {
 								System.out.println("State is set or restored incorrectly");
 							}
@@ -127,7 +123,7 @@ public class DataStreamAllroundTestProgram {
 							ComplexPayloadAvro payload = new ComplexPayloadAvro();
 							payload.setEventTime(event.getEventTime());
 							payload.setInnerPayLoad(new InnerPayLoadAvro(event.getSequenceNumber()));
-							payload.setStrPayload(KEYED_STATE_OPER_NAME);
+							payload.setStrPayload(KEYED_STATE_OPER_WITH_AVRO_SER.getName());
 							payload.setStringList(Arrays.asList(String.valueOf(event.getKey()), event.getPayload()));
 
 							return payload;
@@ -136,12 +132,16 @@ public class DataStreamAllroundTestProgram {
 						new AvroSerializer<>(ComplexPayloadAvro.class)), // custom AvroSerializer
 					Collections.singletonList(ComplexPayloadAvro.class) // AvroSerializer via type extraction
 				)
-			).returns(Event.class).name(KEYED_STATE_OPER_NAME + "_Avro").uid(getUidStringAndIncCounter(uidCounter));
+			)
+			.returns(Event.class)
+			.name(KEYED_STATE_OPER_WITH_AVRO_SER.getName())
+			.uid(KEYED_STATE_OPER_WITH_AVRO_SER.getUid());
 
 		DataStream<Event> eventStream2 = eventStream
 			.map(createArtificialOperatorStateMapper((MapFunction<Event, Event>) in -> in))
 			.returns(Event.class)
-			.name(OPERATOR_STATE_OPER_NAME).uid(getUidStringAndIncCounter(uidCounter));
+			.name(OPERATOR_STATE_OPER.getName())
+			.uid(OPERATOR_STATE_OPER.getUid());
 
 		// apply a tumbling window that simply passes forward window elements;
 		// this allows the job to cover timers state
@@ -154,23 +154,27 @@ public class DataStreamAllroundTestProgram {
 						out.collect(e);
 					}
 				}
-			}).name(TIME_WINDOW_OPER_NAME).uid(getUidStringAndIncCounter(uidCounter));
+			})
+			.name(TIME_WINDOW_OPER.getName())
+			.uid(TIME_WINDOW_OPER.getUid());
 
-		eventStream3 = DataStreamAllroundTestJobFactory.verifyCustomStatefulTypeSerializer(eventStream3, uidCounter);
+		eventStream3 = DataStreamAllroundTestJobFactory.verifyCustomStatefulTypeSerializer(eventStream3);
 
 		if (isSimulateFailures(pt)) {
 			eventStream3 = eventStream3
 				.map(createFailureMapper(pt))
 				.setParallelism(1)
-				.name(FAILURE_MAPPER_NAME).uid(getUidStringAndIncCounter(uidCounter));
+				.name(FAILURE_MAPPER_NAME.getName())
+				.uid(FAILURE_MAPPER_NAME.getUid());
 		}
 
 		eventStream3.keyBy(Event::getKey)
 			.flatMap(createSemanticsCheckMapper(pt))
-			.name(SEMANTICS_CHECK_MAPPER_NAME)
-			.uid(getUidStringAndIncCounter(uidCounter))
+			.name(SEMANTICS_CHECK_MAPPER.getName())
+			.uid(SEMANTICS_CHECK_MAPPER.getUid())
 			.addSink(new PrintSinkFunction<>())
-			.uid(getUidStringAndIncCounter(uidCounter));
+			.name(SEMANTICS_CHECK_PRINT_SINK.getName())
+			.uid(SEMANTICS_CHECK_PRINT_SINK.getUid());
 
 		// Check sliding windows aggregations. Output all elements assigned to a window and later on
 		// check if each event was emitted slide_factor number of times
@@ -187,15 +191,16 @@ public class DataStreamAllroundTestProgram {
 					out.collect(Tuple2.of(key, StreamSupport.stream(input.spliterator(), false).collect(Collectors.toList())));
 				}
 			})
-			.name(SLIDING_WINDOW_AGG_NAME)
-			.uid(getUidStringAndIncCounter(uidCounter));
+			.name(SLIDING_WINDOW_AGG.getName())
+			.uid(SLIDING_WINDOW_AGG.getUid());
 
 		eventStream4.keyBy(events -> events.f0)
 			.flatMap(createSlidingWindowCheckMapper(pt))
-			.uid(getUidStringAndIncCounter(uidCounter))
-			.name(SLIDING_WINDOW_CHECK_MAPPER_NAME)
+			.name(SLIDING_WINDOW_CHECK_MAPPER.getName())
+			.uid(SLIDING_WINDOW_CHECK_MAPPER.getUid())
 			.addSink(new PrintSinkFunction<>())
-			.uid(getUidStringAndIncCounter(uidCounter));
+			.name(SLIDING_WINDOW_CHECK_PRINT_SINK.getName())
+			.uid(SLIDING_WINDOW_CHECK_PRINT_SINK.getUid());
 
 		env.execute("General purpose test job");
 	}

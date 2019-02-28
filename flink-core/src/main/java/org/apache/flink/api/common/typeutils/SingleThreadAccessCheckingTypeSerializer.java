@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
@@ -25,6 +26,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.io.Serializable;
 
+@Internal
 public class SingleThreadAccessCheckingTypeSerializer<T> extends TypeSerializer<T> {
 	private static final long serialVersionUID = 131020282727167064L;
 
@@ -113,7 +115,38 @@ public class SingleThreadAccessCheckingTypeSerializer<T> extends TypeSerializer<
 	@Override
 	public TypeSerializerSnapshot<T> snapshotConfiguration() {
 		singleThreadAccessChecker.checkSingleThreadAccess();
-		return originalSerializer.snapshotConfiguration();
+		return new SingleThreadAccessCheckingTypeSerializerSnapshot<>(this);
+	}
+
+	public static class SingleThreadAccessCheckingTypeSerializerSnapshot<T>
+		extends CompositeTypeSerializerSnapshot<T, SingleThreadAccessCheckingTypeSerializer<T>> {
+
+		@SuppressWarnings({"unchecked", "unused"})
+		public SingleThreadAccessCheckingTypeSerializerSnapshot() {
+			super((Class<SingleThreadAccessCheckingTypeSerializer<T>>) (Class<?>) SingleThreadAccessCheckingTypeSerializer.class);
+		}
+
+		SingleThreadAccessCheckingTypeSerializerSnapshot(SingleThreadAccessCheckingTypeSerializer<T> serializerInstance) {
+			super(serializerInstance);
+		}
+
+		@Override
+		protected int getCurrentOuterSnapshotVersion() {
+			return 1;
+		}
+
+		@Override
+		protected TypeSerializer<?>[] getNestedSerializers(SingleThreadAccessCheckingTypeSerializer<T> outerSerializer) {
+			return new TypeSerializer[] { outerSerializer.originalSerializer };
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		protected SingleThreadAccessCheckingTypeSerializer<T> createOuterSerializerWithNestedSerializers(
+			TypeSerializer<?>[] nestedSerializers) {
+
+			return new SingleThreadAccessCheckingTypeSerializer<>((TypeSerializer<T>) nestedSerializers[0]);
+		}
 	}
 
 	public static class SingleThreadAccessChecker implements Serializable {

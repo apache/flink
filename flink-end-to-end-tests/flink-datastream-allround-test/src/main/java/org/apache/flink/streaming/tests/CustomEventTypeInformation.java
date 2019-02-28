@@ -26,8 +26,16 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.util.Objects;
 
 /** Custom {@link TypeInformation} to test custom {@link TypeSerializer}. */
-public class CustomEventTypeInformation extends TypeInformation<Event> {
-	private final TypeInformation<Event> originalTypeInformation = TypeInformation.of(Event.class);
+public class CustomEventTypeInformation<T> extends TypeInformation<T> {
+	private final TypeInformation<T> originalTypeInformation;
+
+	public CustomEventTypeInformation(Class<T> clazz) {
+		this(TypeInformation.of(clazz));
+	}
+
+	public CustomEventTypeInformation(TypeInformation<T> originalTypeInformation) {
+		this.originalTypeInformation = originalTypeInformation;
+	}
 
 	@Override
 	public boolean isBasicType() {
@@ -50,7 +58,7 @@ public class CustomEventTypeInformation extends TypeInformation<Event> {
 	}
 
 	@Override
-	public Class<Event> getTypeClass() {
+	public Class<T> getTypeClass() {
 		return originalTypeInformation.getTypeClass();
 	}
 
@@ -60,7 +68,7 @@ public class CustomEventTypeInformation extends TypeInformation<Event> {
 	}
 
 	@Override
-	public TypeSerializer<Event> createSerializer(ExecutionConfig config) {
+	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
 		return new SingleThreadAccessCheckingTypeSerializer<>(originalTypeInformation.createSerializer(config));
 	}
 
