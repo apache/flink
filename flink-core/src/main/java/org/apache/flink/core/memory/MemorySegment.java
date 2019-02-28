@@ -1273,6 +1273,14 @@ public abstract class MemorySegment {
 	/**
 	 * Bulk copy method. Copies {@code numBytes} bytes to target unsafe object and pointer.
 	 * NOTE: This is a unsafe method, no check here, please be carefully.
+	 *
+	 * @param offset The position where the bytes are started to be read from in this memory segment.
+	 * @param target The unsafe memory to copy the bytes to.
+	 * @param targetPointer The position in the target unsafe memory to copy the chunk to.
+	 * @param numBytes The number of bytes to copy.
+	 *
+	 * @throws IndexOutOfBoundsException If the source segment does not contain the given number
+	 *           of bytes (starting from offset).
 	 */
 	public final void copyToUnsafe(int offset, Object target, int targetPointer, int numBytes) {
 		final long thisPointer = this.address + offset;
@@ -1287,6 +1295,14 @@ public abstract class MemorySegment {
 	/**
 	 * Bulk copy method. Copies {@code numBytes} bytes from source unsafe object and pointer.
 	 * NOTE: This is a unsafe method, no check here, please be carefully.
+	 *
+	 * @param offset The position where the bytes are started to be write in this memory segment.
+	 * @param source The unsafe memory to copy the bytes from.
+	 * @param sourcePointer The position in the source unsafe memory to copy the chunk from.
+	 * @param numBytes The number of bytes to copy.
+	 *
+	 * @throws IndexOutOfBoundsException If this segment can not contain the given number
+	 *           of bytes (starting from offset).
 	 */
 	public final void copyFromUnsafe(int offset, Object source, int sourcePointer, int numBytes) {
 		final long thisPointer = this.address + offset;
@@ -1389,7 +1405,6 @@ public abstract class MemorySegment {
 	 * @return true if equal, false otherwise
 	 */
 	public final boolean equalTo(MemorySegment seg2, int offset1, int offset2, int length) {
-
 		int i = 0;
 
 		// we assume unaligned accesses are supported.
