@@ -350,7 +350,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 					.collect(Collectors.toList())));
 		final FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>(initKafkaTopics, discoverer);
 		if (disableFiltering) {
-			consumer.disableFilterRestoredPartitionsWithDiscovered();
+			consumer.disableFilterRestoredPartitionsWithSubscribedTopics();
 		}
 
 		final TestingListState<Tuple2<KafkaTopicPartition, Long>> listState = new TestingListState<>();
