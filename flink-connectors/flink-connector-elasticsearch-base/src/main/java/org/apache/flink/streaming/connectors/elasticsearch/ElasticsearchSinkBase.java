@@ -283,6 +283,10 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 		this.userConfig = userConfig;
 	}
 
+	public C getClient() {
+		return client;
+	}
+
 	/**
 	 * Disable flushing on checkpoint. When disabled, the sink will not wait for all
 	 * pending action requests to be acknowledged by Elasticsearch on checkpoints.
