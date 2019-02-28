@@ -18,20 +18,74 @@
 
 package org.apache.flink.kubernetes;
 
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.Preconditions;
+
+import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
  * Parameters that will be used in Flink on k8s cluster.
  * */
 public class FlinkKubernetesOptions {
 
+	public static final ConfigOption<Boolean> DEBUG_MODE =
+		key("k8s.debugmode.enable")
+			.defaultValue(false)
+			.withDescription("Whether enable debug mode.");
+
+	public static final ConfigOption<String> EXTERNAL_IP =
+		key("jobmanager.k8s.externalip")
+			.defaultValue("")
+			.withDescription("The external ip for job manager external IP.");
+
 	private Configuration configuration;
+
+	private String clusterId;
+
+	private String namespace = "default";
+
+	private String imageName;
+
+	public FlinkKubernetesOptions(Configuration configuration, String clusterId) {
+		Preconditions.checkArgument(configuration != null);
+		this.configuration = configuration;
+		this.clusterId = clusterId;
+	}
+
+	public String getClusterId() {
+		return clusterId;
+	}
+
+	public void setClusterId(String clusterId) {
+		this.clusterId = clusterId;
+	}
+
+	public String getImageName(){
+		return this.imageName;
+	}
+
+	public String getNamespace() {
+		return namespace;
+	}
+
+	public String getExternalIP() {
+		return this.configuration.getString(FlinkKubernetesOptions.EXTERNAL_IP);
+	}
+
+	public void setNamespace(String namespace) {
+		this.namespace = namespace;
+	}
+
+	public Integer getServicePort(ConfigOption<Integer> port) {
+		return this.configuration.getInteger(port);
+	}
+
+	public Boolean getIsDebugMode() {
+		return this.configuration.getBoolean(FlinkKubernetesOptions.DEBUG_MODE);
+	}
 
 	public Configuration getConfiguration() {
 		return configuration;
-	}
-
-	public FlinkKubernetesOptions(Configuration configuration) {
-		this.configuration = configuration;
 	}
 }
