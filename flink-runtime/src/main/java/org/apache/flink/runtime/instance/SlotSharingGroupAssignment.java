@@ -265,7 +265,7 @@ public class SlotSharingGroupAssignment {
 	 * Gets a slot suitable for the given task vertex. This method will prefer slots that are local
 	 * (with respect to {@link ExecutionVertex#getPreferredLocationsBasedOnInputs()}), but will return non local
 	 * slots if no local slot is available. The method returns null, when this sharing group has
-	 * no slot is available for the given JobVertexID. 
+	 * no slot available for the given JobVertexID.
 	 *
 	 * @param vertexID the vertex id
 	 * @param locationPreferences location preferences
