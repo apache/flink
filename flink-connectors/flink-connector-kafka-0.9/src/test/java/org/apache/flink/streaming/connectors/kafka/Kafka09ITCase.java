@@ -221,7 +221,6 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 			public void invoke(String value, Context context) throws Exception {
 
 			}
-
 		});
 		long startTime = System.currentTimeMillis();
 		env.execute("Consume 100 bytes of data from test topic");
@@ -231,12 +230,11 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 		Assert.assertNotNull(consumer09.getRateLimiter());
 		Assert.assertEquals(consumer09.getRateLimiter().getRate(), globalRate);
 
-    	// Approximate bytes/second read based on job execution time.
+		// Approximate bytes/second read based on job execution time.
 		long bytesPerSecond = 100 * 1000L / (endTime - startTime);
 		Assert.assertTrue(bytesPerSecond > 0);
 		Assert.assertTrue(bytesPerSecond <= globalRate);
 		deleteTestTopic(testTopic);
-
 	}
 
 	private static class StringDeserializer implements KeyedDeserializationSchema<String> {
@@ -268,9 +266,6 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 		@Override
 		public boolean isEndOfStream(String nextElement) {
 			return cnt > 100L;
-
 		}
-
 	}
-
 }

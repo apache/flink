@@ -324,11 +324,6 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 		props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, deSerName);
 	}
 
-
-	// ------------------------------------------------------------------------
-	// Rate Limiter specific methods
-	// ------------------------------------------------------------------------
-
 	/**
 	 * Set a rate limiter to ratelimit bytes read from Kafka.
 	 * @param kafkaRateLimiter

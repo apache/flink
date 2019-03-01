@@ -265,7 +265,6 @@ public class KafkaConsumerThread extends Thread {
 				if (records == null) {
 					try {
 						records = getRecordsFromKafka();
-
 					}
 					catch (WakeupException we) {
 						continue;
@@ -337,7 +336,6 @@ public class KafkaConsumerThread extends Thread {
 		if (rateLimiter != null) {
 			rateLimiter.close();
 		}
-
 	}
 
 	/**

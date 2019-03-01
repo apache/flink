@@ -32,6 +32,11 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 @PublicEvolving
 public interface FlinkConnectorRateLimiter {
 
+	/**
+	 * A method that can be used to create and configure a ratelimiter
+	 * based on the runtimeContext.
+	 * @param runtimeContext
+	 */
 	void open(RuntimeContext runtimeContext);
 
 	/**
