@@ -113,9 +113,10 @@ public final class LinkedOptionalMapSerializer {
 		DataOutputSerializer frame = new DataOutputSerializer(64);
 		writer.accept(frame, item);
 
-		final byte[] buffer = frame.getCopyOfBuffer();
-		out.writeInt(buffer.length);
-		out.write(buffer);
+		final byte[] buffer = frame.getSharedBuffer();
+		final int bufferSize = frame.length();
+		out.writeInt(bufferSize);
+		out.write(buffer, 0, bufferSize);
 	}
 
 	@Nullable
