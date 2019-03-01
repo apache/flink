@@ -22,7 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Column statistics.
@@ -119,7 +118,7 @@ public final class ColumnStats {
 		if (min != null) {
 			columnStats.add("min=" + min);
 		}
-		String columnStatsStr = columnStats.stream().collect(Collectors.joining(", "));
+		String columnStatsStr = String.join(", ", columnStats);
 		return "ColumnStats(" + columnStatsStr + ")";
 	}
 }

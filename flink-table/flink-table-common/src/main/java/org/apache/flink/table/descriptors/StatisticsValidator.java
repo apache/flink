@@ -23,6 +23,7 @@ import org.apache.flink.table.plan.stats.ColumnStats;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Validator for {@link Statistics}.
@@ -81,13 +82,19 @@ public class StatisticsValidator implements DescriptorValidator {
 		int columnCount = properties.getIndexedProperty(key, NAME).size();
 
 		for (int i = 0; i < columnCount; i++) {
-			properties.validateString(key + "." + i + "." + NAME, false, 1);
-			properties.validateLong(key + "." + i + "." + DISTINCT_COUNT, true, 0L);
-			properties.validateLong(key + "." + i + "." + NULL_COUNT, true, 0L);
-			properties.validateDouble(key + "." + i + "." + AVG_LENGTH, true, 0.0);
-			properties.validateInt(key + "." + i + "." + MAX_LENGTH, true, 0);
-			properties.validateDouble(key + "." + i + "." + MAX_VALUE, true, 0.0);
-			properties.validateDouble(key + "." + i + "." + MIN_VALUE, true, 0.0);
+			final String keyPrefix = key + "." + i + ".";
+			properties.validateString(keyPrefix + NAME, false, 1);
+			properties.validateLong(keyPrefix + DISTINCT_COUNT, true, 0L);
+			properties.validateLong(keyPrefix + NULL_COUNT, true, 0L);
+			properties.validateDouble(keyPrefix + AVG_LENGTH, true, 0.0);
+			properties.validateInt(keyPrefix + MAX_LENGTH, true, 0);
+			properties.validateDouble(keyPrefix + MIN_VALUE, true);
+			Optional<Double> min = properties.getOptionalDouble(keyPrefix + MIN_VALUE);
+			if (min.isPresent()) {
+				properties.validateDouble(keyPrefix + MAX_VALUE, true, min.get());
+			} else {
+				properties.validateDouble(keyPrefix + MAX_VALUE, true);
+			}
 		}
 	}
 
@@ -98,16 +105,17 @@ public class StatisticsValidator implements DescriptorValidator {
 
 		Map<String, ColumnStats> stats = new HashMap<>();
 		for (int i = 0; i < columnCount; i++) {
-			final String propertyKey = key + "." + i + "." + NAME;
+			final String keyPrefix = key + "." + i + ".";
+			final String propertyKey = keyPrefix + NAME;
 			String name = properties.getString(propertyKey);
 
 			ColumnStats columnStats = new ColumnStats(
-				properties.getOptionalLong(key + "." + i + "." + DISTINCT_COUNT).orElse(null),
-				properties.getOptionalLong(key + "." + i + "." + NULL_COUNT).orElse(null),
-				properties.getOptionalDouble(key + "." + i + "." + AVG_LENGTH).orElse(null),
-				properties.getOptionalInt(key + "." + i + "." + MAX_LENGTH).orElse(null),
-				properties.getOptionalDouble(key + "." + i + "." + MAX_VALUE).orElse(null),
-				properties.getOptionalDouble(key + "." + i + "." + MIN_VALUE).orElse(null)
+				properties.getOptionalLong(keyPrefix + DISTINCT_COUNT).orElse(null),
+				properties.getOptionalLong(keyPrefix + NULL_COUNT).orElse(null),
+				properties.getOptionalDouble(keyPrefix + AVG_LENGTH).orElse(null),
+				properties.getOptionalInt(keyPrefix + MAX_LENGTH).orElse(null),
+				properties.getOptionalDouble(keyPrefix + MAX_VALUE).orElse(null),
+				properties.getOptionalDouble(keyPrefix + MIN_VALUE).orElse(null)
 			);
 
 			stats.put(name, columnStats);

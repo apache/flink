@@ -50,12 +50,12 @@ public class StatisticsTest extends DescriptorTestBase {
 	public List<Descriptor> descriptors() {
 		Statistics desc1 = new Statistics()
 			.rowCount(1000L)
-			.columnStats("a", new ColumnStats(1L, 2L, 3.0, 4, 5, 6))
+			.columnStats("a", new ColumnStats(1L, 2L, 3.0, 4, 6, 5))
 			.columnAvgLength("b", 42.0)
 			.columnNullCount("a", 300L);
 
 		Map<String, ColumnStats> map = new HashMap<String, ColumnStats>();
-		map.put("a", new ColumnStats(null, 2L, 3.0, null, 5, 6));
+		map.put("a", new ColumnStats(null, 2L, 3.0, null, 6, 5));
 		Statistics desc2 = new Statistics()
 			.tableStats(new TableStats(32L, map));
 
@@ -78,8 +78,8 @@ public class StatisticsTest extends DescriptorTestBase {
 				put("statistics.columns.0.null-count", "300");
 				put("statistics.columns.0.avg-length", "3.0");
 				put("statistics.columns.0.max-length", "4");
-				put("statistics.columns.0.max-value", "5");
-				put("statistics.columns.0.min-value", "6");
+				put("statistics.columns.0.max-value", "6");
+				put("statistics.columns.0.min-value", "5");
 				put("statistics.columns.1.name", "b");
 				put("statistics.columns.1.avg-length", "42.0");
 			}
@@ -92,8 +92,8 @@ public class StatisticsTest extends DescriptorTestBase {
 				put("statistics.columns.0.name", "a");
 				put("statistics.columns.0.null-count", "2");
 				put("statistics.columns.0.avg-length", "3.0");
-				put("statistics.columns.0.max-value", "5");
-				put("statistics.columns.0.min-value", "6");
+				put("statistics.columns.0.max-value", "6");
+				put("statistics.columns.0.min-value", "5");
 			}
 		};
 
