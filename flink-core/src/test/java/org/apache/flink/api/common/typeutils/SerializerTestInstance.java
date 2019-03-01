@@ -62,19 +62,27 @@ public class SerializerTestInstance<T> extends SerializerTestBase<T> {
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
+
 	public void testAll() {
-		testInstantiate();
-		testGetLength();
-		testCopy();
-		testCopyIntoNewElements();
-		testCopyIntoReusedElements();
-		testSerializeIndividually();
-		testSerializeIndividuallyReusingValues();
-		testSerializeAsSequenceNoReuse();
-		testSerializeAsSequenceReusingValues();
-		testSerializedCopyIndividually();
-		testSerializedCopyAsSequence();
-		testSerializabilityAndEquals();
+		try {
+			testConfigSnapshotInstantiation();
+			testCopy();
+			testCopyIntoNewElements();
+			testCopyIntoReusedElements();
+			testDuplicate();
+			testGetLength();
+			testInstantiate();
+			testNullability();
+			testSerializeIndividually();
+			testSerializeIndividuallyReusingValues();
+			testSerializeAsSequenceNoReuse();
+			testSerializeAsSequenceReusingValues();
+			testSerializedCopyIndividually();
+			testSerializedCopyAsSequence();
+			testSerializabilityAndEquals();
+			testSnapshotConfigurationAndReconfigure();
+		} catch (Exception ex) {
+			throw new RuntimeException(ex);
+		}
 	}
 }
