@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
@@ -43,6 +44,8 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
+
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -118,7 +121,8 @@ public class StateBackendITCase extends AbstractTestBase {
 			TaskKvStateRegistry kvStateRegistry,
 			TtlTimeProvider ttlTimeProvider,
 			MetricGroup metricGroup,
-			Collection<KeyedStateHandle> stateHandles) throws IOException {
+			@Nonnull Collection<KeyedStateHandle> stateHandles,
+			CloseableRegistry cancelStreamRegistry) throws IOException {
 			throw new SuccessException();
 		}
 

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobCacheService;
@@ -81,6 +82,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
+
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -270,7 +273,8 @@ public class StreamTaskTerminationTest extends TestLogger {
 			TaskKvStateRegistry kvStateRegistry,
 			TtlTimeProvider ttlTimeProvider,
 			MetricGroup metricGroup,
-			Collection<KeyedStateHandle> stateHandles) {
+			@Nonnull Collection<KeyedStateHandle> stateHandles,
+			CloseableRegistry cancelStreamRegistry) {
 			return null;
 		}
 

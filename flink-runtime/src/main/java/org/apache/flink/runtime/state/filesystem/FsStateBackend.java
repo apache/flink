@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
@@ -461,7 +462,8 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
 		MetricGroup metricGroup,
-		Collection<KeyedStateHandle> stateHandles) {
+		@Nonnull Collection<KeyedStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) {
 
 		TaskStateManager taskStateManager = env.getTaskStateManager();
 		LocalRecoveryConfig localRecoveryConfig = taskStateManager.createLocalRecoveryConfig();
@@ -478,7 +480,8 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 				env.getExecutionConfig(),
 				localRecoveryConfig,
 				priorityQueueSetFactory,
-				ttlTimeProvider);
+				ttlTimeProvider,
+			cancelStreamRegistry);
 	}
 
 	@Override

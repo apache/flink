@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
@@ -186,7 +187,8 @@ public interface StateBackend extends java.io.Serializable {
 			kvStateRegistry,
 			ttlTimeProvider,
 			new UnregisteredMetricsGroup(),
-			Collections.emptyList());
+			Collections.emptyList(),
+			new CloseableRegistry());
 	}
 
 	/**
@@ -220,7 +222,8 @@ public interface StateBackend extends java.io.Serializable {
 			kvStateRegistry,
 			ttlTimeProvider,
 			new UnregisteredMetricsGroup(),
-			stateHandles);
+			stateHandles,
+			new CloseableRegistry());
 	}
 
 	/**
@@ -245,7 +248,8 @@ public interface StateBackend extends java.io.Serializable {
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
 		MetricGroup metricGroup,
-		@Nonnull Collection<KeyedStateHandle> stateHandles) throws Exception;
+		@Nonnull Collection<KeyedStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) throws Exception;
 	
 	/**
 	 * Creates a new {@link OperatorStateBackend} that can be used for storing operator state.

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -50,6 +51,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URL;
@@ -175,7 +177,8 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 			TaskKvStateRegistry kvStateRegistry,
 			TtlTimeProvider ttlTimeProvider,
 			MetricGroup metricGroup,
-			Collection<KeyedStateHandle> stateHandles) throws Exception {
+			@Nonnull Collection<KeyedStateHandle> stateHandles,
+			CloseableRegistry cancelStreamRegistry) throws Exception {
 			throw new UnsupportedOperationException();
 		}
 

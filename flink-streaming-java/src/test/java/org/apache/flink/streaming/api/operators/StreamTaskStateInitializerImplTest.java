@@ -58,6 +58,8 @@ import org.apache.flink.util.CloseableIterable;
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
@@ -146,7 +148,9 @@ public class StreamTaskStateInitializerImplTest {
 				int numberOfKeyGroups, KeyGroupRange keyGroupRange,
 				TaskKvStateRegistry kvStateRegistry,
 				TtlTimeProvider ttlTimeProvider,
-				MetricGroup metricGroup, Collection<KeyedStateHandle> stateHandles) throws Exception {
+				MetricGroup metricGroup,
+				@Nonnull Collection<KeyedStateHandle> stateHandles,
+				CloseableRegistry cancelStreamRegistry) throws Exception {
 				return mock(AbstractKeyedStateBackend.class);
 			}
 
