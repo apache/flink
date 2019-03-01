@@ -93,7 +93,7 @@ class TestingDispatcher extends Dispatcher {
 			() -> jobReachedGloballyTerminalState(archivedExecutionGraph));
 	}
 
-	CompletableFuture<Void> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {
+	CompletableFuture<JobID> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {
 		return callAsyncWithoutFencing(
 			() -> getJobTerminationFuture(jobId),
 			timeout).thenCompose(Function.identity());

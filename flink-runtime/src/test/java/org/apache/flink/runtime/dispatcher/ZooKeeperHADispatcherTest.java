@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmanager.ZooKeeperSubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
@@ -61,17 +63,22 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test cases for the interaction between ZooKeeper HA and the {@link Dispatcher}.
@@ -176,8 +183,7 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 				leaderElectionService.notLeader();
 
 				// wait for the job to properly terminate
-				final CompletableFuture<Void> jobTerminationFuture = dispatcher.getJobTerminationFuture(jobId, TIMEOUT);
-				jobTerminationFuture.get();
+				dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
 
 				// recover the job
 				final SubmittedJobGraph submittedJobGraph = otherSubmittedJobGraphStore.recoverJobGraph(jobId);
@@ -279,6 +285,7 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 			Dispatcher dispatcher1 = null;
 			Dispatcher dispatcher2 = null;
 
+			//noinspection TryFinallyCanBeTryWithResources
 			try {
 				haServices = new ZooKeeperHaServices(curatorFramework, rpcService.getExecutor(), configuration, new VoidBlobStore());
 
@@ -321,6 +328,129 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 					haServices.close();
 				}
 			}
+		}
+	}
+
+	/**
+	 * Tests that job store release happens before next local leader recovers job from the store.
+	 *
+	 * <p>https://issues.apache.org/jira/browse/FLINK-11665.
+	 */
+	@Test
+	public void testFinishedJobRemoveFromStoreAfterLeadershipChange() throws Exception {
+		try (final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
+			final CuratorFramework curatorFramework = ZooKeeperUtils.startCuratorFramework(configuration)) {
+
+			final WaitingSubmittedJobGraphStore submittedJobGraphStore = WaitingSubmittedJobGraphStore.wrap(
+				ZooKeeperUtils.createSubmittedJobGraphs(curatorFramework, configuration));
+			haServices.setSubmittedJobGraphStore(submittedJobGraphStore);
+			final TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
+			haServices.setDispatcherLeaderElectionService(leaderElectionService);
+
+			final CompletableFuture<JobGraph> jobGraphFuture = new CompletableFuture<>();
+			final CompletableFuture<ArchivedExecutionGraph> resultFuture = new CompletableFuture<>();
+			final TestingDispatcher dispatcher = createDispatcher(
+				haServices,
+				new TestingJobManagerRunnerFactory(jobGraphFuture, resultFuture, CompletableFuture.completedFuture(null)));
+
+			try {
+				dispatcher.start();
+
+				leaderElectionService.isLeader(UUID.randomUUID()).get();
+				final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+				final JobGraph jobGraph = DispatcherHATest.createNonEmptyJobGraph();
+				dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+
+				leaderElectionService.notLeader();
+				CompletableFuture<UUID> newLeader = leaderElectionService.isLeader(UUID.randomUUID());
+				submittedJobGraphStore.awaitRecover();
+				submittedJobGraphStore.triggerRelease();
+				newLeader.get();
+				dispatcher.getRecoverOperationFuture(TIMEOUT).get();
+
+				resultFuture.complete(new ArchivedExecutionGraphBuilder().setJobID(jobGraph.getJobID()).setState(JobStatus.FINISHED).build());
+				dispatcher.getJobTerminationFuture(jobGraph.getJobID(), TIMEOUT).get();
+
+				assertTrue(submittedJobGraphStore.isJobRemoved());
+				assertFalse(submittedJobGraphStore.getJobIds().contains(jobGraph.getJobID()));
+			} finally {
+				RpcUtils.terminateRpcEndpoint(dispatcher, TIMEOUT);
+			}
+		}
+	}
+
+	private static class WaitingSubmittedJobGraphStore implements SubmittedJobGraphStore {
+		private static final long WAIT_RECOVER_MILLI = 1000L;
+
+		private final SubmittedJobGraphStore delegate;
+		private final OneShotLatch recoverJobGraphLatch = new OneShotLatch();
+		private final OneShotLatch releaseJobGraphLatch = new OneShotLatch();
+		private volatile boolean jobRemoved;
+
+		private WaitingSubmittedJobGraphStore(SubmittedJobGraphStore delegate) {
+			this.delegate = delegate;
+		}
+
+		static WaitingSubmittedJobGraphStore wrap(SubmittedJobGraphStore delegate) {
+			return new WaitingSubmittedJobGraphStore(delegate);
+		}
+
+		@Nullable
+		@Override
+		public SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception {
+			SubmittedJobGraph graph = delegate.recoverJobGraph(jobId);
+			recoverJobGraphLatch.trigger();
+			return graph;
+		}
+
+		void awaitRecover() throws InterruptedException {
+			try {
+				recoverJobGraphLatch.await(WAIT_RECOVER_MILLI, TimeUnit.MILLISECONDS);
+			} catch (TimeoutException e) {
+				// ignore
+			}
+		}
+
+		@Override
+		public void releaseJobGraph(JobID jobId) throws Exception {
+			releaseJobGraphLatch.await();
+			delegate.releaseJobGraph(jobId);
+		}
+
+		void triggerRelease() {
+			releaseJobGraphLatch.trigger();
+		}
+
+		@Override
+		public void removeJobGraph(JobID jobId) throws Exception {
+			assert !jobRemoved;
+			delegate.removeJobGraph(jobId);
+			jobRemoved = true;
+		}
+
+		boolean isJobRemoved() {
+			return jobRemoved;
+		}
+
+		@Override
+		public void start(SubmittedJobGraphListener jobGraphListener) throws Exception {
+			delegate.start(jobGraphListener);
+		}
+
+		@Override
+		public void stop() throws Exception {
+			delegate.stop();
+		}
+
+		@Override
+		public void putJobGraph(SubmittedJobGraph jobGraph) throws Exception {
+			delegate.putJobGraph(jobGraph);
+		}
+
+		@Override
+		public Collection<JobID> getJobIds() throws Exception {
+			return delegate.getJobIds();
 		}
 	}
 
