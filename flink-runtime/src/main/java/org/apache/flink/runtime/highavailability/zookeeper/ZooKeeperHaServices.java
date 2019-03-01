@@ -45,7 +45,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * An implementation of the {@link HighAvailabilityServices} using Apache ZooKeeper.
  * The services store data in ZooKeeper's nodes as illustrated by the following tree structure:
- * 
+ *
  * <pre>
  * /flink
  *      +/cluster_id_1/resource_manager_lock
@@ -56,7 +56,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *      |            |                     /latest-2
  *      |            |
  *      |            +/job-id-2/job_manager_lock
- *      |      
+ *      |
  *      +/cluster_id_2/resource_manager_lock
  *                   |
  *                   +/job-id-1/job_manager_lock
@@ -64,18 +64,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *                            |            /latest-1
  *                            |/persisted_job_graph
  * </pre>
- * 
+ *
  * <p>The root path "/flink" is configurable via the option {@link HighAvailabilityOptions#HA_ZOOKEEPER_ROOT}.
  * This makes sure Flink stores its data under specific subtrees in ZooKeeper, for example to
  * accommodate specific permission.
- * 
- * <p>The "cluster_id" part identifies the data stored for a specific Flink "cluster". 
+ *
+ * <p>The "cluster_id" part identifies the data stored for a specific Flink "cluster".
  * This "cluster" can be either a standalone or containerized Flink cluster, or it can be job
  * on a framework like YARN or Mesos (in a "per-job-cluster" mode).
- * 
+ *
  * <p>In case of a "per-job-cluster" on YARN or Mesos, the cluster-id is generated and configured
  * automatically by the client or dispatcher that submits the Job to YARN or Mesos.
- * 
+ *
  * <p>In the case of a standalone cluster, that cluster-id needs to be configured via
  * {@link HighAvailabilityOptions#HA_CLUSTER_ID}. All nodes with the same cluster id will join the same
  * cluster and participate in the execution of the same set of jobs.
@@ -93,21 +93,20 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	private static final String REST_SERVER_LEADER_PATH = "/rest_server_lock";
 
 	// ------------------------------------------------------------------------
-	
-	
-	/** The ZooKeeper client to use */
+
+	/** The ZooKeeper client to use. */
 	private final CuratorFramework client;
 
-	/** The executor to run ZooKeeper callbacks on */
+	/** The executor to run ZooKeeper callbacks on. */
 	private final Executor executor;
 
-	/** The runtime configuration */
+	/** The runtime configuration. */
 	private final Configuration configuration;
 
-	/** The zookeeper based running jobs registry */
+	/** The zookeeper based running jobs registry. */
 	private final RunningJobsRegistry runningJobsRegistry;
 
-	/** Store for arbitrary blobs */
+	/** Store for arbitrary blobs. */
 	private final BlobStoreService blobStoreService;
 
 	public ZooKeeperHaServices(
@@ -233,7 +232,7 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	}
 
 	/**
-	 * Closes components which don't distinguish between close and closeAndCleanupAllData
+	 * Closes components which don't distinguish between close and closeAndCleanupAllData.
 	 */
 	private void internalClose() {
 		client.close();
