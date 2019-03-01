@@ -240,9 +240,22 @@ public final class BinaryRow extends BinaryFormat<Object> implements BaseRow {
 
 	@Override
 	public BinaryString getString(int pos) {
+		assertIndexIsValid(pos);
 		int fieldOffset = getFieldOffset(pos);
 		final long offsetAndLen = segments[0].getLong(fieldOffset);
 		return BinaryString.readBinaryStringFieldFromSegments(segments, offset, fieldOffset, offsetAndLen);
+	}
+
+	@Override
+	public BinaryArray getArray(int pos) {
+		assertIndexIsValid(pos);
+		return BinaryArray.readBinaryArrayFieldFromSegments(segments, offset, getLong(pos));
+	}
+
+	@Override
+	public BinaryMap getMap(int pos) {
+		assertIndexIsValid(pos);
+		return BinaryMap.readBinaryMapFieldFromSegments(segments, offset, getLong(pos));
 	}
 
 	/**

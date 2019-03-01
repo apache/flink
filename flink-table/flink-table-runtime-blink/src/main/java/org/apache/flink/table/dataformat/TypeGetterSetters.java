@@ -87,6 +87,16 @@ public interface TypeGetterSetters {
 	BinaryString getString(int ordinal);
 
 	/**
+	 * Get array value, internal format is BinaryArray.
+	 */
+	BinaryArray getArray(int ordinal);
+
+	/**
+	 * Get map value, internal format is BinaryMap.
+	 */
+	BinaryMap getMap(int ordinal);
+
+	/**
 	 * Set boolean value.
 	 */
 	void setBoolean(int ordinal, boolean value);

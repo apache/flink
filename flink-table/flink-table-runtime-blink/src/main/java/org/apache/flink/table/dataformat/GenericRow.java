@@ -22,7 +22,7 @@ package org.apache.flink.table.dataformat;
  * different types. The fields in GenericRow can be null.
  *
  * <p>The fields in the Row can be accessed by position (zero-based) {@link #getInt}.
- * And can update fields by {@link #update(int, Object)}.
+ * And can update fields by {@link #setField(int, Object)}.
  *
  * <p>GenericRow is in principle serializable. However, it may contain non-serializable fields,
  * in which case serialization will fail.
@@ -74,11 +74,6 @@ public final class GenericRow extends ObjectArrayRow {
 	}
 
 	@Override
-	public BinaryString getString(int ordinal) {
-		return (BinaryString) this.fields[ordinal];
-	}
-
-	@Override
 	public void setBoolean(int ordinal, boolean value) {
 		this.fields[ordinal] = value;
 	}
@@ -118,7 +113,7 @@ public final class GenericRow extends ObjectArrayRow {
 		this.fields[ordinal] = value;
 	}
 
-	public void update(int ordinal, Object value) {
+	public void setField(int ordinal, Object value) {
 		this.fields[ordinal] = value;
 	}
 
@@ -126,7 +121,7 @@ public final class GenericRow extends ObjectArrayRow {
 		GenericRow row = new GenericRow(values.length);
 
 		for (int i = 0; i < values.length; ++i) {
-			row.update(i, values[i]);
+			row.setField(i, values[i]);
 		}
 
 		return row;

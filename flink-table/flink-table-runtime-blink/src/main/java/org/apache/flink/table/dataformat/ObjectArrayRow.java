@@ -60,6 +60,21 @@ public abstract class ObjectArrayRow implements BaseRow {
 	}
 
 	@Override
+	public BinaryString getString(int ordinal) {
+		return (BinaryString) this.fields[ordinal];
+	}
+
+	@Override
+	public BinaryArray getArray(int ordinal) {
+		return (BinaryArray) this.fields[ordinal];
+	}
+
+	@Override
+	public BinaryMap getMap(int ordinal) {
+		return (BinaryMap) this.fields[ordinal];
+	}
+
+	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append(getHeader()).append("|");
