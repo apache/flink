@@ -1825,7 +1825,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		// see what this means for us. currently, the first FAILED state means -> FAILED
 		if (newExecutionState == ExecutionState.FAILED) {
 			final Throwable ex = error != null ? error : new FlinkException("Unknown Error (missing cause)");
-			long timestamp = execution.getStateTimestamp(ExecutionState.FAILED);
 
 			// by filtering out late failure calls, we can save some work in
 			// avoiding redundant local failover
