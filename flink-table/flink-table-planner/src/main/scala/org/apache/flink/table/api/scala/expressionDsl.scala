@@ -1431,4 +1431,24 @@ object nullOf {
   }
 }
 
+/**
+  * Calculates the logarithm of the given value.
+  */
+object log {
+
+  /**
+    * Calculates the natural logarithm of the given value.
+    */
+  def apply(value: Expression): Expression = {
+    Log(null, value)
+  }
+
+  /**
+    * Calculates the logarithm of the given value to the given base.
+    */
+  def apply(base: Expression, value: Expression): Expression = {
+    Log(base, value)
+  }
+}
+
 // scalastyle:on object.name
