@@ -337,7 +337,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 		}
 
 		if (getShardIteratorResult == null) {
-			throw new RuntimeException("Retries Exceeded for getShardIterator operation - all " + getShardIteratorMaxRetries +
+			throw new RuntimeException("Retries exceeded for getShardIterator operation - all " + getShardIteratorMaxRetries +
 				" retry attempts failed.");
 		}
 		return getShardIteratorResult.getShardIterator();
