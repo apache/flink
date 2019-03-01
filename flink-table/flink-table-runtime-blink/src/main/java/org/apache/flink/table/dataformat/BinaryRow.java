@@ -52,11 +52,11 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public final class BinaryRow extends BinaryFormat<Object> implements BaseRow {
 
 	public static final boolean LITTLE_ENDIAN = (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN);
-	public static final long FIRST_BYTE_ZERO = LITTLE_ENDIAN ? 0xFFF0 : 0x0FFF;
+	private static final long FIRST_BYTE_ZERO = LITTLE_ENDIAN ? 0xFFF0 : 0x0FFF;
+	private static final int HEADER_SIZE_IN_BITS = 8;
 
 	public static int calculateBitSetWidthInBytes(int arity) {
-		// add 8 bit header
-		return ((arity + 63 + 8) / 64) * 8;
+		return ((arity + 63 + HEADER_SIZE_IN_BITS) / 64) * 8;
 	}
 
 	private final int arity;
@@ -113,17 +113,21 @@ public final class BinaryRow extends BinaryFormat<Object> implements BaseRow {
 		this.sizeInBytes = sizeInBytes;
 	}
 
+	@Override
+	public boolean isNullAt(int pos) {
+		assertIndexIsValid(pos);
+		return SegmentsUtil.bitGet(segments[0], offset, pos + HEADER_SIZE_IN_BITS);
+	}
+
 	private void setNotNullAt(int i) {
 		assertIndexIsValid(i);
-		// need add header 8 bit.
-		SegmentsUtil.bitUnSet(segments[0], offset, i + 8);
+		SegmentsUtil.bitUnSet(segments[0], offset, i + HEADER_SIZE_IN_BITS);
 	}
 
 	@Override
 	public void setNullAt(int i) {
 		assertIndexIsValid(i);
-		// need add header 8 bit.
-		SegmentsUtil.bitSet(segments[0], offset, i + 8);
+		SegmentsUtil.bitSet(segments[0], offset, i + HEADER_SIZE_IN_BITS);
 		// We must set the fixed length part zero.
 		// 1.Only int/long/boolean...(Fix length type) will invoke this setNullAt.
 		// 2.Set to zero in order to equals and hash operation bytes calculation.
@@ -184,13 +188,6 @@ public final class BinaryRow extends BinaryFormat<Object> implements BaseRow {
 		assertIndexIsValid(pos);
 		setNotNullAt(pos);
 		segments[0].putFloat(getFieldOffset(pos), value);
-	}
-
-	@Override
-	public boolean isNullAt(int pos) {
-		assertIndexIsValid(pos);
-		// need add header 8 bit.
-		return SegmentsUtil.bitGet(segments[0], offset, pos + 8);
 	}
 
 	@Override
