@@ -40,8 +40,6 @@ import java.util.Objects;
 import java.util.function.IntFunction;
 import java.util.stream.IntStream;
 
-import static org.junit.Assert.assertEquals;
-
 /** Test suite for {@link CompositeSerializer}. */
 public class CompositeSerializerTest {
 	private static final ExecutionConfig execConf = new ExecutionConfig();
@@ -264,10 +262,6 @@ public class CompositeSerializerTest {
 
 		private static Class<List<Object>> getCls(List<Object> instance) {
 			return TypeExtractor.getForObject(instance).getTypeClass();
-		}
-
-		protected void deepEquals(String message, List<Object> should, List<Object> is) {
-			assertEquals(message, should, is);
 		}
 	}
 }
