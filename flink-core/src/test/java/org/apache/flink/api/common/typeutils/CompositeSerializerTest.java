@@ -25,12 +25,15 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -194,7 +197,59 @@ public class CompositeSerializerTest {
 
 		@Override
 		public TypeSerializerSnapshot<List<Object>> snapshotConfiguration() {
-			throw new UnsupportedOperationException();
+			return new TestListCompositeSerializerSnapshot(this, precomputed.immutableTargetType);
+		}
+	}
+
+	public static class TestListCompositeSerializerSnapshot
+		extends CompositeTypeSerializerSnapshot<List<Object>, TestListCompositeSerializer> {
+
+		private boolean isImmutableTargetType;
+
+		/**
+		 * Constructor for read instantiation.
+		 */
+		public TestListCompositeSerializerSnapshot() {
+			super(TestListCompositeSerializer.class);
+			this.isImmutableTargetType = false;
+		}
+
+		/**
+		 * Constructor to create the snapshot for writing.
+		 */
+		public TestListCompositeSerializerSnapshot(
+				TestListCompositeSerializer serializerInstance,
+				boolean isImmutableTargetType) {
+			super(serializerInstance);
+			this.isImmutableTargetType = isImmutableTargetType;
+		}
+
+		@Override
+		protected int getCurrentOuterSnapshotVersion() {
+			return 0;
+		}
+
+		@Override
+		protected void writeOuterSnapshot(DataOutputView out) throws IOException {
+			out.writeBoolean(isImmutableTargetType);
+		}
+
+		@Override
+		protected void readOuterSnapshot(
+				int readOuterSnapshotVersion,
+				DataInputView in,
+				ClassLoader userCodeClassLoader) throws IOException {
+			this.isImmutableTargetType = in.readBoolean();
+		}
+
+		@Override
+		protected TypeSerializer<?>[] getNestedSerializers(TestListCompositeSerializer outerSerializer) {
+			return outerSerializer.fieldSerializers;
+		}
+
+		@Override
+		protected TestListCompositeSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+			return new TestListCompositeSerializer(isImmutableTargetType, nestedSerializers);
 		}
 	}
 
