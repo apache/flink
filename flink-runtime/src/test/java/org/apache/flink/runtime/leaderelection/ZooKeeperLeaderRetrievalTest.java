@@ -81,16 +81,16 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 	@After
 	public void after() throws Exception {
-		if (testingServer != null) {
-			testingServer.stop();
-
-			testingServer = null;
-		}
-
 		if (highAvailabilityServices != null) {
 			highAvailabilityServices.closeAndCleanupAllData();
 
 			highAvailabilityServices = null;
+		}
+
+		if (testingServer != null) {
+			testingServer.stop();
+
+			testingServer = null;
 		}
 	}
 

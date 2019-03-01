@@ -34,8 +34,12 @@ import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.utils.ZKPaths;
+import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.concurrent.Executor;
@@ -224,11 +228,69 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 			exception = t;
 		}
 
+		try {
+			cleanupZooKeeperPaths();
+		} catch (Throwable t) {
+			exception = ExceptionUtils.firstOrSuppressed(t, exception);
+		}
+
 		internalClose();
 
 		if (exception != null) {
 			ExceptionUtils.rethrowException(exception, "Could not properly close and clean up all data of ZooKeeperHaServices.");
 		}
+	}
+
+	/**
+	 * Cleans up leftover ZooKeeper paths.
+	 */
+	private void cleanupZooKeeperPaths() throws Exception {
+		deleteOwnedZNode();
+		tryDeleteEmptyParentZNodes();
+	}
+
+	private void deleteOwnedZNode() throws Exception {
+		// delete the HA_CLUSTER_ID znode which is owned by this cluster
+		client.delete().deletingChildrenIfNeeded().forPath("/");
+	}
+
+	/**
+	 * Tries to delete empty parent znodes.
+	 *
+	 * <p>IMPORTANT: This method can be removed once all supported ZooKeeper versions
+	 * support the container {@link org.apache.zookeeper.CreateMode}.
+	 *
+	 * @throws Exception if the deletion fails for other reason than {@link KeeperException.NotEmptyException}
+	 */
+	private void tryDeleteEmptyParentZNodes() throws Exception {
+		// try to delete the parent znodes if they are empty
+		String remainingPath = getParentPath(getNormalizedPath(client.getNamespace()));
+		final CuratorFramework nonNamespaceClient = client.usingNamespace(null);
+
+		while (!isRootPath(remainingPath)) {
+			try {
+				nonNamespaceClient.delete().forPath(remainingPath);
+			} catch (KeeperException.NotEmptyException ignored) {
+				// We can only delete empty znodes
+				break;
+			}
+
+			remainingPath = getParentPath(remainingPath);
+		}
+	}
+
+	private static boolean isRootPath(String remainingPath) {
+		return ZKPaths.PATH_SEPARATOR.equals(remainingPath);
+	}
+
+	@Nonnull
+	private static String getNormalizedPath(String path) {
+		return ZKPaths.makePath(path, "");
+	}
+
+	@Nonnull
+	private static String getParentPath(String path) {
+		return ZKPaths.getPathAndNode(path).getPath();
 	}
 
 	/**
