@@ -39,7 +39,7 @@ import scala.collection.JavaConversions._
   *
   * @tparam OC OptimizeContext
   */
-class FlinkHepRuleSetProgram[OC <: OptimizeContext] extends FlinkRuleSetProgram[OC] {
+class FlinkHepRuleSetProgram[OC <: FlinkOptimizeContext] extends FlinkRuleSetProgram[OC] {
 
   /**
     * The order of graph traversal when looking for rule matches,
@@ -146,7 +146,7 @@ object HEP_RULES_EXECUTION_TYPE extends Enumeration {
   val RULE_COLLECTION: HEP_RULES_EXECUTION_TYPE.Value = Value
 }
 
-class FlinkHepRuleSetProgramBuilder[OC <: OptimizeContext] {
+class FlinkHepRuleSetProgramBuilder[OC <: FlinkOptimizeContext] {
   private val hepRuleSetProgram = new FlinkHepRuleSetProgram[OC]
 
   def setHepRulesExecutionType(
@@ -192,5 +192,5 @@ class FlinkHepRuleSetProgramBuilder[OC <: OptimizeContext] {
 }
 
 object FlinkHepRuleSetProgramBuilder {
-  def newBuilder[OC <: OptimizeContext] = new FlinkHepRuleSetProgramBuilder[OC]
+  def newBuilder[OC <: FlinkOptimizeContext] = new FlinkHepRuleSetProgramBuilder[OC]
 }

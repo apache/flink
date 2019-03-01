@@ -18,20 +18,16 @@
 
 package org.apache.flink.table.plan.optimize.program
 
-import org.apache.calcite.plan.{Context, RelOptPlanner}
+import org.apache.calcite.plan.Context
+import org.apache.calcite.plan.volcano.VolcanoPlanner
 
 /**
-  * A OptimizeContext allows to obtain table environment information when optimizing.
+  * A FlinkOptimizeContext allows to obtain table environment information when optimizing.
   */
-trait OptimizeContext {
+trait FlinkOptimizeContext extends Context {
 
   /**
-    * Gets the Calcite [[Context]] defined in [[org.apache.flink.table.api.TableEnvironment]].
+    * Gets [[VolcanoPlanner]] instance defined in [[org.apache.flink.table.api.TableEnvironment]].
     */
-  def getContext: Context
-
-  /**
-    * Gets the Calcite [[RelOptPlanner]] defined in [[org.apache.flink.table.api.TableEnvironment]].
-    */
-  def getRelOptPlanner: RelOptPlanner
+  def getVolcanoPlanner: VolcanoPlanner
 }

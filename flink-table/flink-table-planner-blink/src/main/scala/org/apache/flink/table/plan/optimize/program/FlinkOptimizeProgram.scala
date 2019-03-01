@@ -26,7 +26,7 @@ import org.apache.calcite.rel.RelNode
   *
   * @tparam OC OptimizeContext
   */
-trait FlinkOptimizeProgram[OC <: OptimizeContext] {
+trait FlinkOptimizeProgram[OC <: FlinkOptimizeContext] {
 
   /**
     * Transforms a relational expression into another relational expression.

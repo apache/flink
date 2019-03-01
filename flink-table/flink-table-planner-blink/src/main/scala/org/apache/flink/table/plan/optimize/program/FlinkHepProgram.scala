@@ -34,7 +34,7 @@ import org.apache.calcite.rel.RelNode
   *
   * @tparam OC OptimizeContext
   */
-class FlinkHepProgram[OC <: OptimizeContext] extends FlinkOptimizeProgram[OC] {
+class FlinkHepProgram[OC <: FlinkOptimizeContext] extends FlinkOptimizeProgram[OC] {
 
   /**
     * [[HepProgram]] instance for [[HepPlanner]],
@@ -52,7 +52,7 @@ class FlinkHepProgram[OC <: OptimizeContext] extends FlinkOptimizeProgram[OC] {
       throw new TableException("hepProgram should not be None in FlinkHepProgram")
     }
 
-    val planner = new HepPlanner(hepProgram.get, context.getContext)
+    val planner = new HepPlanner(hepProgram.get, context)
     planner.setRoot(root)
 
     if (requestedRootTraits.isDefined) {
@@ -84,7 +84,7 @@ class FlinkHepProgram[OC <: OptimizeContext] extends FlinkOptimizeProgram[OC] {
 
 object FlinkHepProgram {
 
-  def apply[OC <: OptimizeContext](
+  def apply[OC <: FlinkOptimizeContext](
       hepProgram: HepProgram,
       requestedRootTraits: Option[Array[RelTrait]] = None): FlinkHepProgram[OC] = {
 

@@ -19,8 +19,8 @@
 package org.apache.flink.table.plan.optimize.program
 
 /**
-  * A OptimizeContext allows to obtain batch table environment information when optimizing.
+  * A FlinkOptimizeContext allows to obtain batch table environment information when optimizing.
   */
-trait BatchOptimizeContext extends OptimizeContext {
+trait BatchOptimizeContext extends FlinkOptimizeContext {
 
 }

@@ -21,6 +21,6 @@ package org.apache.flink.table.plan.optimize.program
 /**
   * A OptimizeContext allows to obtain stream table environment information when optimizing.
   */
-trait StreamOptimizeContext extends OptimizeContext {
+trait StreamOptimizeContext extends FlinkOptimizeContext {
 
 }

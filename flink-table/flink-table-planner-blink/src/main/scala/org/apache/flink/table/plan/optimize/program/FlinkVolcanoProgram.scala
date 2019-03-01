@@ -32,7 +32,7 @@ import org.apache.calcite.tools.{Programs, RuleSet}
   *
   * @tparam OC OptimizeContext
   */
-class FlinkVolcanoProgram[OC <: OptimizeContext] extends FlinkRuleSetProgram[OC] {
+class FlinkVolcanoProgram[OC <: FlinkOptimizeContext] extends FlinkRuleSetProgram[OC] {
 
   /**
     * Required output traits, this must not be None when doing optimize.
@@ -49,7 +49,8 @@ class FlinkVolcanoProgram[OC <: OptimizeContext] extends FlinkRuleSetProgram[OC]
     }
 
     val targetTraits = root.getTraitSet.plusAll(requiredOutputTraits.get).simplify()
-    val planner = Preconditions.checkNotNull(context.getRelOptPlanner)
+    // reuse VolcanoPlanner instance defined in context
+    val planner = Preconditions.checkNotNull(context.getVolcanoPlanner)
     val optProgram = Programs.ofRules(rules)
 
     try {
@@ -93,7 +94,7 @@ class FlinkVolcanoProgram[OC <: OptimizeContext] extends FlinkRuleSetProgram[OC]
 
 }
 
-class FlinkVolcanoProgramBuilder[OC <: OptimizeContext] {
+class FlinkVolcanoProgramBuilder[OC <: FlinkOptimizeContext] {
   private val volcanoProgram = new FlinkVolcanoProgram[OC]
 
   /**
@@ -117,5 +118,5 @@ class FlinkVolcanoProgramBuilder[OC <: OptimizeContext] {
 }
 
 object FlinkVolcanoProgramBuilder {
-  def newBuilder[OC <: OptimizeContext] = new FlinkVolcanoProgramBuilder[OC]
+  def newBuilder[OC <: FlinkOptimizeContext] = new FlinkVolcanoProgramBuilder[OC]
 }

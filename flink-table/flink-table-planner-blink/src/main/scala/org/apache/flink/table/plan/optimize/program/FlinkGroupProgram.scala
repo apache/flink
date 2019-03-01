@@ -35,7 +35,7 @@ import scala.collection.JavaConversions._
   *
   * @tparam OC OptimizeContext
   */
-class FlinkGroupProgram[OC <: OptimizeContext] extends FlinkOptimizeProgram[OC] with Logging {
+class FlinkGroupProgram[OC <: FlinkOptimizeContext] extends FlinkOptimizeProgram[OC] with Logging {
 
   /**
     * Sub-programs in this program.
@@ -84,7 +84,7 @@ class FlinkGroupProgram[OC <: OptimizeContext] extends FlinkOptimizeProgram[OC] 
   }
 }
 
-class FlinkGroupProgramBuilder[OC <: OptimizeContext] {
+class FlinkGroupProgramBuilder[OC <: FlinkOptimizeContext] {
   private val groupProgram = new FlinkGroupProgram[OC]
 
   def addProgram(
@@ -103,5 +103,5 @@ class FlinkGroupProgramBuilder[OC <: OptimizeContext] {
 }
 
 object FlinkGroupProgramBuilder {
-  def newBuilder[OC <: OptimizeContext] = new FlinkGroupProgramBuilder[OC]
+  def newBuilder[OC <: FlinkOptimizeContext] = new FlinkGroupProgramBuilder[OC]
 }

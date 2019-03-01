@@ -41,7 +41,10 @@ import scala.collection.JavaConversions._
   *
   * @tparam OC OptimizeContext
   */
-class FlinkChainedProgram[OC <: OptimizeContext] extends FlinkOptimizeProgram[OC] with Logging {
+class FlinkChainedProgram[OC <: FlinkOptimizeContext]
+  extends FlinkOptimizeProgram[OC]
+  with Logging {
+
   // keep program as ordered
   private val programNames = new util.ArrayList[String]()
   // map program name to program instance
