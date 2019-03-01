@@ -83,7 +83,7 @@ public class OneInputTransformation<IN, OUT> extends StreamTransformation<OUT> {
 	}
 
 	/**
-	 * Returns the {@code TwoInputStreamOperator} of this Transformation.
+	 * Returns the {@code OneInputStreamOperator} of this Transformation.
 	 */
 	public OneInputStreamOperator<IN, OUT> getOperator() {
 		return operator;
