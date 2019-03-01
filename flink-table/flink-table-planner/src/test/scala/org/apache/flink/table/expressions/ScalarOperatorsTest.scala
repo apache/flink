@@ -366,8 +366,8 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "10")
     testTableApi(true, "?((f6 && true), 'true', 'false')", "true")
     testTableApi(
-      If('f9 > 'f8, 'f9 - 1, 'f9),
-      "If(f9 > f8, f9 - 1, f9)",
+      ifThenElse('f9 > 'f8, 'f9 - 1, 'f9),
+      "ifThenElse(f9 > f8, f9 - 1, f9)",
       "9"
     )
     testSqlApi("CASE 11 WHEN 1 THEN 'a' ELSE 'b' END", "b")

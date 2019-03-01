@@ -1451,4 +1451,27 @@ object log {
   }
 }
 
+/**
+  * Ternary conditional operator that decides which of two other expressions should be evaluated
+  * based on a evaluated boolean condition.
+  *
+  * e.g. ifThenElse(42 > 5, "A", "B") leads to "A"
+  */
+object ifThenElse {
+
+  /**
+    * Ternary conditional operator that decides which of two other expressions should be evaluated
+    * based on a evaluated boolean condition.
+    *
+    * e.g. ifThenElse(42 > 5, "A", "B") leads to "A"
+    *
+    * @param condition boolean condition
+    * @param ifTrue expression to be evaluated if condition holds
+    * @param ifFalse expression to be evaluated if condition does not hold
+    */
+  def apply(condition: Expression, ifTrue: Expression, ifFalse: Expression): Expression = {
+    If(condition, ifTrue, ifFalse)
+  }
+}
+
 // scalastyle:on object.name

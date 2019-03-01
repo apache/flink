@@ -173,6 +173,7 @@ object FunctionCatalog {
     "if" -> classOf[If],
     "between" -> classOf[Between],
     "notBetween" -> classOf[NotBetween],
+    "ifThenElse" -> classOf[If],
 
     // aggregate functions
     "avg" -> classOf[Avg],
