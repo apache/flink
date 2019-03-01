@@ -328,7 +328,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 					long backoffMillis = fullJitterBackoff(
 						getShardIteratorBaseBackoffMillis, getShardIteratorMaxBackoffMillis, getShardIteratorExpConstant, retryCount++);
 					LOG.warn("Got recoverable AmazonServiceException. Backing off for "
-						+ backoffMillis + " millis (" + ex.getErrorMessage() + ")");
+						+ backoffMillis + " millis (" + ex.getClass().getName() + ": " + ex.getMessage() + ")");
 					Thread.sleep(backoffMillis);
 				} else {
 					throw ex;
@@ -337,8 +337,8 @@ public class KinesisProxy implements KinesisProxyInterface {
 		}
 
 		if (getShardIteratorResult == null) {
-			throw new RuntimeException("Rate Exceeded for getShardIterator operation - all " + getShardIteratorMaxRetries +
-				" retry attempts returned ProvisionedThroughputExceededException.");
+			throw new RuntimeException("Retries Exceeded for getShardIterator operation - all " + getShardIteratorMaxRetries +
+				" retry attempts failed.");
 		}
 		return getShardIteratorResult.getShardIterator();
 	}
