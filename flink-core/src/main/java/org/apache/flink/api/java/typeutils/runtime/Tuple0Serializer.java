@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 
@@ -77,6 +78,7 @@ public class Tuple0Serializer extends TupleSerializer<Tuple0> implements SelfRes
 
 	@Override
 	public void serialize(Tuple0 record, DataOutputView target) throws IOException {
+		Preconditions.checkNotNull(record);
 		target.writeByte(42);
 	}
 
