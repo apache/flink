@@ -140,16 +140,17 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private final HeapPriorityQueueSetFactory priorityQueueSetFactory;
 
 	public HeapKeyedStateBackend(
-			TaskKvStateRegistry kvStateRegistry,
-			TypeSerializer<K> keySerializer,
-			ClassLoader userCodeClassLoader,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			boolean asynchronousSnapshots,
-			ExecutionConfig executionConfig,
-			LocalRecoveryConfig localRecoveryConfig,
-			HeapPriorityQueueSetFactory priorityQueueSetFactory,
-			TtlTimeProvider ttlTimeProvider) {
+		TaskKvStateRegistry kvStateRegistry,
+		TypeSerializer<K> keySerializer,
+		ClassLoader userCodeClassLoader,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		boolean asynchronousSnapshots,
+		ExecutionConfig executionConfig,
+		LocalRecoveryConfig localRecoveryConfig,
+		HeapPriorityQueueSetFactory priorityQueueSetFactory,
+		TtlTimeProvider ttlTimeProvider,
+		CloseableRegistry cancelStreamRegistry) {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader,
 			numberOfKeyGroups, keyGroupRange, executionConfig, ttlTimeProvider, new CloseableRegistry());
