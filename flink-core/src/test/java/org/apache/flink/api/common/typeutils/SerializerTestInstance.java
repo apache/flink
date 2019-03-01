@@ -19,6 +19,8 @@
 package org.apache.flink.api.common.typeutils;
 
 
+import org.apache.flink.testutils.DeeplyEqualsChecker;
+
 import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
@@ -38,6 +40,17 @@ public class SerializerTestInstance<T> extends SerializerTestBase<T> {
 
 	@SafeVarargs
 	public SerializerTestInstance(TypeSerializer<T> serializer, Class<T> typeClass, int length, T... testData) {
+		this(new DeeplyEqualsChecker(), serializer, typeClass, length, testData);
+	}
+
+	@SafeVarargs
+	public SerializerTestInstance(
+			DeeplyEqualsChecker checker,
+			TypeSerializer<T> serializer,
+			Class<T> typeClass,
+			int length,
+			T... testData) {
+		super(checker);
 		this.serializer = serializer;
 		this.typeClass = typeClass;
 		this.length = length;
