@@ -27,6 +27,7 @@ import org.apache.flink.table.dataformat.BinaryMap;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.testutils.DeeplyEqualsChecker;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -36,9 +37,9 @@ import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Objects;
 
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
-import static org.junit.Assert.assertEquals;
 
 /**
  * Test for {@link BaseRowSerializer}.
@@ -53,7 +54,16 @@ public class BaseRowSerializerTest extends SerializerTestInstance<BaseRow> {
 	private final BaseRow[] testData;
 
 	public BaseRowSerializerTest(BaseRowSerializer serializer, BaseRow[] testData) {
-		super(serializer, BaseRow.class, -1, testData);
+		super(
+			new DeeplyEqualsChecker()
+				.withCustomCheck(
+					(o1, o2) -> o1 instanceof BaseRow && o2 instanceof BaseRow,
+					(o1, o2, checker) -> deepEqualsBaseRow((BaseRow) o1, (BaseRow) o2, serializer)
+				),
+			serializer,
+			BaseRow.class,
+			-1,
+			testData);
 		this.serializer = serializer;
 		this.testData = testData;
 	}
@@ -168,25 +178,17 @@ public class BaseRowSerializerTest extends SerializerTestInstance<BaseRow> {
 		return row;
 	}
 
-	@Override
-	protected void deepEquals(String message, BaseRow should, BaseRow is) {
-		int arity = should.getArity();
-		assertEquals(message, arity, is.getArity());
-		assertEquals(serializer.baseRowToBinary(should), serializer.baseRowToBinary(is));
+	private static boolean deepEqualsBaseRow(BaseRow should, BaseRow is, BaseRowSerializer serializer) {
+		if (should.getArity() != is.getArity()) {
+			return false;
+		}
+
+		return Objects.equals(serializer.baseRowToBinary(should), serializer.baseRowToBinary(is));
 	}
 
-	private void deepEquals(BaseRow should, BaseRow is) {
-		deepEquals("", should, is);
+	private boolean deepEquals(BaseRow should, BaseRow is) {
+		return deepEqualsBaseRow(should, is, serializer);
 	}
-
-	/**
-	 * Override testDuplicate, Because it uses Object equals, deserialize BaseRow to BinaryRow,
-	 * which cannot be directly equals.
-	 * See {@link BaseRowSerializer#deserialize}.
-	 */
-	@Test
-	@Override
-	public void testDuplicate() throws Exception {}
 
 	@Test
 	public void testCopy() {
