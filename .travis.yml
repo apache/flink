@@ -23,6 +23,7 @@ cache:
   # default timeout is too low
   timeout: 600
   directories:
+  - $HOME/.rvm/
   - $HOME/.m2
   - $HOME/flink_cache
   # keep in sync with tools/travis/setup_maven.sh
@@ -60,6 +61,13 @@ before_install:
    - chmod +x docker-compose
    - sudo mv docker-compose /usr/local/bin
 
+stages:
+  - name: compile
+  - name: test
+  - name: E2E
+    if: type = cron
+  - name: cleanup
+
 jdk: "oraclejdk8"
 jobs:
   include:
@@ -95,3 +103,23 @@ jobs:
       script: ./tools/travis_controller.sh cleanup
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
       name: cleanup
+    # E2E profile
+    - stage: E2E
+      env: PROFILE="-Dhadoop.version=2.8.3 -De2e-metrics"
+      script: ./tools/travis/nightly.sh split_misc.sh
+      name: misc - hadoop 2.8
+    - env: PROFILE="-Dhadoop.version=2.8.3"
+      script: ./tools/travis/nightly.sh split_ha.sh
+      name: ha - hadoop 2.8
+    - env: PROFILE="-Dhadoop.version=2.8.3"
+      script: ./tools/travis/nightly.sh split_sticky.sh
+      name: sticky - hadoop 2.8
+    - env: PROFILE="-Dhadoop.version=2.8.3"
+      script: ./tools/travis/nightly.sh split_checkpoints.sh
+      name: checkpoints - hadoop 2.8
+    - env: PROFILE="-Dhadoop.version=2.8.3"
+      script: ./tools/travis/nightly.sh split_container.sh
+      name: container - hadoop 2.8
+    - env: PROFILE="-Dhadoop.version=2.8.3"
+      script: ./tools/travis/nightly.sh split_heavy.sh
+      name: heavy - hadoop 2.8
