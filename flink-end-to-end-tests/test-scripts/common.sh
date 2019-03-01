@@ -47,7 +47,7 @@ cd $TEST_INFRA_DIR
 TEST_INFRA_DIR=`pwd -P`
 cd $TEST_ROOT
 
-NODENAME=`hostname -f`
+NODENAME=${NODENAME:-`hostname -f`}
 
 # REST_PROTOCOL and CURL_SSL_ARGS can be modified in common_ssl.sh if SSL is activated
 # they should be used in curl command to query Flink REST API
