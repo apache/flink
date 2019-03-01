@@ -177,22 +177,5 @@ class TraversableSerializerTestInstance[T](
     }
   }
 
-  override protected def deepEquals(message: String, should: T, is: T) {
-    should match {
-      case trav: TraversableOnce[_] =>
-        val isTrav = is.asInstanceOf[TraversableOnce[_]]
-        assertEquals(message, trav.size, isTrav.size)
-        val it = trav.toIterator
-        val isIt = isTrav.toIterator
-        while (it.hasNext) {
-          val should = it.next()
-          val is = isIt.next()
-          assertEquals(message, should, is)
-        }
-
-      case _ =>
-        super.deepEquals(message, should, is)
-    }
-  }
 }
 
