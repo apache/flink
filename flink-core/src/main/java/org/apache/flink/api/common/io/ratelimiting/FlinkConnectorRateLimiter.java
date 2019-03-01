@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.config;
+package org.apache.flink.api.common.io.ratelimiting;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.RuntimeContext;

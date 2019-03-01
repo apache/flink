@@ -18,12 +18,12 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.io.ratelimiting.FlinkConnectorRateLimiter;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.streaming.connectors.kafka.config.FlinkConnectorRateLimiter;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
 import org.apache.flink.streaming.connectors.kafka.internal.Kafka010Fetcher;
 import org.apache.flink.streaming.connectors.kafka.internal.Kafka010PartitionDiscoverer;

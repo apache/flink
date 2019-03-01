@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.io.ratelimiting.FlinkConnectorRateLimiter;
+import org.apache.flink.api.common.io.ratelimiting.GuavaFlinkConnectorRateLimiter;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -29,8 +31,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.kafka.config.FlinkConnectorRateLimiter;
-import org.apache.flink.streaming.connectors.kafka.config.GuavaFlinkConnectorRateLimiter;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 
 import org.junit.Assert;
