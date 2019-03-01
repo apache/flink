@@ -262,6 +262,9 @@ public class FlinkKafkaProducer<IN>
 	/** Cache of metrics to replace already registered metrics instead of overwriting existing ones. */
 	private final Map<String, KafkaMetricMutableWrapper> previouslyCreatedMetrics = new HashMap<>();
 
+	/** User-provided callback factory for creating custom callback. */
+	private transient UserCallbackFactory<IN> userCallbackFactory;
+
 	/**
 	 * Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to
 	 * the topic.
@@ -566,6 +569,14 @@ public class FlinkKafkaProducer<IN>
 	}
 
 	/**
+	 * If user defined callback factory is set, it will be invoked.
+	 * @param customCallbackFactory User defined callback factory.
+	 */
+	public void setUserCallbackFactory(UserCallbackFactory<IN> customCallbackFactory){
+		this.userCallbackFactory = customCallbackFactory;
+	}
+
+	/**
 	 * Disables the propagation of exceptions thrown when committing presumably timed out Kafka
 	 * transactions during recovery of the job. If a Kafka transaction is timed out, a commit will
 	 * never be successful. Hence, use this feature to avoid recovery loops of the Job. Exceptions
@@ -647,7 +658,11 @@ public class FlinkKafkaProducer<IN>
 			record = new ProducerRecord<>(targetTopic, null, timestamp, serializedKey, serializedValue);
 		}
 		pendingRecords.incrementAndGet();
-		transaction.producer.send(record, callback);
+		if (userCallbackFactory != null){
+			transaction.producer.send(record, userCallbackFactory.create(next));
+		} else {
+			transaction.producer.send(record, callback);
+		}
 	}
 
 	@Override
