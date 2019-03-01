@@ -61,5 +61,4 @@ public abstract class BinaryFormat<T> {
 				SegmentsUtil.equals(segments, offset, that.segments, that.offset, sizeInBytes);
 	}
 
-
 }

@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.util;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 
 import java.nio.ByteOrder;
@@ -87,17 +88,29 @@ public class SegmentsUtil {
 		}
 	}
 
+	/**
+	 * Equals two memory segments regions.
+	 *
+	 * @param segments1 Segments 1
+	 * @param offset1 Offset of segments1 to start equaling
+	 * @param segments2 Segments 2
+	 * @param offset2 Offset of segments2 to start equaling
+	 * @param len Length of the equaled memory region
+	 *
+	 * @return true if equal, false otherwise
+	 */
 	public static boolean equals(
 			MemorySegment[] segments1, int offset1,
 			MemorySegment[] segments2, int offset2, int len) {
 		if (inFirstSegment(segments1, offset1, len) && inFirstSegment(segments2, offset2, len)) {
-			return equals(segments1[0], offset1, segments2[0], offset2, len);
+			return segments1[0].equalTo(segments2[0], offset1, offset2, len);
 		} else {
 			return equalsMultiSegments(segments1, offset1, segments2, offset2, len);
 		}
 	}
 
-	public static boolean equalsMultiSegments(
+	@VisibleForTesting
+	static boolean equalsMultiSegments(
 			MemorySegment[] segments1, int offset1,
 			MemorySegment[] segments2, int offset2, int len) {
 		if (len == 0) {
@@ -116,7 +129,7 @@ public class SegmentsUtil {
 
 		while (len > 0) {
 			int equalLen = Math.min(Math.min(len, segSize1 - segOffset1), segSize2 - segOffset2);
-			if (!equals(segments1[segIndex1], segOffset1, segments2[segIndex2], segOffset2, equalLen)) {
+			if (!segments1[segIndex1].equalTo(segments2[segIndex2], segOffset1, segOffset2, equalLen)) {
 				return false;
 			}
 			len -= equalLen;
@@ -134,10 +147,20 @@ public class SegmentsUtil {
 		return true;
 	}
 
+	/**
+	 * Is it just in first MemorySegment, we use quick way to do something.
+	 */
 	private static boolean inFirstSegment(MemorySegment[] segments, int offset, int numBytes) {
 		return numBytes + offset <= segments[0].size();
 	}
 
+	/**
+	 * unset bit.
+	 *
+	 * @param segment target segment.
+	 * @param baseOffset bits base offset.
+	 * @param index bit index from base offset.
+	 */
 	public static void bitUnSet(MemorySegment segment, int baseOffset, int index) {
 		int offset = baseOffset + ((index & BIT_BYTE_POSITION_MASK) >>> 3);
 		byte current = segment.get(offset);
@@ -145,6 +168,13 @@ public class SegmentsUtil {
 		segment.put(offset, current);
 	}
 
+	/**
+	 * set bit.
+	 *
+	 * @param segment target segment.
+	 * @param baseOffset bits base offset.
+	 * @param index bit index from base offset.
+	 */
 	public static void bitSet(MemorySegment segment, int baseOffset, int index) {
 		int offset = baseOffset + ((index & BIT_BYTE_POSITION_MASK) >>> 3);
 		byte current = segment.get(offset);
@@ -152,6 +182,13 @@ public class SegmentsUtil {
 		segment.put(offset, current);
 	}
 
+	/**
+	 * read bit.
+	 *
+	 * @param segment target segment.
+	 * @param baseOffset bits base offset.
+	 * @param index bit index from base offset.
+	 */
 	public static boolean bitGet(MemorySegment segment, int baseOffset, int index) {
 		int offset = baseOffset + ((index & BIT_BYTE_POSITION_MASK) >>> 3);
 		byte current = segment.get(offset);
