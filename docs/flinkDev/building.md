@@ -93,6 +93,14 @@ You can also specify a specific Hadoop version to build against:
 mvn clean install -DskipTests -Dhadoop.version=2.6.1
 {% endhighlight %}
 
+### Packaging Hadoop into the Flink distribution
+
+If you want to build a Flink distribution that has a shaded Hadoop pre-packaged in the lib folder you can use the `include-hadoop` profile to do so. You would build Flink as described above but include the profile:
+
+{% highlight bash %}
+mvn clean install -DskipTests -Pinclude-hadoop
+{% endhighlight %}
+
 ### Vendor-specific Versions
 To check the list of supported vendor versions, look in https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-hdfs?repo=cloudera
 To build Flink against a vendor specific Hadoop version, issue the following command:
