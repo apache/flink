@@ -60,32 +60,31 @@ before_install:
    - chmod +x docker-compose
    - sudo mv docker-compose /usr/local/bin
 
-# When modifying the matrix you also have to modify travis_controller.sh#getCurrentStage
 jdk: "oraclejdk8"
 jobs:
   include:
     # main profile
     - stage: compile
-      script: ./tools/travis_controller.sh
+      script: ./tools/travis_controller.sh compile
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
       name: compile
     - stage: test
-      script: ./tools/travis_controller.sh
+      script: ./tools/travis_controller.sh core
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
       name: core
-    - script: ./tools/travis_controller.sh
+    - script: ./tools/travis_controller.sh libraries
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
       name: libraries
-    - script: ./tools/travis_controller.sh
+    - script: ./tools/travis_controller.sh connectors
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
       name: connectors
-    - script: ./tools/travis_controller.sh
+    - script: ./tools/travis_controller.sh tests
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
       name: tests
-    - script: ./tools/travis_controller.sh
+    - script: ./tools/travis_controller.sh misc
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
       name: misc
     - stage: cleanup
-      script: ./tools/travis_controller.sh
+      script: ./tools/travis_controller.sh cleanup
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11"
       name: cleanup
