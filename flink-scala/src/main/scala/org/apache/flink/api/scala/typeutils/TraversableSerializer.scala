@@ -40,7 +40,7 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
 
   override def duplicate = {
     val duplicateElementSerializer = elementSerializer.duplicate()
-    if (duplicateElementSerializer == elementSerializer) {
+    if (duplicateElementSerializer eq elementSerializer) {
       // is not stateful, so return ourselves
       this
     } else {
