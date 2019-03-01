@@ -48,34 +48,20 @@ public class BinaryRowWriter extends BinaryWriter {
 	 */
 	@Override
 	public void reset() {
-		resetCursor();
+		this.cursor = fixedSize;
 		for (int i = 0; i < nullBitsSizeInBytes; i += 8) {
 			segment.putLong(i, 0L);
 		}
 	}
 
-	public void resetCursor() {
-		this.cursor = fixedSize;
-	}
-
 	/**
 	 * Default not null.
 	 */
+	@Override
 	public void setNullAt(int pos) {
 		// need add header 8 bit.
 		SegmentsUtil.bitSet(segment, 0, pos + 8);
 		segment.putLong(getFieldOffset(pos), 0L);
-	}
-
-	@Override
-	public int getFieldOffset(int pos) {
-		return nullBitsSizeInBytes + 8 * pos;
-	}
-
-	@Override
-	public void setOffsetAndSize(int pos, int offset, long size) {
-		final long offsetAndSize = ((long) offset << 32) | size;
-		segment.putLong(getFieldOffset(pos), offsetAndSize);
 	}
 
 	public void writeHeader(byte header) {
@@ -123,12 +109,23 @@ public class BinaryRowWriter extends BinaryWriter {
 	}
 
 	@Override
-	public void afterGrow() {
-		row.pointTo(segment, 0, segment.size());
+	public void complete() {
+		row.setTotalSize(cursor);
 	}
 
 	@Override
-	public void complete() {
-		row.setTotalSize(cursor);
+	public int getFieldOffset(int pos) {
+		return nullBitsSizeInBytes + 8 * pos;
+	}
+
+	@Override
+	public void setOffsetAndSize(int pos, int offset, long size) {
+		final long offsetAndSize = ((long) offset << 32) | size;
+		segment.putLong(getFieldOffset(pos), offsetAndSize);
+	}
+
+	@Override
+	public void afterGrow() {
+		row.pointTo(segment, 0, segment.size());
 	}
 }

@@ -36,69 +36,31 @@ import java.util.Arrays;
  *
  * <p>If want to reuse this writer, please invoke {@link #reset()} first.
  */
-public abstract class BinaryWriter {
+public abstract class BinaryWriter implements TypeWriter {
 
 	protected MemorySegment segment;
 
 	protected int cursor;
 
 	/**
-	 * Reset writer to prepare next write.
-	 */
-	public abstract void reset();
-
-	public abstract void writeBoolean(int pos, boolean value);
-
-	public abstract void writeByte(int pos, byte value);
-
-	public abstract void writeShort(int pos, short value);
-
-	public abstract void writeInt(int pos, int value);
-
-	public abstract void writeLong(int pos, long value);
-
-	public abstract void writeFloat(int pos, float value);
-
-	public abstract void writeDouble(int pos, double value);
-
-	public abstract void writeChar(int pos, char value);
-
-	/**
 	 * Set offset and size to fix len part.
 	 */
-	public abstract void setOffsetAndSize(int pos, int offset, long size);
+	protected abstract void setOffsetAndSize(int pos, int offset, long size);
 
 	/**
 	 *  Get field offset.
 	 */
-	public abstract int getFieldOffset(int pos);
+	protected abstract int getFieldOffset(int pos);
 
 	/**
 	 * After grow, need point to new memory.
 	 */
-	public abstract void afterGrow();
-
-	/**
-	 * Finally, complete write to set real size to binary.
-	 */
-	public abstract void complete();
-
-	protected void zeroOutPaddingBytes(int numBytes) {
-		if ((numBytes & 0x07) > 0) {
-			segment.putLong(cursor + ((numBytes >> 3) << 3), 0L);
-		}
-	}
-
-	protected void ensureCapacity(int neededSize) {
-		final int length = cursor + neededSize;
-		if (segment.size() < length) {
-			grow(length);
-		}
-	}
+	protected abstract void afterGrow();
 
 	/**
 	 * See {@link BinaryString#readBinaryStringFieldFromSegments}.
 	 */
+	@Override
 	public void writeString(int pos, BinaryString input) {
 		int len = input.getSizeInBytes();
 		if (len <= 7) {
@@ -110,23 +72,17 @@ public abstract class BinaryWriter {
 		}
 	}
 
-	private static void writeBytesToFixLenPart(
-			MemorySegment segment, int fieldOffset, byte[] bytes, int len) {
-		long firstByte = len | 0x80; // first bit is 1, other bits is len
-		long sevenBytes = 0L; // real data
-		if (BinaryRow.LITTLE_ENDIAN) {
-			for (int i = 0; i < len; i++) {
-				sevenBytes |= ((0x00000000000000FFL & bytes[i]) << (i * 8L));
-			}
-		} else {
-			for (int i = 0; i < len; i++) {
-				sevenBytes |= ((0x00000000000000FFL & bytes[i]) << ((6 - i) * 8L));
-			}
+	private void zeroOutPaddingBytes(int numBytes) {
+		if ((numBytes & 0x07) > 0) {
+			segment.putLong(cursor + ((numBytes >> 3) << 3), 0L);
 		}
+	}
 
-		final long offsetAndSize = (firstByte << 56) | sevenBytes;
-
-		segment.putLong(fieldOffset, offsetAndSize);
+	private void ensureCapacity(int neededSize) {
+		final int length = cursor + neededSize;
+		if (segment.size() < length) {
+			grow(length);
+		}
 	}
 
 	private void writeSegmentsToVarLenPart(int pos, MemorySegment[] segments, int offset, int size) {
@@ -182,12 +138,31 @@ public abstract class BinaryWriter {
 		afterGrow();
 	}
 
-	public static int roundNumberOfBytesToNearestWord(int numBytes) {
+	private static int roundNumberOfBytesToNearestWord(int numBytes) {
 		int remainder = numBytes & 0x07;
 		if (remainder == 0) {
 			return numBytes;
 		} else {
 			return numBytes + (8 - remainder);
 		}
+	}
+
+	private static void writeBytesToFixLenPart(
+			MemorySegment segment, int fieldOffset, byte[] bytes, int len) {
+		long firstByte = len | 0x80; // first bit is 1, other bits is len
+		long sevenBytes = 0L; // real data
+		if (BinaryRow.LITTLE_ENDIAN) {
+			for (int i = 0; i < len; i++) {
+				sevenBytes |= ((0x00000000000000FFL & bytes[i]) << (i * 8L));
+			}
+		} else {
+			for (int i = 0; i < len; i++) {
+				sevenBytes |= ((0x00000000000000FFL & bytes[i]) << ((6 - i) * 8L));
+			}
+		}
+
+		final long offsetAndSize = (firstByte << 56) | sevenBytes;
+
+		segment.putLong(fieldOffset, offsetAndSize);
 	}
 }
