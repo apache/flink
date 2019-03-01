@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -214,8 +215,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 			Collections.emptyList(),
 			RocksDBStateBackend.getCompressionDecorator(env.getExecutionConfig()),
 			spy(db),
-			defaultCFHandle
-		).build();
+			defaultCFHandle,
+			new CloseableRegistry()).build();
 
 		testState1 = keyedStateBackend.getPartitionedState(
 				VoidNamespace.INSTANCE,
@@ -291,8 +292,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				Collections.emptyList(),
 				RocksDBStateBackend.getCompressionDecorator(executionConfig),
 				db,
-				defaultCFHandle
-			).build();
+				defaultCFHandle,
+				new CloseableRegistry()).build();
 			ValueStateDescriptor<String> stubState1 =
 				new ValueStateDescriptor<>("StubState-1", StringSerializer.INSTANCE);
 			test.createInternalState(StringSerializer.INSTANCE, stubState1);

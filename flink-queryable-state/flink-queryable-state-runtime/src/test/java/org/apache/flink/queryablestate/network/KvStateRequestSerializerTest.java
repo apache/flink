@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
@@ -200,8 +201,8 @@ public class KvStateRequestSerializerTest {
 				new ExecutionConfig(),
 				TestLocalRecoveryConfig.disabled(),
 				new HeapPriorityQueueSetFactory(keyGroupRange, keyGroupRange.getNumberOfKeyGroups(), 128),
-				TtlTimeProvider.DEFAULT
-			);
+				TtlTimeProvider.DEFAULT,
+				new CloseableRegistry());
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
 		final InternalListState<Long, VoidNamespace, Long> listState = longHeapKeyedStateBackend.createInternalState(
@@ -309,8 +310,8 @@ public class KvStateRequestSerializerTest {
 				new ExecutionConfig(),
 				TestLocalRecoveryConfig.disabled(),
 				new HeapPriorityQueueSetFactory(keyGroupRange, keyGroupRange.getNumberOfKeyGroups(), 128),
-				TtlTimeProvider.DEFAULT
-			);
+				TtlTimeProvider.DEFAULT,
+				new CloseableRegistry());
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
 		final InternalMapState<Long, VoidNamespace, Long, String> mapState =

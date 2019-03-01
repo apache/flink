@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
@@ -473,7 +474,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		TaskKvStateRegistry kvStateRegistry,
 		TtlTimeProvider ttlTimeProvider,
 		MetricGroup metricGroup,
-		@Nonnull Collection<KeyedStateHandle> stateHandles) throws IOException {
+		@Nonnull Collection<KeyedStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) throws IOException {
 
 		// first, make sure that the RocksDB JNI library is loaded
 		// we do this explicitly here to have better error handling
@@ -510,7 +512,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			ttlTimeProvider,
 			metricGroup,
 			stateHandles,
-			keyGroupCompressionDecorator
+			keyGroupCompressionDecorator,
+			cancelStreamRegistry
 		).setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
 			.setEnableTtlCompactionFilter(isTtlCompactionFilterEnabled())
 			.setNumberOfTransferingThreads(getNumberOfTransferingThreads())

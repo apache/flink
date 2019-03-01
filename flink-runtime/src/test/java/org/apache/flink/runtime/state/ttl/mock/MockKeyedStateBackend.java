@@ -99,9 +99,10 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
 		TtlTimeProvider ttlTimeProvider,
-		MetricGroup operatorMetricGroup) {
+		MetricGroup operatorMetricGroup,
+		CloseableRegistry cancelStreamRegistry) {
 		super(kvStateRegistry, keySerializer, userCodeClassLoader,
-			numberOfKeyGroups, keyGroupRange, executionConfig, ttlTimeProvider, new CloseableRegistry());
+			numberOfKeyGroups, keyGroupRange, executionConfig, ttlTimeProvider, cancelStreamRegistry);
 	}
 
 	@Override
