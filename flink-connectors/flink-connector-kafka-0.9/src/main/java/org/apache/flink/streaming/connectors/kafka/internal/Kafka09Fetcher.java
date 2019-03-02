@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.io.ratelimiting.FlinkConnectorRateLimiter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -87,7 +88,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 			long pollTimeout,
 			MetricGroup subtaskMetricGroup,
 			MetricGroup consumerMetricGroup,
-			boolean useMetrics) throws Exception {
+			boolean useMetrics,
+			FlinkConnectorRateLimiter rateLimiter) throws Exception {
 		super(
 				sourceContext,
 				assignedPartitionsWithInitialOffsets,
@@ -112,7 +114,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 				pollTimeout,
 				useMetrics,
 				consumerMetricGroup,
-				subtaskMetricGroup);
+				subtaskMetricGroup,
+				rateLimiter);
 	}
 
 	// ------------------------------------------------------------------------
