@@ -34,11 +34,12 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
-import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
+import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
@@ -491,12 +492,16 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	@Override
 	public OperatorStateBackend createOperatorStateBackend(
 		Environment env,
-		String operatorIdentifier) {
+		String operatorIdentifier,
+		@Nonnull Collection<OperatorStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) throws BackendBuildingException {
 
-		return new DefaultOperatorStateBackend(
+		return new DefaultOperatorStateBackendBuilder(
 			env.getUserClassLoader(),
 			env.getExecutionConfig(),
-				isUsingAsynchronousSnapshots());
+			isUsingAsynchronousSnapshots(),
+			stateHandles,
+			cancelStreamRegistry).build();
 	}
 
 	// ------------------------------------------------------------------------

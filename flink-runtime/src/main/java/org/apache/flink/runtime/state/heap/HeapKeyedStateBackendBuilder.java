@@ -126,6 +126,7 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
 		try {
 			restoreOperation.restore();
 		} catch (Exception e) {
+			backend.dispose();
 			throw new BackendBuildingException("Failed when trying to restore heap backend", e);
 		}
 		return backend;

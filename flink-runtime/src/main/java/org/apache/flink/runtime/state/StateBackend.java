@@ -259,10 +259,16 @@ public interface StateBackend extends java.io.Serializable {
 	 *
 	 * @param env The runtime environment of the executing task.
 	 * @param operatorIdentifier The identifier of the operator whose state should be stored.
+	 * @param stateHandles The state handles for restore.
+	 * @param cancelStreamRegistry The registry to register streams to close if task canceled.
 	 *
 	 * @return The OperatorStateBackend for operator identified by the job and operator identifier.
 	 *
 	 * @throws Exception This method may forward all exceptions that occur while instantiating the backend.
 	 */
-	OperatorStateBackend createOperatorStateBackend(Environment env, String operatorIdentifier) throws Exception;
+	OperatorStateBackend createOperatorStateBackend(
+		Environment env,
+		String operatorIdentifier,
+		@Nonnull Collection<OperatorStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) throws Exception;
 }

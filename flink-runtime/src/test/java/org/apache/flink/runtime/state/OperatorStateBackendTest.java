@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -35,19 +36,19 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.state.DefaultOperatorStateBackend.PartitionableListState;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 import org.apache.flink.util.Preconditions;
-
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -71,13 +72,15 @@ import static org.mockito.Mockito.when;
 public class OperatorStateBackendTest {
 
 	private final ClassLoader classLoader = getClass().getClassLoader();
+	private final Collection<OperatorStateHandle> emptyStateHandles = Collections.emptyList();
 
 	@Test
 	public void testCreateOnAbstractStateBackend() throws Exception {
 		// we use the memory state backend as a subclass of the AbstractStateBackend
 		final AbstractStateBackend abstractStateBackend = new MemoryStateBackend();
+		CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
 		final OperatorStateBackend operatorStateBackend = abstractStateBackend.createOperatorStateBackend(
-				createMockEnvironment(), "test-operator");
+				createMockEnvironment(), "test-operator", emptyStateHandles, cancelStreamRegistry);
 
 		assertNotNull(operatorStateBackend);
 		assertTrue(operatorStateBackend.getRegisteredStateNames().isEmpty());
@@ -97,7 +100,14 @@ public class OperatorStateBackendTest {
 		final ExecutionConfig cfg = new ExecutionConfig();
 		cfg.registerTypeWithKryoSerializer(registeredType, com.esotericsoftware.kryo.serializers.JavaSerializer.class);
 
-		final OperatorStateBackend operatorStateBackend = new DefaultOperatorStateBackend(classLoader, cfg, false);
+		final OperatorStateBackend operatorStateBackend =
+			new DefaultOperatorStateBackendBuilder(
+				classLoader,
+				cfg,
+				false,
+				emptyStateHandles,
+				new CloseableRegistry())
+			.build();
 
 		ListStateDescriptor<File> stateDescriptor = new ListStateDescriptor<>("test", File.class);
 		ListStateDescriptor<String> stateDescriptor2 = new ListStateDescriptor<>("test2", String.class);
@@ -130,7 +140,12 @@ public class OperatorStateBackendTest {
 	@Test
 	public void testRegisterStates() throws Exception {
 		final OperatorStateBackend operatorStateBackend =
-				new DefaultOperatorStateBackend(classLoader, new ExecutionConfig(), false);
+			new DefaultOperatorStateBackendBuilder(
+				classLoader,
+				new ExecutionConfig(),
+				false,
+				emptyStateHandles,
+				new CloseableRegistry()).build();
 
 		ListStateDescriptor<Serializable> stateDescriptor1 = new ListStateDescriptor<>("test1", new JavaSerializer<>());
 		ListStateDescriptor<Serializable> stateDescriptor2 = new ListStateDescriptor<>("test2", new JavaSerializer<>());
@@ -219,7 +234,8 @@ public class OperatorStateBackendTest {
 		AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
 
 		final Environment env = createMockEnvironment();
-		OperatorStateBackend operatorStateBackend = abstractStateBackend.createOperatorStateBackend(env, "test-op-name");
+		CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
+		OperatorStateBackend operatorStateBackend = abstractStateBackend.createOperatorStateBackend(env, "test-op-name", emptyStateHandles, cancelStreamRegistry);
 
 		AtomicInteger copyCounter = new AtomicInteger(0);
 		TypeSerializer<Integer> serializer = new VerifyingIntSerializer(env.getUserClassLoader(), copyCounter);
@@ -353,9 +369,10 @@ public class OperatorStateBackendTest {
 	@Test
 	public void testSnapshotEmpty() throws Exception {
 		final AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
+		CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
 
 		final OperatorStateBackend operatorStateBackend =
-				abstractStateBackend.createOperatorStateBackend(createMockEnvironment(), "testOperator");
+				abstractStateBackend.createOperatorStateBackend(createMockEnvironment(), "testOperator", emptyStateHandles, cancelStreamRegistry);
 
 		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4096);
 
@@ -371,8 +388,12 @@ public class OperatorStateBackendTest {
 	public void testSnapshotBroadcastStateWithEmptyOperatorState() throws Exception {
 		final AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
 
-		final OperatorStateBackend operatorStateBackend =
-				abstractStateBackend.createOperatorStateBackend(createMockEnvironment(), "testOperator");
+		OperatorStateBackend operatorStateBackend =
+			abstractStateBackend.createOperatorStateBackend(
+				createMockEnvironment(),
+				"testOperator",
+				emptyStateHandles,
+				new CloseableRegistry());
 
 		final MapStateDescriptor<Integer, Integer> broadcastStateDesc = new MapStateDescriptor<>(
 				"test-broadcast", BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
@@ -398,7 +419,10 @@ public class OperatorStateBackendTest {
 
 			final Map<Integer, Integer> retrieved = new HashMap<>();
 
-			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
+			operatorStateBackend = recreateOperatorStateBackend(
+				operatorStateBackend,
+				abstractStateBackend,
+				StateObjectCollection.singleton(stateHandle));
 			BroadcastState<Integer, Integer> retrievedState = operatorStateBackend.getBroadcastState(broadcastStateDesc);
 			for (Map.Entry<Integer, Integer> e: retrievedState.entries()) {
 				retrieved.put(e.getKey(), e.getValue());
@@ -406,7 +430,7 @@ public class OperatorStateBackendTest {
 			assertEquals(expected, retrieved);
 
 			// remove an element from both expected and stored state.
-			broadcastState.remove(1);
+			retrievedState.remove(1);
 			expected.remove(1);
 
 			snapshot = operatorStateBackend.snapshot(1L, 1L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
@@ -416,7 +440,10 @@ public class OperatorStateBackendTest {
 			stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 
 			retrieved.clear();
-			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
+			operatorStateBackend = recreateOperatorStateBackend(
+				operatorStateBackend,
+				abstractStateBackend,
+				StateObjectCollection.singleton(stateHandle));
 			retrievedState = operatorStateBackend.getBroadcastState(broadcastStateDesc);
 			for (Map.Entry<Integer, Integer> e: retrievedState.immutableEntries()) {
 				retrieved.put(e.getKey(), e.getValue());
@@ -424,7 +451,7 @@ public class OperatorStateBackendTest {
 			assertEquals(expected, retrieved);
 
 			// remove all elements from both expected and stored state.
-			broadcastState.clear();
+			retrievedState.clear();
 			expected.clear();
 
 			snapshot = operatorStateBackend.snapshot(2L, 2L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
@@ -435,7 +462,10 @@ public class OperatorStateBackendTest {
 			stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 
 			retrieved.clear();
-			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
+			operatorStateBackend = recreateOperatorStateBackend(
+				operatorStateBackend,
+				abstractStateBackend,
+				StateObjectCollection.singleton(stateHandle));
 			retrievedState = operatorStateBackend.getBroadcastState(broadcastStateDesc);
 			for (Map.Entry<Integer, Integer> e: retrievedState.immutableEntries()) {
 				retrieved.put(e.getKey(), e.getValue());
@@ -459,7 +489,11 @@ public class OperatorStateBackendTest {
 	public void testSnapshotRestoreSync() throws Exception {
 		AbstractStateBackend abstractStateBackend = new MemoryStateBackend(2 * 4096);
 
-		OperatorStateBackend operatorStateBackend = abstractStateBackend.createOperatorStateBackend(createMockEnvironment(), "test-op-name");
+		OperatorStateBackend operatorStateBackend = abstractStateBackend.createOperatorStateBackend(
+			createMockEnvironment(),
+			"test-op-name",
+			emptyStateHandles,
+			new CloseableRegistry());
 		ListStateDescriptor<Serializable> stateDescriptor1 = new ListStateDescriptor<>("test1", new JavaSerializer<>());
 		ListStateDescriptor<Serializable> stateDescriptor2 = new ListStateDescriptor<>("test2", new JavaSerializer<>());
 		ListStateDescriptor<Serializable> stateDescriptor3 = new ListStateDescriptor<>("test3", new JavaSerializer<>());
@@ -507,9 +541,9 @@ public class OperatorStateBackendTest {
 
 			operatorStateBackend = abstractStateBackend.createOperatorStateBackend(
 					createMockEnvironment(),
-					"testOperator");
-
-			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
+					"testOperator",
+				StateObjectCollection.singleton(stateHandle),
+				new CloseableRegistry());
 
 			assertEquals(3, operatorStateBackend.getRegisteredStateNames().size());
 			assertEquals(3, operatorStateBackend.getRegisteredBroadcastStateNames().size());
@@ -574,7 +608,12 @@ public class OperatorStateBackendTest {
 	@Test
 	public void testSnapshotRestoreAsync() throws Exception {
 		OperatorStateBackend operatorStateBackend =
-				new DefaultOperatorStateBackend(OperatorStateBackendTest.class.getClassLoader(), new ExecutionConfig(), true);
+			new DefaultOperatorStateBackendBuilder(
+				OperatorStateBackendTest.class.getClassLoader(),
+				new ExecutionConfig(),
+				true,
+				emptyStateHandles,
+				new CloseableRegistry()).build();
 
 		ListStateDescriptor<MutableType> stateDescriptor1 =
 				new ListStateDescriptor<>("test1", new JavaSerializer<MutableType>());
@@ -665,12 +704,13 @@ public class OperatorStateBackendTest {
 			operatorStateBackend.dispose();
 
 			AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
+			CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
 
 			operatorStateBackend = abstractStateBackend.createOperatorStateBackend(
-					createMockEnvironment(),
-					"testOperator");
-
-			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
+				createMockEnvironment(),
+				"testOperator",
+				StateObjectCollection.singleton(stateHandle),
+				cancelStreamRegistry);
 
 			assertEquals(3, operatorStateBackend.getRegisteredStateNames().size());
 			assertEquals(3, operatorStateBackend.getRegisteredBroadcastStateNames().size());
@@ -737,7 +777,12 @@ public class OperatorStateBackendTest {
 	@Test
 	public void testSnapshotAsyncClose() throws Exception {
 		DefaultOperatorStateBackend operatorStateBackend =
-				new DefaultOperatorStateBackend(OperatorStateBackendTest.class.getClassLoader(), new ExecutionConfig(), true);
+			new DefaultOperatorStateBackendBuilder(
+				OperatorStateBackendTest.class.getClassLoader(),
+				new ExecutionConfig(),
+				true,
+				emptyStateHandles,
+				new CloseableRegistry()).build();
 
 		ListStateDescriptor<MutableType> stateDescriptor1 =
 				new ListStateDescriptor<>("test1", new JavaSerializer<MutableType>());
@@ -786,7 +831,12 @@ public class OperatorStateBackendTest {
 	@Test
 	public void testSnapshotAsyncCancel() throws Exception {
 		DefaultOperatorStateBackend operatorStateBackend =
-				new DefaultOperatorStateBackend(OperatorStateBackendTest.class.getClassLoader(), new ExecutionConfig(), true);
+			new DefaultOperatorStateBackendBuilder(
+				OperatorStateBackendTest.class.getClassLoader(),
+				new ExecutionConfig(),
+				true,
+				emptyStateHandles,
+				new CloseableRegistry()).build();
 
 		ListStateDescriptor<MutableType> stateDescriptor1 =
 				new ListStateDescriptor<>("test1", new JavaSerializer<MutableType>());
@@ -888,5 +938,19 @@ public class OperatorStateBackendTest {
 		when(env.getExecutionConfig()).thenReturn(new ExecutionConfig());
 		when(env.getUserClassLoader()).thenReturn(OperatorStateBackendTest.class.getClassLoader());
 		return env;
+	}
+
+	private static OperatorStateBackend recreateOperatorStateBackend(
+		OperatorStateBackend oldOperatorStateBackend,
+		AbstractStateBackend abstractStateBackend,
+		Collection<OperatorStateHandle> toRestore
+	) throws Exception {
+		oldOperatorStateBackend.close();
+		oldOperatorStateBackend.dispose();
+		return abstractStateBackend.createOperatorStateBackend(
+			createMockEnvironment(),
+			"testOperator",
+			toRestore,
+			new CloseableRegistry());
 	}
 }
