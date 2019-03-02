@@ -168,7 +168,7 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 	 */
 	@Test(timeout = 60000)
 	public void testRateLimitedConsumer() throws Exception {
-		final String testTopic = "test-topic";
+		final String testTopic = "testRateLimitedConsumer";
 		createTestTopic(testTopic, 3, 1);
 
 		// ---------- Produce a stream into Kafka -------------------
@@ -225,9 +225,7 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 
 			}
 		});
-		long startTime = System.currentTimeMillis();
 		env.execute("Consume 100 bytes of data from test topic");
-		long endTime = System.currentTimeMillis();
 
 		// ------- Assertions --------------
 		Assert.assertNotNull(consumer09.getRateLimiter());
