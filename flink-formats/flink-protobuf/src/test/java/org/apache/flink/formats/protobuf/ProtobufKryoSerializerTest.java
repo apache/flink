@@ -18,16 +18,20 @@
 
 package org.apache.flink.formats.protobuf;
 
-import static junit.framework.TestCase.assertEquals;
+import org.apache.flink.formats.protobuf.ProtoTestUtils.ProtoTestData;
+import org.apache.flink.formats.protobuf.test.Models.Person;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.google.protobuf.Message;
-import org.apache.flink.formats.protobuf.ProtoTestUtils.ProtoTestData;
-import org.apache.flink.formats.protobuf.test.Models.Person;
 import org.junit.Test;
 
+import static junit.framework.TestCase.assertEquals;
+
+/**
+ * Tests for {@link ProtobufKryoSerializer}.
+ */
 public class ProtobufKryoSerializerTest {
 
 	@Test

@@ -18,14 +18,18 @@
 
 package org.apache.flink.formats.protobuf;
 
-import com.google.protobuf.Message;
-import de.javakaffee.kryoserializers.UnmodifiableCollectionsSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import com.google.protobuf.Message;
+import de.javakaffee.kryoserializers.UnmodifiableCollectionsSerializer;
+
+/**
+ * Utilities for working with protobuf classes in flink.
+ */
 public class ProtoFlinkUtils {
 
 	/**
-	 * Register so that protobuf classes get serialzied using protobuf serializers.
+	 * Register so that protobuf classes get serialized using protobuf serializers.
 	 *
 	 * <p>Protobuf serialization is faster as well as bug free compared to trying to use Kryo for
 	 * protobuf classes, which is heavy reflection based.

@@ -18,18 +18,18 @@
 
 package org.apache.flink.formats.protobuf;
 
+import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava18.com.google.common.cache.CacheLoader;
+import org.apache.flink.shaded.guava18.com.google.common.cache.LoadingCache;
+
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.google.protobuf.Message;
 
-import org.apache.flink.shaded.guava18.com.google.common.cache.LoadingCache;
-import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava18.com.google.common.cache.CacheLoader;
-
 import java.lang.reflect.Method;
-import java.util.HashMap;
+
 
 /**
  * Kryo serializer for protobouf classes.

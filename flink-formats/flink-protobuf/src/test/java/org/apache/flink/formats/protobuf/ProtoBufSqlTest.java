@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.formats.protobuf;
-
-import static junit.framework.TestCase.assertEquals;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.protobuf.ProtoTestUtils.ProtoTestData;
@@ -27,11 +24,16 @@ import org.apache.flink.formats.protobuf.test.Models.Person;
 import org.apache.flink.formats.protobuf.test.Models.PhoneNumber;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-//import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
+
 import org.junit.Before;
 import org.junit.Test;
 
+import static junit.framework.TestCase.assertEquals;
+
+/**
+ * Test sql execution on protobuf objects.
+ */
 public class ProtoBufSqlTest {
 
 	private StreamTableEnvironment tableEnv;

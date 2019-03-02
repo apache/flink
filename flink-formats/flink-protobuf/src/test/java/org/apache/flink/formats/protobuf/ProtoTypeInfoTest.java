@@ -18,19 +18,22 @@
 
 package org.apache.flink.formats.protobuf;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-
-import com.google.protobuf.Timestamp;
-
-import java.util.Arrays;
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.formats.protobuf.test.Models.Person;
 import org.apache.flink.formats.protobuf.test.Models.PhoneNumber;
+
+import com.google.protobuf.Timestamp;
 import org.junit.Test;
 
+import java.util.Arrays;
+
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+
+/**
+ * Tests for {@link ProtoTypeInfo}.
+ */
 public class ProtoTypeInfoTest {
 
 	@Test

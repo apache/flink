@@ -18,8 +18,6 @@
 
 package org.apache.flink.formats.protobuf;
 
-import com.google.protobuf.Message;
-import com.google.protobuf.Timestamp;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
@@ -29,11 +27,17 @@ import org.apache.flink.formats.protobuf.test.Models.Person.Moods;
 import org.apache.flink.formats.protobuf.test.Models.PhoneNumber;
 import org.apache.flink.types.Row;
 
+import com.google.protobuf.Message;
+import com.google.protobuf.Timestamp;
+
 /**
  * Utility methods to test protobuf-flink functionality.
  */
 public class ProtoTestUtils {
 
+	/**
+	 * Container class for various representation of a proto object used for testing.
+	 */
 	public static class ProtoTestData {
 
 		public Class<? extends Message> protoClass;

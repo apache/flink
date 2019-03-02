@@ -18,13 +18,13 @@
 
 package org.apache.flink.formats.protobuf;
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+
 import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
 
 import java.util.HashMap;
 import java.util.Map;
-
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
  * Mappings between proto and flink data types.
