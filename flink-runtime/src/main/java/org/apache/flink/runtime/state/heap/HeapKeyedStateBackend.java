@@ -62,7 +62,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.RunnableFuture;
@@ -302,11 +301,6 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		snapshotStrategy.logSyncCompleted(streamFactory, startTime);
 		return snapshotRunner;
-	}
-
-	@SuppressWarnings("deprecation")
-	public void restore(Collection<KeyedStateHandle> restoredState) {
-		// all restore work done in builder and nothing to do here
 	}
 
 	@Override
