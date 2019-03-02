@@ -161,7 +161,10 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 	}
 
 	/**
-	 * Kafka09 specific RateLimiter test.
+	 * Kafka09 specific RateLimiter test. This test produces 100 bytes of data to a test topic
+	 * and then runs a job with {@link FlinkKafkaConsumer09} as the source and a {@link GuavaFlinkConnectorRateLimiter} with
+	 * a desired rate of 3 bytes / second. Based on the execution time, the test asserts that this rate was not surpassed.
+	 * If no rate limiter is set on the consumer, the test should fail.
 	 */
 	@Test(timeout = 60000)
 	public void testRateLimitedConsumer() throws Exception {
@@ -206,12 +209,12 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 		env.setParallelism(1);
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
-		FlinkKafkaConsumer09<String> consumer09 = new FlinkKafkaConsumer09<>(testTopic,
-			new StringDeserializer(), standardProps);
 
 		// ---------- RateLimiter config -------------
-		FlinkConnectorRateLimiter rateLimiter = new GuavaFlinkConnectorRateLimiter();
 		long globalRate = 3; // bytes/second
+		FlinkKafkaConsumer09<String> consumer09 = new FlinkKafkaConsumer09<>(testTopic,
+			new StringDeserializer(globalRate), standardProps);
+		FlinkConnectorRateLimiter rateLimiter = new GuavaFlinkConnectorRateLimiter();
 		rateLimiter.setRate(globalRate);
 		consumer09.setRateLimiter(rateLimiter);
 
@@ -230,10 +233,6 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 		Assert.assertNotNull(consumer09.getRateLimiter());
 		Assert.assertEquals(consumer09.getRateLimiter().getRate(), globalRate);
 
-		// Approximate bytes/second read based on job execution time.
-		long bytesPerSecond = 100 * 1000L / (endTime - startTime);
-		Assert.assertTrue(bytesPerSecond > 0);
-		Assert.assertTrue(bytesPerSecond <= globalRate);
 		deleteTestTopic(testTopic);
 	}
 
@@ -243,10 +242,15 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 		private final TypeInformation<String> ti;
 		private final TypeSerializer<String> ser;
 		long cnt = 0;
+		long startTime;
+		long endTime;
+		long globalRate;
 
-		public StringDeserializer() {
+		public StringDeserializer(long rate) {
 			this.ti = Types.STRING;
 			this.ser = ti.createSerializer(new ExecutionConfig());
+			this.startTime = System.currentTimeMillis();
+			this.globalRate = rate;
 		}
 
 		@Override
@@ -265,7 +269,15 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 
 		@Override
 		public boolean isEndOfStream(String nextElement) {
-			return cnt > 100L;
+			if (cnt > 100L) {
+				endTime = System.currentTimeMillis();
+				// Approximate bytes/second read based on job execution time.
+				long bytesPerSecond = 100 * 1000L / (endTime - startTime);
+				Assert.assertTrue(bytesPerSecond > 0);
+				Assert.assertTrue(bytesPerSecond <= globalRate);
+				return true;
+			}
+			return false;
 		}
 	}
 }

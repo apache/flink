@@ -21,6 +21,7 @@ package org.apache.flink.api.common.io.ratelimiting;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.RuntimeContext;
 
+import java.io.Serializable;
 /**
  * An interface to create a ratelimiter
  *
@@ -30,7 +31,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
  * */
 
 @PublicEvolving
-public interface FlinkConnectorRateLimiter {
+public interface FlinkConnectorRateLimiter extends Serializable {
 
 	/**
 	 * A method that can be used to create and configure a ratelimiter
