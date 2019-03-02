@@ -78,7 +78,6 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -447,11 +446,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		chosenSnapshotStrategy.logSyncCompleted(streamFactory, startTime);
 
 		return snapshotRunner;
-	}
-
-	@Override
-	public void restore(Collection<KeyedStateHandle> restoreState) {
-		// all restore work done in builder and nothing to do here
 	}
 
 	@Override
