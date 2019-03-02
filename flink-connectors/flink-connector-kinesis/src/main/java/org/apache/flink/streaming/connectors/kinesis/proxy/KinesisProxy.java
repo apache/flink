@@ -253,7 +253,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 					long backoffMillis = fullJitterBackoff(
 						getRecordsBaseBackoffMillis, getRecordsMaxBackoffMillis, getRecordsExpConstant, retryCount++);
 					LOG.warn("Got recoverable SdkClientException. Backing off for "
-						+ backoffMillis + " millis (" + ex.getMessage() + ")");
+						+ backoffMillis + " millis (" + ex.getClass().getName() + ": " + ex.getMessage() + ")");
 					Thread.sleep(backoffMillis);
 				} else {
 					throw ex;
@@ -262,8 +262,8 @@ public class KinesisProxy implements KinesisProxyInterface {
 		}
 
 		if (getRecordsResult == null) {
-			throw new RuntimeException("Rate Exceeded for getRecords operation - all " + getRecordsMaxRetries +
-				" retry attempts returned ProvisionedThroughputExceededException.");
+			throw new RuntimeException("Retries exceeded for getRecords operation - all " + getRecordsMaxRetries +
+				" retry attempts failed.");
 		}
 
 		return getRecordsResult;
@@ -328,7 +328,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 					long backoffMillis = fullJitterBackoff(
 						getShardIteratorBaseBackoffMillis, getShardIteratorMaxBackoffMillis, getShardIteratorExpConstant, retryCount++);
 					LOG.warn("Got recoverable AmazonServiceException. Backing off for "
-						+ backoffMillis + " millis (" + ex.getErrorMessage() + ")");
+						+ backoffMillis + " millis (" + ex.getClass().getName() + ": " + ex.getMessage() + ")");
 					Thread.sleep(backoffMillis);
 				} else {
 					throw ex;
@@ -337,8 +337,8 @@ public class KinesisProxy implements KinesisProxyInterface {
 		}
 
 		if (getShardIteratorResult == null) {
-			throw new RuntimeException("Rate Exceeded for getShardIterator operation - all " + getShardIteratorMaxRetries +
-				" retry attempts returned ProvisionedThroughputExceededException.");
+			throw new RuntimeException("Retries exceeded for getShardIterator operation - all " + getShardIteratorMaxRetries +
+				" retry attempts failed.");
 		}
 		return getShardIteratorResult.getShardIterator();
 	}
