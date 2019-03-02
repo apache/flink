@@ -36,7 +36,6 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
@@ -52,7 +51,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class AbstractKeyedStateBackend<K> implements
 	KeyedStateBackend<K>,
-	Snapshotable<SnapshotResult<KeyedStateHandle>, Collection<KeyedStateHandle>>,
+	SnapshotStrategy<SnapshotResult<KeyedStateHandle>>,
 	Closeable,
 	CheckpointListener {
 

@@ -55,7 +55,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -183,12 +182,6 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		@Nonnull CheckpointOptions checkpointOptions) {
 		return new FutureTask<>(() ->
 			SnapshotResult.of(new MockKeyedStateHandle<>(copy(stateValues, stateSnapshotFilters))));
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public void restore(Collection<KeyedStateHandle> state) {
-		// all restore work done in builder and nothing to do here
 	}
 
 	static <K> Map<String, Map<K, Map<Object, Object>>> copy(

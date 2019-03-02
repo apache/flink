@@ -39,7 +39,6 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.RunnableFuture;
@@ -246,13 +245,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	}
 
 	// -------------------------------------------------------------------------------------------
-	//  Snapshot and restore
+	//  Snapshot
 	// -------------------------------------------------------------------------------------------
-
-	public void restore(Collection<OperatorStateHandle> restoreSnapshots) throws Exception {
-		// all restore work done in builder and nothing to do here
-	}
-
 	@Nonnull
 	@Override
 	public RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot(
