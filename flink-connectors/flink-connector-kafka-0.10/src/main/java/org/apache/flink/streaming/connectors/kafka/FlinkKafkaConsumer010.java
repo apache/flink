@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.io.ratelimiting.FlinkConnectorRateLimiter;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -190,6 +191,12 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 		// this overwrites whatever setting the user configured in the properties
 		adjustAutoCommitConfig(properties, offsetCommitMode);
 
+		FlinkConnectorRateLimiter rateLimiter = super.getRateLimiter();
+		// If a rateLimiter is set, then call rateLimiter.open() with the runtime context.
+		if (rateLimiter != null) {
+			rateLimiter.open(runtimeContext);
+		}
+
 		return new Kafka010Fetcher<>(
 				sourceContext,
 				assignedPartitionsWithInitialOffsets,
@@ -204,7 +211,8 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 				pollTimeout,
 				runtimeContext.getMetricGroup(),
 				consumerMetricGroup,
-				useMetrics);
+				useMetrics,
+				rateLimiter);
 	}
 
 	@Override
