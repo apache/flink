@@ -156,7 +156,10 @@ public class StreamTaskStateInitializerImplTest {
 
 			@Override
 			public OperatorStateBackend createOperatorStateBackend(
-				Environment env, String operatorIdentifier) throws Exception {
+				Environment env,
+				String operatorIdentifier,
+				@Nonnull Collection<OperatorStateHandle> stateHandles,
+				CloseableRegistry cancelStreamRegistry) throws Exception {
 				return mock(OperatorStateBackend.class);
 			}
 		});

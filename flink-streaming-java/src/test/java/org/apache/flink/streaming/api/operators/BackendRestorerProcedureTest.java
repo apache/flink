@@ -26,7 +26,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
+import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -59,10 +59,12 @@ import static org.powermock.api.mockito.PowerMockito.when;
 public class BackendRestorerProcedureTest extends TestLogger {
 
 	private final FunctionWithException<Collection<OperatorStateHandle>, OperatorStateBackend, Exception> backendSupplier =
-		(stateHandles) -> new DefaultOperatorStateBackend(
+		(stateHandles) -> new DefaultOperatorStateBackendBuilder(
 			getClass().getClassLoader(),
 			new ExecutionConfig(),
-			true);
+			true,
+			stateHandles,
+			new CloseableRegistry()).build();
 
 	/**
 	 * Tests that the restore procedure follows the order of the iterator and will retries failed attempts if there are
@@ -75,7 +77,7 @@ public class BackendRestorerProcedureTest extends TestLogger {
 		CheckpointStreamFactory checkpointStreamFactory = new MemCheckpointStreamFactory(1024);
 
 		ListStateDescriptor<Integer> stateDescriptor = new ListStateDescriptor<>("test-state", Integer.class);
-		OperatorStateBackend originalBackend = backendSupplier.apply(null);
+		OperatorStateBackend originalBackend = backendSupplier.apply(Collections.emptyList());
 		SnapshotResult<OperatorStateHandle> snapshotResult;
 
 		try {
