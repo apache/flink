@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.Preconditions;
 
@@ -81,8 +82,11 @@ public class TestSpyWrapperStateBackend extends AbstractStateBackend {
 
 		@Override
 		public OperatorStateBackend createOperatorStateBackend(
-			Environment env, String operatorIdentifier) throws Exception {
-			return spy(delegate.createOperatorStateBackend(env, operatorIdentifier));
+			Environment env,
+			String operatorIdentifier,
+			@Nonnull Collection<OperatorStateHandle> stateHandles,
+			CloseableRegistry cancelStreamRegistry) throws Exception {
+			return spy(delegate.createOperatorStateBackend(env, operatorIdentifier, stateHandles, cancelStreamRegistry));
 		}
 
 	@Override

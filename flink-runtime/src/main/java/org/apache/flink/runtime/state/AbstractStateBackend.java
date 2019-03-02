@@ -71,6 +71,8 @@ public abstract class AbstractStateBackend implements StateBackend, java.io.Seri
 
 	@Override
 	public abstract OperatorStateBackend createOperatorStateBackend(
-			Environment env,
-			String operatorIdentifier) throws Exception;
+		Environment env,
+		String operatorIdentifier,
+		@Nonnull Collection<OperatorStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) throws Exception;
 }

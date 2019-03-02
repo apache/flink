@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
@@ -96,7 +97,11 @@ final class StubStateBackend implements StateBackend {
 	}
 
 	@Override
-	public OperatorStateBackend createOperatorStateBackend(Environment env, String operatorIdentifier) throws Exception {
-		return backend.createOperatorStateBackend(env, operatorIdentifier);
+	public OperatorStateBackend createOperatorStateBackend(
+		Environment env,
+		String operatorIdentifier,
+		@Nonnull Collection<OperatorStateHandle> stateHandles,
+		CloseableRegistry cancelStreamRegistry) throws Exception {
+		return backend.createOperatorStateBackend(env, operatorIdentifier, stateHandles, cancelStreamRegistry);
 	}
 }
