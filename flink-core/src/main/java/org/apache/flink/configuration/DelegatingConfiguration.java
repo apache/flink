@@ -245,6 +245,11 @@ public final class DelegatingConfiguration extends Configuration {
 	}
 
 	@Override
+	public <T extends Enum<T>> T getEnum(final Class<T> enumClass, final ConfigOption<String> configOption) {
+		return this.backingConfig.getEnum(enumClass, prefixOption(configOption, prefix));
+	}
+
+	@Override
 	public void addAllToProperties(Properties props) {
 		// only add keys with our prefix
 		synchronized (backingConfig.confData) {

@@ -23,10 +23,12 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -402,5 +404,57 @@ public class ConfigurationTest extends TestLogger {
 		assertTrue("Expected 'existedOption' is removed", cfg.removeConfig(deprecatedOption));
 		assertEquals("Wrong expectation about size", cfg.keySet().size(), 0);
 		assertFalse("Expected 'unexistedOption' is not removed", cfg.removeConfig(unexistedOption));
+	}
+
+	@Test
+	public void testShouldParseValidStringToEnum() {
+		final ConfigOption<String> configOption = createStringConfigOption();
+
+		final Configuration configuration = new Configuration();
+		configuration.setString(configOption.key(), TestEnum.VALUE1.toString());
+
+		final TestEnum parsedEnumValue = configuration.getEnum(TestEnum.class, configOption);
+		assertEquals(TestEnum.VALUE1, parsedEnumValue);
+	}
+
+	@Test
+	public void testShouldParseValidStringToEnumIgnoringCase() {
+		final ConfigOption<String> configOption = createStringConfigOption();
+
+		final Configuration configuration = new Configuration();
+		configuration.setString(configOption.key(), TestEnum.VALUE1.toString().toLowerCase());
+
+		final TestEnum parsedEnumValue = configuration.getEnum(TestEnum.class, configOption);
+		assertEquals(TestEnum.VALUE1, parsedEnumValue);
+	}
+
+	@Test
+	public void testThrowsExceptionIfTryingToParseInvalidStringForEnum() {
+		final ConfigOption<String> configOption = createStringConfigOption();
+
+		final Configuration configuration = new Configuration();
+		final String invalidValueForTestEnum = "InvalidValueForTestEnum";
+		configuration.setString(configOption.key(), invalidValueForTestEnum);
+
+		try {
+			configuration.getEnum(TestEnum.class, configOption);
+			fail("Expected exception not thrown");
+		} catch (IllegalArgumentException e) {
+			final String expectedMessage = "Value for config option " +
+				configOption.key() + " must be one of [VALUE1, VALUE2] (was " +
+				invalidValueForTestEnum + ")";
+			assertThat(e.getMessage(), containsString(expectedMessage));
+		}
+	}
+
+	enum TestEnum {
+		VALUE1,
+		VALUE2
+	}
+
+	private static ConfigOption<String> createStringConfigOption() {
+		return ConfigOptions
+			.key("test-string-key")
+			.noDefaultValue();
 	}
 }
