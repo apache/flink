@@ -23,8 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.8-SNAPSHOT</version>
-		<relativePath>..</relativePath>
+		<version>1.9-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-gcs-fs-hadoop</artifactId>
