@@ -91,7 +91,7 @@ class FlinkPlannerImpl(
       sqlNode
     } catch {
       case e: CSqlParseException =>
-        throw SqlParserException(s"SQL parse failed. ${e.getMessage}", e)
+        throw new SqlParserException(s"SQL parse failed. ${e.getMessage}", e)
     }
   }
 
@@ -154,7 +154,7 @@ class FlinkPlannerImpl(
       }
       catch {
         case e: CSqlParseException =>
-          throw SqlParserException(s"SQL parse failed. ${e.getMessage}", e)
+          throw new SqlParserException(s"SQL parse failed. ${e.getMessage}", e)
       }
       val catalogReader: CalciteCatalogReader = createCatalogReader(false)
         .withSchemaPath(schemaPath)
