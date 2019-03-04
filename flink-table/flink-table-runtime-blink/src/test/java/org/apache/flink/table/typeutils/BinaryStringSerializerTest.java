@@ -19,8 +19,6 @@
 package org.apache.flink.table.typeutils;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.table.dataformat.BinaryString;
 
 import java.util.Arrays;

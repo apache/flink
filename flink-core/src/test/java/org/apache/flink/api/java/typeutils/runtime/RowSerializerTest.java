@@ -142,6 +142,7 @@ public class RowSerializerTest {
 		return row;
 	}
 
+
 	private class RowSerializerTestInstance extends SerializerTestInstance<Row> {
 
 		RowSerializerTestInstance(

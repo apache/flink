@@ -23,8 +23,6 @@ import org.apache.flink.table.dataformat.BinaryArray;
 import org.apache.flink.table.dataformat.BinaryArrayWriter;
 import org.apache.flink.table.dataformat.BinaryString;
 
-import java.util.Arrays;
-
 /**
  * A test for the {@link BinaryArraySerializer}.
  */
