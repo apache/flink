@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.rules.physical.stream
 
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.logical.FlinkLogicalNativeTableScan
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalDataStreamTableScan
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecDataStreamScan
 import org.apache.flink.table.plan.schema.DataStreamTable
 
@@ -29,19 +29,19 @@ import org.apache.calcite.rel.convert.ConverterRule
 
 class StreamExecScanRule
   extends ConverterRule(
-    classOf[FlinkLogicalNativeTableScan],
+    classOf[FlinkLogicalDataStreamTableScan],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
     "StreamExecScanRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val scan: FlinkLogicalNativeTableScan = call.rel(0)
+    val scan: FlinkLogicalDataStreamTableScan = call.rel(0)
     val dataStreamTable = scan.getTable.unwrap(classOf[DataStreamTable[Any]])
     dataStreamTable != null
   }
 
   def convert(rel: RelNode): RelNode = {
-    val scan: FlinkLogicalNativeTableScan = rel.asInstanceOf[FlinkLogicalNativeTableScan]
+    val scan: FlinkLogicalDataStreamTableScan = rel.asInstanceOf[FlinkLogicalDataStreamTableScan]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
 
     new StreamExecDataStreamScan(

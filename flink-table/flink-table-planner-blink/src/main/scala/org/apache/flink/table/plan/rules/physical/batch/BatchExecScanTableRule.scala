@@ -22,13 +22,13 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.logical.FlinkLogicalNativeTableScan
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalDataStreamTableScan
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecBoundedStreamScan
 import org.apache.flink.table.plan.schema.DataStreamTable
 
 class BatchExecScanTableRule
   extends ConverterRule(
-    classOf[FlinkLogicalNativeTableScan],
+    classOf[FlinkLogicalDataStreamTableScan],
     FlinkConventions.LOGICAL,
     FlinkConventions.BATCH_PHYSICAL,
     "BatchExecScanTableRule") {
@@ -37,13 +37,13 @@ class BatchExecScanTableRule
     * If the input is not a DataStreamTable, we want the TableScanRule to match instead
     */
   override def matches(call: RelOptRuleCall): Boolean = {
-    val scan: FlinkLogicalNativeTableScan = call.rel(0)
+    val scan: FlinkLogicalDataStreamTableScan = call.rel(0)
     val dataStreamTable = scan.getTable.unwrap(classOf[DataStreamTable[Any]])
     dataStreamTable != null
   }
 
   def convert(rel: RelNode): RelNode = {
-    val scan = rel.asInstanceOf[FlinkLogicalNativeTableScan]
+    val scan = rel.asInstanceOf[FlinkLogicalDataStreamTableScan]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     new BatchExecBoundedStreamScan(rel.getCluster, newTrait, scan.getTable, rel.getRowType)
   }

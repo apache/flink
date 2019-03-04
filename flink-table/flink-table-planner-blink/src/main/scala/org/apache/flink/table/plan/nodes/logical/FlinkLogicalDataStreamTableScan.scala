@@ -21,27 +21,24 @@ package org.apache.flink.table.plan.nodes.logical
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.schema.DataStreamTable
 
-import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
-import org.apache.calcite.schema.Table
 
 import java.util
-import java.util.function.Supplier
 
-class FlinkLogicalNativeTableScan(
+class FlinkLogicalDataStreamTableScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable)
   extends TableScan(cluster, traitSet, table)
-    with FlinkLogicalRel {
+  with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new FlinkLogicalNativeTableScan(cluster, traitSet, getTable)
+    new FlinkLogicalDataStreamTableScan(cluster, traitSet, getTable)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
@@ -51,46 +48,30 @@ class FlinkLogicalNativeTableScan(
   }
 }
 
-class FlinkLogicalNativeTableScanConverter
+class FlinkLogicalDataStreamTableScanConverter
   extends ConverterRule(
     classOf[LogicalTableScan],
     Convention.NONE,
     FlinkConventions.LOGICAL,
-    "FlinkLogicalNativeTableScanConverter") {
+    "FlinkLogicalDataStreamTableScanConverter") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: TableScan = call.rel(0)
-    FlinkLogicalNativeTableScan.isLogicalNativeTableScan(scan)
-  }
-
-  def convert(rel: RelNode): RelNode = {
-    val scan = rel.asInstanceOf[TableScan]
-    FlinkLogicalNativeTableScan.create(rel.getCluster, scan.getTable)
-  }
-}
-
-object FlinkLogicalNativeTableScan {
-  val CONVERTER = new FlinkLogicalNativeTableScanConverter
-
-  def isLogicalNativeTableScan(scan: TableScan): Boolean = {
     val dataStreamTable = scan.getTable.unwrap(classOf[DataStreamTable[_]])
     dataStreamTable != null
   }
 
-  def create(cluster: RelOptCluster, relOptTable: RelOptTable): FlinkLogicalNativeTableScan = {
-    val table = relOptTable.unwrap(classOf[Table])
-    val traitSet = cluster.traitSetOf(Convention.NONE).replaceIfs(
-      RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
-        def get: util.List[RelCollation] = {
-          if (table != null) {
-            table.getStatistic.getCollations
-          } else {
-            ImmutableList.of[RelCollation]
-          }
-        }
-      })
-    val scan = new FlinkLogicalNativeTableScan(cluster, traitSet, relOptTable)
-    val newTraitSet = scan.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
-    scan.copy(newTraitSet, scan.getInputs).asInstanceOf[FlinkLogicalNativeTableScan]
+  def convert(rel: RelNode): RelNode = {
+    val scan = rel.asInstanceOf[TableScan]
+    val traitSet = rel.getTraitSet.replace(FlinkConventions.LOGICAL)
+    new FlinkLogicalDataStreamTableScan(
+      rel.getCluster,
+      traitSet,
+      scan.getTable
+    )
   }
+}
+
+object FlinkLogicalDataStreamTableScan {
+  val CONVERTER = new FlinkLogicalDataStreamTableScanConverter
 }
