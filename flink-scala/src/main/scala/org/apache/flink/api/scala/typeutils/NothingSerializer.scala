@@ -18,7 +18,7 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.{CompatibilityResult, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.api.common.typeutils._
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 /**
@@ -56,8 +56,8 @@ class NothingSerializer extends TypeSerializer[Any] {
   override def deserialize(reuse: Any, source: DataInputView): Any =
     throw new RuntimeException("This must not be used. You encountered a bug.")
 
-  override def snapshotConfiguration(): TypeSerializerConfigSnapshot[Any] =
-    throw new RuntimeException("This must not be used. You encountered a bug.")
+  override def snapshotConfiguration(): TypeSerializerSnapshot[Any] =
+    new NothingSerializerSnapshot
 
   override def ensureCompatibility(
       configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[Any] =
@@ -77,4 +77,8 @@ class NothingSerializer extends TypeSerializer[Any] {
   override def hashCode(): Int = {
     classOf[NothingSerializer].hashCode()
   }
+}
+
+class NothingSerializerSnapshot
+  extends SimpleTypeSerializerSnapshot[Any](classOf[NothingSerializer]) {
 }
