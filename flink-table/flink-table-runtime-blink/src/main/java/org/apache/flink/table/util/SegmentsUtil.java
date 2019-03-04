@@ -18,8 +18,10 @@
 package org.apache.flink.table.util;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 
+import java.io.IOException;
 import java.nio.ByteOrder;
 
 /**
@@ -807,5 +809,43 @@ public class SegmentsUtil {
 			segOffset = 0;
 		}
 		segment.put(segOffset, (byte) (LITTLE_ENDIAN ? b2 : b1));
+	}
+
+	/**
+	 * Serialize segments to output view with offset and size.
+	 * Note: It just copies the data in, not include the length.
+	 *
+	 * @param segments source segments
+	 * @param offset offset for segments
+	 * @param sizeInBytes size in bytes
+	 * @param target target output view
+	 */
+	public static void serializeToView(MemorySegment[] segments, int offset,
+			int sizeInBytes, DataOutputView target) throws IOException {
+		for (MemorySegment sourceSegment : segments) {
+			int curSegRemain = sourceSegment.size() - offset;
+			if (curSegRemain > 0) {
+				int copySize = Math.min(curSegRemain, sizeInBytes);
+
+				// TODO after FLINK-11724
+				byte[] bytes = new byte[copySize];
+				sourceSegment.get(offset, bytes);
+				target.write(bytes);
+
+				sizeInBytes -= copySize;
+				offset = 0;
+			} else {
+				offset -= sourceSegment.size();
+			}
+
+			if (sizeInBytes == 0) {
+				return;
+			}
+		}
+
+		if (sizeInBytes != 0) {
+			throw new RuntimeException("No copy finished, this should be a bug, " +
+					"The remaining length is: " + sizeInBytes);
+		}
 	}
 }

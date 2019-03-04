@@ -72,6 +72,16 @@ public class BinaryMap extends BinaryFormat {
 		return values;
 	}
 
+	public BinaryMap copy() {
+		return copy(new BinaryMap());
+	}
+
+	public BinaryMap copy(BinaryMap reuse) {
+		byte[] bytes = SegmentsUtil.copyToBytes(segments, offset, sizeInBytes);
+		reuse.pointTo(MemorySegmentFactory.wrap(bytes), 0, sizeInBytes);
+		return reuse;
+	}
+
 	public static BinaryMap valueOf(BinaryArray key, BinaryArray value) {
 		checkArgument(key.getSegments().length == 1 && value.getSegments().length == 1);
 		byte[] bytes = new byte[4 + key.getSizeInBytes() + value.getSizeInBytes()];

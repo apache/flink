@@ -29,6 +29,10 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.table.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.typeutils.BinaryArrayTypeInfo;
+import org.apache.flink.table.typeutils.BinaryMapTypeInfo;
+import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -41,7 +45,8 @@ import java.util.stream.Stream;
  */
 public class TypeConverters {
 
-	public static final Map<TypeInformation, InternalType> TYPE_INFO_TO_INTERNAL_TYPE;
+	private static final Map<TypeInformation, InternalType> TYPE_INFO_TO_INTERNAL_TYPE;
+	private static final Map<InternalType, TypeInformation> INTERNAL_TYPE_TO_INTERNAL_TYPE_INFO;
 	static {
 		Map<TypeInformation, InternalType> tiToType = new HashMap<>();
 		tiToType.put(BasicTypeInfo.STRING_TYPE_INFO, InternalTypes.STRING);
@@ -62,7 +67,26 @@ public class TypeConverters {
 		// Decimal(38, 18). If the user's BigDecimal is more precision than this, we will
 		// throw Exception to remind user to use GenericType in real data conversion.
 		tiToType.put(BasicTypeInfo.BIG_DEC_TYPE_INFO, InternalTypes.SYSTEM_DEFAULT_DECIMAL);
+
+		// Internal type info
+		tiToType.put(BinaryStringTypeInfo.INSTANCE, InternalTypes.STRING);
+
 		TYPE_INFO_TO_INTERNAL_TYPE = Collections.unmodifiableMap(tiToType);
+
+		Map<InternalType, TypeInformation> internalTypeToInfo = new HashMap<>();
+		internalTypeToInfo.put(InternalTypes.STRING, BinaryStringTypeInfo.INSTANCE);
+		internalTypeToInfo.put(InternalTypes.BOOLEAN, BasicTypeInfo.BOOLEAN_TYPE_INFO);
+		internalTypeToInfo.put(InternalTypes.DOUBLE, BasicTypeInfo.DOUBLE_TYPE_INFO);
+		internalTypeToInfo.put(InternalTypes.FLOAT, BasicTypeInfo.FLOAT_TYPE_INFO);
+		internalTypeToInfo.put(InternalTypes.BYTE, BasicTypeInfo.BYTE_TYPE_INFO);
+		internalTypeToInfo.put(InternalTypes.INT, BasicTypeInfo.INT_TYPE_INFO);
+		internalTypeToInfo.put(InternalTypes.LONG, BasicTypeInfo.LONG_TYPE_INFO);
+		internalTypeToInfo.put(InternalTypes.SHORT, BasicTypeInfo.SHORT_TYPE_INFO);
+		internalTypeToInfo.put(InternalTypes.CHAR, BasicTypeInfo.CHAR_TYPE_INFO);
+		internalTypeToInfo.put(InternalTypes.DATE, BasicTypeInfo.INT_TYPE_INFO);
+		internalTypeToInfo.put(InternalTypes.TIMESTAMP, BasicTypeInfo.LONG_TYPE_INFO);
+		internalTypeToInfo.put(InternalTypes.TIME, BasicTypeInfo.INT_TYPE_INFO);
+		INTERNAL_TYPE_TO_INTERNAL_TYPE_INFO = Collections.unmodifiableMap(internalTypeToInfo);
 	}
 
 	/**
@@ -110,8 +134,43 @@ public class TypeConverters {
 			return InternalTypes.createMapType(
 					createInternalTypeFromTypeInfo(mapType.getKeyTypeInfo()),
 					createInternalTypeFromTypeInfo(mapType.getValueTypeInfo()));
+		} else if (typeInfo instanceof BinaryMapTypeInfo) {
+			BinaryMapTypeInfo mapType = (BinaryMapTypeInfo) typeInfo;
+			return InternalTypes.createMapType(
+					mapType.getKeyType(), mapType.getValueType());
+		} else if (typeInfo instanceof BinaryArrayTypeInfo) {
+			BinaryArrayTypeInfo arrayType = (BinaryArrayTypeInfo) typeInfo;
+			return InternalTypes.createArrayType(arrayType.getElementType());
 		} else {
 			return InternalTypes.createGenericType(typeInfo);
+		}
+	}
+
+	/**
+	 * Create a internal {@link TypeInformation} from a {@link InternalType}.
+	 *
+	 * <p>eg:
+	 * {@link InternalTypes#STRING} => {@link BinaryStringTypeInfo}.
+	 * {@link RowType} => {@link BaseRowTypeInfo}.
+	 */
+	public static TypeInformation createInternalTypeInfoFromInternalType(InternalType type) {
+		TypeInformation typeInfo = INTERNAL_TYPE_TO_INTERNAL_TYPE_INFO.get(type);
+		if (typeInfo != null) {
+			return typeInfo;
+		}
+
+		if (type instanceof RowType) {
+			RowType rowType = (RowType) type;
+			return new BaseRowTypeInfo(rowType.getFieldTypes(), rowType.getFieldNames()
+			);
+		} else if (type instanceof ArrayType) {
+			return new BinaryArrayTypeInfo(((ArrayType) type).getElementType());
+		} else if (type instanceof MapType) {
+			MapType mapType = (MapType) type;
+			return new BinaryMapTypeInfo(mapType.getKeyType(), mapType.getValueType());
+		} else {
+			// TODO support decimal and generic type.
+			throw new UnsupportedOperationException("Not support yet!");
 		}
 	}
 }
