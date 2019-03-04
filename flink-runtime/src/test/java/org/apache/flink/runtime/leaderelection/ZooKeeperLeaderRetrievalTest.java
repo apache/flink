@@ -197,7 +197,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 	 */
 	@Test
 	public void testTimeoutOfFindConnectingAddress() throws Exception {
-		FiniteDuration timeout = new FiniteDuration(10L, TimeUnit.SECONDS);
+		FiniteDuration timeout = new FiniteDuration(1L, TimeUnit.SECONDS);
 
 		LeaderRetrievalService leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID);
 		InetAddress result = LeaderRetrievalUtils.findConnectingAddress(leaderRetrievalService, timeout);
