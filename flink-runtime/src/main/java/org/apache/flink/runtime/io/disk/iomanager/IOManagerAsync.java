@@ -42,10 +42,10 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 	/** The reader threads used for asynchronous block oriented channel reading. */
 	private final ReaderThread[] readers;
 
-	/** Flag to signify that the IOManager has been shut down already */
+	/** Flag to signify that the IOManager has been shut down already. */
 	private final AtomicBoolean isShutdown = new AtomicBoolean();
 
-	/** Shutdown hook to make sure that the directories are removed on exit */
+	/** Shutdown hook to make sure that the directories are removed on exit. */
 	private final Thread shutdownHook;
 
 	
@@ -494,5 +494,5 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 			} // end while alive
 		}
 		
-	}; // end writer thread
+	} // end writer thread
 }
