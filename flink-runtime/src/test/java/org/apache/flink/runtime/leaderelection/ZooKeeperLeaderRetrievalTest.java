@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.test.TestingServer;
-
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.blob.VoidBlobStore;
@@ -35,11 +32,11 @@ import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.test.TestingServer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -50,8 +47,13 @@ import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
 
+import scala.concurrent.duration.FiniteDuration;
+
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for the ZooKeeper based leader election and retrieval.
+ */
 public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 	private TestingServer testingServer;
@@ -79,7 +81,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 	@After
 	public void after() throws Exception {
-		if(testingServer != null) {
+		if (testingServer != null) {
 			testingServer.stop();
 
 			testingServer = null;
