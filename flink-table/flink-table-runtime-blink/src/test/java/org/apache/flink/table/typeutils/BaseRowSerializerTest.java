@@ -24,10 +24,13 @@ import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryArray;
 import org.apache.flink.table.dataformat.BinaryArrayWriter;
 import org.apache.flink.table.dataformat.BinaryMap;
+import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.type.InternalTypes;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -43,11 +46,16 @@ import static org.junit.Assert.assertEquals;
 @RunWith(Parameterized.class)
 public class BaseRowSerializerTest extends SerializerTestInstance<BaseRow> {
 
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
+
 	private final BaseRowSerializer serializer;
+	private final BaseRow[] testData;
 
 	public BaseRowSerializerTest(BaseRowSerializer serializer, BaseRow[] testData) {
 		super(serializer, BaseRow.class, -1, testData);
 		this.serializer = serializer;
+		this.testData = testData;
 	}
 
 	@Parameterized.Parameters
@@ -167,6 +175,10 @@ public class BaseRowSerializerTest extends SerializerTestInstance<BaseRow> {
 		assertEquals(serializer.baseRowToBinary(should), serializer.baseRowToBinary(is));
 	}
 
+	private void deepEquals(BaseRow should, BaseRow is) {
+		deepEquals("", should, is);
+	}
+
 	/**
 	 * Override testDuplicate, Because it uses Object equals, deserialize BaseRow to BinaryRow,
 	 * which cannot be directly equals.
@@ -175,4 +187,43 @@ public class BaseRowSerializerTest extends SerializerTestInstance<BaseRow> {
 	@Test
 	@Override
 	public void testDuplicate() throws Exception {}
+
+	@Test
+	public void testCopy() {
+		for (BaseRow row : testData) {
+			deepEquals(row, serializer.copy(row));
+		}
+
+		for (BaseRow row : testData) {
+			deepEquals(row, serializer.copy(row, new GenericRow(row.getArity())));
+		}
+
+		for (BaseRow row : testData) {
+			deepEquals(row, serializer.copy(serializer.baseRowToBinary(row),
+					new GenericRow(row.getArity())));
+		}
+
+		for (BaseRow row : testData) {
+			deepEquals(row, serializer.copy(serializer.baseRowToBinary(row)));
+		}
+
+		for (BaseRow row : testData) {
+			deepEquals(row, serializer.copy(serializer.baseRowToBinary(row),
+					new BinaryRow(row.getArity())));
+		}
+	}
+
+	@Test
+	public void testWrongCopy() {
+		thrown.expect(IllegalArgumentException.class);
+		serializer.copy(new GenericRow(serializer.getArity() + 1));
+	}
+
+	@Test
+	public void testWrongCopyReuse() {
+		thrown.expect(IllegalArgumentException.class);
+		for (BaseRow row : testData) {
+			deepEquals(row, serializer.copy(row, new GenericRow(row.getArity() + 1)));
+		}
+	}
 }

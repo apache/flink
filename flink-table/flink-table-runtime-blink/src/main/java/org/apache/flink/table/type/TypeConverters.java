@@ -161,8 +161,7 @@ public class TypeConverters {
 
 		if (type instanceof RowType) {
 			RowType rowType = (RowType) type;
-			return new BaseRowTypeInfo(rowType.getFieldTypes(), rowType.getFieldNames()
-			);
+			return new BaseRowTypeInfo(rowType.getFieldTypes(), rowType.getFieldNames());
 		} else if (type instanceof ArrayType) {
 			return new BinaryArrayTypeInfo(((ArrayType) type).getElementType());
 		} else if (type instanceof MapType) {

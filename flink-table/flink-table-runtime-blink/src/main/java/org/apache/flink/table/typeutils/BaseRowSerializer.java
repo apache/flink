@@ -29,11 +29,8 @@ import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryArray;
-import org.apache.flink.table.dataformat.BinaryMap;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowWriter;
-import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.BinaryWriter;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
@@ -66,6 +63,10 @@ public class BaseRowSerializer extends TypeSerializer<BaseRow> {
 		this.binarySerializer = new BinaryRowSerializer(types.length);
 	}
 
+	public int getArity() {
+		return types.length;
+	}
+
 	@Override
 	public TypeSerializer<BaseRow> duplicate() {
 		return new BaseRowSerializer(types, fieldSerializers);
@@ -92,17 +93,21 @@ public class BaseRowSerializer extends TypeSerializer<BaseRow> {
 
 	@Override
 	public BaseRow copy(BaseRow from, BaseRow reuse) {
-		if (from.getArity() != types.length) {
+		if (from.getArity() != types.length || reuse.getArity() != types.length) {
 			throw new IllegalArgumentException("Row arity: " + from.getArity() +
+					", Ruese Row arity: " + reuse.getArity() +
 					", but serializer arity: " + types.length);
 		}
 		if (from instanceof BinaryRow) {
-			return ((BinaryRow) from).copy(reuse);
+			return reuse instanceof BinaryRow ?
+					((BinaryRow) from).copy((BinaryRow) reuse) :
+					((BinaryRow) from).copy();
 		} else {
 			return copyBaseRow(from, reuse);
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	private BaseRow copyBaseRow(BaseRow from, BaseRow reuse) {
 		GenericRow ret;
 		if (reuse instanceof GenericRow) {
@@ -113,7 +118,7 @@ public class BaseRowSerializer extends TypeSerializer<BaseRow> {
 		ret.setHeader(from.getHeader());
 		for (int i = 0; i < from.getArity(); i++) {
 			if (!from.isNullAt(i)) {
-				ret.setField(i, copyValueNotNull(TypeGetterSetters.get(from, i, types[i]), i));
+				ret.setField(i, fieldSerializers[i].copy((TypeGetterSetters.get(from, i, types[i]))));
 			} else {
 				ret.setNullAt(i);
 			}
@@ -121,24 +126,9 @@ public class BaseRowSerializer extends TypeSerializer<BaseRow> {
 		return ret;
 	}
 
-	@SuppressWarnings("unchecked")
-	private Object copyValueNotNull(Object o, int index) {
-		if (o instanceof BinaryString) {
-			return ((BinaryString) o).copy();
-		} else if (o instanceof BinaryArray) {
-			return ((BinaryArray) o).copy();
-		} else if (o instanceof BinaryMap) {
-			return ((BinaryMap) o).copy();
-		} else {
-			return fieldSerializers[index].copy(o);
-		}
-	}
-
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		int length = source.readInt();
-		target.writeInt(length);
-		target.write(source, length);
+		binarySerializer.copy(source, target);
 	}
 
 	/**
