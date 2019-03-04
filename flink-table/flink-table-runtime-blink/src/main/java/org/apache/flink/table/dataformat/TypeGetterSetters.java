@@ -17,6 +17,11 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.table.type.ArrayType;
+import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.type.MapType;
+
 /**
  * Provide type specialized getters and setters to reduce if/else and eliminate box and unbox.
  *
@@ -135,4 +140,38 @@ public interface TypeGetterSetters {
 	 * Set char value.
 	 */
 	void setChar(int ordinal, char value);
+
+	static Object get(TypeGetterSetters row, int ordinal, InternalType type) {
+		if (type.equals(InternalTypes.BOOLEAN)) {
+			return row.getBoolean(ordinal);
+		} else if (type.equals(InternalTypes.BYTE)) {
+			return row.getByte(ordinal);
+		} else if (type.equals(InternalTypes.SHORT)) {
+			return row.getShort(ordinal);
+		} else if (type.equals(InternalTypes.INT)) {
+			return row.getInt(ordinal);
+		} else if (type.equals(InternalTypes.LONG)) {
+			return row.getLong(ordinal);
+		} else if (type.equals(InternalTypes.FLOAT)) {
+			return row.getFloat(ordinal);
+		} else if (type.equals(InternalTypes.DOUBLE)) {
+			return row.getDouble(ordinal);
+		} else if (type.equals(InternalTypes.STRING)) {
+			return row.getString(ordinal);
+		} else if (type.equals(InternalTypes.CHAR)) {
+			return row.getChar(ordinal);
+		} else if (type.equals(InternalTypes.DATE)) {
+			return row.getInt(ordinal);
+		} else if (type.equals(InternalTypes.TIME)) {
+			return row.getInt(ordinal);
+		} else if (type.equals(InternalTypes.TIMESTAMP)) {
+			return row.getLong(ordinal);
+		} else if (type instanceof ArrayType) {
+			return row.getArray(ordinal);
+		} else if (type instanceof MapType) {
+			return row.getMap(ordinal);
+		} else {
+			throw new RuntimeException("Not support type: " + type);
+		}
+	}
 }

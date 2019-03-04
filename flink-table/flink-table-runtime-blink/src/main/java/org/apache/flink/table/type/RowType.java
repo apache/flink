@@ -46,7 +46,7 @@ public class RowType implements InternalType {
 		}
 	}
 
-	private static String[] generateDefaultFieldNames(int length) {
+	public static String[] generateDefaultFieldNames(int length) {
 		String[] fieldNames = new String[length];
 		for (int i = 0; i < length; i++) {
 			fieldNames[i] = "f" + i;
