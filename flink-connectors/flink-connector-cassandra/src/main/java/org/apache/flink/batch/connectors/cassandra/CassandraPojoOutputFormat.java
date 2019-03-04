@@ -68,6 +68,12 @@ public class CassandraPojoOutputFormat<OUT> extends RichOutputFormat<OUT> {
 		this.outputClass = outputClass;
 	}
 
+	public CassandraPojoOutputFormat(ClusterBuilder builder, Class<OUT> outputClass, MapperOptions mapperOptions, FutureCallback<Void> customCallback) {
+		this(builder, outputClass, mapperOptions);
+		Preconditions.checkNotNull(customCallback, "Callback cannot be null");
+		this.callback = customCallback;
+	}
+
 	@Override
 	public void configure(Configuration parameters) {
 		this.cluster = builder.getCluster();
@@ -89,17 +95,19 @@ public class CassandraPojoOutputFormat<OUT> extends RichOutputFormat<OUT> {
 				mapper.setDefaultSaveOptions(optionsArray);
 			}
 		}
-		this.callback = new FutureCallback<Void>() {
-			@Override
-			public void onSuccess(Void ignored) {
-				onWriteSuccess();
-			}
+		if (this.callback == null) {
+			this.callback = new FutureCallback<Void>() {
+				@Override
+				public void onSuccess(Void ignored) {
+					onWriteSuccess();
+				}
 
-			@Override
-			public void onFailure(Throwable t) {
-				onWriteFailure(t);
-			}
-		};
+				@Override
+				public void onFailure(Throwable t) {
+					onWriteFailure(t);
+				}
+			};
+		}
 	}
 
 	@Override
