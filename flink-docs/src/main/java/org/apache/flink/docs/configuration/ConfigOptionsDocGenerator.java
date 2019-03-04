@@ -202,7 +202,7 @@ public class ConfigOptionsDocGenerator {
 			List<OptionWithMetaInfo> configOptions = new ArrayList<>(8);
 			Field[] fields = clazz.getFields();
 			for (Field field : fields) {
-				if (field.getType().equals(ConfigOption.class) && field.getAnnotation(Deprecated.class) == null) {
+				if (isConfigOption(field) && shouldBeDocumented(field)) {
 					configOptions.add(new OptionWithMetaInfo((ConfigOption<?>) field.get(null), field));
 				}
 			}
@@ -211,6 +211,15 @@ public class ConfigOptionsDocGenerator {
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to extract config options from class " + clazz + '.', e);
 		}
+	}
+
+	private static boolean isConfigOption(Field field) {
+		return field.getType().equals(ConfigOption.class);
+	}
+
+	private static boolean shouldBeDocumented(Field field) {
+		return field.getAnnotation(Deprecated.class) == null &&
+			field.getAnnotation(Documentation.ExcludeFromDocumentation.class) == null;
 	}
 
 	/**
@@ -323,11 +332,20 @@ public class ConfigOptionsDocGenerator {
 
 		private Node findGroupRoot(String key) {
 			String[] keyComponents = key.split("\\.");
+			Node lastRootNode = root;
 			Node currentNode = root;
 			for (String keyComponent : keyComponents) {
-				currentNode = currentNode.findChild(keyComponent);
+				final Node childNode = currentNode.getChild(keyComponent);
+				if (childNode == null) {
+					break;
+				} else {
+					currentNode = childNode;
+					if (currentNode.isGroupRoot()) {
+						lastRootNode = currentNode;
+					}
+				}
 			}
-			return currentNode.isGroupRoot() ? currentNode : root;
+			return lastRootNode;
 		}
 
 		private static class Node {
@@ -344,12 +362,8 @@ public class ConfigOptionsDocGenerator {
 				return child;
 			}
 
-			private Node findChild(String keyComponent) {
-				Node child = children.get(keyComponent);
-				if (child == null) {
-					return this;
-				}
-				return child;
+			private Node getChild(String keyComponent) {
+				return children.get(keyComponent);
 			}
 
 			private void assignOption(OptionWithMetaInfo option) {

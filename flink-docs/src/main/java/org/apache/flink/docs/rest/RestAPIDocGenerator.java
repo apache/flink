@@ -22,7 +22,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
@@ -32,6 +31,7 @@ import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -40,7 +40,6 @@ import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.ConfigurationException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
@@ -69,7 +68,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.docs.util.Utils.escapeCharacters;
@@ -323,10 +322,8 @@ public class RestAPIDocGenerator {
 		private static final Configuration config;
 		private static final RestServerEndpointConfiguration restConfig;
 		private static final RestHandlerConfiguration handlerConfig;
-		private static final Executor executor;
 		private static final GatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever;
 		private static final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
-		private static final MetricQueryServiceRetriever metricQueryServiceRetriever;
 
 		static {
 			config = new Configuration();
@@ -339,11 +336,9 @@ public class RestAPIDocGenerator {
 				throw new RuntimeException("Implementation error. RestServerEndpointConfiguration#fromConfiguration failed for default configuration.");
 			}
 			handlerConfig = RestHandlerConfiguration.fromConfiguration(config);
-			executor = Executors.directExecutor();
 
 			dispatcherGatewayRetriever = () -> null;
 			resourceManagerGatewayRetriever = () -> null;
-			metricQueryServiceRetriever = path -> null;
 		}
 
 		private DocumentingDispatcherRestEndpoint() throws IOException {
@@ -354,15 +349,15 @@ public class RestAPIDocGenerator {
 				handlerConfig,
 				resourceManagerGatewayRetriever,
 				NoOpTransientBlobService.INSTANCE,
-				executor,
-				metricQueryServiceRetriever,
+				Executors.newFixedThreadPool(1),
+				VoidMetricFetcher.INSTANCE,
 				NoOpElectionService.INSTANCE,
 				NoOpFatalErrorHandler.INSTANCE);
 		}
 
 		@Override
-		public List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
-			return super.initializeHandlers(restAddressFuture);
+		public List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture) {
+			return super.initializeHandlers(localAddressFuture);
 		}
 
 		private enum NoOpElectionService implements LeaderElectionService {
@@ -402,7 +397,7 @@ public class RestAPIDocGenerator {
 	 * Interface to expose the supported {@link MessageHeaders} of a {@link RestServerEndpoint}.
 	 */
 	private interface DocumentingRestEndpoint {
-		List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture);
+		List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture);
 
 		default List<MessageHeaders> getSpecs() {
 			Comparator<String> comparator = new RestServerEndpoint.RestHandlerUrlComparator.CaseInsensitiveOrderComparator();

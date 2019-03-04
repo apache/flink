@@ -52,6 +52,13 @@ bin=`cd "$bin"; pwd`
 
 FLINK_CLASSPATH=`constructFlinkClassPath`
 
+# Append flink-table jar into class path
+opt=`dirname "$0"`
+opt=`cd "$opt"/../opt; pwd`
+FLINK_TABLE_LIB_PATH=$opt/`ls $opt|grep flink-table_*`
+FLINK_CLASSPATH=$FLINK_CLASSPATH:$FLINK_TABLE_LIB_PATH
+
+
 # https://issues.scala-lang.org/browse/SI-6502, cant load external jars interactively
 # in scala shell since 2.10, has to be done at startup
 # checks arguments for additional classpath and adds it to the "standard classpath"
@@ -75,14 +82,25 @@ do
     fi
 done
 
-log_setting=""
-
-if [[ $1 = "yarn" ]]
-then
-FLINK_CLASSPATH=$FLINK_CLASSPATH:$HADOOP_CLASSPATH:$HADOOP_CONF_DIR:$YARN_CONF_DIR
-log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-scala-shell-yarn-$HOSTNAME.log
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-yarn-session.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback-yarn.xml"
+if [ "$FLINK_IDENT_STRING" = "" ]; then
+        FLINK_IDENT_STRING="$USER"
 fi
+
+MODE=$1
+LOG=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-scala-shell-$MODE-$HOSTNAME.log
+
+if [[ ($MODE = "local") || ($MODE = "remote") ]]
+then
+    LOG4J_CONFIG=log4j.properties
+    LOGBACK_CONFIG=logback.xml
+elif [[ $1 = "yarn" ]]
+then
+    LOG4J_CONFIG=log4j-yarn-session.properties
+    LOGBACK_CONFIG=logback-yarn.xml
+    FLINK_CLASSPATH=$FLINK_CLASSPATH:$HADOOP_CLASSPATH:$HADOOP_CONF_DIR:$YARN_CONF_DIR
+fi
+
+log_setting="-Dlog.file="$LOG" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/$LOG4J_CONFIG -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/$LOGBACK_CONFIG"
 
 if ${EXTERNAL_LIB_FOUND}
 then

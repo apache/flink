@@ -25,11 +25,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.7-SNAPSHOT</version>
+		<version>1.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-hcatalog</artifactId>
+	<artifactId>flink-hcatalog_${scala.binary.version}</artifactId>
 	<name>flink-hcatalog</name>
 
 	<packaging>jar</packaging>
@@ -69,7 +69,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-hadoop2</artifactId>
-			<version>${project.version}</version>
+			<version>${hadoop.version}-${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 

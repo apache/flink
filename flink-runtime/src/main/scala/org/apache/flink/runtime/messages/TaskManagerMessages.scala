@@ -19,8 +19,6 @@
 package org.apache.flink.runtime.messages
 
 import java.util.UUID
-
-import akka.actor.ActorRef
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.instance.InstanceID
 
@@ -106,7 +104,7 @@ object TaskManagerMessages {
    */
   case class RegisteredAtJobManager(leaderId: UUID)
 
-  /** Tells the address of the new leading [[org.apache.flink.runtime.jobmanager.JobManager]]
+  /** Tells the address of the new leading org.apache.flink.runtime.jobmanager.JobManager
     * and the new leader session ID.
     *
     * @param jobManagerAddress Address of the new leading JobManager

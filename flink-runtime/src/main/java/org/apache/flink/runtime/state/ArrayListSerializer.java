@@ -17,14 +17,12 @@
  */
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
-import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -32,7 +30,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 @SuppressWarnings("ForLoopReplaceableByForEach")
-final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
+final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>>
+		implements TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer<ArrayList<T>> {
 
 	private static final long serialVersionUID = 1119562170939152304L;
 
@@ -131,44 +130,42 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return true;
-	}
-
-	@Override
 	public int hashCode() {
 		return elementSerializer.hashCode();
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & compatibility
+	// Serializer snapshots
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public TypeSerializerConfigSnapshot snapshotConfiguration() {
-		return new CollectionSerializerConfigSnapshot<>(elementSerializer);
+	public TypeSerializerSnapshot<ArrayList<T>> snapshotConfiguration() {
+		return new ArrayListSerializerSnapshot<>(this);
 	}
 
+	/**
+	 * We need to implement this method as a {@link TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer}
+	 * because this serializer was previously returning a shared {@link CollectionSerializerConfigSnapshot}
+	 * as its snapshot.
+	 *
+	 * <p>When the {@link CollectionSerializerConfigSnapshot} is restored, it is incapable of redirecting
+	 * the compatibility check to {@link ArrayListSerializerSnapshot}, so we do it here.
+	 */
 	@Override
-	public CompatibilityResult<ArrayList<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
-			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousElemSerializerAndConfig =
-				((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerAndConfig();
+	public TypeSerializerSchemaCompatibility<ArrayList<T>> resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(
+			TypeSerializerConfigSnapshot<ArrayList<T>> deprecatedConfigSnapshot) {
 
-			CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
-					previousElemSerializerAndConfig.f0,
-					UnloadableDummyTypeSerializer.class,
-					previousElemSerializerAndConfig.f1,
-					elementSerializer);
+		if (deprecatedConfigSnapshot instanceof CollectionSerializerConfigSnapshot) {
+			CollectionSerializerConfigSnapshot<ArrayList<T>, T> castedLegacySnapshot =
+				(CollectionSerializerConfigSnapshot<ArrayList<T>, T>) deprecatedConfigSnapshot;
 
-			if (!compatResult.isRequiresMigration()) {
-				return CompatibilityResult.compatible();
-			} else if (compatResult.getConvertDeserializer() != null) {
-				return CompatibilityResult.requiresMigration(
-					new ArrayListSerializer<>(new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer())));
-			}
+			ArrayListSerializerSnapshot<T> newSnapshot = new ArrayListSerializerSnapshot<>();
+			return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+				this,
+				newSnapshot,
+				castedLegacySnapshot.getNestedSerializerSnapshots());
 		}
 
-		return CompatibilityResult.requiresMigration();
+		return TypeSerializerSchemaCompatibility.incompatible();
 	}
 }

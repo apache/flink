@@ -20,7 +20,7 @@
         <tr>
             <td><h5>task.cancellation.timers.timeout</h5></td>
             <td style="word-wrap: break-word;">7500</td>
-            <td></td>
+            <td>Time we wait for the timers in milliseconds to finish all pending timer threads when the stream task is cancelled.</td>
         </tr>
         <tr>
             <td><h5>task.checkpoint.alignment.max-size</h5></td>
@@ -60,7 +60,7 @@
         <tr>
             <td><h5>taskmanager.host</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td>The hostname of the network interface that the TaskManager binds to. By default, the TaskManager searches for network interfaces that can connect to the JobManager and other TaskManagers. This option can be used to define a hostname if that strategy fails for some reason. Because different TaskManagers need different values for this option, it usually is specified in an additional non-shared TaskManager-specific config file.</td>
+            <td>The address of the network interface that the TaskManager binds to. This option can be used to define explicitly a binding address. Because different TaskManagers need different values for this option, usually it is specified in an additional non-shared TaskManager-specific config file.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.jvm-exit-on-oom</h5></td>
@@ -91,6 +91,12 @@
             <td><h5>taskmanager.memory.size</h5></td>
             <td style="word-wrap: break-word;">"0"</td>
             <td>Amount of memory to be allocated by the task manager's memory manager. If not set, a relative fraction will be allocated.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.bind-policy</h5></td>
+            <td style="word-wrap: break-word;">"ip"</td>
+            <td>The automatic address binding policy used by the TaskManager if "taskmanager.host" is not set. The value should be one of the following:
+<ul><li>"name" - uses hostname as binding address</li><li>"ip" - uses host's ip address as binding address</li></ul></td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.detailed-metrics</h5></td>
@@ -125,12 +131,12 @@
         <tr>
             <td><h5>taskmanager.network.request-backoff.initial</h5></td>
             <td style="word-wrap: break-word;">100</td>
-            <td>Minimum backoff for partition requests of input channels.</td>
+            <td>Minimum backoff in milliseconds for partition requests of input channels.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.request-backoff.max</h5></td>
             <td style="word-wrap: break-word;">10000</td>
-            <td>Maximum backoff for partition requests of input channels.</td>
+            <td>Maximum backoff in milliseconds for partition requests of input channels.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.numberOfTaskSlots</h5></td>

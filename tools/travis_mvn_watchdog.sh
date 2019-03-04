@@ -25,6 +25,8 @@ if [ -z "$HERE" ] ; then
 	exit 1  # fail
 fi
 
+source "${HERE}/travis/stage.sh"
+
 ARTIFACTS_DIR="${HERE}/artifacts"
 
 mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIFACTS_DIR}'." ; exit 1; }
@@ -43,115 +45,8 @@ SLEEP_TIME=20
 
 LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
-MODULES_CORE="\
-flink-test-utils-parent/flink-test-utils,\
-flink-state-backends/flink-statebackend-rocksdb,\
-flink-clients,\
-flink-core,\
-flink-java,\
-flink-optimizer,\
-flink-runtime,\
-flink-runtime-web,\
-flink-scala,\
-flink-scala-shell,\
-flink-streaming-java,\
-flink-streaming-scala"
-
-MODULES_LIBRARIES="\
-flink-contrib/flink-storm,\
-flink-contrib/flink-storm-examples,\
-flink-libraries/flink-cep,\
-flink-libraries/flink-cep-scala,\
-flink-libraries/flink-gelly,\
-flink-libraries/flink-gelly-scala,\
-flink-libraries/flink-gelly-examples,\
-flink-libraries/flink-ml,\
-flink-libraries/flink-python,\
-flink-libraries/flink-streaming-python,\
-flink-libraries/flink-table,\
-flink-queryable-state/flink-queryable-state-runtime,\
-flink-queryable-state/flink-queryable-state-client-java"
-
-MODULES_CONNECTORS="\
-flink-contrib/flink-connector-wikiedits,\
-flink-filesystems/flink-hadoop-fs,\
-flink-filesystems/flink-mapr-fs,\
-flink-filesystems/flink-s3-fs-hadoop,\
-flink-filesystems/flink-s3-fs-presto,\
-flink-formats/flink-avro,\
-flink-formats/flink-parquet,\
-flink-connectors/flink-hbase,\
-flink-connectors/flink-hcatalog,\
-flink-connectors/flink-hadoop-compatibility,\
-flink-connectors/flink-jdbc,\
-flink-connectors/flink-connector-cassandra,\
-flink-connectors/flink-connector-elasticsearch,\
-flink-connectors/flink-connector-elasticsearch2,\
-flink-connectors/flink-connector-elasticsearch5,\
-flink-connectors/flink-connector-elasticsearch6,\
-flink-connectors/flink-connector-elasticsearch-base,\
-flink-connectors/flink-connector-filesystem,\
-flink-connectors/flink-connector-kafka-0.8,\
-flink-connectors/flink-connector-kafka-0.9,\
-flink-connectors/flink-connector-kafka-0.10,\
-flink-connectors/flink-connector-kafka-0.11,\
-flink-connectors/flink-connector-kafka-base,\
-flink-connectors/flink-connector-nifi,\
-flink-connectors/flink-connector-rabbitmq,\
-flink-connectors/flink-connector-twitter"
-
-MODULES_TESTS="\
-flink-tests"
-
-if [[ $PROFILE == *"include-kinesis"* ]]; then
-	case $TEST in
-		(connectors)
-			MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-kinesis"
-		;;
-	esac
-fi
-
-MVN_COMPILE_MODULES=""
-MVN_COMPILE_OPTIONS=""
-MVN_TEST_MODULES=""
-MVN_TEST_OPTIONS=""
-case $TEST in
-	(core)
-		MVN_COMPILE_MODULES="-pl $MODULES_CORE -am"
-		MVN_TEST_MODULES="-pl $MODULES_CORE"
-		MVN_COMPILE_OPTIONS="-Dfast"
-		MVN_TEST_OPTIONS="-Dfast"
-	;;
-	(libraries)
-		MVN_COMPILE_MODULES="-pl $MODULES_LIBRARIES -am"
-		MVN_TEST_MODULES="-pl $MODULES_LIBRARIES"
-		MVN_COMPILE_OPTIONS="-Dfast"
-		MVN_TEST_OPTIONS="-Dfast"
-	;;
-	(connectors)
-		MVN_COMPILE_MODULES="-pl $MODULES_CONNECTORS -am"
-		MVN_TEST_MODULES="-pl $MODULES_CONNECTORS"
-		MVN_COMPILE_OPTIONS="-Dfast"
-		MVN_TEST_OPTIONS="-Dfast"
-	;;
-	(tests)
-		MVN_COMPILE_MODULES="-pl $MODULES_TESTS -am"
-		MVN_TEST_MODULES="-pl $MODULES_TESTS"
-		MVN_COMPILE_OPTIONS="-Dfast"
-		MVN_TEST_OPTIONS="-Dfast"
-	;;
-	(misc)
-		NEGATED_CORE=\!${MODULES_CORE//,/,\!}
-		NEGATED_LIBRARIES=\!${MODULES_LIBRARIES//,/,\!}
-		NEGATED_CONNECTORS=\!${MODULES_CONNECTORS//,/,\!}
-		NEGATED_TESTS=\!${MODULES_TESTS//,/,\!}
-		# compile everything since dist needs it anyway
-		MVN_COMPILE_MODULES=""
-		MVN_TEST_MODULES="-pl $NEGATED_CORE,$NEGATED_LIBRARIES,$NEGATED_CONNECTORS,$NEGATED_TESTS"
-		MVN_COMPILE_OPTIONS=""
-		MVN_TEST_OPTIONS="-Dfast"
-	;;
-esac
+MVN_COMPILE_MODULES=$(get_compile_modules_for_stage ${TEST})
+MVN_TEST_MODULES=$(get_test_modules_for_stage ${TEST})
 
 # Maven command to run. We set the forkCount manually, because otherwise Maven sees too many cores
 # on the Travis VMs. Set forkCountTestPackage to 1 for container-based environment (4 GiB memory)
@@ -160,10 +55,11 @@ esac
 # -nsu option forbids downloading snapshot artifacts. The only snapshot artifacts we depend are from
 # Flink, which however should all be built locally. see FLINK-7230
 MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
-MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -B $MVN_LOGGING_OPTIONS"
-MVN_COMPILE_OPTIONS="$MVN_COMPILE_OPTIONS -DskipTests"
+MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -B $MVN_LOGGING_OPTIONS"
+MVN_COMPILE_OPTIONS="-DskipTests"
+MVN_TEST_OPTIONS="$MVN_LOGGING_OPTIONS"
 
-MVN_COMPILE="mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES clean install"
+MVN_COMPILE="mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES install"
 MVN_TEST="mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify"
 
 MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
@@ -304,184 +200,6 @@ watchdog () {
 	done
 }
 
-# Check the final fat jar for illegal or missing artifacts
-check_shaded_artifacts() {
-	jar tf build-target/lib/flink-dist*.jar > allClasses
-	ASM=`cat allClasses | grep '^org/objectweb/asm/' | wc -l`
-	if [ "$ASM" != "0" ]; then
-		echo "=============================================================================="
-		echo "Detected '$ASM' unshaded asm dependencies in fat jar"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	GUAVA=`cat allClasses | grep '^com/google/common' | wc -l`
-	if [ "$GUAVA" != "0" ]; then
-		echo "=============================================================================="
-		echo "Detected '$GUAVA' guava dependencies in fat jar"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	CODEHAUS_JACKSON=`cat allClasses | grep '^org/codehaus/jackson' | wc -l`
-	if [ "$CODEHAUS_JACKSON" != "0" ]; then
-		echo "=============================================================================="
-		echo "Detected '$CODEHAUS_JACKSON' unshaded org.codehaus.jackson classes in fat jar"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	FASTERXML_JACKSON=`cat allClasses | grep '^com/fasterxml/jackson' | wc -l`
-	if [ "$FASTERXML_JACKSON" != "0" ]; then
-		echo "=============================================================================="
-		echo "Detected '$FASTERXML_JACKSON' unshaded com.fasterxml.jackson classes in fat jar"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	SNAPPY=`cat allClasses | grep '^org/xerial/snappy' | wc -l`
-	if [ "$SNAPPY" == "0" ]; then
-		echo "=============================================================================="
-		echo "Missing snappy dependencies in fat jar"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	IO_NETTY=`cat allClasses | grep '^io/netty' | wc -l`
-	if [ "$IO_NETTY" != "0" ]; then
-		echo "=============================================================================="
-		echo "Detected '$IO_NETTY' unshaded io.netty classes in fat jar"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	ORG_NETTY=`cat allClasses | grep '^org/jboss/netty' | wc -l`
-	if [ "$ORG_NETTY" != "0" ]; then
-		echo "=============================================================================="
-		echo "Detected '$ORG_NETTY' unshaded org.jboss.netty classes in fat jar"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	ZOOKEEPER=`cat allClasses | grep '^org/apache/zookeeper' | wc -l`
-	if [ "$ZOOKEEPER" != "0" ]; then
-		echo "=============================================================================="
-		echo "Detected '$ZOOKEEPER' unshaded org.apache.zookeeper classes in fat jar"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	CURATOR=`cat allClasses | grep '^org/apache/curator' | wc -l`
-	if [ "$CURATOR" != "0" ]; then
-		echo "=============================================================================="
-		echo "Detected '$CURATOR' unshaded org.apache.curator classes in fat jar"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	FLINK_PYTHON=`cat allClasses | grep '^org/apache/flink/python' | wc -l`
-	if [ "$FLINK_PYTHON" != "0" ]; then
-		echo "=============================================================================="
-		echo "Detected that the Flink Python artifact is in the dist jar"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	HADOOP=`cat allClasses | grep '^org/apache/hadoop' | wc -l`
-	if [ "$HADOOP" != "0" ]; then
-		echo "=============================================================================="
-		echo "Detected '$HADOOP' Hadoop classes in the dist jar"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	MAPR=`cat allClasses | grep '^com/mapr' | wc -l`
-	if [ "$MAPR" != "0" ]; then
-		echo "=============================================================================="
-		echo "Detected '$MAPR' MapR classes in the dist jar"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	return 0
-}
-
-# Check the S3 fs implementations' fat jars for illegal or missing artifacts
-check_shaded_artifacts_s3_fs() {
-	VARIANT=$1
-	jar tf flink-filesystems/flink-s3-fs-${VARIANT}/target/flink-s3-fs-${VARIANT}*.jar > allClasses
-
-	UNSHADED_CLASSES=`cat allClasses | grep -v -e '^META-INF' -e '^assets' -e "^org/apache/flink/fs/s3${VARIANT}/" | grep '\.class$'`
-	if [ "$?" == "0" ]; then
-		echo "=============================================================================="
-		echo "${VARIANT}: Detected unshaded dependencies in fat jar:"
-		echo "${UNSHADED_CLASSES}"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	if [ ! `cat allClasses | grep '^META-INF/services/org\.apache\.flink\.core\.fs\.FileSystemFactory$'` ]; then
-		echo "=============================================================================="
-		echo "${VARIANT}: File does not exist: services/org.apache.flink.core.fs.FileSystemFactory"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	UNSHADED_SERVICES=`cat allClasses | grep '^META-INF/services/' | grep -v -e '^META-INF/services/org\.apache\.flink\.core\.fs\.FileSystemFactory$' -e "^META-INF/services/org\.apache\.flink\.fs\.s3${VARIANT}\.shaded" -e '^META-INF/services/'`
-	if [ "$?" == "0" ]; then
-		echo "=============================================================================="
-		echo "${VARIANT}: Detected unshaded service files in fat jar:"
-		echo "${UNSHADED_SERVICES}"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	FS_SERVICE_FILE_CLASSES=`unzip -q -c flink-filesystems/flink-s3-fs-${VARIANT}/target/flink-s3-fs-${VARIANT}*.jar META-INF/services/org.apache.flink.core.fs.FileSystemFactory | grep -v -e '^#' -e '^$'`
-	EXPECTED_FS_SERVICE_FILE_CLASSES="org.apache.flink.fs.s3${VARIANT}.S3FileSystemFactory"
-	if [ "${VARIANT}" == "hadoop" ]; then
-		read -r -d '' EXPECTED_FS_SERVICE_FILE_CLASSES <<EOF
-org.apache.flink.fs.s3${VARIANT}.S3FileSystemFactory
-org.apache.flink.fs.s3${VARIANT}.S3AFileSystemFactory
-EOF
-	fi
-
-	if [ "${FS_SERVICE_FILE_CLASSES}" != "${EXPECTED_FS_SERVICE_FILE_CLASSES}" ]; then
-		echo "=============================================================================="
-		echo "${VARIANT}: Detected wrong content in services/org.apache.flink.core.fs.FileSystemFactory:"
-		echo "${FS_SERVICE_FILE_CLASSES}"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	return 0
-}
-
-# Check the elasticsearch connectors' fat jars for illegal or missing artifacts
-check_shaded_artifacts_connector_elasticsearch() {
-	VARIANT=$1
-	find flink-connectors/flink-connector-elasticsearch${VARIANT}/target/flink-connector-elasticsearch${VARIANT}*.jar ! -name "*-tests.jar" -exec jar tf {} \; > allClasses
-
-	UNSHADED_CLASSES=`cat allClasses | grep -v -e '^META-INF' -e '^assets' -e "^org/apache/flink/streaming/connectors/elasticsearch/" -e "^org/apache/flink/streaming/connectors/elasticsearch${VARIANT}/" -e "^org/elasticsearch/" | grep '\.class$'`
-	if [ "$?" == "0" ]; then
-		echo "=============================================================================="
-		echo "Detected unshaded dependencies in flink-connector-elasticsearch${VARIANT}'s fat jar:"
-		echo "${UNSHADED_CLASSES}"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	UNSHADED_SERVICES=`cat allClasses | grep '^META-INF/services/' | grep -v -e '^META-INF/services/org\.apache\.flink\.core\.fs\.FileSystemFactory$' -e "^META-INF/services/org\.apache\.flink\.fs\.s3${VARIANT}\.shaded" -e '^META-INF/services/'`
-	if [ "$?" == "0" ]; then
-		echo "=============================================================================="
-		echo "Detected unshaded service files in flink-connector-elasticsearch${VARIANT}'s fat jar:"
-		echo "${UNSHADED_SERVICES}"
-		echo "=============================================================================="
-		return 1
-	fi
-
-	return 0
-}
-
 # =============================================================================
 # WATCHDOG
 # =============================================================================
@@ -517,24 +235,6 @@ echo "Trying to KILL watchdog (${WD_PID})."
 
 rm $MVN_PID
 rm $MVN_EXIT
-
-# only run dependency-convergence in misc because it is the only profile building all of Flink
-case $TEST in
-	(misc)
-		if [ $EXIT_CODE == 0 ]; then
-			printf "\n\n==============================================================================\n"
-			printf "Checking dependency convergence\n"
-			printf "==============================================================================\n"
-
-			./tools/check_dependency_convergence.sh
-			EXIT_CODE=$?
-		else
-			printf "\n==============================================================================\n"
-			printf "Previous build failure detected, skipping dependency-convergence check.\n"
-			printf "==============================================================================\n"
-		fi
-	;;
-esac
 
 # Run tests if compilation was successful
 if [ $EXIT_CODE == 0 ]; then
@@ -574,30 +274,6 @@ fi
 case $TEST in
 	(misc)
 		put_yarn_logs_to_artifacts
-
-		if [ $EXIT_CODE == 0 ]; then
-			check_shaded_artifacts
-			EXIT_CODE=$?
-		else
-			echo "=============================================================================="
-			echo "Compilation/test failure detected, skipping shaded dependency check."
-			echo "=============================================================================="
-		fi
-	;;
-	(connectors)
-		if [ $EXIT_CODE == 0 ]; then
-			check_shaded_artifacts_s3_fs hadoop
-			EXIT_CODE=$(($EXIT_CODE+$?))
-			check_shaded_artifacts_s3_fs presto
-			check_shaded_artifacts_connector_elasticsearch ""
-			check_shaded_artifacts_connector_elasticsearch 2
-			check_shaded_artifacts_connector_elasticsearch 5
-			EXIT_CODE=$(($EXIT_CODE+$?))
-		else
-			echo "=============================================================================="
-			echo "Compilation/test failure detected, skipping shaded dependency check."
-			echo "=============================================================================="
-		fi
 	;;
 esac
 

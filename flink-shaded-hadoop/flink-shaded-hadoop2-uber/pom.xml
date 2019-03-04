@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-shaded-hadoop</artifactId>
-		<version>1.7-SNAPSHOT</version>
+		<version>1.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -34,6 +34,7 @@ under the License.
 	<name>flink-shaded-hadoop2-uber</name>
 
 	<packaging>jar</packaging>
+	<version>${hadoop.version}-1.9-SNAPSHOT</version>
 
 	<!--
 		the only dependency of the 'flink-shaded-hadoop2' artifact, out
@@ -52,19 +53,6 @@ under the License.
 
 	<build>
 		<plugins>
-
-			<!-- 
-				Don't deploy this uber-jar. It is not referenced by any other artifact.
-				Its sole purpose is to be included in the 'flink-dist' build.
-			-->
- 
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-deploy-plugin</artifactId>
-				<configuration>
-					<skip>true</skip>
-				</configuration>
-			</plugin>
 
 			<!-- 
 				Build an uber jar of the shaded-hadoop-dependency
@@ -113,9 +101,9 @@ under the License.
 								<!-- The service transformer is needed to merge META-INF/services files -->
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
 								<!-- The ApacheNoticeResourceTransformer collects and aggregates NOTICE files -->
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer"/>
-								<!-- The ApacheLicenseResourceTransformer prevents duplicate Apache Licenses -->
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheLicenseResourceTransformer"/>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
+									<projectName>Apache Flink</projectName>
+								</transformer>
 							</transformers>
 
 						</configuration>

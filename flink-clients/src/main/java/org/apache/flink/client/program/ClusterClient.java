@@ -35,11 +35,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
-import org.apache.flink.runtime.akka.AkkaJobManagerGateway;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.client.JobClient;
-import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.client.JobListeningContext;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
@@ -488,134 +484,6 @@ public abstract class ClusterClient<T> {
 	}
 
 	/**
-	 * Submits a JobGraph blocking.
-	 * @param jobGraph The JobGraph
-	 * @param classLoader User code class loader to deserialize the results and errors (may contain custom classes).
-	 * @return JobExecutionResult
-	 * @throws ProgramInvocationException
-	 */
-	public JobExecutionResult run(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-
-		waitForClusterToBeReady();
-
-		final ActorSystem actorSystem;
-
-		try {
-			actorSystem = actorSystemLoader.get();
-		} catch (FlinkException fe) {
-			throw new ProgramInvocationException("Could not start the ActorSystem needed to talk to the " +
-				"JobManager.", jobGraph.getJobID(), fe);
-		}
-
-		try {
-			logAndSysout("Submitting job with JobID: " + jobGraph.getJobID() + ". Waiting for job completion.");
-			this.lastJobExecutionResult = JobClient.submitJobAndWait(
-				actorSystem,
-				flinkConfig,
-				highAvailabilityServices,
-				jobGraph,
-				timeout,
-				printStatusDuringExecution,
-				classLoader);
-
-			return lastJobExecutionResult;
-		} catch (JobExecutionException e) {
-			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), jobGraph.getJobID(), e);
-		}
-	}
-
-	/**
-	 * Submits a JobGraph detached.
-	 * @param jobGraph The JobGraph
-	 * @param classLoader User code class loader to deserialize the results and errors (may contain custom classes).
-	 * @return JobSubmissionResult
-	 * @throws ProgramInvocationException
-	 */
-	public JobSubmissionResult runDetached(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
-
-		waitForClusterToBeReady();
-
-		final ActorGateway jobManagerGateway;
-		try {
-			jobManagerGateway = getJobManagerGateway();
-		} catch (Exception e) {
-			throw new ProgramInvocationException("Failed to retrieve the JobManager gateway.",
-				jobGraph.getJobID(), e);
-		}
-
-		try {
-			logAndSysout("Submitting Job with JobID: " + jobGraph.getJobID() + ". Returning after job submission.");
-			JobClient.submitJobDetached(
-				new AkkaJobManagerGateway(jobManagerGateway),
-				flinkConfig,
-				jobGraph,
-				Time.milliseconds(timeout.toMillis()),
-				classLoader);
-			return new JobSubmissionResult(jobGraph.getJobID());
-		} catch (JobExecutionException e) {
-			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(),
-				jobGraph.getJobID(), e);
-		}
-	}
-
-	/**
-	 * Reattaches to a running from the supplied job id.
-	 * @param jobID The job id of the job to attach to
-	 * @return The JobExecutionResult for the jobID
-	 * @throws JobExecutionException if an error occurs during monitoring the job execution
-	 */
-	public JobExecutionResult retrieveJob(JobID jobID) throws JobExecutionException {
-		final ActorSystem actorSystem;
-
-		try {
-			actorSystem = actorSystemLoader.get();
-		} catch (FlinkException fe) {
-			throw new JobExecutionException(
-				jobID,
-				"Could not start the ActorSystem needed to talk to the JobManager.",
-				fe);
-		}
-
-		final JobListeningContext listeningContext = JobClient.attachToRunningJob(
-			jobID,
-			flinkConfig,
-			actorSystem,
-			highAvailabilityServices,
-			timeout,
-			printStatusDuringExecution);
-
-		return JobClient.awaitJobResult(listeningContext);
-	}
-
-	/**
-	 * Reattaches to a running job with the given job id.
-	 *
-	 * @param jobID The job id of the job to attach to
-	 * @return The JobExecutionResult for the jobID
-	 * @throws JobExecutionException if an error occurs during monitoring the job execution
-	 */
-	public JobListeningContext connectToJob(JobID jobID) throws JobExecutionException {
-		final ActorSystem actorSystem;
-
-		try {
-			actorSystem = actorSystemLoader.get();
-		} catch (FlinkException fe) {
-			throw new JobExecutionException(
-				jobID,
-				"Could not start the ActorSystem needed to talk to the JobManager.",
-				fe);
-		}
-
-		return JobClient.attachToRunningJob(
-			jobID,
-			flinkConfig,
-			actorSystem,
-			highAvailabilityServices,
-			timeout,
-			printStatusDuringExecution);
-	}
-
-	/**
 	 * Requests the {@link JobStatus} of the job with the given {@link JobID}.
 	 */
 	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
@@ -628,7 +496,7 @@ public abstract class ClusterClient<T> {
 
 		Future<Object> response = jobManager.ask(JobManagerMessages.getRequestJobStatus(jobId), timeout);
 
-		CompletableFuture<Object> javaFuture = FutureUtils.<Object>toJava(response);
+		CompletableFuture<Object> javaFuture = FutureUtils.toJava(response);
 
 		return javaFuture.thenApply((responseMessage) -> {
 			if (responseMessage instanceof JobManagerMessages.CurrentJobStatus) {
@@ -735,7 +603,7 @@ public abstract class ClusterClient<T> {
 
 		Future<Object> response = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobId, Option.<String>apply(savepointDirectory)),
 			new FiniteDuration(1, TimeUnit.HOURS));
-		CompletableFuture<Object> responseFuture = FutureUtils.<Object>toJava(response);
+		CompletableFuture<Object> responseFuture = FutureUtils.toJava(response);
 
 		return responseFuture.thenApply((responseMessage) -> {
 			if (responseMessage instanceof JobManagerMessages.TriggerSavepointSuccess) {
@@ -755,7 +623,7 @@ public abstract class ClusterClient<T> {
 		final ActorGateway jobManager = getJobManagerGateway();
 
 		Object msg = new JobManagerMessages.DisposeSavepoint(savepointPath);
-		CompletableFuture<Object> responseFuture = FutureUtils.<Object>toJava(
+		CompletableFuture<Object> responseFuture = FutureUtils.toJava(
 			jobManager.ask(
 				msg,
 				timeout));
@@ -794,7 +662,7 @@ public abstract class ClusterClient<T> {
 		final ActorGateway jobManager = getJobManagerGateway();
 
 		Future<Object> response = jobManager.ask(new RequestJobDetails(true, false), timeout);
-		CompletableFuture<Object> responseFuture = FutureUtils.<Object>toJava(response);
+		CompletableFuture<Object> responseFuture = FutureUtils.toJava(response);
 
 		return responseFuture.thenApply((responseMessage) -> {
 			if (responseMessage instanceof MultipleJobsDetails) {

@@ -146,3 +146,5 @@ If one wants to chain a `Predictor` to a `Transformer` or a set of chained `Tran
 The Flink community welcomes all contributors who want to get involved in the development of Flink and its libraries.
 In order to get quickly started with contributing to FlinkML, please read our official
 [contribution guide]({{site.baseurl}}/dev/libs/ml/contribution_guide.html).
+
+{% top %}

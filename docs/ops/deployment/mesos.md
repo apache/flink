@@ -189,12 +189,6 @@ For example:
         -Dtaskmanager.numberOfTaskSlots=2 \
         -Dparallelism.default=10
 
-<div class="alert alert-info">
-  <strong>Note:</strong> If Flink is in <a href="{{ site.baseurl }}/ops/config.html#legacy">legacy mode</a>,
-  you should additionally define the number of task managers that are started by Mesos via
-  <a href="{{ site.baseurl }}/ops/config.html#mesos-initial-tasks"><code>mesos.initial-tasks</code></a>.
-</div>
-
 ### High Availability
 
 You will need to run a service like Marathon or Apache Aurora which takes care of restarting the Flink master process in case of node or process failures.

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -66,7 +67,6 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -399,9 +399,6 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 			null);
 
 		try {
-
-			keyedStateBackend.restore(null);
-
 			// register a state so that the state backend has to checkpoint something
 			keyedStateBackend.getPartitionedState(
 				"namespace",
@@ -414,7 +411,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 				CheckpointOptions.forCheckpointWithDefaultLocation());
 
 			try {
-				FutureUtil.runIfNotDoneAndGet(snapshotFuture);
+				FutureUtils.runIfNotDoneAndGet(snapshotFuture);
 				fail("Expected an exception to be thrown here.");
 			} catch (ExecutionException e) {
 				Assert.assertEquals(testException, e.getCause());

@@ -33,9 +33,13 @@ public class StreamNetworkThroughputBenchmarkTest {
 	@Rule
 	public ExpectedException expectedException = ExpectedException.none();
 
+	protected StreamNetworkThroughputBenchmark createBenchmark() {
+		return new StreamNetworkThroughputBenchmark();
+	}
+
 	@Test
 	public void pointToPointBenchmark() throws Exception {
-		StreamNetworkThroughputBenchmark benchmark = new StreamNetworkThroughputBenchmark();
+		StreamNetworkThroughputBenchmark benchmark = createBenchmark();
 		benchmark.setUp(1, 1, 100);
 		try {
 			benchmark.executeBenchmark(1_000);
@@ -107,7 +111,7 @@ public class StreamNetworkThroughputBenchmarkTest {
 
 	@Test
 	public void pointToMultiPointBenchmark() throws Exception {
-		StreamNetworkThroughputBenchmark benchmark = new StreamNetworkThroughputBenchmark();
+		StreamNetworkThroughputBenchmark benchmark = createBenchmark();
 		benchmark.setUp(1, 100, 100);
 		try {
 			benchmark.executeBenchmark(1_000);
@@ -119,7 +123,7 @@ public class StreamNetworkThroughputBenchmarkTest {
 
 	@Test
 	public void multiPointToPointBenchmark() throws Exception {
-		StreamNetworkThroughputBenchmark benchmark = new StreamNetworkThroughputBenchmark();
+		StreamNetworkThroughputBenchmark benchmark = createBenchmark();
 		benchmark.setUp(4, 1, 100);
 		try {
 			benchmark.executeBenchmark(1_000);
@@ -131,7 +135,7 @@ public class StreamNetworkThroughputBenchmarkTest {
 
 	@Test
 	public void multiPointToMultiPointBenchmark() throws Exception {
-		StreamNetworkThroughputBenchmark benchmark = new StreamNetworkThroughputBenchmark();
+		StreamNetworkThroughputBenchmark benchmark = createBenchmark();
 		benchmark.setUp(4, 100, 100);
 		try {
 			benchmark.executeBenchmark(1_000);

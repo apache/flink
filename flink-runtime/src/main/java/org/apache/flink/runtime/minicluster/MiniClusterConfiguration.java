@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
@@ -85,13 +84,7 @@ public class MiniClusterConfiguration {
 	public String getTaskManagerBindAddress() {
 		return commonBindAddress != null ?
 				commonBindAddress :
-				configuration.getString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "localhost");
-	}
-
-	public String getResourceManagerBindAddress() {
-		return commonBindAddress != null ?
-			commonBindAddress :
-			configuration.getString(JobManagerOptions.ADDRESS, "localhost"); // TODO: Introduce proper configuration constant for the resource manager hostname
+				configuration.getString(TaskManagerOptions.HOST, "localhost");
 	}
 
 	public Time getRpcTimeout() {

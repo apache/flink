@@ -18,12 +18,16 @@
 
 package org.apache.flink.container.entrypoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.entrypoint.EntrypointClusterConfiguration;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.Properties;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Configuration for the {@link StandaloneJobClusterEntryPoint}.
@@ -31,24 +35,41 @@ import java.util.Properties;
 final class StandaloneJobClusterConfiguration extends EntrypointClusterConfiguration {
 
 	@Nonnull
-	private final String jobClassName;
-
-	@Nonnull
 	private final SavepointRestoreSettings savepointRestoreSettings;
 
-	public StandaloneJobClusterConfiguration(@Nonnull String configDir, @Nonnull Properties dynamicProperties, @Nonnull String[] args, int restPort, @Nonnull String jobClassName, @Nonnull SavepointRestoreSettings savepointRestoreSettings) {
-		super(configDir, dynamicProperties, args, restPort);
+	@Nonnull
+	private final JobID jobId;
+
+	@Nullable
+	private final String jobClassName;
+
+	StandaloneJobClusterConfiguration(
+			@Nonnull String configDir,
+			@Nonnull Properties dynamicProperties,
+			@Nonnull String[] args,
+			@Nullable String hostname,
+			int restPort,
+			@Nonnull SavepointRestoreSettings savepointRestoreSettings,
+			@Nonnull JobID jobId,
+			@Nullable String jobClassName) {
+		super(configDir, dynamicProperties, args, hostname, restPort);
+		this.savepointRestoreSettings = requireNonNull(savepointRestoreSettings, "savepointRestoreSettings");
+		this.jobId = requireNonNull(jobId, "jobId");
 		this.jobClassName = jobClassName;
-		this.savepointRestoreSettings = savepointRestoreSettings;
 	}
 
 	@Nonnull
+	SavepointRestoreSettings getSavepointRestoreSettings() {
+		return savepointRestoreSettings;
+	}
+
+	@Nonnull
+	JobID getJobId() {
+		return jobId;
+	}
+
+	@Nullable
 	String getJobClassName() {
 		return jobClassName;
-	}
-
-	@Nonnull
-	public SavepointRestoreSettings getSavepointRestoreSettings() {
-		return savepointRestoreSettings;
 	}
 }

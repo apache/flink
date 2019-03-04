@@ -48,6 +48,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
@@ -93,7 +94,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this(
 			ResourceManagerId.generate(),
 			ResourceID.generate(),
-			"localhost",
+			"localhost/" + UUID.randomUUID(),
 			"localhost");
 	}
 
@@ -298,7 +299,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	@Override
 	public CompletableFuture<ResourceOverview> requestResourceOverview(Time timeout) {
-		return FutureUtils.completedExceptionally(new UnsupportedOperationException("Not yet implemented"));
+		return CompletableFuture.completedFuture(new ResourceOverview(1, 1, 1));
 	}
 
 	@Override

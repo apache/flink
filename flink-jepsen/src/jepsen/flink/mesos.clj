@@ -22,35 +22,8 @@
              [util :as util :refer [meh]]]
             [jepsen.control.util :as cu]
             [jepsen.os.debian :as debian]
+            [jepsen.flink.utils :refer [create-supervised-service! stop-supervised-service!]]
             [jepsen.flink.zookeeper :refer [zookeeper-uri]]))
-
-;;; runit process supervisor (http://smarden.org/runit/)
-;;;
-;;; We use runit to supervise Mesos processes because Mesos uses a "fail-fast" approach to
-;;; error handling, e.g., the Mesos master will exit when it discovers it has been partitioned away
-;;; from the Zookeeper quorum.
-
-(def runit-version "2.1.2-3")
-
-(defn create-supervised-service!
-  "Registers a service with the process supervisor and starts it."
-  [service-name cmd]
-  (let [service-dir (str "/etc/sv/" service-name)
-        run-script (str service-dir "/run")]
-    (c/su
-      (c/exec :mkdir :-p service-dir)
-      (c/exec :echo (clojure.string/join "\n" ["#!/bin/sh"
-                                               "exec 2>&1"
-                                               (str "exec " cmd)]) :> run-script)
-      (c/exec :chmod :+x run-script)
-      (c/exec :ln :-sf service-dir (str "/etc/service/" service-name)))))
-
-(defn stop-supervised-service!
-  "Stops a service and removes it from supervision."
-  [service-name]
-  (c/su
-    (c/exec :sv :down service-name)
-    (c/exec :rm :-f (str "/etc/service/" service-name))))
 
 ;;; Mesos
 
@@ -95,7 +68,8 @@
                         (str "--log_dir=" log-dir)
                         (str "--master=" (zookeeper-uri test zk-namespace))
                         (str "--recovery_timeout=30secs")
-                        (str "--work_dir=" slave-dir)]))
+                        (str "--work_dir=" slave-dir)
+                        (str "--resources='cpus:8'")]))
 
 (defn create-mesos-master-supervised-service!
   [test node]
@@ -154,8 +128,7 @@
                       "keyserver.ubuntu.com"
                       "E56151BF")
     (debian/install {:mesos    mesos-version
-                     :marathon marathon-version
-                     :runit    runit-version})
+                     :marathon marathon-version})
     (c/exec :mkdir :-p "/var/run/mesos")
     (c/exec :mkdir :-p master-dir)
     (c/exec :mkdir :-p slave-dir)))

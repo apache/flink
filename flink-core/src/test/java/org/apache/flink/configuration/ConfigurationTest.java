@@ -306,6 +306,77 @@ public class ConfigurationTest extends TestLogger {
 	}
 
 	@Test
+	public void testFallbackKeys() {
+		Configuration cfg = new Configuration();
+		cfg.setInteger("the-key", 11);
+		cfg.setInteger("old-key", 12);
+		cfg.setInteger("older-key", 13);
+
+		ConfigOption<Integer> matchesFirst = ConfigOptions
+			.key("the-key")
+			.defaultValue(-1)
+			.withFallbackKeys("old-key", "older-key");
+
+		ConfigOption<Integer> matchesSecond = ConfigOptions
+			.key("does-not-exist")
+			.defaultValue(-1)
+			.withFallbackKeys("old-key", "older-key");
+
+		ConfigOption<Integer> matchesThird = ConfigOptions
+			.key("does-not-exist")
+			.defaultValue(-1)
+			.withFallbackKeys("foo", "older-key");
+
+		ConfigOption<Integer> notContained = ConfigOptions
+			.key("does-not-exist")
+			.defaultValue(-1)
+			.withFallbackKeys("not-there", "also-not-there");
+
+		assertEquals(11, cfg.getInteger(matchesFirst));
+		assertEquals(12, cfg.getInteger(matchesSecond));
+		assertEquals(13, cfg.getInteger(matchesThird));
+		assertEquals(-1, cfg.getInteger(notContained));
+	}
+
+	@Test
+	public void testFallbackAndDeprecatedKeys() {
+		final ConfigOption<Integer> fallback = ConfigOptions
+			.key("fallback")
+			.defaultValue(-1);
+
+		final ConfigOption<Integer> deprecated = ConfigOptions
+			.key("deprecated")
+			.defaultValue(-1);
+
+		final ConfigOption<Integer> mainOption = ConfigOptions
+			.key("main")
+			.defaultValue(-1)
+			.withFallbackKeys(fallback.key())
+			.withDeprecatedKeys(deprecated.key());
+
+		final Configuration fallbackCfg = new Configuration();
+		fallbackCfg.setInteger(fallback, 1);
+		assertEquals(1, fallbackCfg.getInteger(mainOption));
+
+		final Configuration deprecatedCfg = new Configuration();
+		deprecatedCfg.setInteger(deprecated, 2);
+		assertEquals(2, deprecatedCfg.getInteger(mainOption));
+
+		// reverse declaration of fallback and deprecated keys, fallback keys should always be used first
+		final ConfigOption<Integer> reversedMainOption = ConfigOptions
+			.key("main")
+			.defaultValue(-1)
+			.withDeprecatedKeys(deprecated.key())
+			.withFallbackKeys(fallback.key());
+
+		final Configuration deprecatedAndFallBackConfig = new Configuration();
+		deprecatedAndFallBackConfig.setInteger(fallback, 1);
+		deprecatedAndFallBackConfig.setInteger(deprecated, 2);
+		assertEquals(1, deprecatedAndFallBackConfig.getInteger(mainOption));
+		assertEquals(1, deprecatedAndFallBackConfig.getInteger(reversedMainOption));
+	}
+
+	@Test
 	public void testRemove(){
 		Configuration cfg = new Configuration();
 		cfg.setInteger("a", 1);

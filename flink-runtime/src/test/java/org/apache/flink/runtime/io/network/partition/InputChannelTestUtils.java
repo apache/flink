@@ -59,7 +59,7 @@ public class InputChannelTestUtils {
 
 		return manager;
 	}
-	
+
 	public static ConnectionManager createDummyConnectionManager() throws Exception {
 		final PartitionRequestClient mockClient = mock(PartitionRequestClient.class);
 
@@ -71,6 +71,6 @@ public class InputChannelTestUtils {
 
 	// ------------------------------------------------------------------------
 
-	/** This class is not meant to be instantiated */
+	/** This class is not meant to be instantiated. */
 	private InputChannelTestUtils() {}
 }

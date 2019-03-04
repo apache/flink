@@ -38,7 +38,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -88,6 +91,56 @@ public class ConfigOptionsDocGeneratorTest {
 		final String htmlTable = ConfigOptionsDocGenerator.generateTablesForClass(TestConfigGroup.class).get(0).f1;
 
 		assertEquals(expectedTable, htmlTable);
+	}
+
+	@ConfigGroups(groups = {
+		@ConfigGroup(name = "group1", keyPrefix = "a.b"),
+		@ConfigGroup(name = "group2", keyPrefix = "a.b.c.d")})
+	static class TestConfigPrefix {
+		// should end up in the default group
+		public static ConfigOption<Integer> option1 = ConfigOptions
+			.key("a.option")
+			.defaultValue(2);
+
+		// should end up in group1, perfect key-prefix match
+		public static ConfigOption<String> option2 = ConfigOptions
+			.key("a.b.option")
+			.noDefaultValue();
+
+		// should end up in group1, full key-prefix match
+		public static ConfigOption<Integer> option3 = ConfigOptions
+			.key("a.b.c.option")
+			.defaultValue(2);
+
+		// should end up in group1, full key-prefix match for group 1, partial match for group 2
+		// checks that the generator remembers the last encountered root node
+		public static ConfigOption<Integer> option4 = ConfigOptions
+			.key("a.b.c.e.option")
+			.defaultValue(2);
+
+		// should end up in the default group, since no group exists with prefix "a.c"
+		// checks that the generator does not ignore components (like ignoring "c" to find a match "a.b")
+		public static ConfigOption<String> option5 = ConfigOptions
+			.key("a.c.b.option")
+			.noDefaultValue();
+	}
+
+	@Test
+	public void testLongestPrefixMatching() {
+		final List<Tuple2<ConfigGroup, String>> tables = ConfigOptionsDocGenerator.generateTablesForClass(
+			TestConfigPrefix.class);
+
+		assertEquals(3, tables.size());
+		final Map<String, String> tablesConverted = new HashMap<>(tables.size());
+		for (final Tuple2<ConfigGroup, String> table : tables) {
+			tablesConverted.put(table.f0 != null ? table.f0.name() : "default", table.f1);
+		}
+
+		assertThat(tablesConverted.get("group1"), containsString("a.b.option"));
+		assertThat(tablesConverted.get("group1"), containsString("a.b.c.option"));
+		assertThat(tablesConverted.get("group1"), containsString("a.b.c.e.option"));
+		assertThat(tablesConverted.get("default"), containsString("a.option"));
+		assertThat(tablesConverted.get("default"), containsString("a.c.b.option"));
 	}
 
 	@ConfigGroups(groups = {
@@ -265,5 +318,46 @@ public class ConfigOptionsDocGeneratorTest {
 		String output = FileUtils.readFile(Paths.get(outputDirectory, ConfigOptionsDocGenerator.COMMON_SECTION_FILE_NAME).toFile(), StandardCharsets.UTF_8.name());
 
 		assertEquals(expected, output);
+	}
+
+	static class TestConfigGroupWithExclusion {
+		public static ConfigOption<Integer> firstOption = ConfigOptions
+			.key("first.option.a")
+			.defaultValue(2)
+			.withDescription("This is example description for the first option.");
+
+		@Documentation.ExcludeFromDocumentation
+		public static ConfigOption<String> excludedOption = ConfigOptions
+			.key("excluded.option.a")
+			.noDefaultValue()
+			.withDescription("This should not be documented.");
+	}
+
+	/**
+	 * Tests that {@link ConfigOption} annotated with {@link Documentation.ExcludeFromDocumentation}
+	 * are not documented.
+	 */
+	@Test
+	public void testConfigOptionExclusion() {
+		final String expectedTable =
+			"<table class=\"table table-bordered\">\n" +
+				"    <thead>\n" +
+				"        <tr>\n" +
+				"            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 15%\">Default</th>\n" +
+				"            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n" +
+				"        </tr>\n" +
+				"    </thead>\n" +
+				"    <tbody>\n" +
+				"        <tr>\n" +
+				"            <td><h5>first.option.a</h5></td>\n" +
+				"            <td style=\"word-wrap: break-word;\">2</td>\n" +
+				"            <td>This is example description for the first option.</td>\n" +
+				"        </tr>\n" +
+				"    </tbody>\n" +
+				"</table>\n";
+		final String htmlTable = ConfigOptionsDocGenerator.generateTablesForClass(TestConfigGroupWithExclusion.class).get(0).f1;
+
+		assertEquals(expectedTable, htmlTable);
 	}
 }

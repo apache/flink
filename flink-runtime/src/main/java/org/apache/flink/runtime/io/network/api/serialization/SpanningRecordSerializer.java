@@ -20,10 +20,7 @@ package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -32,7 +29,7 @@ import java.nio.ByteOrder;
 /**
  * Record serializer which serializes the complete record to an intermediate
  * data serialization buffer and copies this buffer to target buffers
- * one-by-one using {@link #continueWritingWithNextBufferBuilder(BufferBuilder)}.
+ * one-by-one using {@link #copyToBufferBuilder(BufferBuilder)}.
  *
  * @param <T> The type of the records that are serialized.
  */
@@ -50,10 +47,6 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	/** Intermediate buffer for length serialization. */
 	private final ByteBuffer lengthBuffer;
 
-	/** Current target {@link Buffer} of the serializer. */
-	@Nullable
-	private BufferBuilder targetBuffer;
-
 	public SpanningRecordSerializer() {
 		serializationBuffer = new DataOutputSerializer(128);
 
@@ -66,15 +59,12 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	}
 
 	/**
-	 * Serializes the complete record to an intermediate data serialization
-	 * buffer and starts copying it to the target buffer (if available).
+	 * Serializes the complete record to an intermediate data serialization buffer.
 	 *
 	 * @param record the record to serialize
-	 * @return how much information was written to the target buffer and
-	 *         whether this buffer is full
 	 */
 	@Override
-	public SerializationResult addRecord(T record) throws IOException {
+	public void serializeRecord(T record) throws IOException {
 		if (CHECKED) {
 			if (dataBuffer.hasRemaining()) {
 				throw new IllegalStateException("Pending serialization of previous record.");
@@ -91,60 +81,43 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		lengthBuffer.putInt(0, len);
 
 		dataBuffer = serializationBuffer.wrapAsByteBuffer();
-
-		// Copy from intermediate buffers to current target memory segment
-		if (targetBuffer != null) {
-			targetBuffer.append(lengthBuffer);
-			targetBuffer.append(dataBuffer);
-			targetBuffer.commit();
-		}
-
-		return getSerializationResult();
 	}
 
+	/**
+	 * Copies an intermediate data serialization buffer into the target BufferBuilder.
+	 *
+	 * @param targetBuffer the target BufferBuilder to copy to
+	 * @return how much information was written to the target buffer and
+	 *         whether this buffer is full
+	 */
 	@Override
-	public SerializationResult continueWritingWithNextBufferBuilder(BufferBuilder buffer) throws IOException {
-		targetBuffer = buffer;
+	public SerializationResult copyToBufferBuilder(BufferBuilder targetBuffer) {
+		targetBuffer.append(lengthBuffer);
+		targetBuffer.append(dataBuffer);
+		targetBuffer.commit();
 
-		boolean mustCommit = false;
-		if (lengthBuffer.hasRemaining()) {
-			targetBuffer.append(lengthBuffer);
-			mustCommit = true;
-		}
-
-		if (dataBuffer.hasRemaining()) {
-			targetBuffer.append(dataBuffer);
-			mustCommit = true;
-		}
-
-		if (mustCommit) {
-			targetBuffer.commit();
-		}
-
-		SerializationResult result = getSerializationResult();
-
-		// make sure we don't hold onto the large buffers for too long
-		if (result.isFullRecord()) {
-			serializationBuffer.clear();
-			serializationBuffer.pruneBuffer();
-			dataBuffer = serializationBuffer.wrapAsByteBuffer();
-		}
-
-		return result;
+		return getSerializationResult(targetBuffer);
 	}
 
-	private SerializationResult getSerializationResult() {
+	private SerializationResult getSerializationResult(BufferBuilder targetBuffer) {
 		if (dataBuffer.hasRemaining() || lengthBuffer.hasRemaining()) {
 			return SerializationResult.PARTIAL_RECORD_MEMORY_SEGMENT_FULL;
 		}
 		return !targetBuffer.isFull()
-				? SerializationResult.FULL_RECORD
-				: SerializationResult.FULL_RECORD_MEMORY_SEGMENT_FULL;
+			? SerializationResult.FULL_RECORD
+			: SerializationResult.FULL_RECORD_MEMORY_SEGMENT_FULL;
 	}
 
 	@Override
-	public void clear() {
-		targetBuffer = null;
+	public void reset() {
+		dataBuffer.position(0);
+		lengthBuffer.position(0);
+	}
+
+	@Override
+	public void prune() {
+		serializationBuffer.pruneBuffer();
+		dataBuffer = serializationBuffer.wrapAsByteBuffer();
 	}
 
 	@Override

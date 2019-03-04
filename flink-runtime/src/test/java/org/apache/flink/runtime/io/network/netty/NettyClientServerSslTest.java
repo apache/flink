@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
@@ -29,13 +30,22 @@ import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.string.StringDecoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.string.StringEncoder;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.net.ssl.SSLSessionContext;
+
 import java.net.InetAddress;
 
+import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT;
+import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT;
+import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_SESSION_CACHE_SIZE;
+import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_SESSION_TIMEOUT;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -49,19 +59,63 @@ public class NettyClientServerSslTest extends TestLogger {
 	 */
 	@Test
 	public void testValidSslConnection() throws Exception {
+		testValidSslConnection(createSslConfig());
+	}
+
+	/**
+	 * Verify valid (advanced) ssl configuration and connection.
+	 */
+	@Test
+	public void testValidSslConnectionAdvanced() throws Exception {
+		Configuration sslConfig = createSslConfig();
+		sslConfig.setInteger(SSL_INTERNAL_SESSION_CACHE_SIZE, 1);
+		sslConfig.setInteger(SSL_INTERNAL_SESSION_TIMEOUT, 1_000);
+		sslConfig.setInteger(SSL_INTERNAL_HANDSHAKE_TIMEOUT, 1_000);
+		sslConfig.setInteger(SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT, 1_000);
+
+		testValidSslConnection(sslConfig);
+	}
+
+	private void testValidSslConnection(Configuration sslConfig) throws Exception {
 		NettyProtocol protocol = new NoOpProtocol();
 
-		NettyConfig nettyConfig = createNettyConfig(createSslConfig());
+		NettyConfig nettyConfig = createNettyConfig(sslConfig);
 
 		NettyTestUtil.NettyServerAndClient serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
 
 		Channel ch = NettyTestUtil.connect(serverAndClient);
 
+		SslHandler sslHandler = (SslHandler) ch.pipeline().get("ssl");
+		assertEqualsOrDefault(sslConfig, SSL_INTERNAL_HANDSHAKE_TIMEOUT, sslHandler.getHandshakeTimeoutMillis());
+		assertEqualsOrDefault(sslConfig, SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT, sslHandler.getCloseNotifyFlushTimeoutMillis());
+
 		// should be able to send text data
 		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
 		assertTrue(ch.writeAndFlush("test").await().isSuccess());
 
+		// session context is only be available after a session was setup -> this should be true after data was sent
+		SSLSessionContext sessionContext = sslHandler.engine().getSession().getSessionContext();
+		assertNotNull("bug in unit test setup: session context not available", sessionContext);
+		assertEqualsOrDefault(sslConfig, SSL_INTERNAL_SESSION_CACHE_SIZE, sessionContext.getSessionCacheSize());
+		int sessionTimeout = sslConfig.getInteger(SSL_INTERNAL_SESSION_TIMEOUT);
+		if (sessionTimeout != -1) {
+			// session timeout config is in milliseconds but the context returns it in seconds
+			assertEquals(sessionTimeout / 1000, sessionContext.getSessionTimeout());
+		} else {
+			assertTrue("default value (-1) should not be propagated", sessionContext.getSessionTimeout() >= 0);
+		}
+
 		NettyTestUtil.shutdown(serverAndClient);
+	}
+
+	private static void assertEqualsOrDefault(Configuration sslConfig, ConfigOption<Integer> option, long actual) {
+		long expected = sslConfig.getInteger(option);
+		if (expected != option.defaultValue()) {
+			assertEquals(expected, actual);
+		} else {
+			assertTrue("default value (" + option.defaultValue() + ") should not be propagated",
+				actual >= 0);
+		}
 	}
 
 	/**

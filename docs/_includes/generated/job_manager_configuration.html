@@ -10,17 +10,12 @@
         <tr>
             <td><h5>jobmanager.archive.fs.dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td></td>
+            <td>Dictionary for JobManager to store the archives of completed jobs.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.execution.attempts-history-size</h5></td>
             <td style="word-wrap: break-word;">16</td>
             <td>The maximum number of prior execution attempts kept in history.</td>
-        </tr>
-        <tr>
-            <td><h5>jobmanager.execution.failover-strategy</h5></td>
-            <td style="word-wrap: break-word;">"full"</td>
-            <td>This option specifies how the job computation recovers from task failures. Accepted values are:<ul><li>'full': Restarts all tasks.</li><li>'individual': Restarts only the failed task. Should only be used if all tasks are independent components.</li><li>'region': Restarts all tasks that could be affected by the task failure.</li></ul></td>
         </tr>
         <tr>
             <td><h5>jobmanager.heap.size</h5></td>

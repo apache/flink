@@ -76,7 +76,7 @@ public class InMemorySubmittedJobGraphStore implements SubmittedJobGraphStore {
 		verifyIsStarted();
 
 		if (recoverJobGraphFunction != null) {
-			return recoverJobGraphFunction.applyWithException(jobId, storedJobs);
+			return recoverJobGraphFunction.apply(jobId, storedJobs);
 		} else {
 			return requireNonNull(
 				storedJobs.get(jobId),
@@ -97,6 +97,11 @@ public class InMemorySubmittedJobGraphStore implements SubmittedJobGraphStore {
 	}
 
 	@Override
+	public void releaseJobGraph(JobID jobId) {
+		verifyIsStarted();
+	}
+
+	@Override
 	public synchronized Collection<JobID> getJobIds() throws Exception {
 		verifyIsStarted();
 
@@ -108,7 +113,6 @@ public class InMemorySubmittedJobGraphStore implements SubmittedJobGraphStore {
 	}
 
 	public synchronized boolean contains(JobID jobId) {
-		verifyIsStarted();
 		return storedJobs.containsKey(jobId);
 	}
 

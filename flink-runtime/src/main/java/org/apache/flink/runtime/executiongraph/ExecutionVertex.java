@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.Archiveable;
+import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -33,7 +34,6 @@ import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescript
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -56,10 +56,12 @@ import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -69,6 +71,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 
@@ -337,6 +340,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	public Map<IntermediateResultPartitionID, IntermediateResultPartition> getProducedPartitions() {
 		return resultPartitions;
+	}
+
+	public InputDependencyConstraint getInputDependencyConstraint() {
+		return getJobVertex().getInputDependencyConstraint();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -617,21 +624,25 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * @param slotProvider to allocate the slots from
 	 * @param queued if the allocation can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
+	 *                                                 Can be empty if the allocation ids are not required for scheduling.
 	 * @return Future which is completed once the execution is deployed. The future
 	 * can also completed exceptionally.
 	 */
 	public CompletableFuture<Void> scheduleForExecution(
 			SlotProvider slotProvider,
 			boolean queued,
-			LocationPreferenceConstraint locationPreferenceConstraint) {
+			LocationPreferenceConstraint locationPreferenceConstraint,
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 		return this.currentExecution.scheduleForExecution(
 			slotProvider,
 			queued,
-			locationPreferenceConstraint);
+			locationPreferenceConstraint,
+			allPreviousExecutionGraphAllocationIds);
 	}
 
 	@VisibleForTesting
-	public void deployToSlot(SimpleSlot slot) throws JobException {
+	public void deployToSlot(LogicalSlot slot) throws JobException {
 		if (this.currentExecution.tryAssignResource(slot)) {
 			this.currentExecution.deploy();
 		} else {
@@ -651,6 +662,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		final Execution exec = this.currentExecution;
 		exec.cancel();
 		return exec.getReleaseFuture();
+	}
+
+	public CompletableFuture<?> suspend() {
+		return currentExecution.suspend();
 	}
 
 	public void stop() {
@@ -678,6 +693,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		if (partition == null) {
 			throw new IllegalStateException("Unknown partition " + partitionId + ".");
 		}
+
+		partition.markDataProduced();
 
 		if (partition.getIntermediateResult().getResultType().isPipelined()) {
 			// Schedule or update receivers of this partition
@@ -719,6 +736,34 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		else {
 			return finishedBlockingPartitions;
 		}
+	}
+
+	/**
+	 * Check whether the InputDependencyConstraint is satisfied for this vertex.
+	 *
+	 * @return whether the input constraint is satisfied
+	 */
+	boolean checkInputDependencyConstraints() {
+		if (getInputDependencyConstraint() == InputDependencyConstraint.ANY) {
+			// InputDependencyConstraint == ANY
+			return IntStream.range(0, inputEdges.length).anyMatch(this::isInputConsumable);
+		} else {
+			// InputDependencyConstraint == ALL
+			return IntStream.range(0, inputEdges.length).allMatch(this::isInputConsumable);
+		}
+	}
+
+	/**
+	 * Get whether an input of the vertex is consumable.
+	 * An input is consumable when when any partition in it is consumable.
+	 *
+	 * Note that a BLOCKING result partition is only consumable when all partitions in the result are FINISHED.
+	 *
+	 * @return whether the input is consumable
+	 */
+	boolean isInputConsumable(int inputNumber) {
+		return Arrays.stream(inputEdges[inputNumber]).map(ExecutionEdge::getSource).anyMatch(
+				IntermediateResultPartition::isConsumable);
 	}
 
 	// --------------------------------------------------------------------------------------------

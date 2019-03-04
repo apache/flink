@@ -27,7 +27,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * channels. This distributes only to a subset of downstream nodes because
  * {@link org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator} instantiates
  * a {@link DistributionPattern#POINTWISE} distribution pattern when encountering
- * {@code SemiRebalancePartitioner}.
+ * {@code RescalePartitioner}.
  *
  * <p>The subset of downstream operations to which the upstream operation sends
  * elements depends on the degree of parallelism of both the upstream and downstream operation.
@@ -48,15 +48,14 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 public class RescalePartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private final int[] returnArray = new int[] {-1};
+	private int nextChannelToSendTo = -1;
 
 	@Override
-	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record, int numberOfOutputChannels) {
-		int newChannel = ++this.returnArray[0];
-		if (newChannel >= numberOfOutputChannels) {
-			this.returnArray[0] = 0;
+	public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
+		if (++nextChannelToSendTo >= numberOfChannels) {
+			nextChannelToSendTo = 0;
 		}
-		return this.returnArray;
+		return nextChannelToSendTo;
 	}
 
 	public StreamPartitioner<T> copy() {

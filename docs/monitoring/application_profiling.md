@@ -29,7 +29,7 @@ under the License.
 
 Each standalone JobManager, TaskManager, HistoryServer, and ZooKeeper daemon redirects `stdout` and `stderr` to a file
 with a `.out` filename suffix and writes internal logging to a file with a `.log` suffix. Java options configured by the
-user in `env.java.opts`, `env.java.opts.jobmanager`, and `env.java.opts.taskmanager` can likewise define log files with
+user in `env.java.opts`, `env.java.opts.jobmanager`, `env.java.opts.taskmanager` and `env.java.opts.historyserver` can likewise define log files with
 use of the script variable `FLINK_LOG_PREFIX` and by enclosing the options in double quotes for late evaluation. Log files
 using `FLINK_LOG_PREFIX` are rotated along with the default `.out` and `.log` files.
 

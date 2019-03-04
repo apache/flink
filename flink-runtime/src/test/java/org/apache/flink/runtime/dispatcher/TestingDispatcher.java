@@ -18,7 +18,8 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -28,20 +29,27 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 /**
  * {@link Dispatcher} implementation used for testing purposes.
  */
 class TestingDispatcher extends Dispatcher {
 
+	private final CompletableFuture<Void> startFuture;
+
 	TestingDispatcher(
 		RpcService rpcService,
 		String endpointId,
 		Configuration configuration,
 		HighAvailabilityServices highAvailabilityServices,
-		ResourceManagerGateway resourceManagerGateway,
+		GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
 		JobManagerMetricGroup jobManagerMetricGroup,
@@ -55,7 +63,7 @@ class TestingDispatcher extends Dispatcher {
 			configuration,
 			highAvailabilityServices,
 			highAvailabilityServices.getSubmittedJobGraphStore(),
-			resourceManagerGateway,
+			resourceManagerGatewayRetriever,
 			blobServer,
 			heartbeatServices,
 			jobManagerMetricGroup,
@@ -63,13 +71,47 @@ class TestingDispatcher extends Dispatcher {
 			archivedExecutionGraphStore,
 			jobManagerRunnerFactory,
 			fatalErrorHandler,
-			null,
 			VoidHistoryServerArchivist.INSTANCE);
+
+		this.startFuture = new CompletableFuture<>();
 	}
 
-	@VisibleForTesting
+	@Override
+	public void onStart() throws Exception {
+		try {
+			super.onStart();
+		} catch (Exception e) {
+			startFuture.completeExceptionally(e);
+			throw e;
+		}
+
+		startFuture.complete(null);
+	}
+
 	void completeJobExecution(ArchivedExecutionGraph archivedExecutionGraph) {
 		runAsync(
 			() -> jobReachedGloballyTerminalState(archivedExecutionGraph));
+	}
+
+	CompletableFuture<Void> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {
+		return callAsyncWithoutFencing(
+			() -> getJobTerminationFuture(jobId),
+			timeout).thenCompose(Function.identity());
+	}
+
+	CompletableFuture<Void> getRecoverOperationFuture(@Nonnull Time timeout) {
+		return callAsyncWithoutFencing(
+			this::getRecoveryOperation,
+			timeout).thenCompose(Function.identity());
+	}
+
+	CompletableFuture<Integer> getNumberJobs(Time timeout) {
+		return callAsyncWithoutFencing(
+			() -> listJobs(timeout).get().size(),
+			timeout);
+	}
+
+	void waitUntilStarted() {
+		startFuture.join();
 	}
 }

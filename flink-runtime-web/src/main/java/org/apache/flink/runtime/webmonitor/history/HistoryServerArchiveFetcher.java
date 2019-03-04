@@ -28,7 +28,6 @@ import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
-import org.apache.flink.runtime.rest.handler.legacy.JobsOverviewHandler;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.FileUtils;
@@ -66,7 +65,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link HistoryServerOptions#HISTORY_SERVER_ARCHIVE_DIRS}. The directories are polled in regular intervals, defined
  * by {@link HistoryServerOptions#HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL}.
  *
- * <p>The archives are downloaded and expanded into a file structure analog to the REST API defined in the WebRuntimeMonitor.
+ * <p>The archives are downloaded and expanded into a file structure analog to the REST API.
  */
 class HistoryServerArchiveFetcher {
 
@@ -275,7 +274,7 @@ class HistoryServerArchiveFetcher {
 	}
 
 	/**
-	 * This method replicates the JSON response that would be given by the {@link JobsOverviewHandler} when
+	 * This method replicates the JSON response that would be given by the JobsOverviewHandler when
 	 * listing both running and finished jobs.
 	 *
 	 * <p>Every job archive contains a joboverview.json file containing the same structure. Since jobs are archived on

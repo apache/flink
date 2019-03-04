@@ -18,14 +18,15 @@
 
 package org.apache.flink.ml.util
 
-import org.apache.flink.test.util.{MiniClusterResource, MiniClusterResourceConfiguration}
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration
+import org.apache.flink.test.util.MiniClusterWithClientResource
 import org.scalatest.{BeforeAndAfter, Suite}
 
-/** Mixin to start and stop a LocalFlinkMiniCluster automatically for Scala based tests.
+/** Mixin to start and stop a MiniCluster automatically for Scala based tests.
   * Additionally a TestEnvironment with the started cluster is created and set as the default
   * [[org.apache.flink.api.java.ExecutionEnvironment]].
   *
-  * This mixin starts a LocalFlinkMiniCluster with one TaskManager and a number of slots given
+  * This mixin starts a MiniCluster with one TaskManager and a number of slots given
   * by parallelism. This value can be overridden in a sub class in order to start the cluster
   * with a different number of slots.
   *
@@ -37,7 +38,7 @@ import org.scalatest.{BeforeAndAfter, Suite}
   * @example
   *          {{{
   *            def testSomething: Unit = {
-  *             // Obtain TestEnvironment with started LocalFlinkMiniCluster
+  *             // Obtain TestEnvironment with started MiniCluster
   *             val env = ExecutionEnvironment.getExecutionEnvironment
   *
   *             env.fromCollection(...)
@@ -50,11 +51,11 @@ import org.scalatest.{BeforeAndAfter, Suite}
 trait FlinkTestBase extends BeforeAndAfter {
   that: Suite =>
 
-  var cluster: Option[MiniClusterResource] = None
+  var cluster: Option[MiniClusterWithClientResource] = None
   val parallelism = 4
 
   before {
-    val cl = new MiniClusterResource(
+    val cl = new MiniClusterWithClientResource(
       new MiniClusterResourceConfiguration.Builder()
         .setNumberTaskManagers(1)
         .setNumberSlotsPerTaskManager(parallelism)

@@ -21,6 +21,8 @@ package org.apache.flink.api.common.typeutils.base.array;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -103,7 +105,20 @@ public final class ShortPrimitiveArraySerializer extends TypeSerializerSingleton
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof ShortPrimitiveArraySerializer;
+	public TypeSerializerSnapshot<short[]> snapshotConfiguration() {
+		return new ShortPrimitiveArraySerializerSnapshot();
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Serializer configuration snapshot for compatibility and format evolution.
+	 */
+	@SuppressWarnings("WeakerAccess")
+	public static final class ShortPrimitiveArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<short[]> {
+
+		public ShortPrimitiveArraySerializerSnapshot() {
+			super(() -> INSTANCE);
+		}
 	}
 }

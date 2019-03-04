@@ -39,6 +39,8 @@ object TestingTaskManagerMessages {
     import collection.JavaConverters._
     def asJava: java.util.Map[ExecutionAttemptID, Task] = tasks.asJava
   }
+
+  case class NotifyWhenJobRemoved(jobID: JobID)
   
   case object RequestRunningTasks
 

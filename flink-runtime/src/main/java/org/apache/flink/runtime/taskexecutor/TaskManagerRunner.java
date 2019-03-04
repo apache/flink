@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -36,6 +36,7 @@ import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
@@ -43,7 +44,6 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -57,18 +57,16 @@ import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.NetUtils;
 
 import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.BindException;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -89,7 +87,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 	private static final int STARTUP_FAILURE_RETURN_CODE = 1;
 
-	private static final int RUNTIME_FAILURE_RETURN_CODE = 2;
+	public static final int RUNTIME_FAILURE_RETURN_CODE = 2;
 
 	private final Object lock = new Object();
 
@@ -100,6 +98,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 	private final Time timeout;
 
 	private final RpcService rpcService;
+
+	private final ActorSystem metricQueryServiceActorSystem;
 
 	private final HighAvailabilityServices highAvailabilityServices;
 
@@ -132,14 +132,14 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
 
 		rpcService = createRpcService(configuration, highAvailabilityServices);
+		metricQueryServiceActorSystem = MetricUtils.startMetricsActorSystem(configuration, rpcService.getAddress(), LOG);
 
 		HeartbeatServices heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
 
 		metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
 
 		// TODO: Temporary hack until the MetricQueryService has been ported to RpcEndpoint
-		final ActorSystem actorSystem = ((AkkaRpcService) rpcService).getActorSystem();
-		metricRegistry.startQueryService(actorSystem, resourceId);
+		metricRegistry.startQueryService(metricQueryServiceActorSystem, resourceId);
 
 		blobCacheService = new BlobCacheService(
 			configuration, highAvailabilityServices.createBlobStore(), null
@@ -159,7 +159,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		this.terminationFuture = new CompletableFuture<>();
 		this.shutdown = false;
 
-		MemoryLogger.startIfConfigured(LOG, configuration, actorSystem);
+		MemoryLogger.startIfConfigured(LOG, configuration, metricQueryServiceActorSystem);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -176,8 +176,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			if (!shutdown) {
 				shutdown = true;
 
-				taskManager.shutDown();
-				final CompletableFuture<Void> taskManagerTerminationFuture = taskManager.getTerminationFuture();
+				final CompletableFuture<Void> taskManagerTerminationFuture = taskManager.closeAsync();
 
 				final CompletableFuture<Void> serviceTerminationFuture = FutureUtils.composeAfterwards(
 					taskManagerTerminationFuture,
@@ -212,6 +211,10 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 				metricRegistry.shutdown();
 			} catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
+			}
+
+			if (metricQueryServiceActorSystem != null) {
+				terminationFutures.add(AkkaUtils.terminateActorSystem(metricQueryServiceActorSystem));
 			}
 
 			try {
@@ -259,7 +262,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		}
 	}
 
-	protected void terminateJVM() {
+	private void terminateJVM() {
 		System.exit(RUNTIME_FAILURE_RETURN_CODE);
 	}
 
@@ -301,12 +304,14 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 				}
 			});
 		} catch (Throwable t) {
-			LOG.error("TaskManager initialization failed.", t);
+			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
+			LOG.error("TaskManager initialization failed.", strippedThrowable);
 			System.exit(STARTUP_FAILURE_RETURN_CODE);
 		}
 	}
 
-	private static Configuration loadConfiguration(String[] args) throws FlinkParseException {
+	@VisibleForTesting
+	static Configuration loadConfiguration(String[] args) throws FlinkParseException {
 		final CommandLineParser<ClusterConfiguration> commandLineParser = new CommandLineParser<>(new ClusterConfigurationParserFactory());
 
 		final ClusterConfiguration clusterConfiguration;
@@ -349,6 +354,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		checkNotNull(rpcService);
 		checkNotNull(highAvailabilityServices);
 
+		LOG.info("Starting TaskManager with ResourceID: {}", resourceID);
+
 		InetAddress remoteAddress = InetAddress.getByName(rpcService.getAddress());
 
 		TaskManagerServicesConfiguration taskManagerServicesConfiguration =
@@ -372,6 +379,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 		TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
 
+		String metricQueryServicePath = metricRegistry.getMetricQueryServicePath();
+
 		return new TaskExecutor(
 			rpcService,
 			taskManagerConfiguration,
@@ -379,6 +388,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			taskManagerServices,
 			heartbeatServices,
 			taskManagerMetricGroup,
+			metricQueryServicePath,
 			blobCacheService,
 			fatalErrorHandler);
 	}
@@ -390,55 +400,46 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 	 * @param haServices to use for the task manager hostname retrieval
 	 */
 	public static RpcService createRpcService(
-		final Configuration configuration,
-		final HighAvailabilityServices haServices) throws Exception {
+			final Configuration configuration,
+			final HighAvailabilityServices haServices) throws Exception {
 
 		checkNotNull(configuration);
 		checkNotNull(haServices);
 
-		String taskManagerHostname = configuration.getString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, null);
-
-		if (taskManagerHostname != null) {
-			LOG.info("Using configured hostname/address for TaskManager: {}.", taskManagerHostname);
-		} else {
-			Time lookupTimeout = Time.milliseconds(AkkaUtils.getLookupTimeout(configuration).toMillis());
-
-			InetAddress taskManagerAddress = LeaderRetrievalUtils.findConnectingAddress(
-				haServices.getResourceManagerLeaderRetriever(),
-				lookupTimeout);
-
-			taskManagerHostname = taskManagerAddress.getHostName();
-
-			LOG.info("TaskManager will use hostname/address '{}' ({}) for communication.",
-				taskManagerHostname, taskManagerAddress.getHostAddress());
-		}
-
+		final String taskManagerAddress = determineTaskManagerBindAddress(configuration, haServices);
 		final String portRangeDefinition = configuration.getString(TaskManagerOptions.RPC_PORT);
 
-		// parse port range definition and create port iterator
-		Iterator<Integer> portsIterator;
-		try {
-			portsIterator = NetUtils.getPortRangeFromString(portRangeDefinition);
-		} catch (Exception e) {
-			throw new IllegalArgumentException("Invalid port range definition: " + portRangeDefinition);
-		}
+		return AkkaRpcServiceUtils.createRpcService(taskManagerAddress, portRangeDefinition, configuration);
+	}
 
-		while (portsIterator.hasNext()) {
-			try {
-				return AkkaRpcServiceUtils.createRpcService(taskManagerHostname, portsIterator.next(), configuration);
-			}
-			catch (Exception e) {
-				// we can continue to try if this contains a netty channel exception
-				Throwable cause = e.getCause();
-				if (!(cause instanceof org.jboss.netty.channel.ChannelException ||
-					cause instanceof java.net.BindException)) {
-					throw e;
-				} // else fall through the loop and try the next port
-			}
-		}
+	private static String determineTaskManagerBindAddress(
+			final Configuration configuration,
+			final HighAvailabilityServices haServices) throws Exception {
 
-		// if we come here, we have exhausted the port range
-		throw new BindException("Could not start task manager on any port in port range "
-			+ portRangeDefinition);
+		final String configuredTaskManagerHostname = configuration.getString(TaskManagerOptions.HOST);
+
+		if (configuredTaskManagerHostname != null) {
+			LOG.info("Using configured hostname/address for TaskManager: {}.", configuredTaskManagerHostname);
+			return configuredTaskManagerHostname;
+		} else {
+			return determineTaskManagerBindAddressByConnectingToResourceManager(configuration, haServices);
+		}
+	}
+
+	private static String determineTaskManagerBindAddressByConnectingToResourceManager(
+			final Configuration configuration,
+			final HighAvailabilityServices haServices) throws LeaderRetrievalException {
+
+		final Time lookupTimeout = Time.milliseconds(AkkaUtils.getLookupTimeout(configuration).toMillis());
+
+		final InetAddress taskManagerAddress = LeaderRetrievalUtils.findConnectingAddress(
+			haServices.getResourceManagerLeaderRetriever(),
+			lookupTimeout);
+
+		LOG.info("TaskManager will use hostname/address '{}' ({}) for communication.",
+			taskManagerAddress.getHostName(), taskManagerAddress.getHostAddress());
+
+		HostBindPolicy bindPolicy = HostBindPolicy.fromString(configuration.getString(TaskManagerOptions.HOST_BIND_POLICY));
+		return bindPolicy == HostBindPolicy.IP ? taskManagerAddress.getHostAddress() : taskManagerAddress.getHostName();
 	}
 }

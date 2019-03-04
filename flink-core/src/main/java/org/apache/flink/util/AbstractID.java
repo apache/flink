@@ -47,7 +47,7 @@ public class AbstractID implements Comparable<AbstractID>, java.io.Serializable 
 	protected final long lowerPart;
 
 	/** The memoized value returned by toString(). */
-	private String toString;
+	private transient String hexString;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -127,6 +127,22 @@ public class AbstractID implements Comparable<AbstractID>, java.io.Serializable 
 		return bytes;
 	}
 
+	/**
+	 * Returns pure String representation of the ID in hexadecimal. This method should be used to construct things like
+	 * paths etc., that require a stable representation and is therefore final.
+	 */
+	public final String toHexString() {
+		if (this.hexString == null) {
+			final byte[] ba = new byte[SIZE];
+			longToByteArray(this.lowerPart, ba, 0);
+			longToByteArray(this.upperPart, ba, SIZE_OF_LONG);
+
+			this.hexString = StringUtils.byteToHexString(ba);
+		}
+
+		return this.hexString;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Standard Utilities
 	// --------------------------------------------------------------------------------------------
@@ -153,15 +169,7 @@ public class AbstractID implements Comparable<AbstractID>, java.io.Serializable 
 
 	@Override
 	public String toString() {
-		if (this.toString == null) {
-			final byte[] ba = new byte[SIZE];
-			longToByteArray(this.lowerPart, ba, 0);
-			longToByteArray(this.upperPart, ba, SIZE_OF_LONG);
-
-			this.toString = StringUtils.byteToHexString(ba);
-		}
-
-		return this.toString;
+		return toHexString();
 	}
 
 	@Override

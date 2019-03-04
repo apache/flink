@@ -52,7 +52,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -62,12 +61,11 @@ public class SubtaskExecutionAttemptDetailsHandler
 	extends AbstractSubtaskAttemptHandler<SubtaskExecutionAttemptDetailsInfo, SubtaskAttemptMessageParameters>
 	implements JsonArchivist {
 
-	private final MetricFetcher<?> metricFetcher;
+	private final MetricFetcher metricFetcher;
 
 	/**
 	 * Instantiates a new subtask execution attempt details handler.
 	 *
-	 * @param localRestAddress    the local rest address
 	 * @param leaderRetriever     the leader retriever
 	 * @param timeout             the timeout
 	 * @param responseHeaders     the response headers
@@ -76,16 +74,15 @@ public class SubtaskExecutionAttemptDetailsHandler
 	 * @param executor            the executor
 	 */
 	public SubtaskExecutionAttemptDetailsHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, SubtaskExecutionAttemptDetailsInfo, SubtaskAttemptMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor,
-			MetricFetcher<?> metricFetcher) {
+			MetricFetcher metricFetcher) {
 
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 
 		this.metricFetcher = Preconditions.checkNotNull(metricFetcher);
 	}
@@ -134,7 +131,7 @@ public class SubtaskExecutionAttemptDetailsHandler
 			AccessExecution execution,
 			JobID jobID,
 			JobVertexID jobVertexID,
-			@Nullable MetricFetcher<?> metricFetcher) {
+			@Nullable MetricFetcher metricFetcher) {
 		final MutableIOMetrics ioMetrics = new MutableIOMetrics();
 
 		ioMetrics.addIOMetrics(

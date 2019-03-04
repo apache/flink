@@ -40,12 +40,14 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 
 // create a TableEnvironment
 // for batch programs use BatchTableEnvironment instead of StreamTableEnvironment
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // register a Table
 tableEnv.registerTable("table1", ...)            // or
 tableEnv.registerTableSource("table2", ...);     // or
 tableEnv.registerExternalCatalog("extCat", ...);
+// register an output Table
+tableEnv.registerTableSink("outputTable", ...);
 
 // create a Table from a Table API query
 Table tapiResult = tableEnv.scan("table1").select(...);
@@ -53,7 +55,7 @@ Table tapiResult = tableEnv.scan("table1").select(...);
 Table sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table2 ... ");
 
 // emit a Table API result Table to a TableSink, same for SQL result
-tapiResult.writeToSink(...);
+tapiResult.insertInto("outputTable");
 
 // execute
 env.execute();
@@ -67,12 +69,14 @@ env.execute();
 val env = StreamExecutionEnvironment.getExecutionEnvironment
 
 // create a TableEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 // register a Table
 tableEnv.registerTable("table1", ...)           // or
 tableEnv.registerTableSource("table2", ...)     // or
-tableEnv.registerExternalCatalog("extCat", ...) 
+tableEnv.registerExternalCatalog("extCat", ...)
+// register an output Table
+tableEnv.registerTableSink("outputTable", ...);
 
 // create a Table from a Table API query
 val tapiResult = tableEnv.scan("table1").select(...)
@@ -80,7 +84,7 @@ val tapiResult = tableEnv.scan("table1").select(...)
 val sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table2 ...")
 
 // emit a Table API result Table to a TableSink, same for SQL result
-tapiResult.writeToSink(...)
+tapiResult.insertInto("outputTable")
 
 // execute
 env.execute()
@@ -107,7 +111,9 @@ The `TableEnvironment` is a central concept of the Table API and SQL integration
 
 A `Table` is always bound to a specific `TableEnvironment`. It is not possible to combine tables of different TableEnvironments in the same query, e.g., to join or union them.
 
-A `TableEnvironment` is created by calling the static `TableEnvironment.getTableEnvironment()` method with a `StreamExecutionEnvironment` or an `ExecutionEnvironment` and an optional `TableConfig`. The `TableConfig` can be used to configure the `TableEnvironment` or to customize the query optimization and translation process (see [Query Optimization](#query-optimization)).
+A `TableEnvironment` is created by calling the static `BatchTableEnvironment.create()` or `StreamTableEnvironment.create()` method with a `StreamExecutionEnvironment` or an `ExecutionEnvironment` and an optional `TableConfig`. The `TableConfig` can be used to configure the `TableEnvironment` or to customize the query optimization and translation process (see [Query Optimization](#query-optimization)).
+
+Make sure to choose the `BatchTableEnvironment`/`StreamTableEnvironment` that matches your programming language.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -115,16 +121,20 @@ A `TableEnvironment` is created by calling the static `TableEnvironment.getTable
 // ***************
 // STREAMING QUERY
 // ***************
+import org.apache.flink.table.api.java.StreamTableEnvironment;
+
 StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 // create a TableEnvironment for streaming queries
-StreamTableEnvironment sTableEnv = TableEnvironment.getTableEnvironment(sEnv);
+StreamTableEnvironment sTableEnv = StreamTableEnvironment.create(sEnv);
 
 // ***********
 // BATCH QUERY
 // ***********
+import org.apache.flink.table.api.java.BatchTableEnvironment;
+
 ExecutionEnvironment bEnv = ExecutionEnvironment.getExecutionEnvironment();
 // create a TableEnvironment for batch queries
-BatchTableEnvironment bTableEnv = TableEnvironment.getTableEnvironment(bEnv);
+BatchTableEnvironment bTableEnv = BatchTableEnvironment.create(bEnv);
 {% endhighlight %}
 </div>
 
@@ -133,16 +143,20 @@ BatchTableEnvironment bTableEnv = TableEnvironment.getTableEnvironment(bEnv);
 // ***************
 // STREAMING QUERY
 // ***************
+import org.apache.flink.table.api.scala.StreamTableEnvironment
+
 val sEnv = StreamExecutionEnvironment.getExecutionEnvironment
 // create a TableEnvironment for streaming queries
-val sTableEnv = TableEnvironment.getTableEnvironment(sEnv)
+val sTableEnv = StreamTableEnvironment.create(sEnv)
 
 // ***********
 // BATCH QUERY
 // ***********
+import org.apache.flink.table.api.scala.BatchTableEnvironment
+
 val bEnv = ExecutionEnvironment.getExecutionEnvironment
 // create a TableEnvironment for batch queries
-val bTableEnv = TableEnvironment.getTableEnvironment(bEnv)
+val bTableEnv = BatchTableEnvironment.create(bEnv)
 {% endhighlight %}
 </div>
 </div>
@@ -170,7 +184,7 @@ A `Table` is registered in a `TableEnvironment` as follows:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // Table is the result of a simple projection query 
 Table projTable = tableEnv.scan("X").select(...);
@@ -183,7 +197,7 @@ tableEnv.registerTable("projectedTable", projTable);
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // get a TableEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 // Table is the result of a simple projection query 
 val projTable: Table = tableEnv.scan("X").select(...)
@@ -210,7 +224,7 @@ A `TableSource` is registered in a `TableEnvironment` as follows:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // create a TableSource
 TableSource csvSource = new CsvTableSource("/path/to/file", ...);
@@ -223,7 +237,7 @@ tableEnv.registerTableSource("CsvTable", csvSource);
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // get a TableEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 // create a TableSource
 val csvSource: TableSource = new CsvTableSource("/path/to/file", ...)
@@ -248,7 +262,7 @@ A `TableSink` is registered in a `TableEnvironment` as follows:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // create a TableSink
 TableSink csvSink = new CsvTableSink("/path/to/file", ...);
@@ -265,7 +279,7 @@ tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, csvSink);
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // get a TableEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 // create a TableSink
 val csvSink: TableSink = new CsvTableSink("/path/to/file", ...)
@@ -293,7 +307,7 @@ An external catalog can be created by implementing the `ExternalCatalog` interfa
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // create an external catalog
 ExternalCatalog catalog = new InMemoryExternalCatalog();
@@ -306,7 +320,7 @@ tableEnv.registerExternalCatalog("InMemCatalog", catalog);
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // get a TableEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 // create an external catalog
 val catalog: ExternalCatalog = new InMemoryExternalCatalog
@@ -340,7 +354,7 @@ The following example shows a simple Table API aggregation query:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // register Orders table
 
@@ -360,7 +374,7 @@ Table revenue = orders
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // get a TableEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 // register Orders table
 
@@ -394,7 +408,7 @@ The following example shows how to specify a query and return the result as a `T
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // register Orders table
 
@@ -414,7 +428,7 @@ Table revenue = tableEnv.sqlQuery(
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // get a TableEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 // register Orders table
 
@@ -439,7 +453,7 @@ The following example shows how to specify an update query that inserts its resu
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // register "Orders" table
 // register "RevenueFrance" output table
@@ -460,7 +474,7 @@ tableEnv.sqlUpdate(
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // get a TableEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 // register "Orders" table
 // register "RevenueFrance" output table
@@ -500,10 +514,7 @@ A batch `Table` can only be written to a `BatchTableSink`, while a streaming `Ta
 
 Please see the documentation about [Table Sources & Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html) for details about available sinks and instructions for how to implement a custom `TableSink`.
 
-There are two ways to emit a table:
-
-1. The `Table.writeToSink(TableSink sink)` method emits the table using the provided `TableSink` and automatically configures the sink with the schema of the table to emit.
-2. The `Table.insertInto(String sinkTable)` method looks up a `TableSink` that was registered with a specific schema under the provided name in the `TableEnvironment`'s catalog. The schema of the table to emit is validated against the schema of the registered `TableSink`.
+The `Table.insertInto(String tableName)` method emits the `Table` to a registered `TableSink`. The method looks up the `TableSink` from the catalog by the name and validates that the schema of the `Table` is identical to the schema of the `TableSink`. 
 
 The following examples shows how to emit a `Table`:
 
@@ -511,24 +522,19 @@ The following examples shows how to emit a `Table`:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
-
-// compute a result Table using Table API operators and/or SQL queries
-Table result = ...
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // create a TableSink
 TableSink sink = new CsvTableSink("/path/to/file", fieldDelim = "|");
 
-// METHOD 1:
-//   Emit the result Table to the TableSink via the writeToSink() method
-result.writeToSink(sink);
-
-// METHOD 2:
-//   Register the TableSink with a specific schema
+// register the TableSink with a specific schema
 String[] fieldNames = {"a", "b", "c"};
 TypeInformation[] fieldTypes = {Types.INT, Types.STRING, Types.LONG};
 tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, sink);
-//   Emit the result Table to the registered TableSink via the insertInto() method
+
+// compute a result Table using Table API operators and/or SQL queries
+Table result = ...
+// emit the result Table to the registered TableSink
 result.insertInto("CsvSinkTable");
 
 // execute the program
@@ -538,24 +544,20 @@ result.insertInto("CsvSinkTable");
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // get a TableEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
-
-// compute a result Table using Table API operators and/or SQL queries
-val result: Table = ...
+val tableEnv = StreamTableEnvironment.create(env)
 
 // create a TableSink
 val sink: TableSink = new CsvTableSink("/path/to/file", fieldDelim = "|")
 
-// METHOD 1:
-//   Emit the result Table to the TableSink via the writeToSink() method
-result.writeToSink(sink)
-
-// METHOD 2:
-//   Register the TableSink with a specific schema
+// register the TableSink with a specific schema
 val fieldNames: Array[String] = Array("a", "b", "c")
 val fieldTypes: Array[TypeInformation] = Array(Types.INT, Types.STRING, Types.LONG)
 tableEnv.registerTableSink("CsvSinkTable", fieldNames, fieldTypes, sink)
-//   Emit the result Table to the registered TableSink via the insertInto() method
+
+// compute a result Table using Table API operators and/or SQL queries
+val result: Table = ...
+
+// emit the result Table to the registered TableSink
 result.insertInto("CsvSinkTable")
 
 // execute the program
@@ -576,7 +578,7 @@ Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/de
 
 A Table API or SQL query is translated when:
 
-* a `Table` is emitted to a `TableSink`, i.e., when `Table.writeToSink()` or `Table.insertInto()` is called.
+* a `Table` is emitted to a `TableSink`, i.e., when `Table.insertInto()` is called.
 * a SQL update query is specified, i.e., when `TableEnvironment.sqlUpdate()` is called.
 * a `Table` is converted into a `DataStream` or `DataSet` (see [Integration with DataStream and DataSet API](#integration-with-dataStream-and-dataSet-api)).
 
@@ -604,7 +606,7 @@ A `DataStream` or `DataSet` can be registered in a `TableEnvironment` as a Table
 {% highlight java %}
 // get StreamTableEnvironment
 // registration of a DataSet in a BatchTableEnvironment is equivalent
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 DataStream<Tuple2<Long, String>> stream = ...
 
@@ -620,7 +622,7 @@ tableEnv.registerDataStream("myTable2", stream, "myLong, myString");
 {% highlight scala %}
 // get TableEnvironment 
 // registration of a DataSet is equivalent
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 val stream: DataStream[(Long, String)] = ...
 
@@ -646,7 +648,7 @@ Instead of registering a `DataStream` or `DataSet` in a `TableEnvironment`, it c
 {% highlight java %}
 // get StreamTableEnvironment
 // registration of a DataSet in a BatchTableEnvironment is equivalent
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 DataStream<Tuple2<Long, String>> stream = ...
 
@@ -662,7 +664,7 @@ Table table2 = tableEnv.fromDataStream(stream, "myLong, myString");
 {% highlight scala %}
 // get TableEnvironment
 // registration of a DataSet is equivalent
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 val stream: DataStream[(Long, String)] = ...
 
@@ -702,7 +704,7 @@ There are two modes to convert a `Table` into a `DataStream`:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // get StreamTableEnvironment. 
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // Table with two fields (String name, Integer age)
 Table table = ...
@@ -732,7 +734,7 @@ DataStream<Tuple2<Boolean, Row>> retractStream =
 {% highlight scala %}
 // get TableEnvironment. 
 // registration of a DataSet is equivalent
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 // Table with two fields (String name, Integer age)
 val table: Table = ...
@@ -753,7 +755,7 @@ val retractStream: DataStream[(Boolean, Row)] = tableEnv.toRetractStream[Row](ta
 </div>
 </div>
 
-**Note:** A detailed discussion about dynamic tables and their properties is given in the [Streaming Queries]({{ site.baseurl }}/dev/table/streaming.html) document.
+**Note:** A detailed discussion about dynamic tables and their properties is given in the [Dynamic Tables](streaming/dynamic_tables.html) document.
 
 #### Convert a Table into a DataSet
 
@@ -763,7 +765,7 @@ A `Table` is converted into a `DataSet` as follows:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // get BatchTableEnvironment
-BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env);
 
 // Table with two fields (String name, Integer age)
 Table table = ...
@@ -784,7 +786,7 @@ DataSet<Tuple2<String, Integer>> dsTuple =
 {% highlight scala %}
 // get TableEnvironment 
 // registration of a DataSet is equivalent
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = BatchTableEnvironment.create(env)
 
 // Table with two fields (String name, Integer age)
 val table: Table = ...
@@ -808,7 +810,7 @@ The mapping of a data type to a table schema can happen in two ways: **based on 
 
 **Position-based Mapping**
 
-Position-based mapping can be used to give fields a more meaningful name while keeping the field order. This mapping is available for composite data types *with a defined field order* as well as atomic types. Composite data types such as tuples, rows, and case classes have such a field order. However, fields of a POJO must be mapped based on the field names (see next section).
+Position-based mapping can be used to give fields a more meaningful name while keeping the field order. This mapping is available for composite data types *with a defined field order* as well as atomic types. Composite data types such as tuples, rows, and case classes have such a field order. However, fields of a POJO must be mapped based on the field names (see next section). Fields can be projected out but can't be renamed using an alias `as`.
 
 When defining a position-based mapping, the specified names must not exist in the input data type, otherwise the API will assume that the mapping should happen based on the field names. If no field names are specified, the default field names and field order of the composite type are used or `f0` for atomic types. 
 
@@ -816,12 +818,15 @@ When defining a position-based mapping, the specified names must not exist in th
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 DataStream<Tuple2<Long, Integer>> stream = ...
 
 // convert DataStream into Table with default field names "f0" and "f1"
 Table table = tableEnv.fromDataStream(stream);
+
+// convert DataStream into Table with field "myLong" only
+Table table = tableEnv.fromDataStream(stream, "myLong");
 
 // convert DataStream into Table with field names "myLong" and "myInt"
 Table table = tableEnv.fromDataStream(stream, "myLong, myInt");
@@ -831,15 +836,18 @@ Table table = tableEnv.fromDataStream(stream, "myLong, myInt");
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // get a TableEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 val stream: DataStream[(Long, Int)] = ...
 
 // convert DataStream into Table with default field names "_1" and "_2"
 val table: Table = tableEnv.fromDataStream(stream)
 
+// convert DataStream into Table with field "myLong" only
+val table: Table = tableEnv.fromDataStream(stream, 'myLong)
+
 // convert DataStream into Table with field names "myLong" and "myInt"
-val table: Table = tableEnv.fromDataStream(stream, 'myLong 'myInt)
+val table: Table = tableEnv.fromDataStream(stream, 'myLong, 'myInt)
 {% endhighlight %}
 </div>
 </div>
@@ -854,7 +862,7 @@ If no field names are specified, the default field names and field order of the 
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 DataStream<Tuple2<Long, Integer>> stream = ...
 
@@ -875,7 +883,7 @@ Table table = tableEnv.fromDataStream(stream, "f1 as myInt, f0 as myLong");
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // get a TableEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 val stream: DataStream[(Long, Int)] = ...
 
@@ -902,7 +910,7 @@ Flink treats primitives (`Integer`, `Double`, `String`) or generic types (types 
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 DataStream<Long> stream = ...
 
@@ -917,7 +925,7 @@ Table table = tableEnv.fromDataStream(stream, "myLong");
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // get a TableEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 val stream: DataStream[Long] = ...
 
@@ -938,7 +946,7 @@ Flink supports Scala's built-in tuples and provides its own tuple classes for Ja
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 DataStream<Tuple2<Long, String>> stream = ...
 
@@ -962,7 +970,7 @@ Table table = tableEnv.fromDataStream(stream, "f1 as 'myString', f0 as 'myLong'"
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // get a TableEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 val stream: DataStream[(Long, String)] = ...
 
@@ -1008,7 +1016,7 @@ When converting a POJO `DataStream` or `DataSet` into a `Table` without specifyi
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // Person is a POJO with fields "name" and "age"
 DataStream<Person> stream = ...
@@ -1030,7 +1038,7 @@ Table table = tableEnv.fromDataStream(stream, "name as myName");
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // get a TableEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 // Person is a POJO with field names "name" and "age"
 val stream: DataStream[Person] = ...
@@ -1058,7 +1066,7 @@ The `Row` data type supports an arbitrary number of fields and fields with `null
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
 DataStream<Row> stream = ...
@@ -1083,7 +1091,7 @@ Table table = tableEnv.fromDataStream(stream, "name as myName");
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // get a TableEnvironment
-val tableEnv = TableEnvironment.getTableEnvironment(env)
+val tableEnv = StreamTableEnvironment.create(env)
 
 // DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
 val stream: DataStream[Row] = ...
@@ -1131,7 +1139,7 @@ The following code shows an example and the corresponding output:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-StreamTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
+StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 DataStream<Tuple2<Integer, String>> stream1 = env.fromElements(new Tuple2<>(1, "hello"));
 DataStream<Tuple2<Integer, String>> stream2 = env.fromElements(new Tuple2<>(1, "hello"));
@@ -1150,7 +1158,7 @@ System.out.println(explanation);
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-val tEnv = TableEnvironment.getTableEnvironment(env)
+val tEnv = StreamTableEnvironment.create(env)
 
 val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
 val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)

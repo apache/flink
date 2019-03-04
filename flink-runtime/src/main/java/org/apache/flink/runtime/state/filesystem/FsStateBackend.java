@@ -25,12 +25,14 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
@@ -47,6 +49,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -86,7 +89,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * parameters from the Flink configuration. For example, if the backend if configured in the application
  * without a default savepoint directory, it will pick up a default savepoint directory specified in the
  * Flink configuration of the running job/cluster. That behavior is implemented via the
- * {@link #configure(Configuration)} method.
+ * {@link #configure(Configuration, ClassLoader)} method.
  */
 @PublicEvolving
 public class FsStateBackend extends AbstractFileStateBackend implements ConfigurableStateBackend {
@@ -333,7 +336,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	 * @param original The state backend to re-configure
 	 * @param configuration The configuration
 	 */
-	private FsStateBackend(FsStateBackend original, Configuration configuration) {
+	private FsStateBackend(FsStateBackend original, Configuration configuration, ClassLoader classLoader) {
 		super(original.getCheckpointPath(), original.getSavepointPath(), configuration);
 
 		// if asynchronous snapshots were configured, use that setting,
@@ -429,8 +432,8 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	 * @return The re-configured variant of the state backend
 	 */
 	@Override
-	public FsStateBackend configure(Configuration config) {
-		return new FsStateBackend(this, config);
+	public FsStateBackend configure(Configuration config, ClassLoader classLoader) {
+		return new FsStateBackend(this, config, classLoader);
 	}
 
 	// ------------------------------------------------------------------------
@@ -456,7 +459,9 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 		int numberOfKeyGroups,
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
-		TtlTimeProvider ttlTimeProvider) {
+		TtlTimeProvider ttlTimeProvider,
+		MetricGroup metricGroup,
+		Collection<KeyedStateHandle> stateHandles) {
 
 		TaskStateManager taskStateManager = env.getTaskStateManager();
 		LocalRecoveryConfig localRecoveryConfig = taskStateManager.createLocalRecoveryConfig();

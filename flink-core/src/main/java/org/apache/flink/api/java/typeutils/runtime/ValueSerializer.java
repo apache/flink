@@ -18,22 +18,22 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.util.LinkedHashMap;
-
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.GenericTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.esotericsoftware.kryo.Kryo;
-import org.apache.flink.util.Preconditions;
 import org.objenesis.strategy.StdInstantiatorStrategy;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.util.LinkedHashMap;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -47,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private final Class<T> type;
 
 	/**
@@ -62,18 +62,18 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	private LinkedHashMap<String, KryoRegistration> kryoRegistrations;
 
 	private transient Kryo kryo;
-	
+
 	private transient T copyInstance;
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public ValueSerializer(Class<T> type) {
 		this.type = checkNotNull(type);
 		this.kryoRegistrations = asKryoRegistrations(type);
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -83,7 +83,7 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	public ValueSerializer<T> duplicate() {
 		return new ValueSerializer<T>(type);
 	}
-	
+
 	@Override
 	public T createInstance() {
 		return InstantiationUtil.instantiate(this.type);
@@ -95,7 +95,7 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 
 		return KryoUtils.copy(from, kryo, this);
 	}
-	
+
 	@Override
 	public T copy(T from, T reuse) {
 		checkKryoInitialized();
@@ -117,7 +117,7 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	public T deserialize(DataInputView source) throws IOException {
 		return deserialize(createInstance(), source);
 	}
-	
+
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
 		reuse.read(source);
@@ -129,11 +129,11 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 		if (this.copyInstance == null) {
 			this.copyInstance = InstantiationUtil.instantiate(type);
 		}
-		
+
 		this.copyInstance.read(source);
 		this.copyInstance.write(target);
 	}
-	
+
 	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new Kryo();
@@ -147,28 +147,27 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 			KryoUtils.applyRegistrations(this.kryo, kryoRegistrations.values());
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public int hashCode() {
 		return this.type.hashCode();
 	}
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof ValueSerializer) {
 			ValueSerializer<?> other = (ValueSerializer<?>) obj;
 
-			return other.canEqual(this) && type == other.type;
+			return type == other.type;
 		} else {
 			return false;
 		}
 	}
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof ValueSerializer;
+	private  Class<T> getValueType() {
+		return type;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -176,27 +175,14 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public ValueSerializerConfigSnapshot<T> snapshotConfiguration() {
-		return new ValueSerializerConfigSnapshot<>(type);
+	public TypeSerializerSnapshot<T> snapshotConfiguration() {
+		return new ValueSerializerSnapshot<>(type);
 	}
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof ValueSerializerConfigSnapshot) {
-			final ValueSerializerConfigSnapshot<T> config = (ValueSerializerConfigSnapshot<T>) configSnapshot;
-
-			if (type.equals(config.getTypeClass())) {
-				// currently, simply checking the type of the value class is sufficient;
-				// in the future, if there are more Kryo registrations, we should try to resolve that
-				return CompatibilityResult.compatible();
-			}
-		}
-
-		return CompatibilityResult.requiresMigration();
-	}
-
+	@Deprecated
 	public static class ValueSerializerConfigSnapshot<T extends Value> extends KryoRegistrationSerializerConfigSnapshot<T> {
+
+		public static final long serialVersionUID = 2277251654485371327L;
 
 		private static final int VERSION = 1;
 
@@ -210,6 +196,43 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 		@Override
 		public int getVersion() {
 			return VERSION;
+		}
+
+		@Override
+		public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
+			return new ValueSerializerSnapshot<>(getTypeClass())
+				.resolveSchemaCompatibility(newSerializer);
+		}
+	}
+
+	/**
+	 * {@link ValueSerializer} snapshot class.
+	 */
+	public static final class ValueSerializerSnapshot<T extends Value>
+		extends GenericTypeSerializerSnapshot<T, ValueSerializer> {
+
+		@SuppressWarnings("unused")
+		public ValueSerializerSnapshot() {
+		}
+
+		ValueSerializerSnapshot(Class<T> typeClass) {
+			super(typeClass);
+		}
+
+		@Override
+		protected TypeSerializer<T> createSerializer(Class<T> typeClass) {
+			return new ValueSerializer<>(typeClass);
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		protected Class<T> getTypeClass(ValueSerializer serializer) {
+			return serializer.type;
+		}
+
+		@Override
+		protected Class<?> serializerClass() {
+			return ValueSerializer.class;
 		}
 	}
 
@@ -225,7 +248,7 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	}
 
 	private static LinkedHashMap<String, KryoRegistration> asKryoRegistrations(Class<?> type) {
-		Preconditions.checkNotNull(type);
+		checkNotNull(type);
 
 		LinkedHashMap<String, KryoRegistration> registration = new LinkedHashMap<>(1);
 		registration.put(type.getClass().getName(), new KryoRegistration(type));

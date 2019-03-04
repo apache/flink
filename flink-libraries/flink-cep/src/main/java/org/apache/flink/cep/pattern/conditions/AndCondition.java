@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep.pattern.conditions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -25,7 +26,11 @@ import org.apache.flink.util.Preconditions;
  * {@code AND} and returns {@code true} if both are {@code true}.
  *
  * @param <T> Type of the element to filter
+ * @deprecated Please use {@link RichAndCondition} instead. This class exists just for
+ * backwards compatibility and will be removed in FLINK-10113.
  */
+@Internal
+@Deprecated
 public class AndCondition<T> extends IterativeCondition<T> {
 
 	private static final long serialVersionUID = -2471892317390197319L;

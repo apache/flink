@@ -66,7 +66,7 @@ import static org.junit.Assert.fail;
  * Abstract test base for all Kafka producer tests.
  */
 @SuppressWarnings("serial")
-public abstract class KafkaProducerTestBase extends KafkaTestBase {
+public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
 	private static final long KAFKA_READ_TIMEOUT = 60_000L;
 
@@ -329,7 +329,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 		}
 
 		TypeInformationSerializationSchema<Integer> schema = new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
-		KeyedSerializationSchema<Integer> keyedSerializationSchema = new KeyedSerializationSchemaWrapper(schema);
+		KeyedSerializationSchema<Integer> keyedSerializationSchema = new KeyedSerializationSchemaWrapper<>(schema);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.enableCheckpointing(500);

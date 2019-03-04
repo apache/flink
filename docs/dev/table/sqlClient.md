@@ -61,7 +61,7 @@ By default, the SQL Client will read its configuration from the environment file
 Once the CLI has been started, you can use the `HELP` command to list all available SQL statements. For validating your setup and cluster connection, you can enter your first SQL query and press the `Enter` key to execute it:
 
 {% highlight sql %}
-SELECT 'Hello World'
+SELECT 'Hello World';
 {% endhighlight %}
 
 This query requires no table source and produces a single row result. The CLI will retrieve results from the cluster and visualize them. You can close the result view by pressing the `Q` key.
@@ -71,19 +71,19 @@ The CLI supports **two modes** for maintaining and visualizing results.
 The **table mode** materializes results in memory and visualizes them in a regular, paginated table representation. It can be enabled by executing the following command in the CLI:
 
 {% highlight text %}
-SET execution.result-mode=table
+SET execution.result-mode=table;
 {% endhighlight %}
 
-The **changelog mode** does not materialize results and visualizes the result stream that is produced by a [continuous query](streaming.html#dynamic-tables--continuous-queries) consisting of insertions (`+`) and retractions (`-`).
+The **changelog mode** does not materialize results and visualizes the result stream that is produced by a [continuous query](streaming/dynamic_tables.html#continuous-queries) consisting of insertions (`+`) and retractions (`-`).
 
 {% highlight text %}
-SET execution.result-mode=changelog
+SET execution.result-mode=changelog;
 {% endhighlight %}
 
 You can use the following query to see both result modes in action:
 
 {% highlight sql %}
-SELECT name, COUNT(*) AS cnt FROM (VALUES ('Bob'), ('Alice'), ('Greg'), ('Bob')) AS NameTable(name) GROUP BY name 
+SELECT name, COUNT(*) AS cnt FROM (VALUES ('Bob'), ('Alice'), ('Greg'), ('Bob')) AS NameTable(name) GROUP BY name;
 {% endhighlight %}
 
 This query performs a bounded word count example.
@@ -162,11 +162,11 @@ A SQL query needs a configuration environment in which it is executed. The so-ca
 Every environment file is a regular [YAML file](http://yaml.org/). An example of such a file is presented below.
 
 {% highlight yaml %}
-# Define table sources and sinks here.
+# Define tables here such as sources, sinks, views, or temporal tables.
 
 tables:
   - name: MyTableSource
-    type: source
+    type: source-table
     update-mode: append
     connector:
       type: filesystem
@@ -185,11 +185,8 @@ tables:
         type: INT
       - name: MyField2
         type: VARCHAR
-
-# Define table views here.
-
-views:
   - name: MyCustomView
+    type: view
     query: "SELECT MyField2 FROM MyTableSource"
 
 # Define user-defined functions here.
@@ -275,7 +272,7 @@ execution:
 
 ### Dependencies
 
-The SQL Client does not require to setup a Java project using Maven or SBT. Instead, you can pass the dependencies as regular JAR files that get submitted to the cluster. You can either specify each JAR file separately (using `--jar`) or define entire library directories (using `--library`). For connectors to external systems (such as Apache Kafka) and corresponding data formats (such as JSON), Flink provides **ready-to-use JAR bundles**. These JAR files are suffixed with `sql-jar` and can be downloaded for each release from the Maven central repository.
+The SQL Client does not require to setup a Java project using Maven or SBT. Instead, you can pass the dependencies as regular JAR files that get submitted to the cluster. You can either specify each JAR file separately (using `--jar`) or define entire library directories (using `--library`). For connectors to external systems (such as Apache Kafka) and corresponding data formats (such as JSON), Flink provides **ready-to-use JAR bundles**. These JAR files can be downloaded for each release from the Maven central repository.
 
 The full list of offered SQL JARs and documentation about how to use them can be found on the [connection to external systems page](connect.html).
 
@@ -284,12 +281,12 @@ The following example shows an environment file that defines a table source read
 {% highlight yaml %}
 tables:
   - name: TaxiRides
-    type: source
+    type: source-table
     update-mode: append
     connector:
       property-version: 1
       type: kafka
-      version: 0.11
+      version: "0.11"
       topic: TaxiRides
       startup-mode: earliest-offset
       properties:
@@ -302,7 +299,7 @@ tables:
     format:
       property-version: 1
       type: json
-      schema: "ROW(rideId LONG, lon FLOAT, lat FLOAT, rideTime TIMESTAMP)"
+      schema: "ROW<rideId LONG, lon FLOAT, lat FLOAT, rideTime TIMESTAMP>"
     schema:
       - name: rideId
         type: LONG
@@ -427,12 +424,12 @@ The table sink `MyTableSink` has to be declared in the environment file. See the
 {% highlight yaml %}
 tables:
   - name: MyTableSink
-    type: sink
+    type: sink-table
     update-mode: append
     connector:
       property-version: 1
       type: kafka
-      version: 0.11
+      version: "0.11"
       topic: OutputTopic
       properties:
         - key: zookeeper.connect
@@ -476,34 +473,80 @@ Views allow to define virtual tables from SQL queries. The view definition is pa
 
 Views can either be defined in [environment files](sqlClient.html#environment-files) or within the CLI session.
 
-The following example shows how to define multiple views in a file:
+The following example shows how to define multiple views in a file. The views are registered in the order in which they are defined in the environment file. Reference chains such as _view A depends on view B depends on view C_ are supported.
 
 {% highlight yaml %}
-views:
+tables:
+  - name: MyTableSource
+    # ...
   - name: MyRestrictedView
+    type: view
     query: "SELECT MyField2 FROM MyTableSource"
   - name: MyComplexView
+    type: view
     query: >
       SELECT MyField2 + 42, CAST(MyField1 AS VARCHAR)
       FROM MyTableSource
       WHERE MyField2 > 200
 {% endhighlight %}
 
-Similar to table sources and sinks, views defined in a session environment file have highest precendence.
+Similar to table sources and sinks, views defined in a session environment file have highest precedence.
 
 Views can also be created within a CLI session using the `CREATE VIEW` statement:
 
 {% highlight text %}
-CREATE VIEW MyNewView AS SELECT MyField2 FROM MyTableSource
+CREATE VIEW MyNewView AS SELECT MyField2 FROM MyTableSource;
 {% endhighlight %}
 
 Views created within a CLI session can also be removed again using the `DROP VIEW` statement:
 
 {% highlight text %}
-DROP VIEW MyNewView
+DROP VIEW MyNewView;
 {% endhighlight %}
 
-<span class="label label-danger">Attention</span> The definition of views is limited to the mentioned syntax above. Defining a schema for views or escape whitespaces in table names will be supported in future versions.
+<span class="label label-danger">Attention</span> The definition of views in the CLI is limited to the mentioned syntax above. Defining a schema for views or escaping whitespaces in table names will be supported in future versions.
+
+{% top %}
+
+Temporal Tables
+---------------
+
+A [temporal table](./streaming/temporal_tables.html) allows for a (parameterized) view on a changing history table that returns the content of a table at a specific point in time. This is especially useful for joining a table with the content of another table at a particular timestamp. More information can be found in the [temporal table joins](./streaming/joins.html#join-with-a-temporal-table) page.
+
+The following example shows how to define a temporal table `SourceTemporalTable`:
+
+{% highlight yaml %}
+tables:
+
+  # Define the table source (or view) that contains updates to a temporal table
+  - name: HistorySource
+    type: source-table
+    update-mode: append
+    connector: # ...
+    format: # ...
+    schema:
+      - name: integerField
+        type: INT
+      - name: stringField
+        type: VARCHAR
+      - name: rowtimeField
+        type: TIMESTAMP
+        rowtime:
+          timestamps:
+            type: from-field
+            from: rowtimeField
+          watermarks:
+            type: from-source
+
+  # Define a temporal table over the changing history table with time attribute and primary key
+  - name: SourceTemporalTable
+    type: temporal-table
+    history-table: HistorySource
+    primary-key: integerField
+    time-attribute: rowtimeField  # could also be a proctime field
+{% endhighlight %}
+
+As shown in the example, definitions of table sources, views, and temporal tables can be mixed with each other. They are registered in the order in which they are defined in the environment file. For example, a temporal table can reference a view which can depend on another view or table source.
 
 {% top %}
 

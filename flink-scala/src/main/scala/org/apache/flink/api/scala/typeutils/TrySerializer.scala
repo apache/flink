@@ -32,12 +32,21 @@ import scala.util.{Failure, Success, Try}
 @SerialVersionUID(-3052182891252564491L)
 class TrySerializer[A](
     private val elemSerializer: TypeSerializer[A],
-    private val executionConfig: ExecutionConfig)
+    private val throwableSerializer: TypeSerializer[Throwable])
   extends TypeSerializer[Try[A]] {
 
-  override def duplicate: TrySerializer[A] = this
+  private[typeutils] def this(elemSerializer: TypeSerializer[A],
+                              executionConfig: ExecutionConfig) = {
+    this(
+      elemSerializer,
+      new KryoSerializer[Throwable](classOf[Throwable], executionConfig)
+    )
+  }
 
-  val throwableSerializer = new KryoSerializer[Throwable](classOf[Throwable], executionConfig)
+  override def duplicate: TrySerializer[A] = new TrySerializer[A](
+    elemSerializer.duplicate(),
+    throwableSerializer.duplicate()
+  )
 
   override def createInstance: Try[A] = {
     Failure(new RuntimeException("Empty Failure"))
@@ -87,65 +96,24 @@ class TrySerializer[A](
   override def equals(obj: Any): Boolean = {
     obj match {
       case other: TrySerializer[_] =>
-        other.canEqual(this) && elemSerializer.equals(other.elemSerializer)
+        elemSerializer.equals(other.elemSerializer)
       case _ => false
     }
   }
 
-  override def canEqual(obj: Any): Boolean = {
-    obj.isInstanceOf[TrySerializer[_]]
-  }
-
   override def hashCode(): Int = {
-    31 * elemSerializer.hashCode() + executionConfig.hashCode()
+    31 * elemSerializer.hashCode() + throwableSerializer.hashCode()
   }
 
   // --------------------------------------------------------------------------------------------
   // Serializer configuration snapshotting & compatibility
   // --------------------------------------------------------------------------------------------
 
-  override def snapshotConfiguration(): ScalaTrySerializerConfigSnapshot[A] = {
-    new ScalaTrySerializerConfigSnapshot[A](elemSerializer, throwableSerializer)
-  }
+  private[typeutils] def getElementSerializer: TypeSerializer[A] = elemSerializer
+  private[typeutils] def getThrowableSerializer: TypeSerializer[Throwable] = throwableSerializer
 
-  override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[Try[A]] = {
-
-    configSnapshot match {
-      case trySerializerConfigSnapshot
-          : ScalaTrySerializerConfigSnapshot[A] =>
-        ensureCompatibility(trySerializerConfigSnapshot)
-      case legacyTrySerializerConfigSnapshot
-          : TrySerializer.TrySerializerConfigSnapshot[A] =>
-        ensureCompatibility(legacyTrySerializerConfigSnapshot)
-      case _ => CompatibilityResult.requiresMigration()
-    }
-  }
-
-  private def ensureCompatibility(
-      compositeConfigSnapshot: CompositeTypeSerializerConfigSnapshot)
-        : CompatibilityResult[Try[A]] = {
-
-    val previousSerializersAndConfigs =
-      compositeConfigSnapshot.getNestedSerializersAndConfigs
-
-    val elemCompatRes = CompatibilityUtil.resolveCompatibilityResult(
-      previousSerializersAndConfigs.get(0).f0,
-      classOf[UnloadableDummyTypeSerializer[_]],
-      previousSerializersAndConfigs.get(0).f1,
-      elemSerializer)
-
-    val throwableCompatRes = CompatibilityUtil.resolveCompatibilityResult(
-      previousSerializersAndConfigs.get(1).f0,
-      classOf[UnloadableDummyTypeSerializer[_]],
-      previousSerializersAndConfigs.get(1).f1,
-      throwableSerializer)
-
-    if (elemCompatRes.isRequiresMigration || throwableCompatRes.isRequiresMigration) {
-      CompatibilityResult.requiresMigration()
-    } else {
-      CompatibilityResult.compatible()
-    }
+  override def snapshotConfiguration(): ScalaTrySerializerSnapshot[A] = {
+    new ScalaTrySerializerSnapshot[A](this)
   }
 }
 
@@ -155,10 +123,21 @@ object TrySerializer {
     * We need to keep this to be compatible with snapshots taken in Flink 1.3.0.
     * Once Flink 1.3.x is no longer supported, this can be removed.
     */
+  @Deprecated
   class TrySerializerConfigSnapshot[A]()
-      extends CompositeTypeSerializerConfigSnapshot() {
+      extends CompositeTypeSerializerConfigSnapshot[Try[A]]() {
 
     override def getVersion: Int = TrySerializerConfigSnapshot.VERSION
+
+    override def resolveSchemaCompatibility(
+      newSerializer: TypeSerializer[Try[A]]
+    ): TypeSerializerSchemaCompatibility[Try[A]] =
+
+      CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+        newSerializer,
+        new ScalaTrySerializerSnapshot[A](),
+        getNestedSerializersAndConfigs.get(0).f1,
+        getNestedSerializersAndConfigs.get(1).f1)
   }
 
   object TrySerializerConfigSnapshot {

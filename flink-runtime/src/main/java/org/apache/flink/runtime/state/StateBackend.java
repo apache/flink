@@ -21,11 +21,17 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * A <b>State Backend</b> defines how the state of a streaming application is stored and
@@ -144,7 +150,77 @@ public interface StateBackend extends java.io.Serializable {
 			numberOfKeyGroups,
 			keyGroupRange,
 			kvStateRegistry,
-			TtlTimeProvider.DEFAULT);
+			TtlTimeProvider.DEFAULT
+		);
+	}
+
+	/**
+	 * Creates a new {@link AbstractKeyedStateBackend} that is responsible for holding <b>keyed state</b>
+	 * and checkpointing it.
+	 *
+	 * <p><i>Keyed State</i> is state where each value is bound to a key.
+	 *
+	 * @param <K> The type of the keys by which the state is organized.
+	 *
+	 * @return The Keyed State Backend for the given job, operator, and key group range.
+	 *
+	 * @throws Exception This method may forward all exceptions that occur while instantiating the backend.
+	 */
+	default <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
+		Environment env,
+		JobID jobID,
+		String operatorIdentifier,
+		TypeSerializer<K> keySerializer,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		TaskKvStateRegistry kvStateRegistry,
+		TtlTimeProvider ttlTimeProvider
+	) throws Exception {
+		return createKeyedStateBackend(
+			env,
+			jobID,
+			operatorIdentifier,
+			keySerializer,
+			numberOfKeyGroups,
+			keyGroupRange,
+			kvStateRegistry,
+			ttlTimeProvider,
+			new UnregisteredMetricsGroup(),
+			Collections.emptyList());
+	}
+
+	/**
+	 * Creates a new {@link AbstractKeyedStateBackend} that is responsible for holding <b>keyed state</b>
+	 * and checkpointing it.
+	 *
+	 * <p><i>Keyed State</i> is state where each value is bound to a key.
+	 *
+	 * @param <K> The type of the keys by which the state is organized.
+	 * @return The Keyed State Backend for the given job, operator, and key group range.
+	 * @throws Exception This method may forward all exceptions that occur while instantiating the backend.
+	 */
+	default <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
+		Environment env,
+		JobID jobID,
+		String operatorIdentifier,
+		TypeSerializer<K> keySerializer,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		TaskKvStateRegistry kvStateRegistry,
+		TtlTimeProvider ttlTimeProvider,
+		Collection<KeyedStateHandle> stateHandles
+	) throws Exception {
+		return createKeyedStateBackend(
+			env,
+			jobID,
+			operatorIdentifier,
+			keySerializer,
+			numberOfKeyGroups,
+			keyGroupRange,
+			kvStateRegistry,
+			ttlTimeProvider,
+			new UnregisteredMetricsGroup(),
+			stateHandles);
 	}
 
 	/**
@@ -167,7 +243,9 @@ public interface StateBackend extends java.io.Serializable {
 		int numberOfKeyGroups,
 		KeyGroupRange keyGroupRange,
 		TaskKvStateRegistry kvStateRegistry,
-		TtlTimeProvider ttlTimeProvider) throws Exception;
+		TtlTimeProvider ttlTimeProvider,
+		MetricGroup metricGroup,
+		@Nonnull Collection<KeyedStateHandle> stateHandles) throws Exception;
 	
 	/**
 	 * Creates a new {@link OperatorStateBackend} that can be used for storing operator state.

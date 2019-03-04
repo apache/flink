@@ -50,6 +50,9 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 
 	public static final ResourceProfile UNKNOWN = new ResourceProfile(-1.0, -1);
 
+	/** ResourceProfile which matches any other ResourceProfile. */
+	public static final ResourceProfile ANY = new ResourceProfile(Double.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Collections.emptyMap());
+
 	// ------------------------------------------------------------------------
 
 	/** How many cpu cores are needed, use double so we can specify cpu like 0.1. */
@@ -203,6 +206,11 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	 * @return true if the requirement is matched, otherwise false
 	 */
 	public boolean isMatching(ResourceProfile required) {
+
+		if (required == UNKNOWN) {
+			return true;
+		}
+
 		if (cpuCores >= required.getCpuCores() &&
 				heapMemoryInMB >= required.getHeapMemoryInMB() &&
 				directMemoryInMB >= required.getDirectMemoryInMB() &&

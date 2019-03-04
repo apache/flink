@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineException;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -76,12 +77,12 @@ public class CheckpointCoordinator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CheckpointCoordinator.class);
 
-	/** The number of recent checkpoints whose IDs are remembered */
+	/** The number of recent checkpoints whose IDs are remembered. */
 	private static final int NUM_GHOST_CHECKPOINT_IDS = 16;
 
 	// ------------------------------------------------------------------------
 
-	/** Coordinator-wide lock to safeguard the checkpoint updates */
+	/** Coordinator-wide lock to safeguard the checkpoint updates. */
 	private final Object lock = new Object();
 
 	/** Lock specially to make sure that trigger requests do not overtake each other.
@@ -91,25 +92,25 @@ public class CheckpointCoordinator {
 	 * messages during that phase. */
 	private final Object triggerLock = new Object();
 
-	/** The job whose checkpoint this coordinator coordinates */
+	/** The job whose checkpoint this coordinator coordinates. */
 	private final JobID job;
 
-	/** Default checkpoint properties **/
+	/** Default checkpoint properties. **/
 	private final CheckpointProperties checkpointProperties;
 
-	/** The executor used for asynchronous calls, like potentially blocking I/O */
+	/** The executor used for asynchronous calls, like potentially blocking I/O. */
 	private final Executor executor;
 
-	/** Tasks who need to be sent a message when a checkpoint is started */
+	/** Tasks who need to be sent a message when a checkpoint is started. */
 	private final ExecutionVertex[] tasksToTrigger;
 
-	/** Tasks who need to acknowledge a checkpoint before it succeeds */
+	/** Tasks who need to acknowledge a checkpoint before it succeeds. */
 	private final ExecutionVertex[] tasksToWaitFor;
 
-	/** Tasks who need to be sent a message when a checkpoint is confirmed */
+	/** Tasks who need to be sent a message when a checkpoint is confirmed. */
 	private final ExecutionVertex[] tasksToCommitTo;
 
-	/** Map from checkpoint ID to the pending checkpoint */
+	/** Map from checkpoint ID to the pending checkpoint. */
 	private final Map<Long, PendingCheckpoint> pendingCheckpoints;
 
 	/** Completed checkpoints. Implementations can be blocking. Make sure calls to methods
@@ -117,10 +118,10 @@ public class CheckpointCoordinator {
 	private final CompletedCheckpointStore completedCheckpointStore;
 
 	/** The root checkpoint state backend, which is responsible for initializing the
-	 * checkpoint, storing the metadata, and cleaning up the checkpoint */
+	 * checkpoint, storing the metadata, and cleaning up the checkpoint. */
 	private final CheckpointStorage checkpointStorage;
 
-	/** A list of recent checkpoint IDs, to identify late messages (vs invalid ones) */
+	/** A list of recent checkpoint IDs, to identify late messages (vs invalid ones). */
 	private final ArrayDeque<Long> recentPendingCheckpoints;
 
 	/** Checkpoint ID counter to ensure ascending IDs. In case of job manager failures, these
@@ -131,32 +132,32 @@ public class CheckpointCoordinator {
 	 * max concurrent checkpoints and minimum-pause values */
 	private final long baseInterval;
 
-	/** The max time (in ms) that a checkpoint may take */
+	/** The max time (in ms) that a checkpoint may take. */
 	private final long checkpointTimeout;
 
 	/** The min time(in ns) to delay after a checkpoint could be triggered. Allows to
 	 * enforce minimum processing time between checkpoint attempts */
 	private final long minPauseBetweenCheckpointsNanos;
 
-	/** The maximum number of checkpoints that may be in progress at the same time */
+	/** The maximum number of checkpoints that may be in progress at the same time. */
 	private final int maxConcurrentCheckpointAttempts;
 
-	/** The timer that handles the checkpoint timeouts and triggers periodic checkpoints */
+	/** The timer that handles the checkpoint timeouts and triggers periodic checkpoints. */
 	private final ScheduledThreadPoolExecutor timer;
 
-	/** The master checkpoint hooks executed by this checkpoint coordinator */
+	/** The master checkpoint hooks executed by this checkpoint coordinator. */
 	private final HashMap<String, MasterTriggerRestoreHook<?>> masterHooks;
 
-	/** Actor that receives status updates from the execution graph this coordinator works for */
+	/** Actor that receives status updates from the execution graph this coordinator works for. */
 	private JobStatusListener jobStatusListener;
 
-	/** The number of consecutive failed trigger attempts */
+	/** The number of consecutive failed trigger attempts. */
 	private final AtomicInteger numUnsuccessfulCheckpointsTriggers = new AtomicInteger(0);
 
-	/** A handle to the current periodic trigger, to cancel it when necessary */
+	/** A handle to the current periodic trigger, to cancel it when necessary. */
 	private ScheduledFuture<?> currentPeriodicTrigger;
 
-	/** The timestamp (via {@link System#nanoTime()}) when the last checkpoint completed */
+	/** The timestamp (via {@link System#nanoTime()}) when the last checkpoint completed. */
 	private long lastCheckpointCompletionNanos;
 
 	/** Flag whether a triggered checkpoint should immediately schedule the next checkpoint.
@@ -167,17 +168,17 @@ public class CheckpointCoordinator {
 	 * accessed in synchronized scope */
 	private boolean triggerRequestQueued;
 
-	/** Flag marking the coordinator as shut down (not accepting any messages any more) */
+	/** Flag marking the coordinator as shut down (not accepting any messages any more). */
 	private volatile boolean shutdown;
 
 	/** Optional tracker for checkpoint statistics. */
 	@Nullable
 	private CheckpointStatsTracker statsTracker;
 
-	/** A factory for SharedStateRegistry objects */
+	/** A factory for SharedStateRegistry objects. */
 	private final SharedStateRegistryFactory sharedStateRegistryFactory;
 
-	/** Registry that tracks state which is shared across (incremental) checkpoints */
+	/** Registry that tracks state which is shared across (incremental) checkpoints. */
 	private SharedStateRegistry sharedStateRegistry;
 
 	// --------------------------------------------------------------------------------------------
@@ -839,28 +840,22 @@ public class CheckpointCoordinator {
 			// the pending checkpoint must be discarded after the finalization
 			Preconditions.checkState(pendingCheckpoint.isDiscarded() && completedCheckpoint != null);
 
-			// TODO: add savepoints to completed checkpoint store once FLINK-4815 has been completed
-			if (!completedCheckpoint.getProperties().isSavepoint()) {
-				try {
-					completedCheckpointStore.addCheckpoint(completedCheckpoint);
-				} catch (Exception exception) {
-					// we failed to store the completed checkpoint. Let's clean up
-					executor.execute(new Runnable() {
-						@Override
-						public void run() {
-							try {
-								completedCheckpoint.discardOnFailedStoring();
-							} catch (Throwable t) {
-								LOG.warn("Could not properly discard completed checkpoint {} of job {}.", completedCheckpoint.getCheckpointID(), job, t);
-							}
+			try {
+				completedCheckpointStore.addCheckpoint(completedCheckpoint);
+			} catch (Exception exception) {
+				// we failed to store the completed checkpoint. Let's clean up
+				executor.execute(new Runnable() {
+					@Override
+					public void run() {
+						try {
+							completedCheckpoint.discardOnFailedStoring();
+						} catch (Throwable t) {
+							LOG.warn("Could not properly discard completed checkpoint {}.", completedCheckpoint.getCheckpointID(), t);
 						}
-					});
+					}
+				});
 
-					throw new CheckpointException("Could not complete the pending checkpoint " + checkpointId + '.', exception);
-				}
-
-				// drop those pending checkpoints that are at prior to the completed one
-				dropSubsumedCheckpoints(checkpointId);
+				throw new CheckpointException("Could not complete the pending checkpoint " + checkpointId + '.', exception);
 			}
 		} finally {
 			pendingCheckpoints.remove(checkpointId);
@@ -869,6 +864,9 @@ public class CheckpointCoordinator {
 		}
 
 		rememberRecentCheckpointId(checkpointId);
+
+		// drop those pending checkpoints that are at prior to the completed one
+		dropSubsumedCheckpoints(checkpointId);
 
 		// record the time when this was completed, to calculate
 		// the 'min delay between checkpoints'
@@ -1252,11 +1250,14 @@ public class CheckpointCoordinator {
 
 		final long checkpointId = pendingCheckpoint.getCheckpointId();
 
-		final String reason = (cause != null) ? cause.getMessage() : "";
+		LOG.info("Discarding checkpoint {} of job {}.", checkpointId, job, cause);
 
-		LOG.info("Discarding checkpoint {} of job {} because: {}", checkpointId, job, reason);
+		if (cause == null || cause instanceof CheckpointDeclineException) {
+			pendingCheckpoint.abortDeclined();
+		} else {
+			pendingCheckpoint.abortError(cause);
+		}
 
-		pendingCheckpoint.abortDeclined();
 		rememberRecentCheckpointId(checkpointId);
 
 		// we don't have to schedule another "dissolving" checkpoint any more because the

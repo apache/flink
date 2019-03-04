@@ -19,13 +19,17 @@
 package org.apache.flink.cep;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.conditions.RichIterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
@@ -35,6 +39,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Either;
+import org.apache.flink.util.Collector;
 
 import org.junit.Test;
 
@@ -715,5 +720,168 @@ public class CEPITCase extends AbstractTestBase {
 		List<Tuple2<Integer, String>> expected = Arrays.asList(Tuple2.of(1, "a"), Tuple2.of(3, "a"));
 
 		assertEquals(expected, resultList);
+	}
+
+	@Test
+	public void testRichPatternFlatSelectFunction() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Event> input = env.fromElements(
+			new Event(1, "barfoo", 1.0),
+			new Event(2, "start", 2.0),
+			new Event(3, "foobar", 3.0),
+			new SubEvent(4, "foo", 4.0, 1.0),
+			new Event(5, "middle", 5.0),
+			new SubEvent(6, "middle", 6.0, 2.0),
+			new SubEvent(7, "bar", 3.0, 3.0),
+			new Event(42, "42", 42.0),
+			new Event(8, "end", 1.0)
+		);
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new RichIterativeCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value, Context<Event> ctx) throws Exception {
+				return value.getName().equals("start");
+			}
+		}).followedByAny("middle").subtype(SubEvent.class).where(
+			new SimpleCondition<SubEvent>() {
+
+				@Override
+				public boolean filter(SubEvent value) throws Exception {
+					return value.getName().equals("middle");
+				}
+			}
+		).followedByAny("end").where(new SimpleCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("end");
+			}
+		});
+
+		DataStream<String> result =
+			CEP.pattern(input, pattern).flatSelect(new RichPatternFlatSelectFunction<Event, String>() {
+
+				@Override
+				public void open(Configuration config) {
+					try {
+						getRuntimeContext().getMapState(new MapStateDescriptor<>(
+							"test",
+							LongSerializer.INSTANCE,
+							LongSerializer.INSTANCE));
+						throw new RuntimeException("Expected getMapState to fail with unsupported operation exception.");
+					} catch (UnsupportedOperationException e) {
+						// ignore, expected
+					}
+
+					getRuntimeContext().getUserCodeClassLoader();
+				}
+
+				@Override
+				public void flatSelect(Map<String, List<Event>> p, Collector<String> o) throws Exception {
+					StringBuilder builder = new StringBuilder();
+
+					builder.append(p.get("start").get(0).getId()).append(",")
+						.append(p.get("middle").get(0).getId()).append(",")
+						.append(p.get("end").get(0).getId());
+
+					o.collect(builder.toString());
+				}
+			}, Types.STRING);
+
+		List<String> resultList = new ArrayList<>();
+
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+
+		assertEquals(Arrays.asList("2,6,8"), resultList);
+	}
+
+	@Test
+	public void testRichPatternSelectFunction() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(2);
+
+		DataStream<Event> input = env.fromElements(
+			new Event(1, "barfoo", 1.0),
+			new Event(2, "start", 2.0),
+			new Event(3, "start", 2.1),
+			new Event(3, "foobar", 3.0),
+			new SubEvent(4, "foo", 4.0, 1.0),
+			new SubEvent(3, "middle", 3.2, 1.0),
+			new Event(42, "start", 3.1),
+			new SubEvent(42, "middle", 3.3, 1.2),
+			new Event(5, "middle", 5.0),
+			new SubEvent(2, "middle", 6.0, 2.0),
+			new SubEvent(7, "bar", 3.0, 3.0),
+			new Event(42, "42", 42.0),
+			new Event(3, "end", 2.0),
+			new Event(2, "end", 1.0),
+			new Event(42, "end", 42.0)
+		).keyBy(new KeySelector<Event, Integer>() {
+
+			@Override
+			public Integer getKey(Event value) throws Exception {
+				return value.getId();
+			}
+		});
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new RichIterativeCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value, Context<Event> ctx) throws Exception {
+				return value.getName().equals("start");
+			}
+		}).followedByAny("middle").subtype(SubEvent.class).where(
+			new SimpleCondition<SubEvent>() {
+
+				@Override
+				public boolean filter(SubEvent value) throws Exception {
+					return value.getName().equals("middle");
+				}
+			}
+		).followedByAny("end").where(new SimpleCondition<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("end");
+				}
+			});
+
+		DataStream<String> result = CEP.pattern(input, pattern).select(new RichPatternSelectFunction<Event, String>() {
+			@Override
+			public void open(Configuration config) {
+				try {
+					getRuntimeContext().getMapState(new MapStateDescriptor<>(
+						"test",
+						LongSerializer.INSTANCE,
+						LongSerializer.INSTANCE));
+					throw new RuntimeException("Expected getMapState to fail with unsupported operation exception.");
+				} catch (UnsupportedOperationException e) {
+					// ignore, expected
+				}
+
+				getRuntimeContext().getUserCodeClassLoader();
+			}
+
+			@Override
+			public String select(Map<String, List<Event>> p) throws Exception {
+				StringBuilder builder = new StringBuilder();
+
+				builder.append(p.get("start").get(0).getId()).append(",")
+					.append(p.get("middle").get(0).getId()).append(",")
+					.append(p.get("end").get(0).getId());
+
+				return builder.toString();
+			}
+		});
+
+		List<String> resultList = new ArrayList<>();
+
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
+
+		resultList.sort(String::compareTo);
+
+		assertEquals(Arrays.asList("2,2,2", "3,3,3", "42,42,42"), resultList);
 	}
 }

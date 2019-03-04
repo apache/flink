@@ -20,21 +20,16 @@ package org.apache.flink.runtime.executiongraph.utils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.StackTrace;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
@@ -48,23 +43,18 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	private final String address = UUID.randomUUID().toString();
 
-	private Optional<Consumer<ExecutionAttemptID>> optSubmitConsumer;
+	private Consumer<TaskDeploymentDescriptor> submitConsumer = ignore -> { };
 
-	private Optional<Consumer<ExecutionAttemptID>> optCancelConsumer;
+	private Consumer<ExecutionAttemptID> cancelConsumer = ignore -> { };
 
 	private volatile BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction;
 
-	public SimpleAckingTaskManagerGateway() {
-		optSubmitConsumer = Optional.empty();
-		optCancelConsumer = Optional.empty();
-	}
-
-	public void setSubmitConsumer(Consumer<ExecutionAttemptID> predicate) {
-		optSubmitConsumer = Optional.of(predicate);
+	public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> predicate) {
+		submitConsumer = predicate;
 	}
 
 	public void setCancelConsumer(Consumer<ExecutionAttemptID> predicate) {
-		optCancelConsumer = Optional.of(predicate);
+		cancelConsumer = predicate;
 	}
 
 	public void setFreeSlotFunction(BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction) {
@@ -74,17 +64,6 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 	@Override
 	public String getAddress() {
 		return address;
-	}
-
-	@Override
-	public void disconnectFromJobManager(InstanceID instanceId, Exception cause) {}
-
-	@Override
-	public void stopCluster(ApplicationStatus applicationStatus, String message) {}
-
-	@Override
-	public CompletableFuture<StackTrace> requestStackTrace(Time timeout) {
-		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	}
 
 	@Override
@@ -100,7 +79,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	@Override
 	public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
-		optSubmitConsumer.ifPresent(condition -> condition.accept(tdd.getExecutionAttemptId()));
+		submitConsumer.accept(tdd);
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
@@ -111,7 +90,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	@Override
 	public CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
-		optCancelConsumer.ifPresent(condition -> condition.accept(executionAttemptID));
+		cancelConsumer.accept(executionAttemptID);
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
@@ -137,16 +116,6 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 			long checkpointId,
 			long timestamp,
 			CheckpointOptions checkpointOptions) {}
-
-	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerLog(Time timeout) {
-		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
-	}
-
-	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerStdout(Time timeout) {
-		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
-	}
 
 	@Override
 	public CompletableFuture<Acknowledge> freeSlot(AllocationID allocationId, Throwable cause, Time timeout) {

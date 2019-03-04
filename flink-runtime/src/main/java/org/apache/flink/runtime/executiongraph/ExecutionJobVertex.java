@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
@@ -54,7 +56,7 @@ import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 
-import javax.annotation.Nullable;
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -64,7 +66,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * An {@code ExecutionJobVertex} is part of the {@link ExecutionGraph}, and the peer
@@ -123,19 +128,10 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	private int maxParallelism;
 
 	/**
-	 * Serialized task information which is for all sub tasks the same. Thus, it avoids to
-	 * serialize the same information multiple times in order to create the
-	 * TaskDeploymentDescriptors.
+	 * Either store a serialized task information, which is for all sub tasks the same,
+	 * or the permanent blob key of the offloaded task information BLOB containing
+	 * the serialized task information.
 	 */
-	private SerializedValue<TaskInformation> serializedTaskInformation;
-
-	/**
-	 * The key of the offloaded task information BLOB containing {@link #serializedTaskInformation}
-	 * or <tt>null</tt> if not offloaded.
-	 */
-	@Nullable
-	private PermanentBlobKey taskInformationBlobKey = null;
-
 	private Either<SerializedValue<TaskInformation>, PermanentBlobKey> taskInformationOrBlobKey = null;
 
 	private InputSplitAssigner splitAssigner;
@@ -189,8 +185,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		}
 
 		this.parallelism = numTaskVertices;
-
-		this.serializedTaskInformation = null;
 
 		this.taskVertices = new ExecutionVertex[numTaskVertices];
 		this.operatorIDs = Collections.unmodifiableList(jobVertex.getOperatorIDs());
@@ -375,6 +369,10 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		return inputs;
 	}
 
+	public InputDependencyConstraint getInputDependencyConstraint() {
+		return getJobVertex().getInputDependencyConstraint();
+	}
+
 	public Either<SerializedValue<TaskInformation>, PermanentBlobKey> getTaskInformationOrBlobKey() throws IOException {
 		// only one thread should offload the task information, so let's also let only one thread
 		// serialize the task information!
@@ -474,12 +472,15 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * @param slotProvider to allocate the slots from
 	 * @param queued if the allocations can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
+	 *                                                 Can be empty if the allocation ids are not required for scheduling.
 	 * @return Future which is completed once all {@link Execution} could be deployed
 	 */
 	public CompletableFuture<Void> scheduleAll(
 			SlotProvider slotProvider,
 			boolean queued,
-			LocationPreferenceConstraint locationPreferenceConstraint) {
+			LocationPreferenceConstraint locationPreferenceConstraint,
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 
 		final ExecutionVertex[] vertices = this.taskVertices;
 
@@ -487,7 +488,11 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 		// kick off the tasks
 		for (ExecutionVertex ev : vertices) {
-			scheduleFutures.add(ev.scheduleForExecution(slotProvider, queued, locationPreferenceConstraint));
+			scheduleFutures.add(ev.scheduleForExecution(
+				slotProvider,
+				queued,
+				locationPreferenceConstraint,
+				allPreviousExecutionGraphAllocationIds));
 		}
 
 		return FutureUtils.waitForAll(scheduleFutures);
@@ -503,14 +508,18 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * @param resourceProvider The resource provider from whom the slots are requested.
 	 * @param queued if the allocation can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allPreviousExecutionGraphAllocationIds the allocation ids of all previous executions in the execution job graph.
 	 * @param allocationTimeout timeout for allocating the individual slots
 	 */
 	public Collection<CompletableFuture<Execution>> allocateResourcesForAll(
 			SlotProvider resourceProvider,
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds,
 			Time allocationTimeout) {
 		final ExecutionVertex[] vertices = this.taskVertices;
+
+		@SuppressWarnings("unchecked")
 		final CompletableFuture<Execution>[] slots = new CompletableFuture[vertices.length];
 
 		// try to acquire a slot future for each execution.
@@ -522,6 +531,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 				resourceProvider,
 				queued,
 				locationPreferenceConstraint,
+				allPreviousExecutionGraphAllocationIds,
 				allocationTimeout);
 			slots[i] = allocationFuture;
 		}
@@ -545,13 +555,18 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * @return A future that is complete once all tasks have canceled.
 	 */
 	public CompletableFuture<Void> cancelWithFuture() {
-		// we collect all futures from the task cancellations
-		CompletableFuture<ExecutionState>[] futures = Arrays.stream(getTaskVertices())
-			.map(ExecutionVertex::cancel)
-			.<CompletableFuture<ExecutionState>>toArray(CompletableFuture[]::new);
+		return FutureUtils.waitForAll(mapExecutionVertices(ExecutionVertex::cancel));
+	}
 
-		// return a conjunct future, which is complete once all individual tasks are canceled
-		return CompletableFuture.allOf(futures);
+	public CompletableFuture<Void> suspend() {
+		return FutureUtils.waitForAll(mapExecutionVertices(ExecutionVertex::suspend));
+	}
+
+	@Nonnull
+	private Collection<CompletableFuture<?>> mapExecutionVertices(final Function<ExecutionVertex, CompletableFuture<?>> mapFunction) {
+		return Arrays.stream(getTaskVertices())
+			.map(mapFunction)
+			.collect(Collectors.toList());
 	}
 
 	public void fail(Throwable t) {

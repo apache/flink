@@ -64,4 +64,9 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> extends AbstractSt
 	public void processWatermark2(Watermark mark) throws Exception {
 		twoInputOperator.processWatermark2(mark);
 	}
+
+	public void processBothWatermarks(Watermark mark) throws Exception {
+		twoInputOperator.processWatermark1(mark);
+		twoInputOperator.processWatermark2(mark);
+	}
 }

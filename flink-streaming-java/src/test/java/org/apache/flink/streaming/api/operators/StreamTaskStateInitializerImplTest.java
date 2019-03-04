@@ -22,6 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -36,6 +38,7 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
@@ -57,6 +60,7 @@ import org.junit.Test;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Random;
 
@@ -91,7 +95,8 @@ public class StreamTaskStateInitializerImplTest {
 			streamOperator.getClass().getSimpleName(),
 			streamOperator,
 			typeSerializer,
-			closeableRegistry);
+			closeableRegistry,
+			new UnregisteredMetricsGroup());
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
@@ -140,7 +145,8 @@ public class StreamTaskStateInitializerImplTest {
 				TypeSerializer<K> keySerializer,
 				int numberOfKeyGroups, KeyGroupRange keyGroupRange,
 				TaskKvStateRegistry kvStateRegistry,
-				TtlTimeProvider ttlTimeProvider) throws Exception {
+				TtlTimeProvider ttlTimeProvider,
+				MetricGroup metricGroup, Collection<KeyedStateHandle> stateHandles) throws Exception {
 				return mock(AbstractKeyedStateBackend.class);
 			}
 
@@ -192,7 +198,8 @@ public class StreamTaskStateInitializerImplTest {
 			streamOperator.getClass().getSimpleName(),
 			streamOperator,
 			typeSerializer,
-			closeableRegistry);
+			closeableRegistry,
+			new UnregisteredMetricsGroup());
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();

@@ -81,6 +81,14 @@ abstract class AbstractTtlDecorator<T> {
 		SupplierWithException<TtlValue<V>, SE> getter,
 		ThrowingConsumer<TtlValue<V>, CE> updater,
 		ThrowingRunnable<CLE> stateClear) throws SE, CE, CLE {
+		TtlValue<V> ttlValue = getWrappedWithTtlCheckAndUpdate(getter, updater, stateClear);
+		return ttlValue == null ? null : ttlValue.getUserValue();
+	}
+
+	<SE extends Throwable, CE extends Throwable, CLE extends Throwable, V> TtlValue<V> getWrappedWithTtlCheckAndUpdate(
+		SupplierWithException<TtlValue<V>, SE> getter,
+		ThrowingConsumer<TtlValue<V>, CE> updater,
+		ThrowingRunnable<CLE> stateClear) throws SE, CE, CLE {
 		TtlValue<V> ttlValue = getter.get();
 		if (ttlValue == null) {
 			return null;
@@ -92,6 +100,6 @@ abstract class AbstractTtlDecorator<T> {
 		} else if (updateTsOnRead) {
 			updater.accept(rewrapWithNewTs(ttlValue));
 		}
-		return ttlValue.getUserValue();
+		return ttlValue;
 	}
 }

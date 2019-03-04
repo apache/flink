@@ -71,9 +71,7 @@ wiki-edits/
         ├── java
         │   └── wikiedits
         │       ├── BatchJob.java
-        │       ├── SocketTextStreamWordCount.java
-        │       ├── StreamingJob.java
-        │       └── WordCount.java
+        │       └── StreamingJob.java
         └── resources
             └── log4j.properties
 {% endhighlight %}
@@ -294,7 +292,7 @@ your own machine and writing results to [Kafka](http://kafka.apache.org).
 ## Bonus Exercise: Running on a Cluster and Writing to Kafka
 
 Please follow our [local setup tutorial](local_setup.html) for setting up a Flink distribution
-on your machine and refer to the [Kafka quickstart](https://kafka.apache.org/documentation.html#quickstart)
+on your machine and refer to the [Kafka quickstart](https://kafka.apache.org/0110/documentation.html#quickstart)
 for setting up a Kafka installation before we proceed.
 
 As a first step, we have to add the Flink Kafka connector as a dependency so that we can
@@ -303,7 +301,7 @@ use the Kafka sink. Add this to the `pom.xml` file in the dependencies section:
 {% highlight xml %}
 <dependency>
     <groupId>org.apache.flink</groupId>
-    <artifactId>flink-connector-kafka-0.8_2.11</artifactId>
+    <artifactId>flink-connector-kafka-0.11_2.11</artifactId>
     <version>${flink.version}</version>
 </dependency>
 {% endhighlight %}
@@ -320,12 +318,12 @@ result
             return tuple.toString();
         }
     })
-    .addSink(new FlinkKafkaProducer08<>("localhost:9092", "wiki-result", new SimpleStringSchema()));
+    .addSink(new FlinkKafkaProducer011<>("localhost:9092", "wiki-result", new SimpleStringSchema()));
 {% endhighlight %}
 
 The related classes also need to be imported:
 {% highlight java %}
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer08;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.functions.MapFunction;
 {% endhighlight %}
@@ -355,7 +353,7 @@ We also have to create the Kafka Topic, so that our program can write to it:
 
 {% highlight bash %}
 $ cd my/kafka/directory
-$ bin/kafka-topics.sh --create --zookeeper localhost:2181 --topic wiki-results
+$ bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic wiki-results
 {% endhighlight %}
 
 Now we are ready to run our jar file on the local Flink cluster:

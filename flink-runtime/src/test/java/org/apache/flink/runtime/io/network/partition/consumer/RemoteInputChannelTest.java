@@ -23,6 +23,7 @@ import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
@@ -150,7 +151,10 @@ public class RemoteInputChannelTest {
 						for (int j = 0; j < 128; j++) {
 							// this is the same buffer over and over again which will be
 							// recycled by the RemoteInputChannel
-							function.apply(inputChannel, buffer.retainBuffer(), j);
+							Object obj = function.apply(inputChannel, buffer.retainBuffer(), j);
+							if (obj instanceof NotificationResult && obj == NotificationResult.BUFFER_NOT_USED) {
+								buffer.recycleBuffer();
+							}
 						}
 
 						if (inputChannel.isReleased()) {
@@ -336,9 +340,11 @@ public class RemoteInputChannelTest {
 	 * Tests to verify the behaviours of three different processes if the number of available
 	 * buffers is less than required buffers.
 	 *
-	 * 1. Recycle the floating buffer
-	 * 2. Recycle the exclusive buffer
-	 * 3. Decrease the sender's backlog
+	 * <ol>
+	 * <li>Recycle the floating buffer</li>
+	 * <li>Recycle the exclusive buffer</li>
+	 * <li>Decrease the sender's backlog</li>
+	 * </ol>
 	 */
 	@Test
 	public void testAvailableBuffersLessThanRequiredBuffers() throws Exception {

@@ -20,8 +20,10 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * The set of configuration options relating to TaskManager and Task settings.
@@ -79,14 +81,14 @@ public class TaskManagerOptions {
 
 	/**
 	 * The config parameter defining the task manager's hostname.
+	 * Overrides {@link #HOST_BIND_POLICY} automatic address binding.
 	 */
 	public static final ConfigOption<String> HOST =
 		key("taskmanager.host")
 			.noDefaultValue()
-			.withDescription("The hostname of the network interface that the TaskManager binds to. By default, the" +
-				" TaskManager searches for network interfaces that can connect to the JobManager and other TaskManagers." +
-				" This option can be used to define a hostname if that strategy fails for some reason. Because" +
-				" different TaskManagers need different values for this option, it usually is specified in an" +
+			.withDescription("The address of the network interface that the TaskManager binds to." +
+				" This option can be used to define explicitly a binding address. Because" +
+				" different TaskManagers need different values for this option, usually it is specified in an" +
 				" additional non-shared TaskManager-specific config file.");
 
 	/**
@@ -244,6 +246,22 @@ public class TaskManagerOptions {
 	// ------------------------------------------------------------------------
 
 	/**
+	 * The config parameter for automatically defining the TaskManager's binding address,
+	 * if {@link #HOST} configuration option is not set.
+	 */
+	public static final ConfigOption<String> HOST_BIND_POLICY =
+		key("taskmanager.network.bind-policy")
+			.defaultValue("ip")
+			.withDescription(Description.builder()
+				.text("The automatic address binding policy used by the TaskManager if \"" + HOST.key() + "\" is not set." +
+					" The value should be one of the following:\n")
+				.list(
+					text("\"name\" - uses hostname as binding address"),
+					text("\"ip\" - uses host's ip address as binding address"))
+				.build());
+
+
+	/**
 	 * Number of buffers used in the network stack. This defines the number of possible tasks and
 	 * shuffles.
 	 *
@@ -316,7 +334,7 @@ public class TaskManagerOptions {
 			key("taskmanager.network.request-backoff.initial")
 			.defaultValue(100)
 			.withDeprecatedKeys("taskmanager.net.request-backoff.initial")
-			.withDescription("Minimum backoff for partition requests of input channels.");
+			.withDescription("Minimum backoff in milliseconds for partition requests of input channels.");
 
 	/**
 	 * Maximum backoff for partition requests of input channels.
@@ -325,7 +343,7 @@ public class TaskManagerOptions {
 			key("taskmanager.network.request-backoff.max")
 			.defaultValue(10000)
 			.withDeprecatedKeys("taskmanager.net.request-backoff.max")
-			.withDescription("Maximum backoff for partition requests of input channels.");
+			.withDescription("Maximum backoff in milliseconds for partition requests of input channels.");
 
 	/**
 	 * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue
@@ -375,13 +393,15 @@ public class TaskManagerOptions {
 				" leads to a fatal TaskManager error. A value of 0 deactivates" +
 				" the watch dog.");
 	/**
-	 * This configures how long we wait for the timers to finish all pending timer threads
-	 * when the stream task is cancelled .
+	 * This configures how long we wait for the timers in milliseconds to finish all pending timer threads
+	 * when the stream task is cancelled.
 	 */
 	public static final ConfigOption<Long> TASK_CANCELLATION_TIMEOUT_TIMERS = ConfigOptions
 			.key("task.cancellation.timers.timeout")
 			.defaultValue(7500L)
-			.withDeprecatedKeys("timerservice.exceptional.shutdown.timeout");
+			.withDeprecatedKeys("timerservice.exceptional.shutdown.timeout")
+			.withDescription("Time we wait for the timers in milliseconds to finish all pending timer threads" +
+				" when the stream task is cancelled.");
 
 	/**
 	 * The maximum number of bytes that a checkpoint alignment may buffer.

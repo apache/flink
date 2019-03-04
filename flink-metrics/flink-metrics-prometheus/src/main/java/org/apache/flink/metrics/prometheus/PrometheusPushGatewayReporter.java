@@ -48,6 +48,8 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
 
 	@Override
 	public void open(MetricConfig config) {
+		super.open(config);
+
 		String host = config.getString(HOST.key(), HOST.defaultValue());
 		int port = config.getInteger(PORT.key(), PORT.defaultValue());
 		String configuredJobName = config.getString(JOB_NAME.key(), JOB_NAME.defaultValue());

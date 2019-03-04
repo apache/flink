@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -634,9 +635,17 @@ public class StreamGraph extends StreamingPlan {
 		return iterationSourceSinkPairs;
 	}
 
+	public StreamNode getSourceVertex(StreamEdge edge) {
+		return streamNodes.get(edge.getSourceId());
+	}
+
+	public StreamNode getTargetVertex(StreamEdge edge) {
+		return streamNodes.get(edge.getTargetId());
+	}
+
 	private void removeEdge(StreamEdge edge) {
-		edge.getSourceVertex().getOutEdges().remove(edge);
-		edge.getTargetVertex().getInEdges().remove(edge);
+		getSourceVertex(edge).getOutEdges().remove(edge);
+		getTargetVertex(edge).getInEdges().remove(edge);
 	}
 
 	private void removeVertex(StreamNode toRemove) {
@@ -652,19 +661,20 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	/**
-	 * Gets the assembled {@link JobGraph}.
+	 * Gets the assembled {@link JobGraph} with a given job id.
 	 */
 	@SuppressWarnings("deprecation")
-	public JobGraph getJobGraph() {
+	@Override
+	public JobGraph getJobGraph(@Nullable JobID jobID) {
 		// temporarily forbid checkpointing for iterative jobs
 		if (isIterative() && checkpointConfig.isCheckpointingEnabled() && !checkpointConfig.isForceCheckpointing()) {
 			throw new UnsupportedOperationException(
-					"Checkpointing is currently not supported by default for iterative jobs, as we cannot guarantee exactly once semantics. "
-							+ "State checkpoints happen normally, but records in-transit during the snapshot will be lost upon failure. "
-							+ "\nThe user can force enable state checkpoints with the reduced guarantees by calling: env.enableCheckpointing(interval,true)");
+				"Checkpointing is currently not supported by default for iterative jobs, as we cannot guarantee exactly once semantics. "
+					+ "State checkpoints happen normally, but records in-transit during the snapshot will be lost upon failure. "
+					+ "\nThe user can force enable state checkpoints with the reduced guarantees by calling: env.enableCheckpointing(interval,true)");
 		}
 
-		return StreamingJobGraphGenerator.createJobGraph(this);
+		return StreamingJobGraphGenerator.createJobGraph(this, jobID);
 	}
 
 	@Override
