@@ -41,6 +41,24 @@ object FlinkRelMdUtil {
     case _ => 100D // default value now
   }
 
+  /**
+    * Estimates new distinctRowCount of currentNode after it applies a condition.
+    * The estimation based on one assumption:
+    * even distribution of all distinct data
+    *
+    * @param rowCount         rowcount of node.
+    * @param distinctRowCount distinct rowcount of node.
+    * @param selectivity      selectivity of condition expression.
+    * @return new distinctRowCount
+    */
+  def adaptNdvBasedOnSelectivity(
+      rowCount: Double,
+      distinctRowCount: Double,
+      selectivity: Double): Double = {
+    val ndv = Math.min(distinctRowCount, rowCount)
+    Math.max((1 - Math.pow(1 - selectivity, rowCount / ndv)) * ndv, 1.0)
+  }
+
   def binaryRowAverageSize(rel: RelNode): Double = {
     val binaryType = FlinkTypeFactory.toInternalRowType(rel.getRowType)
     // TODO reuse FlinkRelMetadataQuery here
