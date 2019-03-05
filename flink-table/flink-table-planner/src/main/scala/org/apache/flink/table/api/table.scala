@@ -1228,6 +1228,16 @@ class OverWindowedTable(
     private[flink] val table: Table,
     private[flink] val overWindows: Array[OverWindow]) {
 
+  /**
+    * Performs a selection operation on an over-windowed table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   overWindowedTable.select('c, 'b.count over 'ow, 'e.sum over 'ow)
+    * }}}
+    */
   def select(fields: Expression*): Table = {
     val expandedFields = expandProjectList(
       fields,
@@ -1252,6 +1262,16 @@ class OverWindowedTable(
     )
   }
 
+  /**
+    * Performs a selection operation on an over-windowed table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   overWindowedTable.select("c, b.count over ow, e.sum over ow")
+    * }}}
+    */
   def select(fields: String): Table = {
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
     //get the correct expression for AggFunctionCall
