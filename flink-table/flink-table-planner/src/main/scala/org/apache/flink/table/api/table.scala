@@ -1025,13 +1025,7 @@ class Table(
     * @param tableName Name of the registered [[TableSink]] to which the [[Table]] is written.
     */
   def insertInto(tableName: String): Unit = {
-    this.logicalPlan match {
-      case _: LogicalTableFunctionCall =>
-        throw new ValidationException("Table functions can only be used in table.joinLateral() " +
-          "and table.leftOuterJoinLateral().")
-      case _ =>
-        tableEnv.insertInto(this, tableName, this.tableEnv.queryConfig)
-    }
+    insertInto(tableName, tableEnv.queryConfig)
   }
 
   /**
@@ -1047,13 +1041,7 @@ class Table(
     * @param conf The [[QueryConfig]] to use.
     */
   def insertInto(tableName: String, conf: QueryConfig): Unit = {
-    this.logicalPlan match {
-      case _: LogicalTableFunctionCall =>
-        throw new ValidationException(
-          "Table functions can only be used for joinLateral() and leftOuterJoinLateral().")
-      case _ =>
-        tableEnv.insertInto(this, tableName, conf)
-    }
+    tableEnv.insertInto(this, tableName, conf)
   }
 
   /**
