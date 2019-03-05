@@ -78,11 +78,6 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	private final TypeSerializer<Serializable> typeSerializer;
 
 	/**
-	 * The user code classloader.
-	 */
-	private final ClassLoader userClassloader;
-
-	/**
 	 * The execution configuration.
 	 */
 	private final ExecutionConfig executionConfig;
@@ -104,7 +99,6 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	private final AbstractSnapshotStrategy<OperatorStateHandle> snapshotStrategy;
 
 	public DefaultOperatorStateBackend(
-		ClassLoader userClassLoader,
 		ExecutionConfig executionConfig,
 		CloseableRegistry closeStreamOnCancelRegistry,
 		TypeSerializer<Serializable> typeSerializer,
@@ -114,7 +108,6 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		Map<String, BackendWritableBroadcastState<?, ?>> accessedBroadcastStatesByName,
 		AbstractSnapshotStrategy<OperatorStateHandle> snapshotStrategy) {
 		this.closeStreamOnCancelRegistry = closeStreamOnCancelRegistry;
-		this.userClassloader = userClassLoader;
 		this.executionConfig = executionConfig;
 		this.typeSerializer = typeSerializer;
 		this.registeredOperatorStates = registeredOperatorStates;

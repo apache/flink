@@ -90,7 +90,6 @@ public class DefaultOperatorStateBackendBuilder implements
 			throw new BackendBuildingException("Failed when trying to restore operator state backend", e);
 		}
 		return new DefaultOperatorStateBackend(
-			userClassloader,
 			executionConfig,
 			cancelStreamRegistryForBackend,
 			serializer,

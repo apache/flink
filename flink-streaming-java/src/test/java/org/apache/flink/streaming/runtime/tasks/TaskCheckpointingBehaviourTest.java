@@ -324,7 +324,6 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				@SuppressWarnings("unchecked")
 				public DefaultOperatorStateBackend build() {
 					return new DefaultOperatorStateBackend(
-						userClassloader,
 						executionConfig,
 						cancelStreamRegistry,
 						mock(TypeSerializer.class),
@@ -376,7 +375,6 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				@SuppressWarnings("unchecked")
 				public DefaultOperatorStateBackend build() {
 					return new DefaultOperatorStateBackend(
-						userClassloader,
 						executionConfig,
 						cancelStreamRegistry,
 						mock(TypeSerializer.class),
