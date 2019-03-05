@@ -707,7 +707,7 @@ WHERE product EXISTS (
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-<b>Note:</b> The result of streaming queries must be primarily sorted on an ascending <a href="streaming/time_attributes.html">time attribute</a>. Additional sorting attributes are supported.
+<b>Note:</b> The result of streaming queries must be primarily sorted on an ascending <a href="streaming/time_attributes.html">time attribute</a>. Additional sorting attributes are not supported yet.
 
 {% highlight sql %}
 SELECT *
