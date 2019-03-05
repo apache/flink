@@ -32,12 +32,21 @@ import scala.util.{Failure, Success, Try}
 @SerialVersionUID(-3052182891252564491L)
 class TrySerializer[A](
     private val elemSerializer: TypeSerializer[A],
-    private val executionConfig: ExecutionConfig)
+    private val throwableSerializer: TypeSerializer[Throwable])
   extends TypeSerializer[Try[A]] {
 
-  override def duplicate: TrySerializer[A] = this
+  private[typeutils] def this(elemSerializer: TypeSerializer[A],
+    executionConfig: ExecutionConfig) = {
+    this(
+      elemSerializer,
+      new KryoSerializer[Throwable](classOf[Throwable], executionConfig)
+    )
+  }
 
-  val throwableSerializer = new KryoSerializer[Throwable](classOf[Throwable], executionConfig)
+  override def duplicate: TrySerializer[A] = new TrySerializer[A](
+    elemSerializer.duplicate(),
+    throwableSerializer.duplicate()
+  )
 
   override def createInstance: Try[A] = {
     Failure(new RuntimeException("Empty Failure"))
@@ -97,7 +106,7 @@ class TrySerializer[A](
   }
 
   override def hashCode(): Int = {
-    31 * elemSerializer.hashCode() + executionConfig.hashCode()
+    31 * elemSerializer.hashCode() + throwableSerializer.hashCode()
   }
 
   // --------------------------------------------------------------------------------------------
