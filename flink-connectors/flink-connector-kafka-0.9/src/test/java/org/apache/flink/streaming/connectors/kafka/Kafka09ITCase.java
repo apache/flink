@@ -39,6 +39,7 @@ import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Properties;
 
 /**
  * IT cases for Kafka 0.9 .
@@ -202,7 +203,12 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 			}
 		});
 
-		stream.addSink(new FlinkKafkaProducer09<>(testTopic, new SimpleStringSchema(), standardProps)).setParallelism(1);
+		Properties producerProperties = new Properties();
+		producerProperties.putAll(standardProps);
+		producerProperties.putAll(secureProps);
+		producerProperties.put("retries", 3);
+
+		stream.addSink(new FlinkKafkaProducer09<>(testTopic, new SimpleStringSchema(), producerProperties));
 		env.execute("Produce 100 bytes of data to test topic");
 
 		// ---------- Consumer from Kafka in a ratelimited way -----------
