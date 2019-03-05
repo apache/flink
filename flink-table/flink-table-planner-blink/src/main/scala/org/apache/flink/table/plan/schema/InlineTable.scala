@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.schema
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.table.`type`.{InternalType, RowType, TypeConverters}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
@@ -55,21 +55,21 @@ abstract class InlineTable[T](
         s"List of all fields: ${fieldNames.mkString("[", ", ", "]")}.")
   }
 
-  val fieldTypes: Array[TypeInformation[_]] =
-    typeInfo match {
+  val fieldTypes: Array[InternalType] =
+    TypeConverters.createInternalTypeFromTypeInfo(typeInfo) match {
 
-      case ct: CompositeType[_] =>
+      case rt: RowType =>
         // it is ok to leave out fields
-        if (fieldIndexes.count(_ >= 0) > ct.getArity) {
+        if (fieldIndexes.count(_ >= 0) > rt.getArity) {
           throw new TableException(
-            s"Arity of type (" + ct.getFieldNames.deep + ") " +
+            s"Arity of type (" + rt.getFieldNames.deep + ") " +
               "must not be greater than number of field names " + fieldNames.deep + ".")
         }
-        fieldIndexes.map(i => ct.getTypeAt(i).asInstanceOf[TypeInformation[_]])
+        fieldIndexes.map(i => rt.getTypeAt(i))
 
-      case t: TypeInformation[_] =>
+      case t: InternalType =>
         val cnt = fieldIndexes.length
-        val types = fieldIndexes.map(_.asInstanceOf[TypeInformation[_]])
+        val types = Array(t)
         // ensure that the atomic type is matched at most once.
         if (cnt > 1) {
           throw new TableException(
