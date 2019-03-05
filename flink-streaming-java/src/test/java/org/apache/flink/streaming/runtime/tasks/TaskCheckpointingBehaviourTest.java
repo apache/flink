@@ -21,7 +21,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -326,7 +325,6 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 					return new DefaultOperatorStateBackend(
 						executionConfig,
 						cancelStreamRegistry,
-						mock(TypeSerializer.class),
 						new HashMap<>(),
 						new HashMap<>(),
 						new HashMap<>(),
@@ -377,7 +375,6 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 					return new DefaultOperatorStateBackend(
 						executionConfig,
 						cancelStreamRegistry,
-						mock(TypeSerializer.class),
 						new HashMap<>(),
 						new HashMap<>(),
 						new HashMap<>(),

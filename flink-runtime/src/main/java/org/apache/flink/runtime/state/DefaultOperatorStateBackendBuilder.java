@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.util.IOUtils;
 
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -63,11 +62,8 @@ public class DefaultOperatorStateBackendBuilder implements
 
 	@Override
 	public DefaultOperatorStateBackend build() throws BackendBuildingException {
-		JavaSerializer<Serializable> serializer = new JavaSerializer<>();
 		Map<String, PartitionableListState<?>> registeredOperatorStates = new HashMap<>();
 		Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates = new HashMap<>();
-		Map<String, PartitionableListState<?>> accessedStatesByName = new HashMap<>();
-		Map<String, BackendWritableBroadcastState<?, ?>> accessedBroadcastStatesByName = new HashMap<>();
 		CloseableRegistry cancelStreamRegistryForBackend = new CloseableRegistry();
 		AbstractSnapshotStrategy<OperatorStateHandle> snapshotStrategy =
 			new DefaultOperatorStateBackendSnapshotStrategy(
@@ -85,18 +81,17 @@ public class DefaultOperatorStateBackendBuilder implements
 		);
 		try {
 			restoreOperation.restore();
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			IOUtils.closeQuietly(cancelStreamRegistryForBackend);
 			throw new BackendBuildingException("Failed when trying to restore operator state backend", e);
 		}
 		return new DefaultOperatorStateBackend(
 			executionConfig,
 			cancelStreamRegistryForBackend,
-			serializer,
 			registeredOperatorStates,
 			registeredBroadcastStates,
-			accessedStatesByName,
-			accessedBroadcastStatesByName,
+			new HashMap<>(),
+			new HashMap<>(),
 			snapshotStrategy
 		);
 	}

@@ -75,7 +75,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	/**
 	 * Default typeSerializer. Only used for the default operator state.
 	 */
-	private final TypeSerializer<Serializable> typeSerializer;
+	private final JavaSerializer<Serializable> deprecatedDefaultJavaSerializer = new JavaSerializer<>();
 
 	/**
 	 * The execution configuration.
@@ -101,7 +101,6 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	public DefaultOperatorStateBackend(
 		ExecutionConfig executionConfig,
 		CloseableRegistry closeStreamOnCancelRegistry,
-		TypeSerializer<Serializable> typeSerializer,
 		Map<String, PartitionableListState<?>> registeredOperatorStates,
 		Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates,
 		Map<String, PartitionableListState<?>> accessedStatesByName,
@@ -109,7 +108,6 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		AbstractSnapshotStrategy<OperatorStateHandle> snapshotStrategy) {
 		this.closeStreamOnCancelRegistry = closeStreamOnCancelRegistry;
 		this.executionConfig = executionConfig;
-		this.typeSerializer = typeSerializer;
 		this.registeredOperatorStates = registeredOperatorStates;
 		this.registeredBroadcastStates = registeredBroadcastStates;
 		this.accessedStatesByName = accessedStatesByName;
@@ -244,7 +242,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	@Deprecated
 	@Override
 	public <T extends Serializable> ListState<T> getSerializableListState(String stateName) throws Exception {
-		return (ListState<T>) getListState(new ListStateDescriptor<>(stateName, typeSerializer));
+		return (ListState<T>) getListState(new ListStateDescriptor<>(stateName, deprecatedDefaultJavaSerializer));
 	}
 
 	// -------------------------------------------------------------------------------------------
