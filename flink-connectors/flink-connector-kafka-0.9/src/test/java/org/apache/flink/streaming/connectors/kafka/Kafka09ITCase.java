@@ -168,7 +168,6 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 	 * a desired rate of 3 bytes / second. Based on the execution time, the test asserts that this rate was not surpassed.
 	 * If no rate limiter is set on the consumer, the test should fail.
 	 */
-	@Ignore
 	@Test(timeout = 60000)
 	public void testRateLimitedConsumer() throws Exception {
 		final String testTopic = "testRateLimitedConsumer";
