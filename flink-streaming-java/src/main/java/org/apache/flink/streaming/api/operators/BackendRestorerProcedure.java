@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.util.Disposable;
 import org.apache.flink.util.ExceptionUtils;
@@ -49,7 +48,7 @@ import java.util.List;
  * @param <S> type of the supplied snapshots from which the backend restores.
  */
 public class BackendRestorerProcedure<
-	T extends Closeable & Disposable & SnapshotStrategy<?>,
+	T extends Closeable & Disposable,
 	S extends StateObject> {
 
 	/** Logger for this class. */
