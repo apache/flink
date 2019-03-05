@@ -671,43 +671,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		return FutureUtils.completeAll(values);
 	}
 
-	/**
-	 * Recovers all jobs persisted via the submitted job graph store.
-	 */
-	private Collection<JobGraph> recoverJobs(Collection<JobID> jobIds) throws Exception {
-		log.info("Recovering all persisted jobs.");
-		try {
-			return recoverJobGraphs(jobIds);
-		} catch (Exception e) {
-			// release all recovered job graphs
-			for (JobID jobId : jobIds) {
-				try {
-					submittedJobGraphStore.releaseJobGraph(jobId);
-				} catch (Exception ie) {
-					e.addSuppressed(ie);
-				}
-			}
-			throw e;
-		}
-	}
-
-	@Nonnull
-	private Collection<JobGraph> recoverJobGraphs(Collection<JobID> jobIds) throws Exception {
-		final List<JobGraph> jobGraphs = new ArrayList<>(jobIds.size());
-
-		for (JobID jobId : jobIds) {
-			final JobGraph jobGraph = recoverJob(jobId);
-
-			if (jobGraph == null) {
-				throw new FlinkJobNotFoundException(jobId);
-			}
-
-			jobGraphs.add(jobGraph);
-		}
-
-		return jobGraphs;
-	}
-
 	@Nullable
 	private JobGraph recoverJob(JobID jobId) throws Exception {
 		log.debug("Recover job {}.", jobId);
@@ -884,17 +847,39 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			.supplyAsync(
 				FunctionUtils.uncheckedSupplier(submittedJobGraphStore::getJobIds), getRpcService().getExecutor())
 			.thenComposeAsync(jobIds -> {
-					Collection<CompletableFuture<JobID>> terminationFutures = new ArrayList<>(jobIds.size());
+					Collection<CompletableFuture<JobGraph>> recoverFutures = new ArrayList<>(jobIds.size());
 					for (JobID jobId : jobIds) {
-						final CompletableFuture<JobID> jobManagerTerminationFuture = getJobTerminationFuture(jobId);
-						terminationFutures.add(jobManagerTerminationFuture);
+						recoverFutures.add(getRecoveryFuture(jobId));
 					}
-					return FutureUtils.combineAll(terminationFutures);
+					return FutureUtils.combineAll(recoverFutures)
+						.exceptionally(e -> releaseRecoveredJobGraphsAfterFailure(jobIds, e));
 				},
-				getUnfencedMainThreadExecutor())
+				getUnfencedMainThreadExecutor());
+	}
+
+	private CompletableFuture<JobGraph> getRecoveryFuture(JobID jobId) {
+		return getJobTerminationFuture(jobId)
 			.thenApplyAsync(
-				FunctionUtils.uncheckedFunction(this::recoverJobs),
+				FunctionUtils.uncheckedFunction(ignore -> {
+					JobGraph jobGraph = recoverJob(jobId);
+					if (jobGraph == null) {
+						throw new FlinkJobNotFoundException(jobId);
+					}
+					return jobGraph;
+				}),
 				getRpcService().getExecutor());
+	}
+
+	private Collection<JobGraph> releaseRecoveredJobGraphsAfterFailure(Collection<JobID> jobIds, Throwable e) {
+		for (JobID jobId : jobIds) {
+			try {
+				submittedJobGraphStore.releaseJobGraph(jobId);
+			} catch (Exception ie) {
+				e.addSuppressed(ie);
+			}
+		}
+		ExceptionUtils.rethrow(e);
+		return null;
 	}
 
 	private CompletableFuture<Boolean> tryAcceptLeadershipAndRunJobs(UUID newLeaderSessionID, Collection<JobGraph> recoveredJobs) {
