@@ -88,21 +88,20 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
   }
 
   def getDistinctRowCount(
-      rel: RelSubset,
+      subset: RelSubset,
       mq: RelMetadataQuery,
       groupKey: ImmutableBitSet,
       predicate: RexNode): Double = {
     if (!Bug.CALCITE_1048_FIXED) {
-      return mq.getDistinctRowCount(
-        Util.first(rel.getBest, rel.getOriginal),
-        groupKey,
-        predicate)
+      val rel = Util.first(subset.getBest, subset.getOriginal)
+      return mq.getDistinctRowCount(rel, groupKey, predicate)
     }
 
-    rel.getRels.foldLeft(null.asInstanceOf[Double]) {
-      (min, r) =>
+    subset.getRels.foldLeft(null.asInstanceOf[Double]) {
+      (min, input) =>
         try {
-          NumberUtil.min(min, mq.getDistinctRowCount(r, groupKey, predicate))
+          val inputDistinctRowCount = mq.getDistinctRowCount(input, groupKey, predicate)
+          NumberUtil.min(min, inputDistinctRowCount)
         } catch {
           // Ignore this relational expression; there will be non-cyclic ones
           // in this set.

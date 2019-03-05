@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.optimize.program
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.plan.metadata.FlinkRelMdNonCumulativeCost
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.RelTrait
@@ -52,17 +53,23 @@ class FlinkHepProgram[OC <: FlinkOptimizeContext] extends FlinkOptimizeProgram[O
       throw new TableException("hepProgram should not be None in FlinkHepProgram")
     }
 
-    val planner = new HepPlanner(hepProgram.get, context)
-    planner.setRoot(root)
+    try {
+      val planner = new HepPlanner(hepProgram.get, context)
+      FlinkRelMdNonCumulativeCost.THREAD_PLANNER.set(planner)
 
-    if (requestedRootTraits.isDefined) {
-      val targetTraitSet = root.getTraitSet.plusAll(requestedRootTraits.get)
-      if (!root.getTraitSet.equals(targetTraitSet)) {
-        planner.changeTraits(root, targetTraitSet.simplify)
+      planner.setRoot(root)
+
+      if (requestedRootTraits.isDefined) {
+        val targetTraitSet = root.getTraitSet.plusAll(requestedRootTraits.get)
+        if (!root.getTraitSet.equals(targetTraitSet)) {
+          planner.changeTraits(root, targetTraitSet.simplify)
+        }
       }
-    }
 
-    planner.findBestExp
+      planner.findBestExp
+    }  finally {
+      FlinkRelMdNonCumulativeCost.THREAD_PLANNER.remove()
+    }
   }
 
   /**

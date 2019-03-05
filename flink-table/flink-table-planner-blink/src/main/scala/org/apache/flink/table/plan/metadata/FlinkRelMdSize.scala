@@ -76,12 +76,12 @@ class FlinkRelMdSize private extends MetadataHandler[BuiltInMetadata.Size] {
   def averageColumnSizes(rel: TableScan, mq: RelMetadataQuery): JList[Double] = {
     val statistic = rel.getTable.asInstanceOf[FlinkRelOptTable].getFlinkStatistic
     rel.getRowType.getFieldList.map {
-      f =>
-        val colStats = statistic.getColumnStats(f.getName)
+      field =>
+        val colStats = statistic.getColumnStats(field.getName)
         if (colStats != null && colStats.getAvgLen != null) {
           colStats.getAvgLen
         } else {
-          FlinkRelMdSize.averageTypeValueSize(f.getType)
+          FlinkRelMdSize.averageTypeValueSize(field.getType)
         }
     }
   }
