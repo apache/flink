@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -166,6 +167,7 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 	 * a desired rate of 3 bytes / second. Based on the execution time, the test asserts that this rate was not surpassed.
 	 * If no rate limiter is set on the consumer, the test should fail.
 	 */
+	@Ignore
 	@Test(timeout = 60000)
 	public void testRateLimitedConsumer() throws Exception {
 		final String testTopic = "testRateLimitedConsumer";
