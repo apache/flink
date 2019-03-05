@@ -30,7 +30,10 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static org.apache.flink.formats.utils.SerializationSchemaMatcher.whenSerializedWith;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for the {@link JsonRowSerializationSchema}.
@@ -48,8 +51,12 @@ public class JsonRowSerializationSchemaTest {
 		row.setField(1, true);
 		row.setField(2, "str");
 
-		final Row resultRow = serializeAndDeserialize(rowSchema, row);
-		assertEquals(row, resultRow);
+		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema(rowSchema);
+		final JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(rowSchema);
+
+		assertThat(row, whenSerializedWith(serializationSchema)
+			.andDeserializedWith(deserializationSchema)
+			.equalsTo(row));
 	}
 
 	@Test
@@ -92,21 +99,25 @@ public class JsonRowSerializationSchemaTest {
 		nested.setField(1, 2.3);
 		row.setField(2, nested);
 
-		final Row resultRow = serializeAndDeserialize(rowSchema, row);
-		assertEquals(row, resultRow);
+		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema(rowSchema);
+		final JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(rowSchema);
+
+		assertThat(row, whenSerializedWith(serializationSchema)
+			.andDeserializedWith(deserializationSchema)
+			.equalsTo(row));
 	}
 
-	@Test(expected = RuntimeException.class)
+	@Test
 	public void testSerializeRowWithInvalidNumberOfFields() {
 		final TypeInformation<Row> rowSchema = Types.ROW_NAMED(
-			new String[] {"f1", "f2", "f3"},
+			new String[]{"f1", "f2", "f3"},
 			Types.INT, Types.BOOLEAN, Types.STRING);
 
 		final Row row = new Row(1);
 		row.setField(0, 1);
 
 		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema(rowSchema);
-		serializationSchema.serialize(row);
+		assertThat(row, whenSerializedWith(serializationSchema).failsWithException(instanceOf(RuntimeException.class)));
 	}
 
 	@Test
@@ -157,17 +168,12 @@ public class JsonRowSerializationSchemaTest {
 		nestedRow.setField(1, BigDecimal.valueOf(12));
 		row.setField(10, nestedRow);
 
-		final Row resultRow = serializeAndDeserialize(rowSchema, row);
-		assertEquals(row, resultRow);
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private Row serializeAndDeserialize(TypeInformation<Row> rowSchema, Row row) throws IOException {
 		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema(rowSchema);
 		final JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(rowSchema);
 
-		final byte[] bytes = serializationSchema.serialize(row);
-		return deserializationSchema.deserialize(bytes);
+		assertThat(row, whenSerializedWith(serializationSchema)
+			.andDeserializedWith(deserializationSchema)
+			.equalsTo(row));
 	}
+
 }

@@ -27,15 +27,16 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.formats.utils.DeserializationSchemaMatcher.whenDeserializedWith;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertThat;
+import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
 
 /**
  * Tests for the {@link JsonRowDeserializationSchema}.
@@ -64,16 +65,16 @@ public class JsonRowDeserializationSchemaTest {
 
 		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(
 			Types.ROW_NAMED(
-				new String[] { "id", "name", "bytes" },
+				new String[]{"id", "name", "bytes"},
 				Types.LONG, Types.STRING, Types.PRIMITIVE_ARRAY(Types.BYTE))
 		);
 
-		Row deserialized = deserializationSchema.deserialize(serializedJson);
+		Row row = new Row(3);
+		row.setField(0, id);
+		row.setField(1, name);
+		row.setField(2, bytes);
 
-		assertEquals(3, deserialized.getArity());
-		assertEquals(id, deserialized.getField(0));
-		assertEquals(name, deserialized.getField(1));
-		assertArrayEquals(bytes, (byte[]) deserialized.getField(2));
+		assertThat(serializedJson, whenDeserializedWith(deserializationSchema).equalsTo(row));
 	}
 
 	@Test
@@ -126,8 +127,6 @@ public class JsonRowDeserializationSchemaTest {
 			"    }" +
 			"}");
 
-		final Row deserialized = deserializationSchema.deserialize(serializedJson);
-
 		final Row expected = new Row(10);
 		expected.setField(0, id);
 		expected.setField(1, null);
@@ -143,7 +142,7 @@ public class JsonRowDeserializationSchemaTest {
 		nestedRow.setField(1, BigDecimal.valueOf(12));
 		expected.setField(9, nestedRow);
 
-		assertEquals(expected, deserialized);
+		assertThat(serializedJson, whenDeserializedWith(deserializationSchema).equalsTo(expected));
 	}
 
 	/**
@@ -160,23 +159,18 @@ public class JsonRowDeserializationSchemaTest {
 
 		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(
 			Types.ROW_NAMED(
-				new String[] { "name" },
+				new String[]{"name"},
 				Types.STRING)
 		);
 
-		Row row = deserializationSchema.deserialize(serializedJson);
-
-		assertEquals(1, row.getArity());
-		Assert.assertNull("Missing field not null", row.getField(0));
+		Row row = new Row(1);
+		assertThat(serializedJson,
+			whenDeserializedWith(deserializationSchema).equalsTo(row));
 
 		deserializationSchema.setFailOnMissingField(true);
-
-		try {
-			deserializationSchema.deserialize(serializedJson);
-			Assert.fail("Did not throw expected Exception");
-		} catch (IOException e) {
-			Assert.assertTrue(e.getCause() instanceof IllegalStateException);
-		}
+		assertThat(serializedJson,
+			whenDeserializedWith(deserializationSchema)
+				.failsWithException(hasCause(instanceOf(IllegalStateException.class))));
 	}
 
 	/**
