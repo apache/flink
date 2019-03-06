@@ -31,6 +31,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.dataformat.DataFormatConverters.DataFormatConverter;
+import org.apache.flink.table.runtime.functions.DateTimeUtils;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.typeutils.BinaryArrayTypeInfo;
@@ -100,7 +101,7 @@ public class DataFormatConvertersTest {
 			new byte[] {5, 1},
 			new char[] {5, 1},
 
-			DataFormatConverters.internalToDate(5),
+			DateTimeUtils.internalToDate(5),
 			new Time(11),
 			new Timestamp(11),
 
