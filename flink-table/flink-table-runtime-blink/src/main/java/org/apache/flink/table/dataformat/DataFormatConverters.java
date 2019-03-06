@@ -54,6 +54,14 @@ import scala.Product;
 
 /**
  * Converters between internal data format and java format.
+ *
+ * <p>The following scenarios will use converter for java format to internal data format:
+ * In source, data from user define source to internal sql engine.
+ * In udx return value, User outputs java format data to the SQL engine.
+ *
+ * <p>The following scenarios will use converter for internal data format to java format:
+ * In udx method parameters, data from internal sql engine need to be provided to user udx.
+ * In sink, data from internal sql engine need to be provided to user define sink.
  */
 public class DataFormatConverters {
 
@@ -129,14 +137,6 @@ public class DataFormatConverters {
 
 	/**
 	 * Converter between internal data format and java format.
-	 *
-	 * <p>The following scenarios will use converter for java format to internal data format:
-	 * In source, data from user define source to internal sql engine.
-	 * In udx return value, User outputs java format data to the SQL engine.
-	 *
-	 * <p>The following scenarios will use converter for internal data format to java format:
-	 * In udx method parameters, data from internal sql engine need to be provided to user udx.
-	 * In sink, data from internal sql engine need to be provided to user define sink.
 	 *
 	 * @param <Internal> Internal data format.
 	 * @param <External> External data format.
