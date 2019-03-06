@@ -25,8 +25,10 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -38,6 +40,7 @@ import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.IOUtils;
@@ -54,6 +57,7 @@ import org.rocksdb.util.SizeUnit;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -276,14 +280,18 @@ public class RocksDBStateBackendConfigTest {
 
 		Environment env = getMockEnvironment(dir1, dir2);
 		RocksDBKeyedStateBackend<Integer> keyedBackend = (RocksDBKeyedStateBackend<Integer>) rocksDbBackend.
-				createKeyedStateBackend(
-						env,
-						env.getJobID(),
-						"test_op",
-						IntSerializer.INSTANCE,
-						1,
-						new KeyGroupRange(0, 0),
-						env.getTaskKvStateRegistry());
+			createKeyedStateBackend(
+				env,
+				env.getJobID(),
+				"test_op",
+				IntSerializer.INSTANCE,
+				1,
+				new KeyGroupRange(0, 0),
+				env.getTaskKvStateRegistry(),
+				TtlTimeProvider.DEFAULT,
+				new UnregisteredMetricsGroup(),
+				Collections.emptyList(),
+				new CloseableRegistry());
 
 		try {
 			File instanceBasePath = keyedBackend.getInstanceBasePath();
@@ -316,13 +324,17 @@ public class RocksDBStateBackendConfigTest {
 			try {
 				Environment env = getMockEnvironment(tempFolder.newFolder());
 				rocksDbBackend.createKeyedStateBackend(
-						env,
-						env.getJobID(),
-						"foobar",
-						IntSerializer.INSTANCE,
-						1,
-						new KeyGroupRange(0, 0),
-						new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID()));
+					env,
+					env.getJobID(),
+					"foobar",
+					IntSerializer.INSTANCE,
+					1,
+					new KeyGroupRange(0, 0),
+					new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID()),
+					TtlTimeProvider.DEFAULT,
+					new UnregisteredMetricsGroup(),
+					Collections.emptyList(),
+					new CloseableRegistry());
 			}
 			catch (Exception e) {
 				assertTrue(e.getMessage().contains("No local storage directories available"));
@@ -363,7 +375,11 @@ public class RocksDBStateBackendConfigTest {
 					IntSerializer.INSTANCE,
 					1,
 					new KeyGroupRange(0, 0),
-					new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID()));
+					new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID()),
+					TtlTimeProvider.DEFAULT,
+					new UnregisteredMetricsGroup(),
+					Collections.emptyList(),
+					new CloseableRegistry());
 
 				IOUtils.closeQuietly(keyedStateBackend);
 				keyedStateBackend.dispose();
@@ -633,15 +649,18 @@ public class RocksDBStateBackendConfigTest {
 	static RocksDBKeyedStateBackend<Integer> createKeyedStateBackend(
 			RocksDBStateBackend rocksDbBackend, Environment env) throws Exception {
 
-		return (RocksDBKeyedStateBackend<Integer>) rocksDbBackend.
-				createKeyedStateBackend(
-						env,
-						env.getJobID(),
-						"test_op",
-						IntSerializer.INSTANCE,
-						1,
-						new KeyGroupRange(0, 0),
-						env.getTaskKvStateRegistry());
+		return (RocksDBKeyedStateBackend<Integer>) rocksDbBackend.createKeyedStateBackend(
+			env,
+			env.getJobID(),
+			"test_op",
+			IntSerializer.INSTANCE,
+			1,
+			new KeyGroupRange(0, 0),
+			env.getTaskKvStateRegistry(),
+			TtlTimeProvider.DEFAULT,
+			new UnregisteredMetricsGroup(),
+			Collections.emptyList(),
+			new CloseableRegistry());
 	}
 
 	static Environment getMockEnvironment(File... tempDirs) {
