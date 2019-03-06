@@ -20,12 +20,12 @@ package org.apache.flink.table.calcite
 
 import org.apache.flink.table.`type`.{ArrayType, DecimalType, InternalType, InternalTypes, MapType, RowType}
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.schema.{ArrayRelDataType, MapRelDataType, RowRelDataType, RowSchema}
+import org.apache.flink.table.plan.schema.{ArrayRelDataType, MapRelDataType, RowRelDataType, RowSchema, TimeIndicatorRelDataType}
 
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.`type`._
-import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
+import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
 
 import java.util
 
@@ -89,6 +89,19 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     }
 
     createTypeWithNullability(relType, isNullable)
+  }
+
+  /**
+    * Creates a indicator type for event-time, but with similar properties as SQL timestamp.
+    */
+  def createRowtimeIndicatorType(): RelDataType = {
+    val originalType = createTypeFromInternalType(InternalTypes.TIMESTAMP, isNullable = false)
+    canonize(
+      new TimeIndicatorRelDataType(
+        getTypeSystem,
+        originalType.asInstanceOf[BasicSqlType],
+        isEventTime = true)
+    )
   }
 
   /**
