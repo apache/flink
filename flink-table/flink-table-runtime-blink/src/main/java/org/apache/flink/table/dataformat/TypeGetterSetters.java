@@ -18,9 +18,12 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.table.type.ArrayType;
+import org.apache.flink.table.type.DecimalType;
+import org.apache.flink.table.type.GenericType;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.type.MapType;
+import org.apache.flink.table.type.RowType;
 
 /**
  * Provide type specialized getters and setters to reduce if/else and eliminate box and unbox.
@@ -92,6 +95,16 @@ public interface TypeGetterSetters {
 	BinaryString getString(int ordinal);
 
 	/**
+	 * Get decimal value, internal format is Decimal.
+	 */
+	Decimal getDecimal(int ordinal, int precision, int scale);
+
+	/**
+	 * Get generic value, internal format is BinaryGeneric.
+	 */
+	<T> BinaryGeneric<T> getGeneric(int ordinal);
+
+	/**
 	 * Get array value, internal format is BinaryArray.
 	 */
 	BinaryArray getArray(int ordinal);
@@ -100,6 +113,11 @@ public interface TypeGetterSetters {
 	 * Get map value, internal format is BinaryMap.
 	 */
 	BinaryMap getMap(int ordinal);
+
+	/**
+	 * Get row value, internal format is BaseRow.
+	 */
+	BaseRow getRow(int ordinal, int numFields);
 
 	/**
 	 * Set boolean value.
@@ -141,6 +159,16 @@ public interface TypeGetterSetters {
 	 */
 	void setChar(int ordinal, char value);
 
+	/**
+	 * Set the decimal column value.
+	 *
+	 * <p>Note:
+	 * Precision is compact: can call setNullAt when decimal is null.
+	 * Precision is not compact: can not call setNullAt when decimal is null, must call
+	 * setDecimal(i, null, precision) because we need update var-length-part.
+	 */
+	void setDecimal(int i, Decimal value, int precision);
+
 	static Object get(TypeGetterSetters row, int ordinal, InternalType type) {
 		if (type.equals(InternalTypes.BOOLEAN)) {
 			return row.getBoolean(ordinal);
@@ -166,10 +194,17 @@ public interface TypeGetterSetters {
 			return row.getInt(ordinal);
 		} else if (type.equals(InternalTypes.TIMESTAMP)) {
 			return row.getLong(ordinal);
+		} else if (type instanceof DecimalType) {
+			DecimalType decimalType = (DecimalType) type;
+			return row.getDecimal(ordinal, decimalType.precision(), decimalType.scale());
 		} else if (type instanceof ArrayType) {
 			return row.getArray(ordinal);
 		} else if (type instanceof MapType) {
 			return row.getMap(ordinal);
+		} else if (type instanceof RowType) {
+			return row.getRow(ordinal, ((RowType) type).getArity());
+		} else if (type instanceof GenericType) {
+			return row.getGeneric(ordinal);
 		} else {
 			throw new RuntimeException("Not support type: " + type);
 		}

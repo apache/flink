@@ -17,11 +17,14 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.table.util.BinaryStringUtil;
+import org.apache.flink.table.typeutils.BaseRowSerializer;
 import org.apache.flink.table.util.SegmentsUtil;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Arrays;
 
 /**
@@ -42,6 +45,8 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 
 	protected int cursor;
 
+	protected DataOutputViewStreamWrapper outputView;
+
 	/**
 	 * Set offset and size to fix len part.
 	 */
@@ -57,18 +62,34 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 	 */
 	protected abstract void afterGrow();
 
+	protected abstract void setNullBit(int ordinal);
+
 	/**
 	 * See {@link BinaryString#readBinaryStringFieldFromSegments}.
 	 */
 	@Override
 	public void writeString(int pos, BinaryString input) {
-		int len = input.getSizeInBytes();
+		if (input.getSegments() == null) {
+			String javaObject = input.getJavaObject();
+			writeBytes(pos, javaObject.getBytes());
+		} else {
+			int len = input.getSizeInBytes();
+			if (len <= 7) {
+				byte[] bytes = SegmentsUtil.allocateReuseBytes(len);
+				SegmentsUtil.copyToBytes(input.getSegments(), input.getOffset(), bytes, 0, len);
+				writeBytesToFixLenPart(segment, getFieldOffset(pos), bytes, len);
+			} else {
+				writeSegmentsToVarLenPart(pos, input.getSegments(), input.getOffset(), len);
+			}
+		}
+	}
+
+	private void writeBytes(int pos, byte[] bytes) {
+		int len = bytes.length;
 		if (len <= 7) {
-			byte[] bytes = BinaryStringUtil.allocateReuseBytes(len);
-			SegmentsUtil.copyToBytes(input.getSegments(), input.getOffset(), bytes, 0, len);
 			writeBytesToFixLenPart(segment, getFieldOffset(pos), bytes, len);
 		} else {
-			writeSegmentsToVarLenPart(pos, input.getSegments(), input.getOffset(), len);
+			writeBytesToVarLenPart(pos, bytes, len);
 		}
 	}
 
@@ -82,13 +103,92 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 		writeSegmentsToVarLenPart(pos, input.getSegments(), input.getOffset(), input.getSizeInBytes());
 	}
 
-	private void zeroOutPaddingBytes(int numBytes) {
+	private DataOutputViewStreamWrapper getOutputView() {
+		if (outputView == null) {
+			outputView = new DataOutputViewStreamWrapper(new BinaryRowWriterOutputView());
+		}
+		return outputView;
+	}
+
+	@Override
+	public void writeGeneric(int pos, BinaryGeneric input) {
+		if (input.getSegments() == null) {
+			int beforeCursor = cursor;
+			try {
+				input.getJavaObjectSerializer().serialize(input.getJavaObject(), getOutputView());
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+			int size = cursor - beforeCursor;
+			final int roundedSize = roundNumberOfBytesToNearestWord(size);
+			int paddingBytes = roundedSize - size;
+			ensureCapacity(paddingBytes);
+			setOffsetAndSize(pos, beforeCursor, size);
+			zeroBytes(cursor, paddingBytes);
+			cursor += paddingBytes;
+		} else {
+			writeSegmentsToVarLenPart(pos, input.getSegments(), input.getOffset(), input.getSizeInBytes());
+		}
+	}
+
+	@Override
+	public void writeRow(int pos, BaseRow input, BaseRowSerializer serializer) {
+		if (input instanceof BinaryFormat) {
+			BinaryFormat row = (BinaryFormat) input;
+			writeSegmentsToVarLenPart(pos, row.getSegments(), row.getOffset(), row.getSizeInBytes());
+		} else {
+			writeRow(pos, serializer.baseRowToBinary(input), serializer);
+		}
+	}
+
+	@Override
+	public void writeDecimal(int pos, Decimal value, int precision) {
+		assert value == null || (value.getPrecision() == precision);
+
+		if (Decimal.isCompact(precision)) {
+			assert value != null;
+			writeLong(pos, value.toUnscaledLong());
+		} else {
+			// grow the global buffer before writing data.
+			ensureCapacity(16);
+
+			// zero-out the bytes
+			segment.putLong(cursor, 0L);
+			segment.putLong(cursor + 8, 0L);
+
+			// Make sure Decimal object has the same scale as DecimalType.
+			// Note that we may pass in null Decimal object to set null for it.
+			if (value == null) {
+				setNullBit(pos);
+				// keep the offset for future update
+				setOffsetAndSize(pos, cursor, 0);
+			} else {
+				final byte[] bytes = value.toUnscaledBytes();
+				assert bytes.length <= 16;
+
+				// Write the bytes to the variable length portion.
+				segment.put(cursor, bytes, 0, bytes.length);
+				setOffsetAndSize(pos, cursor, bytes.length);
+			}
+
+			// move the cursor forward.
+			cursor += 16;
+		}
+	}
+
+	private void zeroBytes(int offset, int size) {
+		for (int i = offset; i < offset + size; i++) {
+			segment.put(i, (byte) 0);
+		}
+	}
+
+	protected void zeroOutPaddingBytes(int numBytes) {
 		if ((numBytes & 0x07) > 0) {
 			segment.putLong(cursor + ((numBytes >> 3) << 3), 0L);
 		}
 	}
 
-	private void ensureCapacity(int neededSize) {
+	protected void ensureCapacity(int neededSize) {
 		final int length = cursor + neededSize;
 		if (segment.size() < length) {
 			grow(length);
@@ -134,6 +234,23 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 		}
 	}
 
+	private void writeBytesToVarLenPart(int pos, byte[] bytes, int len) {
+		final int roundedSize = roundNumberOfBytesToNearestWord(len);
+
+		// grow the global buffer before writing data.
+		ensureCapacity(roundedSize);
+
+		zeroOutPaddingBytes(len);
+
+		// Write the bytes to the variable length portion.
+		segment.put(cursor, bytes, 0, len);
+
+		setOffsetAndSize(pos, cursor, len);
+
+		// move the cursor forward.
+		cursor += roundedSize;
+	}
+
 	/**
 	 * Increases the capacity to ensure that it can hold at least the
 	 * minimum capacity argument.
@@ -174,5 +291,44 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 		final long offsetAndSize = (firstByte << 56) | sevenBytes;
 
 		segment.putLong(fieldOffset, offsetAndSize);
+	}
+
+	/**
+	 * OutputView for write Generic.
+	 */
+	private class BinaryRowWriterOutputView extends OutputStream {
+
+		/**
+		 * Writes the specified byte to this output stream. The general contract for
+		 * <code>write</code> is that one byte is written to the output stream. The byte to be
+		 * written is the eight low-order bits of the argument <code>b</code>. The 24 high-order
+		 * bits of <code>b</code> are ignored.
+		 */
+		@Override
+		public void write(int b) throws IOException {
+			ensureCapacity(1);
+			segment.put(cursor, (byte) b);
+			cursor += 1;
+		}
+
+		@Override
+		public void write(byte[] b) throws IOException {
+			ensureCapacity(b.length);
+			segment.put(cursor, b, 0, b.length);
+			cursor += b.length;
+		}
+
+		@Override
+		public void write(byte[] b, int off, int len) throws IOException {
+			ensureCapacity(len);
+			segment.put(cursor, b, off, len);
+			cursor += len;
+		}
+
+		public void write(MemorySegment seg, int off, int len) throws IOException {
+			ensureCapacity(len);
+			seg.copyTo(off, segment, cursor, len);
+			cursor += len;
+		}
 	}
 }

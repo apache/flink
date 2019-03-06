@@ -24,6 +24,8 @@ import org.apache.flink.core.memory.MemorySegment;
 import java.io.IOException;
 import java.nio.ByteOrder;
 
+import static org.apache.flink.core.memory.MemoryUtils.UNSAFE;
+
 /**
  * Util for data format segments calc.
  */
@@ -37,6 +39,40 @@ public class SegmentsUtil {
 	private static final int BIT_BYTE_POSITION_MASK = 0xfffffff8;
 
 	private static final int BIT_BYTE_INDEX_MASK = 7;
+
+	/**
+	 * SQL execution threads is limited, not too many, so it can bear the overhead of 64K per thread.
+	 */
+	private static final int MAX_BYTES_LENGTH = 1024 * 64;
+
+	private static final int BYTE_ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
+
+	private static final ThreadLocal<byte[]> BYTES_LOCAL = new ThreadLocal<>();
+
+	/**
+	 * Allocate bytes that is only for temporary usage, it should not be stored in somewhere else.
+	 * Use a {@link ThreadLocal} to reuse bytes to avoid overhead of byte[] new and gc.
+	 *
+	 * <p>If there are methods that can only accept a byte[], instead of a MemorySegment[]
+	 * parameter, we can allocate a reuse bytes and copy the MemorySegment data to byte[],
+	 * then call the method. Such as String deserialization.
+	 */
+	public static byte[] allocateReuseBytes(int length) {
+		byte[] bytes = BYTES_LOCAL.get();
+
+		if (bytes == null) {
+			if (length <= MAX_BYTES_LENGTH) {
+				bytes = new byte[MAX_BYTES_LENGTH];
+				BYTES_LOCAL.set(bytes);
+			} else {
+				bytes = new byte[length];
+			}
+		} else if (bytes.length < length) {
+			bytes = new byte[length];
+		}
+
+		return bytes;
+	}
 
 	/**
 	 * Copy segments to a new byte[].
@@ -124,6 +160,47 @@ public class SegmentsUtil {
 	}
 
 	/**
+	 * Copy target segments from source byte[].
+	 *
+	 * @param segments target segments.
+	 * @param offset target segments offset.
+	 * @param bytes source byte[].
+	 * @param bytesOffset source byte[] offset.
+	 * @param numBytes the number bytes to copy.
+	 */
+	public static void copyFromBytes(
+			MemorySegment[] segments, int offset,
+			byte[] bytes, int bytesOffset, int numBytes) {
+		if (segments.length == 1) {
+			segments[0].put(offset, bytes, bytesOffset, numBytes);
+		} else {
+			copyMultiSegmentsFromBytes(segments, offset, bytes, bytesOffset, numBytes);
+		}
+	}
+
+	private static void copyMultiSegmentsFromBytes(
+			MemorySegment[] segments, int offset, byte[] bytes, int bytesOffset, int numBytes) {
+		int remainSize = numBytes;
+		for (MemorySegment segment : segments) {
+			int remain = segment.size() - offset;
+			if (remain > 0) {
+				int nCopy = Math.min(remain, remainSize);
+				segment.put(offset, bytes, numBytes - remainSize + bytesOffset, nCopy);
+				remainSize -= nCopy;
+				// next new segment.
+				offset = 0;
+				if (remainSize == 0) {
+					return;
+				}
+			} else {
+				// remain is negative, let's advance to next segment
+				// now the offset = offset - segmentSize (-remain)
+				offset = -remain;
+			}
+		}
+	}
+
+	/**
 	 * Equals two memory segments regions.
 	 *
 	 * @param segments1 Segments 1
@@ -180,6 +257,48 @@ public class SegmentsUtil {
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * hash segments to int, numBytes must be aligned to 4 bytes.
+	 *
+	 * @param segments Source segments.
+	 * @param offset Source segments offset.
+	 * @param numBytes the number bytes to hash.
+	 */
+	public static int hashByWords(MemorySegment[] segments, int offset, int numBytes) {
+		if (inFirstSegment(segments, offset, numBytes)) {
+			return MurmurHashUtil.hashBytesByWords(segments[0], offset, numBytes);
+		} else {
+			return hashMultiSegByWords(segments, offset, numBytes);
+		}
+	}
+
+	private static int hashMultiSegByWords(MemorySegment[] segments, int offset, int numBytes) {
+		byte[] bytes = allocateReuseBytes(numBytes);
+		copyMultiSegmentsToBytes(segments, offset, bytes, 0, numBytes);
+		return MurmurHashUtil.hashUnsafeBytesByWords(bytes, BYTE_ARRAY_BASE_OFFSET, numBytes);
+	}
+
+	/**
+	 * hash segments to int.
+	 *
+	 * @param segments Source segments.
+	 * @param offset Source segments offset.
+	 * @param numBytes the number bytes to hash.
+	 */
+	public static int hash(MemorySegment[] segments, int offset, int numBytes) {
+		if (inFirstSegment(segments, offset, numBytes)) {
+			return MurmurHashUtil.hashBytes(segments[0], offset, numBytes);
+		} else {
+			return hashMultiSeg(segments, offset, numBytes);
+		}
+	}
+
+	private static int hashMultiSeg(MemorySegment[] segments, int offset, int numBytes) {
+		byte[] bytes = allocateReuseBytes(numBytes);
+		copyMultiSegmentsToBytes(segments, offset, bytes, 0, numBytes);
+		return MurmurHashUtil.hashUnsafeBytes(bytes, BYTE_ARRAY_BASE_OFFSET, numBytes);
 	}
 
 	/**
@@ -812,7 +931,7 @@ public class SegmentsUtil {
 	}
 
 	/**
-	 * Serialize segments to output view with offset and size.
+	 * Copy bytes of segments to output view.
 	 * Note: It just copies the data in, not include the length.
 	 *
 	 * @param segments source segments
@@ -820,7 +939,7 @@ public class SegmentsUtil {
 	 * @param sizeInBytes size in bytes
 	 * @param target target output view
 	 */
-	public static void serializeToView(MemorySegment[] segments, int offset,
+	public static void copyBytesToView(MemorySegment[] segments, int offset,
 			int sizeInBytes, DataOutputView target) throws IOException {
 		for (MemorySegment sourceSegment : segments) {
 			int curSegRemain = sourceSegment.size() - offset;

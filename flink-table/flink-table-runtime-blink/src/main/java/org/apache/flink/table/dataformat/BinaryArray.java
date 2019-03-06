@@ -101,10 +101,7 @@ public class BinaryArray extends BinaryFormat implements TypeGetterSetters {
 		return numElements;
 	}
 
-	public void pointTo(MemorySegment segment, int offset, int sizeInBytes) {
-		pointTo(new MemorySegment[]{segment}, offset, sizeInBytes);
-	}
-
+	@Override
 	public void pointTo(MemorySegment[] segments, int offset, int sizeInBytes) {
 		// Read the number of elements from the first 4 bytes.
 		final int numElements = SegmentsUtil.getInt(segments, offset);
@@ -182,6 +179,28 @@ public class BinaryArray extends BinaryFormat implements TypeGetterSetters {
 	}
 
 	@Override
+	public Decimal getDecimal(int pos, int precision, int scale) {
+		assertIndexIsValid(pos);
+		if (Decimal.isCompact(precision)) {
+			return Decimal.fromUnscaledLong(precision, scale,
+					SegmentsUtil.getLong(segments, getElementOffset(pos, 8)));
+		}
+
+		int fieldOffset = getElementOffset(pos, 8);
+		final long offsetAndSize = SegmentsUtil.getLong(segments, fieldOffset);
+		return Decimal.readDecimalFieldFromSegments(segments, offset, offsetAndSize, precision, scale);
+	}
+
+	@Override
+	public <T> BinaryGeneric<T> getGeneric(int pos) {
+		assertIndexIsValid(pos);
+		int fieldOffset = getElementOffset(pos, 8);
+		final long offsetAndSize = SegmentsUtil.getLong(segments, fieldOffset);
+		return BinaryGeneric.readBinaryGenericFieldFromSegments(
+				segments, offset, offsetAndSize);
+	}
+
+	@Override
 	public BinaryArray getArray(int pos) {
 		assertIndexIsValid(pos);
 		return BinaryArray.readBinaryArrayFieldFromSegments(segments, offset, getLong(pos));
@@ -191,6 +210,15 @@ public class BinaryArray extends BinaryFormat implements TypeGetterSetters {
 	public BinaryMap getMap(int pos) {
 		assertIndexIsValid(pos);
 		return BinaryMap.readBinaryMapFieldFromSegments(segments, offset, getLong(pos));
+	}
+
+	@Override
+	public BaseRow getRow(int pos, int numFields) {
+		assertIndexIsValid(pos);
+		int fieldOffset = getElementOffset(pos, 8);
+		final long offsetAndSize = SegmentsUtil.getLong(segments, fieldOffset);
+		return NestedRow.readNestedRowFieldFromSegments(
+				segments, numFields, offset, offsetAndSize);
 	}
 
 	@Override
@@ -301,6 +329,37 @@ public class BinaryArray extends BinaryFormat implements TypeGetterSetters {
 		SegmentsUtil.setChar(segments, getElementOffset(pos, 2), value);
 	}
 
+	@Override
+	public void setDecimal(int pos, Decimal value, int precision) {
+		assertIndexIsValid(pos);
+
+		if (Decimal.isCompact(precision)) {
+			// compact format
+			setLong(pos, value.toUnscaledLong());
+		} else {
+			int fieldOffset = getElementOffset(pos, 8);
+			int cursor = (int) (SegmentsUtil.getLong(segments, fieldOffset) >>> 32);
+			assert cursor > 0 : "invalid cursor " + cursor;
+			// zero-out the bytes
+			SegmentsUtil.setLong(segments, offset + cursor, 0L);
+			SegmentsUtil.setLong(segments, offset + cursor + 8, 0L);
+
+			if (value == null) {
+				setNullAt(pos);
+				// keep the offset for future update
+				SegmentsUtil.setLong(segments, fieldOffset, ((long) cursor) << 32);
+			} else {
+
+				byte[] bytes = value.toUnscaledBytes();
+				assert (bytes.length <= 16);
+
+				// Write the bytes to the variable length portion.
+				SegmentsUtil.copyFromBytes(segments, offset + cursor, bytes, 0, bytes.length);
+				setLong(pos, ((long) cursor << 32) | ((long) bytes.length));
+			}
+		}
+	}
+
 	public void setNullChar(int pos) {
 		assertIndexIsValid(pos);
 		SegmentsUtil.bitSet(segments, offset + 4, pos);
@@ -394,6 +453,11 @@ public class BinaryArray extends BinaryFormat implements TypeGetterSetters {
 		byte[] bytes = SegmentsUtil.copyToBytes(segments, offset, sizeInBytes);
 		reuse.pointTo(MemorySegmentFactory.wrap(bytes), 0, sizeInBytes);
 		return reuse;
+	}
+
+	@Override
+	public int hashCode() {
+		return SegmentsUtil.hashByWords(segments, offset, sizeInBytes);
 	}
 
 	private static BinaryArray fromPrimitiveArray(

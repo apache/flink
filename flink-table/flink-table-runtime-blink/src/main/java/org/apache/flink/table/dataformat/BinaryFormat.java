@@ -23,7 +23,7 @@ import org.apache.flink.table.util.SegmentsUtil;
 /**
  * Binary format that in {@link MemorySegment}s.
  */
-public abstract class BinaryFormat<T> {
+public abstract class BinaryFormat {
 
 	protected MemorySegment[] segments;
 	protected int offset;
@@ -32,6 +32,16 @@ public abstract class BinaryFormat<T> {
 	public BinaryFormat() {}
 
 	public BinaryFormat(MemorySegment[] segments, int offset, int sizeInBytes) {
+		this.segments = segments;
+		this.offset = offset;
+		this.sizeInBytes = sizeInBytes;
+	}
+
+	public final void pointTo(MemorySegment segment, int offset, int sizeInBytes) {
+		pointTo(new MemorySegment[] {segment}, offset, sizeInBytes);
+	}
+
+	public void pointTo(MemorySegment[] segments, int offset, int sizeInBytes) {
 		this.segments = segments;
 		this.offset = offset;
 		this.sizeInBytes = sizeInBytes;
@@ -56,9 +66,13 @@ public abstract class BinaryFormat<T> {
 				binaryEquals((BinaryFormat) o);
 	}
 
-	public boolean binaryEquals(BinaryFormat that) {
+	protected boolean binaryEquals(BinaryFormat that) {
 		return sizeInBytes == that.sizeInBytes &&
 				SegmentsUtil.equals(segments, offset, that.segments, that.offset, sizeInBytes);
 	}
 
+	@Override
+	public int hashCode() {
+		return SegmentsUtil.hash(segments, offset, sizeInBytes);
+	}
 }

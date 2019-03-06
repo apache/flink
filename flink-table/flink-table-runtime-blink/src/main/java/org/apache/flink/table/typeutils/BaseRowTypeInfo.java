@@ -140,6 +140,6 @@ public class BaseRowTypeInfo extends TupleTypeInfoBase<BaseRow> {
 
 	@Override
 	public BaseRowSerializer createSerializer(ExecutionConfig config) {
-		return new BaseRowSerializer(internalTypes, config);
+		return new BaseRowSerializer(config, internalTypes);
 	}
 }

@@ -102,4 +102,53 @@ public class DecimalType implements AtomicType {
 	public static DecimalType of(BigDecimal value) {
 		return of(value.precision(), value.scale());
 	}
+
+	/**
+	 * https://docs.microsoft.com/en-us/sql/t-sql/data-types/precision-scale-and-length-transact-sql.
+	 */
+	public static DecimalType inferDivisionType(int precision1, int scale1, int precision2, int scale2) {
+		// note: magic numbers are used directly here, because it's not really a general algorithm.
+		int scale = Math.max(6, scale1 + precision2 + 1);
+		int precision = precision1 - scale1 + scale2 + scale;
+		if (precision > 38) {
+			scale = Math.max(6, 38 - (precision - scale));
+			precision = 38;
+		}
+		return new DecimalType(precision, scale);
+	}
+
+	public static DecimalType inferIntDivType(int precision1, int scale1, int scale2) {
+		int p = Math.min(38, precision1 - scale1 + scale2);
+		return new DecimalType(p, 0);
+	}
+
+	/**
+	 * https://docs.microsoft.com/en-us/sql/t-sql/functions/sum-transact-sql.
+	 */
+	public static DecimalType inferAggSumType(int scale) {
+		return new DecimalType(38, scale);
+	}
+
+	/**
+	 * https://docs.microsoft.com/en-us/sql/t-sql/functions/avg-transact-sql
+	 * however, we count by LONG, therefore divide by Decimal(20,0),
+	 * but the end result is actually the same, which is Decimal(38, max(6,s)).
+	 */
+	public static DecimalType inferAggAvgType(int scale) {
+		return inferDivisionType(38, scale, 20, 0);
+	}
+
+	/**
+	 * return type of Round( DECIMAL(p,s), r).
+	 */
+	public static DecimalType inferRoundType(int precision, int scale, int r) {
+		if (r >= scale) {
+			return new DecimalType(precision, scale);
+		} else if (r < 0) {
+			return new DecimalType(Math.min(38, 1 + precision - scale), 0);
+		} else { // 0 <= r < s
+			return new DecimalType(1 + precision - scale + r, r);
+		}
+		// NOTE: rounding may increase the digits by 1, therefore we need +1 on precisions.
+	}
 }

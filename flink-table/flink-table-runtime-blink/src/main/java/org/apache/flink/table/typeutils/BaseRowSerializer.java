@@ -50,7 +50,7 @@ public class BaseRowSerializer extends TypeSerializer<BaseRow> {
 	private final InternalType[] types;
 	private final TypeSerializer[] fieldSerializers;
 
-	public BaseRowSerializer(InternalType[] types, ExecutionConfig config) {
+	public BaseRowSerializer(ExecutionConfig config, InternalType... types) {
 		this(types, Arrays.stream(types)
 				.map(TypeConverters::createInternalTypeInfoFromInternalType)
 				.map(ti -> ti.createSerializer(config))

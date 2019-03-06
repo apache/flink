@@ -18,9 +18,13 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.table.type.ArrayType;
+import org.apache.flink.table.type.DecimalType;
+import org.apache.flink.table.type.GenericType;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.type.MapType;
+import org.apache.flink.table.type.RowType;
+import org.apache.flink.table.typeutils.BaseRowSerializer;
 
 /**
  * Writer to write a composite data format, like row, array.
@@ -58,9 +62,15 @@ public interface BinaryWriter {
 
 	void writeString(int pos, BinaryString value);
 
+	void writeDecimal(int pos, Decimal value, int precision);
+
 	void writeArray(int pos, BinaryArray value);
 
 	void writeMap(int pos, BinaryMap value);
+
+	void writeRow(int pos, BaseRow value, BaseRowSerializer serializer);
+
+	void writeGeneric(int pos, BinaryGeneric value);
 
 	/**
 	 * Finally, complete write to set real size to binary.
@@ -92,10 +102,18 @@ public interface BinaryWriter {
 			writer.writeInt(pos, (int) o);
 		} else if (type.equals(InternalTypes.TIMESTAMP)) {
 			writer.writeLong(pos, (long) o);
+		} else if (type instanceof DecimalType) {
+			DecimalType decimalType = (DecimalType) type;
+			writer.writeDecimal(pos, (Decimal) o, decimalType.precision());
 		} else if (type instanceof ArrayType) {
 			writer.writeArray(pos, (BinaryArray) o);
 		} else if (type instanceof MapType) {
 			writer.writeMap(pos, (BinaryMap) o);
+		} else if (type instanceof RowType) {
+			RowType rowType = (RowType) type;
+			writer.writeRow(pos, (BaseRow) o, rowType.getBaseRowSerializer());
+		}  else if (type instanceof GenericType) {
+			writer.writeGeneric(pos, (BinaryGeneric) o);
 		} else {
 			throw new RuntimeException("Not support type: " + type);
 		}

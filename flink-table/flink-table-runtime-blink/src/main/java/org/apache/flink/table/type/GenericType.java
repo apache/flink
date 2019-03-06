@@ -31,7 +31,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class GenericType<T> implements AtomicType {
 
 	private final TypeInformation<T> typeInfo;
-	private TypeSerializer<T> serializer;
+
+	private transient TypeSerializer<T> serializer;
 
 	public GenericType(Class<T> typeClass) {
 		this(new GenericTypeInfo<>(typeClass));

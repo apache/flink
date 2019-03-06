@@ -59,9 +59,13 @@ public class BinaryRowWriter extends AbstractBinaryWriter {
 	 */
 	@Override
 	public void setNullAt(int pos) {
-		// need add header 8 bit.
-		SegmentsUtil.bitSet(segment, 0, pos + 8);
+		setNullBit(pos);
 		segment.putLong(getFieldOffset(pos), 0L);
+	}
+
+	@Override
+	public void setNullBit(int pos) {
+		SegmentsUtil.bitSet(segment, 0, pos + BinaryRow.HEADER_SIZE_IN_BITS);
 	}
 
 	public void writeHeader(byte header) {

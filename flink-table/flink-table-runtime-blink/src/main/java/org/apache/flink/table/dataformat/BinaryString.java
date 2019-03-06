@@ -19,7 +19,6 @@ package org.apache.flink.table.dataformat;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.table.util.BinaryStringUtil;
 import org.apache.flink.table.util.SegmentsUtil;
 
 /**
@@ -31,21 +30,30 @@ import org.apache.flink.table.util.SegmentsUtil;
  *
  * <p>{@code BinaryString} are influenced by Apache Spark UTF8String.
  */
-public class BinaryString extends BinaryFormat<String> {
+public class BinaryString extends LazyBinaryFormat<String> {
 
 	private static final long HIGHEST_FIRST_BIT = Long.MIN_VALUE;
 	private static final long HIGHEST_SECOND_TO_EIGHTH_BIT = 0x7FL << 56;
 
+	public static final BinaryString EMPTY_UTF8 = BinaryString.fromBytes("".getBytes());
+
 	public BinaryString(MemorySegment[] segments, int offset, int sizeInBytes) {
 		super(segments, offset, sizeInBytes);
+	}
+
+	public BinaryString(String javaObject) {
+		super(javaObject);
+	}
+
+	public BinaryString(MemorySegment[] segments, int offset, int sizeInBytes, String javaObject) {
+		super(segments, offset, sizeInBytes, javaObject);
 	}
 
 	public static BinaryString fromString(String str) {
 		if (str == null) {
 			return null;
 		} else {
-			byte[] bytes = str.getBytes();
-			return new BinaryString(new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, bytes.length);
+			return new BinaryString(str);
 		}
 	}
 
@@ -54,21 +62,45 @@ public class BinaryString extends BinaryFormat<String> {
 				new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, bytes.length);
 	}
 
-	public static BinaryString fromBytes(byte[] bytes, int offset, int numBytes) {
-		return new BinaryString(
-				new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, offset, numBytes);
+	@Override
+	public boolean equals(Object o) {
+		if (o != null && o instanceof BinaryString) {
+			BinaryString other = (BinaryString) o;
+			if (javaObject != null && other.javaObject != null) {
+				return javaObject.equals(other.javaObject);
+			}
+
+			ensureMaterialized();
+			other.ensureMaterialized();
+			return binaryEquals(other);
+		} else {
+			return false;
+		}
 	}
 
 	@Override
 	public String toString() {
-		byte[] bytes = BinaryStringUtil.allocateReuseBytes(sizeInBytes);
-		SegmentsUtil.copyToBytes(segments, offset, bytes, 0, sizeInBytes);
-		return new String(bytes, 0, sizeInBytes);
+		if (javaObject == null) {
+			byte[] bytes = SegmentsUtil.allocateReuseBytes(sizeInBytes);
+			SegmentsUtil.copyToBytes(segments, offset, bytes, 0, sizeInBytes);
+			javaObject = new String(bytes, 0, sizeInBytes);
+		}
+		return javaObject;
+	}
+
+	@Override
+	public void materialize() {
+		byte[] bytes = javaObject.getBytes();
+		segments = new MemorySegment[] {MemorySegmentFactory.wrap(bytes)};
+		offset = 0;
+		sizeInBytes = bytes.length;
 	}
 
 	public BinaryString copy() {
+		ensureMaterialized();
 		byte[] copy = SegmentsUtil.copyToBytes(segments, offset, sizeInBytes);
-		return BinaryString.fromBytes(copy, 0, copy.length);
+		return new BinaryString(new MemorySegment[] {MemorySegmentFactory.wrap(copy)},
+				offset, sizeInBytes, javaObject);
 	}
 
 	/**

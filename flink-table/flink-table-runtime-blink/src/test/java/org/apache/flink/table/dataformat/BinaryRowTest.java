@@ -18,13 +18,23 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.typeutils.BaseRowSerializer;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.HashSet;
+import java.util.Random;
+import java.util.Set;
 
+import static org.apache.flink.table.dataformat.BinaryString.fromBytes;
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -119,7 +129,7 @@ public class BinaryRowTest {
 	}
 
 	@Test
-	public void testwriteString() throws IOException {
+	public void testWriteString() throws IOException {
 		{
 			// litter byte[]
 			BinaryRow row = new BinaryRow(1);
@@ -138,12 +148,14 @@ public class BinaryRowTest {
 		{
 			// big byte[]
 			String str = "啦啦啦啦啦我是快乐的粉刷匠";
-			BinaryRow row = new BinaryRow(1);
+			BinaryRow row = new BinaryRow(2);
 			BinaryRowWriter writer = new BinaryRowWriter(row);
 			writer.writeString(0, fromString(str));
+			writer.writeString(1, fromBytes(str.getBytes()));
 			writer.complete();
 
 			assertEquals(str, row.getString(0).toString());
+			assertEquals(str, row.getString(1).toString());
 		}
 	}
 
@@ -160,6 +172,7 @@ public class BinaryRowTest {
 		assertEquals("1234567", row.getString(3).toString());
 		assertEquals("12345678", row.getString(5).toString());
 		assertEquals("啦啦啦啦啦我是快乐的粉刷匠", row.getString(9).toString());
+		assertEquals(fromString("啦啦啦啦啦我是快乐的粉刷匠").hashCode(), row.getString(9).hashCode());
 		assertTrue(row.isNullAt(12));
 	}
 
@@ -218,6 +231,52 @@ public class BinaryRowTest {
 	}
 
 	@Test
+	public void testSingleSegmentBinaryRowHashCode() throws IOException {
+		final Random rnd = new Random(System.currentTimeMillis());
+		// test hash stabilization
+		BinaryRow row = new BinaryRow(13);
+		BinaryRowWriter writer = new BinaryRowWriter(row);
+		for (int i = 0; i < 99; i++) {
+			writer.reset();
+			writer.writeString(0, fromString("" + rnd.nextInt()));
+			writer.writeString(3, fromString("01234567"));
+			writer.writeString(5, fromString("012345678"));
+			writer.writeString(9, fromString("啦啦啦啦啦我是快乐的粉刷匠"));
+			writer.writeBoolean(1, true);
+			writer.writeByte(2, (byte) 99);
+			writer.writeChar(4, 'x');
+			writer.writeDouble(6, 87.1d);
+			writer.writeFloat(7, 26.1f);
+			writer.writeInt(8, 88);
+			writer.writeLong(10, 284);
+			writer.writeShort(11, (short) 292);
+			writer.setNullAt(12);
+			writer.complete();
+			BinaryRow copy = row.copy();
+			assertEquals(row.hashCode(), copy.hashCode());
+		}
+
+		// test hash distribution
+		int count = 999999;
+		Set<Integer> hashCodes = new HashSet<>(count);
+		for (int i = 0; i < count; i++) {
+			row.setInt(8, i);
+			hashCodes.add(row.hashCode());
+		}
+		assertEquals(count, hashCodes.size());
+		hashCodes.clear();
+		row = new BinaryRow(1);
+		writer = new BinaryRowWriter(row);
+		for (int i = 0; i < count; i++) {
+			writer.reset();
+			writer.writeString(0, fromString("啦啦啦啦啦我是快乐的粉刷匠" + i));
+			writer.complete();
+			hashCodes.add(row.hashCode());
+		}
+		Assert.assertTrue(hashCodes.size() > count *  0.997);
+	}
+
+	@Test
 	public void testHeaderSize() throws IOException {
 		assertEquals(8, BinaryRow.calculateBitSetWidthInBytes(56));
 		assertEquals(16, BinaryRow.calculateBitSetWidthInBytes(57));
@@ -241,5 +300,77 @@ public class BinaryRowTest {
 
 		newRow.setHeader((byte) 19);
 		assertEquals((byte) 19, newRow.getHeader());
+	}
+
+	@Test
+	public void testDecimal() {
+		// 1.compact
+		{
+			int precision = 4;
+			int scale = 2;
+			BinaryRow row = new BinaryRow(2);
+			BinaryRowWriter writer = new BinaryRowWriter(row);
+			writer.writeDecimal(0, Decimal.fromLong(5, precision, scale), precision);
+			writer.setNullAt(1);
+			writer.complete();
+
+			assertEquals("0.05", row.getDecimal(0, precision, scale).toString());
+			assertTrue(row.isNullAt(1));
+			row.setDecimal(0, Decimal.fromLong(6, precision, scale), precision);
+			assertEquals("0.06", row.getDecimal(0, precision, scale).toString());
+		}
+
+		// 2.not compact
+		{
+			int precision = 25;
+			int scale = 5;
+			Decimal decimal1 = Decimal.fromBigDecimal(BigDecimal.valueOf(5.55), precision, scale);
+			Decimal decimal2 = Decimal.fromBigDecimal(BigDecimal.valueOf(6.55), precision, scale);
+
+			BinaryRow row = new BinaryRow(2);
+			BinaryRowWriter writer = new BinaryRowWriter(row);
+			writer.writeDecimal(0, decimal1, precision);
+			writer.writeDecimal(1, null, precision);
+			writer.complete();
+
+			assertEquals("5.55000", row.getDecimal(0, precision, scale).toString());
+			assertTrue(row.isNullAt(1));
+			row.setDecimal(0, decimal2, precision);
+			assertEquals("6.55000", row.getDecimal(0, precision, scale).toString());
+		}
+	}
+
+	@Test
+	public void testGeneric() {
+		BinaryRow row = new BinaryRow(3);
+		BinaryRowWriter writer = new BinaryRowWriter(row);
+		BinaryGeneric<String> hahah = new BinaryGeneric<>("hahah", StringSerializer.INSTANCE);
+		writer.writeGeneric(0, hahah);
+		writer.setNullAt(1);
+		hahah.ensureMaterialized();
+		writer.writeGeneric(2, hahah);
+		writer.complete();
+
+		BinaryGeneric<String> generic0 = row.getGeneric(0);
+		assertEquals(hahah, generic0);
+		assertTrue(row.isNullAt(1));
+		BinaryGeneric<String> generic2 = row.getGeneric(2);
+		assertEquals(hahah, generic2);
+	}
+
+	@Test
+	public void testNested() {
+		BinaryRow row = new BinaryRow(2);
+		BinaryRowWriter writer = new BinaryRowWriter(row);
+		BaseRowSerializer nestedSer = new BaseRowSerializer(
+				new ExecutionConfig(), InternalTypes.STRING, InternalTypes.INT);
+		writer.writeRow(0, GenericRow.of(fromString("1"), 1), nestedSer);
+		writer.setNullAt(1);
+		writer.complete();
+
+		BaseRow nestedRow = row.getRow(0, 2);
+		assertEquals("1", nestedRow.getString(0).toString());
+		assertEquals(1, nestedRow.getInt(1));
+		assertTrue(row.isNullAt(1));
 	}
 }
