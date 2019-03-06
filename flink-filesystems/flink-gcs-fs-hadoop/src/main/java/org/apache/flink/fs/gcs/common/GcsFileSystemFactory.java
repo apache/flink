@@ -16,36 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.fs.gcs;
+package org.apache.flink.fs.gcs.common;
 
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
-
-import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
 
-/**
- * Simple factory for the GCS file system.
- */
-public class GCSFileSystemFactory implements FileSystemFactory {
-	//TODO: create private fields for configuration
+public class GcsFileSystemFactory implements FileSystemFactory {
+    private static final Logger LOG = LoggerFactory.getLogger(GcsFileSystemFactory.class);
 
-	@Override
-	public String getScheme() {
-		return "gs";
-	}
+    @Override
+    public String getScheme() {
+        return GoogleCloudStorageFileSystem.SCHEME;
+    }
 
-	@Override
-	public void configure(Configuration config) {
-		//TODO: parse configuration
-	}
+    @Override
+    public void configure(Configuration configuration) {
 
-	@Override
-	public FileSystem create(URI fsUri) throws IOException {
-		//TODO: inject configuration
-		return new GCSFileSystem(new GoogleHadoopFileSystem());
-	}
+    }
+
+    @Override
+    public FileSystem create(URI uri) throws IOException {
+        return new FlinkGcsFileSystem(new GoogleHadoopFileSystem());
+    }
 }
