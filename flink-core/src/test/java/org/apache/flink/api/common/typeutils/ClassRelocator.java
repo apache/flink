@@ -34,6 +34,7 @@ import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -45,7 +46,7 @@ public final class ClassRelocator {
 
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	public @interface TestClass {
+	public @interface RelocateClass {
 		String value();
 	}
 
@@ -62,35 +63,32 @@ public final class ClassRelocator {
 
 	private static Class<?> patchClass(Map<String, byte[]> newClasses, ClassRegistry remapping) {
 		final ByteClassLoader renamingClassLoader = new ByteClassLoader(remapping.getRoot().getClassLoader(), newClasses);
-		final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-		try {
-			Thread.currentThread().setContextClassLoader(renamingClassLoader);
+		try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(renamingClassLoader)) {
 			return renamingClassLoader.loadClass(remapping.getRootNewName());
 		}
-		catch (ClassNotFoundException e) {
+		catch (Exception e) {
 			throw new RuntimeException(e);
-		}
-		finally {
-			Thread.currentThread().setContextClassLoader(originalClassLoader);
 		}
 	}
 
 	private static final class ClassRegistry {
+		private static final AtomicInteger GENERATED_ID = new AtomicInteger(0);
+
 		private final Class<?> root;
 		private final Map<Class<?>, String> targetNames;
 
 		ClassRegistry(Class<?> root) {
 			this.root = root;
 			this.targetNames = definedClasses(root)
-				.filter(type -> type.getAnnotation(TestClass.class) != null)
+				.filter(type -> type.getAnnotation(RelocateClass.class) != null)
 				.collect(Collectors.toMap(
 					Function.identity(),
-					type -> type.getAnnotation(TestClass.class).value()
+					type -> type.getAnnotation(RelocateClass.class).value()
 				));
 
 			// it is also important to overwrite the top class since it is already loaded,
 			// and we need to force load it
-			targetNames.put(root, root.getName() + "$generated$");
+			targetNames.put(root, root.getName() + String.format("$generated%d$", GENERATED_ID.incrementAndGet()));
 		}
 
 		public Class<?> getRoot() {
@@ -116,6 +114,10 @@ public final class ClassRelocator {
 				.collect(Collectors.toMap(
 					e -> pathName(e.getKey()),
 					e -> pathName(e.getValue())));
+		}
+
+		private int getNumRemappings() {
+			return targetNames.size();
 		}
 
 		private static String pathName(String className) {
