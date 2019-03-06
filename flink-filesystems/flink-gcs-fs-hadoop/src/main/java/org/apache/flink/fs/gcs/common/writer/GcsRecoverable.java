@@ -30,8 +30,13 @@ import org.slf4j.LoggerFactory;
 public class GcsRecoverable implements RecoverableWriter.ResumeRecoverable {
 	private static final Logger LOG = LoggerFactory.getLogger(GcsRecoverable.class);
 
-	private final String bucketName, objectName;
-	private final int pos;
+	private String bucketName, objectName;
+	private int pos;
+
+	/**
+	 * Empty default constructor for Kyro to create the (de)serializer.
+	 */
+	public GcsRecoverable() { }
 
 	public GcsRecoverable(Path gcsFullPath) {
 		this.bucketName = gcsFullPath.toUri().getAuthority();
@@ -67,5 +72,24 @@ public class GcsRecoverable implements RecoverableWriter.ResumeRecoverable {
 			"bucketName: '%s' , objectName: %s, position: %s",
 			bucketName, objectName, pos
 		);
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (other == this) {
+			return true;
+		}
+
+        /* Check if o is an instance of Complex or not
+          "null instanceof [type]" also returns false */
+		if (!(other instanceof GcsRecoverable)) {
+			return false;
+		}
+
+		GcsRecoverable otherRecoverable = (GcsRecoverable) other;
+
+		return this.getBucketName().equals(otherRecoverable.getBucketName()) &&
+			this.getObjectName().equals(otherRecoverable.getObjectName()) &&
+			this.getPos() == otherRecoverable.getPos();
 	}
 }

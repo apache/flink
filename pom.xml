@@ -234,7 +234,7 @@ under the License.
 						asm,
 						netty
 					here. It will overwrite Hadoop's guava dependency (even though we handle it
-			separatly in the flink-shaded-hadoop module).
+			separately in the flink-shaded-hadoop module).
 		-->
 		<dependencies>
 
