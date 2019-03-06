@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.plan.util
 
+import org.apache.flink.table.plan.nodes.calcite.{ConstantRankRange, RankRange}
+
 import java.lang.Double
 
 /**
