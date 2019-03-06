@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.plan.nodes.calcite
 
-import org.apache.flink.table.plan.util.RankRange
-
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelCollation, RelNode}
 import org.apache.calcite.sql.SqlRankFunction
