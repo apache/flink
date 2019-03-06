@@ -991,7 +991,7 @@ public abstract class MemorySegment {
 	 * @return The long value at the given position.
 	 *
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
-	 *                                   size minus 8.
+	 *                                   size minus 4.
 	 */
 	public final float getFloatLittleEndian(int index) {
 		return Float.intBitsToFloat(getIntLittleEndian(index));
@@ -1009,7 +1009,7 @@ public abstract class MemorySegment {
 	 * @return The long value at the given position.
 	 *
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
-	 *                                   size minus 8.
+	 *                                   size minus 4.
 	 */
 	public final float getFloatBigEndian(int index) {
 		return Float.intBitsToFloat(getIntBigEndian(index));
@@ -1045,7 +1045,7 @@ public abstract class MemorySegment {
 	 * @param value The long value to be written.
 	 *
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
-	 *                                   size minus 8.
+	 *                                   size minus 4.
 	 */
 	public final void putFloatLittleEndian(int index, float value) {
 		putIntLittleEndian(index, Float.floatToRawIntBits(value));
@@ -1063,7 +1063,7 @@ public abstract class MemorySegment {
 	 * @param value The long value to be written.
 	 *
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger than the segment
-	 *                                   size minus 8.
+	 *                                   size minus 4.
 	 */
 	public final void putFloatBigEndian(int index, float value) {
 		putIntBigEndian(index, Float.floatToRawIntBits(value));
