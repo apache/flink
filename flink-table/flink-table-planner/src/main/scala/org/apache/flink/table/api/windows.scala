@@ -20,34 +20,101 @@ package org.apache.flink.table.api
 
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical._
-import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
-import org.apache.flink.table.api.scala.{CURRENT_RANGE, CURRENT_ROW}
 
 /**
-  * Over window is similar to the traditional OVER SQL.
+  * A over-window specification.
+  *
+  * Similar to SQL, over window aggregates compute an aggregate for each input row over a range
+  * of its neighboring rows.
   */
-case class OverWindow(
-    private[flink] val alias: Expression,
-    private[flink] val partitionBy: Seq[Expression],
-    private[flink] val orderBy: Expression,
-    private[flink] val preceding: Expression,
-    private[flink] val following: Expression)
+class OverWindow(
+    alias: Expression,
+    partitionBy: Seq[Expression],
+    orderBy: Expression,
+    preceding: Expression,
+    following: Option[Expression]) {
+
+  def getAlias: Expression = alias
+
+  def getPartitioning: Seq[Expression] = partitionBy
+
+  def getOrder: Expression = orderBy
+
+  def getPreceding: Expression = preceding
+
+  def getFollowing: Option[Expression] = following
+}
+
+// ------------------------------------------------------------------------------------------------
+// Over windows
+// ------------------------------------------------------------------------------------------------
 
 /**
-  * A partially defined over window.
+  * Partially defined over window with partitioning.
   */
-class OverWindowWithPreceding(
-    private val partitionBy: Seq[Expression],
-    private val orderBy: Expression,
-    private val preceding: Expression) {
+class OverWindowPartitioned(partitionBy: Seq[Expression]) {
 
-  private[flink] var following: Expression = _
+  /**
+    * Specifies the time attribute on which rows are ordered.
+    *
+    * For streaming tables, reference a rowtime or proctime time attribute here
+    * to specify the time mode.
+    *
+    * For batch tables, refer to a timestamp or long attribute.
+    *
+    * @param orderByExpr field reference
+    * @return an over window with defined order
+    */
+  def orderBy(orderByExpr: String): OverWindowPartitionedOrdered = {
+    orderBy(ExpressionParser.parseExpression(orderByExpr))
+  }
+
+  /**
+    * Specifies the time attribute on which rows are ordered.
+    *
+    * For streaming tables, reference a rowtime or proctime time attribute here
+    * to specify the time mode.
+    *
+    * For batch tables, refer to a timestamp or long attribute.
+    *
+    * @param orderBy field reference
+    * @return an over window with defined order
+    */
+  def orderBy(orderBy: Expression): OverWindowPartitionedOrdered = {
+    new OverWindowPartitionedOrdered(partitionBy, orderBy)
+  }
+}
+
+/**
+  * Partially defined over window with (optional) partitioning and order.
+  */
+class OverWindowPartitionedOrdered(partitionBy: Seq[Expression], orderBy: Expression) {
+
+  /**
+    * Set the preceding offset (based on time or row-count intervals) for over window.
+    *
+    * @param precedingExpr preceding offset relative to the current row.
+    * @return an over window with defined preceding
+    */
+  def preceding(precedingExpr: String): OverWindowPartitionedOrderedPreceding = {
+    preceding(ExpressionParser.parseExpression(precedingExpr))
+  }
+
+  /**
+    * Set the preceding offset (based on time or row-count intervals) for over window.
+    *
+    * @param preceding preceding offset relative to the current row.
+    * @return an over window with defined preceding
+    */
+  def preceding(preceding: Expression): OverWindowPartitionedOrderedPreceding = {
+    new OverWindowPartitionedOrderedPreceding(partitionBy, orderBy, preceding)
+  }
 
   /**
     * Assigns an alias for this window that the following `select()` clause can refer to.
     *
     * @param alias alias for this over window
-    * @return over window
+    * @return the fully defined over window
     */
   def as(alias: String): OverWindow = as(ExpressionParser.parseExpression(alias))
 
@@ -55,55 +122,78 @@ class OverWindowWithPreceding(
     * Assigns an alias for this window that the following `select()` clause can refer to.
     *
     * @param alias alias for this over window
-    * @return over window
+    * @return the fully defined over window
     */
   def as(alias: Expression): OverWindow = {
-
-    // set following to CURRENT_ROW / CURRENT_RANGE if not defined
-    if (null == following) {
-      if (preceding.resultType.isInstanceOf[RowIntervalTypeInfo]) {
-        following = CURRENT_ROW
-      } else {
-        following = CURRENT_RANGE
-      }
-    }
-    OverWindow(alias, partitionBy, orderBy, preceding, following)
-  }
-
-  /**
-    * Set the following offset (based on time or row-count intervals) for over window.
-    *
-    * @param following following offset that relative to the current row.
-    * @return this over window
-    */
-  def following(following: String): OverWindowWithPreceding = {
-    this.following(ExpressionParser.parseExpression(following))
-  }
-
-  /**
-    * Set the following offset (based on time or row-count intervals) for over window.
-    *
-    * @param following following offset that relative to the current row.
-    * @return this over window
-    */
-  def following(following: Expression): OverWindowWithPreceding = {
-    this.following = following
-    this
+    new OverWindow(alias, partitionBy, orderBy, UnboundedRange(), None)
   }
 }
 
 /**
-  * A window specification.
+  * Partially defined over window with (optional) partitioning, order, and preceding.
+  */
+class OverWindowPartitionedOrderedPreceding(
+    private val partitionBy: Seq[Expression],
+    private val orderBy: Expression,
+    private val preceding: Expression) {
+
+  private var optionalFollowing: Option[Expression] = None
+
+  /**
+    * Assigns an alias for this window that the following `select()` clause can refer to.
+    *
+    * @param alias alias for this over window
+    * @return the fully defined over window
+    */
+  def as(alias: String): OverWindow = as(ExpressionParser.parseExpression(alias))
+
+  /**
+    * Assigns an alias for this window that the following `select()` clause can refer to.
+    *
+    * @param alias alias for this over window
+    * @return the fully defined over window
+    */
+  def as(alias: Expression): OverWindow = {
+    new OverWindow(alias, partitionBy, orderBy, preceding, optionalFollowing)
+  }
+
+  /**
+    * Set the following offset (based on time or row-count intervals) for over window.
+    *
+    * @param followingExpr following offset that relative to the current row.
+    * @return an over window with defined following
+    */
+  def following(followingExpr: String): OverWindowPartitionedOrderedPreceding = {
+    following(ExpressionParser.parseExpression(followingExpr))
+  }
+
+  /**
+    * Set the following offset (based on time or row-count intervals) for over window.
+    *
+    * @param following following offset that relative to the current row.
+    * @return an over window with defined following
+    */
+  def following(following: Expression): OverWindowPartitionedOrderedPreceding = {
+    optionalFollowing = Some(following)
+    this
+  }
+}
+
+// ------------------------------------------------------------------------------------------------
+// Group windows
+// ------------------------------------------------------------------------------------------------
+
+/**
+  * A group-window specification.
   *
-  * Window groups rows based on time or row-count intervals. It is a general way to group the
-  * elements, which is very helpful for both groupBy-aggregations and over-aggregations to
-  * compute aggregates on groups of elements.
+  * Group-windows group rows based on time or row-count intervals and is therefore essentially a
+  * special type of groupBy. Just like groupBy, group-windows allow to compute aggregates
+  * on groups of elements.
   *
   * Infinite streaming tables can only be grouped into time or row intervals. Hence window grouping
   * is required to apply aggregations on streaming tables.
   *
-  * For finite batch tables, window provides shortcuts for time-based groupBy.
-  *
+  * For finite batch tables, group-windows provide shortcuts for time-based groupBy.
   */
 abstract class Window(val alias: Expression, val timeField: Expression) {
 

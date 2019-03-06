@@ -18,9 +18,8 @@
 
 package org.apache.flink.table.api.java
 
-import org.apache.flink.table.api.scala.{CURRENT_RANGE, UNBOUNDED_RANGE}
-import org.apache.flink.table.api.{OverWindow, TumbleWithSize, OverWindowWithPreceding, SlideWithSize, SessionWithGap}
-import org.apache.flink.table.expressions.{Expression, ExpressionParser}
+import org.apache.flink.table.api._
+import org.apache.flink.table.expressions.ExpressionParser
 
 /**
   * Helper class for creating a tumbling window. Tumbling windows are consecutive, non-overlapping
@@ -86,80 +85,36 @@ object Session {
 }
 
 /**
-  * Helper object for creating a over window.
+  * Helper class for creating an over window. Similar to SQL, over window aggregates compute an
+  * aggregate for each input row over a range of its neighboring rows.
   */
 object Over {
 
   /**
-    * Specifies the time attribute on which rows are grouped.
+    * Specifies the time attribute on which rows are ordered.
     *
-    * For streaming tables call [[orderBy 'rowtime or orderBy 'proctime]] to specify time mode.
+    * For streaming tables, reference a rowtime or proctime time attribute here
+    * to specify the time mode.
     *
     * For batch tables, refer to a timestamp or long attribute.
+    *
+    * @param orderBy field reference
+    * @return an over window with defined order
     */
-  def orderBy(orderBy: String): OverWindowWithOrderBy = {
-    val orderByExpr = ExpressionParser.parseExpression(orderBy)
-    new OverWindowWithOrderBy(Array[Expression](), orderByExpr)
+  def orderBy(orderBy: String): OverWindowPartitionedOrdered = {
+    new OverWindowPartitionedOrdered(Seq(), ExpressionParser.parseExpression(orderBy))
   }
 
   /**
     * Partitions the elements on some partition keys.
     *
-    * @param partitionBy some partition keys.
-    * @return A partitionedOver instance that only contains the orderBy method.
-    */
-  def partitionBy(partitionBy: String): PartitionedOver = {
-    val partitionByExpr = ExpressionParser.parseExpressionList(partitionBy).toArray
-    new PartitionedOver(partitionByExpr)
-  }
-}
-
-class PartitionedOver(private val partitionByExpr: Array[Expression]) {
-
-  /**
-    * Specifies the time attribute on which rows are grouped.
+    * Each partition is individually sorted and aggregate functions are applied to each
+    * partition separately.
     *
-    * For streaming tables call [[orderBy 'rowtime or orderBy 'proctime]] to specify time mode.
-    *
-    * For batch tables, refer to a timestamp or long attribute.
+    * @param partitionBy list of field references
+    * @return an over window with defined partitioning
     */
-  def orderBy(orderBy: String): OverWindowWithOrderBy = {
-    val orderByExpr = ExpressionParser.parseExpression(orderBy)
-    new OverWindowWithOrderBy(partitionByExpr, orderByExpr)
-  }
-}
-
-
-class OverWindowWithOrderBy(
-  private val partitionByExpr: Array[Expression],
-  private val orderByExpr: Expression) {
-
-  /**
-    * Set the preceding offset (based on time or row-count intervals) for over window.
-    *
-    * @param preceding preceding offset relative to the current row.
-    * @return this over window
-    */
-  def preceding(preceding: String): OverWindowWithPreceding = {
-    val precedingExpr = ExpressionParser.parseExpression(preceding)
-    new OverWindowWithPreceding(partitionByExpr, orderByExpr, precedingExpr)
-  }
-
-  /**
-    * Assigns an alias for this window that the following `select()` clause can refer to.
-    *
-    * @param alias alias for this over window
-    * @return over window
-    */
-  def as(alias: String): OverWindow = as(ExpressionParser.parseExpression(alias))
-
-  /**
-    * Assigns an alias for this window that the following `select()` clause can refer to.
-    *
-    * @param alias alias for this over window
-    * @return over window
-    */
-  def as(alias: Expression): OverWindow = {
-    OverWindow(alias, partitionByExpr, orderByExpr, UNBOUNDED_RANGE, CURRENT_RANGE)
+  def partitionBy(partitionBy: String): OverWindowPartitioned = {
+    new OverWindowPartitioned(ExpressionParser.parseExpressionList(partitionBy))
   }
 }
