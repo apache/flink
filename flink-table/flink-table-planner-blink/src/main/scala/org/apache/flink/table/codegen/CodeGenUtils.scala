@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.codegen
 
-import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.`type`._
 import org.apache.flink.table.dataformat._
@@ -69,11 +68,6 @@ object CodeGenUtils {
     case _ => false
   }
 
-  def needCloneRefForType(t: InternalType): Boolean = t match {
-    case InternalTypes.STRING => true
-    case _ => false
-  }
-
   // when casting we first need to unbox Primitives, for example,
   // float a = 1.0f;
   // byte b = (byte) a;
@@ -94,20 +88,20 @@ object CodeGenUtils {
     case InternalTypes.TIME => "int"
     case InternalTypes.TIMESTAMP => "long"
 
-    // TODO: support INTERVAL_MONTHS and INTERVAL_MILLIS in the future
+    // TODO: support [INTERVAL_MONTHS] and [INTERVAL_MILLIS] in the future
 
     case _ => boxedTypeTermForType(t)
   }
 
   def boxedTypeTermForType(t: InternalType): String = t match {
-    case InternalTypes.INT => classOf[JInt].getCanonicalName
-    case InternalTypes.LONG => classOf[JLong].getCanonicalName
-    case InternalTypes.SHORT => classOf[JShort].getCanonicalName
-    case InternalTypes.BYTE => classOf[JByte].getCanonicalName
-    case InternalTypes.FLOAT => classOf[JFloat].getCanonicalName
-    case InternalTypes.DOUBLE => classOf[JDouble].getCanonicalName
-    case InternalTypes.BOOLEAN => classOf[JBoolean].getCanonicalName
-    case InternalTypes.CHAR => classOf[JChar].getCanonicalName
+    case InternalTypes.INT => className[JInt]
+    case InternalTypes.LONG => className[JLong]
+    case InternalTypes.SHORT => className[JShort]
+    case InternalTypes.BYTE => className[JByte]
+    case InternalTypes.FLOAT => className[JFloat]
+    case InternalTypes.DOUBLE => className[JDouble]
+    case InternalTypes.BOOLEAN => className[JBoolean]
+    case InternalTypes.CHAR => className[JChar]
 
     case InternalTypes.DATE => boxedTypeTermForType(InternalTypes.INT)
     case InternalTypes.TIME => boxedTypeTermForType(InternalTypes.INT)
@@ -116,10 +110,12 @@ object CodeGenUtils {
     case InternalTypes.STRING => BINARY_STRING
     case InternalTypes.BINARY => "byte[]"
 
-    case _: RowType => classOf[BaseRow].getCanonicalName
+    // TODO: Support it when we introduce [Decimal]
     case _: DecimalType => throw new UnsupportedOperationException
-    case _: ArrayType => throw new UnsupportedOperationException
-    case _: MapType => throw new UnsupportedOperationException
+    // BINARY is also an ArrayType and uses BinaryArray internally too
+    case _: ArrayType => className[BinaryArray]
+    case _: MapType => className[BinaryMap]
+    case _: RowType => className[BaseRow]
 
     case gt: GenericType[_] => gt.getTypeInfo.getTypeClass.getCanonicalName
   }
@@ -128,22 +124,11 @@ object CodeGenUtils {
     * Gets the boxed type term from external type info.
     * We only use TypeInformation to store external type info.
     */
-  def boxedTypeTermForExternalType(t: TypeInformation[_]): String = t match {
-    // From PrimitiveArrayTypeInfo we would get class "int[]", scala reflections
-    // does not seem to like this, so we manually give the correct type here.
-    case INT_PRIMITIVE_ARRAY_TYPE_INFO => "int[]"
-    case LONG_PRIMITIVE_ARRAY_TYPE_INFO => "long[]"
-    case SHORT_PRIMITIVE_ARRAY_TYPE_INFO => "short[]"
-    case BYTE_PRIMITIVE_ARRAY_TYPE_INFO => "byte[]"
-    case FLOAT_PRIMITIVE_ARRAY_TYPE_INFO => "float[]"
-    case DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO => "double[]"
-    case BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO => "boolean[]"
-    case CHAR_PRIMITIVE_ARRAY_TYPE_INFO => "char[]"
+  def boxedTypeTermForExternalType(t: TypeInformation[_]): String = t.getTypeClass.getCanonicalName
 
-    case _ =>
-      t.getTypeClass.getCanonicalName
-  }
-
+  /**
+    * Gets the default value for a primitive type, and null for generic types
+    */
   def primitiveDefaultValue(t: InternalType): String = t match {
     case InternalTypes.INT | InternalTypes.BYTE | InternalTypes.SHORT => "-1"
     case InternalTypes.LONG => "-1L"
@@ -238,7 +223,7 @@ object CodeGenUtils {
       case rt: RowType if classOf[ObjectArrayRow].isAssignableFrom(clazz) =>
         val typeTerm = clazz.getCanonicalName
         s"final $typeTerm $outRecordTerm = new $typeTerm(${rt.getArity});"
-      // TODO: support JoinedRow in the future
+      // TODO: support [JoinedRow] in the future
       case _ =>
         val typeTerm = boxedTypeTermForType(t)
         s"final $typeTerm $outRecordTerm = new $typeTerm();"

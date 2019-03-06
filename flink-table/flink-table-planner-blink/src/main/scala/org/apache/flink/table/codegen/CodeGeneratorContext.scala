@@ -35,7 +35,7 @@ import scala.collection.mutable
   */
 class CodeGeneratorContext(val tableConfig: TableConfig) {
 
-  // referenced objects of code generator classes to avoid serialization and base64.
+  // holding a list of objects that could be used passed into generated class
   val references: mutable.ArrayBuffer[AnyRef] = new mutable.ArrayBuffer[AnyRef]()
 
   // set of member statements that will be added only once
@@ -484,21 +484,6 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     fieldTerm
   }
 
-  // we should avoid to invoke this from other class, please use addReusableObject
-  private def addReferenceObj(obj: AnyRef, className: String = null): String = {
-    val idx = references.length
-
-    // make a deep copy of the object
-    val byteArray = InstantiationUtil.serializeObject(obj)
-    val objCopy: AnyRef = InstantiationUtil.deserializeObject(
-      byteArray,
-      Thread.currentThread().getContextClassLoader)
-    references += objCopy
-
-    val clsName = Option(className).getOrElse(obj.getClass.getName)
-    s"(($clsName) references[$idx])"
-  }
-
   /**
     * Adds a reusable Object to the member area of the generated class
     * @param obj  the object to be added to the generated class
@@ -511,18 +496,21 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
       fieldNamePrefix: String,
       fieldTypeTerm: String = null): String = {
     val fieldTerm = newName(fieldNamePrefix)
-    val clsName = Option(fieldTypeTerm).getOrElse(obj.getClass.getName)
-    addReusableObject_(obj, fieldTerm, clsName)
+    val clsName = Option(fieldTypeTerm).getOrElse(obj.getClass.getCanonicalName)
+    addReusableObjectInternal(obj, fieldTerm, clsName)
     fieldTerm
   }
 
-  private def addReusableObject_(obj: AnyRef, fieldTerm: String, fieldTypeTerm: String): Unit = {
+  private def addReusableObjectInternal(
+      obj: AnyRef,
+      fieldTerm: String,
+      fieldTypeTerm: String): Unit = {
     val idx = references.length
     // make a deep copy of the object
     val byteArray = InstantiationUtil.serializeObject(obj)
     val objCopy: AnyRef = InstantiationUtil.deserializeObject(
       byteArray,
-      Thread.currentThread().getContextClassLoader)
+      obj.getClass.getClassLoader)
     references += objCopy
 
     reusableMemberStatements.add(s"private transient $fieldTypeTerm $fieldTerm;")
@@ -540,7 +528,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     val classQualifier = function.getClass.getCanonicalName
     val fieldTerm = s"function_${function.functionIdentifier}"
 
-    addReusableObject_(function, fieldTerm, classQualifier)
+    addReusableObjectInternal(function, fieldTerm, classQualifier)
 
     val openFunction = if (contextTerm != null) {
       s"""
@@ -617,7 +605,10 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
       case Some(field) => field
       case None =>
         val field = newName("str")
-        val stmt = s"private final $BINARY_STRING $field = $BINARY_STRING.fromString(\"$value\");"
+        val stmt =
+          s"""
+             |private final $BINARY_STRING $field = $BINARY_STRING.fromString("$value");"
+           """.stripMargin
         reusableMemberStatements.add(stmt)
         reusableStringConstants(value) = field
         field

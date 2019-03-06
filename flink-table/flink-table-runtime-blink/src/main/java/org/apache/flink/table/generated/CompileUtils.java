@@ -77,7 +77,6 @@ public final class CompileUtils {
 		try {
 			compiler.cook(code);
 		} catch (Throwable t) {
-			// TODO: println pretty code
 			throw new InvalidProgramException(
 				"Table program cannot be compiled. This is a bug. Please file an issue.", t);
 		}
