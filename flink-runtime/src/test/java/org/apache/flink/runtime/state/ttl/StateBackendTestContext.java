@@ -22,6 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -92,8 +94,17 @@ public abstract class StateBackendTestContext {
 		try {
 			disposeKeyedStateBackend();
 			keyedStateBackend = stateBackend.createKeyedStateBackend(
-				env, new JobID(), "test", StringSerializer.INSTANCE, numberOfKeyGroups,
-				new KeyGroupRange(0, numberOfKeyGroups - 1), env.getTaskKvStateRegistry(), timeProvider, stateHandles);
+				env,
+				new JobID(),
+				"test",
+				StringSerializer.INSTANCE,
+				numberOfKeyGroups,
+				new KeyGroupRange(0, numberOfKeyGroups - 1),
+				env.getTaskKvStateRegistry(),
+				timeProvider,
+				new UnregisteredMetricsGroup(),
+				stateHandles,
+				new CloseableRegistry());
 		} catch (Exception e) {
 			throw new RuntimeException("unexpected", e);
 		}
