@@ -18,23 +18,27 @@
 
 package org.apache.flink.fs.gcs.common.writer;
 
+import org.apache.flink.core.io.SimpleVersionedSerializer;
+
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+/**
+ * Serializer implementation for a {@link GcsRecoverableSerializer}.
+ */
 public class GcsRecoverableSerializer implements SimpleVersionedSerializer<GcsRecoverable> {
 
 	static final GcsRecoverableSerializer INSTANCE = new GcsRecoverableSerializer();
 
-	private static GcsRecoverable deserializeV1(byte[] serialized) {
-		Kryo kryo = new Kryo();
-		try (Input input = new Input(serialized)) {
-			return kryo.readObject(input, GcsRecoverable.class);
-		}
+	private final Kryo kyro;
+
+	public GcsRecoverableSerializer() {
+		this.kyro = new Kryo();
+		this.kyro.register(GcsRecoverable.class);
 	}
 
 	@Override
@@ -44,11 +48,9 @@ public class GcsRecoverableSerializer implements SimpleVersionedSerializer<GcsRe
 
 	@Override
 	public byte[] serialize(GcsRecoverable gcsRecoverable) throws IOException {
-		Kryo kryo = new Kryo();
-		kryo.register(GcsRecoverable.class);
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 			try (Output output = new Output(baos)) {
-				kryo.writeObject(output, gcsRecoverable);
+				kyro.writeObject(output, gcsRecoverable);
 			}
 			return baos.toByteArray();
 		}
@@ -58,7 +60,9 @@ public class GcsRecoverableSerializer implements SimpleVersionedSerializer<GcsRe
 	public GcsRecoverable deserialize(int version, byte[] serialized) throws IOException {
 		switch (version) {
 			case 1:
-				return deserializeV1(serialized);
+				try (Input input = new Input(serialized)) {
+					return this.kyro.readObject(input, GcsRecoverable.class);
+				}
 			default:
 				throw new IOException("Unrecognized version or corrupt state: " + version);
 		}

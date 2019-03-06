@@ -20,11 +20,15 @@ package org.apache.flink.fs.gcs.common.writer;
 
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
+/**
+
+ */
 public class GcsCommitter implements RecoverableFsDataOutputStream.Committer {
 	private static final Logger LOG = LoggerFactory.getLogger(GcsCommitter.class);
 

@@ -18,12 +18,13 @@
 
 package org.apache.flink.fs.gcs.common;
 
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.gcs.common.writer.GcsRecoverableWriter;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
+
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,12 +32,15 @@ import org.slf4j.LoggerFactory;
 import java.io.FileInputStream;
 import java.io.IOException;
 
+/**
+ * HadoopFileSystem extension for a {@link FlinkGcsFileSystem}.
+ */
 public class FlinkGcsFileSystem extends HadoopFileSystem {
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkGcsFileSystem.class);
 
 	private final Storage storage;
 
-	public FlinkGcsFileSystem(FileSystem hadoopFileSystem) throws IOException {
+	FlinkGcsFileSystem(FileSystem hadoopFileSystem) throws IOException {
 		super(hadoopFileSystem);
 
 		this.storage = StorageOptions

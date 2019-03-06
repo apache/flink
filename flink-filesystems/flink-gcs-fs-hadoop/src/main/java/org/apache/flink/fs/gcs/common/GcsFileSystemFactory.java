@@ -18,20 +18,20 @@
 
 package org.apache.flink.fs.gcs.common;
 
-import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 
 import java.io.IOException;
 import java.net.URI;
 
+/**
+ * Factory implementation for a {@link GcsFileSystemFactory}.
+ */
 public class GcsFileSystemFactory implements FileSystemFactory {
-	private static final Logger LOG = LoggerFactory.getLogger(GcsFileSystemFactory.class);
-
 	@Override
 	public String getScheme() {
 		return GoogleCloudStorageFileSystem.SCHEME;

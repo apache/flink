@@ -18,13 +18,14 @@
 
 package org.apache.flink.fs.gcs.common.writer;
 
-import com.google.cloud.storage.Storage;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+
+import com.google.cloud.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,6 +97,16 @@ public class GcsRecoverableWriter implements RecoverableWriter {
 			this.storage,
 			castToGcsRecoverable(resumable)
 		);
+	}
+
+	@Override
+	public boolean requiresCleanupOfRecoverableState() {
+		return false;
+	}
+
+	@Override
+	public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
+		return false;
 	}
 
 	/**

@@ -18,9 +18,9 @@
 
 package org.apache.flink.fs.gcs.common.writer;
 
-import com.google.common.base.MoreObjects;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableWriter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,10 +63,9 @@ public class GcsRecoverable implements RecoverableWriter.ResumeRecoverable {
 
 	@Override
 	public String toString() {
-		return MoreObjects.toStringHelper(this)
-			.add("bucketName", bucketName)
-			.add("objectName", objectName)
-			.add("pos", pos)
-			.toString();
+		return String.format(
+			"bucketName: '%s' , objectName: %s, position: %s",
+			bucketName, objectName, pos
+		);
 	}
 }
