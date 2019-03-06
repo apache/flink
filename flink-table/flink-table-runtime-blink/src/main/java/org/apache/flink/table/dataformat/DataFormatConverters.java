@@ -88,6 +88,13 @@ public class DataFormatConverters {
 		TYPE_INFO_TO_CONVERTER = Collections.unmodifiableMap(t2C);
 	}
 
+	/**
+	 * Get {@link DataFormatConverter} for {@link TypeInformation}.
+	 *
+	 * @param typeInfo DataFormatConverter is oriented to Java format, while InternalType has
+	 *                   lost its specific Java format. Only TypeInformation retains all its
+	 *                   Java format information.
+	 */
 	public static DataFormatConverter getConverterForTypeInfo(TypeInformation typeInfo) {
 		DataFormatConverter converter = TYPE_INFO_TO_CONVERTER.get(typeInfo);
 		if (converter != null) {
@@ -122,6 +129,15 @@ public class DataFormatConverters {
 
 	/**
 	 * Converter between internal data format and java format.
+	 *
+	 * <p>The following scenarios will use converter for java format to internal data format:
+	 * In source, data from user define source to internal sql engine.
+	 * In udx return value, User outputs java format data to the SQL engine.
+	 *
+	 * <p>The following scenarios will use converter for internal data format to java format:
+	 * In udx method parameters, data from internal sql engine need to be provided to user udx.
+	 * In sink, data from internal sql engine need to be provided to user define sink.
+	 *
 	 * @param <Internal> Internal data format.
 	 * @param <External> External data format.
 	 */
@@ -719,7 +735,7 @@ public class DataFormatConverters {
 			this.elementType = TypeConverters.createInternalTypeFromTypeInfo(elementTypeInfo);
 			this.elementConverter = DataFormatConverters.getConverterForTypeInfo(elementTypeInfo);
 			this.componentClass = elementTypeInfo.getTypeClass();
-			this.elementSize = BinaryArray.calculateElementSize(elementType);
+			this.elementSize = BinaryArray.calculateFixLengthPartSize(elementType);
 		}
 
 		@Override
@@ -787,8 +803,8 @@ public class DataFormatConverters {
 			this.valueType = TypeConverters.createInternalTypeFromTypeInfo(valueTypeInfo);
 			this.keyConverter = DataFormatConverters.getConverterForTypeInfo(keyTypeInfo);
 			this.valueConverter = DataFormatConverters.getConverterForTypeInfo(valueTypeInfo);
-			this.keyElementSize = BinaryArray.calculateElementSize(keyType);
-			this.valueElementSize = BinaryArray.calculateElementSize(valueType);
+			this.keyElementSize = BinaryArray.calculateFixLengthPartSize(keyType);
+			this.valueElementSize = BinaryArray.calculateFixLengthPartSize(valueType);
 			this.keyComponentClass = keyTypeInfo.getTypeClass();
 			this.valueComponentClass = valueTypeInfo.getTypeClass();
 		}

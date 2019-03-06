@@ -52,7 +52,11 @@ public class BinaryArray extends BinaryFormat implements TypeGetterSetters {
 		return 4 + ((numFields + 31) / 32) * 4;
 	}
 
-	public static int calculateElementSize(InternalType type) {
+	/**
+	 * It store real value when type is primitive.
+	 * It store the length and offset of variable-length part when type is string, map, etc.
+	 */
+	public static int calculateFixLengthPartSize(InternalType type) {
 		if (type.equals(InternalTypes.BOOLEAN)) {
 			return 1;
 		} else if (type.equals(InternalTypes.BYTE)) {
@@ -70,6 +74,8 @@ public class BinaryArray extends BinaryFormat implements TypeGetterSetters {
 		} else if (type.equals(InternalTypes.TIME)) {
 			return 4;
 		} else {
+			// long, double is 8 bytes.
+			// It store the length and offset of variable-length part when type is string, map, etc.
 			return 8;
 		}
 	}
