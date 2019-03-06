@@ -108,7 +108,6 @@ object CodeGenUtils {
     case InternalTypes.TIMESTAMP => boxedTypeTermForType(InternalTypes.LONG)
 
     case InternalTypes.STRING => BINARY_STRING
-    case InternalTypes.BINARY => "byte[]"
 
     // TODO: Support it when we introduce [Decimal]
     case _: DecimalType => throw new UnsupportedOperationException
