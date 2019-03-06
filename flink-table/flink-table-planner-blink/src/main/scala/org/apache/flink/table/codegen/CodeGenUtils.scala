@@ -156,7 +156,7 @@ object CodeGenUtils {
   def getEnum(genExpr: GeneratedExpression): Enum[_] = {
     val split = genExpr.resultTerm.split('.')
     val value = split.last
-    val clazz = genExpr.resultType.asInstanceOf[GenericType].getTypeClass
+    val clazz = genExpr.resultType.asInstanceOf[GenericType[_]].getTypeClass
     enumValueOf(clazz, value)
   }
 
