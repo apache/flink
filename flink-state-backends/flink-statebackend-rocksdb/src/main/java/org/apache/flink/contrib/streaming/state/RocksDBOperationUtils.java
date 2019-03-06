@@ -20,7 +20,6 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -31,6 +30,8 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -79,38 +80,11 @@ public class RocksDBOperationUtils {
 		return dbRef;
 	}
 
-	public static ColumnFamilyDescriptor createColumnFamilyDescriptor(String stateName, ColumnFamilyOptions columnOptions) {
-		byte[] nameBytes = stateName.getBytes(ConfigConstants.DEFAULT_CHARSET);
-		Preconditions.checkState(!Arrays.equals(RocksDB.DEFAULT_COLUMN_FAMILY, nameBytes),
-			"The chosen state name 'default' collides with the name of the default column family!");
-
-		return new ColumnFamilyDescriptor(nameBytes, columnOptions);
-	}
-
-	public static ColumnFamilyHandle createColumnFamily(ColumnFamilyDescriptor columnDescriptor, RocksDB db) {
-		try {
-			return db.createColumnFamily(columnDescriptor);
-		} catch (RocksDBException e) {
-			IOUtils.closeQuietly(columnDescriptor.getOptions());
-			throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", e);
-		}
-	}
-
-	public static ColumnFamilyHandle createColumnFamily(
-		String stateName,
-		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
-		RocksDB db) {
-		ColumnFamilyOptions options = createColumnFamilyOptions(columnFamilyOptionsFactory, stateName);
-		return createColumnFamily(createColumnFamilyDescriptor(stateName, options), db);
-	}
-
 	public static RocksIteratorWrapper getRocksIterator(RocksDB db) {
 		return new RocksIteratorWrapper(db.newIterator());
 	}
 
-	public static RocksIteratorWrapper getRocksIterator(
-		RocksDB db,
-		ColumnFamilyHandle columnFamilyHandle) {
+	public static RocksIteratorWrapper getRocksIterator(RocksDB db, ColumnFamilyHandle columnFamilyHandle) {
 		return new RocksIteratorWrapper(db.newIterator(columnFamilyHandle));
 	}
 
@@ -119,8 +93,8 @@ public class RocksDBOperationUtils {
 		RocksDBNativeMetricMonitor nativeMetricMonitor,
 		String columnFamilyName,
 		RocksDBKeyedStateBackend.RocksDbKvStateInfo registeredColumn) {
-		kvStateInformation.put(columnFamilyName, registeredColumn);
 
+		kvStateInformation.put(columnFamilyName, registeredColumn);
 		if (nativeMetricMonitor != null) {
 			nativeMetricMonitor.registerColumnFamily(columnFamilyName, registeredColumn.columnFamilyHandle);
 		}
@@ -128,24 +102,56 @@ public class RocksDBOperationUtils {
 
 	/**
 	 * Creates a state info from a new meta info to use with a k/v state.
+	 *
+	 * <p>Creates the column family for the state.
+	 * Sets TTL compaction filter if {@code ttlCompactFiltersManager} is not {@code null}.
 	 */
 	public static RocksDBKeyedStateBackend.RocksDbKvStateInfo createStateInfo(
 		RegisteredStateMetaInfoBase metaInfoBase,
-		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-		TtlTimeProvider ttlTimeProvider,
 		RocksDB db,
-		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory) {
-		ColumnFamilyOptions options = createColumnFamilyOptions(columnFamilyOptionsFactory, metaInfoBase.getName());
-		ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(ttlTimeProvider, metaInfoBase, options);
-		ColumnFamilyDescriptor columnFamilyDescriptor = createColumnFamilyDescriptor(metaInfoBase.getName(), options);
+		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
+		@Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
+
+		ColumnFamilyDescriptor columnFamilyDescriptor = createColumnFamilyDescriptor(
+			metaInfoBase, columnFamilyOptionsFactory, ttlCompactFiltersManager);
 		return new RocksDBKeyedStateBackend.RocksDbKvStateInfo(createColumnFamily(columnFamilyDescriptor, db), metaInfoBase);
 	}
 
-	public static ColumnFamilyOptions createColumnFamilyOptions(
+	/**
+	 * Creates a column descriptor for sate column family.
+	 *
+	 * <p>Sets TTL compaction filter if {@code ttlCompactFiltersManager} is not {@code null}.
+	 */
+	public static ColumnFamilyDescriptor createColumnFamilyDescriptor(
+		RegisteredStateMetaInfoBase metaInfoBase,
 		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
-		String stateName) {
+		@Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
+
+		ColumnFamilyOptions options = createColumnFamilyOptions(columnFamilyOptionsFactory, metaInfoBase.getName());
+		if (ttlCompactFiltersManager != null) {
+			ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(metaInfoBase, options);
+		}
+		byte[] nameBytes = metaInfoBase.getName().getBytes(ConfigConstants.DEFAULT_CHARSET);
+		Preconditions.checkState(!Arrays.equals(RocksDB.DEFAULT_COLUMN_FAMILY, nameBytes),
+			"The chosen state name 'default' collides with the name of the default column family!");
+
+		return new ColumnFamilyDescriptor(nameBytes, options);
+	}
+
+	public static ColumnFamilyOptions createColumnFamilyOptions(
+		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory, String stateName) {
+
 		// ensure that we use the right merge operator, because other code relies on this
 		return columnFamilyOptionsFactory.apply(stateName).setMergeOperatorName(MERGE_OPERATOR_NAME);
+	}
+
+	private static ColumnFamilyHandle createColumnFamily(ColumnFamilyDescriptor columnDescriptor, RocksDB db) {
+		try {
+			return db.createColumnFamily(columnDescriptor);
+		} catch (RocksDBException e) {
+			IOUtils.closeQuietly(columnDescriptor.getOptions());
+			throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", e);
+		}
 	}
 
 	public static void addColumnFamilyOptionsToCloseLater(

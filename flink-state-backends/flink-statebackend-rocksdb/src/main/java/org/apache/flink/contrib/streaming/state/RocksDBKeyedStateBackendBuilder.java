@@ -242,7 +242,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		RocksDB db = null;
 		AbstractRocksDBRestoreOperation restoreOperation = null;
 		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager =
-			new RocksDbTtlCompactFiltersManager(enableTtlCompactionFilter);
+			new RocksDbTtlCompactFiltersManager(enableTtlCompactionFilter, ttlTimeProvider);
 
 		ResourceGuard rocksDBResourceGuard = new ResourceGuard();
 		SnapshotStrategy<K> snapshotStrategy;
@@ -324,7 +324,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			}
 		}
 		return new RocksDBKeyedStateBackend<>(
-			this.operatorIdentifier,
 			this.userCodeClassLoader,
 			this.instanceBasePath,
 			this.dbOptions,
@@ -334,7 +333,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			this.numberOfKeyGroups,
 			this.keyGroupRange,
 			this.executionConfig,
-			this.numberOfTransferingThreads,
 			this.ttlTimeProvider,
 			db,
 			kvStateInformation,
@@ -374,8 +372,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				nativeMetricOptions,
 				metricGroup,
 				restoreStateHandles,
-				ttlCompactFiltersManager,
-				ttlTimeProvider);
+				ttlCompactFiltersManager);
 		}
 		KeyedStateHandle firstStateHandle = restoreStateHandles.iterator().next();
 		if (firstStateHandle instanceof IncrementalKeyedStateHandle) {
@@ -395,8 +392,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				nativeMetricOptions,
 				metricGroup,
 				restoreStateHandles,
-				ttlCompactFiltersManager,
-				ttlTimeProvider);
+				ttlCompactFiltersManager);
 		} else {
 			return new RocksDBFullRestoreOperation<>(
 				keyGroupRange,
@@ -413,8 +409,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				nativeMetricOptions,
 				metricGroup,
 				restoreStateHandles,
-				ttlCompactFiltersManager,
-				ttlTimeProvider);
+				ttlCompactFiltersManager);
 		}
 	}
 

@@ -23,12 +23,10 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
-import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.TtlUtils;
@@ -57,47 +55,30 @@ public class RocksDbTtlCompactFiltersManager {
 	/** Enables RocksDb compaction filter for State with TTL. */
 	private final boolean enableTtlCompactionFilter;
 
+	private final TtlTimeProvider ttlTimeProvider;
+
 	/** Registered compaction filter factories. */
 	private final LinkedHashMap<String, FlinkCompactionFilterFactory> compactionFilterFactories;
 
-	public RocksDbTtlCompactFiltersManager(boolean enableTtlCompactionFilter) {
+	public RocksDbTtlCompactFiltersManager(boolean enableTtlCompactionFilter, TtlTimeProvider ttlTimeProvider) {
 		this.enableTtlCompactionFilter = enableTtlCompactionFilter;
+		this.ttlTimeProvider = ttlTimeProvider;
 		this.compactionFilterFactories = new LinkedHashMap<>();
 	}
 
 	public void setAndRegisterCompactFilterIfStateTtl(
-		TtlTimeProvider ttlTimeProvider,
-		@Nonnull StateMetaInfoSnapshot stateMetaInfoSnapshot,
-		@Nonnull ColumnFamilyOptions options) {
-
-		boolean keyValueState = stateMetaInfoSnapshot.getBackendStateType() == StateMetaInfoSnapshot.BackendStateType.KEY_VALUE;
-		if (enableTtlCompactionFilter && keyValueState) {
-			@SuppressWarnings("unchecked")
-			TypeSerializerSnapshot<?> stateSerializerSnapshot = Preconditions.checkNotNull(
-				(TypeSerializerSnapshot<?>) stateMetaInfoSnapshot.getTypeSerializerSnapshot(
-					StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER));
-			TypeSerializer<?> serializer = stateSerializerSnapshot.restoreSerializer();
-			if (TtlStateFactory.TtlSerializer.isTtlStateSerializer(serializer)) {
-				createAndSetCompactFilterFactory(stateMetaInfoSnapshot.getName(), ttlTimeProvider, options);
-			}
-		}
-	}
-
-	public void setAndRegisterCompactFilterIfStateTtl(
-		TtlTimeProvider ttlTimeProvider,
 		@Nonnull RegisteredStateMetaInfoBase metaInfoBase,
 		@Nonnull ColumnFamilyOptions options) {
 
 		if (enableTtlCompactionFilter && metaInfoBase instanceof RegisteredKeyValueStateBackendMetaInfo) {
 			RegisteredKeyValueStateBackendMetaInfo kvMetaInfoBase = (RegisteredKeyValueStateBackendMetaInfo) metaInfoBase;
 			if (TtlStateFactory.TtlSerializer.isTtlStateSerializer(kvMetaInfoBase.getStateSerializer())) {
-				createAndSetCompactFilterFactory(metaInfoBase.getName(), ttlTimeProvider, options);
+				createAndSetCompactFilterFactory(metaInfoBase.getName(), options);
 			}
 		}
 	}
 
-	private void createAndSetCompactFilterFactory(
-		String stateName, TtlTimeProvider ttlTimeProvider, @Nonnull ColumnFamilyOptions options) {
+	private void createAndSetCompactFilterFactory(String stateName, @Nonnull ColumnFamilyOptions options) {
 
 		FlinkCompactionFilterFactory compactionFilterFactory =
 			new FlinkCompactionFilterFactory(new TimeProviderWrapper(ttlTimeProvider), createRocksDbNativeLogger());

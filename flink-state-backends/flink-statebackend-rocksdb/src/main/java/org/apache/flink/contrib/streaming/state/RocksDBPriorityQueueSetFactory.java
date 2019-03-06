@@ -145,12 +145,9 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 		if (stateInfo == null) {
 			// Currently this class is for timer service and TTL feature is not applicable here,
 			// so no need to register compact filter when creating column family
-			final ColumnFamilyHandle columnFamilyHandle =
-				RocksDBOperationUtils.createColumnFamily(stateName, columnFamilyOptionsFactory, this.db);
 			RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo =
 				new RegisteredPriorityQueueStateBackendMetaInfo<>(stateName, byteOrderedElementSerializer);
-
-			stateInfo = new RocksDBKeyedStateBackend.RocksDbKvStateInfo(columnFamilyHandle, metaInfo);
+			stateInfo = RocksDBOperationUtils.createStateInfo(metaInfo, db, columnFamilyOptionsFactory, null);
 			RocksDBOperationUtils.registerKvStateInformation(kvStateInformation, nativeMetricMonitor, stateName, stateInfo);
 		} else {
 			// TODO we implement the simple way of supporting the current functionality, mimicking keyed state

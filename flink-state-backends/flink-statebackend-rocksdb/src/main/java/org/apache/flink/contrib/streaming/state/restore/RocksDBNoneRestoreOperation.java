@@ -26,7 +26,6 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.StateSerializerProvider;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
@@ -57,8 +56,7 @@ public class RocksDBNoneRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
-		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-		TtlTimeProvider ttlTimeProvider
+		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager
 	) {
 		super(keyGroupRange,
 			keyGroupPrefixBytes,
@@ -74,8 +72,7 @@ public class RocksDBNoneRestoreOperation<K> extends AbstractRocksDBRestoreOperat
 			nativeMetricOptions,
 			metricGroup,
 			restoreStateHandles,
-			ttlCompactFiltersManager,
-			ttlTimeProvider);
+			ttlCompactFiltersManager);
 	}
 
 	@Override
