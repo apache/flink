@@ -30,20 +30,20 @@ import java.io.IOException;
 import java.net.URI;
 
 public class GcsFileSystemFactory implements FileSystemFactory {
-    private static final Logger LOG = LoggerFactory.getLogger(GcsFileSystemFactory.class);
+	private static final Logger LOG = LoggerFactory.getLogger(GcsFileSystemFactory.class);
 
-    @Override
-    public String getScheme() {
-        return GoogleCloudStorageFileSystem.SCHEME;
-    }
+	@Override
+	public String getScheme() {
+		return GoogleCloudStorageFileSystem.SCHEME;
+	}
 
-    @Override
-    public void configure(Configuration configuration) {
+	@Override
+	public void configure(Configuration configuration) {
 
-    }
+	}
 
-    @Override
-    public FileSystem create(URI uri) throws IOException {
-        return new FlinkGcsFileSystem(new GoogleHadoopFileSystem());
-    }
+	@Override
+	public FileSystem create(URI uri) throws IOException {
+		return new FlinkGcsFileSystem(new GoogleHadoopFileSystem());
+	}
 }

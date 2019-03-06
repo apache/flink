@@ -22,7 +22,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopFileSystemITTest;
-
 import org.junit.BeforeClass;
 
 import java.io.IOException;

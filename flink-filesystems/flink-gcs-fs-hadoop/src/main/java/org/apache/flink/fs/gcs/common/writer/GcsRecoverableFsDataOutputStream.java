@@ -47,104 +47,104 @@ import java.nio.ByteBuffer;
 @PublicEvolving
 @NotThreadSafe
 public final class GcsRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
-    private static final Logger LOG = LoggerFactory.getLogger(GcsRecoverableFsDataOutputStream.class);
+	private static final Logger LOG = LoggerFactory.getLogger(GcsRecoverableFsDataOutputStream.class);
 
-    private final GcsRecoverable file;
-    private final ByteArrayOutputStream stream;
-    private final BlobInfo blobInfo;
-    private final Storage storage;
+	private final GcsRecoverable file;
+	private final ByteArrayOutputStream stream;
+	private final BlobInfo blobInfo;
+	private final Storage storage;
 
-    /**
-     * Single constructor to initialize all. Actual setup of the parts happens in the
-     * factory methods.
-     */
-    GcsRecoverableFsDataOutputStream(Storage storage, GcsRecoverable file) throws IOException {
-        this.storage = storage;
-        blobInfo = BlobInfo.newBuilder(
-                BlobId.of(file.getBucketName(), file.getObjectName())
-        ).build();
+	/**
+	 * Single constructor to initialize all. Actual setup of the parts happens in the
+	 * factory methods.
+	 */
+	GcsRecoverableFsDataOutputStream(Storage storage, GcsRecoverable file) throws IOException {
+		this.storage = storage;
+		blobInfo = BlobInfo.newBuilder(
+			BlobId.of(file.getBucketName(), file.getObjectName())
+		).build();
 
-        this.file = file;
-        this.stream = new ByteArrayOutputStream();
-    }
+		this.file = file;
+		this.stream = new ByteArrayOutputStream();
+	}
 
-    // ------------------------------------------------------------------------
-    //  stream methods
-    // ------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
+	//  stream methods
+	// ------------------------------------------------------------------------
 
-    @Override
-    public void write(int b) throws IOException {
-        LOG.info("Write integer");
-        this.stream.write(b);
-    }
+	@Override
+	public void write(int b) throws IOException {
+		LOG.info("Write integer");
+		this.stream.write(b);
+	}
 
-    @Override
-    public void write(byte[] b, int off, int len) throws IOException {
-        LOG.info("Write bytes");
-        this.stream.write(b, off, len);
-    }
+	@Override
+	public void write(byte[] b, int off, int len) throws IOException {
+		LOG.info("Write bytes");
+		this.stream.write(b, off, len);
+	}
 
-    @Override
-    public void flush() throws IOException {
-        LOG.info("Flush");
-        // Does nothing
-        this.stream.flush();
-    }
+	@Override
+	public void flush() throws IOException {
+		LOG.info("Flush");
+		// Does nothing
+		this.stream.flush();
+	}
 
-    @Override
-    public long getPos() throws IOException {
-        final int currentPosition =  this.file.getPos() + this.stream.size();
-        LOG.info("getPos on {} position {}", this.file.getObjectName(), currentPosition);
-        // Return what already has been written
-        return currentPosition;
-    }
+	@Override
+	public long getPos() throws IOException {
+		final int currentPosition = this.file.getPos() + this.stream.size();
+		LOG.info("getPos on {} position {}", this.file.getObjectName(), currentPosition);
+		// Return what already has been written
+		return currentPosition;
+	}
 
-    @Override
-    public void sync() throws IOException {
-        LOG.info("sync");
-    }
+	@Override
+	public void sync() throws IOException {
+		LOG.info("sync");
+	}
 
-    @Override
-    public void close() throws IOException {
-        LOG.info("close");
-        this.stream.close();
-    }
+	@Override
+	public void close() throws IOException {
+		LOG.info("close");
+		this.stream.close();
+	}
 
-    // ------------------------------------------------------------------------
-    //  recoverable stream methods
-    // ------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
+	//  recoverable stream methods
+	// ------------------------------------------------------------------------
 
-    @Override
-    public RecoverableWriter.ResumeRecoverable persist() throws IOException {
-        final byte[] data = this.stream.toByteArray();
-        LOG.info("Persisting {} bytes", data.length);
+	@Override
+	public RecoverableWriter.ResumeRecoverable persist() throws IOException {
+		final byte[] data = this.stream.toByteArray();
+		LOG.info("Persisting {} bytes", data.length);
 
-        if (data.length > 0) {
-            final int newPosition;
-            try (WriteChannel writer = storage.writer(blobInfo)) {
-                // Write the accumulated buffer to the output, get the new position from GCP again
-                newPosition = writer.write(ByteBuffer.wrap(data, 0, data.length));
-            }
+		if (data.length > 0) {
+			final int newPosition;
+			try (WriteChannel writer = storage.writer(blobInfo)) {
+				// Write the accumulated buffer to the output, get the new position from GCP again
+				newPosition = writer.write(ByteBuffer.wrap(data, 0, data.length));
+			}
 
-            // Reset the existing buffer, this will not free up the memory
-            // but reset the buffer to start writing from the beginning again
-            this.stream.reset();
+			// Reset the existing buffer, this will not free up the memory
+			// but reset the buffer to start writing from the beginning again
+			this.stream.reset();
 
-            return new GcsRecoverable(this.file, newPosition);
-        }
-        // Nothing has changed, return the original file
-        return this.file;
-    }
+			return new GcsRecoverable(this.file, newPosition);
+		}
+		// Nothing has changed, return the original file
+		return this.file;
+	}
 
-    @Override
-    public Committer closeForCommit() throws IOException {
-        LOG.info("closeForCommit {}", this.file.getObjectName());
+	@Override
+	public Committer closeForCommit() throws IOException {
+		LOG.info("closeForCommit {}", this.file.getObjectName());
 
-        persist();
+		persist();
 
-        // Cleanup the memory
-        this.stream.close();
+		// Cleanup the memory
+		this.stream.close();
 
-        return new GcsCommitter(this.file);
-    }
+		return new GcsCommitter(this.file);
+	}
 }

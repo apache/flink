@@ -15,7 +15,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
 		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
@@ -32,7 +32,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<fs.gcs.version>1.59.0</fs.gcs.version>
+		<fs.gcs.version>1.64.0</fs.gcs.version>
 	</properties>
 
 	<dependencies>
@@ -64,24 +64,12 @@ under the License.
 			<groupId>com.google.cloud</groupId>
 			<artifactId>google-cloud-storage</artifactId>
 			<version>${fs.gcs.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>com.google.cloud.bigdataoss</groupId>
 			<artifactId>gcs-connector</artifactId>
-			<version>hadoop2-1.9.12</version>
-			<exclusions>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-				</exclusion>
-			</exclusions>
+			<version>hadoop2-1.9.16</version>
 		</dependency>
 
 		<!-- for the behavior test suite -->
@@ -109,12 +97,10 @@ under the License.
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>
-
 	</dependencies>
 
 	<build>
 		<plugins>
-
 			<!-- this is merely an intermediate build artifact and should not be -->
 			<!-- deployed to maven central                                       -->
 			<plugin>
@@ -123,71 +109,6 @@ under the License.
 				<configuration>
 					<skip>true</skip>
 				</configuration>
-			</plugin>
-
-			<!-- Relocate all S3 related classes -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>shade-flink</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadeTestJar>false</shadeTestJar>
-							<artifactSet>
-								<includes>
-									<include>*:*</include>
-								</includes>
-							</artifactSet>
-							<relocations>
-								<!-- shade dependencies internally used by Hadoop and never exposed downstream -->
-								<!--<relocation>-->
-									<!--<pattern>org.apache.commons</pattern>-->
-									<!--<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.commons</shadedPattern>-->
-								<!--</relocation>-->
-
-								<!--&lt;!&ndash; shade dependencies internally used by GCP and never exposed downstream &ndash;&gt;-->
-								<!--<relocation>-->
-									<!--<pattern>com.google</pattern>-->
-									<!--<shadedPattern>org.apache.flink.fs.s3base.shaded.com.google</shadedPattern>-->
-								<!--</relocation>-->
-
-								<!-- shade Flink's Hadoop FS adapter classes  -->
-								<relocation>
-									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
-									<shadedPattern>org.apache.flink.fs.s3.common.hadoop</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.fs.gcs.shaded.com.google</shadedPattern>
-								</relocation>
-							</relocations>
-							<filters>
-								<filter>
-									<artifact>org.apache.flink:flink-hadoop-fs</artifact>
-									<excludes>
-										<exclude>org/apache/flink/runtime/util/**</exclude>
-										<exclude>org/apache/flink/runtime/fs/hdfs/HadoopRecoverable*</exclude>
-									</excludes>
-								</filter>
-								<filter>
-									<artifact>*</artifact>
-									<excludes>
-										<exclude>.gitkeep</exclude>
-										<exclude>mime.types</exclude>
-										<exclude>mozilla/**</exclude>
-										<exclude>META-INF/maven/**</exclude>
-										<exclude>META-INF/LICENSE.txt</exclude>
-									</excludes>
-								</filter>
-							</filters>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 		</plugins>
 	</build>

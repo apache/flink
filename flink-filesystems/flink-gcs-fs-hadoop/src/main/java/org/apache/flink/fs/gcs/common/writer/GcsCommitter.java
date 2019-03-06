@@ -26,46 +26,46 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 public class GcsCommitter implements RecoverableFsDataOutputStream.Committer {
-    private static final Logger LOG = LoggerFactory.getLogger(GcsCommitter.class);
+	private static final Logger LOG = LoggerFactory.getLogger(GcsCommitter.class);
 
-    private final GcsRecoverable recoverable;
+	private final GcsRecoverable recoverable;
 
-    public GcsCommitter(GcsRecoverable recoverable) {
-        this.recoverable = recoverable;
-    }
+	public GcsCommitter(GcsRecoverable recoverable) {
+		this.recoverable = recoverable;
+	}
 
-    /**
-     * Commits the file, making it visible. The file will contain the exact data
-     * as when the committer was created.
-     */
-    @Override
-    public void commit() {
-        LOG.info("Commit: {}", recoverable.toString());
-    }
+	/**
+	 * Commits the file, making it visible. The file will contain the exact data
+	 * as when the committer was created.
+	 */
+	@Override
+	public void commit() {
+		LOG.info("Commit: {}", recoverable.toString());
+	}
 
-    /**
-     * Commits the file, making it visible. The file will contain the exact data
-     * as when the committer was created.
-     *
-     * <p>This method tolerates situations where the file was already committed and
-     * will not raise an exception in that case. This is important for idempotent
-     * commit retries as they need to happen after recovery.
-     *
-     * @throws IOException Thrown if committing fails.
-     */
-    @Override
-    public void commitAfterRecovery() throws IOException {
-        LOG.info("CommitAfterRecovery {}", recoverable.toString());
-    }
+	/**
+	 * Commits the file, making it visible. The file will contain the exact data
+	 * as when the committer was created.
+	 *
+	 * <p>This method tolerates situations where the file was already committed and
+	 * will not raise an exception in that case. This is important for idempotent
+	 * commit retries as they need to happen after recovery.
+	 *
+	 * @throws IOException Thrown if committing fails.
+	 */
+	@Override
+	public void commitAfterRecovery() throws IOException {
+		LOG.info("CommitAfterRecovery {}", recoverable.toString());
+	}
 
-    /**
-     * Gets a recoverable object to recover the committer. The recovered committer
-     * will commit the file with the exact same data as this committer would commit
-     * it.
-     */
-    @Override
-    public RecoverableWriter.CommitRecoverable getRecoverable() {
-        LOG.info("GetRecoverable {}", recoverable.toString());
-        return this.recoverable;
-    }
+	/**
+	 * Gets a recoverable object to recover the committer. The recovered committer
+	 * will commit the file with the exact same data as this committer would commit
+	 * it.
+	 */
+	@Override
+	public RecoverableWriter.CommitRecoverable getRecoverable() {
+		LOG.info("GetRecoverable {}", recoverable.toString());
+		return this.recoverable;
+	}
 }

@@ -28,39 +28,39 @@ import java.io.IOException;
 
 public class GcsRecoverableSerializer implements SimpleVersionedSerializer<GcsRecoverable> {
 
-    static final GcsRecoverableSerializer INSTANCE = new GcsRecoverableSerializer();
+	static final GcsRecoverableSerializer INSTANCE = new GcsRecoverableSerializer();
 
-    @Override
-    public int getVersion() {
-        return 1;
-    }
+	private static GcsRecoverable deserializeV1(byte[] serialized) {
+		Kryo kryo = new Kryo();
+		try (Input input = new Input(serialized)) {
+			return kryo.readObject(input, GcsRecoverable.class);
+		}
+	}
 
-    @Override
-    public byte[] serialize(GcsRecoverable gcsRecoverable) throws IOException {
-        Kryo kryo = new Kryo();
-        kryo.register(GcsRecoverable.class);
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            try (Output output = new Output(baos)) {
-                kryo.writeObject(output, gcsRecoverable);
-            }
-            return baos.toByteArray();
-        }
-    }
+	@Override
+	public int getVersion() {
+		return 1;
+	}
 
-    @Override
-    public GcsRecoverable deserialize(int version, byte[] serialized) throws IOException {
-        switch (version) {
-            case 1:
-                return deserializeV1(serialized);
-            default:
-                throw new IOException("Unrecognized version or corrupt state: " + version);
-        }
-    }
+	@Override
+	public byte[] serialize(GcsRecoverable gcsRecoverable) throws IOException {
+		Kryo kryo = new Kryo();
+		kryo.register(GcsRecoverable.class);
+		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+			try (Output output = new Output(baos)) {
+				kryo.writeObject(output, gcsRecoverable);
+			}
+			return baos.toByteArray();
+		}
+	}
 
-    private static GcsRecoverable deserializeV1(byte[] serialized) {
-        Kryo kryo = new Kryo();
-        try (Input input = new Input(serialized)) {
-            return kryo.readObject(input, GcsRecoverable.class);
-        }
-    }
+	@Override
+	public GcsRecoverable deserialize(int version, byte[] serialized) throws IOException {
+		switch (version) {
+			case 1:
+				return deserializeV1(serialized);
+			default:
+				throw new IOException("Unrecognized version or corrupt state: " + version);
+		}
+	}
 }

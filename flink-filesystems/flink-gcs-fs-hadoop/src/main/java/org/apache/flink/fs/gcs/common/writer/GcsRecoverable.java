@@ -28,45 +28,45 @@ import org.slf4j.LoggerFactory;
  * Data object to recover an GCS for a recoverable output stream.
  */
 public class GcsRecoverable implements RecoverableWriter.ResumeRecoverable {
-    private static final Logger LOG = LoggerFactory.getLogger(GcsRecoverable.class);
+	private static final Logger LOG = LoggerFactory.getLogger(GcsRecoverable.class);
 
-    private final String bucketName, objectName;
-    private final int pos;
+	private final String bucketName, objectName;
+	private final int pos;
 
-    public GcsRecoverable(Path gcsFullPath) {
-        this.bucketName = gcsFullPath.toUri().getAuthority();
-        this.objectName = gcsFullPath.toUri().getPath().substring(1);
-        this.pos = 0;
+	public GcsRecoverable(Path gcsFullPath) {
+		this.bucketName = gcsFullPath.toUri().getAuthority();
+		this.objectName = gcsFullPath.toUri().getPath().substring(1);
+		this.pos = 0;
 
-        LOG.info("Deconstructed the bucket {} and object {}", this.bucketName, this.objectName);
-    }
+		LOG.info("Deconstructed the bucket {} and object {}", this.bucketName, this.objectName);
+	}
 
-    public GcsRecoverable(GcsRecoverable oldRecoverable, int pos) {
-        this.bucketName = oldRecoverable.getBucketName();
-        this.objectName = oldRecoverable.getObjectName();
-        this.pos = pos;
+	public GcsRecoverable(GcsRecoverable oldRecoverable, int pos) {
+		this.bucketName = oldRecoverable.getBucketName();
+		this.objectName = oldRecoverable.getObjectName();
+		this.pos = pos;
 
-        LOG.info("Deconstructed the bucket {} and object {} at position {}", this.bucketName, this.objectName, this.pos);
-    }
+		LOG.info("Deconstructed the bucket {} and object {} at position {}", this.bucketName, this.objectName, this.pos);
+	}
 
-    public String getBucketName() {
-        return bucketName;
-    }
+	public String getBucketName() {
+		return bucketName;
+	}
 
-    public String getObjectName() {
-        return objectName;
-    }
+	public String getObjectName() {
+		return objectName;
+	}
 
-    public int getPos() {
-        return this.pos;
-    }
+	public int getPos() {
+		return this.pos;
+	}
 
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this)
-                .add("bucketName", bucketName)
-                .add("objectName", objectName)
-                .add("pos", pos)
-                .toString();
-    }
+	@Override
+	public String toString() {
+		return MoreObjects.toStringHelper(this)
+			.add("bucketName", bucketName)
+			.add("objectName", objectName)
+			.add("pos", pos)
+			.toString();
+	}
 }

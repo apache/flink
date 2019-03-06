@@ -32,24 +32,24 @@ import java.io.FileInputStream;
 import java.io.IOException;
 
 public class FlinkGcsFileSystem extends HadoopFileSystem {
-    private static final Logger LOG = LoggerFactory.getLogger(FlinkGcsFileSystem.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkGcsFileSystem.class);
 
-    private final Storage storage;
+	private final Storage storage;
 
-    public FlinkGcsFileSystem(FileSystem hadoopFileSystem) throws IOException {
-        super(hadoopFileSystem);
+	public FlinkGcsFileSystem(FileSystem hadoopFileSystem) throws IOException {
+		super(hadoopFileSystem);
 
-        this.storage = StorageOptions
-                .newBuilder()
-                .setCredentials(GoogleCredentials.fromStream(new
-                        FileInputStream("/Users/fdriesprong/Downloads/bigdata-evaluation-37ca861e9307.json")))
-                .build()
-                .getService();
-    }
+		this.storage = StorageOptions
+			.newBuilder()
+			.setCredentials(GoogleCredentials.fromStream(new
+				FileInputStream("/Users/fdriesprong/Downloads/bigdata-evaluation-37ca861e9307.json")))
+			.build()
+			.getService();
+	}
 
-    @Override
-    public RecoverableWriter createRecoverableWriter() {
-        return new GcsRecoverableWriter(this.storage);
-    }
+	@Override
+	public RecoverableWriter createRecoverableWriter() {
+		return new GcsRecoverableWriter(this.storage);
+	}
 
 }
