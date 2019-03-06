@@ -15,10 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.util.serialization;
+package org.apache.flink.streaming.connectors.kafka.internals;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
 /**
  * A simple wrapper for using the SerializationSchema with the KeyedSerializationSchema

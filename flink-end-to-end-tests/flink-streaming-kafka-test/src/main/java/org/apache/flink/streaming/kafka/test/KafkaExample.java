@@ -27,7 +27,7 @@ import org.apache.flink.streaming.kafka.test.base.KafkaEvent;
 import org.apache.flink.streaming.kafka.test.base.KafkaEventSchema;
 import org.apache.flink.streaming.kafka.test.base.KafkaExampleUtil;
 import org.apache.flink.streaming.kafka.test.base.RollingAdditionMapper;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
+import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 
 /**
  * A simple example that shows how to read from and write to modern Kafka. This will read String messages
