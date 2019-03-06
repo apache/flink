@@ -33,7 +33,6 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
 
@@ -42,7 +41,6 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
 
 import javax.annotation.Nonnull;
 
@@ -87,7 +85,6 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 	// - Full restore
 	//   - data ingestion after db open: #getOrRegisterStateColumnFamilyHandle before creating column family
 	protected final RocksDbTtlCompactFiltersManager ttlCompactFiltersManager;
-	protected final TtlTimeProvider ttlTimeProvider;
 
 	protected RocksDB db;
 	protected ColumnFamilyHandle defaultColumnFamilyHandle;
@@ -109,8 +106,7 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> stateHandles,
-		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-		TtlTimeProvider ttlTimeProvider) {
+		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
 		this.keyGroupRange = keyGroupRange;
 		this.keyGroupPrefixBytes = keyGroupPrefixBytes;
 		this.numberOfTransferringThreads = numberOfTransferringThreads;
@@ -127,12 +123,11 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 		this.metricGroup = metricGroup;
 		this.restoreStateHandles = stateHandles;
 		this.ttlCompactFiltersManager = ttlCompactFiltersManager;
-		this.ttlTimeProvider = ttlTimeProvider;
 		this.columnFamilyHandles = new ArrayList<>(1);
 		this.columnFamilyDescriptors = Collections.emptyList();
 	}
 
-	public void openDB() throws IOException {
+	void openDB() throws IOException {
 		db = RocksDBOperationUtils.openDB(
 			dbPath,
 			columnFamilyDescriptors,
@@ -150,9 +145,9 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 		return this.db;
 	}
 
-	protected RocksDbKvStateInfo getOrRegisterStateColumnFamilyHandle(
+	RocksDbKvStateInfo getOrRegisterStateColumnFamilyHandle(
 		ColumnFamilyHandle columnFamilyHandle,
-		StateMetaInfoSnapshot stateMetaInfoSnapshot) throws RocksDBException {
+		StateMetaInfoSnapshot stateMetaInfoSnapshot) {
 
 		RocksDbKvStateInfo registeredStateMetaInfoEntry =
 			kvStateInformation.get(stateMetaInfoSnapshot.getName());
@@ -163,8 +158,8 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 			RegisteredStateMetaInfoBase stateMetaInfo =
 				RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
 			if (columnFamilyHandle == null) {
-				registeredStateMetaInfoEntry = RocksDBOperationUtils.createStateInfo(stateMetaInfo,
-					ttlCompactFiltersManager, ttlTimeProvider, db, columnFamilyOptionsFactory);
+				registeredStateMetaInfoEntry = RocksDBOperationUtils.createStateInfo(
+					stateMetaInfo, db, columnFamilyOptionsFactory, ttlCompactFiltersManager);
 			} else {
 				registeredStateMetaInfoEntry = new RocksDbKvStateInfo(columnFamilyHandle, stateMetaInfo);
 			}
@@ -181,7 +176,7 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 		return registeredStateMetaInfoEntry;
 	}
 
-	protected KeyedBackendSerializationProxy<K> readMetaData(DataInputView dataInputView)
+	KeyedBackendSerializationProxy<K> readMetaData(DataInputView dataInputView)
 		throws IOException, StateMigrationException {
 		// isSerializerPresenceRequired flag is set to false, since for the RocksDB state backend,
 		// deserialization of state happens lazily during runtime; we depend on the fact

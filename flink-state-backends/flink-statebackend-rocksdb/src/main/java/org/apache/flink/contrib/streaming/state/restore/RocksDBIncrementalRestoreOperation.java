@@ -18,7 +18,6 @@
 
 package org.apache.flink.contrib.streaming.state.restore;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.contrib.streaming.state.RocksDBIncrementalCheckpointUtils;
 import org.apache.flink.contrib.streaming.state.RocksDBKeySerializationUtils;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
@@ -44,11 +43,11 @@ import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
 
 import org.rocksdb.ColumnFamilyDescriptor;
@@ -106,8 +105,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
-		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-		TtlTimeProvider ttlTimeProvider) {
+		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
 		super(keyGroupRange,
 			keyGroupPrefixBytes,
 			numberOfTransferringThreads,
@@ -122,8 +120,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 			nativeMetricOptions,
 			metricGroup,
 			restoreStateHandles,
-			ttlCompactFiltersManager,
-			ttlTimeProvider);
+			ttlCompactFiltersManager);
 		this.operatorIdentifier = operatorIdentifier;
 		this.restoredSstFiles = new TreeMap<>();
 		this.lastCompletedCheckpointId = -1L;
@@ -252,19 +249,10 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 		}
 	}
 
-	private void registerColumnFamilyHandles(List<StateMetaInfoSnapshot> metaInfoSnapshots)
-		throws BackendBuildingException {
+	private void registerColumnFamilyHandles(List<StateMetaInfoSnapshot> metaInfoSnapshots) {
 		// Register CF handlers
 		for (int i = 0; i < metaInfoSnapshots.size(); ++i) {
-			try {
-				getOrRegisterStateColumnFamilyHandle(
-					columnFamilyHandles.get(i),
-					metaInfoSnapshots.get(i));
-			} catch (RocksDBException e) {
-				String errMsg = "Failed to register CF handle.";
-				LOG.error(errMsg, e);
-				throw new BackendBuildingException(errMsg, e);
-			}
+			getOrRegisterStateColumnFamilyHandle(columnFamilyHandles.get(i), metaInfoSnapshots.get(i));
 		}
 	}
 
@@ -452,16 +440,10 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 			new ArrayList<>(stateMetaInfoSnapshots.size());
 
 		for (StateMetaInfoSnapshot stateMetaInfoSnapshot : stateMetaInfoSnapshots) {
-			ColumnFamilyOptions options = RocksDBOperationUtils.createColumnFamilyOptions(
-				columnFamilyOptionsFactory, stateMetaInfoSnapshot.getName());
-			if (registerTtlCompactFilter) {
-				ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(ttlTimeProvider,
-					stateMetaInfoSnapshot, options);
-			}
-			ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(
-				stateMetaInfoSnapshot.getName().getBytes(ConfigConstants.DEFAULT_CHARSET),
-				options);
-
+			RegisteredStateMetaInfoBase metaInfoBase =
+				RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
+			ColumnFamilyDescriptor columnFamilyDescriptor = RocksDBOperationUtils.createColumnFamilyDescriptor(
+				metaInfoBase, columnFamilyOptionsFactory, registerTtlCompactFilter ? ttlCompactFiltersManager : null);
 			columnFamilyDescriptors.add(columnFamilyDescriptor);
 		}
 		return columnFamilyDescriptors;
