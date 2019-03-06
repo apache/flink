@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{OverWindow, TableEnvironment, ValidationException}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical.{LogicalNode, Project}
+import org.apache.flink.table.typeutils.RowIntervalTypeInfo
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -254,16 +255,23 @@ object ProjectionTranslator {
 
     expr match {
       case u: UnresolvedOverCall =>
-        val overWindow = overWindows.find(_.alias.equals(u.alias))
-        if (overWindow.isDefined) {
-          OverCall(
-            u.agg,
-            overWindow.get.partitionBy,
-            overWindow.get.orderBy,
-            overWindow.get.preceding,
-            overWindow.get.following)
-        } else {
-          u
+        overWindows.find(_.getAlias.equals(u.alias)) match {
+          case Some(overWindow) =>
+            OverCall(
+              u.agg,
+              overWindow.getPartitioning,
+              overWindow.getOrder,
+              overWindow.getPreceding,
+              overWindow.getFollowing.getOrElse {
+                // set following to CURRENT_ROW / CURRENT_RANGE if not defined
+                if (overWindow.getPreceding.resultType.isInstanceOf[RowIntervalTypeInfo]) {
+                  CurrentRow()
+                } else {
+                  CurrentRange()
+                }
+              })
+
+          case None => u
         }
 
       case u: UnaryExpression =>
