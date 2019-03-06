@@ -18,6 +18,8 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.table.type.InternalType;
+import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.util.SegmentsUtil;
 
 /**
@@ -105,6 +107,34 @@ public class BinaryArrayWriter extends AbstractBinaryWriter {
 		setNullLong(ordinal);
 	}
 
+	public void setNullAt(int pos, InternalType type) {
+		if (type.equals(InternalTypes.BOOLEAN)) {
+			setNullBoolean(pos);
+		} else if (type.equals(InternalTypes.BYTE)) {
+			setNullByte(pos);
+		} else if (type.equals(InternalTypes.SHORT)) {
+			setNullShort(pos);
+		} else if (type.equals(InternalTypes.INT)) {
+			setNullInt(pos);
+		} else if (type.equals(InternalTypes.LONG)) {
+			setNullLong(pos);
+		} else if (type.equals(InternalTypes.FLOAT)) {
+			setNullFloat(pos);
+		} else if (type.equals(InternalTypes.DOUBLE)) {
+			setNullDouble(pos);
+		} else if (type.equals(InternalTypes.DATE)) {
+			setNullInt(pos);
+		} else if (type.equals(InternalTypes.TIME)) {
+			setNullInt(pos);
+		} else if (type.equals(InternalTypes.TIMESTAMP)) {
+			setNullLong(pos);
+		} else if (type.equals(InternalTypes.CHAR)) {
+			setNullShort(pos);
+		} else {
+			setNullAt(pos);
+		}
+	}
+
 	private int getElementOffset(int pos, int elementSize) {
 		return nullBitsSizeInBytes + elementSize * pos;
 	}
@@ -164,6 +194,42 @@ public class BinaryArrayWriter extends AbstractBinaryWriter {
 	@Override
 	public void writeChar(int pos, char value) {
 		segment.putChar(getElementOffset(pos, 2), value);
+	}
+
+	@Override
+	public void writeDecimal(int pos, Decimal value, int precision) {
+		assert value == null || (value.getPrecision() == precision);
+
+		if (Decimal.isCompact(precision)) {
+			assert value != null;
+			writeLong(pos, value.toUnscaledLong());
+		} else {
+			// grow the global buffer before writing data.
+			ensureCapacity(16);
+
+			// zero-out the bytes
+			segment.putLong(cursor, 0L);
+			segment.putLong(cursor + 8, 0L);
+
+			// Make sure Decimal object has the same scale as DecimalType.
+			// Note that we may pass in null Decimal object to set null for it.
+			if (value == null) {
+				// need add header 8 bit.
+				setNullBit(pos);
+				// keep the offset for future update
+				setOffsetAndSize(pos, cursor, 0);
+			} else {
+				final byte[] bytes = value.toUnscaledBytes();
+				assert bytes.length <= 16;
+
+				// Write the bytes to the variable length portion.
+				segment.put(cursor, bytes, 0, bytes.length);
+				setOffsetAndSize(pos, cursor, bytes.length);
+			}
+
+			// move the cursor forward.
+			cursor += 16;
+		}
 	}
 
 	@Override

@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.type;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.table.typeutils.BaseRowSerializer;
 import org.apache.flink.types.Row;
 
 import java.util.Arrays;
@@ -32,6 +34,8 @@ public class RowType implements InternalType {
 	private final InternalType[] types;
 
 	private final String[] fieldNames;
+
+	private transient BaseRowSerializer baseRowSerializer;
 
 	public RowType(InternalType... types) {
 		this(types, generateDefaultFieldNames(types.length));
@@ -52,6 +56,15 @@ public class RowType implements InternalType {
 			fieldNames[i] = "f" + i;
 		}
 		return fieldNames;
+	}
+
+	public BaseRowSerializer getBaseRowSerializer() {
+		if (baseRowSerializer == null) {
+			this.baseRowSerializer =
+					(BaseRowSerializer) TypeConverters.createInternalTypeInfoFromInternalType(this)
+							.createSerializer(new ExecutionConfig());
+		}
+		return baseRowSerializer;
 	}
 
 	public int getArity() {

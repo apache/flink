@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.util.SegmentsUtil;
 
 import org.junit.Test;
+
+import java.math.BigDecimal;
 
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
 import static org.junit.Assert.assertEquals;
@@ -425,5 +428,57 @@ public class BinaryArrayTest {
 		assertEquals(5, shorts2[0]);
 		assertEquals(10, shorts2[1]);
 		assertEquals(15, shorts2[2]);
+	}
+
+	@Test
+	public void testDecimal() {
+		// 1.compact
+		{
+			int precision = 4;
+			int scale = 2;
+			BinaryArray array = new BinaryArray();
+			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
+			writer.writeDecimal(0, Decimal.fromLong(5, precision, scale), precision);
+			writer.setNullAt(1);
+			writer.complete();
+
+			assertEquals("0.05", array.getDecimal(0, precision, scale).toString());
+			assertTrue(array.isNullAt(1));
+			array.setDecimal(0, Decimal.fromLong(6, precision, scale), precision);
+			assertEquals("0.06", array.getDecimal(0, precision, scale).toString());
+		}
+
+		// 2.not compact
+		{
+			int precision = 25;
+			int scale = 5;
+			Decimal decimal1 = Decimal.fromBigDecimal(BigDecimal.valueOf(5.55), precision, scale);
+			Decimal decimal2 = Decimal.fromBigDecimal(BigDecimal.valueOf(6.55), precision, scale);
+
+			BinaryArray array = new BinaryArray();
+			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
+			writer.writeDecimal(0, decimal1, precision);
+			writer.setNullAt(1);
+			writer.complete();
+
+			assertEquals("5.55000", array.getDecimal(0, precision, scale).toString());
+			assertTrue(array.isNullAt(1));
+			array.setDecimal(0, decimal2, precision);
+			assertEquals("6.55000", array.getDecimal(0, precision, scale).toString());
+		}
+	}
+
+	@Test
+	public void testGeneric() {
+		BinaryArray array = new BinaryArray();
+		BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
+		writer.writeGeneric(0, new BinaryGeneric<>("hahah"), StringSerializer.INSTANCE);
+		writer.setNullAt(1);
+		writer.complete();
+
+		BinaryGeneric generic = array.getGeneric(0);
+		generic.ensureJavaObject(StringSerializer.INSTANCE);
+		assertEquals("hahah", generic.getJavaObject());
+		assertTrue(array.isNullAt(1));
 	}
 }

@@ -22,6 +22,8 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.util.SegmentsUtil;
 
+import java.util.Map;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -29,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * <p>{@code BinaryMap} are influenced by Apache Spark UnsafeMapData.
  */
-public class BinaryMap extends BinaryFormat {
+public class BinaryMap extends LazyBinaryFormat<Map> {
 
 	private final BinaryArray keys;
 	private final BinaryArray values;
@@ -43,10 +45,7 @@ public class BinaryMap extends BinaryFormat {
 		return keys.numElements();
 	}
 
-	public void pointTo(MemorySegment segment, int baseOffset, int sizeInBytes) {
-		pointTo(new MemorySegment[]{segment}, baseOffset, sizeInBytes);
-	}
-
+	@Override
 	public void pointTo(MemorySegment[] segments, int offset, int sizeInBytes) {
 		// Read the numBytes of key array from the first 4 bytes.
 		final int keyArrayBytes = SegmentsUtil.getInt(segments, offset);
@@ -80,6 +79,11 @@ public class BinaryMap extends BinaryFormat {
 		byte[] bytes = SegmentsUtil.copyToBytes(segments, offset, sizeInBytes);
 		reuse.pointTo(MemorySegmentFactory.wrap(bytes), 0, sizeInBytes);
 		return reuse;
+	}
+
+	@Override
+	public int hashCode() {
+		return SegmentsUtil.hashByWords(segments, offset, sizeInBytes);
 	}
 
 	public static BinaryMap valueOf(BinaryArray key, BinaryArray value) {

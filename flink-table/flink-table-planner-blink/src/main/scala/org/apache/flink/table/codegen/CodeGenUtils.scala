@@ -109,14 +109,13 @@ object CodeGenUtils {
 
     case InternalTypes.STRING => BINARY_STRING
 
-    // TODO: Support it when we introduce [Decimal]
-    case _: DecimalType => throw new UnsupportedOperationException
+    case _: DecimalType => className[Decimal]
     // BINARY is also an ArrayType and uses BinaryArray internally too
     case _: ArrayType => className[BinaryArray]
     case _: MapType => className[BinaryMap]
     case _: RowType => className[BaseRow]
 
-    case gt: GenericType[_] => gt.getTypeInfo.getTypeClass.getCanonicalName
+    case _: GenericType[_] => className[BinaryGeneric[_]]
   }
 
   /**
@@ -222,7 +221,9 @@ object CodeGenUtils {
       case rt: RowType if classOf[ObjectArrayRow].isAssignableFrom(clazz) =>
         val typeTerm = clazz.getCanonicalName
         s"final $typeTerm $outRecordTerm = new $typeTerm(${rt.getArity});"
-      // TODO: support [JoinedRow] in the future
+      case _: RowType if clazz == classOf[JoinedRow] =>
+        val typeTerm = clazz.getCanonicalName
+        s"final $typeTerm $outRecordTerm = new $typeTerm();"
       case _ =>
         val typeTerm = boxedTypeTermForType(t)
         s"final $typeTerm $outRecordTerm = new $typeTerm();"

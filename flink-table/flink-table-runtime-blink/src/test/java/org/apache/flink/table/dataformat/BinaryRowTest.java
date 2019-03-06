@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 
 import org.junit.Test;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
 import static org.junit.Assert.assertEquals;
@@ -241,5 +243,57 @@ public class BinaryRowTest {
 
 		newRow.setHeader((byte) 19);
 		assertEquals((byte) 19, newRow.getHeader());
+	}
+
+	@Test
+	public void testDecimal() {
+		// 1.compact
+		{
+			int precision = 4;
+			int scale = 2;
+			BinaryRow row = new BinaryRow(2);
+			BinaryRowWriter writer = new BinaryRowWriter(row);
+			writer.writeDecimal(0, Decimal.fromLong(5, precision, scale), precision);
+			writer.setNullAt(1);
+			writer.complete();
+
+			assertEquals("0.05", row.getDecimal(0, precision, scale).toString());
+			assertTrue(row.isNullAt(1));
+			row.setDecimal(0, Decimal.fromLong(6, precision, scale), precision);
+			assertEquals("0.06", row.getDecimal(0, precision, scale).toString());
+		}
+
+		// 2.not compact
+		{
+			int precision = 25;
+			int scale = 5;
+			Decimal decimal1 = Decimal.fromBigDecimal(BigDecimal.valueOf(5.55), precision, scale);
+			Decimal decimal2 = Decimal.fromBigDecimal(BigDecimal.valueOf(6.55), precision, scale);
+
+			BinaryRow row = new BinaryRow(2);
+			BinaryRowWriter writer = new BinaryRowWriter(row);
+			writer.writeDecimal(0, decimal1, precision);
+			writer.setNullAt(1);
+			writer.complete();
+
+			assertEquals("5.55000", row.getDecimal(0, precision, scale).toString());
+			assertTrue(row.isNullAt(1));
+			row.setDecimal(0, decimal2, precision);
+			assertEquals("6.55000", row.getDecimal(0, precision, scale).toString());
+		}
+	}
+
+	@Test
+	public void testGeneric() {
+		BinaryRow row = new BinaryRow(2);
+		BinaryRowWriter writer = new BinaryRowWriter(row);
+		writer.writeGeneric(0, new BinaryGeneric<>("hahah"), StringSerializer.INSTANCE);
+		writer.setNullAt(1);
+		writer.complete();
+
+		BinaryGeneric generic = row.getGeneric(0);
+		generic.ensureJavaObject(StringSerializer.INSTANCE);
+		assertEquals("hahah", generic.getJavaObject());
+		assertTrue(row.isNullAt(1));
 	}
 }

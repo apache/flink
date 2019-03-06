@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
@@ -34,15 +35,19 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
 import org.apache.flink.table.runtime.functions.DateTimeUtils;
+import org.apache.flink.table.type.DecimalType;
 import org.apache.flink.table.type.InternalType;
 import org.apache.flink.table.type.TypeConverters;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.typeutils.BinaryArrayTypeInfo;
+import org.apache.flink.table.typeutils.BinaryGenericTypeInfo;
 import org.apache.flink.table.typeutils.BinaryMapTypeInfo;
 import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
+import org.apache.flink.table.typeutils.DecimalTypeInfo;
 import org.apache.flink.types.Row;
 
 import java.lang.reflect.Array;
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -77,6 +82,9 @@ public class DataFormatConverters {
 		t2C.put(BasicTypeInfo.SHORT_TYPE_INFO, ShortConverter.INSTANCE);
 		t2C.put(BasicTypeInfo.BYTE_TYPE_INFO, ByteConverter.INSTANCE);
 		t2C.put(BasicTypeInfo.CHAR_TYPE_INFO, CharConverter.INSTANCE);
+		t2C.put(BasicTypeInfo.BIG_DEC_TYPE_INFO, new BigDecimalConverter(
+				DecimalType.SYSTEM_DEFAULT.precision(),
+				DecimalType.SYSTEM_DEFAULT.scale()));
 
 		t2C.put(PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO, PrimitiveBooleanArrayConverter.INSTANCE);
 		t2C.put(PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO, PrimitiveIntArrayConverter.INSTANCE);
@@ -110,9 +118,11 @@ public class DataFormatConverters {
 		}
 
 		if (typeInfo instanceof BasicArrayTypeInfo) {
-			return new ObjectArrayConverter(((BasicArrayTypeInfo) typeInfo).getComponentInfo());
+			BasicArrayTypeInfo arrayType = (BasicArrayTypeInfo) typeInfo;
+			return new ObjectArrayConverter(arrayType.getTypeClass(), arrayType.getComponentInfo());
 		} else if (typeInfo instanceof ObjectArrayTypeInfo) {
-			return new ObjectArrayConverter(((ObjectArrayTypeInfo) typeInfo).getComponentInfo());
+			ObjectArrayTypeInfo arrayType = (ObjectArrayTypeInfo) typeInfo;
+			return new ObjectArrayConverter(arrayType.getTypeClass(), arrayType.getComponentInfo());
 		} else if (typeInfo instanceof MapTypeInfo) {
 			MapTypeInfo mapType = (MapTypeInfo) typeInfo;
 			return new MapConverter(mapType.getKeyTypeInfo(), mapType.getValueTypeInfo());
@@ -130,8 +140,15 @@ public class DataFormatConverters {
 			return BinaryMapConverter.INSTANCE;
 		} else if (typeInfo instanceof BaseRowTypeInfo) {
 			return BaseRowConverter.INSTANCE;
+		} else if (typeInfo.equals(BasicTypeInfo.BIG_DEC_TYPE_INFO)) {
+			return BaseRowConverter.INSTANCE;
+		} else if (typeInfo instanceof DecimalTypeInfo) {
+			DecimalTypeInfo decimalType = (DecimalTypeInfo) typeInfo;
+			return new DecimalConverter(decimalType.precision(), decimalType.scale());
+		} else if (typeInfo instanceof BinaryGenericTypeInfo) {
+			return BinaryGenericConverter.INSTANCE;
 		} else {
-			throw new RuntimeException("Not support generic yet: " + typeInfo);
+			return new GenericConverter(typeInfo.createSerializer(new ExecutionConfig()));
 		}
 	}
 
@@ -363,6 +380,40 @@ public class DataFormatConverters {
 	}
 
 	/**
+	 * Converter for Decimal.
+	 */
+	public static class DecimalConverter extends IdentityConverter<Decimal> {
+
+		private final int precision;
+		private final int scale;
+
+		public DecimalConverter(int precision, int scale) {
+			this.precision = precision;
+			this.scale = scale;
+		}
+
+		@Override
+		Decimal toExternalImpl(BaseRow row, int column) {
+			return row.getDecimal(column, precision, scale);
+		}
+	}
+
+	/**
+	 * Converter for BinaryGeneric.
+	 */
+	public static class BinaryGenericConverter extends IdentityConverter<BinaryGeneric> {
+
+		public static final BinaryGenericConverter INSTANCE = new BinaryGenericConverter();
+
+		private BinaryGenericConverter() {}
+
+		@Override
+		BinaryGeneric toExternalImpl(BaseRow row, int column) {
+			return row.getGeneric(column);
+		}
+	}
+
+	/**
 	 * Converter for String.
 	 */
 	public static class StringConverter extends DataFormatConverter<BinaryString, String> {
@@ -384,6 +435,63 @@ public class DataFormatConverters {
 		@Override
 		String toExternalImpl(BaseRow row, int column) {
 			return row.getString(column).toString();
+		}
+	}
+
+	/**
+	 * Converter for BigDecimal.
+	 */
+	public static class BigDecimalConverter extends DataFormatConverter<Decimal, BigDecimal> {
+
+		private final int precision;
+		private final int scale;
+
+		public BigDecimalConverter(int precision, int scale) {
+			this.precision = precision;
+			this.scale = scale;
+		}
+
+		@Override
+		Decimal toInternalImpl(BigDecimal value) {
+			return Decimal.fromBigDecimal(value, precision, scale);
+		}
+
+		@Override
+		BigDecimal toExternalImpl(Decimal value) {
+			return value.toBigDecimal();
+		}
+
+		@Override
+		BigDecimal toExternalImpl(BaseRow row, int column) {
+			return toExternalImpl(row.getDecimal(column, precision, scale));
+		}
+	}
+
+	/**
+	 * Converter for generic.
+	 */
+	public static class GenericConverter<T> extends DataFormatConverter<BinaryGeneric<T>, T> {
+
+		private final TypeSerializer<T> serializer;
+
+		public GenericConverter(TypeSerializer<T> serializer) {
+			this.serializer = serializer;
+		}
+
+		@Override
+		BinaryGeneric<T> toInternalImpl(T value) {
+			return new BinaryGeneric<>(value);
+		}
+
+		@Override
+		T toExternalImpl(BinaryGeneric<T> value) {
+			value.ensureJavaObject(serializer);
+			return value.getJavaObject();
+		}
+
+		@Override
+		T toExternalImpl(BaseRow row, int column) {
+			return (T) toExternalImpl(row.getGeneric(column));
 		}
 	}
 
@@ -667,12 +775,14 @@ public class DataFormatConverters {
 	 */
 	public static class ObjectArrayConverter<T> extends DataFormatConverter<BinaryArray, T[]> {
 
+		private final Class<T[]> arrayClass;
 		private final InternalType elementType;
 		private final DataFormatConverter<Object, T> elementConverter;
 		private final Class<T> componentClass;
 		private final int elementSize;
 
-		public ObjectArrayConverter(TypeInformation<T> elementTypeInfo) {
+		public ObjectArrayConverter(Class<T[]> arrayClass, TypeInformation<T> elementTypeInfo) {
+			this.arrayClass = arrayClass;
 			this.elementType = TypeConverters.createInternalTypeFromTypeInfo(elementTypeInfo);
 			this.elementConverter = DataFormatConverters.getConverterForTypeInfo(elementTypeInfo);
 			this.componentClass = elementTypeInfo.getTypeClass();
@@ -686,8 +796,7 @@ public class DataFormatConverters {
 			for (int i = 0; i < value.length; i++) {
 				Object field = value[i];
 				if (field == null) {
-					// if we reuse BinaryArrayWriter, we need invoke setNullInt.
-					writer.setNullAt(i);
+					writer.setNullAt(i, elementType);
 				} else {
 					BinaryWriter.write(writer, i, elementConverter.toInternalImpl(value[i]), elementType);
 				}
@@ -698,7 +807,13 @@ public class DataFormatConverters {
 
 		@Override
 		T[] toExternalImpl(BinaryArray value) {
-			return binaryArrayToJavaArray(value, elementType, componentClass, elementConverter);
+			if (value.getJavaObject() != null && value.getJavaObject().getClass() == arrayClass) {
+				return (T[]) value.getJavaObject();
+			} else {
+				T[] array = binaryArrayToJavaArray(value, elementType, componentClass, elementConverter);
+				value.setJavaObject(array);
+				return array;
+			}
 		}
 
 		@Override
@@ -760,14 +875,13 @@ public class DataFormatConverters {
 
 			int i = 0;
 			for (Map.Entry<Object, Object> entry : ((Map<Object, Object>) value).entrySet()) {
-				// if we reuse BinaryArrayWriter, we need invoke setNullInt.
 				if (entry.getKey() == null) {
-					keyWriter.setNullAt(i);
+					keyWriter.setNullAt(i, keyType);
 				} else {
 					BinaryWriter.write(keyWriter, i, keyConverter.toInternalImpl(entry.getKey()), keyType);
 				}
 				if (entry.getValue() == null) {
-					valueWriter.setNullAt(i);
+					valueWriter.setNullAt(i, valueType);
 				} else {
 					BinaryWriter.write(valueWriter, i, valueConverter.toInternalImpl(entry.getValue()), valueType);
 				}
@@ -781,13 +895,16 @@ public class DataFormatConverters {
 
 		@Override
 		Map toExternalImpl(BinaryMap value) {
-			Map<Object, Object> map = new HashMap<>();
-			Object[] keys = binaryArrayToJavaArray(value.keyArray(), keyType, keyComponentClass, keyConverter);
-			Object[] values = binaryArrayToJavaArray(value.valueArray(), valueType, valueComponentClass, valueConverter);
-			for (int i = 0; i < value.numElements(); i++) {
-				map.put(keys[i], values[i]);
+			if (value.getJavaObject() == null) {
+				Map<Object, Object> map = new HashMap<>();
+				Object[] keys = binaryArrayToJavaArray(value.keyArray(), keyType, keyComponentClass, keyConverter);
+				Object[] values = binaryArrayToJavaArray(value.valueArray(), valueType, valueComponentClass, valueConverter);
+				for (int i = 0; i < value.numElements(); i++) {
+					map.put(keys[i], values[i]);
+				}
+				value.setJavaObject(map);
 			}
-			return map;
+			return value.getJavaObject();
 		}
 
 		@Override

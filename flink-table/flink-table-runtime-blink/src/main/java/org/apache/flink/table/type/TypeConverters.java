@@ -31,8 +31,10 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.typeutils.BinaryArrayTypeInfo;
+import org.apache.flink.table.typeutils.BinaryGenericTypeInfo;
 import org.apache.flink.table.typeutils.BinaryMapTypeInfo;
 import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
+import org.apache.flink.table.typeutils.DecimalTypeInfo;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -167,9 +169,14 @@ public class TypeConverters {
 		} else if (type instanceof MapType) {
 			MapType mapType = (MapType) type;
 			return new BinaryMapTypeInfo(mapType.getKeyType(), mapType.getValueType());
+		} else if (type instanceof DecimalType) {
+			DecimalType decimalType = (DecimalType) type;
+			return new DecimalTypeInfo(decimalType.precision(), decimalType.scale());
+		}  else if (type instanceof GenericType) {
+			GenericType genericType = (GenericType) type;
+			return new BinaryGenericTypeInfo(genericType);
 		} else {
-			// TODO support decimal and generic type.
-			throw new UnsupportedOperationException("Not support yet!");
+			throw new UnsupportedOperationException("Not support yet: " + type);
 		}
 	}
 }
