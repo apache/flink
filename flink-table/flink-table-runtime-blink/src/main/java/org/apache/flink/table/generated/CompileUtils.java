@@ -20,8 +20,10 @@ package org.apache.flink.table.generated;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
+
 import org.codehaus.janino.SimpleCompiler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public final class CompileUtils {
 
 	// used for logging the generated codes to a same place
-	private static Logger CODE_LOG = LoggerFactory.getLogger(CompileUtils.class);
+	private static final Logger CODE_LOG = LoggerFactory.getLogger(CompileUtils.class);
 
 	/**
 	 * Cache of compile, Janino generates a new Class Loader and a new Class file every compile
@@ -43,7 +45,7 @@ public final class CompileUtils {
 	 * number of Meta zone GC (class unloading), resulting in performance bottlenecks. So we add
 	 * a cache to avoid this problem.
 	 */
-	protected static Cache<Tuple2<ClassLoader, String>, Class<?>> compileCache = CacheBuilder
+	protected static final Cache<Tuple2<ClassLoader, String>, Class<?>> COMPILED_CACHE = CacheBuilder
 		.newBuilder()
 		.maximumSize(100)   // estimated cache size
 		.build();
@@ -58,10 +60,10 @@ public final class CompileUtils {
 	 */
 	public static <T> Class<T> compile(ClassLoader cl, String name, String code) {
 		Tuple2<ClassLoader, String> cacheKey = Tuple2.of(cl, name);
-		Class<?> clazz = compileCache.getIfPresent(cacheKey);
+		Class<?> clazz = COMPILED_CACHE.getIfPresent(cacheKey);
 		if (clazz == null) {
 			clazz = doCompile(cl, name, code);
-			compileCache.put(cacheKey, clazz);
+			COMPILED_CACHE.put(cacheKey, clazz);
 		}
 		//noinspection unchecked
 		return (Class<T>) clazz;

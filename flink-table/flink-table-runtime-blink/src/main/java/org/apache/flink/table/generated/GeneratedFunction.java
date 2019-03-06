@@ -21,7 +21,8 @@ package org.apache.flink.table.generated;
 import org.apache.flink.api.common.functions.Function;
 
 /**
- * Describes a generated {@link Function}
+ * Describes a generated {@link Function}.
+ *
  * @param <F> type of Function
  */
 public final class GeneratedFunction<F extends Function> extends GeneratedClass<F> {

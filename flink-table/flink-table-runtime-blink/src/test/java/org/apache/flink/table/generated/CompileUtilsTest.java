@@ -19,6 +19,7 @@
 package org.apache.flink.table.generated;
 
 import org.apache.flink.api.common.InvalidProgramException;
+
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -30,16 +31,18 @@ import java.net.URLClassLoader;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 
+/**
+ * Tests for {@link CompileUtils}.
+ */
 public class CompileUtilsTest {
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
-
 	@Before
 	public void before() {
 		// cleanup cached class before tests
-		CompileUtils.compileCache.invalidateAll();
+		CompileUtils.COMPILED_CACHE.invalidateAll();
 	}
 
 	@Test

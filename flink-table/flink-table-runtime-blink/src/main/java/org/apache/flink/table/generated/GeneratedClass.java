@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.generated;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 import java.io.Serializable;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A wrapper for generated class, defines a {@link #newInstance(ClassLoader)} method
@@ -63,6 +63,4 @@ public abstract class GeneratedClass<T> implements Serializable {
 		}
 		return compiledClass;
 	}
-
-
 }

@@ -21,7 +21,8 @@ package org.apache.flink.table.generated;
 import org.apache.flink.util.Collector;
 
 /**
- * Describes a generated {@link Collector}
+ * Describes a generated {@link Collector}.
+ *
  * @param <C> type of collector
  */
 public final class GeneratedCollector<C extends Collector<?>> extends GeneratedClass<C> {

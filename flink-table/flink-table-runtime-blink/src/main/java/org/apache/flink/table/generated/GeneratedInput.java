@@ -21,7 +21,8 @@ package org.apache.flink.table.generated;
 import org.apache.flink.api.common.io.InputFormat;
 
 /**
- * Describes a generated {@link InputFormat}
+ * Describes a generated {@link InputFormat}.
+ *
  * @param <F> type of Function
  */
 public final class GeneratedInput<F extends InputFormat<?, ?>> extends GeneratedClass<F> {
