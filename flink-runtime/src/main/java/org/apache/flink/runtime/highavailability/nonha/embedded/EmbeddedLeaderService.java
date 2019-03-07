@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
@@ -93,6 +94,13 @@ public class EmbeddedLeaderService {
 	public void shutdown() {
 		synchronized (lock) {
 			shutdownInternally(new Exception("Leader election service is shutting down"));
+		}
+	}
+
+	@VisibleForTesting
+	public boolean isShutdown() {
+		synchronized (lock) {
+			return shutdown;
 		}
 	}
 
@@ -270,12 +278,13 @@ public class EmbeddedLeaderService {
 
 				currentLeaderSessionId = leaderSessionId;
 				currentLeaderProposed = leaderService;
+				currentLeaderProposed.isLeader = true;
 
 				LOG.info("Proposing leadership to contender {} @ {}",
 						leaderService.contender, leaderService.contender.getAddress());
 
 				notificationExecutor.execute(
-						new GrantLeadershipCall(leaderService, leaderSessionId, LOG));
+						new GrantLeadershipCall(leaderService.contender, leaderSessionId, LOG));
 			}
 		}
 	}
@@ -440,34 +449,44 @@ public class EmbeddedLeaderService {
 
 	private static class GrantLeadershipCall implements Runnable {
 
-		private final EmbeddedLeaderElectionService leaderElectionService;
+		private final LeaderContender contender;
 		private final UUID leaderSessionId;
 		private final Logger logger;
 
 		GrantLeadershipCall(
-				EmbeddedLeaderElectionService leaderElectionService,
+				LeaderContender contender,
 				UUID leaderSessionId,
 				Logger logger) {
 
-			this.leaderElectionService = checkNotNull(leaderElectionService);
+			this.contender = checkNotNull(contender);
 			this.leaderSessionId = checkNotNull(leaderSessionId);
 			this.logger = checkNotNull(logger);
 		}
 
 		@Override
 		public void run() {
-			leaderElectionService.isLeader = true;
-
-			final LeaderContender contender = leaderElectionService.contender;
-
 			try {
 				contender.grantLeadership(leaderSessionId);
 			}
 			catch (Throwable t) {
 				logger.warn("Error granting leadership to contender", t);
 				contender.handleError(t instanceof Exception ? (Exception) t : new Exception(t));
-				leaderElectionService.isLeader = false;
 			}
+		}
+	}
+
+	private static class RevokeLeadershipCall implements Runnable {
+
+		@Nonnull
+		private final LeaderContender contender;
+
+		RevokeLeadershipCall(@Nonnull LeaderContender contender) {
+			this.contender = contender;
+		}
+
+		@Override
+		public void run() {
+			contender.revokeLeadership();
 		}
 	}
 }
