@@ -29,6 +29,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 
 import java.util.Objects;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Serialization schema that serializes an object of Flink types into a JSON bytes.
  *
@@ -57,7 +60,9 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 	 * Creates a JSON serialization schema for the given type information.
 	 *
 	 * @param typeInfo The field names of {@link Row} are used to map to JSON properties.
+	 * @deprecated use {@link Builder} instead
 	 */
+	@Deprecated
 	public JsonRowSerializationSchema(TypeInformation<Row> typeInfo) {
 		this(typeInfo, new DefaultRuntimeSerializationConverterFactory());
 	}
@@ -67,7 +72,9 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 	 *
 	 * @param jsonSchema JSON schema describing the result type
 	 * @see <a href="http://json-schema.org/">http://json-schema.org/</a>
+	 * @deprecated use {@link Builder} instead
 	 */
+	@Deprecated
 	public JsonRowSerializationSchema(String jsonSchema) {
 		this(JsonRowSchemaConverter.convert(jsonSchema));
 	}
@@ -80,6 +87,53 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 		Preconditions.checkNotNull(converterFactory, "Did not provide converter factory.");
 		this.typeInfo = (RowTypeInfo) typeInfo;
 		this.runtimeConverter = converterFactory.getSerializationRuntimeConverter(this.typeInfo);
+	}
+
+	/**
+	 * Builder for {@link JsonRowSerializationSchema}.
+	 */
+	@PublicEvolving
+	public static class Builder {
+
+		private final RowTypeInfo typeInfo;
+		private RuntimeSerializationConverterFactory converterFactory;
+
+		/**
+		 * Creates a JSON serialization schema for the given type information.
+		 *
+		 * @param typeInfo Type information describing the result type. The field names of {@link Row}
+		 *                 are used to parse the JSON properties.
+		 */
+		public Builder(TypeInformation<Row> typeInfo) {
+			checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
+			this.typeInfo = (RowTypeInfo) typeInfo;
+		}
+
+		/**
+		 * Creates a JSON serialization schema for the given JSON schema.
+		 *
+		 * @param jsonSchema JSON schema describing the result type
+		 *
+		 * @see <a href="http://json-schema.org/">http://json-schema.org/</a>
+		 */
+		public Builder(String jsonSchema) {
+			this(JsonRowSchemaConverter.convert(checkNotNull(jsonSchema)));
+		}
+
+		/**
+		 * Configures schema to use runtime converter factory.
+		 */
+		public Builder useConverterFactory(RuntimeSerializationConverterFactory converterFactory) {
+			this.converterFactory = converterFactory;
+			return this;
+		}
+
+		public JsonRowSerializationSchema build() {
+			RuntimeSerializationConverterFactory factory =
+				converterFactory != null ? converterFactory : new DefaultRuntimeSerializationConverterFactory();
+
+			return new JsonRowSerializationSchema(typeInfo, factory);
+		}
 	}
 
 	@Override

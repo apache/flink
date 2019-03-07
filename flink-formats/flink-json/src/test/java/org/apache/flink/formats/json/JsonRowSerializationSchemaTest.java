@@ -51,8 +51,10 @@ public class JsonRowSerializationSchemaTest {
 		row.setField(1, true);
 		row.setField(2, "str");
 
-		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema(rowSchema);
-		final JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(rowSchema);
+		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema.Builder(rowSchema)
+			.build();
+		final JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema.Builder(rowSchema)
+			.build();
 
 		assertThat(row, whenSerializedWith(serializationSchema)
 			.andDeserializedWith(deserializationSchema)
@@ -70,8 +72,10 @@ public class JsonRowSerializationSchemaTest {
 		row1.setField(1, true);
 		row1.setField(2, "str");
 
-		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema(rowSchema);
-		final JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(rowSchema);
+		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema.Builder(rowSchema)
+			.build();
+		final JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema.Builder(rowSchema)
+			.build();
 
 		byte[] bytes = serializationSchema.serialize(row1);
 		assertEquals(row1, deserializationSchema.deserialize(bytes));
@@ -99,8 +103,10 @@ public class JsonRowSerializationSchemaTest {
 		nested.setField(1, 2.3);
 		row.setField(2, nested);
 
-		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema(rowSchema);
-		final JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(rowSchema);
+		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema.Builder(rowSchema)
+			.build();
+		final JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema.Builder(rowSchema)
+			.build();
 
 		assertThat(row, whenSerializedWith(serializationSchema)
 			.andDeserializedWith(deserializationSchema)
@@ -116,7 +122,8 @@ public class JsonRowSerializationSchemaTest {
 		final Row row = new Row(1);
 		row.setField(0, 1);
 
-		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema(rowSchema);
+		final JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema.Builder(rowSchema)
+			.build();
 		assertThat(row, whenSerializedWith(serializationSchema).failsWithException(instanceOf(RuntimeException.class)));
 	}
 

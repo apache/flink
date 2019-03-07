@@ -23,13 +23,15 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.Objects;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Deserialization schema from JSON to Flink types.
@@ -57,9 +59,11 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	 *
 	 * @param typeInfo Type information describing the result type. The field names of {@link Row}
 	 *                 are used to parse the JSON properties.
+	 * @deprecated use {@link Builder} instead
 	 */
+	@Deprecated
 	public JsonRowDeserializationSchema(TypeInformation<Row> typeInfo) {
-		this(typeInfo, new DefaultRuntimeDeserializationConverterFactory());
+		this(typeInfo, new DefaultRuntimeDeserializationConverterFactory(), false);
 	}
 
 	/**
@@ -68,19 +72,23 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	 * @param jsonSchema JSON schema describing the result type
 	 *
 	 * @see <a href="http://json-schema.org/">http://json-schema.org/</a>
+	 * @deprecated use {@link Builder} instead
 	 */
+	@Deprecated
 	public JsonRowDeserializationSchema(String jsonSchema) {
 		this(JsonRowSchemaConverter.convert(jsonSchema));
 	}
 
 	private JsonRowDeserializationSchema(
 			TypeInformation<Row> typeInfo,
-			RuntimeDeserializationConverterFactory converterFactory) {
-		Preconditions.checkNotNull(typeInfo, "Type information");
-		Preconditions.checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
-		Preconditions.checkNotNull(converterFactory, "Did not provide converter factory.");
+			RuntimeDeserializationConverterFactory converterFactory,
+			boolean failOnMissingField) {
+		checkNotNull(typeInfo, "Type information");
+		checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
+		checkNotNull(converterFactory, "Did not provide converter factory.");
 		this.typeInfo = (RowTypeInfo) typeInfo;
 		this.runtimeConverter = converterFactory.getDeserializationRuntimeConverter(this.typeInfo);
+		this.runtimeConverter.setFailOnMissingField(failOnMissingField);
 	}
 
 	@Override
@@ -104,12 +112,72 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	}
 
 	/**
+	 * Builder for {@link JsonRowDeserializationSchema}.
+	 */
+	@PublicEvolving
+	public static class Builder {
+
+		private final RowTypeInfo typeInfo;
+		private boolean failOnMissingField = false;
+		private RuntimeDeserializationConverterFactory converterFactory;
+
+		/**
+		 * Creates a JSON deserialization schema for the given type information.
+		 *
+		 * @param typeInfo Type information describing the result type. The field names of {@link Row}
+		 *                 are used to parse the JSON properties.
+		 */
+		public Builder(TypeInformation<Row> typeInfo) {
+			checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
+			this.typeInfo = (RowTypeInfo) typeInfo;
+		}
+
+		/**
+		 * Creates a JSON deserialization schema for the given JSON schema.
+		 *
+		 * @param jsonSchema JSON schema describing the result type
+		 *
+		 * @see <a href="http://json-schema.org/">http://json-schema.org/</a>
+		 */
+		public Builder(String jsonSchema) {
+			this(JsonRowSchemaConverter.convert(checkNotNull(jsonSchema)));
+		}
+
+		/**
+		 * Configures schema to fail if a JSON field is missing.
+		 *
+		 * <p>By default, a missing field is ignored and the field is set to null.
+		 */
+		public Builder failOnMissingField() {
+			this.failOnMissingField = true;
+			return this;
+		}
+
+		/**
+		 * Configures schema to use runtime converter factory.
+		 */
+		public Builder useConverterFactory(RuntimeDeserializationConverterFactory converterFactory) {
+			this.converterFactory = converterFactory;
+			return this;
+		}
+
+		public JsonRowDeserializationSchema build() {
+			RuntimeDeserializationConverterFactory factory =
+				converterFactory != null ? converterFactory : new DefaultRuntimeDeserializationConverterFactory();
+
+			return new JsonRowDeserializationSchema(typeInfo, factory, failOnMissingField);
+		}
+	}
+
+	/**
 	 * Configures the failure behaviour if a JSON field is missing.
 	 *
 	 * <p>By default, a missing field is ignored and the field is set to null.
 	 *
 	 * @param failOnMissingField Flag indicating whether to fail or not on a missing field.
+	 * @deprecated provide the flag during creating the format instead
 	 */
+	@Deprecated
 	public void setFailOnMissingField(boolean failOnMissingField) {
 		this.runtimeConverter.setFailOnMissingField(failOnMissingField);
 	}
