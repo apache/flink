@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -65,12 +66,15 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.function.FunctionUtils;
 
@@ -96,6 +100,9 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -129,6 +136,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 	@GuardedBy("lock")
 	private RpcService commonRpcService;
+
+	@GuardedBy("lock")
+	private ExecutorService ioExecutor;
 
 	@GuardedBy("lock")
 	private final Collection<RpcService> rpcServices;
@@ -288,7 +298,10 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					LOG);
 				metricRegistry.startQueryService(metricQueryServiceActorSystem, null);
 
-				haServices = createHighAvailabilityServices(configuration, commonRpcService.getExecutor());
+				ioExecutor = Executors.newFixedThreadPool(
+					Hardware.getNumberCPUCores(),
+					new ExecutorThreadFactory("mini-cluster-io"));
+				haServices = createHighAvailabilityServices(configuration, ioExecutor);
 
 				blobServer = new BlobServer(configuration, haServices.createBlobStore());
 				blobServer.start();
@@ -410,6 +423,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			if (running) {
 				LOG.info("Shutting down Flink Mini Cluster");
 				try {
+					final long shutdownTimeoutMillis = miniClusterConfiguration.getConfiguration().getLong(ClusterOptions.CLUSTER_SERVICES_SHUTDOWN_TIMEOUT);
 					final int numComponents = 2 + miniClusterConfiguration.getNumTaskManagers();
 					final Collection<CompletableFuture<Void>> componentTerminationFutures = new ArrayList<>(numComponents);
 
@@ -431,7 +445,11 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 						rpcServicesTerminationFuture,
 						this::terminateMiniClusterServices);
 
-						remainingServicesTerminationFuture.whenComplete(
+					final CompletableFuture<Void> executorsTerminationFuture = FutureUtils.runAfterwards(
+						remainingServicesTerminationFuture,
+						() -> terminateExecutors(shutdownTimeoutMillis));
+
+					executorsTerminationFuture.whenComplete(
 							(Void ignored, Throwable throwable) -> {
 								if (throwable != null) {
 									terminationFuture.completeExceptionally(ExceptionUtils.stripCompletionException(throwable));
@@ -839,6 +857,16 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			rpcServices.clear();
 
 			return FutureUtils.completeAll(rpcTerminationFutures);
+		}
+	}
+
+	private CompletableFuture<Void> terminateExecutors(long executorShutdownTimeoutMillis) {
+		synchronized (lock) {
+			if (ioExecutor != null) {
+				return ExecutorUtils.nonBlockingShutdown(executorShutdownTimeoutMillis, TimeUnit.MILLISECONDS, ioExecutor);
+			} else {
+				return CompletableFuture.completedFuture(null);
+			}
 		}
 	}
 
