@@ -18,11 +18,45 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.dataformat.BinaryRow
 import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
+
+import org.apache.calcite.rel.RelNode
+
+import scala.collection.JavaConversions._
 
 /**
   * Base class for batch physical relational expression.
   */
 trait BatchPhysicalRel extends FlinkPhysicalRel {
 
+}
+
+object BatchPhysicalRel {
+
+  private[flink] def binaryRowAverageSize(rel: RelNode): Double = {
+    val binaryType = FlinkTypeFactory.toInternalRowType(rel.getRowType)
+    // TODO reuse FlinkRelMetadataQuery here
+    val mq = rel.getCluster.getMetadataQuery
+    val columnSizes = mq.getAverageColumnSizes(rel)
+    var length = 0d
+    columnSizes.zip(binaryType.getFieldTypes).foreach {
+      case (columnSize, internalType) =>
+        if (BinaryRow.isFixedLength(internalType)) {
+          length += 8
+        } else {
+          if (columnSize == null) {
+            // find a better way of computing generic type field variable-length
+            // right now we use a small value assumption
+            length += 16
+          } else {
+            // the 8 bytes is used store the length and offset of variable-length part.
+            length += columnSize + 8
+          }
+        }
+    }
+    length += BinaryRow.calculateBitSetWidthInBytes(columnSizes.size())
+    length
+  }
 }

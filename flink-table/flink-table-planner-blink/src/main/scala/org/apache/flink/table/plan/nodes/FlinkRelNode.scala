@@ -115,3 +115,4 @@ object ExpressionFormat extends Enumeration {
   type ExpressionFormat = Value
   val Infix, PostFix, Prefix = Value
 }
+

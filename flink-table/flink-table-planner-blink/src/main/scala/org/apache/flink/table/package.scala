@@ -15,45 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink
 
-package org.apache.flink.table.type;
+package object table {
 
-/**
- * Sql date type.
- */
-public class DateType implements AtomicType {
+  type CalcitePair[T, R] = org.apache.calcite.util.Pair[T, R]
 
-	public static final DateType DATE = new DateType(0, "DateType");
-	public static final DateType INTERVAL_MONTHS = new DateType(1, "IntervalMonths");
-
-	private int id;
-	private String name;
-
-	private DateType(int id, String name) {
-		this.id = id;
-		this.name = name;
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		return id == ((DateType) o).id;
-	}
-
-	@Override
-	public int hashCode() {
-		int result = getClass().hashCode();
-		result = 31 * result + name.hashCode();
-		return result;
-	}
-
-	@Override
-	public String toString() {
-		return name;
-	}
 }

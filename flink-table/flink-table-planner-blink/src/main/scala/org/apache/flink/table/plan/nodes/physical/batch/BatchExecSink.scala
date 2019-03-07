@@ -16,44 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.type;
+package org.apache.flink.table.plan.nodes.physical.batch
+
+import org.apache.flink.table.plan.nodes.calcite.Sink
+import org.apache.flink.table.sinks.TableSink
+
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.RelNode
+
+import java.util
 
 /**
- * Sql date type.
- */
-public class DateType implements AtomicType {
+  * Batch physical RelNode to to write data into an external sink defined by a [[TableSink]].
+  */
+class BatchExecSink[T](
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    input: RelNode,
+    sink: TableSink[T],
+    sinkName: String)
+  extends Sink(cluster, traitSet, input, sink, sinkName)
+  with BatchPhysicalRel {
 
-	public static final DateType DATE = new DateType(0, "DateType");
-	public static final DateType INTERVAL_MONTHS = new DateType(1, "IntervalMonths");
+  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
+    new BatchExecSink(cluster, traitSet, inputs.get(0), sink, sinkName)
+  }
 
-	private int id;
-	private String name;
-
-	private DateType(int id, String name) {
-		this.id = id;
-		this.name = name;
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		return id == ((DateType) o).id;
-	}
-
-	@Override
-	public int hashCode() {
-		int result = getClass().hashCode();
-		result = 31 * result + name.hashCode();
-		return result;
-	}
-
-	@Override
-	public String toString() {
-		return name;
-	}
 }

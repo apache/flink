@@ -45,13 +45,17 @@ public class InternalTypes {
 
 	public static final ArrayType BINARY = new ArrayType(BYTE);
 
-	public static final DateType DATE = DateType.INSTANCE;
+	public static final DateType DATE = DateType.DATE;
 
-	public static final TimestampType TIMESTAMP = TimestampType.INSTANCE;
+	public static final TimestampType TIMESTAMP = TimestampType.TIMESTAMP;
 
 	public static final TimeType TIME = TimeType.INSTANCE;
 
 	public static final DecimalType SYSTEM_DEFAULT_DECIMAL = DecimalType.SYSTEM_DEFAULT;
+
+	public static final DateType INTERVAL_MONTHS = DateType.INTERVAL_MONTHS;
+
+	public static final TimestampType INTERVAL_MILLIS = TimestampType.INTERVAL_MILLIS;
 
 	public static final TimestampType ROWTIME_INDICATOR = TimestampType.ROWTIME_INDICATOR;
 
