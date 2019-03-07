@@ -236,16 +236,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	}
 
 	@Override
-	public void registerInfoMessageListener(String infoMessageListenerAddress) {
-
-	}
-
-	@Override
-	public void unRegisterInfoMessageListener(String infoMessageListenerAddress) {
-
-	}
-
-	@Override
 	public CompletableFuture<Acknowledge> deregisterApplication(ApplicationStatus finalStatus, String diagnostics) {
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}

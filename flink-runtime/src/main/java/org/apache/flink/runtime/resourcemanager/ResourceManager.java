@@ -24,7 +24,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
@@ -79,8 +78,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
@@ -142,9 +139,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	/** The service to elect a ResourceManager leader. */
 	private LeaderElectionService leaderElectionService;
 
-	/** All registered listeners for status updates of the ResourceManager. */
-	private ConcurrentMap<String, InfoMessageListenerRpcGateway> infoMessageListeners;
-
 	/**
 	 * Represents asynchronous state clearing work.
 	 *
@@ -192,7 +186,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		this.jobManagerRegistrations = new HashMap<>(4);
 		this.jmResourceIdRegistrations = new HashMap<>(4);
 		this.taskExecutors = new HashMap<>(8);
-		infoMessageListeners = new ConcurrentHashMap<>(8);
 	}
 
 
@@ -488,43 +481,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			log.debug("Could not find registration for resource id {}. Discarding the slot available" +
 				"message {}.", resourceId, slotId);
 		}
-	}
-
-	/**
-	 * Registers an info message listener.
-	 *
-	 * @param address address of infoMessage listener to register to this resource manager
-	 */
-	@Override
-	public void registerInfoMessageListener(final String address) {
-		if (infoMessageListeners.containsKey(address)) {
-			log.warn("Receive a duplicate registration from info message listener on ({})", address);
-		} else {
-			CompletableFuture<InfoMessageListenerRpcGateway> infoMessageListenerRpcGatewayFuture = getRpcService()
-				.connect(address, InfoMessageListenerRpcGateway.class);
-
-			infoMessageListenerRpcGatewayFuture.whenCompleteAsync(
-				(InfoMessageListenerRpcGateway gateway, Throwable failure) -> {
-					if (failure != null) {
-						log.warn("Receive a registration from unreachable info message listener on ({})", address);
-					} else {
-						log.info("Receive a registration from info message listener on ({})", address);
-						infoMessageListeners.put(address, gateway);
-					}
-				},
-				getMainThreadExecutor());
-		}
-	}
-
-	/**
-	 * Unregisters an info message listener.
-	 *
-	 * @param address of the  info message listener to unregister from this resource manager
-	 *
-	 */
-	@Override
-	public void unRegisterInfoMessageListener(final String address) {
-		infoMessageListeners.remove(address);
 	}
 
 	/**
@@ -902,23 +858,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			// unregister in order to clean up potential left over state
 			slotManager.unregisterTaskManager(instanceId);
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Info messaging
-	// ------------------------------------------------------------------------
-
-	public void sendInfoMessage(final String message) {
-		getRpcService().execute(new Runnable() {
-			@Override
-			public void run() {
-				InfoMessage infoMessage = new InfoMessage(message);
-				for (InfoMessageListenerRpcGateway listenerRpcGateway : infoMessageListeners.values()) {
-					listenerRpcGateway
-						.notifyInfoMessage(infoMessage);
-				}
-			}
-		});
 	}
 
 	// ------------------------------------------------------------------------
