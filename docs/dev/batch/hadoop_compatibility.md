@@ -192,7 +192,7 @@ The following example shows how to use Hadoop `Mapper` and `Reducer` functions.
 
 {% highlight java %}
 // Obtain data to process somehow.
-DataSet<Tuple2<Text, LongWritable>> text = [...]
+DataSet<Tuple2<LongWritable, Text>> text = [...]
 
 DataSet<Tuple2<Text, LongWritable>> result = text
   // use Hadoop Mapper (Tokenizer) as MapFunction
@@ -238,9 +238,9 @@ DataSet<Tuple2<Text, LongWritable>> result = text
   ));
 
 // Set up the Hadoop TextOutputFormat.
-HadoopOutputFormat<Text, IntWritable> hadoopOF =
-  new HadoopOutputFormat<Text, IntWritable>(
-    new TextOutputFormat<Text, IntWritable>(), job
+HadoopOutputFormat<Text, LongWritable> hadoopOF =
+  new HadoopOutputFormat<Text, LongWritable>(
+    new TextOutputFormat<Text, LongWritable>(), job
   );
 hadoopOF.getConfiguration().set("mapreduce.output.textoutputformat.separator", " ");
 TextOutputFormat.setOutputPath(job, new Path(outputPath));
