@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 
 import com.google.common.collect.ImmutableList
@@ -80,11 +81,16 @@ object FlinkLogicalValues {
       rowType: RelDataType,
       tuples: ImmutableList[ImmutableList[RexLiteral]]): FlinkLogicalValues = {
     val mq = cluster.getMetadataQuery
-    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).replaceIfs(
+    val traitSet = cluster.traitSetOf(Convention.NONE).replaceIfs(
       RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
         def get: util.List[RelCollation] = RelMdCollation.values(mq, rowType, tuples)
-      }).simplify()
-    new FlinkLogicalValues(cluster, traitSet, rowType, tuples)
+      })
+    //FIXME: FlinkRelMdDistribution requires the current RelNode to compute
+    // the distribution trait, so we have to create a temporary FlinkLogicalValues node
+    // to calculate the distribution trait
+    val values = new FlinkLogicalValues(cluster, traitSet, rowType, tuples)
+    val newTraitSet = FlinkRelMetadataQuery.traitSet(values)
+      .replace(FlinkConventions.LOGICAL).simplify()
+    values.copy(newTraitSet, values.getInputs).asInstanceOf[FlinkLogicalValues]
   }
-
 }

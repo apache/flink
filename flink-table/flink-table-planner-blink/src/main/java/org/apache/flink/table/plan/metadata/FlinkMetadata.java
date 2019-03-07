@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.metadata;
 
 import org.apache.flink.table.plan.stats.ValueInterval;
+import org.apache.flink.table.plan.trait.FlinkRelDistribution;
 
 import org.apache.calcite.linq4j.tree.Types;
 import org.apache.calcite.rel.RelNode;
@@ -62,6 +63,36 @@ public abstract class FlinkMetadata {
 		 */
 		interface Handler extends MetadataHandler<ColumnInterval> {
 			ValueInterval getColumnInterval(RelNode r, RelMetadataQuery mq, int index);
+		}
+	}
+
+	/**
+	 * Metadata about how a relational expression is distributed.
+	 *
+	 * <p>If you are an operator consuming a relational expression, which subset
+	 * of the rows are you seeing? You might be seeing all of them (BROADCAST
+	 * or SINGLETON), only those whose key column values have a particular hash
+	 * code (HASH) or only those whose column values have particular values or
+	 * ranges of values (RANGE).
+	 *
+	 * <p>When a relational expression is partitioned, it is often partitioned
+	 * among nodes, but it may be partitioned among threads running on the same
+	 * node.
+	 */
+	public interface FlinkDistribution extends Metadata {
+		Method METHOD = Types.lookupMethod(FlinkDistribution.class, "flinkDistribution");
+
+		MetadataDef<FlinkDistribution> DEF = MetadataDef.of(
+				FlinkDistribution.class,
+				FlinkDistribution.Handler.class,
+				METHOD);
+
+		/** Determines how the rows are distributed. */
+		FlinkRelDistribution flinkDistribution();
+
+		/** Handler API. */
+		interface Handler extends MetadataHandler<FlinkDistribution> {
+			FlinkRelDistribution flinkDistribution(RelNode r, RelMetadataQuery mq);
 		}
 	}
 

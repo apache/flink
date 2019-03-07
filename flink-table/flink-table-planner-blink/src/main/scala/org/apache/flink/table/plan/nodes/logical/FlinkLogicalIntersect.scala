@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 
 import org.apache.calcite.plan._
@@ -83,7 +84,13 @@ object FlinkLogicalIntersect {
       inputs: util.List[RelNode],
       all: Boolean): FlinkLogicalIntersect = {
     val cluster = inputs.get(0).getCluster
-    val traitSet = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalIntersect(cluster, traitSet, inputs, all)
+    val traitSet = cluster.traitSetOf(Convention.NONE)
+    //FIXME: FlinkRelMdDistribution requires the current RelNode to compute
+    // the distribution trait, so we have to create a temporary FlinkLogicalIntersect node
+    // to calculate the distribution trait
+    val intersect = new FlinkLogicalIntersect(cluster, traitSet, inputs, all)
+    val newTraitSet = FlinkRelMetadataQuery.traitSet(intersect)
+      .replace(FlinkConventions.LOGICAL).simplify()
+    intersect.copy(newTraitSet, intersect.getInputs).asInstanceOf[FlinkLogicalIntersect]
   }
 }

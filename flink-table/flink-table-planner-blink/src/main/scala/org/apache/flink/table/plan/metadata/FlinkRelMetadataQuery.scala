@@ -18,11 +18,15 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.plan.metadata.FlinkMetadata.ColumnInterval
+import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
+import org.apache.flink.table.plan.metadata.FlinkMetadata.{ColumnInterval, FlinkDistribution}
 import org.apache.flink.table.plan.stats.ValueInterval
 
+import org.apache.calcite.plan.RelTraitSet
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
+
+import java.util.function.Supplier
 
 /**
   * RelMetadataQuery provides a strongly-typed facade on top of
@@ -38,10 +42,12 @@ class FlinkRelMetadataQuery private(
     prototype: RelMetadataQuery) extends RelMetadataQuery(metadataProvider, prototype) {
 
   private[this] var columnIntervalHandler: ColumnInterval.Handler = _
+  private[this] var distributionHandler: FlinkDistribution.Handler = _
 
   private def this() {
     this(RelMetadataQuery.THREAD_PROVIDERS.get, RelMetadataQuery.EMPTY)
     this.columnIntervalHandler = RelMetadataQuery.initialHandler(classOf[ColumnInterval.Handler])
+    this.distributionHandler = RelMetadataQuery.initialHandler(classOf[FlinkDistribution.Handler])
   }
 
   /**
@@ -64,11 +70,37 @@ class FlinkRelMetadataQuery private(
     }
   }
 
+  /**
+    * Returns the [[FlinkRelDistribution]] statistic.
+    *
+    * @param rel the relational expression
+    * @return description of how the rows in the relational expression are
+    *         physically distributed
+    */
+  def flinkDistribution(rel: RelNode): FlinkRelDistribution = {
+    try {
+      distributionHandler.flinkDistribution(rel, this)
+    } catch {
+      case e: JaninoRelMetadataProvider.NoHandler =>
+        distributionHandler = revise(e.relClass, FlinkMetadata.FlinkDistribution.DEF)
+        flinkDistribution(rel)
+    }
+  }
+
 }
 
 object FlinkRelMetadataQuery {
 
   def instance(): FlinkRelMetadataQuery = new FlinkRelMetadataQuery()
+
+  def traitSet(rel: RelNode): RelTraitSet = {
+    rel.getTraitSet.replaceIf(
+      FlinkRelDistributionTraitDef.INSTANCE, new Supplier[FlinkRelDistribution]() {
+        def get: FlinkRelDistribution = {
+          reuseOrCreate(rel.getCluster.getMetadataQuery).flinkDistribution(rel)
+        }
+      })
+  }
 
   /**
     * Reuse input metadataQuery instance if it could cast to FlinkRelMetadataQuery class,

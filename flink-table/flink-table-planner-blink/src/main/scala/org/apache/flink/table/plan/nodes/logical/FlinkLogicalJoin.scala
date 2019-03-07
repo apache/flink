@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 
 import org.apache.calcite.plan._
@@ -94,10 +95,22 @@ object FlinkLogicalJoin {
   def create(
       left: RelNode,
       right: RelNode,
-      condition: RexNode,
+      conditionExpr: RexNode,
       joinType: JoinRelType): FlinkLogicalJoin = {
     val cluster = left.getCluster
-    val traitSet = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalJoin(cluster, traitSet, left, right, condition, joinType)
+    val traitSet = cluster.traitSetOf(Convention.NONE)
+    //FIXME: FlinkRelMdDistribution requires the current RelNode to compute
+    // the distribution trait, so we have to create a temporary FlinkLogicalJoin node
+    // to calculate the distribution trait
+    val join = new FlinkLogicalJoin(
+      cluster,
+      traitSet,
+      left,
+      right,
+      conditionExpr,
+      joinType)
+    val newTraitSet = FlinkRelMetadataQuery.traitSet(join)
+      .replace(FlinkConventions.LOGICAL).simplify()
+    join.copy(newTraitSet, join.getInputs).asInstanceOf[FlinkLogicalJoin]
   }
 }

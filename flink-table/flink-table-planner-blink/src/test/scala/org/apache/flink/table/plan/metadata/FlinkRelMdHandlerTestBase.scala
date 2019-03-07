@@ -18,26 +18,28 @@
 
 package org.apache.flink.table.plan.metadata
 
+import org.apache.flink.table.`type`.InternalType
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.{FlinkCalciteCatalogReader, FlinkRelBuilder, FlinkTypeFactory}
-import org.apache.flink.table.plan.cost.FlinkCostFactory
+import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.nodes.logical.FlinkLogicalDataStreamTableScan
+import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalDataStreamTableScan}
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecBoundedStreamScan
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecDataStreamScan
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{Convention, ConventionTraitDef, RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
-import org.apache.calcite.rel.logical.LogicalTableScan
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
-import org.apache.calcite.rel.{RelCollationTraitDef, RelDistributionTraitDef, RelNode, SingleRel}
-import org.apache.calcite.rex.RexBuilder
+import org.apache.calcite.rel.{RelCollationTraitDef, RelNode, SingleRel}
+import org.apache.calcite.rex.{RexBuilder, RexNode, RexProgram, RexUtil}
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.tools.FrameworkConfig
 import org.junit.{Before, BeforeClass}
 
-import java.util.{List => JList}
+import java.util
 
 class FlinkRelMdHandlerTestBase {
 
@@ -64,7 +66,7 @@ class FlinkRelMdHandlerTestBase {
       typeFactory,
       Array(
         ConventionTraitDef.INSTANCE,
-        RelDistributionTraitDef.INSTANCE,
+        FlinkRelDistributionTraitDef.INSTANCE,
         RelCollationTraitDef.INSTANCE
       )
     )
@@ -105,7 +107,7 @@ class FlinkRelMdHandlerTestBase {
     createDataStreamScan(ImmutableList.of("emp"), streamPhysicalTraits)
 
   protected def createDataStreamScan[T](
-      tableNames: JList[String], traitSet: RelTraitSet): T = {
+      tableNames: util.List[String], traitSet: RelTraitSet): T = {
     val table = catalogReader.getTable(tableNames).asInstanceOf[FlinkRelOptTable]
     val conventionTrait = traitSet.getTrait(ConventionTraitDef.INSTANCE)
     val scan = conventionTrait match {
@@ -121,6 +123,33 @@ class FlinkRelMdHandlerTestBase {
       case _ => throw new TableException(s"Unsupported convention trait: $conventionTrait")
     }
     scan.asInstanceOf[T]
+  }
+
+  protected def createLogicalCalc(
+      input: RelNode,
+      outputRowType: RelDataType,
+      projects: util.List[RexNode],
+      conditions: util.List[RexNode]): Calc = {
+    val predicate = RexUtil.composeConjunction(rexBuilder, conditions, true)
+    val program = RexProgram.create(
+      input.getRowType,
+      projects,
+      predicate,
+      outputRowType,
+      rexBuilder)
+    FlinkLogicalCalc.create(input, program)
+  }
+
+  protected def makeLiteral(
+      value: Any,
+      internalType: InternalType,
+      isNullable: Boolean = false,
+      allowCast: Boolean = true): RexNode = {
+    rexBuilder.makeLiteral(
+      value,
+      typeFactory.createTypeFromInternalType(internalType, isNullable),
+      allowCast
+    )
   }
 }
 

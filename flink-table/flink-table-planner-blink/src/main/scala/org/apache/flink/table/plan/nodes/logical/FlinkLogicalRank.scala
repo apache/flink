@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.plan.nodes.logical
 
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.calcite.{LogicalRank, Rank}
 import org.apache.flink.table.plan.util.RelExplainUtil
@@ -115,16 +116,14 @@ object FlinkLogicalRank {
       rankNumberType: RelDataTypeField,
       outputRankNumber: Boolean): FlinkLogicalRank = {
     val cluster = input.getCluster
-    val traits = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalRank(
-      cluster,
-      traits,
-      input,
-      partitionKey,
-      orderKey,
-      rankType,
-      rankRange,
-      rankNumberType,
-      outputRankNumber)
+    val traits = cluster.traitSetOf(Convention.NONE)
+    //FIXME: FlinkRelMdDistribution requires the current RelNode to compute
+    // the distribution trait, so we have to create a temporary FlinkLogicalRank node
+    // to calculate the distribution trait.
+    val rank = new FlinkLogicalRank(cluster, traits, input, partitionKey,
+      orderKey, rankType, rankRange, rankNumberType, outputRankNumber)
+    val newTraitSet = FlinkRelMetadataQuery.traitSet(rank)
+      .replace(FlinkConventions.LOGICAL).simplify()
+    rank.copy(newTraitSet, rank.getInputs).asInstanceOf[FlinkLogicalRank]
   }
 }

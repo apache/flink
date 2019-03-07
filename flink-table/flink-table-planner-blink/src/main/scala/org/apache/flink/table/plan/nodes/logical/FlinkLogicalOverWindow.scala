@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 
 import org.apache.calcite.plan._
@@ -70,7 +71,7 @@ class FlinkLogicalOverWindowConverter
   override def convert(rel: RelNode): RelNode = {
     val window = rel.asInstanceOf[LogicalWindow]
     val cluster = rel.getCluster
-    val traitSet = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
+    val traitSet = FlinkRelMetadataQuery.traitSet(rel).replace(FlinkConventions.LOGICAL).simplify()
     val newInput = RelOptRule.convert(window.getInput, FlinkConventions.LOGICAL)
 
     window.groups.foreach { group =>

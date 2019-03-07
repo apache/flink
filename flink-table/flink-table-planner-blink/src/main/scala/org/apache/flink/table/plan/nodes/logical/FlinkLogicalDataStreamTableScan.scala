@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.schema.DataStreamTable
 
@@ -83,9 +84,7 @@ object FlinkLogicalDataStreamTableScan {
     dataStreamTable != null
   }
 
-  def create(
-      cluster: RelOptCluster,
-      relOptTable: RelOptTable): FlinkLogicalDataStreamTableScan = {
+  def create(cluster: RelOptCluster, relOptTable: RelOptTable): FlinkLogicalDataStreamTableScan = {
     val table = relOptTable.unwrap(classOf[Table])
     val traitSet = cluster.traitSetOf(Convention.NONE).replaceIfs(
       RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
@@ -97,7 +96,12 @@ object FlinkLogicalDataStreamTableScan {
           }
         }
       })
-    val newTraitSet = traitSet.replace(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalDataStreamTableScan(cluster, newTraitSet, relOptTable)
+    //FIXME: FlinkRelMdDistribution requires the current RelNode to compute
+    // the distribution trait, so we have to create a temporary FlinkLogicalDataStreamTableScan node
+    // to calculate the distribution trait
+    val scan = new FlinkLogicalDataStreamTableScan(cluster, traitSet, relOptTable)
+    val newTraitSet = FlinkRelMetadataQuery.traitSet(scan)
+      .replace(FlinkConventions.LOGICAL).simplify()
+    scan.copy(newTraitSet, scan.getInputs).asInstanceOf[FlinkLogicalDataStreamTableScan]
   }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
+import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 
 import org.apache.calcite.plan._
@@ -81,7 +82,13 @@ object FlinkLogicalMinus {
 
   def create(inputs: JList[RelNode], all: Boolean): FlinkLogicalMinus = {
     val cluster = inputs.get(0).getCluster
-    val traitSet = cluster.traitSet().replace(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalMinus(cluster, traitSet, inputs, all)
+    val traitSet = cluster.traitSetOf(Convention.NONE)
+    //FIXME: FlinkRelMdDistribution requires the current RelNode to compute
+    // the distribution trait, so we have to create a temporary FlinkLogicalMinus node to
+    // calculate the distribution trait
+    val minus = new FlinkLogicalMinus(cluster, traitSet, inputs, all)
+    val newTraitSet = FlinkRelMetadataQuery.traitSet(minus)
+      .replace(FlinkConventions.LOGICAL).simplify()
+    minus.copy(newTraitSet, minus.getInputs).asInstanceOf[FlinkLogicalMinus]
   }
 }
