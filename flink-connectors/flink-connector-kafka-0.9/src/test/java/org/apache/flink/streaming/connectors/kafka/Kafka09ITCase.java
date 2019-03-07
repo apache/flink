@@ -217,7 +217,7 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 		env.getConfig().disableSysoutLogging();
 
 		// ---------- RateLimiter config -------------
-		long globalRate = 3; // bytes/second
+		long globalRate = 10; // bytes/second
 		FlinkKafkaConsumer09<String> consumer09 = new FlinkKafkaConsumer09<>(testTopic,
 			new StringDeserializer(globalRate), standardProps);
 		FlinkConnectorRateLimiter rateLimiter = new GuavaFlinkConnectorRateLimiter();
