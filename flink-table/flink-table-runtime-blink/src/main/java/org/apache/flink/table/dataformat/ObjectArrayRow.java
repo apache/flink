@@ -85,7 +85,7 @@ public abstract class ObjectArrayRow implements BaseRow {
 	}
 
 	@Override
-	public BinaryGeneric getGeneric(int ordinal) {
+	public <T> BinaryGeneric<T> getGeneric(int ordinal) {
 		return (BinaryGeneric) this.fields[ordinal];
 	}
 

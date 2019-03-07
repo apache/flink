@@ -53,7 +53,7 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 
 	public static final boolean LITTLE_ENDIAN = (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN);
 	private static final long FIRST_BYTE_ZERO = LITTLE_ENDIAN ? 0xFFF0 : 0x0FFF;
-	private static final int HEADER_SIZE_IN_BITS = 8;
+	public static final int HEADER_SIZE_IN_BITS = 8;
 
 	public static int calculateBitSetWidthInBytes(int arity) {
 		return ((arity + 63 + HEADER_SIZE_IN_BITS) / 64) * 8;
@@ -284,7 +284,7 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 	}
 
 	@Override
-	public BinaryGeneric getGeneric(int pos) {
+	public <T> BinaryGeneric<T> getGeneric(int pos) {
 		assertIndexIsValid(pos);
 		return BinaryGeneric.readBinaryGenericFieldFromSegments(segments, offset, getLong(pos));
 	}

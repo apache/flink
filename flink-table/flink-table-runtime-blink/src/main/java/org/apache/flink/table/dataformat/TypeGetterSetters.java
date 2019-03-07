@@ -102,7 +102,7 @@ public interface TypeGetterSetters {
 	/**
 	 * Get generic value, internal format is BinaryGeneric.
 	 */
-	BinaryGeneric getGeneric(int ordinal);
+	<T> BinaryGeneric<T> getGeneric(int ordinal);
 
 	/**
 	 * Get array value, internal format is BinaryArray.

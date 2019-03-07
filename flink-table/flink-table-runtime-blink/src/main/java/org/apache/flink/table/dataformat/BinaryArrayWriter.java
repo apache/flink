@@ -56,7 +56,8 @@ public class BinaryArrayWriter extends AbstractBinaryWriter {
 		this.segment.putInt(0, numElements);
 	}
 
-	private void setNullBit(int ordinal) {
+	@Override
+	public void setNullBit(int ordinal) {
 		SegmentsUtil.bitSet(segment, 4, ordinal);
 	}
 
@@ -194,42 +195,6 @@ public class BinaryArrayWriter extends AbstractBinaryWriter {
 	@Override
 	public void writeChar(int pos, char value) {
 		segment.putChar(getElementOffset(pos, 2), value);
-	}
-
-	@Override
-	public void writeDecimal(int pos, Decimal value, int precision) {
-		assert value == null || (value.getPrecision() == precision);
-
-		if (Decimal.isCompact(precision)) {
-			assert value != null;
-			writeLong(pos, value.toUnscaledLong());
-		} else {
-			// grow the global buffer before writing data.
-			ensureCapacity(16);
-
-			// zero-out the bytes
-			segment.putLong(cursor, 0L);
-			segment.putLong(cursor + 8, 0L);
-
-			// Make sure Decimal object has the same scale as DecimalType.
-			// Note that we may pass in null Decimal object to set null for it.
-			if (value == null) {
-				// need add header 8 bit.
-				setNullBit(pos);
-				// keep the offset for future update
-				setOffsetAndSize(pos, cursor, 0);
-			} else {
-				final byte[] bytes = value.toUnscaledBytes();
-				assert bytes.length <= 16;
-
-				// Write the bytes to the variable length portion.
-				segment.put(cursor, bytes, 0, bytes.length);
-				setOffsetAndSize(pos, cursor, bytes.length);
-			}
-
-			// move the cursor forward.
-			cursor += 16;
-		}
 	}
 
 	@Override

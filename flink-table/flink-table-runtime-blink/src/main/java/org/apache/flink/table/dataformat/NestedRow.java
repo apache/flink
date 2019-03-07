@@ -251,7 +251,7 @@ public final class NestedRow extends BinaryFormat implements BaseRow {
 	}
 
 	@Override
-	public BinaryGeneric getGeneric(int pos) {
+	public <T> BinaryGeneric<T> getGeneric(int pos) {
 		assertIndexIsValid(pos);
 		return BinaryGeneric.readBinaryGenericFieldFromSegments(segments, offset, getLong(pos));
 	}

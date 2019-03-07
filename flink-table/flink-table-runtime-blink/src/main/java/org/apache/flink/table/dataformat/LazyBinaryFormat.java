@@ -21,6 +21,21 @@ import org.apache.flink.core.memory.MemorySegment;
 
 /**
  * Lazy binary format.
+ *
+ * <p>If the Binary format is used in all the SQL representations, consider the following Case:
+ *   udf0(input) -> udf1(result0) -> udf2(result1) ->udf3 (result2)
+ * Such nested calls, if udf's return values are JavaObject format, will result in multiple
+ * conversions if store local variables in Binary format:
+ *   converterToBinary(Udf0(converterToJavaObject(input))) ->
+ *         converterToBinary(Udf1(converterToJavaObject(result0))) .....
+ *
+ * <p>So we introduced Lazy Binary Format to avoid this situation, Lazy Binary Format has three
+ * forms:
+ *   1. Binary form
+ *   2. JavaObject form
+ *   3. Binary and JavaObject coexist
+ * It can lazy the conversions as much as possible. Only when it is needed can it be converted
+ * into the required form.
  */
 public abstract class LazyBinaryFormat<T> extends BinaryFormat {
 
@@ -34,7 +49,7 @@ public abstract class LazyBinaryFormat<T> extends BinaryFormat {
 	}
 
 	public LazyBinaryFormat(MemorySegment[] segments, int offset, int sizeInBytes) {
-		super(segments, offset, sizeInBytes);
+		this(segments, offset, sizeInBytes, null);
 	}
 
 	public T getJavaObject() {
@@ -44,4 +59,7 @@ public abstract class LazyBinaryFormat<T> extends BinaryFormat {
 	public void setJavaObject(T javaObject) {
 		this.javaObject = javaObject;
 	}
+
+	// method ensureMaterialized to ensure it have binary forms.
+	// method ensureJavaObject to ensure javaObject is not null.
 }

@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.table.type.InternalTypes;
+import org.apache.flink.table.typeutils.BaseRowSerializer;
 import org.apache.flink.table.util.SegmentsUtil;
 
 import org.junit.Test;
@@ -432,12 +435,15 @@ public class BinaryArrayTest {
 
 	@Test
 	public void testDecimal() {
+
+		BinaryArray array = new BinaryArray();
+		BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
+
 		// 1.compact
 		{
 			int precision = 4;
 			int scale = 2;
-			BinaryArray array = new BinaryArray();
-			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
+			writer.reset();
 			writer.writeDecimal(0, Decimal.fromLong(5, precision, scale), precision);
 			writer.setNullAt(1);
 			writer.complete();
@@ -455,10 +461,9 @@ public class BinaryArrayTest {
 			Decimal decimal1 = Decimal.fromBigDecimal(BigDecimal.valueOf(5.55), precision, scale);
 			Decimal decimal2 = Decimal.fromBigDecimal(BigDecimal.valueOf(6.55), precision, scale);
 
-			BinaryArray array = new BinaryArray();
-			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
+			writer.reset();
 			writer.writeDecimal(0, decimal1, precision);
-			writer.setNullAt(1);
+			writer.writeDecimal(1, null, precision);
 			writer.complete();
 
 			assertEquals("5.55000", array.getDecimal(0, precision, scale).toString());
@@ -479,6 +484,22 @@ public class BinaryArrayTest {
 		BinaryGeneric generic = array.getGeneric(0);
 		generic.ensureJavaObject(StringSerializer.INSTANCE);
 		assertEquals("hahah", generic.getJavaObject());
+		assertTrue(array.isNullAt(1));
+	}
+
+	@Test
+	public void testNested() {
+		BinaryArray array = new BinaryArray();
+		BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
+		BaseRowSerializer nestedSer = new BaseRowSerializer(
+				new ExecutionConfig(), InternalTypes.STRING, InternalTypes.INT);
+		writer.writeRow(0, GenericRow.of(fromString("1"), 1), nestedSer);
+		writer.setNullAt(1);
+		writer.complete();
+
+		BaseRow nestedRow = array.getRow(0, 2);
+		assertEquals("1", nestedRow.getString(0).toString());
+		assertEquals(1, nestedRow.getInt(1));
 		assertTrue(array.isNullAt(1));
 	}
 }

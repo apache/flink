@@ -931,7 +931,7 @@ public class SegmentsUtil {
 	}
 
 	/**
-	 * Serialize segments to output view with offset and size.
+	 * Copy bytes of segments to output view.
 	 * Note: It just copies the data in, not include the length.
 	 *
 	 * @param segments source segments
@@ -939,7 +939,7 @@ public class SegmentsUtil {
 	 * @param sizeInBytes size in bytes
 	 * @param target target output view
 	 */
-	public static void serializeToView(MemorySegment[] segments, int offset,
+	public static void copyBytesToView(MemorySegment[] segments, int offset,
 			int sizeInBytes, DataOutputView target) throws IOException {
 		for (MemorySegment sourceSegment : segments) {
 			int curSegRemain = sourceSegment.size() - offset;

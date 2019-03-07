@@ -86,6 +86,16 @@ public class InternalTypeTest {
 		testConvertCompare(new GenericTypeInfo<>(MyPojo.class), new GenericType<>(MyPojo.class));
 	}
 
+	@Test
+	public void testDecimalInferType() {
+		Assert.assertEquals(DecimalType.of(20, 13), DecimalType.inferDivisionType(5, 2, 10, 4));
+		Assert.assertEquals(DecimalType.of(7, 0), DecimalType.inferIntDivType(5, 2, 4));
+		Assert.assertEquals(DecimalType.of(38, 5), DecimalType.inferAggSumType(5));
+		Assert.assertEquals(DecimalType.of(38, 6), DecimalType.inferAggAvgType(5));
+		Assert.assertEquals(DecimalType.of(8, 2), DecimalType.inferRoundType(10, 5, 2));
+		Assert.assertEquals(DecimalType.of(8, 2), DecimalType.inferRoundType(10, 5, 2));
+	}
+
 	private void testConvertToRowType(CompositeType typeInfo) {
 		RowType rowType = (RowType) createInternalTypeFromTypeInfo(typeInfo);
 		Assert.assertArrayEquals(

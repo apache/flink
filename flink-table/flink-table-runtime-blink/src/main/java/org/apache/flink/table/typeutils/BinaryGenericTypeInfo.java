@@ -83,7 +83,7 @@ public class BinaryGenericTypeInfo<T> extends TypeInformation<BinaryGeneric<T>> 
 			BinaryGenericTypeInfo typeInfo = (BinaryGenericTypeInfo) obj;
 
 			return typeInfo.canEqual(this) &&
-					typeInfo.equals(typeInfo.type);
+					type.equals(typeInfo.type);
 		} else {
 			return false;
 		}

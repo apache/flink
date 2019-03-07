@@ -78,7 +78,7 @@ public class BinaryRowSerializer extends TypeSerializer<BinaryRow> {
 	@Override
 	public void serialize(BinaryRow record, DataOutputView target) throws IOException {
 		target.writeInt(record.getSizeInBytes());
-		SegmentsUtil.serializeToView(record.getSegments(), record.getOffset(), record.getSizeInBytes(), target);
+		SegmentsUtil.copyBytesToView(record.getSegments(), record.getOffset(), record.getSizeInBytes(), target);
 	}
 
 	@Override

@@ -18,9 +18,6 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.table.type.DecimalType;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
 import org.apache.flink.table.util.SegmentsUtil;
 
 import java.math.BigDecimal;
@@ -40,8 +37,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * - Otherwise, the decimal value is longVal / (10 ** scale).
  */
 public final class Decimal implements Comparable<Decimal> {
-
-	public static final int MAX_PS = 38;
 
 	private static final MathContext MC_DIVIDE = new MathContext(38, RoundingMode.HALF_UP);
 
@@ -131,17 +126,18 @@ public final class Decimal implements Comparable<Decimal> {
 		return toBigDecimal().toPlainString();
 	}
 
+	/**
+	 * Returns the signum function of this decimal.  (The return value is -1 if this decimal
+	 * is negative; 0 if this decimal is zero; and 1 if this decimal is positive.)
+	 *
+	 * @return the signum function of this decimal.
+	 */
 	public int signum() {
 		if (isCompact()) {
 			return Long.signum(longVal);
 		} else {
 			return decimalVal.signum();
 		}
-	}
-
-	private static ArithmeticException overflowException(String typeName, Object value) {
-		return new ArithmeticException("numeric value out of range, " +
-			"type=" + typeName + ", value=" + value);
 	}
 
 	// convert long to Decimal.
@@ -317,8 +313,17 @@ public final class Decimal implements Comparable<Decimal> {
 		return fromBigDecimal(bd, precision, scale);
 	}
 
-	public static Decimal divideToIntegralValue(Decimal v1, Decimal v2, int precision, int scale) {
-		BigDecimal bd = v1.toBigDecimal().divideToIntegralValue(v2.toBigDecimal());
+	/**
+	 * Returns a {@code Decimal} whose value is the integer part
+	 * of the quotient {@code (this / divisor)} rounded down.
+	 *
+	 * @param  value value by which this {@code Decimal} is to be divided.
+	 * @param  divisor value by which this {@code Decimal} is to be divided.
+	 * @return The integer part of {@code this / divisor}.
+	 * @throws ArithmeticException if {@code divisor==0}
+	 */
+	public static Decimal divideToIntegralValue(Decimal value, Decimal divisor, int precision, int scale) {
+		BigDecimal bd = value.toBigDecimal().divideToIntegralValue(divisor.toBigDecimal());
 		return fromBigDecimal(bd, precision, scale);
 	}
 
@@ -326,41 +331,12 @@ public final class Decimal implements Comparable<Decimal> {
 	// to cast to integer, rounding-DOWN is performed, and overflow will just return null.
 	// to cast to floats, overflow will not happen, because precision<=38.
 
-	private static long castToIntegral(Decimal dec, int numBits, String typeName) {
+	public static long castToIntegral(Decimal dec) {
 		BigDecimal bd = dec.toBigDecimal();
 		// rounding down. This is consistent with float=>int,
 		// and consistent with SQLServer, Spark.
 		bd = bd.setScale(0, RoundingMode.DOWN);
 		return bd.longValue();
-	}
-
-	private static boolean withinRange(long r, int numBits) {
-		r = r >> numBits;
-		return r == -1L || r == 0L;
-	}
-
-	public static long castToLong(Decimal dec) {
-		return castToIntegral(dec, 63, "LONG");
-	}
-
-	public static int castToInteger(Decimal dec) {
-		return (int) castToIntegral(dec, 31, "INT");
-	}
-
-	public static short castToShort(Decimal dec) {
-		return (short) castToIntegral(dec, 15, "SHORT");
-	}
-
-	public static byte castToByte(Decimal dec) {
-		return (byte) castToIntegral(dec, 7, "BYTE");
-	}
-
-	public static float castToFloat(Decimal dec) {
-		return (float) dec.doubleValue();
-	}
-
-	public static double castToDouble(Decimal dec) {
-		return dec.doubleValue();
 	}
 
 	public static Decimal castToDecimal(Decimal dec, int precision, int scale) {
@@ -395,18 +371,16 @@ public final class Decimal implements Comparable<Decimal> {
 		return fromBigDecimal(BigDecimal.valueOf((val ? 1 : 0)), p, s);
 	}
 
-	/** SQL <code>SIGN</code> operator applied to BigDecimal values. */
-	// preserve precision and scale
+	/**
+	 * SQL <code>SIGN</code> operator applied to BigDecimal values.
+	 * preserve precision and scale.
+	 */
 	public static Decimal sign(Decimal b0) {
 		if (b0.isCompact()) {
 			return new Decimal(b0.precision, b0.scale, b0.signum() * POW10[b0.scale], null);
 		} else {
 			return fromBigDecimal(BigDecimal.valueOf(b0.signum()), b0.precision, b0.scale);
 		}
-	}
-
-	public static int compare(Decimal b1, Decimal b2){
-		return b1.compareTo(b2);
 	}
 
 	public static int compare(Decimal b1, long n2) {
@@ -426,125 +400,9 @@ public final class Decimal implements Comparable<Decimal> {
 		}
 	}
 
-	public static int compare(Decimal b1, double n2) {
-		return Double.compare(b1.doubleValue(), n2);
-	}
-
-	public static int compare(long n1, Decimal b2) {
-		return -compare(b2, n1);
-	}
-
-	public static int compare(double n1, Decimal b2) {
-		return -compare(b2, n1);
-	}
-
-	/** Referencing some methods, for code gen. */
-	public static class Ref {
-
-		private static String fullName(String methodName) {
-			return Decimal.class.getCanonicalName() + "." + methodName;
-		}
-
-		// d1+d2 => Decimal.add(d1, d2, p, s)
-		public static String operator(String operator) {
-			return fullName(opToName(operator));
-		}
-
-		private static String opToName(String op) {
-			switch (op) {
-				case "+": return "add";
-				case "-": return "subtract";
-				case "*": return "multiply";
-				case "/": return "divide";
-				case "%": return "mod";
-				case "DIV": return "divideToIntegralValue";
-				default: throw new RuntimeException(
-					"Unsupported decimal arithmetic operator: " + op);
-			}
-		}
-
-		public static String castTo(Class<?> type) {
-			// e.g. castToInteger
-			return fullName("castTo" + type.getSimpleName());
-		}
-
-		public static String castTo(InternalType type) {
-			String name = null;
-			if (type.equals(InternalTypes.INT)) {
-				name = "Integer";
-			} else if (type.equals(InternalTypes.LONG)) {
-				name = "Long";
-			} else if (type.equals(InternalTypes.SHORT)) {
-				name = "Short";
-			} else if (type.equals(InternalTypes.BYTE)) {
-				name = "Byte";
-			} else if (type.equals(InternalTypes.FLOAT)) {
-				name = "Float";
-			} else if (type.equals(InternalTypes.DOUBLE)) {
-				name = "Double";
-			} else if (type instanceof DecimalType) {
-				name = "Decimal";
-			} else if (type.equals(InternalTypes.BOOLEAN)) {
-				name = "Boolean";
-			} else if (type.equals(InternalTypes.TIMESTAMP)) {
-				name = "Timestamp";
-			}
-			return fullName("castTo" + name);
-		}
-
-		// public static Decimal castFrom(T value, int p, int s)
-		public static String castFrom() {
-			return fullName("castFrom");
-		}
-
-		public static String compare() {
-			return fullName("compare");
-		}
-	}
-
-	//https://docs.microsoft.com/en-us/sql/t-sql/data-types/precision-scale-and-length-transact-sql
-	public static DecimalType inferDivisionType(int p1, int s1, int p2, int s2) {
-		// note: magic numbers are used directly here, because it's not really a general algorithm.
-		int s = Math.max(6, s1 + p2 + 1);
-		int p = p1 - s1 + s2 + s;
-		if (p > 38) {
-			s = Math.max(6, 38 - (p - s));
-			p = 38;
-		}
-		return new DecimalType(p, s);
-	}
-
-	// see DivCallGen
-	public static DecimalType inferIntDivType(int p1, int s1, int p2, int s2) {
-		int p = Math.min(38, p1 - s1 + s2);
-		return new DecimalType(p, 0);
-	}
-
-	// https://docs.microsoft.com/en-us/sql/t-sql/functions/sum-transact-sql
-	public static DecimalType inferAggSumType(int p, int s) {
-		return new DecimalType(38, s);
-	}
-
-	// https://docs.microsoft.com/en-us/sql/t-sql/functions/avg-transact-sql
-	// however, we count by LONG, therefore divide by Decimal(20,0),
-	// but the end result is actually the same, which is Decimal(38, max(6,s))
-	public static DecimalType inferAggAvgType(int p, int s) {
-		return inferDivisionType(38, s, 20, 0);
-	}
-
-	// return type of Round( DECIMAL(p,s), r )
-	public static DecimalType inferRoundType(int p, int s, int r) {
-		if (r >= s) {
-			return new DecimalType(p, s);
-		} else if (r < 0) {
-			return new DecimalType(Math.min(38, 1 + p - s), 0);
-		} else { // 0 <= r < s
-			return new DecimalType(1 + p - s + r, r);
-		}
-		// NOTE: rounding may increase the digits by 1, therefore we need +1 on precisions.
-	}
-
-	/** SQL <code>ROUND</code> operator applied to BigDecimal values. */
+	/**
+	 * SQL <code>ROUND</code> operator applied to BigDecimal values.
+	 */
 	public static Decimal sround(Decimal b0, int r) {
 		if (r >= b0.scale) {
 			return b0;

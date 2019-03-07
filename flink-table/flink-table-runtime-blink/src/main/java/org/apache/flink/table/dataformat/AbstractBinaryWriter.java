@@ -63,6 +63,8 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 	 */
 	protected abstract void afterGrow();
 
+	protected abstract void setNullBit(int ordinal);
+
 	/**
 	 * See {@link BinaryString#readBinaryStringFieldFromSegments}.
 	 */
@@ -137,6 +139,41 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 			writeSegmentsToVarLenPart(pos, row.getSegments(), row.getOffset(), row.getSizeInBytes());
 		} else {
 			writeRow(pos, serializer.baseRowToBinary(input), serializer);
+		}
+	}
+
+	@Override
+	public void writeDecimal(int pos, Decimal value, int precision) {
+		assert value == null || (value.getPrecision() == precision);
+
+		if (Decimal.isCompact(precision)) {
+			assert value != null;
+			writeLong(pos, value.toUnscaledLong());
+		} else {
+			// grow the global buffer before writing data.
+			ensureCapacity(16);
+
+			// zero-out the bytes
+			segment.putLong(cursor, 0L);
+			segment.putLong(cursor + 8, 0L);
+
+			// Make sure Decimal object has the same scale as DecimalType.
+			// Note that we may pass in null Decimal object to set null for it.
+			if (value == null) {
+				setNullBit(pos);
+				// keep the offset for future update
+				setOffsetAndSize(pos, cursor, 0);
+			} else {
+				final byte[] bytes = value.toUnscaledBytes();
+				assert bytes.length <= 16;
+
+				// Write the bytes to the variable length portion.
+				segment.put(cursor, bytes, 0, bytes.length);
+				setOffsetAndSize(pos, cursor, bytes.length);
+			}
+
+			// move the cursor forward.
+			cursor += 16;
 		}
 	}
 

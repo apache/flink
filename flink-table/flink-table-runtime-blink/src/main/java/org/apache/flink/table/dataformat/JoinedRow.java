@@ -145,7 +145,7 @@ public final class JoinedRow implements BaseRow {
 	}
 
 	@Override
-	public BinaryGeneric getGeneric(int i) {
+	public <T> BinaryGeneric<T> getGeneric(int i) {
 		if (i < row1.getArity()) {
 			return row1.getGeneric(i);
 		} else {

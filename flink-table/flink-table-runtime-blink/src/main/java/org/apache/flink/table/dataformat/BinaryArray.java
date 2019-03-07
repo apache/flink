@@ -192,7 +192,7 @@ public class BinaryArray extends LazyBinaryFormat implements TypeGetterSetters {
 	}
 
 	@Override
-	public BinaryGeneric getGeneric(int pos) {
+	public <T> BinaryGeneric<T> getGeneric(int pos) {
 		assertIndexIsValid(pos);
 		int fieldOffset = getElementOffset(pos, 8);
 		final long offsetAndSize = SegmentsUtil.getLong(segments, fieldOffset);

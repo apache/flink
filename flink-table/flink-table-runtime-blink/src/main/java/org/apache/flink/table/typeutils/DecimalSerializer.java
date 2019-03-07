@@ -20,6 +20,7 @@ package org.apache.flink.table.typeutils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -100,10 +101,13 @@ public final class DecimalSerializer extends TypeSerializer<Decimal> {
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		int length = source.readInt();
-		byte[] bytes = new byte[length];
-		source.readFully(bytes);
-		target.write(bytes);
+		if (Decimal.isCompact(precision)) {
+			target.writeLong(source.readLong());
+		} else {
+			int len = source.readInt();
+			target.writeInt(len);
+			target.write(source, len);
+		}
 	}
 
 	@Override
@@ -134,7 +138,64 @@ public final class DecimalSerializer extends TypeSerializer<Decimal> {
 
 	@Override
 	public TypeSerializerSnapshot<Decimal> snapshotConfiguration() {
-		// TODO
-		throw new RuntimeException("TODO");
+		return new DecimalSerializerSnapshot(precision, scale);
+	}
+
+	/**
+	 * {@link TypeSerializerSnapshot} for {@link DecimalSerializer}.
+	 */
+	public static final class DecimalSerializerSnapshot implements TypeSerializerSnapshot<Decimal> {
+
+		private static final int CURRENT_VERSION = 3;
+
+		private int previousPrecision;
+		private int previousScale;
+
+		@SuppressWarnings("unused")
+		public DecimalSerializerSnapshot() {
+			// this constructor is used when restoring from a checkpoint/savepoint.
+		}
+
+		DecimalSerializerSnapshot(int precision, int scale) {
+			this.previousPrecision = precision;
+			this.previousScale = scale;
+		}
+
+		@Override
+		public int getCurrentVersion() {
+			return CURRENT_VERSION;
+		}
+
+		@Override
+		public void writeSnapshot(DataOutputView out) throws IOException {
+			out.writeInt(previousPrecision);
+			out.writeInt(previousScale);
+		}
+
+		@Override
+		public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+			this.previousPrecision = in.readInt();
+			this.previousScale = in.readInt();
+		}
+
+		@Override
+		public TypeSerializer<Decimal> restoreSerializer() {
+			return new DecimalSerializer(previousPrecision, previousScale);
+		}
+
+		@Override
+		public TypeSerializerSchemaCompatibility<Decimal> resolveSchemaCompatibility(TypeSerializer<Decimal> newSerializer) {
+			if (!(newSerializer instanceof DecimalSerializer)) {
+				return TypeSerializerSchemaCompatibility.incompatible();
+			}
+
+			DecimalSerializer newDecimalSerializer = (DecimalSerializer) newSerializer;
+			if (previousPrecision != newDecimalSerializer.precision ||
+					previousScale != newDecimalSerializer.scale) {
+				return TypeSerializerSchemaCompatibility.incompatible();
+			} else {
+				return TypeSerializerSchemaCompatibility.compatibleAsIs();
+			}
+		}
 	}
 }

@@ -75,5 +75,4 @@ public abstract class BinaryFormat {
 	public int hashCode() {
 		return SegmentsUtil.hash(segments, offset, sizeInBytes);
 	}
-
 }

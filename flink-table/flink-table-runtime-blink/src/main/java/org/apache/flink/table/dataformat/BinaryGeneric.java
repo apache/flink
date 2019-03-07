@@ -80,10 +80,10 @@ public class BinaryGeneric<T> extends LazyBinaryFormat<T> {
 		return new BinaryGeneric<>(new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, sizeInBytes);
 	}
 
-	static BinaryGeneric readBinaryGenericFieldFromSegments(
+	static <T> BinaryGeneric<T> readBinaryGenericFieldFromSegments(
 			MemorySegment[] segments, int baseOffset, long offsetAndSize) {
 		final int size = ((int) offsetAndSize);
 		int offset = (int) (offsetAndSize >> 32);
-		return new BinaryGeneric(segments, offset + baseOffset, size);
+		return new BinaryGeneric<>(segments, offset + baseOffset, size);
 	}
 }
