@@ -99,8 +99,6 @@ case class Alias(child: PlannerExpression, name: String, extraNames: Seq[String]
   override private[flink] def validateInput(): ValidationResult = {
     if (name == "*") {
       ValidationFailure("Alias can not accept '*' as name.")
-    } else if (extraNames.nonEmpty) {
-      ValidationFailure("Invalid call to Alias with multiple names.")
     } else {
       ValidationSuccess
     }

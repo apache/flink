@@ -43,34 +43,14 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 case class Project(
-    projectList: Seq[NamedExpression],
+    projectList: Seq[PlannerExpression],
     child: LogicalNode,
     explicitAlias: Boolean = false)
   extends UnaryNode {
 
-  override def output: Seq[Attribute] = projectList.map(_.toAttribute)
-
-  override def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
-    val afterResolve = super.resolveExpressions(tableEnv).asInstanceOf[Project]
-    val newProjectList =
-      afterResolve.projectList.zipWithIndex.map { case (e, i) =>
-        e match {
-          case u @ UnresolvedAlias(c) => c match {
-            case ne: NamedExpression => ne
-            case expr if !expr.valid => u
-            case c @ Cast(ne: NamedExpression, tp) => Alias(c, s"${ne.name}-$tp")
-            case gcf: GetCompositeField => Alias(gcf, gcf.aliasName().getOrElse(s"_c$i"))
-            case other => Alias(other, s"_c$i")
-          }
-          case _ =>
-            throw new RuntimeException("This should never be called and probably points to a bug.")
-        }
-    }
-    Project(newProjectList, child, explicitAlias)
-  }
+  override def output: Seq[Attribute] = projectList.map(_.asInstanceOf[NamedExpression].toAttribute)
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    val resolvedProject = super.validate(tableEnv).asInstanceOf[Project]
     val names: mutable.Set[String] = mutable.Set()
 
     def checkName(name: String): Unit = {
@@ -81,7 +61,7 @@ case class Project(
       }
     }
 
-    resolvedProject.projectList.foreach {
+    projectList.foreach {
       case n: Alias =>
         // explicit name
         checkName(n.name)
@@ -90,12 +70,13 @@ case class Project(
         checkName(r.name)
       case _ => // Do nothing
     }
-    resolvedProject
+    this
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
 
+    val projectNames = projectList.map(_.asInstanceOf[NamedExpression].name).asJava
     val exprs = if (explicitAlias) {
       projectList
     } else {
@@ -108,7 +89,7 @@ case class Project(
 
     relBuilder.project(
       exprs.map(_.toRexNode(relBuilder)).asJava,
-      projectList.map(_.name).asJava,
+      projectNames,
       true)
   }
 }
@@ -120,7 +101,7 @@ case class AliasNode(aliasList: Seq[PlannerExpression], child: LogicalNode) exte
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder =
     throw UnresolvedException("Invalid call to toRelNode on AliasNode")
 
-  override def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
+  override def validate(tableEnv: TableEnvironment): LogicalNode = {
     if (aliasList.length > child.output.length) {
       failValidation("Aliasing more fields than we actually have")
     } else if (!aliasList.forall(_.isInstanceOf[UnresolvedFieldReference])) {
@@ -148,7 +129,7 @@ case class Distinct(child: LogicalNode) extends UnaryNode {
   }
 }
 
-case class Sort(order: Seq[Ordering], child: LogicalNode) extends UnaryNode {
+case class Sort(order: Seq[PlannerExpression], child: LogicalNode) extends UnaryNode {
   override def output: Seq[Attribute] = child.output
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
@@ -160,7 +141,7 @@ case class Sort(order: Seq[Ordering], child: LogicalNode) extends UnaryNode {
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
       failValidation(s"Sort on stream tables is currently not supported.")
     }
-    super.validate(tableEnv)
+    this
   }
 }
 
@@ -195,18 +176,17 @@ case class Filter(condition: PlannerExpression, child: LogicalNode) extends Unar
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    val resolvedFilter = super.validate(tableEnv).asInstanceOf[Filter]
-    if (resolvedFilter.condition.resultType != BOOLEAN_TYPE_INFO) {
+    if (condition.resultType != BOOLEAN_TYPE_INFO) {
       failValidation(s"Filter operator requires a boolean expression as input," +
-        s" but ${resolvedFilter.condition} is of type ${resolvedFilter.condition.resultType}")
+        s" but $condition is of type ${condition.resultType}")
     }
-    resolvedFilter
+    this
   }
 }
 
 case class Aggregate(
     groupingExpressions: Seq[PlannerExpression],
-    aggregateExpressions: Seq[NamedExpression],
+    aggregateExpressions: Seq[PlannerExpression],
     child: LogicalNode) extends UnaryNode {
 
   override def output: Seq[Attribute] = {
@@ -228,9 +208,8 @@ case class Aggregate(
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     implicit val relBuilder: RelBuilder = tableEnv.getRelBuilder
-    val resolvedAggregate = super.validate(tableEnv).asInstanceOf[Aggregate]
-    val groupingExprs = resolvedAggregate.groupingExpressions
-    val aggregateExprs = resolvedAggregate.aggregateExpressions
+    val groupingExprs = groupingExpressions
+    val aggregateExprs = aggregateExpressions
     aggregateExprs.foreach(validateAggregateExpression)
     groupingExprs.foreach(validateGroupingExpression)
 
@@ -273,7 +252,7 @@ case class Aggregate(
             "because it's not a valid key type which must be hashable and comparable")
       }
     }
-    resolvedAggregate
+    this
   }
 }
 
@@ -416,8 +395,7 @@ case class Join(
     }
   }
 
-  override def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
-    val node = super.resolveExpressions(tableEnv).asInstanceOf[Join]
+  def resolveCondition(): Option[PlannerExpression] = {
     val partialFunction: PartialFunction[PlannerExpression, PlannerExpression] = {
       case field: ResolvedFieldReference => JoinFieldReference(
         field.name,
@@ -425,8 +403,7 @@ case class Join(
         left,
         right)
     }
-    val resolvedCondition = node.condition.map(_.postOrderTransform(partialFunction))
-    Join(node.left, node.right, node.joinType, resolvedCondition, correlated)
+    condition.map(_.postOrderTransform(partialFunction))
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
@@ -455,16 +432,16 @@ case class Join(
     left.output.map(_.name).toSet.intersect(right.output.map(_.name).toSet)
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    val resolvedJoin = super.validate(tableEnv).asInstanceOf[Join]
-    if (!resolvedJoin.condition.forall(_.resultType == BOOLEAN_TYPE_INFO)) {
+    if (!condition.forall(_.resultType == BOOLEAN_TYPE_INFO)) {
       failValidation(s"Filter operator requires a boolean expression as input, " +
-        s"but ${resolvedJoin.condition} is of type ${resolvedJoin.joinType}")
+        s"but $condition is of type $joinType")
     } else if (ambiguousName.nonEmpty) {
       failValidation(s"join relations with ambiguous names: ${ambiguousName.mkString(", ")}")
     }
 
-    resolvedJoin.condition.foreach(testJoinCondition)
-    resolvedJoin
+    val resolvedCondition = resolveCondition()
+    resolvedCondition.foreach(testJoinCondition)
+    Join(left, right, joinType, resolvedCondition, correlated)
   }
 
   private def testJoinCondition(expression: PlannerExpression): Unit = {
@@ -555,8 +532,8 @@ case class LogicalRelNode(
 case class WindowAggregate(
     groupingExpressions: Seq[PlannerExpression],
     window: LogicalWindow,
-    propertyExpressions: Seq[NamedExpression],
-    aggregateExpressions: Seq[NamedExpression],
+    propertyExpressions: Seq[PlannerExpression],
+    aggregateExpressions: Seq[PlannerExpression],
     child: LogicalNode)
   extends UnaryNode {
 
@@ -564,43 +541,6 @@ case class WindowAggregate(
     (groupingExpressions ++ aggregateExpressions ++ propertyExpressions) map {
       case ne: NamedExpression => ne.toAttribute
       case e => Alias(e, e.toString).toAttribute
-    }
-  }
-
-  // resolve references of this operator's parameters
-  override def resolveReference(
-      tableEnv: TableEnvironment,
-      name: String)
-    : Option[NamedExpression] = {
-
-    def resolveAlias(alias: String) = {
-      // check if reference can already be resolved by input fields
-      val found = super.resolveReference(tableEnv, name)
-      if (found.isDefined) {
-        failValidation(s"Reference $name is ambiguous.")
-      } else {
-        // resolve type of window reference
-        val resolvedType = window.timeAttribute match {
-          case UnresolvedFieldReference(n) =>
-            super.resolveReference(tableEnv, n) match {
-              case Some(ResolvedFieldReference(_, tpe)) => Some(tpe)
-              case _ => None
-            }
-          case _ => None
-        }
-        // let validation phase throw an error if type could not be resolved
-        Some(WindowReference(name, resolvedType))
-      }
-    }
-
-    window.aliasAttribute match {
-      // resolve reference to this window's name
-      case UnresolvedFieldReference(alias) if name == alias =>
-        resolveAlias(alias)
-
-      case _ =>
-        // resolve references as usual
-        super.resolveReference(tableEnv, name)
     }
   }
 
@@ -622,9 +562,8 @@ case class WindowAggregate(
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     implicit val relBuilder: RelBuilder = tableEnv.getRelBuilder
-    val resolvedWindowAggregate = super.validate(tableEnv).asInstanceOf[WindowAggregate]
-    val groupingExprs = resolvedWindowAggregate.groupingExpressions
-    val aggregateExprs = resolvedWindowAggregate.aggregateExpressions
+    val groupingExprs = groupingExpressions
+    val aggregateExprs = aggregateExpressions
     aggregateExprs.foreach(validateAggregateExpression)
     groupingExprs.foreach(validateGroupingExpression)
 
@@ -636,7 +575,7 @@ case class WindowAggregate(
       case aggExpr: DistinctAgg =>
         validateAggregateExpression(aggExpr.child)
       // check no nested aggregation exists.
-      case aggExpr: Aggregation =>
+      case aggExpr: Aggregation =>PlannerExpressionConverter
         aggExpr.children.foreach { child =>
           child.preOrderVisit {
             case agg: Aggregation =>
@@ -663,7 +602,7 @@ case class WindowAggregate(
     }
 
     // validate window
-    resolvedWindowAggregate.window.validate(tableEnv) match {
+    window.validate(tableEnv) match {
       case ValidationFailure(msg) =>
         failValidation(s"$window is invalid: $msg")
       case ValidationSuccess => // ok
@@ -671,7 +610,7 @@ case class WindowAggregate(
 
     // validate property
     if (propertyExpressions.nonEmpty) {
-      resolvedWindowAggregate.window match {
+      window match {
         case TumblingGroupWindow(_, _, size) if isRowCountLiteral(size) =>
           failValidation("Window start and Window end cannot be selected " +
                            "for a row-count Tumbling window.")
@@ -684,21 +623,7 @@ case class WindowAggregate(
       }
     }
 
-    resolvedWindowAggregate
-  }
-}
-
-case class TemporalTable(
-    timeAttribute: PlannerExpression,
-    primaryKey: PlannerExpression,
-    child: LogicalNode)
-  extends UnaryNode {
-
-  override def output: Seq[Attribute] = child.output
-
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    throw new UnsupportedOperationException(
-      "This should never be called. This node is supposed to be used only for validation")
+    this
   }
 }
 
@@ -736,13 +661,12 @@ case class LogicalTableFunctionCall(
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    val node = super.validate(tableEnv).asInstanceOf[LogicalTableFunctionCall]
     // check if not Scala object
     checkNotSingleton(tableFunction.getClass)
     // check if class could be instantiated
     checkForInstantiation(tableFunction.getClass)
     // look for a signature that matches the input types
-    val signature = node.parameters.map(_.resultType)
+    val signature = parameters.map(_.resultType)
     val foundMethod = getUserDefinedMethod(tableFunction, "eval", typeInfoToClass(signature))
     if (foundMethod.isEmpty) {
       failValidation(
@@ -750,9 +674,9 @@ case class LogicalTableFunctionCall(
           s"Actual: ${signatureToString(signature)} \n" +
           s"Expected: ${signaturesToString(tableFunction, "eval")}")
     } else {
-      node.evalMethod = foundMethod.get
+      evalMethod = foundMethod.get
     }
-    node
+    this
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {

@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.typeutils.RowIntervalTypeInfo;
@@ -35,6 +36,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.CAST;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.TIMES;
 import static org.apache.flink.table.expressions.BuiltInFunctionDefinitions.WINDOW_PROPERTIES;
@@ -45,6 +47,8 @@ import static org.apache.flink.table.expressions.FunctionDefinition.Type.AGGREGA
  */
 @Internal
 public final class ApiExpressionUtils {
+
+	private static final ExtractNameVisitor extractNameVisitor = new ExtractNameVisitor();
 
 	public static final long MILLIS_PER_SECOND = 1000L;
 
@@ -336,6 +340,45 @@ public final class ApiExpressionUtils {
 		@Override
 		protected List<Expression> defaultMethod(Expression expression) {
 			return Collections.emptyList();
+		}
+	}
+
+	public static List<Optional<String>> extractNames(List<Expression> expressions) {
+		return expressions.stream().map(ApiExpressionUtils::extractName).collect(Collectors.toList());
+	}
+
+	public static Optional<String> extractName(Expression expression) {
+		return expression.accept(extractNameVisitor);
+	}
+
+	private static class ExtractNameVisitor extends ApiExpressionDefaultVisitor<Optional<String>> {
+		@Override
+		public Optional<String> visitCall(CallExpression call) {
+			if (call.getFunctionDefinition().equals(AS)) {
+				return extractValue(call.getChildren().get(1), Types.STRING);
+			} else {
+				return Optional.empty();
+			}
+		}
+
+		@Override
+		public Optional<String> visitLocalReference(LocalReferenceExpression localReference) {
+			return Optional.of(localReference.getName());
+		}
+
+		@Override
+		public Optional<String> visitTableReference(TableReferenceExpression tableReference) {
+			return Optional.of(tableReference.getName());
+		}
+
+		@Override
+		public Optional<String> visitFieldReference(FieldReferenceExpression fieldReference) {
+			return Optional.of(fieldReference.getName());
+		}
+
+		@Override
+		protected Optional<String> defaultMethod(Expression expression) {
+			return Optional.empty();
 		}
 	}
 }

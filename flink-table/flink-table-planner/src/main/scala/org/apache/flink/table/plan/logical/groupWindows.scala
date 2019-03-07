@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.plan.logical
 
+import java.util.Optional
+import java.util.{List => JList}
+
 import org.apache.flink.table.api.{BatchTableEnvironment, StreamTableEnvironment, TableEnvironment}
 import org.apache.flink.table.expressions.PlannerExpressionUtils.{isRowCountLiteral, isRowtimeAttribute, isTimeAttribute, isTimeIntervalLiteral}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.typeutils.TypeCheckUtils.{isTimePoint, isLong}
+import org.apache.flink.table.typeutils.TypeCheckUtils.{isLong, isTimePoint}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 // ------------------------------------------------------------------------------------------------
@@ -29,11 +32,11 @@ import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, Val
 // ------------------------------------------------------------------------------------------------
 
 case class LogicalOverWindow(
-    alias: PlannerExpression,
-    partitionBy: Seq[PlannerExpression],
-    orderBy: PlannerExpression,
-    preceding: PlannerExpression,
-    following: Option[PlannerExpression])
+    alias: Expression,
+    partitionBy: JList[Expression],
+    orderBy: Expression,
+    preceding: Expression,
+    following: Optional[Expression])
 
 // ------------------------------------------------------------------------------------------------
 // Tumbling group windows
