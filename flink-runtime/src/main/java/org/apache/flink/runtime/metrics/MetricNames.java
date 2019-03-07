@@ -57,4 +57,8 @@ public class MetricNames {
 	public static final String TASK_SLOTS_AVAILABLE = "taskSlotsAvailable";
 	public static final String TASK_SLOTS_TOTAL = "taskSlotsTotal";
 	public static final String NUM_REGISTERED_TASK_MANAGERS = "numRegisteredTaskManagers";
+
+	public static final String MEMORY_USED = "Used";
+	public static final String MEMORY_COMMITTED = "Committed";
+	public static final String MEMORY_MAX = "Max";
 }
